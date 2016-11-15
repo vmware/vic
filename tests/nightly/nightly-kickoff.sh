@@ -58,8 +58,7 @@ count=0
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i"
-    $test_var="pybot -d $i tests/manual-test-cases/Group5-Functional-Tests/$i.robot"
-    drone exec --trusted -e test=$test_var -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot -d $i tests/manual-test-cases/Group5-Functional-Tests/$i.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then
@@ -76,10 +75,13 @@ for i in $nightly_list_var; do
     echo $count
 done
 
-for i in $nightlystatus; do
+for i in "${nightlystatus[@]}" 
+do
+    echo $i
     if [ $i = "Passed" ]
     then
     buildStatus=0
+    echo "Test Passed!"
     else
     buildStatus=1
     echo "Test failed, setting global test status to Failed!"

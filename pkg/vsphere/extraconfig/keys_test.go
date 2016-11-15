@@ -124,3 +124,124 @@ func TestSecret(t *testing.T) {
 
 	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c@secret", key, "Key should have secret suffix")
 }
+
+func TestCalculateKeys(t *testing.T) {
+	type AStruct struct {
+		I int
+	}
+	type Type struct {
+		ExecutorConfig ExecutorConfig `vic:"0.1" scope:"hidden" key:"executorconfig"`
+		Array          []AStruct      `vic:"0.1" scope:"read-write" key:"array"`
+		Ptr            *AStruct       `vic:"0.1" scope:"read-only" key:"ptr"`
+		Str            string         `vic:"0.1" scope:"read-only" key:"str"`
+		Bytes          []uint8        `vic:"0.1" scope:"read-write" key:"bytes"`
+	}
+
+	ec := Type{
+		ExecutorConfig: ExecutorConfig{
+			Sessions: map[string]SessionConfig{
+				"Session1": {
+					Common: Common{
+						ID:   "SessionID",
+						Name: "SessionName",
+					},
+					Tty: true,
+					Cmd: Cmd{
+						Path: "/vmware",
+						Args: []string{"/bin/imagec", "-standalone"},
+						Env:  []string{"PATH=/bin", "USER=imagec"},
+						Dir:  "/",
+					},
+				},
+			},
+		},
+		Array: []AStruct{
+			{I: 0},
+		},
+		Ptr: &AStruct{
+			I: 1,
+		},
+		Str:   "foo",
+		Bytes: []byte{0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf},
+	}
+
+	var tests = []struct {
+		in  string
+		out []string
+	}{
+		{
+			"ExecutorConfig.*",
+			[]string{
+				visibleRO("executorconfig/common"),
+				hidden("executorconfig/sessions"),
+				"executorconfig/Key",
+			},
+		},
+		{
+			"ExecutorConfig.Sessions.*",
+			[]string{"executorconfig/sessions|Session1"},
+		},
+		{
+			"ExecutorConfig.Sessions.Session1.Cmd.Args",
+			[]string{"executorconfig/sessions|Session1/cmd/args"},
+		},
+		{
+			"ExecutorConfig.Sessions.*.Cmd.Args.*",
+			[]string{"executorconfig/sessions|Session1/cmd/args~"},
+		},
+		{
+			"ExecutorConfig.Sessions.*.Cmd.Args.0",
+			[]string{"executorconfig/sessions|Session1/cmd/args~"},
+		},
+		{
+			"Array.0.I",
+			[]string{visibleRW("array|0/I")},
+		},
+		{
+			"Array.*",
+			[]string{visibleRW("array|0")},
+		},
+		{
+			"Ptr.I",
+			[]string{visibleRO("ptr/I")},
+		},
+		{
+			"Str",
+			[]string{visibleRO("str")},
+		},
+		{
+			"Bytes",
+			[]string{visibleRW("bytes")},
+		},
+		{
+			"Bytes.0",
+			[]string{visibleRW("bytes")},
+		},
+		{
+			"Bytes.*",
+			[]string{visibleRW("bytes")},
+		},
+	}
+
+	for _, te := range tests {
+		keys := CalculateKeys(ec, te.in, "")
+		assert.Equal(t, te.out, keys)
+	}
+
+	panicTests := []string{
+		"Array.1.I",
+		"Array.0.i",
+		"Array.f.i",
+		"ExecutorConfig.foo",
+		"foo",
+		"ExecutorConfig.Sessions.foo",
+		"Str.*",
+		"Str.foo",
+	}
+
+	for _, te := range panicTests {
+		assert.Panics(t, func() {
+			CalculateKeys(ec, te, "")
+		})
+	}
+}

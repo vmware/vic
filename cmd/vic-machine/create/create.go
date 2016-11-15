@@ -183,7 +183,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "client-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the client network, e.g. 10.0.0.1/24",
+			Usage:       "Gateway for the VCH on the client network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1/24",
 			Destination: &c.clientNetworkGateway,
 			Hidden:      true,
 		},
@@ -205,7 +205,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "external-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.1.1/24",
+			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.0.1/24",
 			Destination: &c.externalNetworkGateway,
 			Hidden:      true,
 		},
@@ -227,7 +227,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "management-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the management network, e.g. 10.0.2.1/24",
+			Usage:       "Gateway for the VCH on the management network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1/24",
 			Destination: &c.managementNetworkGateway,
 			Hidden:      true,
 		},
@@ -243,7 +243,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "dns-server",
 			Value:  &c.dns,
-			Usage:  "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when not using DHCP",
+			Usage:  "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
 			Hidden: true,
 		},
 
@@ -649,6 +649,40 @@ func (c *Create) processContainerNetworks() error {
 	return nil
 }
 
+func parseGatewaySpec(gw string) (cidrs []net.IPNet, gwIP net.IPNet, err error) {
+	ss := strings.Split(gw, ":")
+	if len(ss) > 2 {
+		err = fmt.Errorf("gateway %s specified incorrectly", gw)
+		return
+	}
+
+	gwStr := ss[0]
+	cidrsStr := ""
+	if len(ss) > 1 {
+		gwStr = ss[1]
+		cidrsStr = ss[0]
+	}
+
+	gwIP, err = ip.ParseIPandMask(gwStr)
+	if err != nil {
+		return
+	}
+
+	if cidrsStr != "" {
+		for _, c := range strings.Split(cidrsStr, ",") {
+			var ipnet *net.IPNet
+			_, ipnet, err = net.ParseCIDR(c)
+			if err != nil {
+				err = fmt.Errorf("invalid CIDR in gateway specification: %s", err)
+				return
+			}
+			cidrs = append(cidrs, *ipnet)
+		}
+	}
+
+	return
+}
+
 // processNetwork parses network args if present
 func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
 	network.Name = pgName
@@ -670,7 +704,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		}
 	}(network)
 
-	network.Gateway, err = ip.ParseIPandMask(gateway)
+	network.Destinations, network.Gateway, err = parseGatewaySpec(gateway)
 	if err != nil {
 		return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
 	}
@@ -709,10 +743,6 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 
 // processDNSServers parses DNS servers used for client, external, mgmt networks
 func (c *Create) processDNSServers() error {
-	if len(c.dns) == 0 {
-		return nil
-	}
-
 	for _, d := range c.dns {
 		s := net.ParseIP(d)
 		if s == nil {
@@ -722,12 +752,9 @@ func (c *Create) processDNSServers() error {
 	}
 
 	if len(c.Data.DNS) > 3 {
-		log.Warn("Maximum of 3 DNS servers. Additional servers specified will be ignored.")
+		log.Warn("Maximum of 3 DNS servers allowed. Additional servers specified will be ignored.")
 	}
 
-	if c.Data.ClientNetwork.Empty() && c.Data.ExternalNetwork.Empty() && c.Data.ManagementNetwork.Empty() {
-		log.Warn("Specified DNS servers are ignored if static IP is not set on any networks. VCH will use DNS servers provided by DHCP.")
-	}
 	log.Debugf("VCH DNS servers: %s", c.Data.DNS)
 	return nil
 }
@@ -945,6 +972,8 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	if err = c.processParams(); err != nil {
 		return err
 	}
+
+	log.Infof("Supplied install parameters: --compute-resource %s --image-store %s --volumes %s --bridge-network %s --client-network %s --external-network %s --http-proxy %s --https-proxy %s", c.Data.Compute, c.Data.ImageDatastorePath, c.Data.VolumeLocations, c.Data.BridgeNetworkName, c.Data.ClientNetwork, c.Data.ExternalNetwork, c.Data.HTTPSProxy, c.Data.HTTPProxy)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {

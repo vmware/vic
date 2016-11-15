@@ -9,21 +9,22 @@ ${yml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7
 
 *** Test Cases ***
 Compose basic
-    ${status}=  Get State Of Github Issue  2954
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 3-03-Docker-Compose-Basic.robot needs to be updated now that Issue #2954 has been resolved
-    Log  Issue \#2954 is blocking implementation  WARN
-    # Run  echo '${yml}' > basic-compose.yml
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create vic_default
-    # Log  ${output}
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml create
-    # Log  ${output}
-    # Should Be Equal As Integers  ${rc}  0
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml start
-    # Log  ${output}
-    # Should Be Equal As Integers  ${rc}  0
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml logs
-    # Log  ${output}
-    # Should Be Equal As Integers  ${rc}  0
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml stop
-    # Log  ${output}
-    # Should Be Equal As Integers  ${rc}  0
+    Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
+    # must set CURL_CA_BUNDLE to work around Compose bug https://github.com/docker/compose/issues/3365
+    Set Environment Variable  CURL_CA_BUNDLE  ${EMPTY}
+
+    Run  echo '${yml}' > basic-compose.yml
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create vic_default
+    Log  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml create
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml start
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml logs
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml stop
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
