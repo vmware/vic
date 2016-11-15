@@ -108,7 +108,7 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHos
 	log.Infof("Removing Resource Pool %q", conf.Name)
 
 	if d.parentResourcepool == nil {
-		log.Warnf("Do not find parent VCH resource pool")
+		log.Warnf("Did not find parent VCH resource pool")
 		return nil
 	}
 	var vms []*vm.VirtualMachine
