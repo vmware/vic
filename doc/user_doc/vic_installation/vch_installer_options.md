@@ -285,12 +285,6 @@ By default, `vic-machine create` obtains IP addresses for virtual container host
 
 If your network access is controlled by a proxy server, see [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy) in Advanced Options. 
 
-When you specify different network interfaces for the different types of traffic, `vic-machine create` checks that the firewalls on the ESXi hosts allow connections to port 2377 from those networks. If access to port 2377 on one or more ESXi hosts is subject to IP address restrictions, and if those restrictions block access to the network interfaces that you specify, `vic-machine create` fails with a firewall configuration error:
-<pre>Firewall configuration incorrect due to allowed IP restrictions on hosts: 
-"/ha-datacenter/host/localhost.localdomain/localhost.localdomain" 
-Firewall must permit dst 2377/tcp outbound to the VCH management interface
-</pre>
-
 <a name="bridge"></a>
 ### `--bridge-network` ###
 
@@ -356,6 +350,14 @@ Wrap the network name in single quotes (') on Mac OS and Linux and in double quo
 Short name: `--mn`
 
 The network that the virtual container host uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the virtual container host. 
+
+When you create a virtual container host, `vic-machine create` checks that the firewall on ESXi hosts allows connections to port 2377 from the management network of the virtual container host. If access to port 2377 on ESXi hosts is subject to IP address restrictions, and if those restrictions block access to the management network interface, `vic-machine create` fails with a firewall configuration error:
+<pre>Firewall configuration incorrect due to allowed IP restrictions on hosts: 
+"/ha-datacenter/host/localhost.localdomain/localhost.localdomain" 
+Firewall must permit dst 2377/tcp outbound to the VCH management interface
+</pre>
+
+**NOTE**: If the management network uses DHCP, `vic-machine` checks the firewall status of the management network before the virtual container host receives an IP address. It is therefore not possible to fully assess whether the firewall permits the IP address of the virtual container host. 
 
 If not specified, the virtual container host uses the public network for management traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
