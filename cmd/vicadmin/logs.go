@@ -157,6 +157,7 @@ func configureReaders() map[string]entryReader {
 		"disk-by-path":  commandReader("ls -l /dev/disk/by-path"),
 		"disk-by-label": commandReader("ls -l /dev/disk/by-label"),
 		"disk-by-uuid":  commandReader("ls -l /dev/disk/by-uuid"),
+		"lsblk":         commandReader("lsblk -S"),
 		// To check we are not leaking any fds
 		"proc-self-fd": commandReader("ls -l /proc/self/fd"),
 		"ps":           commandReader("ps -ef"),

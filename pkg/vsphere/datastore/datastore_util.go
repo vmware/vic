@@ -40,8 +40,17 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 		Keepalive: time.Duration(5) * time.Minute,
 	}
 
-	s, err := session.NewSession(config).Create(ctx)
+	s := session.NewSession(config)
+	_, err := s.Connect(ctx)
 	if err != nil {
+		s.Client.Logout(ctx)
+		t.Log(err.Error())
+		t.SkipNow()
+	}
+
+	_, err = s.Populate(ctx)
+	if err != nil {
+		t.Log(err.Error())
 		t.SkipNow()
 	}
 
