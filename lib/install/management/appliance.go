@@ -864,7 +864,9 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	if ctxerr == context.DeadlineExceeded {
-		log.Info("Failed to retrieve IP for client interface")
+		log.Info("")
+		log.Error("Failed to obtain IP address for client interface")
+		log.Info("Use vic-machine inspect to see if VCH has received an IP address at a later time")
 		log.Info("  State of all interfaces:")
 
 		// if we timed out, then report status - if cancelled this doesn't need reporting
@@ -888,8 +890,8 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 			log.Infof("    %q: %q", name, status)
 		}
 
-		return errors.New("timed out waiting for IP address information from appliance")
+		return errors.New("Failed to obtain IP address for client interface (timed out)")
 	}
 
-	return fmt.Errorf("could not obtain IP address information from appliance: %s", updateErr)
+	return fmt.Errorf("Failed to get IP address information from appliance: %s", updateErr)
 }
