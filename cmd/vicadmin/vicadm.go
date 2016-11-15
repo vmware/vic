@@ -66,8 +66,8 @@ type vicAdminConfig struct {
 }
 
 var (
-	logFileDir  = "/var/log/vic"
-	logFileList = []string{
+	logFileDir          = "/var/log/vic"
+	logFileListPrefixes = []string{
 		"docker-personality.log",
 		"port-layer.log",
 		"vicadmin.log",
@@ -89,8 +89,6 @@ var (
 	resources vchconfig.Resources
 
 	vchConfig vchconfig.VirtualContainerHostConfigSpec
-
-	defaultReaders map[string]entryReader
 
 	datastore types.ManagedObjectReference
 )
@@ -435,16 +433,7 @@ func (s *server) getSessionFromRequest(r *http.Request) (*session.Session, error
 	if err != nil {
 		return nil, err
 	}
-	return c, err
-}
-
-func client(config *vicAdminConfig) (*session.Session, error) {
-	defer trace.End(trace.Begin(""))
-	sess, err := vSphereSessionGet(&config.Config)
-	if err != nil {
-		return nil, err
-	}
-	return sess, nil
+	return c, nil
 }
 
 type flushWriter struct {

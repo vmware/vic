@@ -60,6 +60,8 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, 
 	if err != nil {
 		if err.Error() == "can't find the hosting vm" {
 			t.Skip("Skipping: test must be run in a VM")
+		} else {
+			t.Log(err.Error())
 		}
 		return nil, nil, "", err
 	}
