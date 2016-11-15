@@ -46,7 +46,7 @@ For more information about network operations, see [Network Port Use Cases](netw
 | **Network** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
 |Network connect|[Connect to a network](https://docs.docker.com/engine/reference/commandline/network_connect/)|Yes|
-|Network create|[Create a network](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network in vSphere Integrated Container for vSphere Administrators. Bridge is also supported.|
+|Network create|[Create a network](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network in [Network Port Use Cases](network_use_cases.md). Bridge is also supported.|
 |Network disconnect|[Disconnect a network](https://docs.docker.com/engine/reference/commandline/network_disconnect/)|No|
 |Network inspect|[Inspect a network](https://docs.docker.com/engine/reference/commandline/network_inspect/)|Yes|
 |Network ls|[List networks/](https://docs.docker.com/engine/reference/commandline/network_ls/)|Yes|
