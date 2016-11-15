@@ -75,10 +75,13 @@ for i in $nightly_list_var; do
     echo $count
 done
 
-for i in $nightlystatus; do
+for i in "${nightlystatus[@]}" 
+do
+    echo $i
     if [ $i = "Passed" ]
     then
     buildStatus=0
+    echo "Test Passed!"
     else
     buildStatus=1
     echo "Test failed, setting global test status to Failed!"
