@@ -292,6 +292,8 @@ func containerTimeCallback(ie events.Event) {
 					sc.StopTime = time.Now().UTC().Unix()
 					log.Debugf("Container(%s) session %s stop time is set to %s", h.ExecConfig.ID, sc.ID, time.Unix(sc.StopTime, 0))
 					update = true
+				} else {
+					log.Debugf("Container(%s) session %s stop time is already set to %s", h.ExecConfig.ID, sc.ID, time.Unix(sc.StopTime, 0))
 				}
 			}
 			if !update {

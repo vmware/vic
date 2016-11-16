@@ -169,9 +169,9 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 	// best effort update of container cache using committed state - this will not reflect the power on below, however
 	// this is primarily for updating ExtraConfig state.
-	if !creation {
-		defer c.RefreshFromHandle(ctx, h)
-	}
+	//	if !creation {
+	//		defer c.RefreshFromHandle(ctx, h)
+	//	}
 
 	if h.TargetState() == StateRunning {
 		if h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
