@@ -232,6 +232,7 @@ Cleanup Dangling vSwitches On Test Server
     \   ${uuid}=  Run  govc host.vswitch.remove ${net}
 
 Gather Logs From Test Server
+    [Tags]  secret
     ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} ${vic-admin}/authentication
     Log  ${out}
     ${out}=  Run  curl -k -b vic-admin-cookies ${vic-admin}/container-logs.zip -o ${SUITE NAME}-${vch-name}-container-logs.zip
