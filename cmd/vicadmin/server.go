@@ -33,6 +33,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/google/uuid"
 	gorillacontext "github.com/gorilla/context"
 
 	"github.com/vmware/govmomi/vim25/soap"
@@ -170,7 +171,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
 			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
-			usersess := s.uss.Add(websession.ID, &rootConfig.Config)
+			usersess := s.uss.Add(key, &rootConfig.Config)
 
 			timeNow, err := usersess.created.MarshalText()
 			if err != nil {
@@ -182,7 +183,8 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			}
 
 			websession.Values[sessionCreationTimeKey] = string(timeNow)
-			websession.Values[sessionKey] = websession.ID
+			websession.Values[sessionKey], err = uuid.New().String()
+
 			remoteAddr := strings.SplitN(r.RemoteAddr, ":", 2)
 			if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
 				log.Errorf("Format of IP address %s (should be IP:PORT) not recognized", r.RemoteAddr)
@@ -306,7 +308,9 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		// save user config locally
-		usersess := s.uss.Add(websession.ID, &userconfig)
+		// generate a unique-enough id for this session
+		key := fmt.Sprintf("%s %s", time.Now().String(), req.RemoteAddr)
+		usersess := s.uss.Add(key, &userconfig)
 
 		timeNow, err := usersess.created.MarshalText()
 		if err != nil {
@@ -316,7 +320,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		websession.Values[sessionCreationTimeKey] = string(timeNow)
-		websession.Values[sessionKey] = websession.ID
+		websession.Values[sessionKey], err = uuid.New().String()
 
 		remoteAddr := strings.SplitN(req.RemoteAddr, ":", 2)
 		if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper

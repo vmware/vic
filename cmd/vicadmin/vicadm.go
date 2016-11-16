@@ -429,7 +429,7 @@ func (s *server) getSessionFromRequest(r *http.Request) (*session.Session, error
 		return nil, err
 	}
 
-	c, err := s.uss.VSphere(sessionData.ID)
+	c, err := s.uss.VSphere(sessionData.Values[sessionKey].(string))
 	if err != nil {
 		return nil, err
 	}
