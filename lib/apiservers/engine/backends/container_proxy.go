@@ -1117,7 +1117,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			inspectJSON.Created = time.Unix(*info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
 		}
 		if len(info.ContainerConfig.Names) > 0 {
-			inspectJSON.Name = "/" + info.ContainerConfig.Names[0]
+			inspectJSON.Name = fmt.Sprintf("/%s", info.ContainerConfig.Names[0])
 		}
 	}
 
