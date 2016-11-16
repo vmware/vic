@@ -992,7 +992,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	defer func() {
 		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
-			err = errors.Errorf("Create timed out: use --timeout to add more time")
+			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
 		}
 	}()
 
@@ -1023,8 +1023,8 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
 	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
-
 		executor.CollectDiagnosticLogs()
+		log.Error(err)
 		return err
 	}
 
