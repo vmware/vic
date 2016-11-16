@@ -114,7 +114,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			registeredVMCallback(sess, ie)
 		})
 		// subscribe callbak to add container stopTime if not set by tether
-		Config.EventManager.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "stopTime", stopTimeCallback)
+		Config.EventManager.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "containerTime", containerTimeCallback)
 		// instantiate the container cache now
 		NewContainerCache()
 
@@ -164,7 +164,6 @@ func eventCallback(ie events.Event) {
 				go func() {
 					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
 					defer cancel()
-
 					err := container.Refresh(ctx)
 					if err != nil {
 						log.Errorf("Event driven container update failed: %s", err.Error())
@@ -183,9 +182,85 @@ func eventCallback(ie events.Event) {
 	return
 }
 
-func stopTimeCallback(ie events.Event) {
+func waitForContainerStarted(container *Container) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+	defer cancel()
+
+	if container.vm == nil {
+		log.Errorf("Container(%s) wait failed for vm is not found", container.ExecConfig.ID)
+		return false
+	}
+	log.Debugf("Waiting for container(%s) started", container.ExecConfig.ID)
+	for _, k := range extraconfig.CalculateKeys(container.ExecConfig, "Sessions.*.Detail.StartTime", "") {
+		var poweredoff bool
+		var detail string
+		waitFunc := func(pc []types.PropertyChange) bool {
+			for _, c := range pc {
+				if c.Op != types.PropertyChangeOpAssign {
+					continue
+				}
+
+				switch v := c.Val.(type) {
+				case types.ArrayOfOptionValue:
+					for _, value := range v.OptionValue {
+						// check the status of the key and return true if it's been set to non-nil
+						if k == value.GetOptionValue().Key {
+							detail = value.GetOptionValue().Value.(string)
+							if detail != "0" {
+								return true
+							}
+							break // continue the outer loop as we may have a powerState change too
+						}
+					}
+				case types.VirtualMachinePowerState:
+					if v != types.VirtualMachinePowerStatePoweredOn {
+						// Give up if the vm has powered off
+						poweredoff = true
+						return true
+					}
+				}
+
+			}
+			return false
+		}
+		log.Debugf("Waiting for container(%s) key %s", container.ExecConfig.ID, k)
+
+		err := container.vm.WaitForExtraConfig(ctx, waitFunc)
+		if poweredoff {
+			log.Errorf("Failed to wait container started for vm is powered off")
+			return false
+		}
+		if err != nil {
+			log.Errorf("Failed to wait container started: %s", err)
+		}
+	}
+	return true
+}
+
+func containerTimeCallback(ie events.Event) {
+	container := Containers.Container(ie.Reference())
+	if container == nil {
+		log.Debugf("Container(%s) is not found", ie.Reference())
+	}
 	switch ie.String() {
-	case events.ContainerPoweredOff:
+	case events.ContainerStarted:
+		// container started event received, still need to wait container startTime set by tether, to sync between portlayer and vmx
+		// we'll do this in a go routine to avoid blocking
+		go func() {
+			if !waitForContainerStarted(container) {
+				return
+			}
+			// we might have timeout to wait container started, so here reset timeout to refresh
+			log.Debugf("Container(%s) started, refresh", container.ExecConfig.ID)
+			ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+			defer cancel()
+			err := container.Refresh(ctx)
+			if err != nil {
+				log.Errorf("Event driven container update failed: %s", err.Error())
+			}
+		}()
+	case events.ContainerPoweredOff,
+		events.ContainerStopped:
 		// update container state if stoptime is not set by tether
 		ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
 		defer cancel()
@@ -200,7 +275,7 @@ func stopTimeCallback(ie events.Event) {
 			defer h.Close()
 
 			if h.vm == nil {
-				log.Errorf("Event update failed for container(%s) for vm is not found", h.ExecConfig.ID)
+				log.Errorf("Container(%s) update failed for vm is not found", h.ExecConfig.ID)
 				return nil
 			}
 
