@@ -675,9 +675,14 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 			func() {
 				log.Debug("Loading CAs for client auth")
-				pool := x509.NewCertPool()
+				pool, err := x509.SystemCertPool()
+				if err != nil {
+					log.Warnf("Unable to load system root certificates - continuing with only the provided CA")
+					pool = x509.NewCertPool()
+				}
+
 				if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
-					log.Debug("Unable to load CAs in config, if any")
+					log.Debug("Unable add CAs from config to validation pool")
 				}
 
 				// tr.TLSClientConfig.ClientCAs = pool
@@ -736,13 +741,16 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 	defer ticker.Stop()
 	for {
 		res, err = client.Do(req)
-		if err == nil && res.StatusCode == http.StatusOK {
-			if isPortLayerRunning(res) {
-				break
+		if err == nil {
+			if res.StatusCode == http.StatusOK {
+				if isPortLayerRunning(res) {
+					log.Debug("Confirmed port layer is operational")
+					break
+				}
 			}
-		}
 
-		if err != nil {
+			log.Debugf("Received HTTP status %d: %s", res.StatusCode, res.Status)
+		} else {
 			// DEBU[2016-10-11T22:22:38Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
 			// DEBU[2016-10-11T22:22:39Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
@@ -781,30 +789,49 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 			uerr, ok := err.(*url.Error)
 			if ok {
-				operr, ok2 := uerr.Err.(*net.OpError)
-				if ok2 {
-					switch root := operr.Err.(type) {
+				switch neterr := uerr.Err.(type) {
+				case *net.OpError:
+					switch root := neterr.Err.(type) {
 					case *os.SyscallError:
 						if root.Err == syscall.Errno(syscall.ECONNREFUSED) {
 							// waiting for API server to start
 							log.Debug("connection refused")
+						} else {
+							log.Debugf("Error was expected to be ECONNREFUSED: %#v", root.Err)
 						}
 					default:
+						errmsg := root.Error()
+
+						if tlsErrExpected {
+							log.Warnf("Expected TLS error without access to client certificate, received error: %s", errmsg)
+							return nil
+						}
+
 						// the TLS package doesn't expose the raw reason codes
 						// but we're actually looking for alertBadCertificate (42)
-						errmsg := root.Error()
 						if errmsg == badTLSCertificate {
 							// TODO: programmatic check for clock skew on host
 							log.Errorf("Connection failed with TLS error \"bad certificate\" - check for clock skew on the host")
-						} else if tlsErrExpected {
-							log.Warnf("Expected TLS error without client certificate, received error: %s", errmsg)
 						} else {
 							log.Errorf("Connection failed with error: %s", root)
 						}
 
 						return root
 					}
+
+				case x509.UnknownAuthorityError:
+					// This will occur if the server certificate was signed by a CA that is not the one used for client authentication
+					// and does not have a trusted root registered on the system running vic-machine
+					// This is a legitimate deployment so no error, but definitely requires a warning.
+					log.Warnf("Unable to verify server certificate with configured CAs: %s", neterr.Error())
+					return nil
+
+				default:
+					log.Debugf("Unhandled net error type: %#v", neterr)
+					return neterr
 				}
+			} else {
+				log.Debugf("Error type was expected to be url.Error: %#v", err)
 			}
 		}
 
