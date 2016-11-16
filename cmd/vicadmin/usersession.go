@@ -83,16 +83,12 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (vSphereSessi
 	if us == nil {
 		return nil, fmt.Errorf("User session with unique ID %s does not exist", id)
 	}
+
 	if us.vsphere != nil {
-		_, err := methods.GetCurrentTime(ctx, us.vsphere.RoundTripper)
-		if err == nil {
-			log.Infof("Successfully found active vsphere session for websession %s", id)
-			return us.vsphere, nil
-		}
-		log.Infof("vSphere session for websession with id %s seems to not be active -- will refresh it", id)
+		log.Infof("Found cached vSphere session for vicadmin usersession %s", id)
+		return us.vsphere, nil
 	}
 
-	// us.vsphere == nil || (us.vsphere != nil and !active):
 	log.Infof("Creating vSphere session for vicadmin usersession %s", id)
 	s, err := vSphereSessionGet(us.config)
 	if err != nil {
