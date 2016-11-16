@@ -435,14 +435,15 @@ func (s *server) getSessionFromRequest(ctx context.Context, r *http.Request) (*s
 	if err != nil {
 		return nil, err
 	}
-	if sessionData.Values[sessionKey] == nil {
+	if d, ok := sessionData.Values[sessionKey]; !ok {
 		return nil, fmt.Errorf("User-provided cookie did not contain a session ID -- it is corrupt or tampered")
+	} else {
+		c, err := s.uss.VSphere(ctx, d.(string))
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
 	}
-	c, err := s.uss.VSphere(ctx, sessionData.Values[sessionKey].(string))
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
 }
 
 type flushWriter struct {
