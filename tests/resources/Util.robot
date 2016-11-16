@@ -124,6 +124,7 @@ Install VIC Appliance To Test Server
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
     Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: ${vch-name}
 
@@ -131,11 +132,9 @@ Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
     ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
-    Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
     ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tlsverify
-    Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
@@ -232,18 +231,12 @@ Cleanup Dangling vSwitches On Test Server
     \   ${uuid}=  Run  govc host.vswitch.remove ${net}
 
 Gather Logs From Test Server
-    Variable Should Exist  ${params}
-    ${params}=  Strip String  ${params}
-    ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
-    # Non-certificate case
-    ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget --tries=3 --connect-timeout=10 ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
-    # Certificate case
-    ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
-    ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
-    ${wget_args}=  Set Variable If  '${docker_certpath}'==''  ${EMPTY}  --private-key=%{DOCKER_CERT_PATH}/key.pem --certificate=%{DOCKER_CERT_PATH}/cert.pem
-    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --tries=3 --connect-timeout=10 --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    [Tags]  secret
+    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} ${vic-admin}/authentication
+    Log  ${out}
+    ${out}=  Run  curl -k -b vic-admin-cookies ${vic-admin}/container-logs.zip -o ${SUITE NAME}-${vch-name}-container-logs.zip
+    Log  ${out}
+    Remove File  vic-admin-cookies
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
