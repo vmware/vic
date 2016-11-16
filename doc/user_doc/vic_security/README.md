@@ -2,7 +2,7 @@
 
 *vSphere Integrated Containers Engine Security* provides security-related information about VMware vSphere&reg; Integrated Containers&trade; Engine.
 
-**Product version: 0.7.0**
+**Product version: 0.8.0**
 
 **NOTE**  This book is a work in progress.
 
