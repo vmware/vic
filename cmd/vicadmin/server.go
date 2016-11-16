@@ -113,7 +113,7 @@ func (s *server) listen() error {
 			}
 			c.ClientAuth = tls.VerifyClientCertIfGiven
 		} else {
-			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, authentication is disabled")
+			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, certificate-based authentication is disabled")
 		}
 
 		return &tls.Config{
@@ -171,6 +171,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
 			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
+			key := uuid.New().String()
 			usersess := s.uss.Add(key, &rootConfig.Config)
 
 			timeNow, err := usersess.created.MarshalText()
@@ -183,7 +184,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			}
 
 			websession.Values[sessionCreationTimeKey] = string(timeNow)
-			websession.Values[sessionKey], err = uuid.New().String()
+			websession.Values[sessionKey] = key
 
 			remoteAddr := strings.SplitN(r.RemoteAddr, ":", 2)
 			if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
@@ -307,9 +308,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// save user config locally
-		// generate a unique-enough id for this session
-		key := fmt.Sprintf("%s %s", time.Now().String(), req.RemoteAddr)
+		key := uuid.New().String()
 		usersess := s.uss.Add(key, &userconfig)
 
 		timeNow, err := usersess.created.MarshalText()
@@ -320,7 +319,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		websession.Values[sessionCreationTimeKey] = string(timeNow)
-		websession.Values[sessionKey], err = uuid.New().String()
+		websession.Values[sessionKey] = key
 
 		remoteAddr := strings.SplitN(req.RemoteAddr, ":", 2)
 		if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper

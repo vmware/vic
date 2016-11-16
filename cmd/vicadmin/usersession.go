@@ -15,12 +15,14 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -77,14 +79,30 @@ func (u *UserSessionStore) UserSession(id string) *UserSession {
 // Get logs into vSphere and returns a vSphere session object. Caller responsible for error handling/logout
 func (u *UserSessionStore) VSphere(id string) (vSphereSession *session.Session, err error) {
 	us := u.UserSession(id)
-	if us.vsphere == nil {
-		log.Infof("Creating session for %s", id)
-		s, err := vSphereSessionGet(us.config)
+	if us == nil {
+		return nil, fmt.Errorf("User session with unique ID %s does not exist", id)
+	}
+	if us.vsphere != nil {
+
+		active, err := us.vsphere.SessionManager.SessionIsActive(context.Background())
 		if err != nil {
 			return nil, err
 		}
-		us.vsphere = s
+		if active {
+			log.Infof("Successfully found active vsphere session for websession %s", id)
+			return us.vsphere, nil
+		}
+
+		log.Infof("vSphere session for websession with id %s seems to not be active -- will refresh it", id)
 	}
+
+	// us.vsphere == nil || (us.vsphere != nil and !active):
+	log.Infof("Creating vSphere session for vicadmin usersession %s", id)
+	s, err := vSphereSessionGet(us.config)
+	if err != nil {
+		return nil, err
+	}
+	us.vsphere = s
 	return us.vsphere, nil
 }
 
