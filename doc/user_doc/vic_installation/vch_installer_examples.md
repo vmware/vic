@@ -62,9 +62,9 @@ This example deploys a virtual container host with the following configuration:
 
 In addition to the mandatory bridge network, if your vCenter Server environment includes multiple networks, you can direct different types of traffic to different networks. 
 
-- You can direct the traffic between the virtual container host, container VMs, and the internet to a specific network by specifying the `public-network` option. If you do not specify the `public-network` option, the virtual container host uses the default VM Network for public network traffic.
-- You can direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the `--management-network` option. If you do not specify the `--management-network` option, the virtual container host uses the public network for management traffic.
-- You can designate a specific network for use by the Docker API by specifying the `--client-network` option. If you do not specify the `--client-network` option, the Docker API uses the public network.
+- You can direct the traffic between the virtual container host, container VMs, and the internet to a specific network by specifying the `external-network` option. If you do not specify the `external-network` option, the virtual container host uses the default VM Network for external network traffic.
+- You can direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the `--management-network` option. If you do not specify the `--management-network` option, the virtual container host uses the external network for management traffic.
+- You can designate a specific network for use by the Docker API by specifying the `--client-network` option. If you do not specify the `--client-network` option, the Docker API uses the external network.
 - You can designate a specific network for container VMs to use by specifying the `--container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a distributed port group that must exist before you run `vic-machine create`. You cannot use the same distributed port group that you use for the bridge network. You can provide a descriptive name for the network, for use by Docker. If you do not specify a descriptive name, Docker uses the vSphere network name. For example, the descriptive name appears as an available network in the output of `docker info`. 
 
 This example deploys a virtual container host with the following configuration:
@@ -79,7 +79,7 @@ This example deploys a virtual container host with the following configuration:
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
---public-network 'network 1'
+--external-network 'network 1'
 --management-network 'network 2'
 --client-network 'network 3'
 --container-network vic-containers:vic-container-network
@@ -137,9 +137,9 @@ This example deploys a virtual container host with the following configuration:
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
---public-network 'network 1'
---public-network-gateway 192.168.1.1/24
---public-network-ip 192.168.1.10/24
+--external-network 'network 1'
+--external-network-gateway 192.168.1.1/24
+--external-network-ip 192.168.1.10/24
 --management-network 'network 2'
 --management-network-gateway 192.168.2.1/24
 --management-network-ip 192.168.2.10/24

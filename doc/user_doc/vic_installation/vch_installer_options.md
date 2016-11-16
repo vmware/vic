@@ -321,7 +321,7 @@ Short name: `--cln`
 
 The network that the virtual container host uses to generate the Docker API. The Docker API only uses this network.
 
-If not specified, the virtual container host uses the public network for client traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If not specified, the virtual container host uses the external network for client traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--client-network <i>network_name</i></pre>
 
@@ -329,20 +329,20 @@ Wrap the network name in single quotes (') on Mac OS and Linux and in double quo
 
 <pre>--client-network '<i>network name</i>'</pre>
 
-<a name="public-network"></a>
-### `--public-network` ###
+<a name="external-network"></a>
+### `--external-network` ###
 
 Short name: `--en`
 
-The network for containers to use to connect to the Internet. Virtual container hosts use the public network to pull container images, for example from https://hub.docker.com/. Container VMs use the public network to publish network services. If you define the public network, you can deploy containers directly on the public interface. 
+The network for containers to use to connect to the Internet. Virtual container hosts use the external network to pull container images, for example from https://hub.docker.com/. Container VMs use the external network to publish network services. If you define the external network, you can deploy containers directly on the public interface. 
 
 If not specified, containers use the default VM Network for external traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
-<pre>--public-network <i>network_name</i></pre>
+<pre>--external-network <i>network_name</i></pre>
 
 Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
-<pre>--public-network '<i>network name</i>'</pre>
+<pre>--external-network '<i>network name</i>'</pre>
 
 <a name="management-network"></a>
 ### `--management-network` ###
@@ -359,7 +359,7 @@ Firewall must permit dst 2377/tcp outbound to the VCH management interface
 
 **NOTE**: If the management network uses DHCP, `vic-machine` checks the firewall status of the management network before the virtual container host receives an IP address. It is therefore not possible to fully assess whether the firewall permits the IP address of the virtual container host. 
 
-If not specified, the virtual container host uses the public network for management traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If not specified, the virtual container host uses the external network for management traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--management-network <i>network_name</i></pre>
 
@@ -565,7 +565,7 @@ If you specify static IP address for the virtual container host on any of the cl
 --dns-server=172.16.10.11
 </pre>
 
-### `--client-network-ip`, `--public-network-ip`, `--management-network-ip` ###
+### `--client-network-ip`, `--external-network-ip`, `--management-network-ip` ###
 
 Short name: None
 
@@ -573,19 +573,19 @@ A static IP address for the virtual container host on the client, public, or man
 
 You can specify IP addresses in CIDR format.
 
-<pre>--public-network-ip 192.168.X.N/24
+<pre>--external-network-ip 192.168.X.N/24
 --management-network-ip 192.168.Y.N/24
 --client-network-ip 192.168.Z.N/24
 </pre>
 
 You can also specify IP addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
 
-<pre>--public-network-ip=vch27-team-a.internal.domain.com
+<pre>--external-network-ip=vch27-team-a.internal.domain.com
 --management-network-ip=vch27-team-b.internal.domain.com
 --client-network-ip=vch27-team-c.internal.domain.com
 </pre>
 
-### `--client-network-gateway`, `--public-network-gateway`, `--management-network-gateway` ###
+### `--client-network-gateway`, `--external-network-gateway`, `--management-network-gateway` ###
 
 Short name: None
 
@@ -594,7 +594,7 @@ The gateway to use if you specify a static IP address for the virtual container 
 You specify gateway addresses in CIDR format.
 
 <pre>
---public-network-gateway 192.168.X.1/24
+--external-network-gateway 192.168.X.1/24
 --management-network-gateway 192.168.Y.1/24
 --client-network-gateway 192.168.Z.1/24
 </pre>

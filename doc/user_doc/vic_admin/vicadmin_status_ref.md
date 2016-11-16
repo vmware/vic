@@ -37,7 +37,7 @@ One or more of the virtual container host processes is not running correctly.
 
 ## Network Connectivity ##
 
-VCH Admin checks connectivity on the public network by attempting to connect from the virtual container host to docker.io and google.com. VCH Admin only checks the public network connection. It does not check other networks, for example the bridge, management, client, or container networks.
+VCH Admin checks connectivity on the external network by attempting to connect from the virtual container host to docker.io and google.com. VCH Admin only checks the external network connection. It does not check other networks, for example the bridge, management, client, or container networks.
 
 ### Error ###
 
@@ -45,7 +45,7 @@ The Network Connectivity status is yellow.
 
 #### Cause ####
 
-The public network connection is down.
+The external network connection is down.
 
 #### Solution ####
 

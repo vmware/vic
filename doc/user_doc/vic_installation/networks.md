@@ -19,12 +19,12 @@ Container application developers can also use `docker network create` to create 
 
  ![Container Bridge Network](graphics/vch-bridge-net.png)
 
-## Public Network  ##
-The network that container VMs use to connect to the internet. Containers can use this public network to publish network services. After defining the public network, you can deploy containers directly on the public interface.
+## External Network  ##
+The network that container VMs use to connect to the internet. Containers can use this external network to publish network services. After defining the external network, you can deploy containers directly on the public interface.
 
-You define the public network by setting the `public-network` option when you run `vic-machine create`. For  more detailed information about management networks, see the section on the `public-network` option in [Virtual Container Host Deployment Options](vch_installer_options.md#public-network).
+You define the external network by setting the `external-network` option when you run `vic-machine create`. For  more detailed information about management networks, see the section on the `external-network` option in [Virtual Container Host Deployment Options](vch_installer_options.md#external-network).
 
- ![Public Network](graphics/vch-external-net.png)
+ ![External Network](graphics/vch-external-net.png)
 
 ## vSphere Management Network ##
 
@@ -36,7 +36,7 @@ You define the management network by setting the `management-network` option whe
 
 ## Docker Management Endpoint Network ##
 
-Connects virtual container hosts to Docker clients and isolates the Docker endpoints from the public network.
+Connects virtual container hosts to Docker clients and isolates the Docker endpoints from the external network.
 
 You define the Docker management endpoint network by setting the `client-network` option when you run `vic-machine create`. For  more detailed information about Docker management endpoint networks, see the section on the `client-network` option in [Virtual Container Host Deployment Options](vch_installer_options.md#client-network).
 

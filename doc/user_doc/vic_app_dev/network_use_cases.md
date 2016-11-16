@@ -6,13 +6,13 @@ These are some use cases of containers using network ports to communicate with e
 
 Launch a container and expose a port: `run -p`
 
-Connect the container with the external mapped port on the public network of the vSphere Container Host.
+Connect the container with the external mapped port on the external network of the vSphere Container Host.
 
 `$ docker run -p 8080:80 --name test1 my_container my_app`
 
 #### Outcome
 
-You can access Port 80 on test1 from the public network interface on the virtual container host at port 8080.
+You can access Port 80 on test1 from the external network interface on the virtual container host at port 8080.
 
 ### Container on a Simple Bridge Network
 
