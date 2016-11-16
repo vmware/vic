@@ -243,7 +243,8 @@ func containerTimeCallback(ie events.Event) {
 		log.Debugf("Container(%s) is not found", ie.Reference())
 	}
 	switch ie.String() {
-	case events.ContainerStarted:
+	case events.ContainerStarted,
+		events.ContainerPoweredOn:
 		// container started event received, still need to wait container startTime set by tether, to sync between portlayer and vmx
 		// we'll do this in a go routine to avoid blocking
 		go func() {
@@ -290,6 +291,7 @@ func containerTimeCallback(ie events.Event) {
 			for _, sc := range h.ExecConfig.Sessions {
 				if sc.StopTime == 0 {
 					sc.StopTime = time.Now().UTC().Unix()
+					sc.StartTime = 0
 					log.Debugf("Container(%s) session %s stop time is set to %s", h.ExecConfig.ID, sc.ID, time.Unix(sc.StopTime, 0))
 					update = true
 				} else {

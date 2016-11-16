@@ -22,6 +22,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
@@ -33,6 +34,8 @@ import (
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -172,6 +175,27 @@ func (h *Handle) String() string {
 }
 
 func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
+	cfg := make(map[string]string)
+
+	switch h.TargetState() {
+	case StateRunning:
+		for _, sc := range h.ExecConfig.Sessions {
+			sc.StartTime = time.Now().UTC().Unix()
+			sc.Started = ""
+			sc.ExitStatus = 0
+			sc.StopTime = 0
+		}
+	case StateStopped:
+		for _, sc := range h.ExecConfig.Sessions {
+			sc.StopTime = time.Now().UTC().Unix()
+			sc.StartTime = 0
+		}
+	}
+
+	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
+	s := h.Spec.Spec()
+	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
+
 	if err := Commit(ctx, sess, h, waitTime); err != nil {
 		return err
 	}
