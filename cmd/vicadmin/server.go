@@ -439,7 +439,7 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 	}
 
 	readers := configureReaders()
-	c, err := s.getSessionFromRequest(req)
+	c, err := s.getSessionFromRequest(context.Background(), req)
 	if err != nil {
 		log.Errorf("Failed to get vSphere session while bundling container logs due to error: %s", err.Error())
 		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
@@ -553,7 +553,10 @@ func deriveErrorMessage(err error) string {
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
-	sess, err := s.getSessionFromRequest(req)
+	sess, err := s.getSessionFromRequest(ctx, req)
+	if err != nil {
+		panic(err.Error())
+	}
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 
 	if sess == nil {

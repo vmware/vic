@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/net/context"
 
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -77,22 +78,17 @@ func (u *UserSessionStore) UserSession(id string) *UserSession {
 }
 
 // Get logs into vSphere and returns a vSphere session object. Caller responsible for error handling/logout
-func (u *UserSessionStore) VSphere(id string) (vSphereSession *session.Session, err error) {
+func (u *UserSessionStore) VSphere(ctx context.Context, id string) (vSphereSession *session.Session, err error) {
 	us := u.UserSession(id)
 	if us == nil {
 		return nil, fmt.Errorf("User session with unique ID %s does not exist", id)
 	}
 	if us.vsphere != nil {
-
-		active, err := us.vsphere.SessionManager.SessionIsActive(context.Background())
-		if err != nil {
-			return nil, err
-		}
-		if active {
+		_, err := methods.GetCurrentTime(ctx, us.vsphere.RoundTripper)
+		if err == nil {
 			log.Infof("Successfully found active vsphere session for websession %s", id)
 			return us.vsphere, nil
 		}
-
 		log.Infof("vSphere session for websession with id %s seems to not be active -- will refresh it", id)
 	}
 

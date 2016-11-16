@@ -420,16 +420,23 @@ func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
 		// not a critical error for vicadmin
 		log.Warnf("Unable to populate session: %s", err)
 	}
+	usersession, err := session.SessionManager.UserSession(ctx)
+	if err != nil {
+		log.Errorf("Got %s while creating user session", err)
+		return nil, err
+	}
+
+	log.Infof("Got session from vSphere with key: %s username: %s", usersession.Key, usersession.UserName)
 	return session, nil
 }
 
-func (s *server) getSessionFromRequest(r *http.Request) (*session.Session, error) {
+func (s *server) getSessionFromRequest(ctx context.Context, r *http.Request) (*session.Session, error) {
 	sessionData, err := s.uss.cookies.Get(r, sessionCookieKey)
 	if err != nil {
 		return nil, err
 	}
 
-	c, err := s.uss.VSphere(sessionData.Values[sessionKey].(string))
+	c, err := s.uss.VSphere(ctx, sessionData.Values[sessionKey].(string))
 	if err != nil {
 		return nil, err
 	}
