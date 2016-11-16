@@ -554,9 +554,6 @@ func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
 	sess, err := s.getSessionFromRequest(ctx, req)
-	if err != nil {
-		panic(err.Error())
-	}
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 
 	if sess == nil {
