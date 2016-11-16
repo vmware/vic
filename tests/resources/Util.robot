@@ -232,18 +232,12 @@ Cleanup Dangling vSwitches On Test Server
     \   ${uuid}=  Run  govc host.vswitch.remove ${net}
 
 Gather Logs From Test Server
-    Variable Should Exist  ${params}
-    ${params}=  Strip String  ${params}
-    ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
-    # Non-certificate case
-    ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget --tries=3 --connect-timeout=10 ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
-    # Certificate case
-    ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
-    ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
-    ${wget_args}=  Set Variable If  '${docker_certpath}'==''  ${EMPTY}  --private-key=%{DOCKER_CERT_PATH}/key.pem --certificate=%{DOCKER_CERT_PATH}/cert.pem
-    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --tries=3 --connect-timeout=10 --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    [Tags]  secret
+    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} ${vic-admin}/authentication
+    Log  ${out}
+    ${out}=  Run  curl -k -b vic-admin-cookies ${vic-admin}/container-logs.zip -o ${SUITE NAME}-${vch-name}-container-logs.zip
+    Log  ${out}
+    Remove File  vic-admin-cookies
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
