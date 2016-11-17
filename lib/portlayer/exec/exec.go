@@ -210,7 +210,7 @@ func isManagedbyVCH(sess *session.Session, moref types.ManagedObjectReference) b
 	var vm mo.VirtualMachine
 
 	// current attributes we care about
-	attrib := []string{"resourcePool"}
+	attrib := []string{"resourcePool", "config.name"}
 
 	// populate the vm properties
 	ctx := context.Background()
