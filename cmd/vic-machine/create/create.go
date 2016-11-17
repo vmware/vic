@@ -40,6 +40,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 
+	"github.com/vmware/vic/pkg/diag"
 	"golang.org/x/net/context"
 )
 
@@ -1028,9 +1029,64 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
+	// vic-init will try to reach out to the vCenter/ESXi host.
+	log.Info("Checking connectivity with the target vCenter/ESXi")
+	vch, err := executor.NewVCHFromComputePath(c.Data.ComputeResourcePath, c.Data.DisplayName, validator)
+	if err != nil {
+		executor.CollectDiagnosticLogs()
+		log.Errorf("Failed to get Virtual Container Host %s", c.Data.DisplayName)
+		log.Error(err)
+		return errors.New("Running diagnostics failed.")
+	}
+
+	// Checking if VC/ESXi can respond to ping request.
+	cd, err := executor.CheckVCPingFromAppliance(ctx, vch, vchConfig.Target)
+	code := int(cd)
+	if err != nil {
+		executor.CollectDiagnosticLogs()
+		log.Errorf("Failed to ping VC/ESXi host %s: %v", vchConfig.Target, err)
+		return fmt.Errorf("Could not run network diagnostic")
+	}
+
+	// In case of fatal error, log error and exist.
+	if code >= diag.StatusCodeFatalThreshold {
+		executor.CollectDiagnosticLogs()
+		log.Errorf("%s %s", vchConfig.Target, diag.UserReadablePingTestDescription(code))
+		return fmt.Errorf("Access to VC/ESXi failed a ping test")
+	}
+
+	// In case of non fatal error, log an error on warning level.
+	if code > 0 {
+		log.Warningf("VC/ESXi API Ping Test: %s %s", vchConfig.Target, diag.UserReadablePingTestDescription(code))
+	} else {
+		log.Infof("VC/ESXi API Ping: %s %s", vchConfig.Target, diag.UserReadablePingTestDescription(code))
+	}
+
+	// Checking access to VC/ESXi API
+	cd, err = executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
+	code = int(cd)
+	if err != nil {
+		executor.CollectDiagnosticLogs()
+		log.Errorf("Failed to access VC/ESXi API %s: %v", vchConfig.Target, err)
+		return fmt.Errorf("Could not run API diagnostic")
+	}
+
+	// In case of fatal error, log error and exist.
+	if code >= diag.StatusCodeFatalThreshold {
+		executor.CollectDiagnosticLogs()
+		log.Errorf("%s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
+		return fmt.Errorf("Access to VC/ESXi failed an API access test")
+	}
+
+	// In case of non fatal error, log an error on warning level.
+	if code > 0 {
+		log.Warningf("VC/ESXi API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
+	} else {
+		log.Infof("VC/ESXi API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
+	}
+
 	// check the docker endpoint is responsive
 	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
-
 		executor.CollectDiagnosticLogs()
 		return err
 	}
