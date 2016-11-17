@@ -25,8 +25,6 @@ no-tls () {
 
 unset-vic () {
     unset MAPPED_NETWORKS NETWORKS IMAGE_STORE DATASTORE COMPUTE VOLUME_STORES IPADDR GOVC_INSECURE TLS THUMBPRINT
-    unset DOCKER_CERT_PATH DOCKER_TLS_VERIFY
-    unalias docker 2>/dev/null
 }
 
 vic-path () {
@@ -34,22 +32,28 @@ vic-path () {
 }
 
 vic-create () {
-    pushd $(vic-path)/bin/
+    base=$(pwd)
+    (
+        cd $(vic-path)/bin
+        $(vic-path)/bin/vic-machine-"$OS" create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
+    )
 
-    $(vic-path)/bin/vic-machine-"$OS" create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
+    unset DOCKER_CERT_PATH DOCKER_TLS_VERIFY
+    unalias docker 2>/dev/null
 
-    envfile=${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
+    envfile=$(vic-path)/bin/${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
     if [ -f "$envfile" ]; then
         set -a
         source $envfile
         set +a
     fi
 
-    if [ -z ${DOCKER_TLS_VERIFY+x} ]; then
+    # Something of a hack, but works for --no-tls so long as that's enabled via TLS_OPTS
+    if [ -z "${DOCKER_TLS_VERIFY+x}" -a -z "${TLS_OPTS+x}" ]; then
         alias docker='docker --tls'
     fi
 
-    popd
+    cd $base
 }
 
 vic-delete () {
@@ -72,7 +76,7 @@ vic-ssh () {
     fi
 
     out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
-    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^i:]*\).*/\1/p')
+    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s]*\).*/\1/p')
 
     echo "SSH to ${host}"
     sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@${host}
@@ -80,7 +84,7 @@ vic-ssh () {
 
 vic-admin () {
     out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
-    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^i:]*\).*/\1/p')
+    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s*\).*/\1/p')
 
    open http://${host}:2378
 }

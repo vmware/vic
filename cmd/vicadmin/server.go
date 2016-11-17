@@ -33,6 +33,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/google/uuid"
 	gorillacontext "github.com/gorilla/context"
 
 	"github.com/vmware/govmomi/vim25/soap"
@@ -112,7 +113,7 @@ func (s *server) listen() error {
 			}
 			c.ClientAuth = tls.VerifyClientCertIfGiven
 		} else {
-			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, authentication is disabled")
+			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, certificate-based authentication is disabled")
 		}
 
 		return &tls.Config{
@@ -170,7 +171,8 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
 			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
-			usersess := s.uss.Add(websession.ID, &rootConfig.Config)
+			key := uuid.New().String()
+			usersess := s.uss.Add(key, &rootConfig.Config)
 
 			timeNow, err := usersess.created.MarshalText()
 			if err != nil {
@@ -182,7 +184,8 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			}
 
 			websession.Values[sessionCreationTimeKey] = string(timeNow)
-			websession.Values[sessionKey] = websession.ID
+			websession.Values[sessionKey] = key
+
 			remoteAddr := strings.SplitN(r.RemoteAddr, ":", 2)
 			if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
 				log.Errorf("Format of IP address %s (should be IP:PORT) not recognized", r.RemoteAddr)
@@ -305,8 +308,8 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// save user config locally
-		usersess := s.uss.Add(websession.ID, &userconfig)
+		key := uuid.New().String()
+		usersess := s.uss.Add(key, &userconfig)
 
 		timeNow, err := usersess.created.MarshalText()
 		if err != nil {
@@ -316,7 +319,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		websession.Values[sessionCreationTimeKey] = string(timeNow)
-		websession.Values[sessionKey] = websession.ID
+		websession.Values[sessionKey] = key
 
 		remoteAddr := strings.SplitN(req.RemoteAddr, ":", 2)
 		if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
@@ -436,7 +439,7 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 	}
 
 	readers := configureReaders()
-	c, err := s.getSessionFromRequest(req)
+	c, err := s.getSessionFromRequest(context.Background(), req)
 	if err != nil {
 		log.Errorf("Failed to get vSphere session while bundling container logs due to error: %s", err.Error())
 		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
@@ -550,7 +553,7 @@ func deriveErrorMessage(err error) string {
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
-	sess, err := s.getSessionFromRequest(req)
+	sess, err := s.getSessionFromRequest(ctx, req)
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 
 	if sess == nil {
