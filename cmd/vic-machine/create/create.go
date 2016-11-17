@@ -1174,14 +1174,14 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("Failed to ping VC/ESXi host %s: %v", vchConfig.Target, err)
 		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Could not run network diagnostic")
+		return fmt.Errorf("Could not run network diagnostic on appliance")
 	}
 
 	// In case of fatal error, log error and exist.
 	if code >= diag.StatusCodeFatalThreshold {
 		log.Errorf("%s %s %s", pingTestTxt, vchConfig.Target, diag.UserReadablePingTestDescription(code))
 		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Access to VC/ESXi failed a ping test")
+		return fmt.Errorf("Ping test from appliance to VC/ESXi failed")
 	}
 
 	// In case of non fatal error, log an error on warning level.
@@ -1197,7 +1197,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("Failed to access VC/ESXi API %s: %v", vchConfig.Target, err)
 		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Could not run API diagnostic")
+		return fmt.Errorf("Could not run API diagnostic on appliance")
 	}
 
 	const apiTestTxt = "VC/ESXi API Test:"
@@ -1205,7 +1205,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	if code >= diag.StatusCodeFatalThreshold {
 		log.Errorf("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
 		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Access to VC/ESXi failed an API access test")
+		return fmt.Errorf("Access to VC/ESXi from appliance failed an API access test")
 	}
 
 	// In case of non fatal error, log an error on warning level.
