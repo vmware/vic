@@ -600,7 +600,7 @@ func (c *Create) processCertificates() error {
 
 	// do we have key, cert, and --no-tlsverify
 	if c.noTLSverify || len(cas) == 0 {
-		log.Warnf("Configuring without TLS verify - client authentication disabled")
+		log.Warnf("Configuring without TLS verify - certificate-based authentication disabled")
 		return nil
 	}
 
