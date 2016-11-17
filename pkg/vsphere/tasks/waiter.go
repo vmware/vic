@@ -62,9 +62,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 
 	for {
 		t, err := f(ctx)
-		if t != nil {
-			log.Debugf("New task: %s", t.Reference())
-		}
+		log.Debugf("New task: %s", taskMoid(t))
 
 		if err == nil {
 			info, err = t.WaitForResult(ctx, nil)
@@ -129,13 +127,21 @@ func isTaskInProgress(t Task, err error) bool {
 
 // Helper Functions
 func logFault(t Task, fault types.BaseMethodFault) {
-	log.Errorf("%s: unexpected fault on task retry : %#v", t.Reference(), fault)
+	log.Errorf("%s: unexpected fault on task retry : %#v", taskMoid(t), fault)
 }
 
 func logSoapFault(t Task, fault types.AnyType) {
-	log.Errorf("%s: unexpected soap fault on task retry : %#v", t.Reference(), fault)
+	log.Errorf("%s: unexpected soap fault on task retry : %#v", taskMoid(t), fault)
 }
 
 func logError(t Task, err error) {
-	log.Errorf("%s: unexpected error on task retry : %#v", t.Reference(), err)
+	log.Errorf("%s: unexpected error on task retry : %#v", taskMoid(t), err)
+}
+
+func taskMoid(t Task) string {
+	if t == nil {
+		return "Unknown task"
+	}
+
+	return t.Reference().Value
 }
