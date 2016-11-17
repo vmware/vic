@@ -69,6 +69,21 @@ Docker ps all containers
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${len+3}
 
+Docker ps start/stop status
+    ${output}=  Run  docker ${params} ps -a
+    Log to Console  ${output}
+    ${output}=  Run  docker ${params} ps
+    Should Contain  ${output}  Up
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  3
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name test-status busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start test-status; sleep 5
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop test-status; sleep 5
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Run  docker ${params} ps -a | grep test-status
+    Should Contain  ${output}  Exited
+
 Docker ps powerOn container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name jojo busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
@@ -83,6 +98,11 @@ Docker ps powerOn container OOB
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${len+1}
+
+    Run  sleep 5
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps | grep jojo
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Up
 
 Docker ps powerOff container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name koko busybox /bin/top
@@ -100,6 +120,11 @@ Docker ps powerOff container OOB
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${len-1}
+
+    Run  sleep 5
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a | grep koko
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Exited
 
 Docker ps ports output
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create -p 8000:80 -p 8443:443 nginx

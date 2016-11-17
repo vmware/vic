@@ -113,7 +113,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "registeredVMEvent", func(ie events.Event) {
 			registeredVMCallback(sess, ie)
 		})
-		// subscribe callbak to add container stopTime if not set by tether
+		// subscribe callback to add container stopTime if not set by tether
 		Config.EventManager.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "containerTime", containerTimeCallback)
 		// instantiate the container cache now
 		NewContainerCache()
