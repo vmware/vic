@@ -44,4 +44,6 @@ You define the Docker management endpoint network by setting the `client-network
 
 ## Container Networks ##
 
-Networks for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 
+Networks for container VMs to use for external communication when container developers run `docker run` or `docker create` with the `--net` option. 
+
+You can share one network alias between multiple containers. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 
