@@ -11,8 +11,8 @@ This topic provides examples of the options of the `vic-machine create` command 
   - [Set Limits on Resource Use](#customized)
 - [Networking Examples](#networking)
   - [Specify Public, Management, Client, and Container Networks](#networks)
-  - [Configure a Non-DHCP Container Network](#ip-range)
   - [Set a Static IP Address on the Different Networks](#static-ip)
+  - [Configure a Non-DHCP Container Network](#ip-range)
   - [Configure a Proxy Server](#proxy)
 - [Specify One or More Volume Stores](#volume-stores)
 - [Security Examples](#security)
@@ -20,14 +20,14 @@ This topic provides examples of the options of the `vic-machine create` command 
   - [Use Custom Trusted CA Certificates](#custom_cert)
   - [Authorize Access to an Insecure Private Registry Server](#registry)
 
-
-
 For simplicity, unless stated otherwise, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified. Similarly, all examples that do not relate explicitly to certificate use specify the `--tls-noverify` option.
 
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md).
 
 <a name="basic"></a>
 ## Basic Deployment Examples ##
+
+The examples in this section demonstrate the deployment of virtual container hosts in different vSphere environments.
 
 <a name="esxi"></a>
 ### Deploy to an ESXi Host with no Resource Pools and a Single Datastore###
@@ -150,22 +150,23 @@ For more information about setting resource use limitations on virtual container
 <a name="networking"></a>
 ## Networking Examples ##
 
+The examples in this section demonstrate how to direct traffic to and from virtual container hosts and the other elements in your environment, how to set static IPs, how to configure container VM networks, and how to configure a virtual container host to use a proxy server.
+
 <a name="networks"></a>
-### Specify Public, Management, Client, and Container Networks ###
+### Specify External, Management, and Client Networks ###
 
 In addition to the mandatory bridge network, if your vCenter Server environment includes multiple networks, you can direct different types of traffic to different networks. 
 
 - You can direct the traffic between the virtual container host, container VMs, and the internet to a specific network by specifying the `external-network` option. If you do not specify the `external-network` option, the virtual container host uses the default VM Network for external network traffic.
 - You can direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the `--management-network` option. If you do not specify the `--management-network` option, the virtual container host uses the external network for management traffic.
 - You can designate a specific network for use by the Docker API by specifying the `--client-network` option. If you do not specify the `--client-network` option, the Docker API uses the external network.
-- You can designate a specific network for container VMs to use by specifying the `--container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a distributed port group that must exist before you run `vic-machine create`. You cannot use the same distributed port group that you use for the bridge network. You can provide a descriptive name for the network, for use by Docker. If you do not specify a descriptive name, Docker uses the vSphere network name. For example, the descriptive name appears as an available network in the output of `docker info`. 
+
+**IMPORTANT**: A virtual container host supports a maximum of 3 distinct network interfaces. Because the bridge and container networks require their own distributed port groups, at least two of the external, client, and management networks must share a network interface.
 
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
-- Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
-- Gives the container network the name `vic-container-network`, for use by Docker.  
+- Directs external and management traffic to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -173,17 +174,54 @@ This example deploys a virtual container host with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --external-network 'network 1'
---management-network 'network 2'
---client-network 'network 3'
---container-network vic-containers:vic-container-network
+--management-network 'network 1'
+--client-network 'network 2'
 --name vch1
 --no-tlsverify
 </pre>
 
 For more information about the networking options, see the [Networking Options section](vch_installer_options.md#networking) in Virtual Container Host Deployment Options.
 
+<a name="static-ip"></a>
+### Set a Static IP Address on the Different Networks ###
+
+If you specify networks for any or all of the external, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on one or more of those networks. 
+
+**NOTE**: When you specify a static IP address for the virtual container host on the client network, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. In this case, full TLS authentication is implemented by default and you do not need to specify any authentication options.
+
+This example deploys a virtual container host with the following configuration:
+
+- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
+- Directs external and management to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
+- Sets a DNS server for use by the virtual container host.
+- Sets a static IP address for the virtual container host endpoint VM on each of the external, management, and client networks. 
+- Specifies the gateway for the external network. If you set a static IP address on the external network, you must also specify the gateway address.
+- Does not specify a gateway for the management network, because the management network shares a network with the external network. The management network automatically uses the external network gateway.
+- Specifies a gateway for the client network. In this example, the client network is not the same as the external network, so you must specify the `--client-network-gateway` option. The `--client-network-gateway` options specifies the routing destination for client network traffic through the virtual container host, as well as the gateway address. The routing destination  informs the virtual container host that it can reach all of the Docker clients at the network addresses in the ranges  that you specify in the routing destinations by sending packets to the specified gateway.
+
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--compute-resource cluster1
+--image-store datastore1
+--bridge-network vic-bridge
+--external-network 'network 1'
+--external-network-gateway 192.168.1.1/24
+--external-network-ip 192.168.1.10/24
+--management-network 'network 1'
+--management-network-ip 192.168.1.11/24
+--client-network 'network 2'
+--client-network-ip 192.168.3.10/24
+--client-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
+--dns-server <i>dns_server_address</i>
+--name vch1
+</pre>
+
+For more information about the networking options, see the [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](vch_installer_options.md#static-ip) in Virtual Container Host Deployment Options.
+
 <a name="ip-range"></a>
-### Configure a Non-DHCP Container Network ###
+### Configure a Non-DHCP Network for Container VMs###
+
+You can designate a specific network for container VMs to use by specifying the `--container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a distributed port group that must exist before you run `vic-machine create`. You cannot use the same distributed port group that you use for the bridge network. You can provide a descriptive name for the network, for use by Docker. If you do not specify a descriptive name, Docker uses the vSphere network name. For example, the descriptive name appears as an available network in the output of `docker info`. 
 
 If the network that you designate as the container network in the `--container-network` option does not support DHCP, you can configure the gateway, DNS server, and a range of IP addresses for container VMs to use. 
 
@@ -209,41 +247,7 @@ This example deploys a virtual container host with the following configuration:
 --no-tlsverify
 </pre>
 
-For more information about the container network options, see the [container network section](vch_installer_options.md#container-network) in Virtual Container Host Deployment Options.
-
-<a name="static-ip"></a>
-### Set a Static IP Address on the Different Networks ###
-
-If you specify networks for any or all of the external, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on those networks. 
-
-This example deploys a virtual container host with the following configuration:
-
-- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
-- Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Sets a DNS server for use by the virtual container host.
-- Sets a static IP address for the virtual container host endpoint VM on each of the external, management, and client networks. 
-
-**NOTE**: When you specify a static IP address for the virtual container host on the client network, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. In this case, full TLS authentication is implemented by default and you do not need to specify any authentication options. 
-
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
---target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---compute-resource cluster1
---image-store datastore1
---bridge-network vic-bridge
---external-network 'network 1'
---external-network-gateway 192.168.1.1/24
---external-network-ip 192.168.1.10/24
---management-network 'network 2'
---management-network-gateway 192.168.2.1/24
---management-network-ip 192.168.2.10/24
---client-network 'network 3'
---client-network-gateway 192.168.3.1/24
---client-network-ip 192.168.3.10/24
---dns-server <i>dns_server_address</i>
---name vch1
-</pre>
-
-For more information about the networking options, see the [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](vch_installer_options.md#static-ip) in Virtual Container Host Deployment Options.
+For more information about the container network options, see the [`--container-network`](vch_installer_options.md#container-network) and [Options for Configuring a Non-DHCP Network for Container Traffic](vch_installer_options.md#adv-container-net) sections in Virtual Container Host Deployment Options.
 
 <a name="proxy"></a>
 ### Configure a Proxy Server ###
@@ -295,10 +299,12 @@ For more information about volume stores, see the [volume-store section](vch_ins
 
 ## Security Examples ##
 
+The examples in this section demonstrate how to configure a virtual container host to use Certificate Authority (CA) certificates to enable `TLSVERIFY` in your Docker environment, and to allow access to insecure registries of Docker images.
+
 <a name="auto_cert"></a>
 ###  Use Auto-Generated Trusted CA Certificates ###
 
-You can deploy a virtual container host that implements two-way authentication with trusted auto-generated TLS certificates that are signed by a Certificate Authority (CA). To automatically generate a trusted CA certificate, you provide information that `vic-machine create` uses to populate the fields of a certificate request. At a minimum, you must specify the FQDN or the name of the domain in which the virtual container host will run in the `--tls-cname` option. `vic-machine create` uses the name as the Common Name in the certificate request. You can also optionally specify a CA file, an organization name, and a size for the certificate key. 
+You can deploy a virtual container host that implements two-way authentication with trusted auto-generated TLS certificates that are signed by a CA. To automatically generate a trusted CA certificate, you provide information that `vic-machine create` uses to populate the fields of a certificate request. At a minimum, you must specify the FQDN or the name of the domain in which the virtual container host will run in the `--tls-cname` option. `vic-machine create` uses the name as the Common Name in the certificate request. You can also optionally specify a CA file, an organization name, and a size for the certificate key. 
 
 **NOTE**: Because the `--tls-cname` option requires an FQDN or domain name, you must have a DNS service running on the client network on which you deploy the virtual container host. However, if you specify a static IP address for the virtual container host endpoint VM on the client network, `vic-machine create` uses this address as the Common Name with which to create an auto-generated trusted certificate. In this case, full TLS authentication is implemented by default and you do not need to specify any authentication options, and DNS is not required on the client network.
 

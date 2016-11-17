@@ -625,7 +625,7 @@ The external, management, and client networks send traffic through the virtual c
 <i>gateway_address</i>/<i>subnet</i>
 </pre>
 
-In the following example, `--management-network-gateway` informs the virtual container host that it can reach all of the network addresses in  the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that run Docker clients that will connect to this virtual container host instance. 
+In the following example, `--management-network-gateway` informs the virtual container host that it can reach all of the Docker clients that are the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that run Docker clients that will connect to this virtual container host instance. 
 
 <pre>--management-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
 </pre>
