@@ -34,7 +34,7 @@ Set Test Environment Variables
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  openssl s_client -connect $(govc env -x GOVC_URL_HOST):443 </dev/null 2>/dev/null | openssl x509 -fingerprint -noout | cut -d= -f2
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
-    Log To Console  TEST_URL=%{TEST_URL}
+    Log To Console  \nTEST_URL=%{TEST_URL}
 
     ${host}=  Run  govc ls host
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
