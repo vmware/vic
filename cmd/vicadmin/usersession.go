@@ -24,7 +24,6 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/net/context"
 
-	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
