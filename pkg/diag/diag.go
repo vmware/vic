@@ -31,40 +31,42 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// StatusCodeFatalThreshold defines a threshold after which all codes can be treated as fatal.
 const StatusCodeFatalThreshold = 64
 
 const (
-	// Host name was resolved and all pings went through.
+	// PingStatusOk Host name was resolved and all pings went through.
 	PingStatusOk = 0
-	// Host name was resolved, some of the ping responses didn't go through.
+	// PingStatusOkPacketLosses Host name was resolved, some of the ping responses didn't go through.
 	PingStatusOkPacketLosses = 1
-	// Host name was resolved, ping didn't return any responses.
+	// PingStatusOkNotPingable Host name was resolved, ping didn't return any responses.
 	PingStatusOkNotPingable = 2
-	// Host name is unknown.
+	// PingStatusResolutionFailed Host name is unknown.
 	PingStatusResolutionFailed = 64
-	// ping command failed to run.
+	// PingStatusPingNotExists ping command failed to run.
 	PingStatusPingNotExists = 65
-	// Ping didn't return anything
+	// PingStatusNoPingOutput Ping didn't return anything
 	PingStatusNoPingOutput = 66
-	// Return in cases where there is no expected output from ping command.
+	// PingStatusUnknownError Return in cases where there is no expected output from ping command.
 	PingStatusUnknownError = 67
 )
 
 const (
-	// VC/ESXi API is available.
+	// VCStatusOK VC/ESXi API is available.
 	VCStatusOK = 0
-	// Provided VC/ESXi API URL is wrong.
+	// VCStatusInvalidURL Provided VC/ESXi API URL is wrong.
 	VCStatusInvalidURL = 64
-	// Error happened trying to query VC/ESXi API
+	// VCStatusErrorQuery Error happened trying to query VC/ESXi API
 	VCStatusErrorQuery = 65
-	// Received response doesn't contain expected data.
+	// VCStatusErrorResponse Received response doesn't contain expected data.
 	VCStatusErrorResponse = 66
-	// Received in case if returned data from server is different from expected.
+	// VCStatusIncorrectResponse Received in case if returned data from server is different from expected.
 	VCStatusIncorrectResponse = 67
-	// Received response is not XML
+	// VCStatusNotXML Received response is not XML
 	VCStatusNotXML = 68
 )
 
+// UserReadablePingTestDescription convert ping test code into user readable text.
 func UserReadablePingTestDescription(code int) string {
 	switch code {
 	case PingStatusOk:
@@ -86,6 +88,7 @@ func UserReadablePingTestDescription(code int) string {
 	}
 }
 
+// UserReadableVCAPITestDescription convert API test code into user readable text
 func UserReadableVCAPITestDescription(code int) string {
 	switch code {
 	case VCStatusOK:
