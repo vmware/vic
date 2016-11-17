@@ -115,7 +115,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	if err != nil {
 
 	}
-	v.Hostname = strings.Title(v.Hostname)
+
 	log.Infof("Setting hostname to %s", v.Hostname)
 
 	// System time
