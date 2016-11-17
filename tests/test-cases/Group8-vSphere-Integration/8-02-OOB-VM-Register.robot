@@ -13,26 +13,23 @@ Extra Cleanup
 
 *** Test Cases ***
 Verify VIC Still Works When Different VM Is Registered
-    ${status}=  Get State Of Github Issue  3201
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 8-02-OOB-VM-Register.robot needs to be updated now that Issue #3201 has been resolved
-    Log  Issue \#3201 is blocking implementation  WARN
-#    Install VIC Appliance To Test Server
-#    Set Suite Variable  ${old-vm}  ${vch-name}
-#    Install VIC Appliance To Test Server
+    Install VIC Appliance To Test Server
+    Set Suite Variable  ${old-vm}  ${vch-name}
+    Install VIC Appliance To Test Server
 
-#    ${out}=  Run  govc vm.power -off ${old-vm}
-#    Should Contain  ${out}  OK
-#    ${out}=  Run  govc vm.unregister ${old-vm}
-#    Should Be Empty  ${out}
-#    ${out}=  Run  govc vm.register ${old-vm}/${old-vm}.vmx
-#    Should Be Empty  ${out}
+    ${out}=  Run  govc vm.power -off ${old-vm}
+    Should Contain  ${out}  OK
+    ${out}=  Run  govc vm.unregister ${old-vm}
+    Should Be Empty  ${out}
+    ${out}=  Run  govc vm.register ${old-vm}/${old-vm}.vmx
+    Should Be Empty  ${out}
 
-#    ${out}=  Run  docker ${params} ps -a
-#    Log  ${out}
-#    Should Contain  ${out}  CONTAINER ID
-#    Should Contain  ${out}  IMAGE
-#    Should Contain  ${out}  COMMAND
+    ${out}=  Run  docker ${params} ps -a
+    Log  ${out}
+    Should Contain  ${out}  CONTAINER ID
+    Should Contain  ${out}  IMAGE
+    Should Contain  ${out}  COMMAND
 
-#    Run Regression Tests
+    Run Regression Tests
 
-#    ${out}=  Run  govc vm.destroy ${old-vm}
+    ${out}=  Run  govc vm.destroy ${old-vm}
