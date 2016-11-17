@@ -108,3 +108,8 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver1
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  port 10000 is not available
+
+    # docker pull should work
+    # if this fails, very likely the default gateway on the VCH is not set
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull alpine
+    Should Be Equal As Integers  ${rc}  0
