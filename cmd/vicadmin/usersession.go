@@ -15,21 +15,24 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // UserSession holds a user's session metadata
 type UserSession struct {
-	username string
-	created  time.Time
-	config   *session.Config
+	id      string
+	created time.Time
+	config  *session.Config
+	vsphere *session.Session
 }
 
 // UserSessionStore holds and manages user sessions
@@ -41,10 +44,10 @@ type UserSessionStore struct {
 }
 
 type UserSessionStorer interface {
-	Add(username string, config *session.Config) *UserSession
-	Delete(username string)
-	VSphere(username string) (vSphereSession *session.Session, err error)
-	UserSession(username string) *UserSession
+	Add(id string, config *session.Config) *UserSession
+	Delete(id string)
+	VSphere(id string) (vSphereSession *session.Session, err error)
+	UserSession(id string) *UserSession
 }
 
 // Add creates a config and initializes the UserSession and adds it to the UserSessionStore & returns the created UserSession
@@ -52,6 +55,7 @@ func (u *UserSessionStore) Add(id string, config *session.Config) *UserSession {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 	sess := &UserSession{
+		id:      id,
 		created: time.Now(),
 		config:  config,
 	}
@@ -73,8 +77,24 @@ func (u *UserSessionStore) UserSession(id string) *UserSession {
 }
 
 // Get logs into vSphere and returns a vSphere session object. Caller responsible for error handling/logout
-func (u *UserSessionStore) VSphere(id string) (vSphereSession *session.Session, err error) {
-	return vSphereSessionGet(u.UserSession(id).config)
+func (u *UserSessionStore) VSphere(ctx context.Context, id string) (vSphereSession *session.Session, err error) {
+	us := u.UserSession(id)
+	if us == nil {
+		return nil, fmt.Errorf("User session with unique ID %s does not exist", id)
+	}
+
+	if us.vsphere != nil {
+		log.Infof("Found cached vSphere session for vicadmin usersession %s", id)
+		return us.vsphere, nil
+	}
+
+	log.Infof("Creating vSphere session for vicadmin usersession %s", id)
+	s, err := vSphereSessionGet(us.config)
+	if err != nil {
+		return nil, err
+	}
+	us.vsphere = s
+	return us.vsphere, nil
 }
 
 // reaper takes abandoned sessions to a farm upstate so they don't build up forever

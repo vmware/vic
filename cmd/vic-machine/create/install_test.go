@@ -33,22 +33,18 @@ func TestGenKey(t *testing.T) {
 	os.Args = []string{"cmd", "create"}
 	flag.Parse()
 	create.noTLS = false
-	create.DisplayName = "install-test"
+	create.certPath = "install-test"
 	create.cname = "common name"
 	create.keySize = 1024
 
-	ca, kp, err := create.generateCertificates(true)
-	defer os.RemoveAll(fmt.Sprintf("./%s", create.DisplayName))
+	ca, kp, err := create.generateCertificates(true, true)
+	defer os.RemoveAll(fmt.Sprintf("./%s", create.certPath))
 
 	assert.NoError(t, err, "Expected to cleanly generate certificates")
 	assert.NotEmpty(t, ca, "Expected CA to contain data")
 	assert.NotNil(t, kp, "Expected keypair to contain data")
 	assert.NotEmpty(t, kp.CertPEM, "Expected certificate to contain data")
 	assert.NotEmpty(t, kp.CertPEM, "Expected key to contain data")
-
-	create.key = fmt.Sprintf("./%s/key.pem", create.DisplayName)
-	create.cert = fmt.Sprintf("./%s/cert.pem", create.DisplayName)
-	create.clientCAs = []string{fmt.Sprintf("./%s/ca.pem", create.DisplayName)}
 
 	ca, kp, err = create.loadCertificates()
 	assert.NoError(t, err, "Expected to cleanly load certificates")

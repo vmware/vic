@@ -190,7 +190,7 @@ func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]ty
 	var mvm mo.VirtualMachine
 
 	if err = vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
-		log.Infof("Unable to get vm config: %s", err)
+		log.Errorf("Unable to get vm config: %s", err)
 		return nil, err
 	}
 
@@ -204,7 +204,7 @@ func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]stri
 	info := make(map[string]string)
 
 	if err = vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
-		log.Infof("Unable to get vm config: %s", err)
+		log.Errorf("Unable to get vm config: %s", err)
 		return info, err
 	}
 
