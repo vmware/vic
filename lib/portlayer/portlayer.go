@@ -18,6 +18,7 @@ import (
 	"path"
 
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
@@ -83,5 +84,48 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
+	// Unbind containerVM serial ports configured with the old VCH IP.
+	// Useful when the appliance restarts and the VCH has a different IP.
+	unbindSerialPorts(sess)
+
 	return nil
+}
+
+// unbindSerialPorts disconnects serial ports backed by network on the VCH's old IP
+// for running containers. This is useful when the appliance or the portlayer restarts
+// and the VCH has a new IP. Any errors are logged and portlayer init proceeds as usual.
+func unbindSerialPorts(sess *session.Session) {
+	// Get all running containers from the cache
+	runningState := new(exec.State)
+	*runningState = exec.StateRunning
+	containers := exec.Containers.Containers(runningState)
+
+	for i := range containers {
+		if containers[i].ExecConfig != nil {
+			log.Infof("unbinding serial port for running container: %s", containers[i].ExecConfig.ID)
+		}
+
+		// Obtain a container handle
+		handle := containers[i].NewHandle(context.Background())
+		if handle == nil {
+			log.Error("unable to obtain a handle for container")
+			continue
+		}
+
+		// Unbind the VirtualSerialPort
+		newHandle, err := attach.Unbind(handle)
+		if err != nil {
+			log.Errorf("unable to unbind serial port for container: %s", err)
+			continue
+		}
+
+		// Commit the handle
+		if execHandle, ok := newHandle.(*exec.Handle); !ok {
+			log.Error("handle type assertion failed for container")
+		} else {
+			if err := execHandle.Commit(context.Background(), sess, nil); err != nil {
+				log.Errorf("unable to commit handle for container: %s", err)
+			}
+		}
+	}
 }
