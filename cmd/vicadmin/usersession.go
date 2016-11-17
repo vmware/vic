@@ -64,7 +64,6 @@ func (u *UserSessionStore) Add(id string, config *session.Config) *UserSession {
 }
 
 func (u *UserSessionStore) Delete(id string) {
-	var foo string
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 	delete(u.sessions, id)
