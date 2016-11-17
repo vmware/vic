@@ -240,7 +240,8 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 
 	for name, r := range readers {
 		log.Infof("Collecting log with reader %s(%#v)", name, r)
-
+		//pause shortly to try and cheat around race condition
+		time.Sleep(time.Millisecond * 5)
 		e, err := r.open()
 		if err != nil {
 			log.Warningf("error reading %s(%s): %s\n", name, r, err)
@@ -286,7 +287,11 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 	defer out.Flush()
 
 	for name, r := range readers {
+
 		log.Infof("Collecting log with reader %s(%#v)", name, r)
+
+		//pause shortly to try and cheat around race condition
+		time.Sleep(time.Millisecond * 5)
 
 		e, err := r.open()
 		if err != nil {
