@@ -89,19 +89,19 @@ func UserReadablePingTestDescription(code int) string {
 func UserReadableVCAPITestDescription(code int) string {
 	switch code {
 	case VCStatusOK:
-		return "responds as expected"
+		return "API responds as expected"
 	case VCStatusInvalidURL:
-		return "url is invalid"
+		return "API url is invalid"
 	case VCStatusErrorQuery:
-		return "failed to respond to the query"
+		return "API failed to respond to the query"
 	case VCStatusIncorrectResponse:
-		return "returns unexpected response"
+		return "API returns unexpected response"
 	case VCStatusErrorResponse:
-		return "returns error"
+		return "API returns error"
 	case VCStatusNotXML:
-		return "returns non XML response"
+		return "API returns non XML response"
 	default:
-		return "unknown API test"
+		return "API test returned unknown code"
 	}
 }
 
