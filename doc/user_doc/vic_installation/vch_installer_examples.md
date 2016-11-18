@@ -193,7 +193,7 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
 - Directs external and management to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Sets a DNS server for use by the virtual container host.
+- Sets a DNS server for use by the external, management, and client networks.
 - Sets a static IP address for the virtual container host endpoint VM on each of the external, management, and client networks. 
 - Specifies the gateway for the external network. If you set a static IP address on the external network, you must also specify the gateway address.
 - Does not specify a gateway for the management network, because the management network shares a network with the external network. The management network automatically uses the external network gateway.
