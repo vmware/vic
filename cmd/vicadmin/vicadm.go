@@ -407,7 +407,7 @@ func (r datastoreReader) open() (entry, error) {
 	return httpEntry(r.path, res)
 }
 
-// removes user credentials from "in"
+// stripCredentials removes user credentials from "in"
 func stripCredentials(in *session.Session) error {
 	serviceURL, err := soap.ParseURL(rootConfig.Service)
 	if err != nil {
