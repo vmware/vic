@@ -163,6 +163,7 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 		switch page[i].(type) {
 		case *types.VmGuestShutdownEvent,
 			*types.VmPoweredOnEvent,
+			*types.DrsVmPoweredOnEvent,
 			*types.VmPoweredOffEvent,
 			*types.VmRemovedEvent,
 			*types.VmSuspendedEvent,
