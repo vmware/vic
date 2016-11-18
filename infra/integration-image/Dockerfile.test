@@ -16,7 +16,7 @@ RUN pip install robotframework-httplibrary
 
 RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/local/bin
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.11.3/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.11.4/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
 RUN chmod +x /usr/local/bin/govc
 
 RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx

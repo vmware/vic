@@ -16,6 +16,7 @@ package backends
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/url"
@@ -60,7 +61,7 @@ var (
 	vchConfig *config.VirtualContainerHostConfigSpec
 
 	insecureRegistries []string
-	RegistryService    *registry.Service
+	RegistryCertPool   *x509.CertPool
 )
 
 func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec, insecureRegs []url.URL) error {
@@ -81,6 +82,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		} else {
 			portLayerName = product + " " + productVersion + " Backend Engine"
 		}
+
+		loadRegistryCACerts()
 	} else {
 		portLayerName = product + " Backend Engine"
 	}
@@ -110,8 +113,6 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	if len(insecureRegistries) > 0 {
 		serviceOptions.InsecureRegistries = insecureRegistries
 	}
-	log.Debugf("New registry service with options %#v", serviceOptions)
-	RegistryService = registry.NewService(serviceOptions)
 
 	return nil
 }
@@ -309,4 +310,26 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 		}
 	}
 	return nil
+}
+
+func loadRegistryCACerts() {
+	if len(vchConfig.RegistryCertificateAuthorities) == 0 {
+		return
+	}
+
+	rootCertPool, err := x509.SystemCertPool()
+	log.Debugf("Loaded %d CAs for registries from system CA bundle", len(rootCertPool.Subjects()))
+	if err != nil {
+		log.Errorf("Unable to load system CAs")
+		return
+	}
+
+	if !rootCertPool.AppendCertsFromPEM(vchConfig.RegistryCertificateAuthorities) {
+		log.Errorf("Unable to load CAs for registry access in config")
+		return
+	}
+
+	RegistryCertPool = rootCertPool
+
+	log.Debugf("Loaded %d CAs for registries from config", len(rootCertPool.Subjects()))
 }

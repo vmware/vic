@@ -96,7 +96,8 @@ type Create struct {
 	noTLSverify     bool
 	advancedOptions bool
 
-	clientCAs cli.StringSlice
+	clientCAs   cli.StringSlice
+	registryCAs cli.StringSlice
 
 	containerNetworks         cli.StringSlice
 	containerNetworksGateway  cli.StringSlice
@@ -398,6 +399,12 @@ func (c *Create) Flags() []cli.Flag {
 
 		// registries
 		cli.StringSliceFlag{
+			Name:   "registry-ca, rc",
+			Usage:  "Specify a list of additional certificate authority files to use to verify secure registry servers",
+			Value:  &c.registryCAs,
+			Hidden: true,
+		},
+		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
 			Value: &c.insecureRegistries,
 			Usage: "Specify a list of permitted insecure registry server URLs",
@@ -517,7 +524,7 @@ func (c *Create) processParams() error {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
 
-	if err := c.processInsecureRegistries(); err != nil {
+	if err := c.processRegistries(); err != nil {
 		return err
 	}
 
@@ -808,7 +815,18 @@ func (c *Create) processVolumeStores() error {
 	return nil
 }
 
-func (c *Create) processInsecureRegistries() error {
+func (c *Create) processRegistries() error {
+	// load addtional certificate authorities for use with registries
+	if len(c.registryCAs) > 0 {
+		registryCAs, err := c.loadRegistryCAs()
+		if err != nil {
+			return errors.Errorf("Unable to load CA certificates for registry logins: %s", err)
+		}
+
+		c.RegistryCAs = registryCAs
+	}
+
+	// load a list of insecure registries
 	for _, registry := range c.insecureRegistries {
 		url, err := url.Parse(registry)
 		if err != nil {
@@ -959,6 +977,25 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 	}
 
 	return certs, keypair, nil
+}
+
+// loadRegistryCAs loads additional CA certs for docker registry usage
+func (c *Create) loadRegistryCAs() ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
+	var registryCerts []byte
+	for _, f := range c.registryCAs {
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			err = errors.Errorf("Failed to load authority from file %s: %s", f, err)
+			return nil, err
+		}
+
+		registryCerts = append(registryCerts, b...)
+		log.Infof("Loaded registry CA from %s", f)
+	}
+
+	return registryCerts, nil
 }
 
 func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certificate.KeyPair, error) {
@@ -1144,8 +1181,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
-
-	vchConfig.InsecureRegistries = c.Data.InsecureRegistries
 
 	// separate initial validation from dispatch of creation task
 	log.Info("")

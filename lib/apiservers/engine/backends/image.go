@@ -209,6 +209,7 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 		Reference:   ref.String(),
 		Timeout:     imagec.DefaultHTTPTimeout,
 		Outstream:   outStream,
+		RegistryCAs: RegistryCertPool,
 	}
 
 	if authConfig != nil {
