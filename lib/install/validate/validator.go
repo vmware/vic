@@ -250,6 +250,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 
 	v.certificate(ctx, input, conf)
 	v.certificateAuthorities(ctx, input, conf)
+	v.registries(ctx, input, conf)
 
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(ctx, conf)
@@ -401,6 +402,26 @@ func (v *Validator) certificateAuthorities(ctx context.Context, input *data.Data
 	}
 
 	conf.CertificateAuthorities = input.ClientCAs
+}
+
+func (v *Validator) registries(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin(""))
+
+	// copy the list of insecure registries
+	conf.InsecureRegistries = input.InsecureRegistries
+
+	if len(input.RegistryCAs) == 0 {
+		return
+	}
+
+	// Check if CAs can be loaded
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(input.RegistryCAs) {
+		v.NoteIssue(errors.New("Unable to load certificate authority data for registry"))
+		return
+	}
+
+	conf.RegistryCertificateAuthorities = input.RegistryCAs
 }
 
 func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
