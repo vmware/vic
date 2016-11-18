@@ -25,46 +25,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func TestPing(t *testing.T) {
-	assert.Equal(t, PingStatusNoPingOutput, runPing(nil, nil))
-	assert.Equal(t, PingStatusPingNotExists, runPing(nil, errors.New("executable file not found")))
-	assert.Equal(t, PingStatusResolutionFailed, runPing([]byte("unknown host test"), nil))
-	assert.Equal(t, PingStatusUnknownError, runPing([]byte("strageoutput"), nil))
-
-	pingOutput1 := `PING ukr.net (212.42.76.253) 56(84) bytes of data.
-64 bytes from srv253.fwdcdn.com (212.42.76.253): icmp_seq=1 ttl=47 time=168 ms
-64 bytes from srv253.fwdcdn.com (212.42.76.253): icmp_seq=2 ttl=47 time=173 ms
-64 bytes from srv253.fwdcdn.com (212.42.76.253): icmp_seq=3 ttl=47 time=172 ms
-64 bytes from srv253.fwdcdn.com (212.42.76.253): icmp_seq=4 ttl=47 time=164 ms
-
---- ukr.net ping statistics ---
-4 packets transmitted, 4 received, 0% packet loss, time 3005ms
-rtt min/avg/max/mdev = 164.722/169.911/173.932/3.512 ms
-	`
-
-	assert.Equal(t, PingStatusOk, runPing([]byte(pingOutput1), nil))
-
-	pingOutput2 := `PING 129.1.0.8 (129.1.0.8) 56(84) bytes of data.
-
---- 129.1.0.8 ping statistics ---
-4 packets transmitted, 0 received, 100% packet loss, time 3024ms
-`
-	assert.Equal(t, PingStatusOkNotPingable, runPing([]byte(pingOutput2), nil))
-
-	pingOutput3 := `PING ukr.net (212.42.76.253) 56(84) bytes of data.
-64 bytes from srv253.fwdcdn.com (212.42.76.253): icmp_seq=1 ttl=47 time=168 ms
-64 bytes from srv253.fwdcdn.com (212.42.76.253): timeout
-64 bytes from srv253.fwdcdn.com (212.42.76.253): icmp_seq=3 ttl=47 time=172 ms
-64 bytes from srv253.fwdcdn.com (212.42.76.253): icmp_seq=4 ttl=47 time=164 ms
-
---- ukr.net ping statistics ---
-4 packets transmitted, 3 received, 25% packet loss, time 3005ms
-rtt min/avg/max/mdev = 164.722/169.911/173.932/3.512 ms
-	`
-
-	assert.Equal(t, PingStatusOkPacketLosses, runPing([]byte(pingOutput3), nil))
-}
-
 func TestCheckAPIAvailability(t *testing.T) {
 	assert.Equal(t, VCStatusErrorQuery, CheckAPIAvailability("http://127.0.0.1:65535"))
 	assert.Equal(t, VCStatusErrorQuery, CheckAPIAvailability("http://127.0.0.1:65536"))
@@ -149,4 +109,8 @@ func TestCheckAPIAvailabilityQueryCorrectData(t *testing.T) {
 	}
 	code := queryAPI(op, f, "testurl")
 	assert.Equal(t, VCStatusOK, code)
+}
+
+func TestCheckAPIAvailabilityIncorrectDNSName(t *testing.T) {
+	assert.Equal(t, VCStatusUnknownHost, CheckAPIAvailability("https://example.notexisting.domain"))
 }

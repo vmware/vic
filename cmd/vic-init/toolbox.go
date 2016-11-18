@@ -25,8 +25,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/vmware/vic/pkg/diag"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
 
 	log "github.com/Sirupsen/logrus"
@@ -45,8 +45,6 @@ func startCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
 		return -1, enableSSH(r.Arguments)
 	case "passwd":
 		return -1, passwd(r.Arguments)
-	case "test-ping":
-		return diag.CheckPing(r.Arguments), nil
 	case "test-vc-api":
 		return diag.CheckAPIAvailability(r.Arguments), nil
 	default:

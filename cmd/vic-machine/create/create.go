@@ -35,11 +35,11 @@ import (
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/certificate"
-	"github.com/vmware/vic/pkg/diag"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/diag"
 )
 
 const (
@@ -1167,33 +1167,9 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return errors.New("Running diagnostics failed.")
 	}
 
-	// Checking if vSphere target can respond to ping request.
-	const pingTestTxt = "Target vSphere API Ping Test:"
-	cd, err := executor.CheckVCPingFromAppliance(ctx, vch, vchConfig.Target)
-	code := int(cd)
-	if err != nil {
-		log.Errorf("Failed to ping vSphere target host %s: %v", vchConfig.Target, err)
-		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Could not run network diagnostic on appliance")
-	}
-
-	// In case of fatal error, log error and exit.
-	if code >= diag.StatusCodeFatalThreshold {
-		log.Errorf("%s %s %s", pingTestTxt, vchConfig.Target, diag.UserReadablePingTestDescription(code))
-		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Ping test from VCH to vSphere target")
-	}
-
-	// In case of non fatal error, log an error on warning level.
-	if code > 0 {
-		log.Warningf("%s %s %s", pingTestTxt, vchConfig.Target, diag.UserReadablePingTestDescription(code))
-	} else {
-		log.Infof("%s %s %s", pingTestTxt, vchConfig.Target, diag.UserReadablePingTestDescription(code))
-	}
-
 	// Checking access to vSphere API
-	cd, err = executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
-	code = int(cd)
+	cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
+	code := int(cd)
 	if err != nil {
 		log.Errorf("Failed to access target vSphere API %s: %v", vchConfig.Target, err)
 		executor.CollectDiagnosticLogs()

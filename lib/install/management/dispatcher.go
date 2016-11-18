@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"net/url"
 	"os"
 	"strings"
 
@@ -240,27 +239,6 @@ func (d *Dispatcher) opManager(ctx context.Context, vch *vm.VirtualMachine) (*gu
 		return nil, fmt.Errorf("Unable to manage processes in appliance VM: %s", err)
 	}
 	return processManager, nil
-}
-
-func (d *Dispatcher) CheckVCPingFromAppliance(ctx context.Context, vch *vm.VirtualMachine, target string) (int64, error) {
-	u, err := url.Parse(target)
-	if err != nil {
-		return -1, fmt.Errorf("Could not parse target host: %s", target)
-	}
-
-	pm, err := d.opManager(ctx, vch)
-	if err != nil {
-		return -1, err
-	}
-
-	auth := types.NamePasswordAuthentication{}
-	spec := types.GuestProgramSpec{
-		ProgramPath:      "test-ping",
-		Arguments:        u.Host,
-		WorkingDirectory: "/",
-		EnvVariables:     []string{},
-	}
-	return pm.StartProgram(ctx, &auth, &spec)
 }
 
 func (d *Dispatcher) CheckAccessToVCAPI(ctx context.Context, vch *vm.VirtualMachine, target string) (int64, error) {
