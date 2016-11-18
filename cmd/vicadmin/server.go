@@ -36,7 +36,6 @@ import (
 	"github.com/google/uuid"
 	gorillacontext "github.com/gorilla/context"
 
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/filelock"
 	"github.com/vmware/vic/pkg/trace"
@@ -172,7 +171,14 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
 			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
 			key := uuid.New().String()
-			usersess := s.uss.Add(key, &rootConfig.Config)
+
+			vs, err := vSphereSessionGet(&rootConfig.Config)
+			if err != nil {
+				log.Errorf("Unable to get vSphere session with default config for cert-auth'd user")
+				http.Error(w, genericErrorMessage, http.StatusInternalServerError)
+				return
+			}
+			usersess := s.uss.Add(key, &rootConfig.Config, vs)
 
 			timeNow, err := usersess.created.MarshalText()
 			if err != nil {
@@ -274,31 +280,20 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			DatastorePath:  rootConfig.DatastorePath,
 			HostPath:       rootConfig.Config.HostPath,
 			PoolPath:       rootConfig.PoolPath,
+			User:           url.UserPassword(req.FormValue("username"), req.FormValue("password")),
+			Service:        rootConfig.Service,
 		}
-		user := url.UserPassword(req.FormValue("username"), req.FormValue("password"))
-		serviceURL, err := soap.ParseURL(rootConfig.Service)
-		if err != nil {
-			// this could happen for a number of reasons but most likely for a plain ol' auth failure
-			log.Errorf("vSphere service URL was not a valid format; parsing returned error: %s", err)
-			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
-			return
-		}
-
-		serviceURL.User = user
-		userconfig.Service = serviceURL.String()
 
 		// check login
-		usersession, err := vSphereSessionGet(&userconfig)
-		if err != nil || usersession == nil {
+		vs, err := vSphereSessionGet(&userconfig)
+		if err != nil || vs == nil {
 			// something went wrong or we could not authenticate
-			log.Warnf("User %s from %s failed to authenticate at %s", user, req.RemoteAddr, time.Now())
+			log.Warnf("User %s from %s failed to authenticate at %s", userconfig.User, req.RemoteAddr, time.Now())
 			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusUnauthorized)
 			return
 		}
 
 		// successful login above; user is authenticated
-		// log out, disregard errors
-		usersession.Client.Logout(context.Background())
 
 		// create a token to save as an encrypted & signed cookie
 		websession, err := s.uss.cookies.Get(req, sessionCookieKey)
@@ -309,11 +304,13 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		key := uuid.New().String()
-		usersess := s.uss.Add(key, &userconfig)
+		userconfig.User = nil
+		userconfig.Service = ""
+		us := s.uss.Add(key, &userconfig, vs)
 
-		timeNow, err := usersess.created.MarshalText()
+		timeNow, err := us.created.MarshalText()
 		if err != nil {
-			log.Errorf("Failed to unmarshal time object %+v into text due to error: %s", usersess.created, err)
+			log.Errorf("Failed to unmarshal time object %+v into text due to error: %s", us.created, err)
 			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
 			return
 		}
