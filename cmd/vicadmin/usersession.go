@@ -88,14 +88,7 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 		return nil, fmt.Errorf("No vSphere session found. User with ID %s must authenticate again.", id)
 	}
 
-	// log.Infof("Creating vSphere session for vicadmin usersession %s", id)
-	// us.config.User = nil
-	// s, err := vSphereSessionGet(us.config)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// us.vsphere = s
-	log.Infof("Found cached vSphere session for vicadmin usersession %s", id)
+	log.Infof("Found vSphere session for vicadmin usersession %s", id)
 	return us.vsphere, nil
 }
 
