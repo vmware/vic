@@ -81,6 +81,7 @@ func LearnRegistryURL(options Options) (string, error) {
 			Username:           options.Username,
 			Password:           options.Password,
 			InsecureSkipVerify: options.InsecureSkipVerify,
+			RootCAs:            options.RegistryCAs,
 		})
 
 		headers, err := fetcher.Head(url)
@@ -123,6 +124,7 @@ func LearnAuthURL(options Options) (*url.URL, error) {
 		Username:           options.Username,
 		Password:           options.Password,
 		InsecureSkipVerify: options.InsecureSkipVerify,
+		RootCAs:            options.RegistryCAs,
 	})
 
 	// We expect docker registry to return a 401 to us - with a WWW-Authenticate header
@@ -159,6 +161,7 @@ func FetchToken(ctx context.Context, options Options, url *url.URL, progressOutp
 		Username:           options.Username,
 		Password:           options.Password,
 		InsecureSkipVerify: options.InsecureSkipVerify,
+		RootCAs:            options.RegistryCAs,
 	})
 
 	token, err := fetcher.FetchAuthToken(url)
@@ -194,6 +197,7 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 		Password:           options.Password,
 		Token:              options.Token,
 		InsecureSkipVerify: options.InsecureSkipVerify,
+		RootCAs:            options.RegistryCAs,
 	})
 
 	// ctx
@@ -323,6 +327,7 @@ func FetchImageManifest(ctx context.Context, options Options, progressOutput pro
 		Password:           options.Password,
 		Token:              options.Token,
 		InsecureSkipVerify: options.InsecureSkipVerify,
+		RootCAs:            options.RegistryCAs,
 	})
 
 	manifestFileName, err := fetcher.Fetch(ctx, url, true, progressOutput)

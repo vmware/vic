@@ -138,6 +138,8 @@ type Certificate struct {
 	HostCertificate *RawCertificate `vic:"0.1" scope:"read-only"`
 	// The CAs to validate client connections
 	CertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
+	// The CAs to validate docker registry connections
+	RegistryCertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
 	HostCertificates map[string]*RawCertificate
 }
