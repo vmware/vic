@@ -33,7 +33,7 @@ vSphere Integrated Containers Engine allows you to create and run multiple conta
 ## vSphere Features Not Supported in This Release
 vSphere Integrated Containers Engine does not currently support the following vSphere features:
 
-- vSphere Storage DRS&trade;: You cannot use datastores in Storage DRS clusters as the target datastores for image stores or volume stores.
+- vSphere Storage DRS&trade;: You cannot configure virtual container hosts to use datastores that are in Storage DRS clusters.
 - vSphere High Availability: You can deploy virtual container hosts to systems that are configured with High Availability, but you cannot use High Availability to fail over the virtual container hosts themselves.
 - vSphere Fault Tolerance: You cannot configure Fault Tolerance on virtual container hosts.
 - vSphere Virtual Volumes&trade;: You cannot use Virtual Volumes as the target datastores for image stores or volume stores.
