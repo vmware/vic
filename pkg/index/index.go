@@ -52,7 +52,7 @@ func (n *node) addChild(child *node) {
 type Index struct {
 	root        *node
 	lookupTable map[string]*node
-	m           sync.Mutex
+	m           sync.RWMutex
 }
 
 func NewIndex() *Index {
@@ -63,8 +63,8 @@ func NewIndex() *Index {
 
 // Insert inserts a copy of the given node to the tree under the given parent.
 func (i *Index) Insert(n Element) error {
-	i.m.Lock()
 	defer i.m.Unlock()
+	i.m.Lock()
 
 	_, ok := i.lookupTable[n.Self()]
 	if ok {
@@ -99,8 +99,8 @@ func (i *Index) Insert(n Element) error {
 
 // Get returns a Copy of the named node.
 func (i *Index) Get(nodeID string) (Element, error) {
-	i.m.Lock()
-	defer i.m.Unlock()
+	defer i.m.RUnlock()
+	i.m.RLock()
 
 	n, ok := i.lookupTable[nodeID]
 	if !ok {
@@ -112,8 +112,8 @@ func (i *Index) Get(nodeID string) (Element, error) {
 
 // HasChildren returns whether a node has children or not
 func (i *Index) HasChildren(nodeID string) (bool, error) {
-	i.m.Lock()
-	defer i.m.Unlock()
+	defer i.m.RUnlock()
+	i.m.RLock()
 
 	n, ok := i.lookupTable[nodeID]
 	if !ok {
@@ -124,8 +124,8 @@ func (i *Index) HasChildren(nodeID string) (bool, error) {
 }
 
 func (i *Index) List() ([]Element, error) {
-	i.m.Lock()
-	defer i.m.Unlock()
+	defer i.m.RUnlock()
+	i.m.RLock()
 
 	nodes := make([]Element, 0, len(i.lookupTable))
 
@@ -138,8 +138,14 @@ func (i *Index) List() ([]Element, error) {
 
 // Delete deletes a leaf node
 func (i *Index) Delete(nodeID string) (Element, error) {
-	i.m.Lock()
 	defer i.m.Unlock()
+	i.m.Lock()
+
+	return i.deleteNode(nodeID)
+}
+
+func (i *Index) deleteNode(nodeID string) (Element, error) {
+	log.Debugf("deleting %s", nodeID)
 
 	n, ok := i.lookupTable[nodeID]
 	if !ok {
@@ -147,7 +153,7 @@ func (i *Index) Delete(nodeID string) (Element, error) {
 	}
 
 	if len(n.children) != 0 {
-		return nil, fmt.Errorf("Node %s has children %#q", nodeID, n.children)
+		return nil, fmt.Errorf("Node %s has children %#v", nodeID, n.children)
 	}
 
 	// remove the reference to the node from its parent
@@ -183,8 +189,8 @@ const (
 type visitor func(Element) (iterflag, error)
 
 func (i *Index) bfs(root *node, visitFunc visitor) error {
-	i.m.Lock()
 	defer i.m.Unlock()
+	i.m.Lock()
 
 	// XXX Look into parallelizing this without breaking API boundaries.
 	return i.bfsworker(root, func(n *node) (iterflag, error) { return visitFunc(n.Element) })
