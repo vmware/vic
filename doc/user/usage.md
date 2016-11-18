@@ -204,7 +204,7 @@ Currently the container does **not** have a firewall configured in this circumst
 ## TLS configuration
 
 There are three TLS configurations available for the API endpoint - the default configuration is _mutual authentication_.
-If there is insufficient information via the create options to use that configuraiton you will see the following help output:
+If there is insufficient information via the create options to use that configuration you will see the following help output:
 ```
 ERRO[2016-11-07T19:53:44Z] Common Name must be provided when generating certificates for client authentication:
 INFO[2016-11-07T19:53:44Z]   --tls-cname=<FQDN or static IP> # for the appliance VM
@@ -215,17 +215,21 @@ INFO[2016-11-07T19:53:44Z]
 ERRO[2016-11-07T19:53:44Z] Create cannot continue: unable to generate certificates
 ERRO[2016-11-07T19:53:44Z] --------------------
 ERRO[2016-11-07T19:53:44Z] vic-machine-linux failed: provide Common Name for server certificate
-```
+``` 
+
+The [`--cert-path`](#certificate-names-and---cert-path) option applies to all of the TLS configurations other than --no-tls.
+
+Using `--force` will allow a `create` operation to move past some certificate checks performed for existing certificates, however will do so by generating __new__ certificates, __overwriting__ the old.
 
 #### Disabled, `--no-tls`
-Disabling TLS completely is strongly discouraged as it allows trivial snooping of API traffic for entities on the same network. When using this option the API will be served over HTTP, not HTTPS.
+Disabling TLS completely is strongly discouraged as it allows trivial snooping of API traffic by entities on the same network. When using this option the API will be served over HTTP, not HTTPS.
 
 
 #### Server authentication, `--no-tlsverify`
 In this configuration the API endpoint has a certificate that clients will use to validate the identity of the server. This allows the client to trust the server, but the server does not require
 authentication or authorization of the client. If no certificate is provided then a self-signed certificate will be generated.
 
-If using a pre-generated certificate, the following options are used:
+If using a pre-created certificate, the following options are used:
 - `--key` - path to key file in PEM format
 - `--cert` - path to certificate file in PEM format
 
@@ -235,7 +239,7 @@ If using a pre-generated certificate, the following options are used:
 Mutual authentication, also referred to as _tlsverify_, means that the client must authenticate by presenting a certificate to the server in addition to the server authentication with the client.
 In this configuration the vicadmin server also requires authentication, which can be via client certificate.
 
-If using pre-generated certificates the following option must be provided in addition to the server authentication options above.
+If using pre-created certificates the following option must be provided in addition to the server authentication options above.
 - `--tls-ca` - path to certificate authority to vet client certificates against in PEM format. May be specified multiple times.
 
 As a convenience, vic-machine will generate authority, server, and client certificates if a Common Name is provided.
@@ -254,4 +258,42 @@ or `--no-tlsverify` is specifed.
 - `--client-network-ip` - IP or FQDN to use for the API endpoint
 
 
+#### Certificate names and `--cert-path`
+
+If using the `--key` and `--cert` options, any filename and path can be provided for the server certificate and key. However when generating certificates the following standard names are used:
+* server-cert.pem
+* server-key.pem
+* cert.pem
+* key.pem
+* ca.pem
+
+The default value of `--cert-path` is that of the `--name` parameter, in the current working directory, and is used as:
+1. the location to check for existing certificates, by the default names detailed above.
+2. the location to save generated certificates, which will occur only if existing certificates are not found
+
+The certificate authority (CA) in the certificate path will only be loaded if no CA is specified via the `--tls-ca` option.
+
+If a warning in the form below is received during creation it means that client authentication was enabled (a certificate authority was provided), but neither that authority nor the ones configured 
+on the system were able to verify the provided server certificate. This can be a valid configuration, but should be checked:
+```
+Unable to verify server certificate with configured CAs: <additional detail>
+```
+
+_NOTE: while it is possible to mix generated and pre-created client and server certificates additional care must be taken to ensure a working setup_
+
+Sample `vic-machine` output when loading existing certificates for a tlsverify configuration:
+```
+INFO[2016-11-11T23:58:02Z] Using client-network-ip as cname where needed - use --tls-cname to override: 192.168.78.127
+INFO[2016-11-11T23:58:02Z] Loaded server certificate ./xxx/server-cert.pem
+INFO[2016-11-11T23:58:02Z] Loaded CA with default name from certificate path xxx
+INFO[2016-11-11T23:58:02Z] Loaded client certificate with default name from certificate path xxx
+```    
+
+#### Using client certificates with wget or curl
+
+To use client certificates with wget and curl requires adding the following options:
+```
+wget --certificate=/path/to/cert --private-key=/path/to/key 
+curl --cert=/path/to/cert --key=/path/to/key 
+```
 [Issues relating to Virtual Container Host deployment](https://github.com/vmware/vic/labels/component%2Fvic-machine)

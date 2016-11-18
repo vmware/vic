@@ -42,13 +42,11 @@ func NewKeyPair(certFile, keyFile string, certPEM, keyPEM []byte) *KeyPair {
 func (kp *KeyPair) LoadCertificate() error {
 	c, err := ioutil.ReadFile(kp.CertFile)
 	if err != nil {
-		err = errors.Errorf("Failed to read certificate file %s: %s", kp.CertFile, err)
 		return err
 	}
 
 	k, err := ioutil.ReadFile(kp.KeyFile)
 	if err != nil {
-		err = errors.Errorf("Failed to read key file %s: %s", kp.KeyFile, err)
 		return err
 	}
 
@@ -111,6 +109,7 @@ func (kp *KeyPair) CreateClientCertificate(domain string, org []string, size int
 }
 
 // Certificate turns the KeyPair back into useful TLS constructs
+// This attempts to populate the certificate.Leaf field with the x509 certificate for convenience
 func (kp *KeyPair) Certificate() (*tls.Certificate, error) {
 	if kp.CertPEM == nil || kp.KeyPEM == nil {
 		return nil, errors.New("KeyPair has no data")
@@ -120,6 +119,8 @@ func (kp *KeyPair) Certificate() (*tls.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	cert.Leaf, _, _ = ParseCertificate(kp.CertPEM, kp.KeyPEM)
 
 	return &cert, nil
 }

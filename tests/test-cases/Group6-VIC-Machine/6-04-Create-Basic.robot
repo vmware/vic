@@ -237,6 +237,32 @@ Create VCH - Invalid keys
 
     Cleanup VIC Appliance On Test Server
 
+Create VCH - Reuse keys
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
+    Set Test Environment Variables
+
+    # use one install to generate certificates
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}
+
+    # remove the initial deployment
+    ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --name=${vch-name} --force
+    Should Contain  ${ret}  Completed successfully
+
+    # deploy using the same name - should reuse certificates
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+
+    Should Contain  ${output}  Loaded server certificate
+    Should Contain  ${output}  Loaded CA with default name from certificate path
+    Should Contain  ${output}  Loaded client certificate with default name from certificate path
+
+    Cleanup VIC Appliance On Test Server
+
 Basic timeout
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server

@@ -41,8 +41,8 @@ const (
 // resultant dev path (e.g /dev/sda). For instance, if sysPath is
 // /sys/bus/pci/devices/0000:03:00.0/host0/subsystem/devices/0:0:0:0/block, the
 // directory to appear in block will be mapped to /dev/<device>.  waitForDevice
-// will wait for the entry to appear in block AND the device to exist in /dev/,
-// returning the path to /dev/<device>.
+// will wait for the entry to appear as a scsi target AND the blockdev to exist
+// in /dev/, returning the path to /dev/<blockdev>.
 func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 	defer trace.End(trace.Begin(sysPath))
 
@@ -57,8 +57,22 @@ func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 		defer close(errCh)
 
 		for range t.C {
+			// We've timed out.
+			if op.Err() != nil {
+				return
+			}
+
+			// Syspath includes the scsi target itself.  Wait for it and try
+			// again before trying to identify the device node it maps to.
 			dirents, err := ioutil.ReadDir(sysPath)
 			if err != nil {
+
+				// try again
+				if os.IsNotExist(err) {
+					op.Debugf("Expected %s to appear. Trying again.", sysPath)
+					continue
+				}
+
 				errCh <- err
 				return
 			}
@@ -76,6 +90,7 @@ func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 
 					// try again
 					if os.IsNotExist(err) {
+						op.Debugf("Expected %s to appear. Trying again.", blockDev)
 						continue
 					}
 
@@ -84,11 +99,6 @@ func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 				}
 
 				// happy path
-				return
-			}
-
-			// We've timed out.
-			if op.Err() != nil {
 				return
 			}
 		}
