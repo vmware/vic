@@ -207,7 +207,6 @@ This example deploys a virtual container host with the following configuration:
 --external-network-gateway 192.168.1.1/24
 --external-network-ip 192.168.1.10/24
 --management-network 'network 1'
---management-network-ip 192.168.1.11/24
 --client-network 'network 2'
 --client-network-ip 192.168.3.10/24
 --client-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
