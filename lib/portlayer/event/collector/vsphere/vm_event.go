@@ -28,7 +28,8 @@ func NewVMEvent(be types.BaseEvent) *VMEvent {
 	var ee string
 	// vm events that we care about
 	switch be.(type) {
-	case *types.VmPoweredOnEvent:
+	case *types.VmPoweredOnEvent,
+		*types.DrsVmPoweredOnEvent:
 		ee = events.ContainerPoweredOn
 	case *types.VmPoweredOffEvent:
 		ee = events.ContainerPoweredOff

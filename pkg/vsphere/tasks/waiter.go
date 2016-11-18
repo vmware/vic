@@ -35,7 +35,6 @@ const (
 //FIXME: remove this type and refactor to use object.Task from govmomi
 //       this will require a lot of code being touched in a lot of places.
 type Task interface {
-	Reference() types.ManagedObjectReference
 	Wait(ctx context.Context) error
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
@@ -57,21 +56,20 @@ func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 //       return vm, vm.Reconfigure(ctx, config)
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
+	var err error
 	var info *types.TaskInfo
 	var backoffFactor int64 = 1
 
 	for {
-		t, err := f(ctx)
-		log.Debugf("New task: %s", taskMoid(t))
-
-		if err == nil {
+		var t Task
+		if t, err = f(ctx); err == nil {
 			info, err = t.WaitForResult(ctx, nil)
 			if err == nil {
 				return info, err
 			}
 		}
 
-		if !isTaskInProgress(t, err) {
+		if !isTaskInProgress(err) {
 			return info, err
 		}
 
@@ -90,13 +88,13 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 	}
 }
 
-func isTaskInProgress(t Task, err error) bool {
+func isTaskInProgress(err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
 		case types.TaskInProgress:
 			return true
 		default:
-			logSoapFault(t, f)
+			logSoapFault(f)
 		}
 	}
 
@@ -105,7 +103,7 @@ func isTaskInProgress(t Task, err error) bool {
 		case *types.TaskInProgress:
 			return true
 		default:
-			logFault(t, f)
+			logFault(f)
 		}
 	}
 
@@ -114,34 +112,26 @@ func isTaskInProgress(t Task, err error) bool {
 		if _, ok := err.Fault().(*types.TaskInProgress); ok {
 			return true
 		}
-		logFault(t, err.Fault())
+		logFault(err.Fault())
 	default:
 		if f, ok := err.(types.HasFault); ok {
-			logFault(t, f.Fault())
+			logFault(f.Fault())
 		} else {
-			logError(t, err)
+			logError(err)
 		}
 	}
 	return false
 }
 
 // Helper Functions
-func logFault(t Task, fault types.BaseMethodFault) {
-	log.Errorf("%s: unexpected fault on task retry : %#v", taskMoid(t), fault)
+func logFault(fault types.BaseMethodFault) {
+	log.Debugf("unexpected fault on task retry : %#v", fault)
 }
 
-func logSoapFault(t Task, fault types.AnyType) {
-	log.Errorf("%s: unexpected soap fault on task retry : %#v", taskMoid(t), fault)
+func logSoapFault(fault types.AnyType) {
+	log.Debugf("unexpected soap fault on task retry : %#v", fault)
 }
 
-func logError(t Task, err error) {
-	log.Errorf("%s: unexpected error on task retry : %#v", taskMoid(t), err)
-}
-
-func taskMoid(t Task) string {
-	if t == nil {
-		return "Unknown task"
-	}
-
-	return t.Reference().Value
+func logError(err error) {
+	log.Debugf("unexpected error on task retry : %#v", err)
 }
