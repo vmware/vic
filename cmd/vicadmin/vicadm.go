@@ -37,6 +37,8 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/vim25/soap"
 	vchconfig "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
@@ -53,7 +55,7 @@ const (
 	timeout = time.Duration(2 * time.Second)
 )
 
-type ServerCertificate struct {
+type serverCertificate struct {
 	Key  bytes.Buffer
 	Cert bytes.Buffer
 }
@@ -62,7 +64,7 @@ type vicAdminConfig struct {
 	session.Config
 	addr       string
 	tls        bool
-	serverCert *ServerCertificate
+	serverCert *serverCertificate
 }
 
 var (
@@ -131,7 +133,7 @@ func init() {
 	extraconfig.Decode(src, &vchConfig)
 	if vchConfig.HostCertificate == nil {
 		log.Infoln("--no-tls is enabled on the personality")
-		rootConfig.serverCert = &ServerCertificate{}
+		rootConfig.serverCert = &serverCertificate{}
 		rootConfig.serverCert.Cert, rootConfig.serverCert.Key, err = certificate.CreateSelfSigned(rootConfig.addr, []string{"VMware, Inc."}, 2048)
 		if err != nil {
 			log.Errorf("--no-tls was specified but we couldn't generate a self-signed cert for vic admin due to error %s so vicadmin will not run", err.Error())
@@ -405,29 +407,48 @@ func (r datastoreReader) open() (entry, error) {
 	return httpEntry(r.path, res)
 }
 
+// removes user credentials from "in"
+func stripCredentials(in *session.Session) error {
+	serviceURL, err := soap.ParseURL(rootConfig.Service)
+	if err != nil {
+		log.Errorf("Error parsing service URL from config: %s", err)
+		return err
+	}
+	serviceURL.User = nil
+	newclient, err := govmomi.NewClient(context.Background(), serviceURL, true)
+	if err != nil {
+		log.Errorf("Error creating new govmomi client without credentials but with auth cookie: %s", err.Error())
+		return err
+	}
+	newclient.Jar = in.Client.Jar
+	in.Client = newclient
+	return nil
+}
+
 func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
-	session := session.NewSession(sessconfig)
-	session.UserAgent = version.UserAgent("vic-admin")
+	s := session.NewSession(sessconfig)
+	s.UserAgent = version.UserAgent("vic-admin")
+
 	ctx := context.Background()
-	_, err := session.Connect(ctx)
+	_, err := s.Connect(ctx)
 	if err != nil {
 		log.Warnf("Unable to connect: %s", err)
 		return nil, err
 	}
 
-	_, err = session.Populate(ctx)
+	_, err = s.Populate(ctx)
 	if err != nil {
 		// not a critical error for vicadmin
 		log.Warnf("Unable to populate session: %s", err)
 	}
-	usersession, err := session.SessionManager.UserSession(ctx)
+	usersession, err := s.SessionManager.UserSession(ctx)
 	if err != nil {
 		log.Errorf("Got %s while creating user session", err)
 		return nil, err
 	}
 
 	log.Infof("Got session from vSphere with key: %s username: %s", usersession.Key, usersession.UserName)
-	return session, nil
+	return s, nil
 }
 
 func (s *server) getSessionFromRequest(ctx context.Context, r *http.Request) (*session.Session, error) {

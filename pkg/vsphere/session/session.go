@@ -155,13 +155,9 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		}
 	}
 
+	soapURL.User = s.User
 	// Update the service URL with expanded defaults
 	s.Service = soapURL.String()
-
-	// VCH components do not include credentials within the target URL
-	if s.User != nil {
-		soapURL.User = s.User
-	}
 
 	soapClient := soap.NewClient(soapURL, s.Insecure)
 	var login func(context.Context) error
