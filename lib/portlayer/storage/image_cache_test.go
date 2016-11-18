@@ -405,6 +405,140 @@ func TestDeleteImage(t *testing.T) {
 	}
 }
 
+func TestDeleteBranch(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	trace.Logger.Level = logrus.DebugLevel
+
+	imageCache := NewLookupCache(NewMockDataStore())
+	op := trace.NewOperation(context.Background(), "test")
+
+	storeURL, err := imageCache.CreateImageStore(op, "testStore")
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
+		return
+	}
+
+	scratch, err := imageCache.GetImage(op, storeURL, Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// create a 3 level tree with 3 branches.  The third branch will have an extra node.
+	//             scratch
+	//        1    2      3
+	//       10   20      30
+	//       100  200   300 301
+	branches := 4
+	images := make(map[int]*Image)
+	for branch := 1; branch < branches; branch++ {
+		// level 1
+		img, err := imageCache.WriteImage(op, scratch, strconv.Itoa(branch), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+			return
+		}
+		images[branch] = img
+
+		// level 2
+		img, err = imageCache.WriteImage(op, img, strconv.Itoa(branch*10), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+			return
+		}
+		images[branch*10] = img
+
+		// level 3
+		img, err = imageCache.WriteImage(op, img, strconv.Itoa(branch*100), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+			return
+		}
+		images[branch*100] = img
+	}
+
+	// Add an extra node to the last branch
+	img, err := imageCache.WriteImage(op, images[30], "301", nil, "", nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+		return
+	}
+	images[301] = img
+
+	//
+	// Everything above here is just setup.  Everything from here on is the test.
+	//
+
+	// Deletion of an intermediate node should fail
+	imagesDeleted, err := imageCache.DeleteBranch(op, images[1], nil)
+	if !assert.Error(t, err) && assert.Nil(t, imagesDeleted) {
+		return
+	}
+
+	imageList, err := imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// image list should be uneffected
+	if !assert.Equal(t, len(images), len(imageList)) {
+		return
+	}
+
+	//
+	// Deletion of a branch
+	//
+	imagesDeleted, err = imageCache.DeleteBranch(op, images[100], nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// List images should be missing a branch
+	imageList, err = imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	if !assert.Equal(t, 7, len(imageList)) || !assert.Equal(t, 3, len(imagesDeleted)) {
+		return
+	}
+
+	//
+	// Deletion of the split branch should only allow deletion of a single image
+	//
+	imagesDeleted, err = imageCache.DeleteBranch(op, images[300], nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	imageList, err = imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// only 300 should have been deleted
+	if !assert.Equal(t, 6, len(imageList)) || !assert.Equal(t, images[300], imagesDeleted[0]) {
+		return
+	}
+
+	//
+	// Test keep with our 1 remaining branch
+	//
+
+	imagesDeleted, err = imageCache.DeleteBranch(op, images[200], []*url.URL{images[2].SelfLink})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	imageList, err = imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// only 20 and 200 should have been deleted
+	if !assert.Equal(t, 4, len(imageList)) || !assert.Equal(t, images[200], imagesDeleted[0]) || !assert.Equal(t, images[20], imagesDeleted[1]) {
+		for _, img = range imageList {
+			t.Logf("image = %#v", img)
+		}
+		return
+	}
+
+}
+
 // Cache population should be happening in order starting from parent(id1) to children(id4)
 func TestPopulateCacheInExpectedOrder(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
