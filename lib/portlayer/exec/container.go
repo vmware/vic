@@ -314,13 +314,7 @@ func (c *Container) start(ctx context.Context) error {
 	// get existing state and set to starting
 	// if there's a failure we'll revert to existing
 	finalState := c.updateState(StateStarting)
-	defer func() {
-		c.updateState(finalState)
-		// after wait for container start, refresh to get back configuration set by tether
-		ctx, cancel := context.WithTimeout(ctx, propertyCollectorTimeout)
-		defer cancel()
-		c.Refresh(ctx)
-	}()
+	defer func() { c.updateState(finalState) }()
 
 	err := c.containerBase.start(ctx)
 	if err != nil {
@@ -335,8 +329,6 @@ func (c *Container) start(ctx context.Context) error {
 	}
 
 	finalState = StateRunning
-	// get back configuration set by tether
-	c.Refresh(ctx)
 
 	return err
 }

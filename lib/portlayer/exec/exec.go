@@ -168,9 +168,6 @@ func eventCallback(ie events.Event) {
 				log.Debugf("Container(%s) state set to %s via event activity", container.ExecConfig.ID, newState.String())
 
 				container.SetState(newState)
-				if newState == StateStopped {
-					container.onStop()
-				}
 
 				// container state has changed so we need to update the container attributes
 				// we'll do this in a go routine to avoid blocking
