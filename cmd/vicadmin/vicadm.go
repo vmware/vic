@@ -448,6 +448,11 @@ func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
 	}
 
 	log.Infof("Got session from vSphere with key: %s username: %s", usersession.Key, usersession.UserName)
+
+	err = stripCredentials(s)
+	if err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 

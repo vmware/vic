@@ -178,13 +178,6 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 				http.Error(w, genericErrorMessage, http.StatusInternalServerError)
 				return
 			}
-			err = stripCredentials(vs)
-			if err != nil {
-				//stripCredentials logs real error messages
-				http.Error(w, genericErrorMessage, http.StatusInternalServerError)
-				return
-			}
-
 			usersess := s.uss.Add(key, &rootConfig.Config, vs)
 
 			timeNow, err := usersess.created.MarshalText()
@@ -300,14 +293,8 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		userconfig.User = nil
 		// successful login above; user is authenticated
 
-		if err = stripCredentials(vs); err != nil {
-			// stripCredentials will output an actual error to the logs, so we don't really need to do it here
-			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
-			return
-		}
 		// create a token to save as an encrypted & signed cookie
 		websession, err := s.uss.cookies.Get(req, sessionCookieKey)
 		if websession == nil {
@@ -317,6 +304,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		key := uuid.New().String()
+		userconfig.User = nil
 		userconfig.Service = ""
 		us := s.uss.Add(key, &userconfig, vs)
 
