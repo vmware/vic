@@ -60,17 +60,22 @@ type ContainerNetwork struct {
 
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
-	Gateway net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`
+	Gateway net.IPNet `vic:"0.1" scope:"read-only" key:"gateway"`
 
 	// Should this gateway be the default route for containers on the network
 	Default bool `vic:"0.1" scope:"read-only" key:"default"`
 
 	// The set of nameservers associated with this network - may be empty
-	Nameservers []net.IP `vic:"0.1" scope:"read-write" key:"dns"`
+	Nameservers []net.IP `vic:"0.1" scope:"read-only" key:"dns"`
 
 	// The IP ranges for this network
 	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`
 
 	// set of network wide links and aliases for this container on this network
 	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
+
+	Assigned struct {
+		Gateway     net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`
+		Nameservers []net.IP  `vic:"0.1" scope:"read-write" key:"dns"`
+	} `vic:"0.1" scope:"read-write" key:"assigned"`
 }
