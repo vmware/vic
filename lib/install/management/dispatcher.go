@@ -15,13 +15,13 @@
 package management
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"math"
 	"net"
 	"net/url"
-	"context"
 	"os"
 	"strings"
 
@@ -220,7 +220,6 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 	}
 }
 
-// opManager creates a new operation manager.
 func (d *Dispatcher) opManager(ctx context.Context, vch *vm.VirtualMachine) (*guest.ProcessManager, error) {
 	state, err := vch.PowerState(ctx)
 	if err != nil {

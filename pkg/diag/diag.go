@@ -52,11 +52,11 @@ const (
 )
 
 const (
-	// VCStatusOK VC/ESXi API is available.
+	// VCStatusOK vSphere API is available.
 	VCStatusOK = 0
-	// VCStatusInvalidURL Provided VC/ESXi API URL is wrong.
+	// VCStatusInvalidURL Provided vSphere API URL is wrong.
 	VCStatusInvalidURL = 64
-	// VCStatusErrorQuery Error happened trying to query VC/ESXi API
+	// VCStatusErrorQuery Error happened trying to query vSphere API
 	VCStatusErrorQuery = 65
 	// VCStatusErrorResponse Received response doesn't contain expected data.
 	VCStatusErrorResponse = 66
@@ -110,7 +110,7 @@ func UserReadableVCAPITestDescription(code int) string {
 
 var statsRE = *regexp.MustCompile("\\d+ \\w{6,8} transmitted, (\\d+) ")
 
-// CheckPing runs ping to check if VC/ESXi how is resolvable and pingable.
+// CheckPing runs ping to check if vSphere target is resolvable and pingable.
 func CheckPing(hn string) int {
 	cmd := exec.Command("ping", "-c", "4", "-W", "3", "-i", "0.1", hn)
 	return runPing(cmd.CombinedOutput())
@@ -164,7 +164,7 @@ func runPing(data []byte, err error) int {
 	return PingStatusOk
 }
 
-// CheckAPIAvailability accesses VC/ESXi API to ensure it is a correct end point that is up and running.
+// CheckAPIAvailability accesses vSphere API to ensure it is a correct end point that is up and running.
 func CheckAPIAvailability(targetURL string) int {
 	op := trace.NewOperation(context.Background(), "api test")
 	errorCode := VCStatusErrorQuery
@@ -187,7 +187,7 @@ func CheckAPIAvailability(targetURL string) int {
 					InsecureSkipVerify: true,
 				},
 			},
-			// Is 20 seconds enough to receive any response from ESXi server?
+			// Is 20 seconds enough to receive any response from vSphere target server?
 			Timeout: time.Second * 20,
 		}
 		errorCode = queryAPI(op, c.Get, apiURL)
@@ -220,7 +220,7 @@ func queryAPI(op trace.Operation, getter func(string) (*http.Response, error), a
 		return VCStatusNotXML
 	}
 	// we just want to make sure that response contains something familiar that we could
-	// user as ESXi marker.
+	// use as vSphere API marker.
 	if !bytes.Contains(data, []byte("urn:vim25Service")) {
 		op.Errorf("Server response doesn't contain 'urn:vim25Service': %s", string(data))
 		return VCStatusIncorrectResponse

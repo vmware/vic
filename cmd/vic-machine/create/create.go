@@ -1157,8 +1157,8 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	// vic-init will try to reach out to the vCenter/ESXi host.
-	log.Info("Checking connectivity with the target vCenter/ESXi")
+	// vic-init will try to reach out to the vSphere target.
+	log.Info("Checking VCH connectivity with vSphere target")
 	vch, err := executor.NewVCHFromComputePath(c.Data.ComputeResourcePath, c.Data.DisplayName, validator)
 	if err != nil {
 		executor.CollectDiagnosticLogs()
@@ -1167,21 +1167,21 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return errors.New("Running diagnostics failed.")
 	}
 
-	// Checking if VC/ESXi can respond to ping request.
-	const pingTestTxt = "VC/ESXi API Ping Test:"
+	// Checking if vSphere target can respond to ping request.
+	const pingTestTxt = "Target vSphere API Ping Test:"
 	cd, err := executor.CheckVCPingFromAppliance(ctx, vch, vchConfig.Target)
 	code := int(cd)
 	if err != nil {
-		log.Errorf("Failed to ping VC/ESXi host %s: %v", vchConfig.Target, err)
+		log.Errorf("Failed to ping vSphere target host %s: %v", vchConfig.Target, err)
 		executor.CollectDiagnosticLogs()
 		return fmt.Errorf("Could not run network diagnostic on appliance")
 	}
 
-	// In case of fatal error, log error and exist.
+	// In case of fatal error, log error and exit.
 	if code >= diag.StatusCodeFatalThreshold {
 		log.Errorf("%s %s %s", pingTestTxt, vchConfig.Target, diag.UserReadablePingTestDescription(code))
 		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Ping test from appliance to VC/ESXi failed")
+		return fmt.Errorf("Ping test from VCH to vSphere target")
 	}
 
 	// In case of non fatal error, log an error on warning level.
@@ -1191,21 +1191,21 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		log.Infof("%s %s %s", pingTestTxt, vchConfig.Target, diag.UserReadablePingTestDescription(code))
 	}
 
-	// Checking access to VC/ESXi API
+	// Checking access to vSphere API
 	cd, err = executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
 	code = int(cd)
 	if err != nil {
-		log.Errorf("Failed to access VC/ESXi API %s: %v", vchConfig.Target, err)
+		log.Errorf("Failed to access target vSphere API %s: %v", vchConfig.Target, err)
 		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Could not run API diagnostic on appliance")
+		return fmt.Errorf("Could not run vSphere API diagnostic on VCH")
 	}
 
-	const apiTestTxt = "VC/ESXi API Test:"
+	const apiTestTxt = "vSphere API Test:"
 	// In case of fatal error, log error and exist.
 	if code >= diag.StatusCodeFatalThreshold {
 		log.Errorf("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
 		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Access to VC/ESXi from appliance failed an API access test")
+		return fmt.Errorf("Access to vSphere target from VCH failed")
 	}
 
 	// In case of non fatal error, log an error on warning level.
