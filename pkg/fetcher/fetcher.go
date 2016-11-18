@@ -17,6 +17,7 @@ package fetcher
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,6 +84,9 @@ type Options struct {
 	InsecureSkipVerify bool
 
 	Token *Token
+
+	// RootCAs will not be modified by fetcher.
+	RootCAs *x509.CertPool
 }
 
 // URLFetcher struct
@@ -103,6 +107,7 @@ func NewURLFetcher(options Options) Fetcher {
 		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: options.InsecureSkipVerify,
+			RootCAs: options.RootCAs,
 		},
 	}
 	client := &http.Client{Transport: tr}

@@ -250,6 +250,7 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		Timeout:  loginTimeout,
 		Username: authConfig.Username,
 		Password: authConfig.Password,
+		RootCAs: RegistryCertPool,
 	})
 
 	// Only look at V2 registries
