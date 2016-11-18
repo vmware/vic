@@ -552,22 +552,22 @@ If you use the `no-tls` option, container developers connect Docker clients to t
 
 You can specify a static IP address for the virtual container host endpoint VM on each of the client, external, and management networks. DHCP is used for the endpoint VM for any network on which you do not specify a static IP address.
 
-You can only specify one static IP address on a given port group. If more than one of the client, external, or management networks shares a port group, you can only specify an IP address for one of those networks. The same address is then used for all of the networks that share that port group.
+You can only specify one static IP address on a given port group. If more than one of the client, external, or management networks shares a port group, you can only specify an IP address on one of those networks. The same address is then used for all of the networks that share that port group.
 
 Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
 
-To specify a static IP address for the endpoint VM on the client, external, or management network, you provide an IP address in the `client/external/management-network-ip` option. In some circumstances you must also provide a gateway address. You can also optionally specify one or more DNS server addresses.
+To specify a static IP address for the endpoint VM on the client, external, or management network, you provide an IP address in the `client/external/management-network-ip` option. If you set a static IP address, you must also provide a gateway address. You can optionally specify one or more DNS server addresses.
 
-**IMPORTANT**: If you assign a static IP address to a virtual container host on the client network by setting the `--client-network-ip` option, `vic-machine create` uses this address to auto-generate trusted CA certificates. If you do not specify `--tls-cname`, `--no-tls` or `--no-tlsverify`, two-way TLS authentication with trusted certificates is implemented by default when you deploy the virtual container host. If you assign a static IP to a virtual container host on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname).
+**IMPORTANT**: If you assign a static IP address to the virtual container host endpoint VM on the client network by setting the `--client-network-ip` option, and you do not specify one of the TLS options, `vic-machine create` uses this address to auto-generate trusted CA certificates. If you do not specify `--tls-cname`, `--no-tls` or `--no-tlsverify`, two-way TLS authentication with trusted certificates is implemented by default when you deploy the virtual container host. If you assign a static IP address to the endpoint VM on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname). If the client network shares a network with the external network you cannot set a static IP address for the endpoint VM on the client network. In this case, you can set a static IP address on the external network, and `vic-machine create` uses this address to auto-generate trusted CA certificates. 
 
 ### `--dns-server` ###
 
 Short name: None
 
-A DNS server to use if you specify static IP addresses for the virtual container host on the client, external, and management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
+A DNS server to use if you specify static IP addresses for the virtual container host endpoint VM on the client, external, or management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
 
 - If you specify `dns-server`, `vic-machine create` always uses the `--dns-server` setting for all three of the client, external, and management networks, even if all three networks use DHCP to obtain their IP addresses.
-- If you do not specify `dns-server` and you specify a static IP address for the virtual container host on all three of the client, external, and management networks, `vic-machine create` uses the Google public DNS service. 
+- If you do not specify `dns-server` and you specify a static IP address for the endpoint VM on all three of the client, external, and management networks, `vic-machine create` uses the Google public DNS service. 
 - If you do not specify `dns-server` and you use a mixture of static IP addresses and DHCP for the client, external, and management networks, `vic-machine create` uses the DNS servers that DHCP provides.
 - If you do not specify `dns-server` and you use DHCP for all of the client, external, and management networks, `vic-machine create` uses the DNS servers that DHCP provides.
 
@@ -579,12 +579,14 @@ A DNS server to use if you specify static IP addresses for the virtual container
 
 Short name: None
 
-A static IP address for the virtual container host on the client, external, or management network. 
+A static IP address for the virtual container host endpoint VM on the external, client, or management network. 
 
-- If you specify an IP address on the external network by using `external-network-ip`, you must also specify a corresponding gateway address by using `external-network-gateway`.  
-- If the client or management networks use the same network as the external network, you do not need to specify a gateway for those networks. 
-- If you specify an IP address on the client or management networks by using `--client-network-ip` or `--management-network-ip`, or both, and if those networks do not use the same network as the external network, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
-- If you specify neither a gateway nor an IP address for a given network, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host endpoint VM on that network.
+You specify a static IP address for the endpoint VM on the external, client, or management networks by using the `--external/client/management-network-ip` option. If you set a static IP address for the endpoint VM on any of the networks, you must specify a corresponding gateway address by using the `--external/client/management-network-gateway` option. 
+
+- If you use the same network for the external network and either or both of the client or management networks, you cannot specify a static IP address for the endpoint VM on the client or management networks. The endpoint VM can have a static IP address on only the external network if the external network is shared with either of the other networks.
+- If either or both of the client or management networks do not use the same network as the external network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
+- If the client and management networks both use the same network, and the external network does not use that network, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
+- If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
 
 You can specify IP addresses in CIDR format.
 
@@ -604,17 +606,13 @@ You can also specify IP addresses as resolvable FQDNs. If you specify an FQDN, `
 
 Short name: None
 
-The gateway to use if you use `external/client/management-network-ip` to specify a static IP address for the virtual container host on the external, client, or management network. You specify a gateway by using the `external/client/management-network-gateway` options, in the following circumstances:
-
-- If you specify an IP address on the external network by using `external-network-ip`, you must also specify a corresponding gateway address by using `external-network-gateway`.
-- If you specify an IP address on the client or management networks by using `--client-network-ip` or `--management-network-ip`, or both, and those networks do not use the same network as the external network, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
-- If you specify neither a gateway nor an IP address for a given network, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host endpoint VM on that network.
+The gateway to use if you use `--external/client/management-network-ip` to specify a static IP address for the virtual container host endpoint VM on the external, client, or management networks. If you specify a static IP address on any network, you must specify a gateway by using the `--external/client/management-network-gateway` options. 
 
 You specify the external network gateway address in CIDR format.
 
 <pre>--external-network-gateway 192.168.X.1/24</pre>
 
-The external, management, and client networks send traffic through the virtual container host to vSphere. The default route to vSphere through the virtual container host is assigned to the external network. As a consequence, if you specify a static IP address on either of the management or client networks, and if those networks do not use the same network as the external network, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify all of the addresses in CIDR format:
+The external, management, and client networks route traffic through the virtual container host endpoint VM to vSphere. The default route to vSphere through the endpoint VM is assigned to the external network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify all of the addresses in CIDR format:
 
 <pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
 <i>routing_destination_2</i>/<i>subnet</i>:
@@ -624,7 +622,7 @@ The external, management, and client networks send traffic through the virtual c
 <i>gateway_address</i>/<i>subnet</i>
 </pre>
 
-In the following example, `--management-network-gateway` informs the virtual container host that it can reach all of the Docker clients that are the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that run Docker clients that will connect to this virtual container host instance. 
+In the following example, `--management-network-gateway` informs the virtual container host that it can reach all of the Docker clients that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that run Docker clients that will connect to this virtual container host instance. 
 
 <pre>--management-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
 </pre>

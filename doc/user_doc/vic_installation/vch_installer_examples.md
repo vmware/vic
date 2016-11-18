@@ -11,7 +11,7 @@ This topic provides examples of the options of the `vic-machine create` command 
   - [Set Limits on Resource Use](#customized)
 - [Networking Examples](#networking)
   - [Specify Public, Management, Client, and Container Networks](#networks)
-  - [Set a Static IP Address on the Different Networks](#static-ip)
+  - [Set a Static IP Address for the Virtual Container Host Endpoint VM on the Different Networks](#static-ip)
   - [Configure a Non-DHCP Container Network](#ip-range)
   - [Configure a Proxy Server](#proxy)
 - [Specify One or More Volume Stores](#volume-stores)
@@ -183,21 +183,20 @@ This example deploys a virtual container host with the following configuration:
 For more information about the networking options, see the [Networking Options section](vch_installer_options.md#networking) in Virtual Container Host Deployment Options.
 
 <a name="static-ip"></a>
-### Set a Static IP Address on the Different Networks ###
+### Set a Static IP Address for the Virtual Container Host Endpoint VM on the Different Networks ###
 
 If you specify networks for any or all of the external, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on one or more of those networks. 
 
-**NOTE**: When you specify a static IP address for the virtual container host on the client network, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. In this case, full TLS authentication is implemented by default and you do not need to specify any authentication options.
+**NOTE**: When you specify a static IP address for the virtual container host endpoint VM on the client network, and you do not specify one of the TLS options, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. In this case, full TLS authentication is implemented by default and `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname). 
 
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
 - Directs external and management to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Sets a DNS server for use by the external, management, and client networks.
-- Sets a static IP address for the virtual container host endpoint VM on each of the external, management, and client networks. 
+- Sets a static IP address for the virtual container host endpoint VM on the external and client networks. Because the management network shares a network with the external network, you cannot set a static IP address on the management network.
 - Specifies the gateway for the external network. If you set a static IP address on the external network, you must also specify the gateway address.
-- Does not specify a gateway for the management network, because the management network shares a network with the external network. The management network automatically uses the external network gateway.
-- Specifies a gateway for the client network. In this example, the client network is not the same as the external network, so you must specify the `--client-network-gateway` option. The `--client-network-gateway` options specifies the routing destination for client network traffic through the virtual container host, as well as the gateway address. The routing destination  informs the virtual container host that it can reach all of the Docker clients at the network addresses in the ranges  that you specify in the routing destinations by sending packets to the specified gateway.
+- Specifies a gateway for the client network. The `--client-network-gateway` options specifies the routing destination for client network traffic through the virtual container host endpoint VM, as well as the gateway address. The routing destination  informs the virtual container host that it can reach all of the Docker clients at the network addresses in the ranges that you specify in the routing destinations by sending packets to the specified gateway.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -216,7 +215,7 @@ This example deploys a virtual container host with the following configuration:
 --name vch1
 </pre>
 
-For more information about the networking options, see the [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](vch_installer_options.md#static-ip) in Virtual Container Host Deployment Options.
+For more information about setting static IP addresses, see the [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](vch_installer_options.md#static-ip) in Virtual Container Host Deployment Options.
 
 <a name="ip-range"></a>
 ### Configure a Non-DHCP Network for Container VMs###
