@@ -29,7 +29,7 @@ EOF
 
 disk=48
 mem=16
-iso=VMware-VMvisor-6.0.0-3620759.x86_64.iso # 6.0u2
+iso=VMware-VMvisor-6.5.0-4564106.x86_64.iso # 6.5.0
 
 while getopts d:hi:m:s flag
 do
@@ -156,10 +156,10 @@ else
     fi
 
     echo "Creating vm ${name}..."
-    govc vm.create -on=false -net "$network" -m $((mem*1024)) -c 2 -g "vmkernel6Guest" -net.adapter=e1000e "$name"
+    govc vm.create -on=false -net "$network" -m $((mem*1024)) -c 2 -g "vmkernel65Guest" -net.adapter=vmxnet3 -disk.controller pvscsi "$name"
 
     echo "Adding a second nic for ${name}..."
-    govc vm.network.add -net "$network" -net.adapter=e1000e -vm "$name"
+    govc vm.network.add -net "$network" -net.adapter=vmxnet3 -vm "$name"
 
     echo "Enabling nested hv for ${name}..."
     govc vm.change -vm "$name" -nested-hv-enabled
@@ -242,6 +242,10 @@ fi
 
 echo "Disabling VSAN device monitoring for ${name}..."
 govc host.esxcli system settings advanced set -o /LSOM/VSANDeviceMonitoring -i 0
+
+# A setting of 1 means that vSwp files are created thin, with 0% Object Space Reservation
+govc host.esxcli system settings advanced set -o /VSAN/SwapThickProvisionDisabled -i 1
+govc host.esxcli system settings advanced set -o /VSAN/FakeSCSIReservations -i 1
 
 echo "ESX host account $action for user $username on ${name}..."
 govc host.account.$action -id $username -password "$password"
