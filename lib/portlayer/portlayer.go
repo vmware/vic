@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -95,37 +96,45 @@ func Init(ctx context.Context, sess *session.Session) error {
 // for running containers. This is useful when the appliance or the portlayer restarts
 // and the VCH has a new IP. Any errors are logged and portlayer init proceeds as usual.
 func unbindSerialPorts(sess *session.Session) {
-	// Get all running containers from the cache
+	defer trace.End(trace.Begin(""))
+
+	ctx := context.Background()
+
+	// Get all running containers from the portlayer cache
 	runningState := new(exec.State)
 	*runningState = exec.StateRunning
 	containers := exec.Containers.Containers(runningState)
 
 	for i := range containers {
+		var containerID string
 		if containers[i].ExecConfig != nil {
-			log.Infof("unbinding serial port for running container: %s", containers[i].ExecConfig.ID)
+			containerID = containers[i].ExecConfig.ID
 		}
+		log.Infof("unbinding serial port for running container %s", containerID)
 
 		// Obtain a container handle
-		handle := containers[i].NewHandle(context.Background())
+		handle := containers[i].NewHandle(ctx)
 		if handle == nil {
-			log.Error("unable to obtain a handle for container")
+			log.Errorf("unable to obtain a handle for container %s", containerID)
 			continue
 		}
 
 		// Unbind the VirtualSerialPort
 		newHandle, err := attach.Unbind(handle)
 		if err != nil {
-			log.Errorf("unable to unbind serial port for container: %s", err)
+			log.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
+			continue
+		}
+
+		execHandle, ok := newHandle.(*exec.Handle)
+		if !ok {
+			log.Errorf("handle type assertion failed for container %s", containerID)
 			continue
 		}
 
 		// Commit the handle
-		if execHandle, ok := newHandle.(*exec.Handle); !ok {
-			log.Error("handle type assertion failed for container")
-		} else {
-			if err := execHandle.Commit(context.Background(), sess, nil); err != nil {
-				log.Errorf("unable to commit handle for container: %s", err)
-			}
+		if err := execHandle.Commit(ctx, sess, nil); err != nil {
+			log.Errorf("unable to commit handle for container %s: %s", containerID, err)
 		}
 	}
 }
