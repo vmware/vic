@@ -566,7 +566,7 @@ Short name: None
 
 A DNS server to use if you specify static IP addresses for the virtual container host on the client, external, and management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
 
-- If you specify `dns-server`, `vic-machine create` always uses the `--dns-server` setting for all three of the client, external, and management networks, even if all of some of three networks use DHCP to obtain their IP addresses.
+- If you specify `dns-server`, `vic-machine create` always uses the `--dns-server` setting for all three of the client, external, and management networks, even if all three networks use DHCP to obtain their IP addresses.
 - If you do not specify `dns-server` and you specify a static IP address for the virtual container host on all three of the client, external, and management networks, `vic-machine create` uses the Google public DNS service. 
 - If you do not specify `dns-server` and you use a mixture of static IP addresses and DHCP for the client, external, and management networks, `vic-machine create` uses the DNS servers that DHCP provides.
 - If you do not specify `dns-server` and you use DHCP for all of the client, external, and management networks, `vic-machine create` uses the DNS servers that DHCP provides.
