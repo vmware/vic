@@ -48,18 +48,11 @@ func (t *MyTask) Wait(ctx context.Context) error {
 	_, err := t.WaitForResult(ctx, nil)
 	return err
 }
-
 func (t *MyTask) WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error) {
 	if t.success {
 		return nil, nil
 	}
 	return nil, errors.Errorf("Wait failed")
-}
-
-func (t *MyTask) Reference() types.ManagedObjectReference {
-	return types.ManagedObjectReference{
-		Value: "MyTask",
-	}
 }
 
 func createFailedTask(context.Context) (Task, error) {
@@ -183,12 +176,6 @@ func (t *taskInProgressTask) Wait(ctx context.Context) error {
 
 func (t *taskInProgressTask) WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error) {
 	return t.info, t.Wait(ctx)
-}
-
-func (t *taskInProgressTask) Reference() types.ManagedObjectReference {
-	return types.ManagedObjectReference{
-		Value: "MyTask",
-	}
 }
 
 func mustRunInTime(t *testing.T, d time.Duration, f func()) {
@@ -400,18 +387,18 @@ func TestSoapFaults(t *testing.T) {
 
 	// Test the task.Error path
 	res, err := task.WaitForResult(ctx, nil)
-	if !isTaskInProgress(task, err) {
+	if !isTaskInProgress(err) {
 		t.Error(err)
 	}
 
 	// Test the soap.IsVimFault() path
-	if !isTaskInProgress(task, soap.WrapVimFault(res.Error.Fault)) {
+	if !isTaskInProgress(soap.WrapVimFault(res.Error.Fault)) {
 		t.Errorf("fault=%#v", res.Error.Fault)
 	}
 
 	// Test the soap.IsSoapFault() path
 	err = vm.MarkAsTemplate(ctx)
-	if !isTaskInProgress(task, err) {
+	if !isTaskInProgress(err) {
 		t.Error(err)
 	}
 
@@ -426,7 +413,7 @@ func TestSoapFaults(t *testing.T) {
 	if err == nil {
 		t.Error("expected error")
 	}
-	if isTaskInProgress(task, err) {
+	if isTaskInProgress(err) {
 		t.Error(err)
 	}
 
