@@ -470,6 +470,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// set the stop time
 	session.StopTime = time.Now().UTC().Unix()
+	session.StartTime = 0
 
 	// this returns an arbitrary closure for invocation after the session status update
 	f := t.ops.HandleSessionExit(t.config, session)
@@ -493,6 +494,9 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	session.Lock()
 	defer session.Unlock()
+	session.StartTime = time.Now().UTC().Unix()
+	session.StopTime = 0
+	session.Started = ""
 
 	// Special case here because UID/GID lookup need to be done
 	// on the appliance...

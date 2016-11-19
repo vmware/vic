@@ -252,6 +252,7 @@ func (c *Container) WaitForState(s State) <-chan struct{} {
 }
 
 func (c *Container) NewHandle(ctx context.Context) *Handle {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	// Call property collector to fill the data
 	if c.vm != nil {
 		// FIXME: this should be calling the cache to decide if a refresh is needed
