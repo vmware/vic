@@ -29,8 +29,9 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 // API defines the interface the REST server used by the portlayer expects the

@@ -20,7 +20,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 const (

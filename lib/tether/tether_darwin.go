@@ -67,7 +67,9 @@ func lookPath(file string, env []string, dir string) (string, error) {
 }
 
 func establishPty(session *SessionConfig) error {
-	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
+	return errors.New("unimplemented on OSX")
+}
 
+func establishNonPty(session *SessionConfig) error {
 	return errors.New("unimplemented on OSX")
 }

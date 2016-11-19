@@ -174,6 +174,8 @@ type SessionConfig struct {
 	// Allow attach
 	Attach bool `vic:"0.1" scope:"read-only" key:"attach"`
 
+	OpenStdin bool `vic:"0.1" scope:"read-only" key:"openstdin"`
+
 	// Delay launching the Cmd until an attach request comes
 	RunBlock bool `vic:"0.1" scope:"read-only" key:"runblock"`
 

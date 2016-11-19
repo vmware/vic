@@ -15,12 +15,12 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/uid"
-	"golang.org/x/net/context"
 )
 
 type Container struct {

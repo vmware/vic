@@ -15,6 +15,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -35,7 +36,6 @@ import (
 	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
-	"golang.org/x/net/context"
 )
 
 const (

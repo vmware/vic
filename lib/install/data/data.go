@@ -32,9 +32,9 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
-	CertPEM   	[]byte
-	KeyPEM    	[]byte
-	ClientCAs 	[]byte
+	CertPEM     []byte
+	KeyPEM      []byte
+	ClientCAs   []byte
 	RegistryCAs []byte
 	common.Images
 

@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Upgrade has all input parameters for vic-machine upgrade command

@@ -21,6 +21,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
+
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -29,7 +30,7 @@ import (
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Debug has all input parameters for vic-machine Debug command

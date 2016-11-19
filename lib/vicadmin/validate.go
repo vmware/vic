@@ -25,11 +25,13 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
-	"golang.org/x/net/context"
 
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"

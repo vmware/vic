@@ -27,7 +27,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type StoreManager struct {

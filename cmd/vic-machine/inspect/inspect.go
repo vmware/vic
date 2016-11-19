@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Inspect has all input parameters for vic-machine inspect command

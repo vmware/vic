@@ -23,8 +23,9 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
-	"golang.org/x/net/context"
 
 	"net/http"
 
@@ -78,6 +79,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	log.Debugf("Args: %#v", params.CreateConfig.Args)
 	log.Debugf("Env: %#v", params.CreateConfig.Env)
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
+	log.Debugf("OpenStdin: %#v", params.CreateConfig.OpenStdin)
+
 	id := uid.New().String()
 
 	// Init key for tether
@@ -104,8 +107,9 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 					ID:   id,
 					Name: *params.CreateConfig.Name,
 				},
-				Tty:    *params.CreateConfig.Tty,
-				Attach: *params.CreateConfig.Attach,
+				Tty:       *params.CreateConfig.Tty,
+				Attach:    *params.CreateConfig.Attach,
+				OpenStdin: *params.CreateConfig.OpenStdin,
 				Cmd: executor.Cmd{
 					Env:  params.CreateConfig.Env,
 					Dir:  *params.CreateConfig.WorkingDir,
@@ -438,6 +442,9 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		info.ContainerConfig.AttachStdin = &attach
 		info.ContainerConfig.AttachStdout = &attach
 		info.ContainerConfig.AttachStderr = &attach
+
+		openstdin := session.OpenStdin
+		info.ContainerConfig.OpenStdin = &openstdin
 
 		path := session.Cmd.Path
 		info.ProcessConfig.ExecPath = &path

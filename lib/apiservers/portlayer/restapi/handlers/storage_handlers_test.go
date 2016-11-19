@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/go-swagger/go-swagger/swag"
 	"github.com/stretchr/testify/assert"

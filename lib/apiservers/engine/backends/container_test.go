@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"

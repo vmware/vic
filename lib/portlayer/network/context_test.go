@@ -23,11 +23,12 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 

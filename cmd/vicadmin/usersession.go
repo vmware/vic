@@ -19,10 +19,11 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
 )

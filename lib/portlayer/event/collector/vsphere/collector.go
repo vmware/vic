@@ -24,8 +24,9 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 const (

@@ -15,7 +15,7 @@
 package validate
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"

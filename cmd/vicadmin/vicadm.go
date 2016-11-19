@@ -30,7 +30,7 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 

@@ -40,3 +40,7 @@ func lookPath(file string, env []string, dir string) (string, error) {
 func establishPty(session *SessionConfig) error {
 	return errors.New("unimplemented on windows")
 }
+
+func establishNonPty(session *SessionConfig) error {
+	return errors.New("unimplemented on windows")
+}

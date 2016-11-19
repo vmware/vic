@@ -20,10 +20,11 @@ import (
 	"path"
 	"testing"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/trace"
