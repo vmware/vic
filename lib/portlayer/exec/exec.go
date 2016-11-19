@@ -139,14 +139,6 @@ func eventCallback(ie events.Event) {
 				StateStopped,
 				StateSuspended:
 
-				log.Debugf("Container(%s) state set to %s via event activity",
-					container.ExecConfig.ID, newState.String())
-
-				container.SetState(newState)
-				if newState == StateStopped {
-					container.onStop()
-				}
-
 				// container state has changed so we need to update the container attributes
 				// we'll do this in a go routine to avoid blocking
 				go func() {
@@ -157,6 +149,12 @@ func eventCallback(ie events.Event) {
 					if err != nil {
 						log.Errorf("Event driven container update failed: %s", err.Error())
 					}
+					container.SetState(newState)
+					if newState == StateStopped {
+						container.onStop()
+					}
+					log.Debugf("Container(%s) state set to %s via event activity",
+						container.ExecConfig.ID, newState.String())
 					// regardless of update success failure publish the container event
 					publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
 				}()
