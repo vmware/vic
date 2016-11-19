@@ -264,17 +264,21 @@ Create VCH - Reuse keys
     Cleanup VIC Appliance On Test Server
 
 Basic timeout
-    Set Test Environment Variables
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    ${status}=  Get State Of Github Issue  3241
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-04-Create-Basic.robot needs to be updated now that Issue #3241 has been resolved
+    Log  Issue \#3241 is blocking implementation  WARN
 
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --timeout 30s ${vicmachinetls} --external-network-ip=172.16.5.5/24 --external-network-gateway=172.16.5.1/24
-    Should Contain  ${output}  Create timed out
-
-    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
-    Should Contain  ${ret}  Completed successfully
-    ${out}=  Run  govc ls vm
-    Should Not Contain  ${out}  ${vch-name}
+#    Set Test Environment Variables
+#    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+#    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+#
+#    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --timeout 30s ${vicmachinetls} --external-network-ip=172.16.5.5/24 --external-network-gateway=172.16.5.1/24
+#    Should Contain  ${output}  Create timed out
+#
+#    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
+#    Should Contain  ${ret}  Completed successfully
+#    ${out}=  Run  govc ls vm
+#    Should Not Contain  ${out}  ${vch-name}
 
 Basic VCH resource config
     Pass execution  Test not implemented
