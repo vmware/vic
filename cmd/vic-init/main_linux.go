@@ -149,6 +149,7 @@ func reboot() {
 func configureToolbox(t *tether.Toolbox) *tether.Toolbox {
 	vix := t.Service.VixCommand
 	vix.ProcessStartCommand = startCommand
+
 	return t
 }
 
