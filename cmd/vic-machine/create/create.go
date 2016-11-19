@@ -15,9 +15,7 @@
 package create
 
 import (
-	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding"
 	"fmt"
 	"io/ioutil"
@@ -30,7 +28,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/urfave/cli"
+
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -39,7 +39,10 @@ import (
 	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/diag"
+
+	"crypto/x509"
+
+	"golang.org/x/net/context"
 )
 
 const (
@@ -1192,42 +1195,9 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	// vic-init will try to reach out to the vSphere target.
-	log.Info("Checking VCH connectivity with vSphere target")
-	vch, err := executor.NewVCHFromComputePath(c.Data.ComputeResourcePath, c.Data.DisplayName, validator)
-	if err != nil {
-		executor.CollectDiagnosticLogs()
-		log.Errorf("Failed to get Virtual Container Host %s", c.Data.DisplayName)
-		log.Error(err)
-		return errors.New("Running diagnostics failed.")
-	}
-
-	// Checking access to vSphere API
-	cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
-	code := int(cd)
-	if err != nil {
-		log.Errorf("Failed to access target vSphere API %s: %v", vchConfig.Target, err)
-		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Could not run vSphere API diagnostic on VCH")
-	}
-
-	const apiTestTxt = "vSphere API Test:"
-	// In case of fatal error, log error and exist.
-	if code >= diag.StatusCodeFatalThreshold {
-		log.Errorf("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Access to vSphere target from VCH failed")
-	}
-
-	// In case of non fatal error, log an error on warning level.
-	if code > 0 {
-		log.Warningf("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-	} else {
-		log.Infof("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-	}
-
 	// check the docker endpoint is responsive
 	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
+
 		executor.CollectDiagnosticLogs()
 		return err
 	}
