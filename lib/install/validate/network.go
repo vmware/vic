@@ -108,12 +108,31 @@ func (v *Validator) portGroupConfig(input *data.Data, counts map[string]int, ips
 }
 
 // checkPortGroups checks that network config is valid
+// enforce that networks that share a port group with public are configured via the pubic args
 // prevent assigning > 1 static IP to the same port group
 // warn if assigning addresses in the same subnet to > 1 port group
-func (v *Validator) checkPortGroups(counts map[string]int, ips map[string][]data.NetworkConfig) error {
+func (v *Validator) checkPortGroups(input *data.Data, counts map[string]int, ips map[string][]data.NetworkConfig) error {
 	defer trace.End(trace.Begin(""))
 
 	networks := make(map[string]string)
+
+	shared := false
+	// check for networks that share port group with public
+	for nn, n := range map[string]*data.NetworkConfig{
+		"client":     &input.ClientNetwork,
+		"management": &input.ManagementNetwork,
+	} {
+		if n.Name == input.ExternalNetwork.Name && !n.Empty() {
+			log.Errorf("%s network shares port group with public network, but has static IP configuration", nn)
+			log.Errorf("To resolve this, configure static IP for public network and assign %s network to same port group", nn)
+			log.Error("The static IP will be automatically configured for networks sharing the port group")
+			shared = true
+		}
+	}
+
+	if shared {
+		return fmt.Errorf("Static IP on network sharing port group with public network - Configuration ONLY allowed through public network options")
+	}
 
 	for pg, config := range ips {
 		if len(ips[pg]) > 1 {
@@ -123,8 +142,8 @@ func (v *Validator) checkPortGroups(counts map[string]int, ips map[string][]data
 			}
 			log.Errorf("Port group %q is configured for networks with more than one static IP: %s", pg, msgIPs)
 			log.Error("All VCH networks on the same port group must have the same IP address")
-			log.Error("To resolve this, configure static IP for one network and assign other networks to same port group.")
-			log.Error("The static IP will be automatically configured for networks sharing the port group.")
+			log.Error("To resolve this, configure static IP for one network and assign other networks to same port group")
+			log.Error("The static IP will be automatically configured for networks sharing the port group")
 			return fmt.Errorf("Incorrect static IP configuration for networks on port group %q", pg)
 		}
 
@@ -172,23 +191,6 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	var e *executor.NetworkEndpoint
 	var err error
 
-	// client and management networks need to have at least one
-	// routing destination if gateway was specified
-	for nn, n := range map[string]*data.NetworkConfig{
-		"client":     &input.ClientNetwork,
-		"management": &input.ManagementNetwork,
-	} {
-		if !ip.IsUnspecifiedIP(n.Gateway.IP) && len(n.Destinations) == 0 {
-			v.NoteIssue(fmt.Errorf("%s network gateway specified without at least one routing destination", nn))
-		}
-	}
-
-	// external network should not have any routing destinations specified
-	// if a gateway was specified
-	if !ip.IsUnspecifiedIP(input.ExternalNetwork.Gateway.IP) && len(input.ExternalNetwork.Destinations) > 0 {
-		v.NoteIssue(errors.New("external network has the default route and must not have any routing destinations specified for gateway"))
-	}
-
 	// set default portgroup if user input not provided
 	if input.ClientNetwork.Name == "" {
 		input.ClientNetwork.Name = input.ExternalNetwork.Name
@@ -201,11 +203,32 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	i := make(map[string][]data.NetworkConfig) // user configured IPs for portgroup
 	v.portGroupConfig(input, c, i)
 
-	err = v.checkPortGroups(c, i)
+	err = v.checkPortGroups(input, c, i)
 	v.NoteIssue(err)
 
 	err = v.configureSharedPortGroups(input, c, i)
 	v.NoteIssue(err)
+
+	// client and management networks need to have at least one
+	// routing destination if gateway was specified
+	for nn, n := range map[string]*data.NetworkConfig{
+		"client":     &input.ClientNetwork,
+		"management": &input.ManagementNetwork,
+	} {
+		if n.Name == input.ExternalNetwork.Name {
+			// no Destinations required if sharing with PublicNetwork
+			continue
+		}
+		if !ip.IsUnspecifiedIP(n.Gateway.IP) && len(n.Destinations) == 0 {
+			v.NoteIssue(fmt.Errorf("%s network gateway specified without at least one routing destination", nn))
+		}
+	}
+
+	// external network should not have any routing destinations specified
+	// if a gateway was specified
+	if !ip.IsUnspecifiedIP(input.ExternalNetwork.Gateway.IP) && len(input.ExternalNetwork.Destinations) > 0 {
+		v.NoteIssue(errors.New("external network has the default route and must not have any routing destinations specified for gateway"))
+	}
 
 	// check if static IP on all networks and no user provided DNS servers
 	specifiedDNS := len(input.DNS) > 0
