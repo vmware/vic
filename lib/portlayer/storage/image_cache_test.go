@@ -114,9 +114,9 @@ func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []str
 }
 
 // DeleteImage removes an image from the image store
-func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) error {
+func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
 	delete(c.db[*image.Store], image.ID)
-	return nil
+	return image, nil
 }
 
 func TestListImages(t *testing.T) {
@@ -361,7 +361,7 @@ func TestDeleteImage(t *testing.T) {
 	}
 
 	// Deletion of an intermediate node should fail
-	err = imageCache.DeleteImage(op, images[1])
+	_, err = imageCache.DeleteImage(op, images[1])
 	if !assert.Error(t, err) {
 		return
 	}
@@ -381,7 +381,7 @@ func TestDeleteImage(t *testing.T) {
 		// range up the branch
 		for _, img := range []*Image{images[branch*100], images[branch*10], images[branch]} {
 
-			err = imageCache.DeleteImage(op, img)
+			_, err = imageCache.DeleteImage(op, img)
 			if !assert.NoError(t, err) {
 				return
 			}

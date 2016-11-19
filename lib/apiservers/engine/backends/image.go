@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,6 +36,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -63,9 +65,10 @@ func (i *Image) Exists(containerName string) bool {
 func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
 	defer trace.End(trace.Begin(imageRef))
 
-	var deleted []types.ImageDelete
-	var userRefIsID bool
-	var imageRemoved bool
+	var (
+		deletedRes  []types.ImageDelete
+		userRefIsID bool
+	)
 
 	// Use the image cache to go from the reference to the ID we use in the image store
 	img, err := cache.ImageCache().Get(imageRef)
@@ -90,17 +93,54 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 	if userRefIsID || len(tags) == 1 {
 		log.Infof("Deleting image via PL %s (%s)", img.ImageID, img.ID)
 
-		// needed for image store
-		host, err := sys.UUID()
+		// storeName is the uuid of the host this service is running on.
+		storeName, err := sys.UUID()
 		if err != nil {
 			return nil, err
 		}
 
-		params := storage.NewDeleteImageParamsWithContext(ctx).WithStoreName(host).WithID(img.ID)
+		// We're going to delete all of the images in the layer branch starting
+		// at the given leaf.  BUT!  we need to keep the images which may be
+		// referenced by tags.  Therefore, we need to assemble a list of images
+		// (by URI) which are referred to by tags.
+		allImages := cache.ImageCache().GetImages()
+		keepNodes := make([]string, len(allImages))
+		for idx, node := range allImages {
+			imgURL, err := util.ImageURL(storeName, node.ImageID)
+			if err != nil {
+				return nil, err
+			}
+
+			keepNodes[idx] = imgURL.String()
+		}
+
+		params := storage.NewDeleteImageParamsWithContext(ctx).WithStoreName(storeName).WithID(img.ID).WithKeepNodes(keepNodes)
 		// TODO: This will fail if any containerVMs are referencing the vmdk - vanilla docker
 		// allows the removal of an image (via force flag) even if a container is referencing it
 		// should vic?
-		_, err = PortLayerClient().Storage.DeleteImage(params)
+		res, err := PortLayerClient().Storage.DeleteImage(params)
+
+		// We may have deleted images despite error.  Account for that in the cache.
+		if res != nil {
+			for _, deletedImage := range res.Payload {
+
+				// map the layer id to the blob sum so the ids map to what we
+				// present to the user on pull
+				id := deletedImage.ID
+				i, err := imagec.LayerCache().Get(deletedImage.ID)
+				if err == nil {
+					id = i.Layer.BlobSum
+				}
+
+				// remove the layer from the layer cache (used by imagec)
+				imagec.LayerCache().Remove(deletedImage.ID)
+
+				// form the response
+				imageDeleted := types.ImageDelete{Deleted: strings.TrimPrefix(id, "sha256:")}
+				deletedRes = append(deletedRes, imageDeleted)
+			}
+		}
+
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.DeleteImageLocked:
@@ -112,8 +152,6 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 
 		// we've deleted the image so remove from cache
 		cache.ImageCache().RemoveImageByConfig(img)
-		imagec.LayerCache().Remove(img.ID)
-		imageRemoved = true
 
 	} else {
 
@@ -130,8 +168,7 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		// remove from cache, but don't save -- we'll do that afer all
 		// updates
 		refNamed, _ := cache.RepositoryCache().Remove(tags[i], false)
-		dd := types.ImageDelete{Untagged: refNamed}
-		deleted = append(deleted, dd)
+		deletedRes = append(deletedRes, types.ImageDelete{Untagged: refNamed})
 	}
 
 	// save repo now -- this will limit the number of PL
@@ -141,12 +178,7 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		return nil, fmt.Errorf("Untag error: %s", err.Error())
 	}
 
-	if imageRemoved {
-		imageDeleted := types.ImageDelete{Deleted: img.ImageID}
-		deleted = append(deleted, imageDeleted)
-	}
-
-	return deleted, err
+	return deletedRes, err
 }
 
 func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
