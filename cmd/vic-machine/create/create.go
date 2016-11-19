@@ -745,7 +745,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 
 	defer func(net *data.NetworkConfig) {
 		if err == nil {
-			log.Debugf("%s network: IP %q gateway %q", netName, net.IP, net.Gateway)
+			log.Debugf("%s network: IP %q gateway %q dest: %q", netName, net.IP, net.Gateway, net.Destinations)
 		}
 	}(network)
 
