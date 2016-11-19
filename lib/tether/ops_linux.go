@@ -316,15 +316,15 @@ func updateEndpoint(newIP *net.IPNet, endpoint *NetworkEndpoint) {
 	dhcp := endpoint.DHCP
 	if dhcp == nil {
 		endpoint.Assigned = *newIP
+		endpoint.Network.Assigned.Gateway = endpoint.Network.Gateway
+		endpoint.Network.Assigned.Nameservers = endpoint.Network.Nameservers
 		return
 	}
 
 	endpoint.Assigned = dhcp.Assigned
-
-	endpoint.Network.Gateway = dhcp.Gateway
-
+	endpoint.Network.Assigned.Gateway = dhcp.Gateway
 	if len(dhcp.Nameservers) > 0 {
-		endpoint.Network.Nameservers = dhcp.Nameservers
+		endpoint.Network.Assigned.Nameservers = dhcp.Nameservers
 	}
 }
 
@@ -359,7 +359,7 @@ func linkAddrUpdate(old, new *net.IPNet, t Netlink, link netlink.Link) error {
 }
 
 func updateRoutes(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
-	gw := endpoint.Network.Gateway
+	gw := endpoint.Network.Assigned.Gateway
 	if ip.IsUnspecifiedIP(gw.IP) {
 		return nil
 	}
@@ -384,9 +384,10 @@ func updateRoutes(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error
 }
 
 func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+	gw := endpoint.Network.Assigned.Gateway
 	// Add routes
-	if !endpoint.Network.Default || ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
-		log.Debugf("not setting route for network: default=%v gateway=%s", endpoint.Network.Default, endpoint.Network.Gateway.IP)
+	if !endpoint.Network.Default || ip.IsUnspecifiedIP(gw.IP) {
+		log.Debugf("not setting route for network: default=%v gateway=%s", endpoint.Network.Default, gw.IP)
 		return nil
 	}
 
@@ -398,13 +399,13 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 		}
 	}
 
-	log.Infof("Setting default gateway to %s", endpoint.Network.Gateway.IP)
-	route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: endpoint.Network.Gateway.IP}
+	log.Infof("Setting default gateway to %s", gw.IP)
+	route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP}
 	if err := t.RouteAdd(route); err != nil {
 		return fmt.Errorf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
 	}
 
-	log.Infof("updated default route to %s interface, gateway: %s", endpoint.Network.Name, endpoint.Network.Gateway.IP)
+	log.Infof("updated default route to %s interface, gateway: %s", endpoint.Network.Name, gw.IP)
 	return nil
 }
 
@@ -425,14 +426,16 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 }
 
 func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
+	ns := endpoint.Network.Assigned.Nameservers
+	gw := endpoint.Network.Assigned.Gateway
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
-	if len(endpoint.Network.Nameservers) > 0 {
-		Sys.ResolvConf.AddNameservers(endpoint.Network.Nameservers...)
-		log.Infof("Added nameservers: %+v", endpoint.Network.Nameservers)
-	} else if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
-		Sys.ResolvConf.AddNameservers(endpoint.Network.Gateway.IP)
-		log.Infof("Added nameserver: %s", endpoint.Network.Gateway.IP)
+	if len(ns) > 0 {
+		Sys.ResolvConf.AddNameservers(ns...)
+		log.Infof("Added nameservers: %+v", ns)
+	} else if !ip.IsUnspecifiedIP(gw.IP) {
+		Sys.ResolvConf.AddNameservers(gw.IP)
+		log.Infof("Added nameserver: %s", gw.IP)
 	}
 
 	if err := Sys.ResolvConf.Save(); err != nil {
@@ -538,7 +541,7 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 		return err
 	}
 
-	Sys.ResolvConf.RemoveNameservers(endpoint.Network.Nameservers...)
+	Sys.ResolvConf.RemoveNameservers(endpoint.Network.Assigned.Nameservers...)
 	if err = t.updateNameservers(endpoint); err != nil {
 		return err
 	}

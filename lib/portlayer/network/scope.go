@@ -283,11 +283,11 @@ func (s *Scope) Refresh(h *exec.Handle) error {
 	}
 
 	ne := h.ExecConfig.Networks[s.name]
-	if ip.IsUnspecifiedSubnet(&ne.Network.Gateway) {
+	if ip.IsUnspecifiedSubnet(&ne.Network.Assigned.Gateway) {
 		return fmt.Errorf("updating container %s: gateway not present for scope %s", h.ExecConfig.ID, s.name)
 	}
 
-	gw, snet, err := net.ParseCIDR(ne.Network.Gateway.String())
+	gw, snet, err := net.ParseCIDR(ne.Network.Assigned.Gateway.String())
 	if err != nil {
 		return err
 	}
