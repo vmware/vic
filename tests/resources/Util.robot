@@ -143,6 +143,7 @@ Cleanup VIC Appliance On Test Server
     Log To Console  Deleting the VCH appliance ${vch-name}
     ${output}=  Run VIC Machine Delete Command
     Run Keyword And Ignore Error  Cleanup VCH Bridge Network  ${vch-name}
+    Run  govc pool.destroy "*/Resources/*"
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
