@@ -163,7 +163,6 @@ func eventCallback(ie events.Event) {
 				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
 				Containers.Remove(container.ExecConfig.ID)
 				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
-
 			}
 		}
 	}
