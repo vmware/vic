@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 8-02 OOB VM Register
 Resource  ../../resources/Util.robot
-#Suite Teardown  Extra Cleanup
+Suite Teardown  Extra Cleanup
 
 *** Keywords ***
 Extra Cleanup
