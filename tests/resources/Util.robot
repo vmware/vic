@@ -402,6 +402,7 @@ Run Regression Tests
     Should Contain  ${output}  ${container}/output.log
     Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
+    Should Contain  ${output}  appliance/tether.debug
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
