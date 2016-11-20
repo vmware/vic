@@ -51,7 +51,8 @@ func (t *operations) Log() (io.Writer, error) {
 	if err := setTerminalSpeed(f.Fd()); err != nil {
 		log.Errorf("Setting terminal speed failed with %s", err)
 	}
-	return f, nil
+
+	return io.MultiWriter(f, os.Stdout), nil
 }
 
 // sessionLogWriter returns a writer that will persist the session output

@@ -50,6 +50,30 @@ func main() {
 		reboot()
 	}()
 
+	// ensure that panics and error output are persisted
+	logFile, err := os.OpenFile("/dev/ttyS0", os.O_WRONLY|os.O_SYNC, 0644)
+	if err != nil {
+		log.Errorf("Could not redirect outputs to serial for debugging info, some debug info may be lost! Error reported was %s", err)
+	}
+
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe standard error to logfile: %s", err)
+	}
+	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to Stderr due to error %s", err)
+	}
+
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stdout.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe standard out to logfile: %s", err)
+	}
+	_, err = os.Stderr.WriteString("all stdout redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to stdout due to error %s", err)
+	}
+
 	src, err := extraconfig.GuestInfoSourceWithPrefix("init")
 	if err != nil {
 		log.Error(err)
@@ -63,20 +87,6 @@ func main() {
 		enableShell()
 	}
 	setLogLevels()
-
-	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
-	if err != nil {
-		log.Errorf("Could not pipe stderr to serial for debugging info. Some debug info may be lost! Error reported was %s", err)
-	}
-	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
-	if err != nil {
-		log.Errorf("Could not pipe logfile to standard error due to error %s", err)
-	}
-
-	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
-	if err != nil {
-		log.Errorf("Could not write to Stderr due to error %s", err)
-	}
 
 	sink, err := extraconfig.GuestInfoSinkWithPrefix("init")
 	if err != nil {

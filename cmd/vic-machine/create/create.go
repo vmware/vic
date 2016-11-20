@@ -1125,6 +1125,76 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 	return cakp.CertPEM, skp, nil
 }
 
+func logArguments(cliContext *cli.Context) {
+	for _, f := range cliContext.FlagNames() {
+		// avoid logging senstive data
+		if f == "user" || f == "password" {
+			continue
+		}
+
+		if cliContext.IsSet(f) {
+			if f == "target" {
+				url, err := url.Parse(cliContext.String(f))
+				if err != nil {
+					log.Debugf("Unable to re-parse target url for logging")
+					continue
+				}
+				url.User = nil
+				log.Debugf("Target: %s", url.String())
+				continue
+			}
+
+			i := cliContext.Int(f)
+			if i != 0 {
+				log.Debugf("flag %s:%d", f, i)
+				continue
+			}
+			d := cliContext.Duration(f)
+			if d != 0 {
+				log.Debugf("flag %s:%s", f, d.String())
+				continue
+			}
+			x := cliContext.Float64(f)
+			if x != 0 {
+				log.Debugf("flag %s:%f", f, x)
+				continue
+			}
+			s := cliContext.String(f)
+			if s != "" {
+				log.Debugf("flag %s:%s", f, s)
+				continue
+			}
+			ss := cliContext.StringSlice(f)
+			if ss != nil {
+				log.Debugf("flag %s:%#v", f, ss)
+				continue
+			}
+			is := cliContext.IntSlice(f)
+			if is != nil {
+				log.Debugf("flag %s:%#v", f, is)
+				continue
+			}
+
+			b := cliContext.Bool(f)
+			bT := cliContext.BoolT(f)
+			log.Debugf("assume bool flag %s:%t %t", f, b, bT)
+			if b || bT {
+				continue
+			}
+
+			g := cliContext.Generic(f)
+			if g != nil {
+				log.Debugf("flag %s:%#v", f, g)
+				continue
+			}
+
+			// TODO: add in Global types and move common argument to global flags
+			// if we cannot distinguish type
+			log.Debugf("flag %s set with <nil> value", f)
+		}
+	}
+}
+
 func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	if c.advancedOptions {
@@ -1142,7 +1212,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	log.Infof("Supplied install parameters: --compute-resource %s --image-store %s --volumes %s --bridge-network %s --client-network %s --external-network %s --http-proxy %s --https-proxy %s", c.Data.Compute, c.Data.ImageDatastorePath, c.Data.VolumeLocations, c.Data.BridgeNetworkName, c.Data.ClientNetwork, c.Data.ExternalNetwork, c.Data.HTTPSProxy, c.Data.HTTPProxy)
+	logArguments(cliContext)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {
