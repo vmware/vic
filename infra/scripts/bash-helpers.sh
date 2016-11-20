@@ -106,7 +106,7 @@ addr-from-dockerhost () {
 #    export COMPUTE=cluster/pool
 #    export DATASTORE=datastore1
 #    export IMAGE_STORE=$DATASTORE/image/path
-#    NETWORKS=("--bridge-network=private-dpg-vlan" "--external-network=extern-dpg")
+#    NETWORKS=("--bridge-network=private-dpg-vlan" "--public-network=extern-dpg")
 #    MAPPED_NETWORKS=("--container-network=VM Network:external" "--container-network=SomeOtherNet:elsewhere")
 #    VOLUME_STORES=("--volume-store=$DATASTORE:default")
 #    export TLS=("--tls-cname=vch-hostname.domain.com" "--organisation=MyCompany")
