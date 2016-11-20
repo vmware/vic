@@ -392,7 +392,7 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
 
-    Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files
+    Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${container}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
@@ -421,6 +421,7 @@ Run Regression Tests
     Should Not Contain  ${output}  busybox
 
 Check For The Proper Log Files
+    [Arguments]  ${container}
     # Ensure container logs are correctly being gathered for debugging purposes
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-${vch-name}
     Should Be Equal As Integers  ${rc}  0
