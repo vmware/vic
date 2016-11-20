@@ -76,5 +76,4 @@ Docker run ps password check
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox ps auxww
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ps auxww
-    Should Not Contain  ${output}  %{TEST_USERNAME}
     Should Not Contain  ${output}  %{TEST_PASSWORD}
