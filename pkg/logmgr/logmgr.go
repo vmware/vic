@@ -171,7 +171,6 @@ func (lm *LogManager) Start() error {
 				if lm.loopsCount%10 == 0 {
 					lm.op.Debugf("logrotate has been run %s times")
 				}
-				lm.rotateLogs()
 				select {
 				case <-time.After(lm.runInterval):
 				case <-lm.closed:
@@ -179,6 +178,7 @@ func (lm *LogManager) Start() error {
 					lm.wg.Done()
 					return
 				}
+				lm.rotateLogs()
 			}
 		}()
 	})
