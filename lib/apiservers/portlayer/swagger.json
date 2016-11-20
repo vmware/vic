@@ -394,13 +394,26 @@
 						"type": "string",
 						"in": "path",
 						"required": true
+					},
+					{
+						"name": "keepNodes",
+						"type": "array",
+						"required": true,
+						"in": "query",
+						"items": {
+							"type": "string",
+							"collectionFormat": "csv"
+						}
 					}
 				],
 				"responses": {
 					"200": {
 						"description": "OK",
 						"schema": {
-							"type": "string"
+							"type": "array",
+							"items": {
+								"$ref": "#/definitions/Image"
+							}
 						}
 					},
 					"404": {

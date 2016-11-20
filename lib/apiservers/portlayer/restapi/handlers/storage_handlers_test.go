@@ -185,8 +185,8 @@ func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []str
 	return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 }
 
-func (c *MockDataStore) DeleteImage(op trace.Operation, image *spl.Image) error {
-	return nil
+func (c *MockDataStore) DeleteImage(op trace.Operation, image *spl.Image) (*spl.Image, error) {
+	return nil, nil
 }
 
 func TestCreateImageStore(t *testing.T) {

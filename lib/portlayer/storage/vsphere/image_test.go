@@ -330,14 +330,14 @@ func TestCreateImageLayers(t *testing.T) {
 
 	// Try to delete an intermediate image (should fail)
 	exec.NewContainerCache()
-	err = cacheStore.DeleteImage(op, expectedImages["dir1"])
+	_, err = cacheStore.DeleteImage(op, expectedImages["dir1"])
 	if !assert.Error(t, err) || !assert.True(t, portlayer.IsErrImageInUse(err)) {
 		return
 	}
 
 	// Try to delete a leaf (should pass)
 	leaf := expectedImages["dir"+strconv.Itoa(numLayers-1)]
-	err = cacheStore.DeleteImage(op, leaf)
+	_, err = cacheStore.DeleteImage(op, leaf)
 	if !assert.NoError(t, err) {
 		return
 	}
