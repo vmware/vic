@@ -130,43 +130,43 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.FirewallIssues = template.HTML("")
 		v.LicenseStatus = BadStatus
 		v.LicenseIssues = template.HTML("")
-		return nil
-	}
-
-	v.VCHReachable = true
-	// Firewall status check
-	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
-	mgmtIP := GetMgmtIP()
-	log.Infof("Using management IP %s for firewall check", mgmtIP)
-	fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
-	v2.FirewallCheckOutput(fwStatus)
-
-	firewallIssues := v2.GetIssues()
-
-	if len(firewallIssues) == 0 {
-		v.FirewallStatus = GoodStatus
-		v.FirewallIssues = template.HTML("")
 	} else {
-		v.FirewallStatus = BadStatus
-		for _, err := range firewallIssues {
-			v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
+		v.VCHReachable = true
+		// Firewall status check
+		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
+		mgmtIP := GetMgmtIP()
+		log.Infof("Using management IP %s for firewall check", mgmtIP)
+		fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
+		v2.FirewallCheckOutput(fwStatus)
+
+		firewallIssues := v2.GetIssues()
+
+		if len(firewallIssues) == 0 {
+			v.FirewallStatus = GoodStatus
+			v.FirewallIssues = template.HTML("")
+		} else {
+			v.FirewallStatus = BadStatus
+			for _, err := range firewallIssues {
+				v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
+			}
+		}
+
+		// License status check
+		v2.ClearIssues()
+		v2.CheckLicense(ctx)
+		licenseIssues := v2.GetIssues()
+
+		if len(licenseIssues) == 0 {
+			v.LicenseStatus = GoodStatus
+			v.LicenseIssues = template.HTML("")
+		} else {
+			v.LicenseStatus = BadStatus
+			for _, err := range licenseIssues {
+				v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
+			}
 		}
 	}
 
-	// License status check
-	v2.ClearIssues()
-	v2.CheckLicense(ctx)
-	licenseIssues := v2.GetIssues()
-
-	if len(licenseIssues) == 0 {
-		v.LicenseStatus = GoodStatus
-		v.LicenseIssues = template.HTML("")
-	} else {
-		v.LicenseStatus = BadStatus
-		for _, err := range licenseIssues {
-			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
-		}
-	}
 	log.Infof("FirewallStatus set to: %s", v.FirewallStatus)
 	log.Infof("FirewallIssues set to: %s", v.FirewallIssues)
 	log.Infof("LicenseStatus set to: %s", v.LicenseStatus)
