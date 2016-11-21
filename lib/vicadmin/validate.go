@@ -247,13 +247,24 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		ds, err := sess.Finder.DatastoreOrDefault(ctx, dsName)
 		if err != nil {
 			log.Errorf("Unable to collect information for datastore %s: %s", dsName, err)
-			return err
 		} else {
 			refs = append(refs, ds.Reference())
 		}
 	}
 
+	if sess.Client == nil {
+		return fmt.Errorf("Non-nil session govmomi client is nil while looking for datastore info")
+	}
+
+	if sess.Client.Client == nil {
+		return fmt.Errorf("Non-nil session vim client is nil while looking for datastore info")
+	}
+
 	pc := property.DefaultCollector(sess.Client.Client)
+	if pc == nil {
+		return fmt.Errorf("Could not get default propery collector; prop-collector came back nil")
+	}
+
 	err := pc.Retrieve(ctx, refs, nil, &dataStores)
 
 	sort.Sort(dataStores)
