@@ -5,7 +5,7 @@
 Contributors and users are encouraged to collaborate using the following resources in addition to the GitHub issue
 tracker:
 
-- [Slack](https://vmwarecode.slack.com/messages/vic-engine): This is the primary community channel.
+- [Slack](https://vmwarecode.slack.com/messages/vic-engine): This is the primary community channel. If you don't have an @vmware.com or @emc.com email, please sign up at https://code.vmware.com/slack to get a Slack invite.
 
 - [Gitter](https://gitter.im/vmware/vic): Gitter is monitored but go to slack if you need a response quickly.
 
