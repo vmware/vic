@@ -538,7 +538,7 @@ func deriveErrorMessage(err error) string {
 		case session.UserPassLoginError:
 			return "unable to log in with username and password"
 		default:
-			return err.Error()
+			return genericErrorMessage
 		}
 	}
 

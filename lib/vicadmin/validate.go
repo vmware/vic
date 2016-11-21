@@ -255,17 +255,13 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		}
 	}
 
-	if sess.Client == nil {
-		return fmt.Errorf("Non-nil session govmomi client is nil while looking for datastore info")
-	}
-
-	if sess.Client.Client == nil {
-		return fmt.Errorf("Non-nil session vim client is nil while looking for datastore info")
-	}
-
 	pc := property.DefaultCollector(sess.Client.Client)
 	if pc == nil {
 		return fmt.Errorf("Could not get default propery collector; prop-collector came back nil")
+	}
+
+	if len(refs) == 0 {
+		return fmt.Errorf("No datastore references found")
 	}
 
 	err := pc.Retrieve(ctx, refs, nil, &dataStores)

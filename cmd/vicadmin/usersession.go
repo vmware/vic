@@ -90,10 +90,12 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 	}
 
 	vsphus, err := us.vsphere.SessionManager.UserSession(ctx)
+	if err != nil || vsphus == nil {
+		u.Delete(id)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("vSphere UserSession was invalid; got error: %s", err.Error())
 	}
-
 	if vsphus == nil {
 		return nil, fmt.Errorf("vSphere UserSession came back nil but no error was reported")
 	}
