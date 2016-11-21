@@ -138,8 +138,6 @@ func NewCreate() *Create {
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
 	create := []cli.Flag{
-		// credentials
-
 		// images
 		cli.StringFlag{
 			Name:        "image-store, i",
