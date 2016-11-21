@@ -26,9 +26,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
 
+	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	vmomisession "github.com/vmware/govmomi/session"
+	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -242,6 +246,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.basics(ctx, input, conf)
 
 	v.target(ctx, input, conf)
+	v.credentials(ctx, input, conf)
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
@@ -319,21 +324,6 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 
 	// check if host is managed by VC
 	v.managedbyVC(ctx)
-
-	u := input.Target.URL
-
-	// Discard anything other than these URL fields for the target
-	conf.Target = (&url.URL{
-		Scheme: u.Scheme,
-		Host:   u.Host,
-		Path:   u.Path,
-	}).String()
-
-	conf.Username = u.User.Username()
-	conf.Token, _ = u.User.Password()
-	conf.TargetThumbprint = input.Thumbprint
-
-	// TODO: more checks needed here if specifying service account for VCH
 }
 
 func (v *Validator) managedbyVC(ctx context.Context) {
@@ -359,6 +349,63 @@ func (v *Validator) managedbyVC(ctx context.Context) {
 		v.NoteIssue(fmt.Errorf("Target is managed by vCenter server %q, please change --target to vCenter server address or select a standalone ESXi", ip))
 	}
 	return
+}
+
+func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	if input.OpsPassword == nil {
+		v.NoteIssue(errors.New("Password for operations user has not been set"))
+		return
+	}
+
+	// check target with ops credentials
+	u := input.Target.URL
+
+	conf.Username = input.OpsUser
+	conf.Token = *input.OpsPassword
+	conf.TargetThumbprint = input.Thumbprint
+
+	// Discard anything other than these URL fields for the target
+	stripped := &url.URL{
+		Scheme: u.Scheme,
+		Host:   u.Host,
+		Path:   u.Path,
+	}
+	conf.Target = stripped.String()
+
+	// validate that the provided operations credentials are valid
+	stripped.Path = "/sdk"
+
+	var soapClient *soap.Client
+
+	if input.Thumbprint != "" {
+		// if any thumprint is specified, then object if there's a mismatch
+		soapClient = soap.NewClient(stripped, false)
+		soapClient.SetThumbprint(stripped.Host, conf.TargetThumbprint)
+	} else {
+		soapClient = soap.NewClient(stripped, input.Force)
+	}
+	soapClient.UserAgent = "vice-validator"
+
+	vimClient, err := vim25.NewClient(ctx, soapClient)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Failed to create client for validaiton of operations credentials: %s", err))
+		return
+	}
+
+	client := &govmomi.Client{
+		Client:         vimClient,
+		SessionManager: vmomisession.NewManager(vimClient),
+	}
+
+	err = client.Login(ctx, url.UserPassword(conf.Username, conf.Token))
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Failed to validate operations credentials: %s", err))
+		return
+	}
+	client.Logout(ctx)
+
+	// confirm the RBAC configuration of the provided user
+	// TODO: this can be dropped once we move to configuration the RBAC during creation
 }
 
 func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {

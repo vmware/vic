@@ -53,6 +53,13 @@ vic-machine-linux create --name=<VCH_NAME> --target="<TEST_USERNAME>:<TEST_PASSW
 ```
 2. Run regression tests
 
+## Create VCH - operations user
+1. Create with an operations user (the same as the administrative user used for deployment in this case)
+```
+vic-machine-linux create --ops-user="<TEST_USERNAME>" --ops-password="<TEST_PASSWORD>"
+```
+2. Run regression tests
+
 ### Expected Outcome
 * Deployment succeed
 * Regression test pass

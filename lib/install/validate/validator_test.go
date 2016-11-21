@@ -129,6 +129,9 @@ func TestMain(t *testing.T) {
 func getESXData(url *url.URL) *data.Data {
 	result := data.NewData()
 	url.Path = url.Path + "/ha-datacenter"
+	result.OpsUser = url.User.Username()
+	passwd, _ := url.User.Password()
+	result.OpsPassword = &passwd
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
@@ -146,6 +149,9 @@ func getESXData(url *url.URL) *data.Data {
 func getVPXData(url *url.URL) *data.Data {
 	result := data.NewData()
 	url.Path = url.Path + "/DC0"
+	result.OpsUser = url.User.Username()
+	passwd, _ := url.User.Password()
+	result.OpsPassword = &passwd
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
@@ -240,6 +246,8 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 
 func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	v.target(v.Context, input, conf)
+	v.credentials(v.Context, input, conf)
+
 	u, err := url.Parse(conf.Target)
 	assert.NoError(t, err)
 	assert.Nil(t, u.User)

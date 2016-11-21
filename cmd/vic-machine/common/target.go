@@ -89,7 +89,7 @@ func (t *Target) HasCredentials() error {
 
 	//prompt for passwd if not specified
 	if t.Password == nil && urlPassword == nil {
-		log.Print("Please enter ESX or vCenter password: ")
+		log.Printf("vSphere password for %s: ", t.User)
 		b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			message := fmt.Sprintf("Failed to read password from stdin: %s", err)

@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 
@@ -138,6 +140,21 @@ func NewCreate() *Create {
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
 	create := []cli.Flag{
+		// credentials
+		cli.StringFlag{
+			Name:        "ops-user",
+			Value:       "",
+			Usage:       "The user with which the VCH operates after creation. Defaults to the credential supplied with target",
+			Destination: &c.OpsUser,
+			Hidden:      true,
+		},
+		cli.GenericFlag{
+			Name:   "ops-password",
+			Value:  flags.NewOptionalString(&c.OpsPassword),
+			Usage:  "Password or token for the operations user. Defaults to the credential supplied with target",
+			Hidden: true,
+		},
+
 		// images
 		cli.StringFlag{
 			Name:        "image-store, i",
@@ -489,6 +506,10 @@ func (c *Create) processParams() error {
 		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.DisplayName), 1)
 	}
 
+	if err := c.processOpsCredentials(); err != nil {
+		return err
+	}
+
 	if err := c.processContainerNetworks(); err != nil {
 		return err
 	}
@@ -532,6 +553,38 @@ func (c *Create) processParams() error {
 	if err := c.processProxies(); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (c *Create) processOpsCredentials() error {
+	if c.OpsUser == "" && c.OpsPassword != nil {
+		return errors.New("Password for operations user specified without user having been specified")
+	}
+
+	if c.OpsUser == "" {
+		log.Warn("Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)")
+		c.OpsUser = c.Target.User
+		if c.Target.Password == nil {
+			return errors.New("Unable to use nil password from administrative user for operations user")
+		}
+
+		c.OpsPassword = c.Target.Password
+		return nil
+	}
+
+	if c.OpsPassword != nil {
+		return nil
+	}
+
+	log.Printf("vSphere password for %s: ", c.OpsUser)
+	b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		message := fmt.Sprintf("Failed to read password from stdin: %s", err)
+		cli.NewExitError(message, 1)
+	}
+	sb := string(b)
+	c.OpsPassword = &sb
 
 	return nil
 }
@@ -1128,7 +1181,7 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 func logArguments(cliContext *cli.Context) {
 	for _, f := range cliContext.FlagNames() {
 		// avoid logging senstive data
-		if f == "user" || f == "password" {
+		if f == "user" || f == "password" || f == "ops-user" || f == "ops-password" {
 			continue
 		}
 
