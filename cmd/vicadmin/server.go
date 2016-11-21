@@ -443,9 +443,6 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	// Note: we don't want to Logout() until tarEntries() completes below
-	defer c.Client.Logout(context.Background())
-
 	logs, err := findDatastoreLogs(c)
 	if err != nil {
 		log.Warningf("error searching datastore: %s", err)

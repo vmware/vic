@@ -115,7 +115,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	var err error
 	v.Hostname, err = os.Hostname()
 	if err != nil {
-
+		v.Hostname = "VCH"
 	}
 
 	log.Infof("Setting hostname to %s", v.Hostname)
@@ -130,41 +130,41 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.FirewallIssues = template.HTML("")
 		v.LicenseStatus = BadStatus
 		v.LicenseIssues = template.HTML("")
+		return nil
+	}
+
+	v.VCHReachable = true
+	// Firewall status check
+	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
+	mgmtIP := GetMgmtIP()
+	log.Infof("Using management IP %s for firewall check", mgmtIP)
+	fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
+	v2.FirewallCheckOutput(fwStatus)
+
+	firewallIssues := v2.GetIssues()
+
+	if len(firewallIssues) == 0 {
+		v.FirewallStatus = GoodStatus
+		v.FirewallIssues = template.HTML("")
 	} else {
-
-		v.VCHReachable = true
-		// Firewall status check
-		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
-		mgmtIP := GetMgmtIP()
-		log.Infof("Using management IP %s for firewall check", mgmtIP)
-		fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
-		v2.FirewallCheckOutput(fwStatus)
-
-		firewallIssues := v2.GetIssues()
-
-		if len(firewallIssues) == 0 {
-			v.FirewallStatus = GoodStatus
-			v.FirewallIssues = template.HTML("")
-		} else {
-			v.FirewallStatus = BadStatus
-			for _, err := range firewallIssues {
-				v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
-			}
+		v.FirewallStatus = BadStatus
+		for _, err := range firewallIssues {
+			v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
 		}
+	}
 
-		// License status check
-		v2.ClearIssues()
-		v2.CheckLicense(ctx)
-		licenseIssues := v2.GetIssues()
+	// License status check
+	v2.ClearIssues()
+	v2.CheckLicense(ctx)
+	licenseIssues := v2.GetIssues()
 
-		if len(licenseIssues) == 0 {
-			v.LicenseStatus = GoodStatus
-			v.LicenseIssues = template.HTML("")
-		} else {
-			v.LicenseStatus = BadStatus
-			for _, err := range licenseIssues {
-				v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
-			}
+	if len(licenseIssues) == 0 {
+		v.LicenseStatus = GoodStatus
+		v.LicenseIssues = template.HTML("")
+	} else {
+		v.LicenseStatus = BadStatus
+		for _, err := range licenseIssues {
+			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
 		}
 	}
 	log.Infof("FirewallStatus set to: %s", v.FirewallStatus)
@@ -220,11 +220,11 @@ func (d dsList) Len() int           { return len(d) }
 func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
 
-func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
+func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) error {
 	if sess == nil {
 		// If we can't connect to vSphere, don't display datastore info
 		v.StorageRemaining = template.HTML("")
-		return
+		return nil
 	}
 
 	var dataStores dsList
@@ -247,6 +247,7 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		ds, err := sess.Finder.DatastoreOrDefault(ctx, dsName)
 		if err != nil {
 			log.Errorf("Unable to collect information for datastore %s: %s", dsName, err)
+			return err
 		} else {
 			refs = append(refs, ds.Reference())
 		}
@@ -258,7 +259,7 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 	sort.Sort(dataStores)
 	if err != nil {
 		log.Errorf("Error while accessing datastore: %s", err)
-		return
+		return err
 	}
 	for _, ds := range dataStores {
 		log.Infof("Datastore %s Status: %s", ds.Name, ds.OverallStatus)
@@ -271,6 +272,8 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 			  <div class="forty">%.1f GB remaining</div>
 			</div>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
 	}
+
+	return nil
 }
 
 func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
