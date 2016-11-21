@@ -61,7 +61,7 @@ export GOVC_URL="${GOVC_USERNAME}:${GOVC_PASSWORD}@${vc_ip}"
 
 cluster_path="/$dc_name/host/$cluster_name"
 dvs_path="/$dc_name/network/DSwitch"
-external_network="/$dc_name/network/ExternalNetwork"
+public_network="/$dc_name/network/PublicNetwork"
 internal_network="/$dc_name/network/InternalNetwork"
 
 if [ -z "$(govc ls "/$dc_name")" ] ; then
@@ -79,8 +79,8 @@ if [ -z "$(govc ls "$dvs_path")" ] ; then
     govc dvs.create -product-version 5.5.0 -folder "$(dirname "$dvs_path")" "$(basename "$dvs_path")"
 fi
 
-if [ -z "$(govc ls "$external_network")" ] ; then
-    govc dvs.portgroup.add -dvs "$dvs_path" -type earlyBinding -nports 16 "$(basename "$external_network")"
+if [ -z "$(govc ls "$public_network")" ] ; then
+    govc dvs.portgroup.add -dvs "$dvs_path" -type earlyBinding -nports 16 "$(basename "$public_network")"
 fi
 
 if [ -z "$(govc ls "$internal_network")" ] ; then

@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof" // allow enabling pprof in contianerVM
@@ -118,7 +117,7 @@ func (t *tether) setup() error {
 		return err
 	}
 	if out != nil {
-		log.SetOutput(io.MultiWriter(out, os.Stdout))
+		log.SetOutput(out)
 	}
 
 	t.reload = make(chan bool, 1)

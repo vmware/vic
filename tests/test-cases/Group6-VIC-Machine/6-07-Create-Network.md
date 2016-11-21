@@ -2,7 +2,7 @@ Test 6-07 - Verify vic-machine create network function
 =======
 
 # Purpose:
-Verify vic-machine create external, management, bridge network and container networks functions
+Verify vic-machine create public, management, bridge network and container networks functions
 
 # References:
 * vic-machine-linux create -h
@@ -12,35 +12,35 @@ This test requires that a vSphere server is running and available
 
 
 
-# External network
+# Public network
 
-## External network - default
-1. Create without external network provided
+## Public network - default
+1. Create without public network provided
 2. Verify "VM Network" is connected in VCH VM
 3. Integration test passed
 
-## External network - invalid
-1. Create with wrong network name provided for external network
+## Public network - invalid
+1. Create with wrong network name provided for public network
 2. Verify create failed for network is not found
 
-## External network - invalid vCenter
-1. Create with distribute virtual switch as external network name
+## Public network - invalid vCenter
+1. Create with distribute virtual switch as public network name
 2. Verify create failed for network type is wrong
 
-## External network - DHCP
-1. Create with network name no DHCP availabile for external network
+## Public network - DHCP
+1. Create with network name no DHCP availabile for public network
 2. Verify VCH created but without ip address
 3. Verify VCH can be deleted without anything wrong through vic-machine delete
 
-## External network - valid
-1. Create with DPG as external network in VC and correct switch in ESXi
+## Public network - valid
+1. Create with DPG as public network in VC and correct switch in ESXi
 2. Verify create passed
 3. Verify integration test passed
 
 # Management network
 
 ## Management network - none
-1. Create without management network provided, but external network correctly set
+1. Create without management network provided, but public network correctly set
 2. Verify warning message set for management network and client network sharing the same network
 3. No multiple attachement in VM network to same vSphere virtual switch (or DPG)
 4. Integration test passed
@@ -93,8 +93,8 @@ This test requires that a vSphere server is running and available
 3. Verify integration test passed
 
 ## Bridge network - reused port group
-1. Create with same network for bridge and external network
-2. Verify create failed for same network with external network
+1. Create with same network for bridge and public network
+2. Verify create failed for same network with public network
 3. Same case with management network
 4. Same case with container network
 
@@ -172,42 +172,42 @@ This test requires that a vSphere server is running and available
 
 # VCH static IP
 
-## VCH static IP - Static external
-1. Create with static IP address for external network (client and management networks unspecified
-   default to same port group as external network)
+## VCH static IP - Static public
+1. Create with static IP address for public network (client and management networks unspecified
+   default to same port group as public network)
 2. Verify debug output shows specified static IP address correctly assigned and copied to client and
    management networks
 
 ## VCH static IP - Static client
-1. Create with static IP address for client network and specify client, external, and management
+1. Create with static IP address for client network and specify client, public, and management
    networks to be on same port group
-2. Verify debug output shows specified static IP address correctly assigned and copied to external
+2. Verify debug output shows specified static IP address correctly assigned and copied to public
    and management networks
 
 ## VCH static IP - Static management
-1. Create with static IP address for management network and specify client, external, and management
+1. Create with static IP address for management network and specify client, public, and management
    networks to be on the same port group
 2. Verify debug output shows specified static IP address correctly assigned and copied to client
-   and external management networks
+   and public management networks
 
 ## VCH static IP - different port groups 1
-1. Create with static IP address for external network and specify client and management networks to
+1. Create with static IP address for public network and specify client and management networks to
    be on different port group
 2. Verify debug output shows specified static IP address correctly assigned
 3. Verify debug output shows client and management networks set to DHCP
 
 ## VCH static IP - different port groups 2
-1. Create with static IP address for external network on `external-network` port group and a static
+1. Create with static IP address for public network on `public-network` port group and a static
    IP address for client network on `client-network` port group
 2. Verify debug output shows correct IP address assigned to each interface
 
 ## VCH static IP - same port group
-1. Create with static IP address for each external network and client network and specify both to be
+1. Create with static IP address for each public network and client network and specify both to be
    on the same port group
 2. Verify output shows configuration error and install does not proceed
 
 ## VCH static IP - same subnet for multiple port groups
-1. Create with static IP address for external network and a static IP address for client network.
+1. Create with static IP address for public network and a static IP address for client network.
    Specify the addresses to be on the same subnet, but assign each network to a different port
    group
 2. Verify output shows warning that assigning the same subnet to different port groups is

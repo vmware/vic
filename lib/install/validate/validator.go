@@ -39,14 +39,14 @@ import (
 )
 
 type Validator struct {
-	TargetPath          string
-	DatacenterPath      string
-	ClusterPath         string
-	ResourcePoolPath    string
-	ImageStorePath      string
-	ExternalNetworkPath string
-	BridgeNetworkPath   string
-	BridgeNetworkName   string
+	TargetPath        string
+	DatacenterPath    string
+	ClusterPath       string
+	ResourcePoolPath  string
+	ImageStorePath    string
+	PublicNetworkPath string
+	BridgeNetworkPath string
+	BridgeNetworkName string
 
 	Session *session.Session
 	Context context.Context

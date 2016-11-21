@@ -69,7 +69,7 @@ func TestSetIpAddress(t *testing.T) {
 	Sys.ResolvConf = etcconf.NewResolvConf(rFile.Name())
 
 	bridge := AddInterface("eth1", mocker)
-	external := AddInterface("eth2", mocker)
+	public := AddInterface("eth2", mocker)
 
 	secondIP, _ := netlink.ParseIPNet("172.16.0.10/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
@@ -111,15 +111,15 @@ func TestSetIpAddress(t *testing.T) {
 				Static: true,
 				IP:     secondIP,
 			},
-			"external": {
+			"public": {
 				Common: executor.Common{
-					ID: external,
+					ID: public,
 					// interface rename
-					Name: "external",
+					Name: "public",
 				},
 				Network: executor.ContainerNetwork{
 					Common: executor.Common{
-						Name: "external",
+						Name: "public",
 					},
 				},
 				Static: true,
@@ -150,8 +150,8 @@ func TestSetIpAddress(t *testing.T) {
 
 	assert.Equal(t, 2, len(bIface.Addrs), "Expected two addresses on bridge interface")
 
-	eIface, _ := mocker.Interfaces["external"].(*Interface)
+	eIface, _ := mocker.Interfaces["public"].(*Interface)
 	assert.NotNil(t, eIface)
 
-	assert.Equal(t, 1, len(eIface.Addrs), "Expected one address on external interface")
+	assert.Equal(t, 1, len(eIface.Addrs), "Expected one address on public interface")
 }
