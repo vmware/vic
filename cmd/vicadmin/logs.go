@@ -45,6 +45,11 @@ const (
 	nBytes    = 1024
 	tailLines = 8
 	uint32max = (1 << 32) - 1
+
+	// how many lines of log data to collect
+	logLines = 5000
+	// how many lines to request per call
+	lines = 500
 )
 
 type dlogReader struct {
@@ -73,19 +78,22 @@ func (r dlogReader) open() (entry, error) {
 		return nil, err
 	}
 
-	// DiagnosticManager::DEFAULT_MAX_LINES_PER_BROWSE = 1000
-	start := h.LineEnd - 1000
-
-	h, err = m.BrowseLog(ctx, r.host, r.name, start, 0)
-	if err != nil {
-		return nil, err
-	}
+	end := h.LineEnd
+	start := end - logLines
 
 	var buf bytes.Buffer
+	for start < end {
+		h, err = m.BrowseLog(ctx, r.host, r.name, start, lines)
+		if err != nil {
+			return nil, err
+		}
 
-	for _, line := range h.LineText {
-		buf.WriteString(line)
-		buf.WriteString("\n")
+		for _, line := range h.LineText {
+			buf.WriteString(line)
+			buf.WriteString("\n")
+		}
+
+		start += lines
 	}
 
 	return newBytesEntry(name+".log", buf.Bytes()), nil
