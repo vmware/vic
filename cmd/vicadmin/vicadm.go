@@ -483,6 +483,9 @@ func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
 		log.Errorf("Got %s while creating user session", err)
 		return nil, err
 	}
+	if usersession == nil {
+		return nil, fmt.Errorf("UserSession from vSphere came back nil but no error was reported")
+	}
 
 	log.Infof("Got session from vSphere with key: %s username: %s", usersession.Key, usersession.UserName)
 

@@ -89,6 +89,15 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 		return nil, fmt.Errorf("No vSphere session found. User with ID %s must authenticate again.", id)
 	}
 
+	vsphus, err := us.vsphere.SessionManager.UserSession(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("vSphere UserSession was invalid; got error: %s", err.Error())
+	}
+
+	if vsphus == nil {
+		return nil, fmt.Errorf("vSphere UserSession came back nil but no error was reported")
+	}
+
 	log.Infof("Found vSphere session for vicadmin usersession %s", id)
 	return us.vsphere, nil
 }
