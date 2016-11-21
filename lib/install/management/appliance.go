@@ -320,10 +320,6 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 		return nil, err
 	}
 
-	// if devices, err = d.addSerialPort(conf, spec, devices); err != nil {
-	// 	return nil, err
-	// }
-
 	deviceChange, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 	if err != nil {
 		return nil, err
