@@ -36,7 +36,7 @@ type FileLock struct {
 func NewFileLock(lockName string) *FileLock {
 	return &FileLock{
 		LockName: lockName,
-		LockFile: filepath.Join(os.TempDir(), lockName),
+		LockFile: filepath.Join("/var/run/lock", lockName),
 	}
 }
 
@@ -65,6 +65,7 @@ func (fl *FileLock) Release() error {
 	if fl.fh == nil {
 		panic("Attempt to release not acquired lock!")
 	}
+	syscall.Flock(int(fl.fh.Fd()), syscall.LOCK_UN)
 	err := fl.fh.Close()
 	fl.fh = nil
 	fl.mu.Unlock()
