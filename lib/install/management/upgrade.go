@@ -202,8 +202,10 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	if err = d.reconfigVCH(conf, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)); err != nil {
 		return err
 	}
-
-	return d.startAppliance(conf)
+	if err = d.startAppliance(conf); err != nil {
+		return err
+	}
+	return d.EnsureApplianceInitializes(d.ctx, conf)
 }
 
 func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string) error {
@@ -232,7 +234,10 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 		log.Infof("Roll back finished - Appliance is kept in powered off status")
 		return nil
 	}
-	return d.startAppliance(conf)
+	if err = d.startAppliance(conf); err != nil {
+		return err
+	}
+	return d.EnsureApplianceInitializes(d.ctx, conf)
 }
 
 func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, isoFile string) error {

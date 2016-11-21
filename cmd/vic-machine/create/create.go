@@ -1224,14 +1224,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return errors.New("invalid CLI arguments")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
-	defer cancel()
-	defer func() {
-		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
-			//context deadline exceeded, replace returned error message
-			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
-		}
-	}()
+	ctx := context.Background()
 
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
@@ -1257,11 +1250,30 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	log.Info("")
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
+
 	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Error(err)
 		return err
 	}
+
+	// after create appliance, use timeout context to wait ip address
+	timeoutctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer func() {
+		if timeoutctx != nil && timeoutctx.Err() != nil && timeoutctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
+		}
+	}()
+
+	if err = executor.EnsureApplianceInitializes(timeoutctx, vchConfig); err != nil {
+		executor.CollectDiagnosticLogs()
+		log.Error(err)
+		cancel()
+		return err
+	}
+	timeoutctx = nil
+	cancel()
 
 	// vic-init will try to reach out to the vSphere target.
 	log.Info("Checking VCH connectivity with vSphere target")
@@ -1273,8 +1285,12 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return errors.New("Running diagnostics failed.")
 	}
 
+	// after create appliance, use new timeout context to check service availability
+	timeoutctx, cancel = context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
+
 	// Checking access to vSphere API
-	cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
+	cd, err := executor.CheckAccessToVCAPI(timeoutctx, vch, vchConfig.Target)
 	code := int(cd)
 	if err != nil {
 		log.Errorf("Failed to access target vSphere API %s: %v", vchConfig.Target, err)
@@ -1298,7 +1314,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	}
 
 	// check the docker endpoint is responsive
-	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
+	if err = executor.CheckDockerAPI(timeoutctx, vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
 		return err
 	}

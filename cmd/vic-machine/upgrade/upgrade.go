@@ -165,7 +165,7 @@ func (u *Upgrade) Run(cli *cli.Context) error {
 	}
 
 	// check the docker endpoint is responsive
-	if err = executor.CheckDockerAPI(vchConfig, nil); err != nil {
+	if err = executor.CheckDockerAPI(ctx, vchConfig, nil); err != nil {
 
 		executor.CollectDiagnosticLogs()
 		return err
