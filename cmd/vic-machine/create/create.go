@@ -138,6 +138,8 @@ func NewCreate() *Create {
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
 	create := []cli.Flag{
+		// credentials
+
 		// images
 		cli.StringFlag{
 			Name:        "image-store, i",
@@ -1140,57 +1142,57 @@ func logArguments(cliContext *cli.Context) {
 					continue
 				}
 				url.User = nil
-				log.Debugf("Target: %s", url.String())
+				log.Debugf("--target=%s", url.String())
 				continue
 			}
 
 			i := cliContext.Int(f)
 			if i != 0 {
-				log.Debugf("flag %s:%d", f, i)
+				log.Debugf("--%s=%d", f, i)
 				continue
 			}
 			d := cliContext.Duration(f)
 			if d != 0 {
-				log.Debugf("flag %s:%s", f, d.String())
+				log.Debugf("--%s=%s", f, d.String())
 				continue
 			}
 			x := cliContext.Float64(f)
 			if x != 0 {
-				log.Debugf("flag %s:%f", f, x)
+				log.Debugf("--%s=%f", f, x)
 				continue
 			}
 			s := cliContext.String(f)
 			if s != "" {
-				log.Debugf("flag %s:%s", f, s)
+				log.Debugf("--%s=%s", f, s)
 				continue
 			}
 			ss := cliContext.StringSlice(f)
 			if ss != nil {
-				log.Debugf("flag %s:%#v", f, ss)
+				log.Debugf("--%s=%#v", f, ss)
 				continue
 			}
 			is := cliContext.IntSlice(f)
 			if is != nil {
-				log.Debugf("flag %s:%#v", f, is)
+				log.Debugf("--%s=%#v", f, is)
 				continue
 			}
 
 			b := cliContext.Bool(f)
 			bT := cliContext.BoolT(f)
-			log.Debugf("assume bool flag %s:%t %t", f, b, bT)
 			if b || bT {
+				log.Debugf("--%s=%t", f, true)
 				continue
 			}
 
 			g := cliContext.Generic(f)
 			if g != nil {
-				log.Debugf("flag %s:%#v", f, g)
+				log.Debugf("--%s=%#v", f, g)
 				continue
 			}
 
 			// TODO: add in Global types and move common argument to global flags
 			// if we cannot distinguish type
-			log.Debugf("flag %s set with <nil> value", f)
+			log.Debugf("--%s set with <nil> value", f)
 		}
 	}
 }

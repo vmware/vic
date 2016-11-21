@@ -284,32 +284,6 @@ func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceLi
 	return devices, nil
 }
 
-// addSerialPort is separate from the configLogging because I could not successfully add a serial port after initial VM creation
-// The controller slot kept colliding with the Keyboard no matter whether it was explicitly specified or left as -1 for vSphere to determine
-func (d *Dispatcher) addSerialPort(conf *config.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
-	defer trace.End(trace.Begin(""))
-
-	// TODO: move this construction into the spec package and update portlayer/logging to use it as well
-	serial := &types.VirtualSerialPort{
-		VirtualDevice: types.VirtualDevice{
-			Backing: &types.VirtualSerialPortFileBackingInfo{
-				VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-					FileName: "[]",
-				},
-			},
-			Connectable: &types.VirtualDeviceConnectInfo{
-				Connected:         true,
-				StartConnected:    true,
-				AllowGuestControl: true,
-			},
-		},
-		YieldOnPoll: true,
-	}
-
-	devices = append(devices, serial)
-	return devices, nil
-}
-
 func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -346,9 +320,9 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 		return nil, err
 	}
 
-	if devices, err = d.addSerialPort(conf, spec, devices); err != nil {
-		return nil, err
-	}
+	// if devices, err = d.addSerialPort(conf, spec, devices); err != nil {
+	// 	return nil, err
+	// }
 
 	deviceChange, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 	if err != nil {
@@ -420,6 +394,22 @@ func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, 
 	defer trace.End(trace.Begin(""))
 
 	devices, err := vm.Device(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		return nil, err
+	}
+
+	p, err := devices.CreateSerialPort()
+	if err != nil {
+		return nil, err
+	}
+
+	err = vm.AddDevice(d.ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	devices, err = vm.Device(d.ctx)
 	if err != nil {
 		log.Errorf("Failed to get vm devices for appliance: %s", err)
 		return nil, err
