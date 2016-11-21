@@ -337,9 +337,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
-		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
-			Message: fmt.Sprintf("container %s not found", params.ID),
-		})
+		return containers.NewGetContainerLogsNotFound()
 	}
 
 	follow := false
@@ -355,7 +353,8 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	reader, err := container.LogReader(context.Background(), tail, follow)
 	if err != nil {
-		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+		// Do not return an error here.  It's a workaround for a panic similar to #2594
+		return containers.NewGetContainerLogsInternalServerError()
 	}
 
 	detachableOut := NewFlushingReader(reader)
