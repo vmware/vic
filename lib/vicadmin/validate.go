@@ -209,7 +209,10 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	}
 
-	v.QueryDatastore(ctx, vch, sess)
+	err = v.QueryDatastore(ctx, vch, sess)
+	if err != nil {
+		log.Errorf("Had a problem querying the datastores: %s", err.Error())
+	}
 	v.QueryVCHStatus(vch, sess)
 	return v
 }
