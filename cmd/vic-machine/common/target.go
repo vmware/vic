@@ -60,6 +60,7 @@ func (t *Target) TargetFlags() []cli.Flag {
 		},
 		cli.StringFlag{
 			Name:        "thumbprint",
+			Value:       "",
 			Destination: &t.Thumbprint,
 			Usage:       "ESX or vCenter host certificate thumbprint",
 		},

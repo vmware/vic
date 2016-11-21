@@ -352,6 +352,7 @@ func (v *Validator) managedbyVC(ctx context.Context) {
 }
 
 func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	// empty string for password is horrific, but a legitmate scenario especially in isolated labs
 	if input.OpsPassword == nil {
 		v.NoteIssue(errors.New("Password for operations user has not been set"))
 		return
