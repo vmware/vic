@@ -259,7 +259,7 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		return fmt.Errorf("No datastore references found")
 	}
 
-	c := property.DefaultCollector(sess.Client.Client)
+	pc := property.DefaultCollector(sess.Client.Client)
 	if pc == nil {
 		return fmt.Errorf("Could not get default propery collector; prop-collector came back nil")
 	}
