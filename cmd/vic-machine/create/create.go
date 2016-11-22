@@ -446,7 +446,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
-			Usage:       "Time to wait for create",
+			Usage:       "Time to wait for service ready",
 			Destination: &c.Timeout,
 		},
 	}
@@ -1259,8 +1259,9 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	// after create appliance, use timeout context to wait ip address
 	timeoutctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
 	defer func() {
-		if timeoutctx != nil && timeoutctx.Err() != nil && timeoutctx.Err() == context.DeadlineExceeded {
+		if timeoutctx.Err() != nil && timeoutctx.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
 			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
 		}
@@ -1272,8 +1273,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		cancel()
 		return err
 	}
-	timeoutctx = nil
-	cancel()
 
 	// vic-init will try to reach out to the vSphere target.
 	log.Info("Checking VCH connectivity with vSphere target")
@@ -1284,10 +1283,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		log.Error(err)
 		return errors.New("Running diagnostics failed.")
 	}
-
-	// after create appliance, use new timeout context to check service availability
-	timeoutctx, cancel = context.WithTimeout(context.Background(), c.Timeout)
-	defer cancel()
 
 	// Checking access to vSphere API
 	cd, err := executor.CheckAccessToVCAPI(timeoutctx, vch, vchConfig.Target)

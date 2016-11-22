@@ -673,10 +673,10 @@ func (d *Dispatcher) applianceConfiguration(conf *config.VirtualContainerHostCon
 }
 
 // waitForKey squashes the return values and simpy blocks until the key is updated or there is an error
-func (d *Dispatcher) waitForKey(key string) {
+func (d *Dispatcher) waitForKey(ctx context.Context, key string) {
 	defer trace.End(trace.Begin(key))
 
-	d.appliance.WaitForKeyInExtraConfig(d.ctx, key)
+	d.appliance.WaitForKeyInExtraConfig(ctx, key)
 	return
 }
 
@@ -919,13 +919,13 @@ func (d *Dispatcher) EnsureApplianceInitializes(ctx context.Context, conf *confi
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
+	d.waitForKey(ctx, extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
 	ctxerr := ctx.Err()
 
 	if ctxerr == nil {
 		log.Info("Waiting for major appliance components to launch")
 		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
-			d.waitForKey(k)
+			d.waitForKey(ctx, k)
 		}
 	}
 
