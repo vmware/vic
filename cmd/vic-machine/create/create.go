@@ -1261,16 +1261,15 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	timeoutctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 	defer func() {
-		if timeoutctx.Err() != nil && timeoutctx.Err() == context.DeadlineExceeded {
+		if timeoutctx.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
-			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
+			err = errors.Errorf("Creating VCH exceeded time limit of %s. Please, increase timeout using --time in case of slow network bandwidth or busy vSphere target.", c.Timeout.String())
 		}
 	}()
 
-	if err = executor.EnsureApplianceInitializes(timeoutctx, vchConfig); err != nil {
+	if err = executor.InsureApplicaneInit(timeoutctx, vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Error(err)
-		cancel()
 		return err
 	}
 
