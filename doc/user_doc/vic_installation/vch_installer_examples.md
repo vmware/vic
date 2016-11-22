@@ -153,27 +153,27 @@ For more information about setting resource use limitations on virtual container
 The examples in this section demonstrate how to direct traffic to and from virtual container hosts and the other elements in your environment, how to set static IPs, how to configure container VM networks, and how to configure a virtual container host to use a proxy server.
 
 <a name="networks"></a>
-### Specify External, Management, and Client Networks ###
+### Specify Public, Management, and Client Networks ###
 
 In addition to the mandatory bridge network, if your vCenter Server environment includes multiple networks, you can direct different types of traffic to different networks. 
 
-- You can direct the traffic between the virtual container host, container VMs, and the internet to a specific network by specifying the `external-network` option. If you do not specify the `external-network` option, the virtual container host uses the default VM Network for external network traffic.
-- You can direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the `--management-network` option. If you do not specify the `--management-network` option, the virtual container host uses the external network for management traffic.
-- You can designate a specific network for use by the Docker API by specifying the `--client-network` option. If you do not specify the `--client-network` option, the Docker API uses the external network.
+- You can direct the traffic between the virtual container host, container VMs, and the internet to a specific network by specifying the `public-network` option. If you do not specify the `public-network` option, the virtual container host uses the default VM Network for public network traffic.
+- You can direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the `--management-network` option. If you do not specify the `--management-network` option, the virtual container host uses the public network for management traffic.
+- You can designate a specific network for use by the Docker API by specifying the `--client-network` option. If you do not specify the `--client-network` option, the Docker API uses the public network.
 
-**IMPORTANT**: A virtual container host supports a maximum of 3 distinct network interfaces. Because the bridge and container networks require their own distributed port groups, at least two of the external, client, and management networks must share a network interface.
+**IMPORTANT**: A virtual container host supports a maximum of 3 distinct network interfaces. Because the bridge and container networks require their own distributed port groups, at least two of the public, client, and management networks must share a network interface.
 
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
-- Directs external and management traffic to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
+- Directs public and management traffic to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
---external-network 'network 1'
+--public-network 'network 1'
 --management-network 'network 1'
 --client-network 'network 2'
 --name vch1
@@ -185,17 +185,17 @@ For more information about the networking options, see the [Networking Options s
 <a name="static-ip"></a>
 ### Set a Static IP Address for the Virtual Container Host Endpoint VM on the Different Networks ###
 
-If you specify networks for any or all of the external, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on one or more of those networks. 
+If you specify networks for any or all of the public, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on one or more of those networks. 
 
 **NOTE**: When you specify a static IP address for the virtual container host endpoint VM on the client network, and you do not specify one of the TLS options, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. In this case, full TLS authentication is implemented by default and `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname). 
 
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
-- Directs external and management to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Sets a DNS server for use by the external, management, and client networks.
-- Sets a static IP address for the virtual container host endpoint VM on the external and client networks. Because the management network shares a network with the external network, you cannot set a static IP address on the management network.
-- Specifies the gateway for the external network. If you set a static IP address on the external network, you must also specify the gateway address.
+- Directs public and management to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
+- Sets a DNS server for use by the public, management, and client networks.
+- Sets a static IP address for the virtual container host endpoint VM on the public and client networks. Because the management network shares a network with the public network, you cannot set a static IP address on the management network.
+- Specifies the gateway for the public network. If you set a static IP address on the public network, you must also specify the gateway address.
 - Specifies a gateway for the client network. The `--client-network-gateway` options specifies the routing destination for client network traffic through the virtual container host endpoint VM, as well as the gateway address. The routing destination  informs the virtual container host that it can reach all of the Docker clients at the network addresses in the ranges that you specify in the routing destinations by sending packets to the specified gateway.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
@@ -203,9 +203,9 @@ This example deploys a virtual container host with the following configuration:
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
---external-network 'network 1'
---external-network-gateway 192.168.1.1/24
---external-network-ip 192.168.1.10/24
+--public-network 'network 1'
+--public-network-gateway 192.168.1.1/24
+--public-network-ip 192.168.1.10/24
 --management-network 'network 1'
 --client-network 'network 2'
 --client-network-ip 192.168.3.10/24
@@ -226,7 +226,7 @@ If the network that you designate as the container network in the `--container-n
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
-- Uses the default VM Network for the external, management, and client networks.
+- Uses the default VM Network for the public, management, and client networks.
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker. 
 - Specifies the gateway, two DNS servers, and a range of IP addresses on the container network for container VMs to use.

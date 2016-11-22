@@ -6,13 +6,13 @@ These are some use cases of containers using network ports to communicate with e
 
 Launch a container and expose a port: `run -p`
 
-Connect the container with the external mapped port on the external network of the vSphere Container Host.
+Connect the container with the external mapped port on the public network of the vSphere Container Host.
 
 `$ docker run -p 8080:80 --name test1 my_container my_app`
 
 #### Outcome
 
-You can access Port 80 on test1 from the external network interface on the virtual container host at port 8080.
+You can access Port 80 on test1 from the public network interface on the virtual container host at port 8080.
 
 ### Container on a Simple Bridge Network
 
@@ -88,7 +88,7 @@ For this container to reach both networks or containers connected to only those 
 n1 and n2 cannot talk to each other<br>
 n12 can talk to both n1 and n2
 
-### Containers using External Network
+### Containers Using External Networks
 
 Configure two external networks in vSphere:
 `default-external` is `10.2.0.0/16` with gateway `10.2.0.1`  
@@ -176,7 +176,7 @@ The server container port is exposed on the external network vic-production.
 ### Containers Using Multiple Container Networks
 Create multiple container networks using `vic-machine`. 
 
-**NOTE**: The networks known as container networks in vSphere Integrated Containers Engine terminology correspond to  external networks in Docker terminology.
+**NOTE**: The networks known as container networks in vSphere Integrated Containers Engine terminology correspond to  public networks in Docker terminology.
 
 Example:
 
