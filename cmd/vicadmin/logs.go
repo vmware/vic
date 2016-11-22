@@ -90,7 +90,7 @@ func (r dlogReader) open() (entry, error) {
 
 		for _, line := range h.LineText {
 			buf.WriteString(line)
-			buf.WriteString("\n")
+			buf.WriteByte('\n')
 		}
 
 		start += lines
