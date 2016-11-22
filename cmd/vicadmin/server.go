@@ -557,9 +557,12 @@ func (s *server) index(res http.ResponseWriter, req *http.Request) {
 
 	if sess == nil {
 		// We're unable to connect to vSphere, so display an error message
-		errMessage := deriveErrorMessage(err)
-		vchIssues := fmt.Sprintf("<span class=\"error-message\">%s Error: %s</span>\n",
-			v.Hostname+" is not functioning: unable to connect to vSphere.", errMessage)
+		errMessage := ""
+		if err != nil {
+			errMessage = fmt.Sprintf(" Error: %s", deriveErrorMessage(err))
+		}
+		vchIssues := fmt.Sprintf("<span class=\"error-message\">%s%s</span>\n",
+			v.Hostname+" is not functioning: unable to connect to vSphere. You may wish to <a href=\"/logout\">try logging in again</a>.", errMessage)
 
 		v.VCHIssues = template.HTML(vchIssues)
 	}

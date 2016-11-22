@@ -91,11 +91,12 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 
 	vsphus, err := us.vsphere.SessionManager.UserSession(ctx)
 	if err != nil || vsphus == nil {
-		u.Delete(id)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to validate user %s session: %v", id, err)
+			log.Warnf("Failed to validate user %s session: %v", id, err)
+			return nil, nil
 		}
-		return nil, fmt.Errorf("User %s session has expired", id)
+		log.Warnf("User %s session has expired", id)
+		return nil, nil
 	}
 	log.Infof("Found vSphere session for vicadmin usersession %s", id)
 	return us.vsphere, nil
