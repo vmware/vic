@@ -36,6 +36,7 @@ For more information about network operations, see [Network Port Use Cases](netw
 | --- | --- | --- |
 |Network connect|[Connect to a network](https://docs.docker.com/engine/reference/commandline/network_connect/)|Yes|
 |Network create|[Create a network](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network in vSphere Integrated Container for vSphere Administrators. Bridge is also supported.|
+|Network disconnect|[Disconnect a network](https://docs.docker.com/engine/reference/commandline/network_disconnect/)|No|
 |Network inspect|[Inspect a network](https://docs.docker.com/engine/reference/commandline/network_inspect/)|Yes|
 |Network ls|[List networks/](https://docs.docker.com/engine/reference/commandline/network_ls/)|Yes|
 |Network rm|[Remove a network](https://docs.docker.com/engine/reference/commandline/network_rm/)|Yes. Network name and network ID are supported|
@@ -46,10 +47,10 @@ For more information about volume operations, see [Using Volumes with vSphere In
 
 | **Volume** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
-|Docker volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)| The driver option is ignored even if you specify it. You must include <code>--opt VolumeStore=<name of volumestore> --Capacity=<size  in MB></code> as these are direct vSphere arguments. vSphere Integrated Containers does not assign random names during a volume create, but only for anonymous volumes.|
-|Docker volume inspect|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes, use with docker compose|
-|Docker volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/) | Yes |
-|Docker volume rm|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/) | Yes |
+|Volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)| The driver option is ignored even if you specify it. You must include <code>--opt VolumeStore=<name of volumestore> --Capacity=<size  in MB></code> as these are direct vSphere arguments. vSphere Integrated Containers does not assign random names during a volume create, but only for anonymous volumes.|
+|Volume inspect|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes, use with docker compose|
+|Volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/) | Yes |
+|Volume rm|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/) | Yes |
 
 ## Other Operations ##
 
