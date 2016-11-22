@@ -18,6 +18,12 @@ Hosts with container VMs can enter maintenance mode without manual intervention,
 - In a clustered vSphere environment with DRS set to automatic, DRS migrates the VCH to another host in the cluster before the host enters maintenance mode. 
 - For a host with container VMs running, DRS migrates the container VMs to another host in the cluster before the host enters maintenance mode.
 
+Hosts with container VMs can enter maintenance mode without manual intervention, with these exceptions:
+
+- For a standalone host, you must first power down the virtual container host or any other VMs before entering maintenance mode. 
+- In a clustered vSphere environment with DRS set to automatic, DRS first migrates the virtual container host to another host in the cluster and then enters maintenance mode. 
+- For a host with a container VM running, DRS first migrates the VM to another host in the cluster and then enters maintenance mode.
+
 ## VMware vSAN&trade;
 The VCH maintains filesystem layers inherent in container images by mapping to discrete VMDK files, all of which can be which can be housed in shared vSphere datastores, including vSAN and NFS datastores.
 
