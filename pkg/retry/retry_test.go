@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backoff
+package retry
 
 import (
 	"fmt"
@@ -35,7 +35,7 @@ func TestRetry(t *testing.T) {
 		}
 		return false
 	}
-	err := Retry(operation, retryOnError)
+	err := Do(operation, retryOnError)
 	assert.True(t, i == 4, "should retried 4 times")
 	assert.True(t, err != nil, fmt.Sprintf("retry do not depend on error status"))
 }

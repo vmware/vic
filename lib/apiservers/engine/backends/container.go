@@ -53,7 +53,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/pkg/backoff"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 )
@@ -386,14 +386,14 @@ func (c *Container) ContainerRestart(name string, seconds int) error {
 	operation := func() error {
 		return c.containerProxy.Stop(vc, name, seconds, false)
 	}
-	if err := backoff.Retry(operation, IsConflictError); err != nil {
+	if err := retry.Do(operation, IsConflictError); err != nil {
 		return InternalServerError(fmt.Sprintf("Stop failed with: %s", err))
 	}
 
 	operation = func() error {
 		return c.containerStart(name, nil, false)
 	}
-	if err := backoff.Retry(operation, IsConflictError); err != nil {
+	if err := retry.Do(operation, IsConflictError); err != nil {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
 	}
 
@@ -493,7 +493,7 @@ func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostC
 	operation := func() error {
 		return c.containerStart(name, hostConfig, true)
 	}
-	if err := backoff.Retry(operation, IsConflictError); err != nil {
+	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
 	return nil
@@ -810,7 +810,7 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 	operation := func() error {
 		return c.containerProxy.Stop(vc, name, seconds, true)
 	}
-	if err := backoff.Retry(operation, IsConflictError); err != nil {
+	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
 	return nil
@@ -1106,7 +1106,7 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 	operation := func() error {
 		return c.containerAttach(name, ca)
 	}
-	if err := backoff.Retry(operation, IsConflictError); err != nil {
+	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
 	return nil

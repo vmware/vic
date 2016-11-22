@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backoff
+package retry
 
 import (
 	"time"
@@ -34,7 +34,7 @@ const (
 
 // Retry retries the given function DefaultRetryCount times while sleeping some time between unsuccesfull attempts
 // if retryOnError return true, continue retry, otherwise, return error
-func Retry(operation func() error, retryOnError func(err error) bool) error {
+func Do(operation func() error, retryOnError func(err error) bool) error {
 	defer trace.End(trace.Begin(""))
 
 	var err error
