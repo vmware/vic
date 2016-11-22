@@ -87,13 +87,13 @@ func rawConnectionFromSerial() (net.Conn, error) {
 	// set the provided FDs to raw if it's a termial
 	// 0 is the uninitialized value for Fd
 	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
-		log.Debug("setting terminal to raw mode")
+		log.Info("setting terminal to raw mode")
 		s, err := terminal.MakeRaw(int(f.Fd()))
 		if err != nil {
 			return nil, err
 		}
 
-		log.Infof("s = %#v", s)
+		log.Debugf("s = %#v", s)
 	}
 	if err := setTerminalSpeed(f.Fd()); err != nil {
 		log.Errorf("Setting terminal speed failed with %s", err)

@@ -76,8 +76,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	ctx := context.Background()
 
 	log.Debugf("Path: %#v", params.CreateConfig.Path)
-	log.Debugf("Args: %#v", params.CreateConfig.Args)
-	log.Debugf("Env: %#v", params.CreateConfig.Env)
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
 	log.Debugf("OpenStdin: %#v", params.CreateConfig.OpenStdin)
 
@@ -130,8 +128,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 			m.Annotations[k] = v
 		}
 	}
-
-	log.Infof("CreateHandler Metadata: %#v", m)
 
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
