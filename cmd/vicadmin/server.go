@@ -439,6 +439,10 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 	c, err := s.getSessionFromRequest(context.Background(), req)
 	if err != nil {
 		log.Errorf("Failed to get vSphere session while bundling container logs due to error: %s", err.Error())
+		if strings.Contains(err.Error(), "Could not validate session") {
+			http.Redirect(res, req, "/logout", http.StatusTemporaryRedirect)
+			return
+		}
 		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
 		return
 	}
@@ -549,6 +553,10 @@ func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
 	sess, err := s.getSessionFromRequest(ctx, req)
+	if err != nil && strings.Contains(err.Error(), "Could not validate session") {
+		http.Redirect(res, req, "/logout", http.StatusTemporaryRedirect)
+		return
+	}
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 
 	if sess == nil {
