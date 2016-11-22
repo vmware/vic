@@ -472,6 +472,7 @@ func (s *server) tarDefaultLogs(res http.ResponseWriter, req *http.Request) {
 
 	s.bundleLogs(res, req, configureReaders(), formatTGZ)
 }
+
 func (s *server) zipDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
