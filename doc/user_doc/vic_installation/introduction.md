@@ -33,7 +33,7 @@ vSphere Integrated Containers Engine provides a command-line utility, `vic-machi
 
 - Deploy virtual container hosts in configurations that are tailored to your vSphere and container development environments.
 - List the virtual container hosts that are running on a particular ESXi host or vCenter Server instance.
-- Inspect, delete, debug, and upgrade running virtual container hosts.
+- Inspect, delete, and debug running virtual container hosts.
 
 ## The Port Layer
 

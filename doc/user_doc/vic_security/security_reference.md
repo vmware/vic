@@ -29,7 +29,7 @@ vSphere Integrated Containers Engine does not create service accounts and does n
 
 <a name="patches"></a>
 ## Apply Security Updates and Patches
-Download a new version of vSphere Integrated Containers Engine and upgrade your virtual container hosts.
+Download a new version of vSphere Integrated Containers Engine and upgrade your existing virtual container hosts.
 
 <a name="logs"></a>
 ## Security Related Log Messages

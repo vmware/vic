@@ -8,7 +8,7 @@ vRealize Suite is available for health monitoring, performance analysis, and com
 
 IT teams can assure service-level agreements for container workloads with VMware vSphere Distributed Resource Scheduler&trade; (DRS) as well as reduce planned and unplanned downtime with VMware vSphere vMotion.
 
-You can restart or upgrade the virtual container host without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
+You can restart the virtual container host without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
 
 Hosts with container VMs can enter maintenance mode without manual intervention, with these exceptions:
 

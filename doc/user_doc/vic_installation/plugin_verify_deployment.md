@@ -1,11 +1,11 @@
 # Verify the Deployment of the vSphere Integrated Containers Engine Plug-In #
 
-After you have installed or upgraded the vSphere Web Client plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.
+After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.
 
 **Prerequisites**
 
 - You deployed a virtual container host.
-- You installed or upgraded the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
+- You installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
 - You logged out of the vSphere Web Client after deploying the plug-in, and logged back in.
 
 **Procedure**

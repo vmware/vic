@@ -31,7 +31,7 @@ The `vic-machine inspect` command displays information about the virtual contain
 
 - The virtual container host ID:
   
-  <pre>VCH ID: VirtualMachine:vm-101</pre> The vSphere Managed Object Reference, or moref, of the virtual container host. You can use virtual container host ID when you run the `vic-machine delete`, `upgrade` or `debug` commands. Using a virtual container host ID reduces the number of options that you need to specify when you run those commands.
+  <pre>VCH ID: VirtualMachine:vm-101</pre> The vSphere Managed Object Reference, or moref, of the virtual container host. You can use virtual container host ID when you run the `vic-machine delete` or `debug` commands. Using a virtual container host ID reduces the number of options that you need to specify when you run those commands.
 - The version of the `vic-machine` utility and the version of the virtual container host that you are inspecting.
   <pre>Installer version: <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>tag</i>
 VCH version: <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
