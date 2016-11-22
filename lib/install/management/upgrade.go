@@ -205,7 +205,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	if err = d.startAppliance(conf); err != nil {
 		return err
 	}
-	return d.InsureApplicaneInit(d.ctx, conf)
+	return d.EnsureApplianceInit(d.ctx, conf)
 }
 
 func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string) error {
@@ -237,7 +237,7 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 	if err = d.startAppliance(conf); err != nil {
 		return err
 	}
-	return d.InsureApplicaneInit(d.ctx, conf)
+	return d.EnsureApplianceInit(d.ctx, conf)
 }
 
 func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, isoFile string) error {

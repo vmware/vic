@@ -911,7 +911,7 @@ func (d *Dispatcher) CheckDockerAPI(ctx context.Context, conf *config.VirtualCon
 }
 
 // ensureApplianceInitializes checks if the appliance component processes are launched correctly
-func (d *Dispatcher) InsureApplicaneInit(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) EnsureApplianceInit(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	if d.appliance == nil {
