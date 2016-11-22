@@ -51,7 +51,7 @@ func (i *Inspect) Flags() []cli.Flag {
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
-			Usage:       "Time to wait for upgrade",
+			Usage:       "Time to wait for inspect",
 			Destination: &i.Timeout,
 		},
 	}
@@ -136,9 +136,9 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	log.Info("")
 	log.Infof("Installer version: %s", installerVer.ShortVersion())
 	log.Infof("VCH version: %s", vchConfig.Version.ShortVersion())
-	log.Info("")
-	log.Info("VCH upgrade status:")
-	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
+	//	log.Info("")
+	//	log.Info("VCH upgrade status:")
+	//	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
 
 	if err = executor.InspectVCH(vch, vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
