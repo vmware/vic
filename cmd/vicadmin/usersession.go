@@ -86,7 +86,7 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 		return nil, fmt.Errorf("User session with unique ID %s does not exist", id)
 	}
 	if us.vsphere == nil {
-		return nil, fmt.Errorf("No vSphere session found for user with ID %s", id)
+		return nil, fmt.Errorf("No vSphere session found for user: %s", id)
 	}
 
 	vsphus, err := us.vsphere.SessionManager.UserSession(ctx)
