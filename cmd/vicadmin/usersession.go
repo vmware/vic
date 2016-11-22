@@ -92,11 +92,10 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 	vsphus, err := us.vsphere.SessionManager.UserSession(ctx)
 	if err != nil || vsphus == nil {
 		u.Delete(id)
-		errMsg := fmt.Sprintf("Could not validate session for user %s; must log in again", id)
 		if err != nil {
-			errMsg = fmt.Sprintf("%s. Got error %s", errMsg, err.Error())
+			return nil, fmt.Errorf("Failed to validate user %s session: %v", id, err)
 		}
-		return nil, fmt.Errorf("%s", errMsg)
+		return nil, fmt.Errorf("User %s session has expired", id)
 	}
 	log.Infof("Found vSphere session for vicadmin usersession %s", id)
 	return us.vsphere, nil
