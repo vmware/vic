@@ -32,6 +32,9 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
+	OpsUser     string
+	OpsPassword *string
+
 	CertPEM     []byte
 	KeyPEM      []byte
 	ClientCAs   []byte

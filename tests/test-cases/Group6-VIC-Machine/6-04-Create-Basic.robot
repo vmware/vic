@@ -48,6 +48,19 @@ Create VCH - target URL
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
+Create VCH - operations user
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls} --ops-user="%{TEST_USERNAME}" --ops-password="%{TEST_PASSWORD}"
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
 Create VCH - specified datacenter
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Requires vCenter environment
 

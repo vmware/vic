@@ -24,7 +24,7 @@ no-tls () {
 }
 
 unset-vic () {
-    unset MAPPED_NETWORKS NETWORKS IMAGE_STORE DATASTORE COMPUTE VOLUME_STORES IPADDR GOVC_INSECURE TLS THUMBPRINT VIC_NAME
+    unset MAPPED_NETWORKS NETWORKS IMAGE_STORE DATASTORE COMPUTE VOLUME_STORES IPADDR GOVC_INSECURE TLS THUMBPRINT OPS_CREDS VIC_NAME
 }
 
 vic-path () {
@@ -35,7 +35,7 @@ vic-create () {
     base=$(pwd)
     (
         cd $(vic-path)/bin
-        $(vic-path)/bin/vic-machine-"$OS" create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
+        $(vic-path)/bin/vic-machine-"$OS" create --target="$GOVC_URL" "${OPS_CREDS[@]}" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" "${TLS[@]}" ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" "${NETWORKS[@]}" ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
     )
 
     unset DOCKER_CERT_PATH DOCKER_TLS_VERIFY
@@ -106,15 +106,17 @@ addr-from-dockerhost () {
 #    export COMPUTE=cluster/pool
 #    export DATASTORE=datastore1
 #    export IMAGE_STORE=$DATASTORE/image/path
-#    NETWORKS=("--bridge-network=private-dpg-vlan" "--public-network=extern-dpg")
-#    MAPPED_NETWORKS=("--container-network=VM Network:external" "--container-network=SomeOtherNet:elsewhere")
-#    VOLUME_STORES=("--volume-store=$DATASTORE:default")
 #    export TLS=("--tls-cname=vch-hostname.domain.com" "--organisation=MyCompany")
 #    export TIMEOUT="--timeout=10m"
 #    export IPADDR="--client-network-ip=vch-hostname.domain.com --client-network-gateway=x.x.x.x/22 --dns-server=y.y.y.y --dns-server=z.z.z.z"
 #    export VIC_NAME="MyVCH"
 #
-#    export NETWORKS MAPPED_NETWORKS VOLUME_STORES
+#    OPS_CREDS=("--ops-user=<user>" "--ops-password=<password>")
+#    NETWORKS=("--bridge-network=private-dpg-vlan" "--public-network=extern-dpg")
+#    MAPPED_NETWORKS=("--container-network=VM Network:external" "--container-network=SomeOtherNet:elsewhere")
+#    VOLUME_STORES=("--volume-store=$DATASTORE:default")
+#
+#    export NETWORKS MAPPED_NETWORKS VOLUME_STORES OPS_CREDS
 #}
 
 . ~/.vic

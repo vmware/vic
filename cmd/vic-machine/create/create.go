@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 
@@ -138,6 +140,21 @@ func NewCreate() *Create {
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
 	create := []cli.Flag{
+		// credentials
+		cli.StringFlag{
+			Name:        "ops-user",
+			Value:       "",
+			Usage:       "The user with which the VCH operates after creation. Defaults to the credential supplied with target",
+			Destination: &c.OpsUser,
+			Hidden:      true,
+		},
+		cli.GenericFlag{
+			Name:   "ops-password",
+			Value:  flags.NewOptionalString(&c.OpsPassword),
+			Usage:  "Password or token for the operations user. Defaults to the credential supplied with target",
+			Hidden: true,
+		},
+
 		// images
 		cli.StringFlag{
 			Name:        "image-store, i",
@@ -489,6 +506,10 @@ func (c *Create) processParams() error {
 		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.DisplayName), 1)
 	}
 
+	if err := c.processOpsCredentials(); err != nil {
+		return err
+	}
+
 	if err := c.processContainerNetworks(); err != nil {
 		return err
 	}
@@ -532,6 +553,38 @@ func (c *Create) processParams() error {
 	if err := c.processProxies(); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (c *Create) processOpsCredentials() error {
+	if c.OpsUser == "" && c.OpsPassword != nil {
+		return errors.New("Password for operations user specified without user having been specified")
+	}
+
+	if c.OpsUser == "" {
+		log.Warn("Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)")
+		c.OpsUser = c.Target.User
+		if c.Target.Password == nil {
+			return errors.New("Unable to use nil password from administrative user for operations user")
+		}
+
+		c.OpsPassword = c.Target.Password
+		return nil
+	}
+
+	if c.OpsPassword != nil {
+		return nil
+	}
+
+	log.Printf("vSphere password for %s: ", c.OpsUser)
+	b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		message := fmt.Sprintf("Failed to read password from stdin: %s", err)
+		cli.NewExitError(message, 1)
+	}
+	sb := string(b)
+	c.OpsPassword = &sb
 
 	return nil
 }
@@ -1127,70 +1180,88 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 
 func logArguments(cliContext *cli.Context) {
 	for _, f := range cliContext.FlagNames() {
-		// avoid logging senstive data
-		if f == "user" || f == "password" {
+		if !cliContext.IsSet(f) {
 			continue
 		}
 
-		if cliContext.IsSet(f) {
-			if f == "target" {
-				url, err := url.Parse(cliContext.String(f))
-				if err != nil {
-					log.Debugf("Unable to re-parse target url for logging")
-					continue
-				}
-				url.User = nil
-				log.Debugf("--target=%s", url.String())
-				continue
-			}
+		// avoid logging senstive data
+		if f == "user" || f == "password" || f == "ops-user" || f == "ops-password" {
+			log.Debugf("--%s=<censored>", f)
+			continue
+		}
 
-			i := cliContext.Int(f)
-			if i != 0 {
-				log.Debugf("--%s=%d", f, i)
+		if f == "target" {
+			url, err := url.Parse(cliContext.String(f))
+			if err != nil {
+				log.Debugf("Unable to re-parse target url for logging")
 				continue
 			}
-			d := cliContext.Duration(f)
-			if d != 0 {
-				log.Debugf("--%s=%s", f, d.String())
-				continue
-			}
-			x := cliContext.Float64(f)
-			if x != 0 {
-				log.Debugf("--%s=%f", f, x)
-				continue
-			}
-			s := cliContext.String(f)
-			if s != "" {
-				log.Debugf("--%s=%s", f, s)
-				continue
-			}
+			url.User = nil
+			log.Debugf("--target=%s", url.String())
+			continue
+		}
+
+		i := cliContext.Int(f)
+		if i != 0 {
+			log.Debugf("--%s=%d", f, i)
+			continue
+		}
+		d := cliContext.Duration(f)
+		if d != 0 {
+			log.Debugf("--%s=%s", f, d.String())
+			continue
+		}
+		x := cliContext.Float64(f)
+		if x != 0 {
+			log.Debugf("--%s=%f", f, x)
+			continue
+		}
+		s := cliContext.String(f)
+		if s != "" {
+			log.Debugf("--%s=%s", f, s)
+			continue
+		}
+		b := cliContext.Bool(f)
+		bT := cliContext.BoolT(f)
+		if b && !bT {
+			log.Debugf("--%s=%t", f, true)
+			continue
+		}
+
+		// put the slices at the end as they cause panics
+		match := func() (result bool) {
+			result = false
+			defer func() { recover() }()
 			ss := cliContext.StringSlice(f)
 			if ss != nil {
 				log.Debugf("--%s=%#v", f, ss)
-				continue
+				return true
 			}
+			return
+		}()
+		if match {
+			continue
+		}
+
+		match = func() (result bool) {
+			result = false
+			defer func() { recover() }()
 			is := cliContext.IntSlice(f)
 			if is != nil {
 				log.Debugf("--%s=%#v", f, is)
-				continue
+				return true
 			}
+			return
+		}()
+		if match {
+			continue
+		}
 
-			b := cliContext.Bool(f)
-			bT := cliContext.BoolT(f)
-			if b || bT {
-				log.Debugf("--%s=%t", f, true)
-				continue
-			}
-
-			g := cliContext.Generic(f)
-			if g != nil {
-				log.Debugf("--%s=%#v", f, g)
-				continue
-			}
-
-			// TODO: add in Global types and move common argument to global flags
-			// if we cannot distinguish type
-			log.Debugf("--%s set with <nil> value", f)
+		// generic last because it matches everything
+		g := cliContext.Generic(f)
+		if g != nil {
+			log.Debugf("--%s=%#v", f, g)
+			continue
 		}
 	}
 }
