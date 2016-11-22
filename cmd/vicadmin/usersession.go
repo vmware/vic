@@ -86,9 +86,18 @@ func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Ses
 		return nil, fmt.Errorf("User session with unique ID %s does not exist", id)
 	}
 	if us.vsphere == nil {
-		return nil, fmt.Errorf("No vSphere session found. User with ID %s must authenticate again.", id)
+		return nil, fmt.Errorf("No vSphere session found for user: %s", id)
 	}
 
+	vsphus, err := us.vsphere.SessionManager.UserSession(ctx)
+	if err != nil || vsphus == nil {
+		if err != nil {
+			log.Warnf("Failed to validate user %s session: %v", id, err)
+			return nil, nil
+		}
+		log.Warnf("User %s session has expired", id)
+		return nil, nil
+	}
 	log.Infof("Found vSphere session for vicadmin usersession %s", id)
 	return us.vsphere, nil
 }

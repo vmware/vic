@@ -115,7 +115,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	var err error
 	v.Hostname, err = os.Hostname()
 	if err != nil {
-
+		v.Hostname = "VCH"
 	}
 
 	log.Infof("Setting hostname to %s", v.Hostname)
@@ -131,7 +131,6 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.LicenseStatus = BadStatus
 		v.LicenseIssues = template.HTML("")
 	} else {
-
 		v.VCHReachable = true
 		// Firewall status check
 		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
@@ -167,6 +166,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 			}
 		}
 	}
+
 	log.Infof("FirewallStatus set to: %s", v.FirewallStatus)
 	log.Infof("FirewallIssues set to: %s", v.FirewallIssues)
 	log.Infof("LicenseStatus set to: %s", v.LicenseStatus)
@@ -209,7 +209,10 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	}
 
-	v.QueryDatastore(ctx, vch, sess)
+	err = v.QueryDatastore(ctx, vch, sess)
+	if err != nil {
+		log.Errorf("Had a problem querying the datastores: %s", err.Error())
+	}
 	v.QueryVCHStatus(vch, sess)
 	return v
 }
@@ -220,11 +223,11 @@ func (d dsList) Len() int           { return len(d) }
 func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
 
-func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
+func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) error {
 	if sess == nil {
 		// If we can't connect to vSphere, don't display datastore info
 		v.StorageRemaining = template.HTML("")
-		return
+		return nil
 	}
 
 	var dataStores dsList
@@ -252,14 +255,21 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		}
 	}
 
-	pc := property.DefaultCollector(sess.Client.Client)
-	err := pc.Retrieve(ctx, refs, nil, &dataStores)
+	if len(refs) == 0 {
+		return fmt.Errorf("No datastore references found")
+	}
 
-	sort.Sort(dataStores)
+	pc := property.DefaultCollector(sess.Client.Client)
+	if pc == nil {
+		return fmt.Errorf("Could not get default propery collector; prop-collector came back nil")
+	}
+
+	err := pc.Retrieve(ctx, refs, nil, &dataStores)
 	if err != nil {
 		log.Errorf("Error while accessing datastore: %s", err)
-		return
 	}
+
+	sort.Sort(dataStores)
 	for _, ds := range dataStores {
 		log.Infof("Datastore %s Status: %s", ds.Name, ds.OverallStatus)
 		log.Infof("Datastore %s Free Space: %.1fGB", ds.Name, float64(ds.Summary.FreeSpace)/(1<<30))
@@ -271,6 +281,8 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 			  <div class="forty">%.1f GB remaining</div>
 			</div>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
 	}
+
+	return nil
 }
 
 func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
