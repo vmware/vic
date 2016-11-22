@@ -255,18 +255,17 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		}
 	}
 
+	if len(refs) == 0 {
+		return fmt.Errorf("No datastore references found")
+	}
+
 	pc := property.DefaultCollector(sess.Client.Client)
 	if pc == nil {
 		return fmt.Errorf("Could not get default propery collector; prop-collector came back nil")
 	}
 
-	if len(refs) == 0 {
-		return fmt.Errorf("No datastore references found")
-	}
-
-	err := pc.Retrieve(ctx, refs, nil, &dataStores)
-
 	sort.Sort(dataStores)
+	err := pc.Retrieve(ctx, refs, nil, &dataStores)
 	if err != nil {
 		log.Errorf("Error while accessing datastore: %s", err)
 	}
