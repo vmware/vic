@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 
@@ -33,6 +34,9 @@ import (
 type MockDataStore struct {
 	// id -> image
 	db map[url.URL]map[string]*Image
+
+	createImageStoreError error
+	writeImageError       error
 }
 
 func NewMockDataStore() *MockDataStore {
@@ -46,10 +50,23 @@ func NewMockDataStore() *MockDataStore {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
-	return nil, nil
+	u, err := util.ImageStoreNameToURL(storeName)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := c.db[*u]; !ok {
+		return nil, os.ErrNotExist
+	}
+
+	return u, nil
 }
 
 func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
+	if c.createImageStoreError != nil {
+		return nil, c.createImageStoreError
+	}
+
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -59,11 +76,26 @@ func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (
 	return u, nil
 }
 
+func (c *MockDataStore) DeleteImageStore(op trace.Operation, storeName string) error {
+	u, err := util.ImageStoreNameToURL(storeName)
+	if err != nil {
+		return err
+	}
+
+	c.db[*u] = nil
+	return nil
+}
+
 func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 	return nil, nil
 }
 
 func (c *MockDataStore) WriteImage(op trace.Operation, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
+	if c.writeImageError != nil {
+		op.Infof("WriteImage: returning error")
+		return nil, c.writeImageError
+	}
+
 	storeName, err := util.ImageStoreName(parent.Store)
 	if err != nil {
 		return nil, err
@@ -537,6 +569,43 @@ func TestDeleteBranch(t *testing.T) {
 		return
 	}
 
+}
+
+func TestCreateImageStoreFailureCleanup(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	trace.Logger.Level = logrus.DebugLevel
+
+	mds := NewMockDataStore()
+	imageCache := NewLookupCache(mds)
+	op := trace.NewOperation(context.Background(), "create image store error")
+	mds.createImageStoreError = fmt.Errorf("foo error")
+
+	storeURL, err := imageCache.CreateImageStore(op, "testStore")
+	if !assert.Error(t, err) || !assert.Nil(t, storeURL) {
+		return
+	}
+
+	mds.createImageStoreError = nil
+	storeURL, err = imageCache.CreateImageStore(op, "testStore")
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
+		return
+	}
+
+	op = trace.NewOperation(context.Background(), "write image error")
+	mds = NewMockDataStore()
+	mds.writeImageError = fmt.Errorf("foo error")
+	imageCache = NewLookupCache(mds)
+
+	storeURL, err = imageCache.CreateImageStore(op, "testStore2")
+	if !assert.Error(t, err) || !assert.Nil(t, storeURL) {
+		return
+	}
+
+	mds.writeImageError = nil
+	storeURL, err = imageCache.CreateImageStore(op, "testStore2")
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
+		return
+	}
 }
 
 // Cache population should be happening in order starting from parent(id1) to children(id4)

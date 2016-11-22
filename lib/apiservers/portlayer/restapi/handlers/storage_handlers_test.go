@@ -142,6 +142,10 @@ func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (
 	return u, nil
 }
 
+func (c *MockDataStore) DeleteImageStore(op trace.Operation, storeName string) error {
+	return nil
+}
+
 func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 	return nil, nil
 }
