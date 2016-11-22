@@ -15,12 +15,11 @@ When you deploy a virtual container host to an ESXi host that is not managed by 
  
 ## Deployment to a vCenter Server Cluster  ##
 
-dfsfd
+- Verifies that DRS is correctly configured on the cluster.
+- Verifies that a distributed virtual switch exists 
 
 ## Deployment to a Standalone Host on vCenter Server ##
 
 dfsfd
 
-## Deployment to a vCenter Server Cluster  ##
 
-dfsfd
