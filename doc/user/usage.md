@@ -11,7 +11,7 @@ The intent is that vSphere Integrated Containers Engine (VIC Engine) should not 
    - vCenter - Enterprise plus license, only very simple configurations have been tested.
 - Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, should not be the same as the external network, and should not have DHCP.
 
-### Privileges and
+### Privileges and credentials
 
 There is an operations user mechanism provided to allow a VCH to operate with less privileged credentials than are required for deploying a new VCH. These options are:
 * `--ops-user`
