@@ -484,7 +484,7 @@ func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
 		return nil, err
 	}
 	if usersession == nil {
-		return nil, fmt.Errorf("UserSession from vSphere came back nil but no error was reported")
+		return nil, fmt.Errorf("vSphere session is no longer valid")
 	}
 
 	log.Infof("Got session from vSphere with key: %s username: %s", usersession.Key, usersession.UserName)
