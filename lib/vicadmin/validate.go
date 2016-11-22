@@ -269,7 +269,6 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 	sort.Sort(dataStores)
 	if err != nil {
 		log.Errorf("Error while accessing datastore: %s", err)
-		return err
 	}
 	for _, ds := range dataStores {
 		log.Infof("Datastore %s Status: %s", ds.Name, ds.OverallStatus)
