@@ -2,8 +2,10 @@
 
 You can obtain a list of the virtual container hosts that are running in vCenter Server or on an ESXi host by using the `vic-machine ls` command. 
 
-The `vic-machine ls` command lists virtual container hosts with their IDs, names, and versions. The `vic-machine ls` command informs you whether upgrades are available for the virtual container hosts.
-
+The `vic-machine ls` command lists virtual container hosts with their IDs, names, and versions.
+<!--
+ The `vic-machine ls` command informs you whether upgrades are available for the virtual container hosts.
+-->
 The `vic-machine ls` command does not include any options in addition to the common options described in [Common `vic-machine` Options](common_vic_options.md).
 
 
@@ -36,15 +38,23 @@ You have deployed at least one virtual container host.
 **Result**
 
 The `vic-machine ls` command lists the virtual container hosts that are running on the ESXi host or vCenter Server instance that you specified.
-
+<!--
 <pre>ID         PATH     NAME    VERSION                     UPGRADE STATUS
 vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
 vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
 [...]
 vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
 </pre>
+-->
 
-- The IDs are the vSphere Managed Object References, or morefs, for the virtual container host endpoint VMs. You can use virtual container host IDs when you run the  `vic-machine inspect`, `upgrade`, `debug`, and `delete` commands. Using virtual container host IDs reduces the number of options that you need to specify when you run those commands.
+<pre>ID         PATH     NAME    VERSION 
+vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
+vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
+[...]
+vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
+</pre>
+
+- The IDs are the vSphere Managed Object References, or morefs, for the virtual container host endpoint VMs. You can use virtual container host IDs when you run the  `vic-machine inspect`, `debug`, and `delete` commands. Using virtual container host IDs reduces the number of options that you need to specify when you run those commands.
 - The `PATH` value depends on where the virtual container host is deployed:
 
   - ESXi host that is not managed by vCenter Server:
@@ -55,4 +65,7 @@ vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build
   <pre>/<i>datacenter</i>/host/<i>cluster_name</i>/Resources</pre>
   - If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after `Resources` in the path.
 - The `VERSION` value includes the version of `vic-machine`  that was used to create the virtual container host, the build number of this version, and a hashtag to identify the build.
+
+<!--
 - The `UPGRADE STATUS` reflects whether the version of `vic-machine` that you are using is the same as the version of the virtual container host. If the version or build number of the virtual container host does not match that of `vic-machine`, `UPGRADE STATUS` is <code>Upgradeable to <i>vch_version</i>-<i>vch_build</i>-<i>tag</i></code>.
+-->
