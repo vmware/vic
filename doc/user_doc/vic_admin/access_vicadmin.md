@@ -9,13 +9,11 @@ vSphere Integrated Containers Engine provides a Web-based administration portal 
   - Copy the address from the output of `vic-machine create` or `vic-machine inspect`. 
   - If you deployed the virtual container host to vCenter Server, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Web Client.
   - If you deployed the virtual container host to an ESXi host, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Client.
-- If you deployed the virtual container host with full TLS authentication with trusted CA certificates, import the `*.pfx` certificate that `vic-machine create` generated into your browser.
-  - In the current builds of vSphere Integrated Containers, the certificates do not work in Chrome or Internet Explorer. Use Firefox to access the VCH Admin portal.
-  - When you import the certificate into your browser, do not enter a password. Select **Automatically select the certificate store based on the type of certificate**. 
 
 **Procedure**
 
-In a Web browser, go to https://<i>vch_address</i>:2378.
+1. In a Web browser, go to https://<i>vch_address</i>:2378.
+2. (Optional) If the virtual container host uses full TLS authentication with trusted CA certificates, enter the username and password for the vCenter Server instance or ESXi host.
 
 **Result**
 
