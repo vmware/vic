@@ -180,8 +180,6 @@ Run VIC Machine Delete Command
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
-    Run  rm -f ${vch-name}/*
-    Run  rmdir ${vch-name}
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
