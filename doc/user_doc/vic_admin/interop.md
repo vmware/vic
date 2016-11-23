@@ -10,11 +10,20 @@ IT teams can assure service-level agreements for container workloads with VMware
 
 You can restart or upgrade the virtual container host without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
 
+Hosts with container VMs can enter maintenance mode without manual intervention, with these exceptions:
+
+- For a standalone host, you must first power down the virtual container host or any other VMs before entering maintenance mode. 
+- In a clustered vSphere environment with DRS set to automatic, DRS first migrates the virtual container host to another host in the cluster and then enters maintenance mode. 
+- For a host with a container VM running, DRS first migrates the VM to another host in the cluster and then enters maintenance mode.
+
 ## VMware vSAN&trade;
 The virtual container host maintains filesystem layers inherent in container images by mapping to discrete VMDK files, all of which can be which can be housed in shared vSphere datastores, including vSAN and NFS datastores.
 
 ## Enhanced Link Mode Environments
 You can deploy virtual container hosts in enhanced linked mode environments.
+
+## Multiple VLAN
+You can deploy and run Docker commands against a virtual container host on a vCenter appliance that has multiple portgroups on different VLANs within the datacenter.
 
 <!--
 ## vSphere Instant Clone

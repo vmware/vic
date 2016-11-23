@@ -8,3 +8,4 @@ vSphere Integrated Containers Engine currently includes the following  capabilit
 	- IPv6 support
 	- service discovery
 - Containers are capable of acquiring DHCP addresses if they are on a network that has DHCP.
+- This version of vSphere Integrated Containers does not support pulling images via image digest.

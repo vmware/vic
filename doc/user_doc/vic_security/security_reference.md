@@ -4,6 +4,7 @@ Use the Security Reference to learn about the security features of vSphere Integ
 - [List of External Interfaces, Ports, and Services](#list_open_ports)
 - [vSphere Integrated Containers Service Accounts and Privileges](#accounts)
 - [Apply Security Updates and Patches](#patches)
+- [Security Related Log Messages](#logs)
 
 <a name="list_open_ports"></a>
 ### List of External Interfaces, Ports, and Services
@@ -24,3 +25,7 @@ vSphere Integrated Containers Engine does not create service accounts and does n
 <a name="patches"></a>
 ### Apply Security Updates and Patches
 Download a new version of vSphere Integrated Containers and run `vic-machine upgrade`.
+
+<a name="logs)"></a>
+### Security Related Log Messages
+vSphere Integrated Containers security related information appears in docker-personality.log and vicadmin.log that you can access from the VCH Admin portal.
