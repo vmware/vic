@@ -36,8 +36,8 @@
 |stop|[Stop a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#stop-a-container)<br> [Stop](https://docs.docker.com/engine/reference/commandline/stop/)|Yes. Powers down the VM.|
 |unpause|[Unpause processes in a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#unpause-a-container)<br> [Unpause](https://docs.docker.com/engine/reference/commandline/unpause/)|No|
 |update| [Update a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#update-a-container) <br> [Update](https://docs.docker.com/engine/reference/commandline/update/)|No|
+|version|[Docker version information](https://docs.docker.com/engine/reference/commandline/version/)|Yes. vSphere Integrated Containers Engine version provided|
 |wait|[Wait for a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#wait-a-container) <br>[Wait](https://docs.docker.com/engine/reference/commandline/wait/)|Yes|
-|Docker version|[Docker version information](https://docs.docker.com/engine/reference/commandline/version/)|Yes. vSphere Integrated Containers Engine version provided|
 
 ## Network Operations ##
 
@@ -60,13 +60,5 @@ For more information about volume operations, see [Using Volumes with vSphere In
 | --- | --- | --- |
 |Volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)| The driver option is ignored even if you specify it. You must include <code>--opt VolumeStore=<name of volumestore> --Capacity=<size  in MB></code> as these are direct vSphere arguments. vSphere Integrated Containers does not assign random names during a volume create, but only for anonymous volumes.|
 |Volume inspect|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes, use with docker compose|
-|Volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/) | Yes |
-|Volume rm|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/) | Yes |
-
-## Other Operations ##
-
-| **Commands** | **Docker Reference** | **Supported** |
-| --- | --- | --- |
-|Link|[Link](https://docs.docker.com/v1.8/userguide/dockerlinks/)|Future release|
-
-
+|Volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/)|Yes|
+|Volume rm|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/)|Yes|
