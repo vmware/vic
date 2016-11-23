@@ -28,7 +28,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type Info struct {

@@ -41,14 +41,18 @@ func (t *operations) Log() (io.Writer, error) {
 
 	// redirect logging to the serial log
 	log.Infof("opening %s/ttyS1 for debug log", pathPrefix)
-	out, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	f, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
 
-	return out, nil
+	if err := setTerminalSpeed(f.Fd()); err != nil {
+		log.Errorf("Setting terminal speed failed with %s", err)
+	}
+
+	return io.MultiWriter(f, os.Stdout), nil
 }
 
 // sessionLogWriter returns a writer that will persist the session output
@@ -70,6 +74,10 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 		detail := fmt.Sprintf("failed to open serial port for session log: %s", err)
 		log.Error(detail)
 		return nil, nil, errors.New(detail)
+	}
+
+	if err := setTerminalSpeed(f.Fd()); err != nil {
+		log.Errorf("Setting terminal speed failed with %s", err)
 	}
 
 	// use multi-writer so it goes to both screen and session log

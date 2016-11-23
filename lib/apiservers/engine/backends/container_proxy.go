@@ -32,6 +32,7 @@ package backends
 //		- Please USE the aliased docker error package 'derr'
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -42,8 +43,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
 
@@ -51,7 +50,7 @@ import (
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	strfmt "github.com/go-swagger/go-swagger/strfmt"
 	"github.com/go-swagger/go-swagger/swag"
-	"github.com/mreiferson/go-httpclient"
+	httpclient "github.com/mreiferson/go-httpclient"
 
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
@@ -704,13 +703,14 @@ func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int
 func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
 	// Cancel will close the child connections.
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	var wg sync.WaitGroup
 	errors := make(chan error, 3)
 
 	// For stdin, we only have a timeout for connection.  There can be a long duration before
 	// the first entry so there is no timeout for response.
-	plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
+	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
 
 	if ca.UseStdin {
@@ -864,6 +864,9 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 
 	// attach
 	config.Attach = swag.Bool(cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr)
+
+	// openstdin
+	config.OpenStdin = swag.Bool(cc.Config.OpenStdin)
 
 	// tty
 	config.Tty = swag.Bool(cc.Config.Tty)
@@ -1117,7 +1120,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			inspectJSON.Created = time.Unix(*info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
 		}
 		if len(info.ContainerConfig.Names) > 0 {
-			inspectJSON.Name = info.ContainerConfig.Names[0]
+			inspectJSON.Name = fmt.Sprintf("/%s", info.ContainerConfig.Names[0])
 		}
 	}
 
@@ -1241,8 +1244,10 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	if info.ContainerConfig.Tty != nil {
 		container.Tty = *info.ContainerConfig.Tty // Attach standard streams to a tty, including stdin if it is not closed.
 	}
+	if info.ContainerConfig.OpenStdin != nil {
+		container.OpenStdin = *info.ContainerConfig.OpenStdin
+	}
 	// They are not coming from PL so set them to true unconditionally
-	container.OpenStdin = true // Open stdin
 	container.StdinOnce = true
 
 	if info.ContainerConfig.RepoName != nil {
@@ -1500,22 +1505,6 @@ func labelsFromAnnotations(config *container.Config, annotations map[string]stri
 // ContainerAttach() Utility Functions
 //------------------------------------
 
-func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
-	runtime := httptransport.New(PortLayerServer(), "/", []string{"http"})
-	transport := &httpclient.Transport{
-		ConnectTimeout:        connectTimeout,
-		ResponseHeaderTimeout: responseHeaderTimeout,
-		RequestTimeout:        responseTimeout,
-	}
-	runtime.Transport = transport
-
-	plClient := client.New(runtime, nil)
-	runtime.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-	runtime.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
-
-	return plClient, transport
-}
-
 func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
@@ -1559,13 +1548,12 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
 	if vc.Config.StdinOnce && !vc.Config.Tty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
-		// FIXME: If we close this stdin connection.  The portlayer does
-		// not really close stdin.  This is diff from current Docker
-		// behavior.  However, we're not sure why Docker even has this
-		// behavior where you connect to stdin on the first time only.
-		// If we really want to add this behavior, we need to add support
-		// in the tether in the portlayer.
-		log.Errorf("Attach stream has stdinOnce set.  VIC does not yet support this.")
+		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
+		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+		_, err := pl.Interaction.ContainerCloseStdin(params)
+		if err != nil {
+			log.Errorf("CloseStdin failed with %s", err)
+		}
 	}
 
 	// ignore the portlayer error when it is DetachError as that is what we should return to the caller when we detach

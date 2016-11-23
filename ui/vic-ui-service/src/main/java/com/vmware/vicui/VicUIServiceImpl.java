@@ -4,18 +4,21 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLSession;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.handler.MessageContext;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.vmware.utils.ssl.ThumbprintHostNameVerifier;
+import com.vmware.utils.ssl.ThumbprintTrustManager;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.InvalidPropertyFaultMsg;
 import com.vmware.vim25.ManagedObjectReference;
@@ -47,6 +50,7 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 	private static final String EXTRACONFIG_VCH_PATH = "guestinfo.vice./init/common/name";
 	private static final String EXTRACONFIG_CONTAINER_PATH = "guestinfo.vice./common/name";
 	private static final String SERVICE_INSTANCE = "ServiceInstance";
+	private final Set<String> _thumbprints = new HashSet<String>();
 	private final VimObjectReferenceService _vimObjRefService;
 	private final UserSessionService _userSessionService;
 	private static VimPortType _vimPort = initializeVimPort();
@@ -57,35 +61,30 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 	}
 
 	static {
-	      HostnameVerifier hostNameVerifier = new HostnameVerifier() {
-	         @Override
-	         public boolean verify(String urlHostName, SSLSession session) {
-	            return true;
-	         }
-	      };
-	      HttpsURLConnection.setDefaultHostnameVerifier(hostNameVerifier);
+		HostnameVerifier hostNameVerifier = new ThumbprintHostNameVerifier();
+		HttpsURLConnection.setDefaultHostnameVerifier(hostNameVerifier);
 
-	      javax.net.ssl.TrustManager[] trustAllCerts = new javax.net.ssl.TrustManager[1];
-	      javax.net.ssl.TrustManager tm = new TrustAllTrustManager();
-	      trustAllCerts[0] = tm;
-	      javax.net.ssl.SSLContext sc = null;
+		javax.net.ssl.TrustManager[] tms = new javax.net.ssl.TrustManager[1];
+		javax.net.ssl.TrustManager tm = new ThumbprintTrustManager();
+		tms[0] = tm;
+		javax.net.ssl.SSLContext sc = null;
 
-	      try {
-	         sc = javax.net.ssl.SSLContext.getInstance("TLSv1.2");
-	      } catch (NoSuchAlgorithmException e) {
-	         _logger.info(e);
-	      }
+		try {
+			sc = javax.net.ssl.SSLContext.getInstance("SSL");
+		} catch (NoSuchAlgorithmException e) {
+			_logger.info(e);
+		}
 
-	      javax.net.ssl.SSLSessionContext sslsc = sc.getServerSessionContext();
-	      sslsc.setSessionTimeout(0);
-	      try {
-	         sc.init(null, trustAllCerts, null);
-	      } catch (KeyManagementException e) {
-	         _logger.info(e);
-	      }
-	      javax.net.ssl.HttpsURLConnection.setDefaultSSLSocketFactory(
-	            sc.getSocketFactory());
-	   }
+		javax.net.ssl.SSLSessionContext sslsc = sc.getServerSessionContext();
+		sslsc.setSessionTimeout(0);
+		try {
+			sc.init(null, tms, null);
+	    } catch (KeyManagementException e) {
+			_logger.info(e);
+	    }
+
+		javax.net.ssl.HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+	}
 
 	public VicUIServiceImpl(DataServiceExtensionRegistry extensionRegistry, VimObjectReferenceService vimObjectReferenceService, UserSessionService userSessionService) {
 		TypeInfo vmTypeInfo = new TypeInfo();
@@ -137,8 +136,17 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 		return null;
 	}
 
+    private void setThumbprint(ServerInfo sinfo) {
+        String thumbprint = sinfo.thumbprint;
+        if (thumbprint != null) {
+            _thumbprints.add(thumbprint.replaceAll(":", "").toLowerCase());
+        }
+        ThumbprintTrustManager.setThumbprints(_thumbprints);
+    }
+
 	private ServiceContent getServiceContent(String serverGuid) {
 		ServerInfo serverInfoObject = getServerInfoObject(serverGuid);
+		setThumbprint(serverInfoObject);
 		String sessionCookie = serverInfoObject.sessionCookie;
 		String serviceUrl = serverInfoObject.serviceUrl;
 
@@ -241,25 +249,4 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 
     	return resultItem;
 	}
-
-	private static class TrustAllTrustManager implements
-    javax.net.ssl.TrustManager, javax.net.ssl.X509TrustManager {
-
-    @Override
-    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-       return null;
-    }
-
-    @Override
-    public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
-          String authType) throws java.security.cert.CertificateException {
-       return;
-    }
-
-    @Override
-    public void checkClientTrusted(java.security.cert.X509Certificate[] certs,
-          String authType) throws java.security.cert.CertificateException {
-       return;
-    }
- }
 }

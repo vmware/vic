@@ -190,7 +190,7 @@ func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]ty
 	var mvm mo.VirtualMachine
 
 	if err = vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
-		log.Infof("Unable to get vm config: %s", err)
+		log.Errorf("Unable to get vm config: %s", err)
 		return nil, err
 	}
 
@@ -204,7 +204,7 @@ func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]stri
 	info := make(map[string]string)
 
 	if err = vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
-		log.Infof("Unable to get vm config: %s", err)
+		log.Errorf("Unable to get vm config: %s", err)
 		return info, err
 	}
 
@@ -581,4 +581,27 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 	}
 	log.Debugf("Retry properties query %s of vm %s", ps, vm.Reference())
 	return vm.VirtualMachine.Properties(ctx, vm.Reference(), ps, o)
+}
+
+func (vm *VirtualMachine) Parent(ctx context.Context) (*types.ManagedObjectReference, error) {
+	var mvm mo.VirtualMachine
+
+	if err := vm.Properties(ctx, vm.Reference(), []string{"parentVApp", "resourcePool"}, &mvm); err != nil {
+		log.Errorf("Unable to get VM parent: %s", err)
+		return nil, err
+	}
+	if mvm.ParentVApp != nil {
+		return mvm.ParentVApp, nil
+	}
+	return mvm.ResourcePool, nil
+}
+
+func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.ManagedObjectReference, error) {
+	var mvm mo.VirtualMachine
+
+	if err := vm.Properties(ctx, vm.Reference(), []string{"datastore"}, &mvm); err != nil {
+		log.Errorf("Unable to get VM datastore: %s", err)
+		return nil, err
+	}
+	return mvm.Datastore, nil
 }

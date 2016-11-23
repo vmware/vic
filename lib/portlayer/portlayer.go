@@ -18,17 +18,20 @@ import (
 	"path"
 
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 // API defines the interface the REST server used by the portlayer expects the
@@ -83,5 +86,56 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
+	// Unbind containerVM serial ports configured with the old VCH IP.
+	// Useful when the appliance restarts and the VCH has a different IP.
+	unbindSerialPorts(sess)
+
 	return nil
+}
+
+// unbindSerialPorts disconnects serial ports backed by network on the VCH's old IP
+// for running containers. This is useful when the appliance or the portlayer restarts
+// and the VCH has a new IP. Any errors are logged and portlayer init proceeds as usual.
+func unbindSerialPorts(sess *session.Session) {
+	defer trace.End(trace.Begin(""))
+
+	ctx := context.Background()
+
+	// Get all running containers from the portlayer cache
+	runningState := new(exec.State)
+	*runningState = exec.StateRunning
+	containers := exec.Containers.Containers(runningState)
+
+	for i := range containers {
+		var containerID string
+		if containers[i].ExecConfig != nil {
+			containerID = containers[i].ExecConfig.ID
+		}
+		log.Infof("unbinding serial port for running container %s", containerID)
+
+		// Obtain a container handle
+		handle := containers[i].NewHandle(ctx)
+		if handle == nil {
+			log.Errorf("unable to obtain a handle for container %s", containerID)
+			continue
+		}
+
+		// Unbind the VirtualSerialPort
+		newHandle, err := attach.Unbind(handle)
+		if err != nil {
+			log.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
+			continue
+		}
+
+		execHandle, ok := newHandle.(*exec.Handle)
+		if !ok {
+			log.Errorf("handle type assertion failed for container %s", containerID)
+			continue
+		}
+
+		// Commit the handle
+		if err := execHandle.Commit(ctx, sess, nil); err != nil {
+			log.Errorf("unable to commit handle for container %s: %s", containerID, err)
+		}
+	}
 }

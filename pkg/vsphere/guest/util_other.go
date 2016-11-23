@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"

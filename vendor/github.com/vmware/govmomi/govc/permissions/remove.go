@@ -14,20 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cluster
+package permissions
 
 import (
 	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
-	"github.com/vmware/govmomi/govc/flags"
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
 type remove struct {
-	*flags.DatacenterFlag
+	*PermissionFlag
 
 	types.Permission
 
@@ -39,15 +37,15 @@ func init() {
 }
 
 func (cmd *remove) Register(ctx context.Context, f *flag.FlagSet) {
-	cmd.DatacenterFlag, ctx = flags.NewDatacenterFlag(ctx)
-	cmd.DatacenterFlag.Register(ctx, f)
+	cmd.PermissionFlag, ctx = NewPermissionFlag(ctx)
+	cmd.PermissionFlag.Register(ctx, f)
 
 	f.StringVar(&cmd.Principal, "principal", "", "User or group for which the permission is defined")
 	f.BoolVar(&cmd.Group, "group", false, "True, if principal refers to a group name; false, for a user name")
 }
 
 func (cmd *remove) Process(ctx context.Context) error {
-	if err := cmd.DatacenterFlag.Process(ctx); err != nil {
+	if err := cmd.PermissionFlag.Process(ctx); err != nil {
 		return err
 	}
 	return nil
@@ -58,21 +56,23 @@ func (cmd *remove) Usage() string {
 }
 
 func (cmd *remove) Description() string {
-	return `Removes a permission rule from managed entities.`
+	return `Removes a permission rule from managed entities.
+
+Examples:
+  govc permissions.remove -principal root
+  govc permissions.remove -principal $USER@vsphere.local -role Admin /dc1/host/cluster1`
 }
 
 func (cmd *remove) Run(ctx context.Context, f *flag.FlagSet) error {
-	c, err := cmd.Client()
-	if err != nil {
-		return err
-	}
-
 	refs, err := cmd.ManagedObjects(ctx, f.Args())
 	if err != nil {
 		return err
 	}
 
-	m := object.NewAuthorizationManager(c)
+	m, err := cmd.Manager(ctx)
+	if err != nil {
+		return err
+	}
 
 	for _, ref := range refs {
 		err = m.RemoveEntityPermission(ctx, ref, cmd.Principal, cmd.Group)

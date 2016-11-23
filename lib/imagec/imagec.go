@@ -16,6 +16,7 @@ package imagec
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -94,6 +95,9 @@ type Options struct {
 	InsecureAllowHTTP  bool
 
 	ImageManifest *Manifest
+
+	// RegistryCAs will not be modified by imagec
+	RegistryCAs *x509.CertPool
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata

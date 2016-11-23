@@ -25,10 +25,11 @@ import (
 	"os/exec"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // startCommand is the switch for the synthetic commands that are permitted within the appliance.
@@ -44,6 +45,8 @@ func startCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
 		return -1, enableSSH(r.Arguments)
 	case "passwd":
 		return -1, passwd(r.Arguments)
+	case "test-vc-api":
+		return diag.CheckAPIAvailability(r.Arguments), nil
 	default:
 		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
 	}

@@ -20,8 +20,6 @@ import (
 	"os"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
@@ -64,7 +62,8 @@ func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, err
 	// create handle to the docker daemon VM as we need to mount disks on it
 	controller, byPathFormat, err := verifyParavirtualScsiController(op, vm)
 	if err != nil {
-		return nil, errors.Trace(err)
+		op.Errorf("scsi controller verification failed: %s", err.Error())
+		return nil, err
 	}
 
 	d := &Manager{
@@ -108,10 +107,9 @@ func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 		return nil, errors.Trace(err)
 	}
 
-	d.setAttached(devicePath)
-
-	if err := waitForPath(op, devicePath); err != nil {
-		op.Infof("waitForPath failed for %s with %s", newDiskURI, errors.ErrorStack(err))
+	blockDev, err := waitForDevice(op, devicePath)
+	if err != nil {
+		op.Errorf("waitForDevice failed for %s with %s", newDiskURI, errors.ErrorStack(err))
 		// ensure that the disk is detached if it's the publish that's failed
 
 		if detachErr := m.Detach(op, d); detachErr != nil {
@@ -120,6 +118,8 @@ func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 
 		return nil, errors.Trace(err)
 	}
+
+	d.setAttached(blockDev)
 
 	return d, nil
 }
@@ -300,8 +300,7 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	m.reconfig.Unlock()
 
 	if err != nil {
-		op.Errorf(err.Error())
-		log.Warnf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
+		op.Errorf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
 
@@ -318,9 +317,11 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI string) (string, error) {
 	disk, err := findDisk(op, m.vm, datastoreURI)
 	if err != nil {
-		log.Debugf("findDisk failed for %s with %s", datastoreURI, errors.ErrorStack(err))
+		op.Errorf("findDisk failed for %s with %s", datastoreURI, errors.ErrorStack(err))
 		return "", errors.Trace(err)
 	}
 
-	return fmt.Sprintf(m.byPathFormat, *disk.UnitNumber), nil
+	sysPath := fmt.Sprintf(m.byPathFormat, *disk.UnitNumber)
+
+	return sysPath, nil
 }

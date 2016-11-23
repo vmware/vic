@@ -29,7 +29,7 @@ If you are using a vSAN environment or non-default ESX install, then you can als
 
   ```
     BRIDGE_NETWORK: bridge
-    EXTERNAL_NETWORK: external
+    PUBLIC_NETWORK: public
   ```
 
 

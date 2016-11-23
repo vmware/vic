@@ -33,7 +33,7 @@ import (
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type items struct {
@@ -45,8 +45,9 @@ type items struct {
 }
 
 // templ is parsed by text/template package
+//{{.ID}}	{{.Path}}	{{.Name}}	{{.Version}}	{{.UpgradeStatus}}{{end}}
 const templ = `{{range .}}
-{{.ID}}	{{.Path}}	{{.Name}}	{{.Version}}	{{.UpgradeStatus}}{{end}}
+{{.ID}}	{{.Path}}	{{.Name}}	{{.Version}}{{end}}
 `
 
 // List has all input parameters for vic-machine ls command

@@ -243,9 +243,10 @@ func attachCase(t *testing.T, runblock bool) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:      false,
-				Attach:   true,
-				RunBlock: runblock,
+				Tty:       false,
+				Attach:    true,
+				OpenStdin: true,
+				RunBlock:  runblock,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -344,8 +345,9 @@ func TestAttachTTY(t *testing.T) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:    true,
-				Attach: true,
+				Tty:       true,
+				Attach:    true,
+				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -440,8 +442,9 @@ func TestAttachMultiple(t *testing.T) {
 					ID:   "tee1",
 					Name: "tether_test_session",
 				},
-				Tty:    false,
-				Attach: true,
+				Tty:       false,
+				Attach:    true,
+				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -455,8 +458,9 @@ func TestAttachMultiple(t *testing.T) {
 					ID:   "tee2",
 					Name: "tether_test_session2",
 				},
-				Tty:    false,
-				Attach: true,
+				Tty:       false,
+				Attach:    true,
+				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -470,8 +474,9 @@ func TestAttachMultiple(t *testing.T) {
 					ID:   "tee3",
 					Name: "tether_test_session2",
 				},
-				Tty:    false,
-				Attach: false,
+				Tty:       false,
+				Attach:    false,
+				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -599,8 +604,9 @@ func TestAttachInvalid(t *testing.T) {
 					ID:   "valid",
 					Name: "tether_test_session",
 				},
-				Tty:    false,
-				Attach: true,
+				Tty:       false,
+				Attach:    true,
+				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -734,9 +740,10 @@ func TestReattach(t *testing.T) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:      false,
-				Attach:   true,
-				RunBlock: true,
+				Tty:       false,
+				Attach:    true,
+				RunBlock:  true,
+				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin

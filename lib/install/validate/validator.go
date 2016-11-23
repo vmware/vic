@@ -21,13 +21,18 @@ import (
 	"net/url"
 	"strings"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
-	"golang.org/x/net/context"
 
+	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	vmomisession "github.com/vmware/govmomi/session"
+	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -38,14 +43,14 @@ import (
 )
 
 type Validator struct {
-	TargetPath          string
-	DatacenterPath      string
-	ClusterPath         string
-	ResourcePoolPath    string
-	ImageStorePath      string
-	ExternalNetworkPath string
-	BridgeNetworkPath   string
-	BridgeNetworkName   string
+	TargetPath        string
+	DatacenterPath    string
+	ClusterPath       string
+	ResourcePoolPath  string
+	ImageStorePath    string
+	PublicNetworkPath string
+	BridgeNetworkPath string
+	BridgeNetworkName string
 
 	Session *session.Session
 	Context context.Context
@@ -84,6 +89,9 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 	v := &Validator{}
 	v.Context = ctx
 	tURL := input.URL
+
+	// normalize the path - strip trailing /
+	tURL.Path = strings.TrimSuffix(tURL.Path, "/")
 
 	// default to https scheme
 	if tURL.Scheme == "" {
@@ -144,7 +152,7 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 
 	v.Session.Populate(ctx)
 
-	// only allow the datacenter to be specified in the taget url, if any
+	// only allow the datacenter to be specified in the target url, if any
 	pElems := strings.Split(v.DatacenterPath, "/")
 	if len(pElems) > 2 {
 		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
@@ -238,6 +246,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.basics(ctx, input, conf)
 
 	v.target(ctx, input, conf)
+	v.credentials(ctx, input, conf)
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
@@ -247,6 +256,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 
 	v.certificate(ctx, input, conf)
 	v.certificateAuthorities(ctx, input, conf)
+	v.registries(ctx, input, conf)
 
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(ctx, conf)
@@ -314,21 +324,6 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 
 	// check if host is managed by VC
 	v.managedbyVC(ctx)
-
-	u := input.Target.URL
-
-	// Discard anything other than these URL fields for the target
-	conf.Target = (&url.URL{
-		Scheme: u.Scheme,
-		Host:   u.Host,
-		Path:   u.Path,
-	}).String()
-
-	conf.Username = u.User.Username()
-	conf.Token, _ = u.User.Password()
-	conf.TargetThumbprint = input.Thumbprint
-
-	// TODO: more checks needed here if specifying service account for VCH
 }
 
 func (v *Validator) managedbyVC(ctx context.Context) {
@@ -354,6 +349,64 @@ func (v *Validator) managedbyVC(ctx context.Context) {
 		v.NoteIssue(fmt.Errorf("Target is managed by vCenter server %q, please change --target to vCenter server address or select a standalone ESXi", ip))
 	}
 	return
+}
+
+func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	// empty string for password is horrific, but a legitmate scenario especially in isolated labs
+	if input.OpsPassword == nil {
+		v.NoteIssue(errors.New("Password for operations user has not been set"))
+		return
+	}
+
+	// check target with ops credentials
+	u := input.Target.URL
+
+	conf.Username = input.OpsUser
+	conf.Token = *input.OpsPassword
+	conf.TargetThumbprint = input.Thumbprint
+
+	// Discard anything other than these URL fields for the target
+	stripped := &url.URL{
+		Scheme: u.Scheme,
+		Host:   u.Host,
+		Path:   u.Path,
+	}
+	conf.Target = stripped.String()
+
+	// validate that the provided operations credentials are valid
+	stripped.Path = "/sdk"
+
+	var soapClient *soap.Client
+
+	if input.Thumbprint != "" {
+		// if any thumprint is specified, then object if there's a mismatch
+		soapClient = soap.NewClient(stripped, false)
+		soapClient.SetThumbprint(stripped.Host, conf.TargetThumbprint)
+	} else {
+		soapClient = soap.NewClient(stripped, input.Force)
+	}
+	soapClient.UserAgent = "vice-validator"
+
+	vimClient, err := vim25.NewClient(ctx, soapClient)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Failed to create client for validaiton of operations credentials: %s", err))
+		return
+	}
+
+	client := &govmomi.Client{
+		Client:         vimClient,
+		SessionManager: vmomisession.NewManager(vimClient),
+	}
+
+	err = client.Login(ctx, url.UserPassword(conf.Username, conf.Token))
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Failed to validate operations credentials: %s", err))
+		return
+	}
+	client.Logout(ctx)
+
+	// confirm the RBAC configuration of the provided user
+	// TODO: this can be dropped once we move to configuration the RBAC during creation
 }
 
 func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
@@ -398,6 +451,26 @@ func (v *Validator) certificateAuthorities(ctx context.Context, input *data.Data
 	}
 
 	conf.CertificateAuthorities = input.ClientCAs
+}
+
+func (v *Validator) registries(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin(""))
+
+	// copy the list of insecure registries
+	conf.InsecureRegistries = input.InsecureRegistries
+
+	if len(input.RegistryCAs) == 0 {
+		return
+	}
+
+	// Check if CAs can be loaded
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(input.RegistryCAs) {
+		v.NoteIssue(errors.New("Unable to load certificate authority data for registry"))
+		return
+	}
+
+	conf.RegistryCertificateAuthorities = input.RegistryCAs
 }
 
 func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {

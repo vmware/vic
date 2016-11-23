@@ -17,6 +17,7 @@ package dns
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"strings"
@@ -42,7 +43,12 @@ const (
 
 var (
 	options = ServerOptions{}
+	random  *rand.Rand
 )
+
+func init() {
+	random = rand.New(rand.NewSource(time.Now().UnixNano()))
+}
 
 // ServerOptions represents the server options
 type ServerOptions struct {
@@ -357,25 +363,32 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 	}
 
 	// container specific alias search
-	c := ctx.Container(fmt.Sprintf("%s:%s:%s", scope.Name(), e.Container().Name(), name))
-	if c == nil {
+	cons := ctx.ContainersByAlias(fmt.Sprintf("%s:%s:%s", scope.Name(), e.Container().Name(), name))
+	if len(cons) == 0 {
 		// scope-wide search
-		c = ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), name))
+		cons = ctx.ContainersByAlias(fmt.Sprintf("%s:%s", scope.Name(), name))
 	}
 
-	if c == nil {
+	if len(cons) == 0 {
 		log.Debugf("Can't find the container: %q", name)
 		return false, fmt.Errorf("Can't find the container: %q", name)
 	}
 
-	e = c.Endpoint(scope)
-	if e.IP().IsUnspecified() {
-		return false, fmt.Errorf("No ip for container %q", name)
+	// FIXME: Add AAAA when we support it
+	answer := make([]mdns.RR, len(cons))
+	// shuffle cons
+	for i := 0; i < len(cons); i++ {
+		j := random.Intn(len(cons))
+		cons[i], cons[j] = cons[j], cons[i]
 	}
 
-	// FIXME: Add AAAA when we support it
-	answer := []mdns.RR{
-		&mdns.A{
+	for i := range cons {
+		e := cons[i].Endpoint(scope)
+		if e.IP().IsUnspecified() {
+			return false, fmt.Errorf("No ip for container %q", name)
+		}
+
+		answer[i] = &mdns.A{
 			Hdr: mdns.RR_Header{
 				Name:   question.Name,
 				Rrtype: mdns.TypeA,
@@ -383,7 +396,7 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 				Ttl:    uint32(DefaultTTL.Seconds()),
 			},
 			A: e.IP(),
-		},
+		}
 	}
 
 	// Start crafting reply msg
@@ -476,16 +489,19 @@ func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
 	}
 
 	// Check VIC first
-	ok, err := s.HandleVIC(w, r)
-	if ok {
-		if err != nil {
-			log.Errorf("HandleVIC returned: %q", err)
+	// Currently VIC can only answer ipv4 "A" queries
+	if q.Qtype == mdns.TypeA {
+		ok, err := s.HandleVIC(w, r)
+		if ok {
+			if err != nil {
+				log.Errorf("HandleVIC returned: %q", err)
+			}
+			return
 		}
-		return
 	}
 
 	// Do we have the response in our cache?
-	ok, err = s.SeenBefore(w, r)
+	ok, err := s.SeenBefore(w, r)
 	if ok {
 		if err != nil {
 			log.Errorf("SeenBefore returned: %q", err)

@@ -22,8 +22,6 @@ import (
 	"os"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
@@ -71,7 +69,7 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 	_, ok := c.storeCache[*store]
 
 	if !ok {
-		infof("Refreshing image cache from datastore.")
+		op.Infof("Refreshing image cache from datastore.")
 		// Store isn't in the cache.  Look it up in the datastore.
 		storeName, err := util.ImageStoreName(store)
 		if err != nil {
@@ -84,18 +82,18 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 			return nil, err
 		}
 
-		idx := index.NewIndex()
+		indx := index.NewIndex()
 
-		c.storeCache[*store] = idx
+		c.storeCache[*store] = indx
 
 		// Add Scratch
 		scratch, err := c.DataStore.GetImage(op, store, Scratch.ID)
 		if err != nil {
-			log.Errorf("ImageCache Error: looking up scratch on %s: %s", store.String(), err)
+			op.Errorf("ImageCache Error: looking up scratch on %s: %s", store.String(), err)
 			return nil, ErrCorruptImageStore
 		}
 
-		if err = idx.Insert(scratch); err != nil {
+		if err = indx.Insert(scratch); err != nil {
 			return nil, err
 		}
 
@@ -107,7 +105,7 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 			return nil, err
 		}
 
-		debugf("Found %d images", len(images))
+		op.Debugf("Found %d images", len(images))
 
 		// Build image map to simplify tree traversal.
 		imageMap := make(map[string]*Image, len(images))
@@ -119,7 +117,7 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 		}
 
 		for k := range imageMap {
-			parentTree(k, idx, imageMap)
+			parentTree(op, k, indx, imageMap)
 		}
 	}
 
@@ -127,21 +125,21 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 }
 
 // parentTree adds images into the cache starting from the parent.
-func parentTree(imgLink string, idx *index.Index, imageMap map[string]*Image) {
+func parentTree(op trace.Operation, imgLink string, idx *index.Index, imageMap map[string]*Image) {
 	img, ok := imageMap[imgLink]
 	if !ok {
 		return
 	}
 
 	if img.Parent() != img.Self() {
-		debugf("Looking for parent %s for %s", img.Parent(), img.Self())
-		parentTree(img.Parent(), idx, imageMap)
+		op.Debugf("Looking for parent %s for %s", img.Parent(), img.Self())
+		parentTree(op, img.Parent(), idx, imageMap)
 	}
 
 	if err := idx.Insert(img); err != nil {
-		errorf("Could not insert image %s: %v", imgLink, err)
+		op.Errorf("Could not insert image %s: %v", imgLink, err)
 	} else {
-		infof("Added image %s on datastore.", imgLink)
+		op.Infof("Added image %s on datastore.", imgLink)
 	}
 
 	delete(imageMap, imgLink)
@@ -171,6 +169,12 @@ func (c *NameLookupCache) CreateImageStore(op trace.Operation, storeName string)
 	// Create the root image
 	scratch, err := c.DataStore.WriteImage(op, &Image{Store: store}, Scratch.ID, nil, "", nil)
 	if err != nil {
+		// if we failed here, remove the image store
+		op.Infof("Removing failed image store %s", storeName)
+		if e := c.DataStore.DeleteImageStore(op, storeName); e != nil {
+			op.Errorf("image store cleanup failed: %s", e.Error())
+		}
+
 		return nil, err
 	}
 
@@ -213,7 +217,7 @@ func (c *NameLookupCache) WriteImage(op trace.Operation, parent *Image, ID strin
 	// Definitely not in cache or image store, create image.
 	i, err = c.DataStore.WriteImage(op, p, ID, meta, sum, r)
 	if err != nil {
-		errorf("WriteImage of %s failed with: %s", ID, err)
+		op.Errorf("WriteImage of %s failed with: %s", ID, err)
 		return nil, err
 	}
 
@@ -231,7 +235,6 @@ func (c *NameLookupCache) WriteImage(op trace.Operation, parent *Image, ID strin
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *NameLookupCache) GetImage(op trace.Operation, store *url.URL, ID string) (*Image, error) {
-
 	op.Debugf("Getting image %s from %s", ID, store.String())
 
 	storeName, err := util.ImageStoreName(store)
@@ -257,7 +260,7 @@ func (c *NameLookupCache) GetImage(op trace.Operation, store *url.URL, ID string
 	var img *Image
 	if err != nil {
 		if err == index.ErrNodeNotFound {
-			debugf("Image %s not in cache, retreiving from datastore", ID)
+			op.Debugf("Image %s not in cache, retreiving from datastore", ID)
 			// Not in the cache.  Try to load it.
 			img, err = c.DataStore.GetImage(op, store, ID)
 			if err != nil {
@@ -325,15 +328,21 @@ func (c *NameLookupCache) ListImages(op trace.Operation, store *url.URL, IDs []s
 	return imageList, nil
 }
 
-// DeleteImage deletes an image from the image store.  If it is in use or is being inheritted from, then this will return an error.
-func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) error {
-	infof("DeleteImage: deleting %s", image.Self())
+// DeleteImage deletes an image from the image store.  If it is in use or is
+// being inheritted from, then this will return an error.
+func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
+	// prevent deletes of scratch
+	if image.ID == Scratch.ID {
+		return nil, nil
+	}
+
+	op.Infof("DeleteImage: deleting %s", image.Self())
 
 	// Check the image exists.  This will rehydrate the cache if necessary.
 	img, err := c.GetImage(op, image.Store, image.ID)
 	if err != nil {
-		errorf("DeleteImage: %s", err)
-		return err
+		op.Errorf("DeleteImage: %s", err)
+		return nil, err
 	}
 
 	// get the relevant cache
@@ -343,38 +352,94 @@ func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) error {
 
 	hasChildren, err := indx.HasChildren(img.Self())
 	if err != nil {
-		errorf("DeleteImage: %s", err)
-		return err
+		op.Errorf("DeleteImage: %s", err)
+		return nil, err
 	}
 
 	if hasChildren {
-		return &ErrImageInUse{img.Self() + " in use by child images"}
+		return nil, &ErrImageInUse{img.Self() + " in use by child images"}
 	}
 
 	// The datastore will tell us if the image is attached
-	if err = c.DataStore.DeleteImage(op, img); err != nil {
-		errorf("%s", err)
-		return err
+	if _, err = c.DataStore.DeleteImage(op, img); err != nil {
+		op.Errorf("%s", err)
+		return nil, err
 	}
 
 	// Remove the image from the cache
 	if _, err = indx.Delete(img.Self()); err != nil {
-		errorf("%s", err)
-		return err
+		op.Errorf("%s", err)
+		return nil, err
 	}
 
-	return nil
+	return img, nil
 }
 
-func infof(format string, args ...interface{}) {
-	log.Infof("ImageCache: "+format, args...)
-}
+// DeleteBranch deletes a branch of images, starting from nodeID, up to the
+// first node with degree greater than 1.  keepNodes is the array of images to
+// keep (and their branches).
+func (c *NameLookupCache) DeleteBranch(op trace.Operation, image *Image, keepNodes []*url.URL) ([]*Image, error) {
+	op.Infof("DeleteBranch: deleting branch starting at %s", image.Self())
 
-func errorf(format string, args ...interface{}) {
-	err := fmt.Errorf("ImageCache error: "+format, args...)
-	log.Errorf(err.Error())
-}
+	var deletedImages []*Image
 
-func debugf(format string, args ...interface{}) {
-	log.Debugf("ImageCache: "+format, args...)
+	// map of images to keep
+	keep := make(map[url.URL]int)
+	for _, elem := range keepNodes {
+		op.Debugf("DeleteBranch:  keep node %s", elem.String())
+		keep[*elem] = 0
+	}
+
+	// Check if the error is actually an error.  If we deleted something,
+	// then eat the error.  This should really only return an error if the leaf
+	// has issues.
+	checkErr := func(err error, deleted []*Image) ([]*Image, error) {
+		if err != nil {
+			if len(deleted) == 0 {
+				// we failed deleting any elements.
+				return nil, err
+			}
+		}
+
+		if len(deleted) == 0 {
+			// This can't happen.  deleteNode should have returned an err
+			op.Debugf("No images deleted!!")
+		}
+
+		// we deleted a section of a branch
+		return deleted, nil
+	}
+
+	for {
+		if _, ok := keep[*image.SelfLink]; ok {
+			return checkErr(fmt.Errorf("%s can't be deleted", image.Self()), deletedImages)
+		}
+
+		deletedImage, err := c.DeleteImage(op, image)
+		if err != nil {
+			op.Debugf(err.Error())
+			return checkErr(err, deletedImages)
+		}
+
+		deletedImages = append(deletedImages, deletedImage)
+
+		// iterate to the parent
+		parent, err := Parse(deletedImage.ParentLink)
+		if err != nil {
+			return deletedImages, err
+		}
+
+		// set image to the parent
+		image, err = c.GetImage(op, parent.Store, parent.ID)
+		if err != nil {
+			return deletedImages, err
+		}
+
+		if image.ID == Scratch.ID {
+			op.Infof("DeleteBranch: Done deleting images")
+			break
+		}
+	}
+
+	return deletedImages, nil
 }

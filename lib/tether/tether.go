@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof" // allow enabling pprof in contianerVM
@@ -118,7 +117,7 @@ func (t *tether) setup() error {
 		return err
 	}
 	if out != nil {
-		log.SetOutput(io.MultiWriter(out, os.Stdout))
+		log.SetOutput(out)
 	}
 
 	t.reload = make(chan bool, 1)
@@ -268,6 +267,8 @@ func (t *tether) initializeSessions() error {
 			session.Errwriter = stderr
 			session.Reader = dio.MultiReader()
 
+			session.wait = &sync.WaitGroup{}
+
 			return nil
 		}()
 		if err != nil {
@@ -328,7 +329,6 @@ func (t *tether) processSessions() error {
 				log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
 				session.Cmd = *restartableCmd(&session.Cmd)
 			}
-			session.Unlock()
 
 			wg.Add(1)
 			go func(session *SessionConfig) {
@@ -339,7 +339,9 @@ func (t *tether) processSessions() error {
 					err:  t.launch(session),
 				}
 			}(session)
+
 		}
+		session.Unlock()
 	}
 
 	wg.Wait()
@@ -439,27 +441,36 @@ func (t *tether) Register(name string, extension Extension) {
 
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
+// caller needs to hold session Lock
 func (t *tether) handleSessionExit(session *SessionConfig) {
 	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
-	session.Lock()
-	defer session.Unlock()
+	log.Debugf("Waiting on session.wait")
+	session.wait.Wait()
+	log.Debugf("Wait on session.wait completed")
 
-	if session.wait != nil {
-		session.wait.Wait()
+	log.Debugf("Calling wait on cmd")
+	if err := session.Cmd.Wait(); err != nil {
+		log.Warnf("Wait returned %s", err)
 	}
 
-	// reader must be closed before calling wait, and this must interrupt the underlying Read
-	// or Wait will not return.
-	session.Reader.Close()
-	session.Cmd.Wait()
+	log.Debugf("Calling close on reader")
+	if err := session.Reader.Close(); err != nil {
+		log.Warnf("Close for Reader returned %s", err)
+	}
 
 	// close down the outputs
-	session.Outwriter.Close()
-	session.Errwriter.Close()
+	log.Debugf("Calling close on writers")
+	if err := session.Outwriter.Close(); err != nil {
+		log.Warnf("Close for Outwriter returned %s", err)
+	}
+	if err := session.Errwriter.Close(); err != nil {
+		log.Warnf("Close for Errwriter returned %s", err)
+	}
 
 	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
 	if session.ClearToLaunch != nil {
+		log.Debugf("Calling close chan")
 		close(session.ClearToLaunch)
 		session.ClearToLaunch = nil
 	}
@@ -477,6 +488,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("Sessions.%s", session.ID), "")[0])
 
 	if f != nil {
+		log.Debugf("Calling t.ops.HandleSessionExit")
 		f()
 	}
 }
@@ -501,9 +513,10 @@ func (t *tether) launch(session *SessionConfig) error {
 	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
-	session.Cmd.Stdout = session.Outwriter
-	session.Cmd.Stderr = session.Errwriter
-	session.Cmd.Stdin = session.Reader
+	// Set Std{in|out|err} to nil, we will control pipes
+	session.Cmd.Stdin = nil
+	session.Cmd.Stdout = nil
+	session.Cmd.Stderr = nil
 
 	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir)
 	if err != nil {
@@ -536,7 +549,7 @@ func (t *tether) launch(session *SessionConfig) error {
 		defer t.config.pidMutex.Unlock()
 
 		if !session.Tty {
-			err = session.Cmd.Start()
+			err = establishNonPty(session)
 		} else {
 			err = establishPty(session)
 		}
@@ -582,13 +595,16 @@ func logConfig(config *ExecutorConfig) {
 
 	// figure out the keys to filter
 	keys := make(map[string]interface{})
-	for _, f := range []string{
-		"Sessions.*.Cmd.Args",
-		"Sessions.*.Cmd.Args.*",
-		"Sessions.*.Cmd.Env",
-		"Sessions.*.Cmd.Env.*"} {
-		for _, k := range extraconfig.CalculateKeys(config, f, "") {
-			keys[k] = nil
+	if config.DebugLevel < 2 {
+		for _, f := range []string{
+			"Sessions.*.Cmd.Args",
+			"Sessions.*.Cmd.Args.*",
+			"Sessions.*.Cmd.Env",
+			"Sessions.*.Cmd.Env.*",
+			"Key"} {
+			for _, k := range extraconfig.CalculateKeys(config, f, "") {
+				keys[k] = nil
+			}
 		}
 	}
 

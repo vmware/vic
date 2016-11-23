@@ -19,8 +19,9 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/types"

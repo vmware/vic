@@ -304,7 +304,7 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 			MemoryMB: vConf.ApplianceSize.Memory.Limit,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
-			ExtraConfig: vmomi.OptionValueFromMap(cfg),
+			ExtraConfig: append(vmomi.OptionValueFromMap(cfg), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
 		},
 	}
 
@@ -384,6 +384,55 @@ func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *
 	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO))
 	devices = append(devices, cdrom)
 	return devices, nil
+}
+
+func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
+	defer trace.End(trace.Begin(""))
+
+	devices, err := vm.Device(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		return nil, err
+	}
+
+	p, err := devices.CreateSerialPort()
+	if err != nil {
+		return nil, err
+	}
+
+	err = vm.AddDevice(d.ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	devices, err = vm.Device(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		return nil, err
+	}
+
+	serial, err := devices.FindSerialPort("")
+	if err != nil {
+		log.Errorf("Failed to locate serial port for persistent log configuration: %s", err)
+		return nil, err
+	}
+
+	// TODO: we need to add an accessor for generating paths within the VM directory
+	vmx, err := vm.VMPathName(d.ctx)
+	if err != nil {
+		log.Errorf("Unable to determine path of appliance VM: %s", err)
+		return nil, err
+	}
+
+	// TODO: move this construction into the spec package and update portlayer/logging to use it as well
+	serial.Backing = &types.VirtualSerialPortFileBackingInfo{
+		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
+			// name consistency with containerVM
+			FileName: fmt.Sprintf("%s/tether.debug", path.Dir(vmx)),
+		},
+	}
+
+	return []types.BaseVirtualDevice{serial}, nil
 }
 
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -574,17 +623,31 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
+	// create new devices
 	if devices, err = d.configIso(conf, vm, settings); err != nil {
 		return nil, err
 	}
 
-	deviceChange, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+	newDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 	if err != nil {
 		log.Errorf("Failed to create config spec for appliance: %s", err)
 		return nil, err
 	}
 
-	spec.DeviceChange = deviceChange
+	spec.DeviceChange = newDevices
+
+	// update existing devices
+	if devices, err = d.configLogging(conf, vm, settings); err != nil {
+		return nil, err
+	}
+
+	updateDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationEdit)
+	if err != nil {
+		log.Errorf("Failed to create config spec for logging update: %s", err)
+		return nil, err
+	}
+
+	spec.DeviceChange = append(spec.DeviceChange, updateDevices...)
 
 	cfg, err := d.encodeConfig(conf)
 	if err != nil {
@@ -675,9 +738,14 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 			func() {
 				log.Debug("Loading CAs for client auth")
-				pool := x509.NewCertPool()
+				pool, err := x509.SystemCertPool()
+				if err != nil {
+					log.Warnf("Unable to load system root certificates - continuing with only the provided CA")
+					pool = x509.NewCertPool()
+				}
+
 				if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
-					log.Debug("Unable to load CAs in config, if any")
+					log.Debug("Unable add CAs from config to validation pool")
 				}
 
 				// tr.TLSClientConfig.ClientCAs = pool
@@ -736,13 +804,16 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 	defer ticker.Stop()
 	for {
 		res, err = client.Do(req)
-		if err == nil && res.StatusCode == http.StatusOK {
-			if isPortLayerRunning(res) {
-				break
+		if err == nil {
+			if res.StatusCode == http.StatusOK {
+				if isPortLayerRunning(res) {
+					log.Debug("Confirmed port layer is operational")
+					break
+				}
 			}
-		}
 
-		if err != nil {
+			log.Debugf("Received HTTP status %d: %s", res.StatusCode, res.Status)
+		} else {
 			// DEBU[2016-10-11T22:22:38Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
 			// DEBU[2016-10-11T22:22:39Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
@@ -781,30 +852,49 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 			uerr, ok := err.(*url.Error)
 			if ok {
-				operr, ok2 := uerr.Err.(*net.OpError)
-				if ok2 {
-					switch root := operr.Err.(type) {
+				switch neterr := uerr.Err.(type) {
+				case *net.OpError:
+					switch root := neterr.Err.(type) {
 					case *os.SyscallError:
 						if root.Err == syscall.Errno(syscall.ECONNREFUSED) {
 							// waiting for API server to start
 							log.Debug("connection refused")
+						} else {
+							log.Debugf("Error was expected to be ECONNREFUSED: %#v", root.Err)
 						}
 					default:
+						errmsg := root.Error()
+
+						if tlsErrExpected {
+							log.Warnf("Expected TLS error without access to client certificate, received error: %s", errmsg)
+							return nil
+						}
+
 						// the TLS package doesn't expose the raw reason codes
 						// but we're actually looking for alertBadCertificate (42)
-						errmsg := root.Error()
 						if errmsg == badTLSCertificate {
 							// TODO: programmatic check for clock skew on host
 							log.Errorf("Connection failed with TLS error \"bad certificate\" - check for clock skew on the host")
-						} else if tlsErrExpected {
-							log.Warnf("Expected TLS error without client certificate, received error: %s", errmsg)
 						} else {
 							log.Errorf("Connection failed with error: %s", root)
 						}
 
 						return root
 					}
+
+				case x509.UnknownAuthorityError:
+					// This will occur if the server certificate was signed by a CA that is not the one used for client authentication
+					// and does not have a trusted root registered on the system running vic-machine
+					// This is a legitimate deployment so no error, but definitely requires a warning.
+					log.Warnf("Unable to verify server certificate with configured CAs: %s", neterr.Error())
+					return nil
+
+				default:
+					log.Debugf("Unhandled net error type: %#v", neterr)
+					return neterr
 				}
+			} else {
+				log.Debugf("Error type was expected to be url.Error: %#v", err)
 			}
 		}
 
@@ -864,7 +954,9 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	if ctxerr == context.DeadlineExceeded {
-		log.Info("Failed to retrieve IP for client interface")
+		log.Info("")
+		log.Error("Failed to obtain IP address for client interface")
+		log.Info("Use vic-machine inspect to see if VCH has received an IP address at a later time")
 		log.Info("  State of all interfaces:")
 
 		// if we timed out, then report status - if cancelled this doesn't need reporting
@@ -888,8 +980,8 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 			log.Infof("    %q: %q", name, status)
 		}
 
-		return errors.New("timed out waiting for IP address information from appliance")
+		return errors.New("Failed to obtain IP address for client interface (timed out)")
 	}
 
-	return fmt.Errorf("could not obtain IP address information from appliance: %s", updateErr)
+	return fmt.Errorf("Failed to get IP address information from appliance: %s", updateErr)
 }

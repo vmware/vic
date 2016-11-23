@@ -27,7 +27,6 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -108,21 +107,22 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHos
 
 	log.Infof("Removing Resource Pool %q", conf.Name)
 
-	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
-	rp := compute.NewResourcePool(d.ctx, d.session, rpRef)
-
+	if d.parentResourcepool == nil {
+		log.Warnf("Did not find parent VCH resource pool")
+		return nil
+	}
 	var vms []*vm.VirtualMachine
 	var err error
-	if vms, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
-		err = errors.Errorf("Unable to get children vm of resource pool %q: %s", rp.Name(), err)
+	if vms, err = d.parentResourcepool.GetChildrenVMs(d.ctx, d.session); err != nil {
+		err = errors.Errorf("Unable to get children vm of resource pool %q: %s", d.parentResourcepool.Name(), err)
 		return err
 	}
 	if len(vms) != 0 {
-		err = errors.Errorf("Resource pool is not empty: %q", rp.Name())
+		err = errors.Errorf("Resource pool is not empty: %q", d.parentResourcepool.Name())
 		return err
 	}
 	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return rp.Destroy(ctx)
+		return d.parentResourcepool.Destroy(ctx)
 	}); err != nil {
 		return err
 	}

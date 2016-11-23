@@ -29,9 +29,10 @@ import (
 	"sync"
 	"testing"
 
+	"context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -60,6 +61,8 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, 
 	if err != nil {
 		if err.Error() == "can't find the hosting vm" {
 			t.Skip("Skipping: test must be run in a VM")
+		} else {
+			t.Log(err.Error())
 		}
 		return nil, nil, "", err
 	}
@@ -327,14 +330,14 @@ func TestCreateImageLayers(t *testing.T) {
 
 	// Try to delete an intermediate image (should fail)
 	exec.NewContainerCache()
-	err = cacheStore.DeleteImage(op, expectedImages["dir1"])
+	_, err = cacheStore.DeleteImage(op, expectedImages["dir1"])
 	if !assert.Error(t, err) || !assert.True(t, portlayer.IsErrImageInUse(err)) {
 		return
 	}
 
 	// Try to delete a leaf (should pass)
 	leaf := expectedImages["dir"+strconv.Itoa(numLayers-1)]
-	err = cacheStore.DeleteImage(op, leaf)
+	_, err = cacheStore.DeleteImage(op, leaf)
 	if !assert.NoError(t, err) {
 		return
 	}

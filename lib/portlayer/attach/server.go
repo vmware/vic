@@ -15,11 +15,10 @@
 package attach
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
-
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 

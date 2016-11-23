@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/go-swagger/go-swagger/swag"
 	"github.com/stretchr/testify/assert"
@@ -142,6 +142,10 @@ func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (
 	return u, nil
 }
 
+func (c *MockDataStore) DeleteImageStore(op trace.Operation, storeName string) error {
+	return nil
+}
+
 func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 	return nil, nil
 }
@@ -185,8 +189,8 @@ func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []str
 	return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 }
 
-func (c *MockDataStore) DeleteImage(op trace.Operation, image *spl.Image) error {
-	return nil
+func (c *MockDataStore) DeleteImage(op trace.Operation, image *spl.Image) (*spl.Image, error) {
+	return nil, nil
 }
 
 func TestCreateImageStore(t *testing.T) {

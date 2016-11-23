@@ -17,6 +17,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,7 +36,7 @@ import (
 	vsphereSpl "github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
@@ -183,8 +184,19 @@ func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) midd
 		return ferr(err, http.StatusInternalServerError)
 	}
 
-	op := trace.NewOperation(context.Background(), fmt.Sprintf("DeleteImage(%s)", image.ID))
-	if err = h.imageCache.DeleteImage(op, image); err != nil {
+	keepNodes := make([]*url.URL, len(params.KeepNodes))
+	for idx, kn := range params.KeepNodes {
+		k, err := url.Parse(kn)
+		if err != nil {
+			return ferr(err, http.StatusInternalServerError)
+		}
+
+		keepNodes[idx] = k
+	}
+
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("DeleteBranch(%s)", image.ID))
+	deletedImages, err := h.imageCache.DeleteBranch(op, image, keepNodes)
+	if err != nil {
 		switch {
 		case spl.IsErrImageInUse(err):
 			return ferr(err, http.StatusLocked)
@@ -197,7 +209,12 @@ func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) midd
 		}
 	}
 
-	return storage.NewDeleteImageOK()
+	result := make([]*models.Image, len(deletedImages))
+	for idx, image := range deletedImages {
+		result[idx] = convertImage(image)
+	}
+
+	return storage.NewDeleteImageOK().WithPayload(result)
 }
 
 // GetImageTar returns an image tar file

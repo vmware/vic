@@ -30,13 +30,15 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/vim25/soap"
 	vchconfig "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
@@ -53,7 +55,7 @@ const (
 	timeout = time.Duration(2 * time.Second)
 )
 
-type ServerCertificate struct {
+type serverCertificate struct {
 	Key  bytes.Buffer
 	Cert bytes.Buffer
 }
@@ -62,12 +64,12 @@ type vicAdminConfig struct {
 	session.Config
 	addr       string
 	tls        bool
-	serverCert *ServerCertificate
+	serverCert *serverCertificate
 }
 
 var (
-	logFileDir  = "/var/log/vic"
-	logFileList = []string{
+	logFileDir          = "/var/log/vic"
+	logFileListPrefixes = []string{
 		"docker-personality.log",
 		"port-layer.log",
 		"vicadmin.log",
@@ -89,8 +91,6 @@ var (
 	resources vchconfig.Resources
 
 	vchConfig vchconfig.VirtualContainerHostConfigSpec
-
-	defaultReaders map[string]entryReader
 
 	datastore types.ManagedObjectReference
 )
@@ -133,7 +133,7 @@ func init() {
 	extraconfig.Decode(src, &vchConfig)
 	if vchConfig.HostCertificate == nil {
 		log.Infoln("--no-tls is enabled on the personality")
-		rootConfig.serverCert = &ServerCertificate{}
+		rootConfig.serverCert = &serverCertificate{}
 		rootConfig.serverCert.Cert, rootConfig.serverCert.Key, err = certificate.CreateSelfSigned(rootConfig.addr, []string{"VMware, Inc."}, 2048)
 		if err != nil {
 			log.Errorf("--no-tls was specified but we couldn't generate a self-signed cert for vic admin due to error %s so vicadmin will not run", err.Error())
@@ -346,6 +346,38 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 	return logfiles, nil
 }
 
+// addApplianceLogs whitelists the logs to include for the appliance.
+// TODO: once we've started encrypting all potentially senstive data and filtering out guestinfo.ovfEnv
+// we can resume collection of vmware.log and drop the appliance specific handling
+func addApplianceLogs(ctx context.Context, s *session.Session, readers map[string]entryReader) error {
+	self, err := guest.GetSelf(ctx, s)
+	if err != nil || self == nil {
+		return fmt.Errorf("Unable to collect appliance logs due to unknown self-reference: %s", err)
+	}
+
+	self2 := vm.NewVirtualMachineFromVM(ctx, s, self)
+	path, err := self2.DSPath(ctx)
+	if err != nil {
+		return err
+	}
+
+	ds, err := s.Finder.Datastore(ctx, path.Host)
+	if err != nil {
+		return err
+	}
+
+	wpath := fmt.Sprintf("appliance/tether.debug")
+	rpath := fmt.Sprintf("%s/%s", path.Path, "tether.debug")
+	log.Infof("Processed File read Path : %s", rpath)
+	log.Infof("Processed File write Path : %s", wpath)
+	readers[wpath] = datastoreReader{
+		ds:   ds,
+		path: rpath,
+	}
+
+	return nil
+}
+
 // find datastore logs for the appliance itself and all containers
 func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 	defer trace.End(trace.Begin(""))
@@ -359,6 +391,11 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 		detail := fmt.Sprintf("unable to perform datastore log collection due to failure looking up paths: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
+	}
+
+	err = addApplianceLogs(ctx, c, readers)
+	if err != nil {
+		log.Errorf("Issue collecting appliance logs: %s", err)
 	}
 
 	for _, logfile := range logfiles {
@@ -407,44 +444,70 @@ func (r datastoreReader) open() (entry, error) {
 	return httpEntry(r.path, res)
 }
 
+// stripCredentials removes user credentials from "in"
+func stripCredentials(in *session.Session) error {
+	serviceURL, err := soap.ParseURL(rootConfig.Service)
+	if err != nil {
+		log.Errorf("Error parsing service URL from config: %s", err)
+		return err
+	}
+	serviceURL.User = nil
+	newclient, err := govmomi.NewClient(context.Background(), serviceURL, true)
+	if err != nil {
+		log.Errorf("Error creating new govmomi client without credentials but with auth cookie: %s", err.Error())
+		return err
+	}
+	newclient.Jar = in.Client.Jar
+	in.Client = newclient
+	return nil
+}
+
 func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
-	session := session.NewSession(sessconfig)
-	session.UserAgent = version.UserAgent("vic-admin")
+	s := session.NewSession(sessconfig)
+	s.UserAgent = version.UserAgent("vic-admin")
+
 	ctx := context.Background()
-	_, err := session.Connect(ctx)
+	_, err := s.Connect(ctx)
 	if err != nil {
 		log.Warnf("Unable to connect: %s", err)
 		return nil, err
 	}
 
-	_, err = session.Populate(ctx)
+	_, err = s.Populate(ctx)
 	if err != nil {
 		// not a critical error for vicadmin
 		log.Warnf("Unable to populate session: %s", err)
 	}
-	return session, nil
+	usersession, err := s.SessionManager.UserSession(ctx)
+	if err != nil {
+		log.Errorf("Got %s while creating user session", err)
+		return nil, err
+	}
+	if usersession == nil {
+		return nil, fmt.Errorf("vSphere session is no longer valid")
+	}
+
+	log.Infof("Got session from vSphere with key: %s username: %s", usersession.Key, usersession.UserName)
+
+	err = stripCredentials(s)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
-func (s *server) getSessionFromRequest(r *http.Request) (*session.Session, error) {
+func (s *server) getSessionFromRequest(ctx context.Context, r *http.Request) (*session.Session, error) {
 	sessionData, err := s.uss.cookies.Get(r, sessionCookieKey)
 	if err != nil {
 		return nil, err
 	}
-
-	c, err := s.uss.VSphere(sessionData.ID)
-	if err != nil {
-		return nil, err
+	var d interface{}
+	var ok bool
+	if d, ok = sessionData.Values[sessionKey]; !ok {
+		return nil, fmt.Errorf("User-provided cookie did not contain a session ID -- it is corrupt or tampered")
 	}
+	c, err := s.uss.VSphere(ctx, d.(string))
 	return c, err
-}
-
-func client(config *vicAdminConfig) (*session.Session, error) {
-	defer trace.End(trace.Begin(""))
-	sess, err := vSphereSessionGet(&config.Config)
-	if err != nil {
-		return nil, err
-	}
-	return sess, nil
 }
 
 type flushWriter struct {

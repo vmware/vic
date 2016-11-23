@@ -15,6 +15,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -35,7 +36,6 @@ import (
 	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -58,6 +58,7 @@ type Context struct {
 
 	scopes       map[string]*Scope
 	containers   map[string]*Container
+	aliases      map[string][]*Container
 	defaultScope *Scope
 
 	kv kvstore.KeyValueStore
@@ -104,6 +105,7 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		defaultBridgePool: NewAddressSpaceFromNetwork(bridgeRange),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[string]*Container),
+		aliases:           make(map[string][]*Container),
 		kv:                kv,
 	}
 
@@ -705,7 +707,6 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 
 		// container specific aliases
 		for _, a := range ne.Network.Aliases {
-			log.Debugf("adding alias %s", a)
 			l := strings.Split(a, ":")
 			if len(l) != 2 {
 				err = fmt.Errorf("Parsing network alias %s failed", a)
@@ -748,14 +749,6 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		endpoints = append(endpoints, e)
 	}
 
-	// verify all the aliases to be added do not conflict with
-	// existing container keys
-	for a := range aliases {
-		if _, ok := c.containers[a]; ok {
-			return nil, fmt.Errorf("duplicate alias %s for container %s", a, con.ID())
-		}
-	}
-
 	// FIXME: if there was no external network to mark as default,
 	// then just pick the first network to mark as default
 	if !defaultMarked {
@@ -775,7 +768,17 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	// aliases
 	for k, v := range aliases {
 		log.Debugf("adding alias %s -> %s", k, v.Name())
-		c.containers[k] = v
+		cons := c.aliases[k]
+		found := false
+		for _, c := range cons {
+			if v == c {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.aliases[k] = append(cons, v)
+		}
 	}
 
 	return endpoints, nil
@@ -855,7 +858,19 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 
 	// remove aliases
 	for _, a := range aliases {
-		delete(c.containers, a)
+		as := c.aliases[a]
+		for i := range as {
+			if as[i] == con {
+				as = append(as[:i], as[i+1:]...)
+				if len(as) == 0 {
+					delete(c.aliases, a)
+				} else {
+					c.aliases[a] = as
+				}
+
+				break
+			}
+		}
 	}
 
 	// long id
@@ -1108,6 +1123,8 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 }
 
 func (c *Context) Container(key string) *Container {
+	defer trace.End(trace.Begin(""))
+
 	c.Lock()
 	defer c.Unlock()
 
@@ -1119,7 +1136,23 @@ func (c *Context) Container(key string) *Container {
 	return nil
 }
 
+func (c *Context) ContainersByAlias(alias string) []*Container {
+	defer trace.End(trace.Begin(""))
+
+	c.Lock()
+	defer c.Unlock()
+
+	if cons, ok := c.aliases[alias]; ok {
+		log.Debugf("cons=%#v", cons)
+		return cons
+	}
+
+	return nil
+}
+
 func (c *Context) ContainerByAddr(addr net.IP) *Endpoint {
+	defer trace.End(trace.Begin(""))
+
 	c.Lock()
 	defer c.Unlock()
 

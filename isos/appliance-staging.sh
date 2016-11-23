@@ -97,6 +97,8 @@ yum_cached -c $cache -u -p $PKGDIR install \
     sudo \
     tdnf \
     vim \
+    gzip \
+    logrotate \
 	photon-release \
     -y --nogpgcheck
 

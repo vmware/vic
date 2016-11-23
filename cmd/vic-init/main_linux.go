@@ -18,11 +18,13 @@ import (
 	"os"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/pkg/logmgr"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
@@ -48,6 +50,30 @@ func main() {
 		reboot()
 	}()
 
+	// ensure that panics and error output are persisted
+	logFile, err := os.OpenFile("/dev/ttyS0", os.O_WRONLY|os.O_SYNC, 0644)
+	if err != nil {
+		log.Errorf("Could not redirect outputs to serial for debugging info, some debug info may be lost! Error reported was %s", err)
+	}
+
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe standard error to logfile: %s", err)
+	}
+	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to Stderr due to error %s", err)
+	}
+
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stdout.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe standard out to logfile: %s", err)
+	}
+	_, err = os.Stderr.WriteString("all stdout redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to stdout due to error %s", err)
+	}
+
 	src, err := extraconfig.GuestInfoSourceWithPrefix("init")
 	if err != nil {
 		log.Error(err)
@@ -62,20 +88,6 @@ func main() {
 	}
 	setLogLevels()
 
-	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
-	if err != nil {
-		log.Errorf("Could not pipe stderr to serial for debugging info. Some debug info may be lost! Error reported was %s", err)
-	}
-	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
-	if err != nil {
-		log.Errorf("Could not pipe logfile to standard error due to error %s", err)
-	}
-
-	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
-	if err != nil {
-		log.Errorf("Could not write to Stderr due to error %s", err)
-	}
-
 	sink, err := extraconfig.GuestInfoSinkWithPrefix("init")
 	if err != nil {
 		log.Error(err)
@@ -89,6 +101,21 @@ func main() {
 	toolbox := configureToolbox(tether.NewToolbox())
 	toolbox.PrimaryIP = externalIP
 	tthr.Register("Toolbox", toolbox)
+
+	// Check logs every 5 minutes and rotate them if their size exceeds 20MB.
+	// The history size we keep is 2 previous files in a compressed form.
+	// TODO: Check available memory to tune log size and history length for log files.
+	logrotate, err := logmgr.NewLogManager(time.Second * 300)
+	const maxLogSizeBytes = 20 * 1024 * 1024
+	if err == nil {
+		logrotate.AddLogRotate("/var/log/vic/port-layer.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/init.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/docker-personality.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/vicadmin.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		tthr.Register("logrotate", logrotate)
+	} else {
+		log.Error(err)
+	}
 
 	err = tthr.Start()
 	if err != nil {

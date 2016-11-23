@@ -52,7 +52,7 @@ Default image datastore
 
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls}
-    Log To Console  ${output}
+    Log  ${output}
     Should Contain  ${output}  Using default datastore
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -71,7 +71,16 @@ Custom image datastore
 
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls}
-    Log To Console  ${output}
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}...
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+    
+Trailing slash works as expected
+    Log To Console  \nInstalling VCH to test server...
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}...

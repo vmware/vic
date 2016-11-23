@@ -27,7 +27,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 func TestMain(t *testing.T) {
@@ -98,7 +98,7 @@ func getESXData(url *url.URL) *data.Data {
 	result.ImageDatastorePath = "LocalDS_0"
 	result.BridgeNetworkName = "bridge"
 	result.ManagementNetwork.Name = "VM Network"
-	result.ExternalNetwork.Name = "VM Network"
+	result.PublicNetwork.Name = "VM Network"
 	result.VolumeLocations = make(map[string]string)
 	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
@@ -111,7 +111,7 @@ func getVPXData(url *url.URL) *data.Data {
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
-	result.ExternalNetwork.Name = "VM Network"
+	result.PublicNetwork.Name = "VM Network"
 	result.BridgeNetworkName = "bridge"
 	result.VolumeLocations = make(map[string]string)
 	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"

@@ -31,7 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten

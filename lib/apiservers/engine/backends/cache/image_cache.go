@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -139,7 +139,7 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 
 	// cover the case of creating by a full reference
 	if config, ok := ic.cacheByName[idOrRef]; ok {
-		return config, nil
+		return copyImageConfig(config), nil
 	}
 
 	// get the full image ID if supplied a prefix

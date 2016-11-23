@@ -31,7 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type TestValidator struct {
@@ -129,6 +129,9 @@ func TestMain(t *testing.T) {
 func getESXData(url *url.URL) *data.Data {
 	result := data.NewData()
 	url.Path = url.Path + "/ha-datacenter"
+	result.OpsUser = url.User.Username()
+	passwd, _ := url.User.Password()
+	result.OpsPassword = &passwd
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
@@ -136,7 +139,7 @@ func getESXData(url *url.URL) *data.Data {
 	result.BridgeNetworkName = "bridge"
 	_, result.BridgeIPRange, _ = net.ParseCIDR("172.16.0.0/12")
 	result.ManagementNetwork.Name = "VM Network"
-	result.ExternalNetwork.Name = "VM Network"
+	result.PublicNetwork.Name = "VM Network"
 	result.VolumeLocations = make(map[string]string)
 	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
@@ -146,11 +149,14 @@ func getESXData(url *url.URL) *data.Data {
 func getVPXData(url *url.URL) *data.Data {
 	result := data.NewData()
 	url.Path = url.Path + "/DC0"
+	result.OpsUser = url.User.Username()
+	passwd, _ := url.User.Password()
+	result.OpsPassword = &passwd
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
-	result.ExternalNetwork.Name = "VM Network"
+	result.PublicNetwork.Name = "VM Network"
 	result.BridgeNetworkName = "bridge"
 	_, result.BridgeIPRange, _ = net.ParseCIDR("172.16.0.0/12")
 	result.VolumeLocations = make(map[string]string)
@@ -240,6 +246,8 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 
 func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	v.target(v.Context, input, conf)
+	v.credentials(v.Context, input, conf)
+
 	u, err := url.Parse(conf.Target)
 	assert.NoError(t, err)
 	assert.Nil(t, u.User)

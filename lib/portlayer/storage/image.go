@@ -38,6 +38,10 @@ type ImageStorer interface {
 	// Returns the URL of the created store
 	CreateImageStore(op trace.Operation, storeName string) (*url.URL, error)
 
+	// DeleteImageStore is used to cleanup the image store.  This can only be
+	// called once there are no images left in the image store.
+	DeleteImageStore(op trace.Operation, storeName string) error
+
 	// Gets the url to an image store via name
 	GetImageStore(op trace.Operation, storeName string) (*url.URL, error)
 
@@ -67,7 +71,7 @@ type ImageStorer interface {
 	// DeleteImage deletes an image from the image store.  If the image is in
 	// use either by way of inheritance or because it's attached to a
 	// container, this will return an error.
-	DeleteImage(op trace.Operation, image *Image) error
+	DeleteImage(op trace.Operation, image *Image) (*Image, error)
 }
 
 // Image is the handle to identify an image layer on the backing store.  The

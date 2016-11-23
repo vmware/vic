@@ -16,8 +16,9 @@ package toolbox
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // GuestOsState enum as defined in open-vm-tools/lib/include/vmware/guestrpc/powerops.h
@@ -80,7 +81,7 @@ func registerPowerCommandHandler(service *Service) *PowerCommandHandler {
 func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
 	rc := rpciOK
 
-	log.Printf("dispatching power op %q", c.name)
+	log.Infof("dispatching power op %q", c.name)
 
 	if c.Handler == nil {
 		if c.state == powerStateHalt || c.state == powerStateReboot {
@@ -91,12 +92,12 @@ func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
 	msg := fmt.Sprintf("tools.os.statechange.status %s%d\x00", rc, c.state)
 
 	if _, err := c.out.Request([]byte(msg)); err != nil {
-		log.Printf("unable to send %q: %q", msg, err)
+		log.Infof("unable to send %q: %q", msg, err)
 	}
 
 	if c.Handler != nil {
 		if err := c.Handler(); err != nil {
-			log.Printf("%s: %s", c.name, err)
+			log.Infof("%s: %s", c.name, err)
 		}
 	}
 
@@ -104,11 +105,11 @@ func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
 }
 
 func Halt() error {
-	log.Printf("Halting system...")
+	log.Infof("Halting system...")
 	return exec.Command(shutdown, "-h", "now").Run()
 }
 
 func Reboot() error {
-	log.Printf("Rebooting system...")
+	log.Infof("Rebooting system...")
 	return exec.Command(shutdown, "-r", "now").Run()
 }

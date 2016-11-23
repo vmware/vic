@@ -18,10 +18,11 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,9 @@ import (
 type MockDataStore struct {
 	// id -> image
 	db map[url.URL]map[string]*Image
+
+	createImageStoreError error
+	writeImageError       error
 }
 
 func NewMockDataStore() *MockDataStore {
@@ -46,10 +50,23 @@ func NewMockDataStore() *MockDataStore {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
-	return nil, nil
+	u, err := util.ImageStoreNameToURL(storeName)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := c.db[*u]; !ok {
+		return nil, os.ErrNotExist
+	}
+
+	return u, nil
 }
 
 func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
+	if c.createImageStoreError != nil {
+		return nil, c.createImageStoreError
+	}
+
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -59,11 +76,26 @@ func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (
 	return u, nil
 }
 
+func (c *MockDataStore) DeleteImageStore(op trace.Operation, storeName string) error {
+	u, err := util.ImageStoreNameToURL(storeName)
+	if err != nil {
+		return err
+	}
+
+	c.db[*u] = nil
+	return nil
+}
+
 func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 	return nil, nil
 }
 
 func (c *MockDataStore) WriteImage(op trace.Operation, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
+	if c.writeImageError != nil {
+		op.Infof("WriteImage: returning error")
+		return nil, c.writeImageError
+	}
+
 	storeName, err := util.ImageStoreName(parent.Store)
 	if err != nil {
 		return nil, err
@@ -114,9 +146,9 @@ func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []str
 }
 
 // DeleteImage removes an image from the image store
-func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) error {
+func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
 	delete(c.db[*image.Store], image.ID)
-	return nil
+	return image, nil
 }
 
 func TestListImages(t *testing.T) {
@@ -361,7 +393,7 @@ func TestDeleteImage(t *testing.T) {
 	}
 
 	// Deletion of an intermediate node should fail
-	err = imageCache.DeleteImage(op, images[1])
+	_, err = imageCache.DeleteImage(op, images[1])
 	if !assert.Error(t, err) {
 		return
 	}
@@ -381,7 +413,7 @@ func TestDeleteImage(t *testing.T) {
 		// range up the branch
 		for _, img := range []*Image{images[branch*100], images[branch*10], images[branch]} {
 
-			err = imageCache.DeleteImage(op, img)
+			_, err = imageCache.DeleteImage(op, img)
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -401,6 +433,177 @@ func TestDeleteImage(t *testing.T) {
 	}
 
 	if !assert.True(t, len(imageList) == 0) {
+		return
+	}
+}
+
+func TestDeleteBranch(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	trace.Logger.Level = logrus.DebugLevel
+
+	imageCache := NewLookupCache(NewMockDataStore())
+	op := trace.NewOperation(context.Background(), "test")
+
+	storeURL, err := imageCache.CreateImageStore(op, "testStore")
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
+		return
+	}
+
+	scratch, err := imageCache.GetImage(op, storeURL, Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// create a 3 level tree with 3 branches.  The third branch will have an extra node.
+	//             scratch
+	//        1    2      3
+	//       10   20      30
+	//       100  200   300 301
+	branches := 4
+	images := make(map[int]*Image)
+	for branch := 1; branch < branches; branch++ {
+		// level 1
+		img, err := imageCache.WriteImage(op, scratch, strconv.Itoa(branch), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+			return
+		}
+		images[branch] = img
+
+		// level 2
+		img, err = imageCache.WriteImage(op, img, strconv.Itoa(branch*10), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+			return
+		}
+		images[branch*10] = img
+
+		// level 3
+		img, err = imageCache.WriteImage(op, img, strconv.Itoa(branch*100), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+			return
+		}
+		images[branch*100] = img
+	}
+
+	// Add an extra node to the last branch
+	img, err := imageCache.WriteImage(op, images[30], "301", nil, "", nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+		return
+	}
+	images[301] = img
+
+	//
+	// Everything above here is just setup.  Everything from here on is the test.
+	//
+
+	// Deletion of an intermediate node should fail
+	imagesDeleted, err := imageCache.DeleteBranch(op, images[1], nil)
+	if !assert.Error(t, err) && assert.Nil(t, imagesDeleted) {
+		return
+	}
+
+	imageList, err := imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// image list should be uneffected
+	if !assert.Equal(t, len(images), len(imageList)) {
+		return
+	}
+
+	//
+	// Deletion of a branch
+	//
+	imagesDeleted, err = imageCache.DeleteBranch(op, images[100], nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// List images should be missing a branch
+	imageList, err = imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	if !assert.Equal(t, 7, len(imageList)) || !assert.Equal(t, 3, len(imagesDeleted)) {
+		return
+	}
+
+	//
+	// Deletion of the split branch should only allow deletion of a single image
+	//
+	imagesDeleted, err = imageCache.DeleteBranch(op, images[300], nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	imageList, err = imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// only 300 should have been deleted
+	if !assert.Equal(t, 6, len(imageList)) || !assert.Equal(t, images[300], imagesDeleted[0]) {
+		return
+	}
+
+	//
+	// Test keep with our 1 remaining branch
+	//
+
+	imagesDeleted, err = imageCache.DeleteBranch(op, images[200], []*url.URL{images[2].SelfLink})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	imageList, err = imageCache.ListImages(op, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// only 20 and 200 should have been deleted
+	if !assert.Equal(t, 4, len(imageList)) || !assert.Equal(t, images[200], imagesDeleted[0]) || !assert.Equal(t, images[20], imagesDeleted[1]) {
+		for _, img = range imageList {
+			t.Logf("image = %#v", img)
+		}
+		return
+	}
+
+}
+
+func TestCreateImageStoreFailureCleanup(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	trace.Logger.Level = logrus.DebugLevel
+
+	mds := NewMockDataStore()
+	imageCache := NewLookupCache(mds)
+	op := trace.NewOperation(context.Background(), "create image store error")
+	mds.createImageStoreError = fmt.Errorf("foo error")
+
+	storeURL, err := imageCache.CreateImageStore(op, "testStore")
+	if !assert.Error(t, err) || !assert.Nil(t, storeURL) {
+		return
+	}
+
+	mds.createImageStoreError = nil
+	storeURL, err = imageCache.CreateImageStore(op, "testStore")
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
+		return
+	}
+
+	op = trace.NewOperation(context.Background(), "write image error")
+	mds = NewMockDataStore()
+	mds.writeImageError = fmt.Errorf("foo error")
+	imageCache = NewLookupCache(mds)
+
+	storeURL, err = imageCache.CreateImageStore(op, "testStore2")
+	if !assert.Error(t, err) || !assert.Nil(t, storeURL) {
+		return
+	}
+
+	mds.writeImageError = nil
+	storeURL, err = imageCache.CreateImageStore(op, "testStore2")
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
 	}
 }

@@ -23,18 +23,20 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/google/uuid"
 	gorillacontext "github.com/gorilla/context"
 
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/vic/lib/vicadmin"
+	"github.com/vmware/vic/pkg/filelock"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -44,6 +46,12 @@ type server struct {
 	addr string
 	mux  *http.ServeMux
 	uss  *UserSessionStore
+}
+
+// LoginPageData contains items needed to render the login page template
+type LoginPageData struct {
+	Hostname   string
+	SystemTime string
 }
 
 type format int
@@ -103,7 +111,7 @@ func (s *server) listen() error {
 			}
 			c.ClientAuth = tls.VerifyClientCertIfGiven
 		} else {
-			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, authentication is disabled")
+			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, certificate-based authentication is disabled")
 		}
 
 		return &tls.Config{
@@ -160,7 +168,16 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey) // ignore error because it is okay if it doesn't exist
 
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
-			usersess := s.uss.Add(websession.ID, &rootConfig.Config)
+			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
+			key := uuid.New().String()
+
+			vs, err := vSphereSessionGet(&rootConfig.Config)
+			if err != nil {
+				log.Errorf("Unable to get vSphere session with default config for cert-auth'd user")
+				http.Error(w, genericErrorMessage, http.StatusInternalServerError)
+				return
+			}
+			usersess := s.uss.Add(key, &rootConfig.Config, vs)
 
 			timeNow, err := usersess.created.MarshalText()
 			if err != nil {
@@ -172,7 +189,8 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			}
 
 			websession.Values[sessionCreationTimeKey] = string(timeNow)
-			websession.Values[sessionKey] = websession.ID
+			websession.Values[sessionKey] = key
+
 			remoteAddr := strings.SplitN(r.RemoteAddr, ":", 2)
 			if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
 				log.Errorf("Format of IP address %s (should be IP:PORT) not recognized", r.RemoteAddr)
@@ -238,6 +256,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		}
 
 		// if the date & remote IP on the cookie were valid, then the user is authenticated
+		log.Infof("User with a valid auth cookie at %s is authenticated.", connectingAddr[0])
 		handler(w, r)
 	}
 	s.mux.Handle(link, gorillacontext.ClearHandler(http.HandlerFunc(authHandler)))
@@ -246,7 +265,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 // renders the page for login and handles authorization requests
 func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
-	ctx := context.Background()
+
 	if req.Method == "POST" {
 		// take the form data and use it to try to authenticate with vsphere
 
@@ -260,31 +279,20 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			DatastorePath:  rootConfig.DatastorePath,
 			HostPath:       rootConfig.Config.HostPath,
 			PoolPath:       rootConfig.PoolPath,
+			User:           url.UserPassword(req.FormValue("username"), req.FormValue("password")),
+			Service:        rootConfig.Service,
 		}
-		user := url.UserPassword(req.FormValue("username"), req.FormValue("password"))
-		serviceURL, err := soap.ParseURL(rootConfig.Service)
-		if err != nil {
-			// this could happen for a number of reasons but most likely for a plain ol' auth failure
-			log.Errorf("vSphere service URL was not a valid format; parsing returned error: %s", err)
-			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
-			return
-		}
-
-		serviceURL.User = user
-		userconfig.Service = serviceURL.String()
 
 		// check login
-		usersession, err := vSphereSessionGet(&userconfig)
-		if err != nil || usersession == nil {
+		vs, err := vSphereSessionGet(&userconfig)
+		if err != nil || vs == nil {
 			// something went wrong or we could not authenticate
-			log.Warnf("User %s from %s failed to authenticated at %s", user, req.RemoteAddr, time.Now())
-			http.Error(res, "Authentication failed due to incorrect credential(s)", 400)
+			log.Warnf("User %s from %s failed to authenticate at %s", userconfig.User, req.RemoteAddr, time.Now())
+			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusUnauthorized)
 			return
 		}
 
 		// successful login above; user is authenticated
-		// log out, disregard errors
-		usersession.Client.Logout(context.Background())
 
 		// create a token to save as an encrypted & signed cookie
 		websession, err := s.uss.cookies.Get(req, sessionCookieKey)
@@ -294,18 +302,20 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// save user config locally
-		usersess := s.uss.Add(websession.ID, &userconfig)
+		key := uuid.New().String()
+		userconfig.User = nil
+		userconfig.Service = ""
+		us := s.uss.Add(key, &userconfig, vs)
 
-		timeNow, err := usersess.created.MarshalText()
+		timeNow, err := us.created.MarshalText()
 		if err != nil {
-			log.Errorf("Failed to unmarshal time object %+v into text due to error: %s", usersess.created, err)
+			log.Errorf("Failed to unmarshal time object %+v into text due to error: %s", us.created, err)
 			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
 			return
 		}
 
 		websession.Values[sessionCreationTimeKey] = string(timeNow)
-		websession.Values[sessionKey] = websession.ID
+		websession.Values[sessionKey] = key
 
 		remoteAddr := strings.SplitN(req.RemoteAddr, ":", 2)
 		if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
@@ -326,16 +336,18 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Render login page (shows up on non-POST requests):
-	sess, err := client(&rootConfig)
+	// Render login page (shows up on non-POST requests)
+	hostName, err := os.Hostname()
 	if err != nil {
-		log.Errorf("Could not render login page due to vSphere connection error: %s", err.Error())
-		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
-		return
+		hostName = "VCH"
 	}
-	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+	loginPageData := &LoginPageData{
+		Hostname:   hostName,
+		SystemTime: time.Now().Format(time.UnixDate),
+	}
+
 	tmpl, err := template.ParseFiles("auth.html")
-	err = tmpl.ExecuteTemplate(res, "auth.html", v)
+	err = tmpl.ExecuteTemplate(res, "auth.html", loginPageData)
 	if err != nil {
 		log.Errorf("Error parsing template: %s", err)
 		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
@@ -385,8 +397,6 @@ func (s *server) serve() error {
 		Handler: s.mux,
 	}
 
-	defaultReaders = configureReaders()
-
 	return server.Serve(s.l)
 }
 
@@ -417,17 +427,20 @@ func (s *server) logoutHandler(res http.ResponseWriter, req *http.Request) {
 
 func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request, f format) {
 	defer trace.End(trace.Begin(""))
-
-	readers := defaultReaders
-	c, err := s.getSessionFromRequest(req)
-	if err != nil {
-		log.Errorf("Failed to get vSphere session while bundling container logs due to error: %s", err.Error())
-		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
-		return
+	logrotateLock := filelock.NewFileLock(filelock.LogRotateLockName)
+	if err := logrotateLock.Acquire(); err != nil {
+		log.Errorf("Failed to acquire logrotate lock: %s", err)
+	} else {
+		defer func() { logrotateLock.Release() }()
 	}
 
-	// Note: we don't want to Logout() until tarEntries() completes below
-	defer c.Client.Logout(context.Background())
+	readers := configureReaders()
+	c, err := s.getSessionFromRequest(context.Background(), req)
+	if err != nil {
+		log.Errorf("Failed to get vSphere session while bundling container logs due to error: %s", err.Error())
+		http.Redirect(res, req, "/logout", http.StatusTemporaryRedirect)
+		return
+	}
 
 	logs, err := findDatastoreLogs(c)
 	if err != nil {
@@ -453,12 +466,13 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 func (s *server) tarDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	s.bundleLogs(res, req, defaultReaders, formatTGZ)
+	s.bundleLogs(res, req, configureReaders(), formatTGZ)
 }
+
 func (s *server) zipDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	s.bundleLogs(res, req, defaultReaders, formatZip)
+	s.bundleLogs(res, req, configureReaders(), formatZip)
 }
 
 func (s *server) bundleLogs(res http.ResponseWriter, req *http.Request, readers map[string]entryReader, f format) {
@@ -514,8 +528,17 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
-	sess, err := s.getSessionFromRequest(req)
+	sess, err := s.getSessionFromRequest(ctx, req)
+	if err != nil {
+		log.Errorf("While loading index page got %s looking up a vSphere session", err.Error())
+		http.Redirect(res, req, "/logout", http.StatusTemporaryRedirect)
+		return
+	}
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+	if sess == nil {
+		// We're unable to connect to vSphere, so display an error message
+		v.VCHIssues = template.HTML("<span class=\"error-message\">We're having some trouble communicating with vSphere. <a href=\"/logout\">Logging in again</a> may resolve the issue.</span>\n")
+	}
 
 	tmpl, err := template.ParseFiles("dashboard.html")
 	err = tmpl.ExecuteTemplate(res, "dashboard.html", v)

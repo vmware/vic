@@ -30,8 +30,9 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -149,7 +150,10 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	soapURL, err := soap.ParseURL(s.Service)
 	if soapURL == nil || err != nil {
-		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", s.Service, err)
+		return nil, SDKURLError{
+			Service: s.Service,
+			Err:     err,
+		}
 	}
 
 	// Update the service URL with expanded defaults
@@ -175,7 +179,10 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 
 	vimClient, err := vim25.NewClient(ctx, soapClient)
 	if err != nil {
-		return nil, errors.Errorf("Failed to connect to %s: %s", soapURL.Host, err)
+		return nil, SoapClientError{
+			Host: soapURL.Host,
+			Err:  err,
+		}
 	}
 
 	if s.Keepalive != 0 {
@@ -209,7 +216,10 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 
 	err = login(ctx)
 	if err != nil {
-		return nil, errors.Errorf("Failed to log in to %s: %s", soapURL.Host, err)
+		return nil, UserPassLoginError{
+			Host: soapURL.Host,
+			Err:  err,
+		}
 	}
 
 	s.Finder = find.NewFinder(s.Vim25(), false)

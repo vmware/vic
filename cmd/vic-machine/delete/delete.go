@@ -26,9 +26,10 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Delete has all input parameters for vic-machine delete command
@@ -137,6 +138,17 @@ func (d *Uninstall) Run(cli *cli.Context) (err error) {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
 		return errors.New("delete failed")
+	}
+
+	// compare vch version and vic-machine version
+	installerBuild := version.GetBuild()
+	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
+		if !d.Data.Force {
+			log.Errorf("VCH version %q is different than installer version %s. Specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
+			return errors.New("delete failed")
+		}
+
+		log.Warnf("VCH version %q is different than installer version %s. Force delete will attempt to remove everything related to the installed VCH", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
 	executor.InitDiagnosticLogs(vchConfig)
 

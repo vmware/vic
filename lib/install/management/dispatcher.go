@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -23,9 +24,9 @@ import (
 	"os"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
+	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -34,7 +35,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"golang.org/x/net/context"
+	log "github.com/Sirupsen/logrus"
 )
 
 type Dispatcher struct {
@@ -57,7 +58,8 @@ type Dispatcher struct {
 
 	oldApplianceISO string
 
-	sshEnabled bool
+	sshEnabled         bool
+	parentResourcepool *compute.ResourcePool
 }
 
 type diagnosticLog struct {
@@ -100,6 +102,11 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigS
 
 	var err error
 	if d.session.Datastore == nil {
+		if len(conf.ImageStores) == 0 {
+			log.Errorf("Image datastore is empty")
+			return
+
+		}
 		if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
 			log.Errorf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
 			return
@@ -210,6 +217,43 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 			fmt.Fprintln(f, line)
 		}
 	}
+}
+
+func (d *Dispatcher) opManager(ctx context.Context, vch *vm.VirtualMachine) (*guest.ProcessManager, error) {
+	state, err := vch.PowerState(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get appliance power state, service might not be available at this moment.")
+	}
+	if state != types.VirtualMachinePowerStatePoweredOn {
+		return nil, fmt.Errorf("VCH appliance is not powered on, state %s", state)
+	}
+
+	running, err := vch.IsToolsRunning(ctx)
+	if err != nil || !running {
+		return nil, errors.New("Tools are not running in the appliance, unable to continue")
+	}
+
+	manager := guest.NewOperationsManager(d.session.Client.Client, vch.Reference())
+	processManager, err := manager.ProcessManager(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to manage processes in appliance VM: %s", err)
+	}
+	return processManager, nil
+}
+
+func (d *Dispatcher) CheckAccessToVCAPI(ctx context.Context, vch *vm.VirtualMachine, target string) (int64, error) {
+	pm, err := d.opManager(ctx, vch)
+	if err != nil {
+		return -1, err
+	}
+	auth := types.NamePasswordAuthentication{}
+	spec := types.GuestProgramSpec{
+		ProgramPath:      "test-vc-api",
+		Arguments:        target,
+		WorkingDirectory: "/",
+		EnvVariables:     []string{},
+	}
+	return pm.StartProgram(ctx, &auth, &spec)
 }
 
 // given a set of IP addresses this will determine what address, if any, can be used to

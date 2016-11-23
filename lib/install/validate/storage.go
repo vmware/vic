@@ -19,8 +19,9 @@ import (
 	"net/url"
 	"strings"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"

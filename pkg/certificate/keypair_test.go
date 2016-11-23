@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 

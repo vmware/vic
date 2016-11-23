@@ -20,9 +20,10 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/testdata"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"

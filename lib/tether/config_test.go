@@ -72,6 +72,8 @@ func TestToExtraConfig(t *testing.T) {
 		},
 	}
 
+	exec.Networks["eth0"].Network.Assigned.Nameservers = []net.IP{}
+
 	// encode exec package's ExecutorConfig
 	encoded := map[string]string{}
 	extraconfig.Encode(extraconfig.MapSink(encoded), exec)

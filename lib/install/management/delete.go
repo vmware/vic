@@ -79,6 +79,76 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) erro
 	return nil
 }
 
+func (d *Dispatcher) getComputeResource(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*compute.ResourcePool, error) {
+	var rpRef types.ManagedObjectReference
+	var err error
+
+	if len(conf.ComputeResources) == 0 {
+		if !d.force {
+			err = errors.Errorf("Cannot find compute resources from configuration")
+			return nil, err
+		}
+		log.Warnf("Cannot find compute resources from configuration, attempting to delete under parent resource pool")
+		parent, err := vmm.Parent(d.ctx)
+		if err != nil {
+			return nil, err
+		}
+		if parent == nil {
+			err = errors.Errorf("Cannot find VCH parent resource pool")
+			return nil, err
+		}
+		rpRef = *parent
+	} else {
+		rpRef = conf.ComputeResources[len(conf.ComputeResources)-1]
+	}
+
+	ref, err := d.session.Finder.ObjectReference(d.ctx, rpRef)
+	if err != nil {
+		err = errors.Errorf("Failed to get VCH resource pool %q: %s", rpRef, err)
+		return nil, err
+	}
+	switch ref.(type) {
+	case *object.VirtualApp:
+	case *object.ResourcePool:
+		//		ok
+	default:
+		err = errors.Errorf("Unsupported compute resource %q", rpRef)
+		return nil, err
+	}
+
+	rp := compute.NewResourcePool(d.ctx, d.session, ref.Reference())
+	return rp, nil
+}
+
+func (d *Dispatcher) getImageDatastore(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*object.Datastore, error) {
+	var err error
+	if len(conf.ImageStores) == 0 {
+		if !d.force {
+			err = errors.Errorf("Cannot find image stores from configuration")
+			return nil, err
+		}
+		log.Warnf("Cannot find image stores from configuration, attempting to delete from vm datastore")
+		dss, err := vmm.DatastoreReference(d.ctx)
+		if err != nil {
+			return nil, errors.Errorf("Failed to query vm datastore: %s", err)
+		}
+		if len(dss) == 0 {
+			return nil, errors.New("No VCH datastore found, cannot continue")
+		}
+		ds, err := d.session.Finder.ObjectReference(d.ctx, dss[0])
+		if err != nil {
+			return nil, errors.Errorf("Failed to search vm datastore %s: %s", dss[0], err)
+		}
+		return ds.(*object.Datastore), nil
+	}
+	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
+	if err != nil {
+		err = errors.Errorf("Failed to find image datastore %q", conf.ImageStores[0].Host)
+		return nil, err
+	}
+	return ds, nil
+}
+
 func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(conf.Name))
 
@@ -87,38 +157,16 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 
 	var err error
 	var children []*vm.VirtualMachine
-
-	if len(conf.ComputeResources) == 0 {
-		err = errors.Errorf("Cannot find compute resources from configuration, please delete VCH manually")
-		return err
-	}
-
-	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
-	ref, err := d.session.Finder.ObjectReference(d.ctx, rpRef)
+	d.parentResourcepool, err = d.getComputeResource(vmm, conf)
 	if err != nil {
-		err = errors.Errorf("Failed to get VCH resource pool %q: %s", rpRef, err)
 		return err
 	}
-	switch ref.(type) {
-	case *object.VirtualApp:
-	case *object.ResourcePool:
-		//		ok
-	default:
-		log.Errorf("Failed to find virtual app or resource pool %q: %s", rpRef, err)
+	if children, err = d.parentResourcepool.GetChildrenVMs(d.ctx, d.session); err != nil {
 		return err
 	}
-
-	rp := compute.NewResourcePool(d.ctx, d.session, ref.Reference())
-	if children, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
+	if d.session.Datastore, err = d.getImageDatastore(vmm, conf); err != nil {
 		return err
 	}
-
-	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
-	if err != nil {
-		err = errors.Errorf("Failed to find image datastore %q", conf.ImageStores[0].Host)
-		return err
-	}
-	d.session.Datastore = ds
 
 	for _, child := range children {
 		name, err := child.Name(d.ctx)

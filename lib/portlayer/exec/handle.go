@@ -24,9 +24,10 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
@@ -267,7 +268,27 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 
 		Metadata: config.Metadata,
 	}
-	log.Debugf("Config: %#v", specconfig)
+
+	// log only core portions
+	s := specconfig
+	log.Debugf("id: %s, name: %s, cpu: %d, mem: %d, parent: %s, os: %s, path: %s", s.ID, s.Name, s.NumCPUs, s.MemoryMB, s.ParentImageID, s.BootMediaPath, s.VMPathName)
+	m := s.Metadata
+	log.Debugf("annotations: %#v, reponame: %s", m.Annotations, m.RepoName)
+	for name, sess := range m.Sessions {
+		log.Debugf("session: %s, path: %s, dir: %s, runblock: %t, tty: %t, restart: %t, stdin: %t, stopsig: %s",
+			name, sess.Cmd.Path, sess.Cmd.Dir, sess.RunBlock, sess.Tty, sess.Restart, sess.OpenStdin, sess.StopSignal)
+	}
+
+	// If the debug level is high, dump everything
+	// we still do the logging above for consistency so searching the logs for common strings works.
+	// TODO: move this into a debug level aware structure renderer
+	if Config.DebugLevel > 2 {
+		log.Debugf("Config: %#v", specconfig)
+		log.Debugf("Executor spec: %#v", *specconfig.Metadata)
+		for _, sess := range m.Sessions {
+			log.Debugf("Session spec: %#v", *sess)
+		}
+	}
 
 	// Create a linux guest
 	linux, err := guest.NewLinuxGuest(ctx, sess, specconfig)

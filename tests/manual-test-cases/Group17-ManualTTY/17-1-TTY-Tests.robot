@@ -18,7 +18,7 @@ Docker run -it date
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  UTC
 
-Docker run -it df 
+Docker run -it df
     ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} run -it busybox df
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  Filesystem
@@ -33,3 +33,27 @@ Docker run -it command that doesn't stop
     Should Contain  ${out}  Mem:
     Should Contain  ${out}  CPU:
     Should Contain  ${out}  Load average:
+
+Docker run with -i
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -i busybox /bin/ash -c "dmesg;echo END_OF_THE_TEST"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  END_OF_THE_TEST
+
+Docker run with -it
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/ash -c "dmesg;echo END_OF_THE_TEST"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  END_OF_THE_TEST
+
+Hello world with -i
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -i hello-world
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  https://docs.docker.com/engine/userguide/
+
+Hello world with -it
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it hello-world
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  https://docs.docker.com/engine/userguide/

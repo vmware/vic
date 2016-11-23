@@ -19,7 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"

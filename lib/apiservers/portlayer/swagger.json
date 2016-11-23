@@ -112,10 +112,10 @@
 				],
 				"parameters": [
 					{
-					"name": "key",
-					"type": "string",
-					"in": "path",
-					"required": true
+						"name": "key",
+						"type": "string",
+						"in": "path",
+						"required": true
 					}
 				],
 				"responses": {
@@ -147,18 +147,18 @@
 				],
 				"parameters": [
 					{
-					"name": "key",
-					"type": "string",
-					"in": "path",
-					"required": true
+						"name": "key",
+						"type": "string",
+						"in": "path",
+						"required": true
 					},
 					{
-					"name": "key_value",
-					"required": true,
-					"in": "body",
-					"schema": {
-						"$ref": "#/definitions/KeyValue"
-					}
+						"name": "key_value",
+						"required": true,
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/KeyValue"
+						}
 					}
 				],
 				"responses": {
@@ -375,7 +375,7 @@
 					}
 				}
 			},
-			"delete" : {
+			"delete": {
 				"description": "Delete an image by id in an image store",
 				"summary": "Delete an image",
 				"tags": [
@@ -394,13 +394,26 @@
 						"type": "string",
 						"in": "path",
 						"required": true
+					},
+					{
+						"name": "keepNodes",
+						"type": "array",
+						"required": true,
+						"in": "query",
+						"items": {
+							"type": "string",
+							"collectionFormat": "csv"
+						}
 					}
 				],
 				"responses": {
 					"200": {
 						"description": "OK",
 						"schema": {
-							"type": "string"
+							"type": "array",
+							"items": {
+								"$ref": "#/definitions/Image"
+							}
 						}
 					},
 					"404": {
@@ -579,18 +592,18 @@
 							"$ref": "#/definitions/VolumeResponse"
 						}
 					},
-            "409": {
-						    "description": "Volume already exists by that ID",
-						    "schema": {
-							      "$ref": "#/definitions/Error"
-						    }
-					  },
-          "404": {
-                "description": "VolumeStore Does not Exist",
-                "schema": {
-                    "$ref": "#/definitions/Error"
-                }
-          },
+					"409": {
+						"description": "Volume already exists by that ID",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"404": {
+						"description": "VolumeStore Does not Exist",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
 					"500": {
 						"description": "Error",
 						"schema": {
@@ -725,7 +738,7 @@
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
-                                        },
+					},
 					"500": {
 						"description": "ServerError",
 						"schema": {
@@ -1343,13 +1356,12 @@
 						"required": true,
 						"type": "string"
 					},
-                                        {
+					{
 						"name": "wait_time",
 						"in": "query",
 						"type": "integer",
 						"format": "int32"
 					}
-
 				],
 				"responses": {
 					"200": {
@@ -2216,7 +2228,7 @@
 				"Key": {
 					"type": "string"
 				},
-				"Value":{
+				"Value": {
 					"type": "string"
 				}
 			}
@@ -2383,14 +2395,14 @@
 				"repoName": {
 					"type": "string"
 				},
-                                "numCPUs": {
-                                  "type": "integer",
-                                  "format": "int64"
-                                },
-                                "memoryMB": {
-                                  "type": "integer",
-                                  "format": "int64"
-                                },
+				"numCPUs": {
+					"type": "integer",
+					"format": "int64"
+				},
+				"memoryMB": {
+					"type": "integer",
+					"format": "int64"
+				},
 				"path": {
 					"type": "string"
 				},
@@ -2413,6 +2425,10 @@
 					"type": "boolean"
 				},
 				"attach": {
+					"type": "boolean",
+					"default": false
+				},
+				"openStdin": {
 					"type": "boolean",
 					"default": false
 				},

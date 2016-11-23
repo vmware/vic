@@ -16,7 +16,9 @@ package fetcher
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,7 +35,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 
-	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -83,6 +84,9 @@ type Options struct {
 	InsecureSkipVerify bool
 
 	Token *Token
+
+	// RootCAs will not be modified by fetcher.
+	RootCAs *x509.CertPool
 }
 
 // URLFetcher struct
@@ -103,6 +107,7 @@ func NewURLFetcher(options Options) Fetcher {
 		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: options.InsecureSkipVerify,
+			RootCAs:            options.RootCAs,
 		},
 	}
 	client := &http.Client{Transport: tr}

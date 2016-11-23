@@ -17,8 +17,9 @@ package handlers
 import (
 	"net/http"
 
+	"context"
+
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-swagger/go-swagger/swag"

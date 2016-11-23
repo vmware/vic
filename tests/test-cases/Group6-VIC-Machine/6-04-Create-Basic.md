@@ -18,7 +18,7 @@ Image size
 ## Create VCH - custom base disk
 1. Issue the following command:
 ```
-vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --base-image-size=6GB ${vicmachinetls}
+vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --base-image-size=6GB ${vicmachinetls}
 ```
 
 ### Expected Outcome
@@ -50,6 +50,13 @@ Connection
 ```
 vic-machine-linux create --name=<VCH_NAME> --target="<TEST_USERNAME>:<TEST_PASSWORD>@<TEST_URL>" \
     --image-store=<TEST_DATASTORE>
+```
+2. Run regression tests
+
+## Create VCH - operations user
+1. Create with an operations user (the same as the administrative user used for deployment in this case)
+```
+vic-machine-linux create --ops-user="<TEST_USERNAME>" --ops-password="<TEST_PASSWORD>"
 ```
 2. Run regression tests
 
@@ -110,7 +117,7 @@ vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
     --image-store %{TEST_DATASTORE}/vic-machine-test-images \
     --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso \
     --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} \
-    --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} \
+    --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} \
     --timeout %{TEST_TIMEOUT} ${vicmachinetls}
 ```
 2. Run regression tests
@@ -181,7 +188,7 @@ TLS Auth
 vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
     --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso \
     --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true \
-    --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} \
+    --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} \
     --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} \
     --volume-store=%{TEST_DATASTORE}/test:${vol}
 ```
@@ -197,7 +204,7 @@ vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
 ```
 vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" \
     --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} \
-    --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
 ```
 2. Run regression tests
 

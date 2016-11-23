@@ -33,6 +33,48 @@ import (
 
 var backchannelMode = os.ModePerm
 
+func setTerminalSpeed(fd uintptr) error {
+	var current struct {
+		termios syscall.Termios
+	}
+
+	// get the current state
+	if _, _, errno := syscall.Syscall6(syscall.SYS_IOCTL,
+		uintptr(fd),
+		syscall.TCGETS,
+		uintptr(unsafe.Pointer(&current.termios)),
+		0,
+		0,
+		0,
+	); errno != 0 {
+		return errno
+	}
+
+	// copy it as the future
+	future := current.termios
+
+	// unset 9600 bps
+	future.Cflag &^= syscall.B9600
+	// set them to 115200 bps
+	future.Cflag |= syscall.B115200
+	future.Ispeed = syscall.B115200
+	future.Ospeed = syscall.B115200
+
+	// set the future values
+	if _, _, errno := syscall.Syscall6(
+		syscall.SYS_IOCTL,
+		uintptr(fd),
+		syscall.TCSETS,
+		uintptr(unsafe.Pointer(&future)),
+		0,
+		0,
+		0,
+	); errno != 0 {
+		return errno
+	}
+	return nil
+}
+
 func rawConnectionFromSerial() (net.Conn, error) {
 	log.Info("opening ttyS0 for backchannel")
 	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
@@ -45,13 +87,16 @@ func rawConnectionFromSerial() (net.Conn, error) {
 	// set the provided FDs to raw if it's a termial
 	// 0 is the uninitialized value for Fd
 	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
-		log.Debug("setting terminal to raw mode")
+		log.Info("setting terminal to raw mode")
 		s, err := terminal.MakeRaw(int(f.Fd()))
 		if err != nil {
 			return nil, err
 		}
 
-		log.Infof("s = %#v", s)
+		log.Debugf("s = %#v", s)
+	}
+	if err := setTerminalSpeed(f.Fd()); err != nil {
+		log.Errorf("Setting terminal speed failed with %s", err)
 	}
 
 	var conn net.Conn

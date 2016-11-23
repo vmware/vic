@@ -24,8 +24,9 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -163,6 +164,7 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 		switch page[i].(type) {
 		case *types.VmGuestShutdownEvent,
 			*types.VmPoweredOnEvent,
+			*types.DrsVmPoweredOnEvent,
 			*types.VmPoweredOffEvent,
 			*types.VmRemovedEvent,
 			*types.VmSuspendedEvent,

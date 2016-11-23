@@ -23,13 +23,15 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
+
+	"context"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/opts"
-	"golang.org/x/net/context"
 
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -55,6 +57,8 @@ type Validator struct {
 	DockerPort       string
 	VCHStatus        template.HTML
 	VCHIssues        template.HTML
+	VCHReachable     bool
+	SystemTime       string
 }
 
 const (
@@ -65,7 +69,7 @@ const (
 func GetMgmtIP() net.IPNet {
 	var mgmtIP net.IPNet
 	// management alias may not be present, try others if not found
-	link := LinkByOneOfNameOrAlias(validate.ManagementNetworkName, "external", "client")
+	link := LinkByOneOfNameOrAlias(validate.ManagementNetworkName, "public", "client")
 	if link == nil {
 		log.Error("unable to find any interfaces when searching for mgmt IP")
 		return mgmtIP
@@ -107,49 +111,68 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 	log.Infof("Setting version to %s", v.Version)
 
-	//VCH Name
-	v.Hostname, _ = os.Hostname()
-	v.Hostname = strings.Title(v.Hostname)
+	// VCH Name
+	var err error
+	v.Hostname, err = os.Hostname()
+	if err != nil {
+		v.Hostname = "VCH"
+	}
+
 	log.Infof("Setting hostname to %s", v.Hostname)
 
-	//Firewall Status Check
-	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
-	mgmtIP := GetMgmtIP()
-	log.Infof("Using management IP %s for firewall check", mgmtIP)
-	fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
-	v2.FirewallCheckOutput(fwStatus)
-	firewallIssues := v2.GetIssues()
+	// System time
+	v.SystemTime = time.Now().Format(time.UnixDate)
 
-	if len(firewallIssues) == 0 {
-		v.FirewallStatus = GoodStatus
-		v.FirewallIssues = template.HTML("")
-	} else {
+	if sess == nil {
+		// We can't connect to vSphere
+		v.VCHReachable = false
 		v.FirewallStatus = BadStatus
-		for _, err := range firewallIssues {
-			v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
-		}
-	}
-	log.Infof("FirewallStatus set to: %s", v.FirewallStatus)
-	log.Infof("FirewallIssues set to: %s", v.FirewallIssues)
-
-	//License Check
-	v2.ClearIssues()
-	v2.CheckLicense(ctx)
-	licenseIssues := v2.GetIssues()
-
-	if len(licenseIssues) == 0 {
-		v.LicenseStatus = GoodStatus
+		v.FirewallIssues = template.HTML("")
+		v.LicenseStatus = BadStatus
 		v.LicenseIssues = template.HTML("")
 	} else {
-		v.LicenseStatus = BadStatus
-		for _, err := range licenseIssues {
-			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
+		v.VCHReachable = true
+		// Firewall status check
+		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
+		mgmtIP := GetMgmtIP()
+		log.Infof("Using management IP %s for firewall check", mgmtIP)
+		fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
+		v2.FirewallCheckOutput(fwStatus)
+
+		firewallIssues := v2.GetIssues()
+
+		if len(firewallIssues) == 0 {
+			v.FirewallStatus = GoodStatus
+			v.FirewallIssues = template.HTML("")
+		} else {
+			v.FirewallStatus = BadStatus
+			for _, err := range firewallIssues {
+				v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
+			}
+		}
+
+		// License status check
+		v2.ClearIssues()
+		v2.CheckLicense(ctx)
+		licenseIssues := v2.GetIssues()
+
+		if len(licenseIssues) == 0 {
+			v.LicenseStatus = GoodStatus
+			v.LicenseIssues = template.HTML("")
+		} else {
+			v.LicenseStatus = BadStatus
+			for _, err := range licenseIssues {
+				v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
+			}
 		}
 	}
+
+	log.Infof("FirewallStatus set to: %s", v.FirewallStatus)
+	log.Infof("FirewallIssues set to: %s", v.FirewallIssues)
 	log.Infof("LicenseStatus set to: %s", v.LicenseStatus)
 	log.Infof("LicenseIssues set to: %s", v.LicenseIssues)
 
-	//Network Connection Check
+	// Network Connection Check
 	hosts := []string{
 		"google.com:80",
 		"docker.io:443",
@@ -173,12 +196,11 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	} else {
 		v.NetworkStatus = GoodStatus
 		v.NetworkIssues = template.HTML("")
-
 	}
 	log.Infof("NetworkStatus set to: %s", v.NetworkStatus)
 	log.Infof("NetworkIssues set to: %s", v.NetworkIssues)
 
-	//Retrieve Host IP Information and Set Docker Endpoint
+	// Retrieve Host IP Information and Set Docker Endpoint
 	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
 
 	if vch.HostCertificate.IsNil() {
@@ -187,8 +209,11 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	}
 
-	v.QueryDatastore(ctx, vch, sess)
-	v.QueryVCHStatus(vch)
+	err = v.QueryDatastore(ctx, vch, sess)
+	if err != nil {
+		log.Errorf("Had a problem querying the datastores: %s", err.Error())
+	}
+	v.QueryVCHStatus(vch, sess)
 	return v
 }
 
@@ -198,7 +223,13 @@ func (d dsList) Len() int           { return len(d) }
 func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
 
-func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
+func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) error {
+	if sess == nil {
+		// If we can't connect to vSphere, don't display datastore info
+		v.StorageRemaining = template.HTML("")
+		return nil
+	}
+
 	var dataStores dsList
 	dsNames := make(map[string]bool)
 
@@ -224,14 +255,21 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		}
 	}
 
-	pc := property.DefaultCollector(sess.Client.Client)
-	err := pc.Retrieve(ctx, refs, nil, &dataStores)
+	if len(refs) == 0 {
+		return fmt.Errorf("No datastore references found")
+	}
 
-	sort.Sort(dataStores)
+	pc := property.DefaultCollector(sess.Client.Client)
+	if pc == nil {
+		return fmt.Errorf("Could not get default propery collector; prop-collector came back nil")
+	}
+
+	err := pc.Retrieve(ctx, refs, nil, &dataStores)
 	if err != nil {
 		log.Errorf("Error while accessing datastore: %s", err)
-		return
 	}
+
+	sort.Sort(dataStores)
 	for _, ds := range dataStores {
 		log.Infof("Datastore %s Status: %s", ds.Name, ds.OverallStatus)
 		log.Infof("Datastore %s Free Space: %.1fGB", ds.Name, float64(ds.Summary.FreeSpace)/(1<<30))
@@ -243,10 +281,19 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 			  <div class="forty">%.1f GB remaining</div>
 			</div>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
 	}
+
+	return nil
 }
 
-func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec) {
+func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
 	defer trace.End(trace.Begin(""))
+
+	if sess == nil {
+		// We can't connect to vSphere
+		v.VCHStatus = BadStatus
+		return
+	}
+
 	v.VCHIssues = template.HTML("")
 	v.VCHStatus = GoodStatus
 

@@ -11,6 +11,28 @@ The intent is that vSphere Integrated Containers Engine (VIC Engine) should not 
    - vCenter - Enterprise plus license, only very simple configurations have been tested.
 - Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, should not be the same as the external network, and should not have DHCP.
 
+### Privileges and credentials
+
+There is an operations user mechanism provided to allow a VCH to operate with less privileged credentials than are required for deploying a new VCH. These options are:
+* `--ops-user`
+* `--ops-password`
+If neither option is specified then the user supplied via `--target` or `--user` will be used and a warning will be output. If only the `--ops-user` option is provided there will be an interactive prompt for the password.
+At this time vic-machine _does not create_ the operations user, nor does it configure it with minimum set of RBAC permissions necessary for operation - this is actively being worked on (#1689)  
+
+Deploying a VCH requires credentials able to:
+* create and configure a resource pool (vApp on vCenter)
+* create a vSwitch (ESX only)
+* create and configure the endpointVM within that pool
+* upload files to datastores
+* inspect much of the vSphere inventory
+
+However operation of a VCH requires only a subset of those privileges:
+* create and configure containerVMs within the VCH resource pool/vApp
+* create/delete/attach/detach disks on the endpointVM
+* attach containerVMs to supplied networks
+* upload to/download from datastore
+
+### Example
 Replace the `<fields>` in the following example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. This example will use DHCP for the API endpoint and will not configure client authentication.  
 
 - --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targeting ESXi or only one datacenter is configured.
@@ -21,9 +43,10 @@ Replace the `<fields>` in the following example with values specific to your env
 vic-machine-linux create --target <target-host>[/datacenter] --user <root> --password <password> --thumbprint <certificate thumbprint> --compute-resource <resource pool path> --image-store <datastore name> --name <vch-name> --no-tlsverify
 ```
 
-This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi (output was generated with --client-network-ip specified):
+This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi (output was generated with --client-network-ip specified instead of `--no-tlsverify` denoted above):
 ```
 INFO[2016-11-07T22:01:22Z] Using client-network-ip as cname for server certificates - use --tls-cname to override: x.x.x.x
+WARN[2016-11-07T22:01:22Z] Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)
 INFO[2016-11-07T22:01:22Z] Generating CA certificate/key pair - private key in ./XXX/ca-key.pem
 INFO[2016-11-07T22:01:22Z] Generating server certificate/key pair - private key in ./XXX/server-key.pem
 INFO[2016-11-07T22:01:22Z] Generating client certificate/key pair - private key in ./XXX/key.pem
@@ -38,7 +61,7 @@ WARN[2016-11-07T22:01:23Z] Firewall must permit 2377/tcp outbound if firewall is
 INFO[2016-11-07T22:01:23Z] License check OK
 INFO[2016-11-07T22:01:23Z] DRS check SKIPPED - target is standalone host
 INFO[2016-11-07T22:01:23Z]
-INFO[2016-11-07T22:01:23Z] Creating Resource Pool "ghicken-test"
+INFO[2016-11-07T22:01:23Z] Creating Resource Pool "XXX"
 INFO[2016-11-07T22:01:23Z] Creating directory [datastore1] volumes
 INFO[2016-11-07T22:01:23Z] Datastore path is [datastore1] volumes
 INFO[2016-11-07T22:01:23Z] Creating appliance on target
@@ -58,7 +81,7 @@ INFO[2016-11-07T22:01:54Z] Published ports can be reached at:
 INFO[2016-11-07T22:01:54Z] x.x.x.x
 INFO[2016-11-07T22:01:54Z]
 INFO[2016-11-07T22:01:54Z] Docker environment variables:
-INFO[2016-11-07T22:01:54Z] DOCKER_TLS_VERIFY=1 DOCKER_CERT_PATH=/home/vagrant/vicsmb/src/github.com/vmware/vic/bin/ghicken-test DOCKER_HOST=x.x.x.x:2376
+INFO[2016-11-07T22:01:54Z] DOCKER_TLS_VERIFY=1 DOCKER_CERT_PATH=/home/vagrant/vicsmb/src/github.com/vmware/vic/bin/XXX DOCKER_HOST=x.x.x.x:2376
 INFO[2016-11-07T22:01:54Z]
 INFO[2016-11-07T22:01:54Z] Environment saved in XXX/XXX.env
 INFO[2016-11-07T22:01:54Z]
@@ -204,7 +227,7 @@ Currently the container does **not** have a firewall configured in this circumst
 ## TLS configuration
 
 There are three TLS configurations available for the API endpoint - the default configuration is _mutual authentication_.
-If there is insufficient information via the create options to use that configuraiton you will see the following help output:
+If there is insufficient information via the create options to use that configuration you will see the following help output:
 ```
 ERRO[2016-11-07T19:53:44Z] Common Name must be provided when generating certificates for client authentication:
 INFO[2016-11-07T19:53:44Z]   --tls-cname=<FQDN or static IP> # for the appliance VM
@@ -215,17 +238,21 @@ INFO[2016-11-07T19:53:44Z]
 ERRO[2016-11-07T19:53:44Z] Create cannot continue: unable to generate certificates
 ERRO[2016-11-07T19:53:44Z] --------------------
 ERRO[2016-11-07T19:53:44Z] vic-machine-linux failed: provide Common Name for server certificate
-```
+``` 
+
+The [`--cert-path`](#certificate-names-and---cert-path) option applies to all of the TLS configurations other than --no-tls.
+
+Using `--force` will allow a `create` operation to move past some certificate checks performed for existing certificates, however will do so by generating __new__ certificates, __overwriting__ the old.
 
 #### Disabled, `--no-tls`
-Disabling TLS completely is strongly discouraged as it allows trivial snooping of API traffic for entities on the same network. When using this option the API will be served over HTTP, not HTTPS.
+Disabling TLS completely is strongly discouraged as it allows trivial snooping of API traffic by entities on the same network. When using this option the API will be served over HTTP, not HTTPS.
 
 
 #### Server authentication, `--no-tlsverify`
 In this configuration the API endpoint has a certificate that clients will use to validate the identity of the server. This allows the client to trust the server, but the server does not require
 authentication or authorization of the client. If no certificate is provided then a self-signed certificate will be generated.
 
-If using a pre-generated certificate, the following options are used:
+If using a pre-created certificate, the following options are used:
 - `--key` - path to key file in PEM format
 - `--cert` - path to certificate file in PEM format
 
@@ -235,7 +262,7 @@ If using a pre-generated certificate, the following options are used:
 Mutual authentication, also referred to as _tlsverify_, means that the client must authenticate by presenting a certificate to the server in addition to the server authentication with the client.
 In this configuration the vicadmin server also requires authentication, which can be via client certificate.
 
-If using pre-generated certificates the following option must be provided in addition to the server authentication options above.
+If using pre-created certificates the following option must be provided in addition to the server authentication options above.
 - `--tls-ca` - path to certificate authority to vet client certificates against in PEM format. May be specified multiple times.
 
 As a convenience, vic-machine will generate authority, server, and client certificates if a Common Name is provided.
@@ -254,4 +281,42 @@ or `--no-tlsverify` is specifed.
 - `--client-network-ip` - IP or FQDN to use for the API endpoint
 
 
+#### Certificate names and `--cert-path`
+
+If using the `--key` and `--cert` options, any filename and path can be provided for the server certificate and key. However when generating certificates the following standard names are used:
+* server-cert.pem
+* server-key.pem
+* cert.pem
+* key.pem
+* ca.pem
+
+The default value of `--cert-path` is that of the `--name` parameter, in the current working directory, and is used as:
+1. the location to check for existing certificates, by the default names detailed above.
+2. the location to save generated certificates, which will occur only if existing certificates are not found
+
+The certificate authority (CA) in the certificate path will only be loaded if no CA is specified via the `--tls-ca` option.
+
+If a warning in the form below is received during creation it means that client authentication was enabled (a certificate authority was provided), but neither that authority nor the ones configured 
+on the system were able to verify the provided server certificate. This can be a valid configuration, but should be checked:
+```
+Unable to verify server certificate with configured CAs: <additional detail>
+```
+
+_NOTE: while it is possible to mix generated and pre-created client and server certificates additional care must be taken to ensure a working setup_
+
+Sample `vic-machine` output when loading existing certificates for a tlsverify configuration:
+```
+INFO[2016-11-11T23:58:02Z] Using client-network-ip as cname where needed - use --tls-cname to override: 192.168.78.127
+INFO[2016-11-11T23:58:02Z] Loaded server certificate ./xxx/server-cert.pem
+INFO[2016-11-11T23:58:02Z] Loaded CA with default name from certificate path xxx
+INFO[2016-11-11T23:58:02Z] Loaded client certificate with default name from certificate path xxx
+```    
+
+#### Using client certificates with wget or curl
+
+To use client certificates with wget and curl requires adding the following options:
+```
+wget --certificate=/path/to/cert --private-key=/path/to/key 
+curl --cert=/path/to/cert --key=/path/to/key 
+```
 [Issues relating to Virtual Container Host deployment](https://github.com/vmware/vic/labels/component%2Fvic-machine)

@@ -32,9 +32,13 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
-	CertPEM   []byte
-	KeyPEM    []byte
-	ClientCAs []byte
+	OpsUser     string
+	OpsPassword *string
+
+	CertPEM     []byte
+	KeyPEM      []byte
+	ClientCAs   []byte
+	RegistryCAs []byte
 	common.Images
 
 	ImageDatastorePath     string
@@ -43,7 +47,7 @@ type Data struct {
 
 	BridgeNetworkName string
 	ClientNetwork     NetworkConfig
-	ExternalNetwork   NetworkConfig
+	PublicNetwork     NetworkConfig
 	ManagementNetwork NetworkConfig
 	DNS               []net.IP
 

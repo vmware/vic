@@ -15,8 +15,11 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
+
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/securecookie"
@@ -27,9 +30,10 @@ import (
 
 // UserSession holds a user's session metadata
 type UserSession struct {
-	username string
-	created  time.Time
-	config   *session.Config
+	id      string
+	created time.Time
+	config  *session.Config
+	vsphere *session.Session
 }
 
 // UserSessionStore holds and manages user sessions
@@ -41,19 +45,22 @@ type UserSessionStore struct {
 }
 
 type UserSessionStorer interface {
-	Add(username string, config *session.Config) *UserSession
-	Delete(username string)
-	VSphere(username string) (vSphereSession *session.Session, err error)
-	UserSession(username string) *UserSession
+	Add(id string, config *session.Config, vs *session.Session) *UserSession
+	Delete(id string)
+	VSphere(id string) (vSphereSession *session.Session, err error)
+	UserSession(id string) *UserSession
 }
 
-// Add creates a config and initializes the UserSession and adds it to the UserSessionStore & returns the created UserSession
-func (u *UserSessionStore) Add(id string, config *session.Config) *UserSession {
+// Add a session. VS may be nil if host is plain ESX
+func (u *UserSessionStore) Add(id string, config *session.Config, vs *session.Session) *UserSession {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 	sess := &UserSession{
+		id:      id,
 		created: time.Now(),
+		// TODO strip out config cause it's not needed anymore, but shows up in a number of places
 		config:  config,
+		vsphere: vs,
 	}
 	u.sessions[id] = sess
 	return sess
@@ -65,16 +72,34 @@ func (u *UserSessionStore) Delete(id string) {
 	delete(u.sessions, id)
 }
 
-// Grabs the UserSession metadta object and doesn't establish a connection to vSphere
+// Grabs the UserSession metadata object and doesn't establish a connection to vSphere
 func (u *UserSessionStore) UserSession(id string) *UserSession {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()
 	return u.sessions[id]
 }
 
-// Get logs into vSphere and returns a vSphere session object. Caller responsible for error handling/logout
-func (u *UserSessionStore) VSphere(id string) (vSphereSession *session.Session, err error) {
-	return vSphereSessionGet(u.UserSession(id).config)
+// Returns a vSphere session object. Caller responsible for error handling/logout
+func (u *UserSessionStore) VSphere(ctx context.Context, id string) (*session.Session, error) {
+	us := u.UserSession(id)
+	if us == nil {
+		return nil, fmt.Errorf("User session with unique ID %s does not exist", id)
+	}
+	if us.vsphere == nil {
+		return nil, fmt.Errorf("No vSphere session found for user: %s", id)
+	}
+
+	vsphus, err := us.vsphere.SessionManager.UserSession(ctx)
+	if err != nil || vsphus == nil {
+		if err != nil {
+			log.Warnf("Failed to validate user %s session: %v", id, err)
+			return nil, nil
+		}
+		log.Warnf("User %s session has expired", id)
+		return nil, nil
+	}
+	log.Infof("Found vSphere session for vicadmin usersession %s", id)
+	return us.vsphere, nil
 }
 
 // reaper takes abandoned sessions to a farm upstate so they don't build up forever
@@ -93,7 +118,7 @@ func (u *UserSessionStore) reaper() {
 func NewUserSessionStore() *UserSessionStore {
 	u := &UserSessionStore{
 		sessions: make(map[string]*UserSession),
-		ticker:   time.NewTicker(time.Minute),
+		ticker:   time.NewTicker(time.Minute * 10),
 		mutex:    sync.RWMutex{},
 		cookies: sessions.NewCookieStore(
 			[]byte(securecookie.GenerateRandomKey(64)),

@@ -20,15 +20,20 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/hpcloud/tail"
-	"golang.org/x/net/context"
+
+	"path/filepath"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/pprof"
@@ -40,6 +45,11 @@ const (
 	nBytes    = 1024
 	tailLines = 8
 	uint32max = (1 << 32) - 1
+
+	// how many lines of log data to collect
+	logLines = 5000
+	// how many lines to request per call
+	lines = 500
 )
 
 type dlogReader struct {
@@ -68,30 +78,54 @@ func (r dlogReader) open() (entry, error) {
 		return nil, err
 	}
 
-	// DiagnosticManager::DEFAULT_MAX_LINES_PER_BROWSE = 1000
-	start := h.LineEnd - 1000
-
-	h, err = m.BrowseLog(ctx, r.host, r.name, start, 0)
-	if err != nil {
-		return nil, err
-	}
+	end := h.LineEnd
+	start := end - logLines
 
 	var buf bytes.Buffer
+	for start < end {
+		h, err = m.BrowseLog(ctx, r.host, r.name, start, lines)
+		if err != nil {
+			return nil, err
+		}
 
-	for _, line := range h.LineText {
-		buf.WriteString(line)
-		buf.WriteString("\n")
+		for _, line := range h.LineText {
+			buf.WriteString(line)
+			buf.WriteByte('\n')
+		}
+
+		start += lines
 	}
 
 	return newBytesEntry(name+".log", buf.Bytes()), nil
 }
 
+// logFiles has a potential race condition since logrotation can rotate files this moment of time.
+// however, the likely hood of this race is so low that it doesn't worth investing the time to do
+// cross process synchronization.
 func logFiles() []string {
 	defer trace.End(trace.Begin(""))
+	files, err := ioutil.ReadDir(logFileDir)
+	if err != nil {
+		log.Errorf("Failed to get a list of log files: %s", err)
+		return nil
+	}
 
 	names := []string{}
-	for _, f := range logFileList {
-		names = append(names, fmt.Sprintf("%s/%s", logFileDir, f))
+	for _, fileInfo := range files {
+		if fileInfo.IsDir() {
+			continue
+		}
+		fname := fileInfo.Name()
+		log.Debugf("Found potential file for export: %s", fname)
+
+		for _, f := range logFileListPrefixes {
+			if strings.HasPrefix(fname, f) {
+				fp := filepath.Join(logFileDir, fname)
+				log.Debugf("Adding file for export: %s", fp)
+				names = append(names, fp)
+				break
+			}
+		}
 	}
 
 	return names
@@ -132,6 +166,7 @@ func configureReaders() map[string]entryReader {
 		"disk-by-path":  commandReader("ls -l /dev/disk/by-path"),
 		"disk-by-label": commandReader("ls -l /dev/disk/by-label"),
 		"disk-by-uuid":  commandReader("ls -l /dev/disk/by-uuid"),
+		"lsblk":         commandReader("lsblk -S"),
 		// To check we are not leaking any fds
 		"proc-self-fd": commandReader("ls -l /proc/self/fd"),
 		"ps":           commandReader("ps -ef"),
@@ -193,6 +228,7 @@ func findDiagnosticLogs(c *session.Session) (map[string]entryReader, error) {
 
 	return logs, nil
 }
+
 func tarEntries(readers map[string]entryReader, out io.Writer) error {
 	defer trace.End(trace.Begin(""))
 
@@ -252,6 +288,7 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 
 	return nil
 }
+
 func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 	defer trace.End(trace.Begin(""))
 	defer out.Close()

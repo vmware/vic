@@ -15,8 +15,9 @@
 package handlers
 
 import (
+	"context"
+
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"

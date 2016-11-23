@@ -23,11 +23,12 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
@@ -1141,8 +1142,8 @@ func TestAliases(t *testing.T) {
 		assert.NotNil(t, ctx.Container(c.ExecConfig.ID))
 		assert.NotNil(t, ctx.Container(uid.Parse(c.ExecConfig.ID).Truncate().String()))
 		assert.NotNil(t, ctx.Container(c.ExecConfig.Name))
-		assert.NotNil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), c.ExecConfig.Name)))
-		assert.NotNil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), uid.Parse(c.ExecConfig.ID).Truncate())))
+		assert.NotNil(t, ctx.ContainersByAlias(fmt.Sprintf("%s:%s", scope.Name(), uid.Parse(c.ExecConfig.ID).Truncate())))
+		assert.NotNil(t, ctx.ContainersByAlias(fmt.Sprintf("%s:%s", scope.Name(), c.ExecConfig.Name)))
 
 		aliases := c.ExecConfig.Networks[scope.Name()].Network.Aliases
 		for _, a := range aliases {
@@ -1162,9 +1163,9 @@ func TestAliases(t *testing.T) {
 			// if the aliased container is bound we should be able to look it up with
 			// the scoped alias name
 			if c := ctx.Container(ea.Container); c != nil {
-				assert.NotNil(t, ctx.Container(ea.scopedName()))
+				assert.NotNil(t, ctx.ContainersByAlias(ea.scopedName()))
 			} else {
-				assert.Nil(t, ctx.Container(ea.scopedName()), "scoped name=%s", ea.scopedName())
+				assert.Nil(t, ctx.ContainersByAlias(ea.scopedName()), "scoped name=%s", ea.scopedName())
 			}
 		}
 
@@ -1174,7 +1175,7 @@ func TestAliases(t *testing.T) {
 		for _, e := range scope.Endpoints() {
 			for _, a := range e.getAliases(c.ExecConfig.Name) {
 				t.Logf("alias: %s", a.scopedName())
-				assert.NotNil(t, ctx.Container(a.scopedName()))
+				assert.NotNil(t, ctx.ContainersByAlias(a.scopedName()))
 			}
 		}
 

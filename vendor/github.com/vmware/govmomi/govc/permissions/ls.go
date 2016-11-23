@@ -14,23 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cluster
+package permissions
 
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
-	"text/tabwriter"
 
 	"github.com/vmware/govmomi/govc/cli"
-	"github.com/vmware/govmomi/govc/flags"
-	"github.com/vmware/govmomi/object"
 )
 
 type ls struct {
-	*flags.DatacenterFlag
-	*flags.OutputFlag
+	*PermissionFlag
+
+	inherited bool
 }
 
 func init() {
@@ -38,18 +34,14 @@ func init() {
 }
 
 func (cmd *ls) Register(ctx context.Context, f *flag.FlagSet) {
-	cmd.DatacenterFlag, ctx = flags.NewDatacenterFlag(ctx)
-	cmd.DatacenterFlag.Register(ctx, f)
+	cmd.PermissionFlag, ctx = NewPermissionFlag(ctx)
+	cmd.PermissionFlag.Register(ctx, f)
 
-	cmd.OutputFlag, ctx = flags.NewOutputFlag(ctx)
-	cmd.OutputFlag.Register(ctx, f)
+	f.BoolVar(&cmd.inherited, "a", true, "Include inherited permissions defined by parent entities")
 }
 
 func (cmd *ls) Process(ctx context.Context) error {
-	if err := cmd.DatacenterFlag.Process(ctx); err != nil {
-		return err
-	}
-	if err := cmd.OutputFlag.Process(ctx); err != nil {
+	if err := cmd.PermissionFlag.Process(ctx); err != nil {
 		return err
 	}
 	return nil
@@ -60,38 +52,32 @@ func (cmd *ls) Usage() string {
 }
 
 func (cmd *ls) Description() string {
-	return `List the permissions defined on or effective on managed entities.`
+	return `List the permissions defined on or effective on managed entities.
+
+Examples:
+  govc permissions.ls
+  govc permissions.ls /dc1/host/cluster1`
 }
 
 func (cmd *ls) Run(ctx context.Context, f *flag.FlagSet) error {
-	c, err := cmd.Client()
-	if err != nil {
-		return err
-	}
-
 	refs, err := cmd.ManagedObjects(ctx, f.Args())
 	if err != nil {
 		return err
 	}
 
-	m := object.NewAuthorizationManager(c)
-	rl, err := m.RoleList(ctx)
+	m, err := cmd.Manager(ctx)
 	if err != nil {
 		return err
 	}
 
-	tw := tabwriter.NewWriter(os.Stdout, 2, 0, 2, ' ', 0)
-
 	for _, ref := range refs {
-		perms, err := m.RetrieveEntityPermissions(ctx, ref, true)
+		perms, err := m.RetrieveEntityPermissions(ctx, ref, cmd.inherited)
 		if err != nil {
 			return err
 		}
 
-		for _, perm := range perms {
-			fmt.Fprintf(tw, "%s\t%s\n", perm.Principal, rl.ById(perm.RoleId).Name)
-		}
+		cmd.List.Add(perms)
 	}
 
-	return tw.Flush()
+	return cmd.WriteResult(&cmd.List)
 }
