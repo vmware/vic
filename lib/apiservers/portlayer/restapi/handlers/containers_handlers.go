@@ -76,8 +76,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	ctx := context.Background()
 
 	log.Debugf("Path: %#v", params.CreateConfig.Path)
-	log.Debugf("Args: %#v", params.CreateConfig.Args)
-	log.Debugf("Env: %#v", params.CreateConfig.Env)
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
 	log.Debugf("OpenStdin: %#v", params.CreateConfig.OpenStdin)
 
@@ -130,8 +128,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 			m.Annotations[k] = v
 		}
 	}
-
-	log.Infof("CreateHandler Metadata: %#v", m)
 
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
@@ -337,9 +333,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
-		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
-			Message: fmt.Sprintf("container %s not found", params.ID),
-		})
+		return containers.NewGetContainerLogsNotFound()
 	}
 
 	follow := false
@@ -355,7 +349,8 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	reader, err := container.LogReader(context.Background(), tail, follow)
 	if err != nil {
-		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+		// Do not return an error here.  It's a workaround for a panic similar to #2594
+		return containers.NewGetContainerLogsInternalServerError()
 	}
 
 	detachableOut := NewFlushingReader(reader)

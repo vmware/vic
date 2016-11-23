@@ -100,10 +100,10 @@ func (v *Validator) portGroupConfig(input *data.Data, counts map[string]int, ips
 			ips[input.ClientNetwork.Name] = append(ips[input.ClientNetwork.Name], input.ClientNetwork)
 		}
 	}
-	if input.ExternalNetwork.Name != "" {
-		counts[input.ExternalNetwork.Name]++
-		if !input.ExternalNetwork.Empty() {
-			ips[input.ExternalNetwork.Name] = append(ips[input.ExternalNetwork.Name], input.ExternalNetwork)
+	if input.PublicNetwork.Name != "" {
+		counts[input.PublicNetwork.Name]++
+		if !input.PublicNetwork.Empty() {
+			ips[input.PublicNetwork.Name] = append(ips[input.PublicNetwork.Name], input.PublicNetwork)
 		}
 	}
 }
@@ -123,7 +123,7 @@ func (v *Validator) checkPortGroups(input *data.Data, counts map[string]int, ips
 		"client":     &input.ClientNetwork,
 		"management": &input.ManagementNetwork,
 	} {
-		if n.Name == input.ExternalNetwork.Name && !n.Empty() {
+		if n.Name == input.PublicNetwork.Name && !n.Empty() {
 			log.Errorf("%s network shares port group with public network, but has static IP configuration", nn)
 			log.Errorf("To resolve this, configure static IP for public network and assign %s network to same port group", nn)
 			log.Error("The static IP will be automatically configured for networks sharing the port group")
@@ -175,8 +175,8 @@ func (v *Validator) configureSharedPortGroups(input *data.Data, counts map[strin
 		if input.ClientNetwork.Name == name && input.ClientNetwork.Empty() {
 			input.ClientNetwork = config[0]
 		}
-		if input.ExternalNetwork.Name == name && input.ExternalNetwork.Empty() {
-			input.ExternalNetwork = config[0]
+		if input.PublicNetwork.Name == name && input.PublicNetwork.Empty() {
+			input.PublicNetwork = config[0]
 		}
 		if input.ManagementNetwork.Name == name && input.ManagementNetwork.Empty() {
 			input.ManagementNetwork = config[0]
@@ -194,7 +194,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 
 	// set default portgroup if user input not provided
 	if input.ClientNetwork.Name == "" {
-		input.ClientNetwork.Name = input.ExternalNetwork.Name
+		input.ClientNetwork.Name = input.PublicNetwork.Name
 	}
 	if input.ManagementNetwork.Name == "" {
 		input.ManagementNetwork.Name = input.ClientNetwork.Name
@@ -216,7 +216,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		"client":     &input.ClientNetwork,
 		"management": &input.ManagementNetwork,
 	} {
-		if n.Name == input.ExternalNetwork.Name {
+		if n.Name == input.PublicNetwork.Name {
 			// no Destinations required if sharing with PublicNetwork
 			continue
 		}
@@ -225,33 +225,33 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		}
 	}
 
-	// external network should not have any routing destinations specified
+	// public network should not have any routing destinations specified
 	// if a gateway was specified
-	if !ip.IsUnspecifiedIP(input.ExternalNetwork.Gateway.IP) && len(input.ExternalNetwork.Destinations) > 0 {
-		v.NoteIssue(errors.New("external network has the default route and must not have any routing destinations specified for gateway"))
+	if !ip.IsUnspecifiedIP(input.PublicNetwork.Gateway.IP) && len(input.PublicNetwork.Destinations) > 0 {
+		v.NoteIssue(errors.New("public network has the default route and must not have any routing destinations specified for gateway"))
 	}
 
 	// check if static IP on all networks and no user provided DNS servers
 	specifiedDNS := len(input.DNS) > 0
-	usingDHCP := ip.IsUnspecifiedIP(input.ClientNetwork.IP.IP) || ip.IsUnspecifiedIP(input.ExternalNetwork.IP.IP) || ip.IsUnspecifiedIP(input.ManagementNetwork.IP.IP)
+	usingDHCP := ip.IsUnspecifiedIP(input.ClientNetwork.IP.IP) || ip.IsUnspecifiedIP(input.PublicNetwork.IP.IP) || ip.IsUnspecifiedIP(input.ManagementNetwork.IP.IP)
 
 	if !usingDHCP && !specifiedDNS { // Set default DNS servers
 		log.Debug("Setting default DNS servers 8.8.8.8 and 8.8.4.4")
 		input.DNS = []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("8.8.4.4")}
 	}
 
-	// External net
-	// external network is default for appliance
-	e, err = v.getEndpoint(ctx, conf, input.ExternalNetwork, "external", "external", true, input.DNS)
+	// Public net
+	// public network is default for appliance
+	e, err = v.getEndpoint(ctx, conf, input.PublicNetwork, "public", "public", true, input.DNS)
 	if err != nil {
-		v.NoteIssue(fmt.Errorf("Error checking network for --external-network: %s", err))
-		v.suggestNetwork("--external-network", true)
+		v.NoteIssue(fmt.Errorf("Error checking network for --public-network: %s", err))
+		v.suggestNetwork("--public-network", true)
 	}
 	// Bridge network should be different than all other networks
-	v.checkNetworkConflict(input.BridgeNetworkName, input.ExternalNetwork.Name, "external")
+	v.checkNetworkConflict(input.BridgeNetworkName, input.PublicNetwork.Name, "public")
 	conf.AddNetwork(e)
 
-	// Client net - defaults to connect to same portgroup as external
+	// Client net - defaults to connect to same portgroup as public
 	e, err = v.getEndpoint(ctx, conf, input.ClientNetwork, "client", "client", false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --client-network: %s", err))
@@ -424,7 +424,7 @@ func (v *Validator) nicNumbers(conf *config.VirtualContainerHostConfigSpec) {
 		nics[net.Network.ID] = true
 	}
 	if len(nics) > 3 {
-		v.NoteIssue(fmt.Errorf("Four different networks including bridge network are not allowed at this time. At least two network roles of client network, management network and external network should share same network"))
+		v.NoteIssue(fmt.Errorf("Four different networks including bridge network are not allowed at this time. At least two network roles of client network, management network and public network should share same network"))
 	}
 }
 

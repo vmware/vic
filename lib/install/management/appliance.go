@@ -304,7 +304,7 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 			MemoryMB: vConf.ApplianceSize.Memory.Limit,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
-			ExtraConfig: vmomi.OptionValueFromMap(cfg),
+			ExtraConfig: append(vmomi.OptionValueFromMap(cfg), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
 		},
 	}
 
@@ -384,6 +384,55 @@ func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *
 	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO))
 	devices = append(devices, cdrom)
 	return devices, nil
+}
+
+func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
+	defer trace.End(trace.Begin(""))
+
+	devices, err := vm.Device(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		return nil, err
+	}
+
+	p, err := devices.CreateSerialPort()
+	if err != nil {
+		return nil, err
+	}
+
+	err = vm.AddDevice(d.ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	devices, err = vm.Device(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		return nil, err
+	}
+
+	serial, err := devices.FindSerialPort("")
+	if err != nil {
+		log.Errorf("Failed to locate serial port for persistent log configuration: %s", err)
+		return nil, err
+	}
+
+	// TODO: we need to add an accessor for generating paths within the VM directory
+	vmx, err := vm.VMPathName(d.ctx)
+	if err != nil {
+		log.Errorf("Unable to determine path of appliance VM: %s", err)
+		return nil, err
+	}
+
+	// TODO: move this construction into the spec package and update portlayer/logging to use it as well
+	serial.Backing = &types.VirtualSerialPortFileBackingInfo{
+		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
+			// name consistency with containerVM
+			FileName: fmt.Sprintf("%s/tether.debug", path.Dir(vmx)),
+		},
+	}
+
+	return []types.BaseVirtualDevice{serial}, nil
 }
 
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -574,17 +623,31 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
+	// create new devices
 	if devices, err = d.configIso(conf, vm, settings); err != nil {
 		return nil, err
 	}
 
-	deviceChange, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+	newDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 	if err != nil {
 		log.Errorf("Failed to create config spec for appliance: %s", err)
 		return nil, err
 	}
 
-	spec.DeviceChange = deviceChange
+	spec.DeviceChange = newDevices
+
+	// update existing devices
+	if devices, err = d.configLogging(conf, vm, settings); err != nil {
+		return nil, err
+	}
+
+	updateDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationEdit)
+	if err != nil {
+		log.Errorf("Failed to create config spec for logging update: %s", err)
+		return nil, err
+	}
+
+	spec.DeviceChange = append(spec.DeviceChange, updateDevices...)
 
 	cfg, err := d.encodeConfig(conf)
 	if err != nil {

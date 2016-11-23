@@ -27,18 +27,18 @@ Complex VSAN
     Log To Console  Enable DRS and VSAN on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cluster-vsan-1
     Should Be Empty  ${out}
-    
+
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
-    Set Environment Variable  EXTERNAL_NETWORK  vm-network
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
     ${datastore}=  Run  govc ls -t Datastore host/cluster-vsan-1/* | grep -v local | xargs -n1 basename | sort | uniq | grep vsan
     Set Environment Variable  TEST_DATASTORE  "${datastore}"
     Set Environment Variable  TEST_RESOURCE  cluster-vsan-1
     Set Environment Variable  TEST_TIMEOUT  30m
-    
+
     Install VIC Appliance To Test Server
 
     Run Regression Tests

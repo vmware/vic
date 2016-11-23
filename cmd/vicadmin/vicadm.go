@@ -346,6 +346,38 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 	return logfiles, nil
 }
 
+// addApplianceLogs whitelists the logs to include for the appliance.
+// TODO: once we've started encrypting all potentially senstive data and filtering out guestinfo.ovfEnv
+// we can resume collection of vmware.log and drop the appliance specific handling
+func addApplianceLogs(ctx context.Context, s *session.Session, readers map[string]entryReader) error {
+	self, err := guest.GetSelf(ctx, s)
+	if err != nil || self == nil {
+		return fmt.Errorf("Unable to collect appliance logs due to unknown self-reference: %s", err)
+	}
+
+	self2 := vm.NewVirtualMachineFromVM(ctx, s, self)
+	path, err := self2.DSPath(ctx)
+	if err != nil {
+		return err
+	}
+
+	ds, err := s.Finder.Datastore(ctx, path.Host)
+	if err != nil {
+		return err
+	}
+
+	wpath := fmt.Sprintf("appliance/tether.debug")
+	rpath := fmt.Sprintf("%s/%s", path.Path, "tether.debug")
+	log.Infof("Processed File read Path : %s", rpath)
+	log.Infof("Processed File write Path : %s", wpath)
+	readers[wpath] = datastoreReader{
+		ds:   ds,
+		path: rpath,
+	}
+
+	return nil
+}
+
 // find datastore logs for the appliance itself and all containers
 func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 	defer trace.End(trace.Begin(""))
@@ -359,6 +391,11 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 		detail := fmt.Sprintf("unable to perform datastore log collection due to failure looking up paths: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
+	}
+
+	err = addApplianceLogs(ctx, c, readers)
+	if err != nil {
+		log.Errorf("Issue collecting appliance logs: %s", err)
 	}
 
 	for _, logfile := range logfiles {
@@ -446,6 +483,9 @@ func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
 		log.Errorf("Got %s while creating user session", err)
 		return nil, err
 	}
+	if usersession == nil {
+		return nil, fmt.Errorf("vSphere session is no longer valid")
+	}
 
 	log.Infof("Got session from vSphere with key: %s username: %s", usersession.Key, usersession.UserName)
 
@@ -467,10 +507,7 @@ func (s *server) getSessionFromRequest(ctx context.Context, r *http.Request) (*s
 		return nil, fmt.Errorf("User-provided cookie did not contain a session ID -- it is corrupt or tampered")
 	}
 	c, err := s.uss.VSphere(ctx, d.(string))
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
+	return c, err
 }
 
 type flushWriter struct {

@@ -48,7 +48,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	}
 
 	clientIP := conf.ExecutorConfig.Networks["client"].Assigned.IP
-	externalIP := conf.ExecutorConfig.Networks["external"].Assigned.IP
+	publicIP := conf.ExecutorConfig.Networks["public"].Assigned.IP
 
 	if ip.IsUnspecifiedIP(clientIP) {
 		err = errors.Errorf("No client IP address assigned")
@@ -56,8 +56,8 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		return err
 	}
 
-	if ip.IsUnspecifiedIP(externalIP) {
-		err = errors.Errorf("No external IP address assigned")
+	if ip.IsUnspecifiedIP(publicIP) {
+		err = errors.Errorf("No public IP address assigned")
 		log.Errorf("%s", err)
 		return err
 	}
@@ -105,9 +105,9 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	log.Infof("https://%s:2378", d.HostIP)
 
 	log.Infof("")
-	externalIP := conf.ExecutorConfig.Networks["external"].Assigned.IP
+	publicIP := conf.ExecutorConfig.Networks["public"].Assigned.IP
 	log.Infof("Published ports can be reached at:")
-	log.Infof("%s", externalIP.String())
+	log.Infof("%s", publicIP.String())
 
 	tls := ""
 	var dEnv []string

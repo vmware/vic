@@ -324,11 +324,12 @@ func (c *NameLookupCache) ListImages(op trace.Operation, store *url.URL, IDs []s
 	return imageList, nil
 }
 
-// DeleteImage deletes an image from the image store.  If it is in use or is being inheritted from, then this will return an error.
-func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) error {
+// DeleteImage deletes an image from the image store.  If it is in use or is
+// being inheritted from, then this will return an error.
+func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
 	// prevent deletes of scratch
 	if image.ID == Scratch.ID {
-		return nil
+		return nil, nil
 	}
 
 	infof("DeleteImage: deleting %s", image.Self())
@@ -337,7 +338,7 @@ func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) error {
 	img, err := c.GetImage(op, image.Store, image.ID)
 	if err != nil {
 		errorf("DeleteImage: %s", err)
-		return err
+		return nil, err
 	}
 
 	// get the relevant cache
@@ -348,26 +349,26 @@ func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) error {
 	hasChildren, err := indx.HasChildren(img.Self())
 	if err != nil {
 		errorf("DeleteImage: %s", err)
-		return err
+		return nil, err
 	}
 
 	if hasChildren {
-		return &ErrImageInUse{img.Self() + " in use by child images"}
+		return nil, &ErrImageInUse{img.Self() + " in use by child images"}
 	}
 
 	// The datastore will tell us if the image is attached
-	if err = c.DataStore.DeleteImage(op, img); err != nil {
+	if _, err = c.DataStore.DeleteImage(op, img); err != nil {
 		errorf("%s", err)
-		return err
+		return nil, err
 	}
 
 	// Remove the image from the cache
 	if _, err = indx.Delete(img.Self()); err != nil {
 		errorf("%s", err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return img, nil
 }
 
 // DeleteBranch deletes a branch of images, starting from nodeID, up to the
@@ -376,23 +377,23 @@ func (c *NameLookupCache) DeleteImage(op trace.Operation, image *Image) error {
 func (c *NameLookupCache) DeleteBranch(op trace.Operation, image *Image, keepNodes []*url.URL) ([]*Image, error) {
 	op.Infof("DeleteBranch: deleting branch starting at %s", image.Self())
 
-	var (
-		deletedImages []*Image
-		err           error
-	)
+	var deletedImages []*Image
 
 	// map of images to keep
 	keep := make(map[url.URL]int)
 	for _, elem := range keepNodes {
+		op.Debugf("DeleteBranch:  keep node %s", elem.String())
 		keep[*elem] = 0
 	}
 
 	// Check if the error is actually an error.  If we deleted something,
+	// then eat the error.  This should really only return an error if the leaf
+	// has issues.
 	checkErr := func(err error, deleted []*Image) ([]*Image, error) {
 		if err != nil {
 			if len(deleted) == 0 {
 				// we failed deleting any elements.
-				return nil, fmt.Errorf("failed to delete branch: %s", err)
+				return nil, err
 			}
 		}
 
@@ -410,25 +411,28 @@ func (c *NameLookupCache) DeleteBranch(op trace.Operation, image *Image, keepNod
 			return checkErr(fmt.Errorf("%s can't be deleted", image.Self()), deletedImages)
 		}
 
-		if err = c.DeleteImage(op, image); err != nil {
+		deletedImage, err := c.DeleteImage(op, image)
+		if err != nil {
 			log.Debugf(err.Error())
 			return checkErr(err, deletedImages)
 		}
 
-		deletedImages = append(deletedImages, image)
+		deletedImages = append(deletedImages, deletedImage)
 
 		// iterate to the parent
-		parent, err := Parse(image.ParentLink)
+		parent, err := Parse(deletedImage.ParentLink)
 		if err != nil {
 			return deletedImages, err
 		}
 
+		// set image to the parent
 		image, err = c.GetImage(op, parent.Store, parent.ID)
 		if err != nil {
 			return deletedImages, err
 		}
 
 		if image.ID == Scratch.ID {
+			op.Infof("DeleteBranch: Done deleting images")
 			break
 		}
 	}

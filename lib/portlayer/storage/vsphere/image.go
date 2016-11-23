@@ -517,19 +517,19 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 // DeleteImage deletes an image from the image store.  If the image is in
 // use either by way of inheritance or because it's attached to a
 // container, this will return an error.
-func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) error {
+func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) (*portlayer.Image, error) {
 	//  check if the image is in use.
 	if err := imagesInUse(op, image.ID); err != nil {
 		op.Errorf("ImageStore: delete image error: %s", err.Error())
-		return err
+		return nil, err
 	}
 
 	storeName, err := util.ImageStoreName(image.Store)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return v.deleteImage(op, storeName, image.ID)
+	return image, v.deleteImage(op, storeName, image.ID)
 }
 
 func (v *ImageStore) deleteImage(op trace.Operation, storeName, ID string) error {

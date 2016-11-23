@@ -32,6 +32,9 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
+	OpsUser     string
+	OpsPassword *string
+
 	CertPEM     []byte
 	KeyPEM      []byte
 	ClientCAs   []byte
@@ -44,7 +47,7 @@ type Data struct {
 
 	BridgeNetworkName string
 	ClientNetwork     NetworkConfig
-	ExternalNetwork   NetworkConfig
+	PublicNetwork     NetworkConfig
 	ManagementNetwork NetworkConfig
 	DNS               []net.IP
 

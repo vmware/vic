@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/ssh/terminal"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 
@@ -110,9 +112,9 @@ type Create struct {
 	clientNetworkName         string
 	clientNetworkGateway      string
 	clientNetworkIP           string
-	externalNetworkName       string
-	externalNetworkGateway    string
-	externalNetworkIP         string
+	publicNetworkName         string
+	publicNetworkGateway      string
+	publicNetworkIP           string
 	managementNetworkName     string
 	managementNetworkGateway  string
 	managementNetworkIP       string
@@ -138,6 +140,21 @@ func NewCreate() *Create {
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
 	create := []cli.Flag{
+		// credentials
+		cli.StringFlag{
+			Name:        "ops-user",
+			Value:       "",
+			Usage:       "The user with which the VCH operates after creation. Defaults to the credential supplied with target",
+			Destination: &c.OpsUser,
+			Hidden:      true,
+		},
+		cli.GenericFlag{
+			Name:   "ops-password",
+			Value:  flags.NewOptionalString(&c.OpsPassword),
+			Usage:  "Password or token for the operations user. Defaults to the credential supplied with target",
+			Hidden: true,
+		},
+
 		// images
 		cli.StringFlag{
 			Name:        "image-store, i",
@@ -206,25 +223,25 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 		},
 
-		// external
+		// public
 		cli.StringFlag{
-			Name:        "external-network, en",
+			Name:        "public-network, pn",
 			Value:       "VM Network",
-			Usage:       "The external network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
-			Destination: &c.externalNetworkName,
+			Usage:       "The public network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
+			Destination: &c.publicNetworkName,
 		},
 		cli.StringFlag{
-			Name:        "external-network-gateway",
+			Name:        "public-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.0.1/24",
-			Destination: &c.externalNetworkGateway,
+			Usage:       "Gateway for the VCH on the public network, e.g. 10.0.0.1/24",
+			Destination: &c.publicNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
-			Name:        "external-network-ip",
+			Name:        "public-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the external network, e.g. 10.0.1.2/24",
-			Destination: &c.externalNetworkIP,
+			Usage:       "IP address for the VCH on the public network, e.g. 10.0.1.2/24",
+			Destination: &c.publicNetworkIP,
 			Hidden:      true,
 		},
 
@@ -254,7 +271,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "dns-server",
 			Value:  &c.dns,
-			Usage:  "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
+			Usage:  "DNS server for the client, public, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
 			Hidden: true,
 		},
 
@@ -489,6 +506,10 @@ func (c *Create) processParams() error {
 		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.DisplayName), 1)
 	}
 
+	if err := c.processOpsCredentials(); err != nil {
+		return err
+	}
+
 	if err := c.processContainerNetworks(); err != nil {
 		return err
 	}
@@ -502,8 +523,8 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ExternalNetwork, "external", c.externalNetworkName,
-		c.externalNetworkIP, c.externalNetworkGateway); err != nil {
+	if err := c.processNetwork(&c.Data.PublicNetwork, "public", c.publicNetworkName,
+		c.publicNetworkIP, c.publicNetworkGateway); err != nil {
 		return err
 	}
 
@@ -532,6 +553,38 @@ func (c *Create) processParams() error {
 	if err := c.processProxies(); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (c *Create) processOpsCredentials() error {
+	if c.OpsUser == "" && c.OpsPassword != nil {
+		return errors.New("Password for operations user specified without user having been specified")
+	}
+
+	if c.OpsUser == "" {
+		log.Warn("Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)")
+		c.OpsUser = c.Target.User
+		if c.Target.Password == nil {
+			return errors.New("Unable to use nil password from administrative user for operations user")
+		}
+
+		c.OpsPassword = c.Target.Password
+		return nil
+	}
+
+	if c.OpsPassword != nil {
+		return nil
+	}
+
+	log.Printf("vSphere password for %s: ", c.OpsUser)
+	b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		message := fmt.Sprintf("Failed to read password from stdin: %s", err)
+		cli.NewExitError(message, 1)
+	}
+	sb := string(b)
+	c.OpsPassword = &sb
 
 	return nil
 }
@@ -784,7 +837,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 	return fmt.Errorf("Invalid %s network address: %s does not resolve to a gateway compatible IP", netName, staticIP)
 }
 
-// processDNSServers parses DNS servers used for client, external, mgmt networks
+// processDNSServers parses DNS servers used for client, public, mgmt networks
 func (c *Create) processDNSServers() error {
 	for _, d := range c.dns {
 		s := net.ParseIP(d)
@@ -1125,6 +1178,94 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 	return cakp.CertPEM, skp, nil
 }
 
+func logArguments(cliContext *cli.Context) {
+	for _, f := range cliContext.FlagNames() {
+		if !cliContext.IsSet(f) {
+			continue
+		}
+
+		// avoid logging senstive data
+		if f == "user" || f == "password" || f == "ops-user" || f == "ops-password" {
+			log.Debugf("--%s=<censored>", f)
+			continue
+		}
+
+		if f == "target" {
+			url, err := url.Parse(cliContext.String(f))
+			if err != nil {
+				log.Debugf("Unable to re-parse target url for logging")
+				continue
+			}
+			url.User = nil
+			log.Debugf("--target=%s", url.String())
+			continue
+		}
+
+		i := cliContext.Int(f)
+		if i != 0 {
+			log.Debugf("--%s=%d", f, i)
+			continue
+		}
+		d := cliContext.Duration(f)
+		if d != 0 {
+			log.Debugf("--%s=%s", f, d.String())
+			continue
+		}
+		x := cliContext.Float64(f)
+		if x != 0 {
+			log.Debugf("--%s=%f", f, x)
+			continue
+		}
+		s := cliContext.String(f)
+		if s != "" {
+			log.Debugf("--%s=%s", f, s)
+			continue
+		}
+		b := cliContext.Bool(f)
+		bT := cliContext.BoolT(f)
+		if b && !bT {
+			log.Debugf("--%s=%t", f, true)
+			continue
+		}
+
+		// put the slices at the end as they cause panics
+		match := func() (result bool) {
+			result = false
+			defer func() { recover() }()
+			ss := cliContext.StringSlice(f)
+			if ss != nil {
+				log.Debugf("--%s=%#v", f, ss)
+				return true
+			}
+			return
+		}()
+		if match {
+			continue
+		}
+
+		match = func() (result bool) {
+			result = false
+			defer func() { recover() }()
+			is := cliContext.IntSlice(f)
+			if is != nil {
+				log.Debugf("--%s=%#v", f, is)
+				return true
+			}
+			return
+		}()
+		if match {
+			continue
+		}
+
+		// generic last because it matches everything
+		g := cliContext.Generic(f)
+		if g != nil {
+			log.Debugf("--%s=%#v", f, g)
+			continue
+		}
+	}
+}
+
 func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	if c.advancedOptions {
@@ -1142,7 +1283,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	log.Infof("Supplied install parameters: --compute-resource %s --image-store %s --volumes %s --bridge-network %s --client-network %s --external-network %s --http-proxy %s --https-proxy %s", c.Data.Compute, c.Data.ImageDatastorePath, c.Data.VolumeLocations, c.Data.BridgeNetworkName, c.Data.ClientNetwork, c.Data.ExternalNetwork, c.Data.HTTPSProxy, c.Data.HTTPProxy)
+	logArguments(cliContext)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {

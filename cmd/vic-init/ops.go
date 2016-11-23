@@ -87,6 +87,7 @@ func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
 	return t.BaseOperations.Apply(endpoint)
 }
 
+// Log will redirect logging to both a file on disk and to stdout for the process
 func (t *operations) Log() (io.Writer, error) {
 	defer trace.End(trace.Begin("operations.Log"))
 
@@ -95,7 +96,6 @@ func (t *operations) Log() (io.Writer, error) {
 
 	logPath := strings.Join([]string{pathPrefix, logDir, initLog}, string(os.PathSeparator))
 
-	// redirect logging to /var/log/vic/init
 	log.Infof("opening %s for debug log", logPath)
 	out, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0777)
 	if err != nil {
@@ -104,7 +104,7 @@ func (t *operations) Log() (io.Writer, error) {
 		return nil, errors.New(detail)
 	}
 
-	return out, nil
+	return io.MultiWriter(out, os.Stdout), nil
 }
 
 // sessionLogWriter returns a writer that will persist the session output
@@ -128,5 +128,10 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 	}
 
 	// use multi-writer so it goes to both screen and session log
-	return dio.MultiWriter(f, os.Stdout), dio.MultiWriter(f, os.Stderr), nil
+	if debugLevel > 0 {
+		return dio.MultiWriter(f, os.Stdout), dio.MultiWriter(f, os.Stderr), nil
+	}
+
+	// only duplicate stderr
+	return dio.MultiWriter(f), dio.MultiWriter(f), nil
 }

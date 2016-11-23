@@ -16,7 +16,7 @@ Install VIC 0.6.0 to Test Server
     Set Test Environment Variables
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  ./vic/vic-machine-linux create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=./vic/appliance.iso --bootstrap-iso=./vic/bootstrap.iso --password=%{TEST_PASSWORD} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${output}=  Run  ./vic/vic-machine-linux create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=./vic/appliance.iso --bootstrap-iso=./vic/bootstrap.iso --password=%{TEST_PASSWORD} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Installer completed successfully
     Get 0.6.0 VIC Docker Params  ${output}  false
     Log To Console  Installer completed successfully: ${vch-name}

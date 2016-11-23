@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof" // allow enabling pprof in contianerVM
@@ -118,7 +117,7 @@ func (t *tether) setup() error {
 		return err
 	}
 	if out != nil {
-		log.SetOutput(io.MultiWriter(out, os.Stdout))
+		log.SetOutput(out)
 	}
 
 	t.reload = make(chan bool, 1)
@@ -596,13 +595,16 @@ func logConfig(config *ExecutorConfig) {
 
 	// figure out the keys to filter
 	keys := make(map[string]interface{})
-	for _, f := range []string{
-		"Sessions.*.Cmd.Args",
-		"Sessions.*.Cmd.Args.*",
-		"Sessions.*.Cmd.Env",
-		"Sessions.*.Cmd.Env.*"} {
-		for _, k := range extraconfig.CalculateKeys(config, f, "") {
-			keys[k] = nil
+	if config.DebugLevel < 2 {
+		for _, f := range []string{
+			"Sessions.*.Cmd.Args",
+			"Sessions.*.Cmd.Args.*",
+			"Sessions.*.Cmd.Env",
+			"Sessions.*.Cmd.Env.*",
+			"Key"} {
+			for _, k := range extraconfig.CalculateKeys(config, f, "") {
+				keys[k] = nil
+			}
 		}
 	}
 

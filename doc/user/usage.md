@@ -11,6 +11,28 @@ The intent is that vSphere Integrated Containers Engine (VIC Engine) should not 
    - vCenter - Enterprise plus license, only very simple configurations have been tested.
 - Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, should not be the same as the external network, and should not have DHCP.
 
+### Privileges and credentials
+
+There is an operations user mechanism provided to allow a VCH to operate with less privileged credentials than are required for deploying a new VCH. These options are:
+* `--ops-user`
+* `--ops-password`
+If neither option is specified then the user supplied via `--target` or `--user` will be used and a warning will be output. If only the `--ops-user` option is provided there will be an interactive prompt for the password.
+At this time vic-machine _does not create_ the operations user, nor does it configure it with minimum set of RBAC permissions necessary for operation - this is actively being worked on (#1689)  
+
+Deploying a VCH requires credentials able to:
+* create and configure a resource pool (vApp on vCenter)
+* create a vSwitch (ESX only)
+* create and configure the endpointVM within that pool
+* upload files to datastores
+* inspect much of the vSphere inventory
+
+However operation of a VCH requires only a subset of those privileges:
+* create and configure containerVMs within the VCH resource pool/vApp
+* create/delete/attach/detach disks on the endpointVM
+* attach containerVMs to supplied networks
+* upload to/download from datastore
+
+### Example
 Replace the `<fields>` in the following example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. This example will use DHCP for the API endpoint and will not configure client authentication.  
 
 - --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targeting ESXi or only one datacenter is configured.
@@ -21,9 +43,10 @@ Replace the `<fields>` in the following example with values specific to your env
 vic-machine-linux create --target <target-host>[/datacenter] --user <root> --password <password> --thumbprint <certificate thumbprint> --compute-resource <resource pool path> --image-store <datastore name> --name <vch-name> --no-tlsverify
 ```
 
-This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi (output was generated with --client-network-ip specified):
+This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi (output was generated with --client-network-ip specified instead of `--no-tlsverify` denoted above):
 ```
 INFO[2016-11-07T22:01:22Z] Using client-network-ip as cname for server certificates - use --tls-cname to override: x.x.x.x
+WARN[2016-11-07T22:01:22Z] Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)
 INFO[2016-11-07T22:01:22Z] Generating CA certificate/key pair - private key in ./XXX/ca-key.pem
 INFO[2016-11-07T22:01:22Z] Generating server certificate/key pair - private key in ./XXX/server-key.pem
 INFO[2016-11-07T22:01:22Z] Generating client certificate/key pair - private key in ./XXX/key.pem
@@ -38,7 +61,7 @@ WARN[2016-11-07T22:01:23Z] Firewall must permit 2377/tcp outbound if firewall is
 INFO[2016-11-07T22:01:23Z] License check OK
 INFO[2016-11-07T22:01:23Z] DRS check SKIPPED - target is standalone host
 INFO[2016-11-07T22:01:23Z]
-INFO[2016-11-07T22:01:23Z] Creating Resource Pool "ghicken-test"
+INFO[2016-11-07T22:01:23Z] Creating Resource Pool "XXX"
 INFO[2016-11-07T22:01:23Z] Creating directory [datastore1] volumes
 INFO[2016-11-07T22:01:23Z] Datastore path is [datastore1] volumes
 INFO[2016-11-07T22:01:23Z] Creating appliance on target
@@ -58,7 +81,7 @@ INFO[2016-11-07T22:01:54Z] Published ports can be reached at:
 INFO[2016-11-07T22:01:54Z] x.x.x.x
 INFO[2016-11-07T22:01:54Z]
 INFO[2016-11-07T22:01:54Z] Docker environment variables:
-INFO[2016-11-07T22:01:54Z] DOCKER_TLS_VERIFY=1 DOCKER_CERT_PATH=/home/vagrant/vicsmb/src/github.com/vmware/vic/bin/ghicken-test DOCKER_HOST=x.x.x.x:2376
+INFO[2016-11-07T22:01:54Z] DOCKER_TLS_VERIFY=1 DOCKER_CERT_PATH=/home/vagrant/vicsmb/src/github.com/vmware/vic/bin/XXX DOCKER_HOST=x.x.x.x:2376
 INFO[2016-11-07T22:01:54Z]
 INFO[2016-11-07T22:01:54Z] Environment saved in XXX/XXX.env
 INFO[2016-11-07T22:01:54Z]

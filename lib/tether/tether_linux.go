@@ -116,7 +116,7 @@ func (t *tether) childReaper() error {
 					log.Debugf("Reaped process %d, return code: %d", pid, status.ExitStatus())
 
 					session, ok := t.removeChildPid(pid)
-					log.Debugf("Remove child pid: %d session: %#+v ok: %t", pid, session, ok)
+					log.Debugf("Remove child pid: %d ok: %t", pid, ok)
 					if ok {
 						session.Lock()
 						session.ExitStatus = status.ExitStatus()
