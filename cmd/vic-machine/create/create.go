@@ -34,6 +34,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 
+	"path/filepath"
+
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -218,7 +220,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "client-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the client network, e.g. 10.0.0.2/24",
+			Usage:       "IP address for the VCH on the client network, e.g. 10.0.0.2",
 			Destination: &c.clientNetworkIP,
 			Hidden:      true,
 		},
@@ -240,7 +242,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "public-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the public network, e.g. 10.0.1.2/24",
+			Usage:       "IP address for the VCH on the public network, e.g. 10.0.1.2",
 			Destination: &c.publicNetworkIP,
 			Hidden:      true,
 		},
@@ -262,7 +264,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "management-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the management network, e.g. 10.0.2.2/24",
+			Usage:       "IP address for the VCH on the management network, e.g. 10.0.2.2",
 			Destination: &c.managementNetworkIP,
 			Hidden:      true,
 		},
@@ -610,9 +612,17 @@ func (c *Create) processCertificates() error {
 	}
 
 	// if we've not got a specific CommonName but do have a static IP then go with that.
-	if c.cname == "" && c.clientNetworkIP != "" {
-		c.cname = c.clientNetworkIP
-		log.Infof("Using client-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
+	if c.cname == "" {
+		if c.clientNetworkIP != "" {
+			c.cname = c.clientNetworkIP
+			log.Infof("Using client-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
+		} else if c.publicNetworkIP != "" && (c.publicNetworkName == c.clientNetworkName || c.clientNetworkName == "") {
+			c.cname = c.publicNetworkIP
+			log.Infof("Using public-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
+		} else if c.managementNetworkIP != "" && (c.managementNetworkName == c.clientNetworkName || (c.clientNetworkName == "" && c.managementNetworkName == c.publicNetworkName)) {
+			c.cname = c.managementNetworkIP
+			log.Infof("Using management-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
+		}
 	}
 
 	// load what certificates we can
@@ -931,9 +941,11 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 
 	var keypair *certificate.KeyPair
 	// default names
-	skey := fmt.Sprintf("./%s/%s", c.certPath, serverKey)
-	scert := fmt.Sprintf("./%s/%s", c.certPath, serverCert)
-	ca := fmt.Sprintf("./%s/%s", c.certPath, caCert)
+	skey := filepath.Join(c.certPath, serverKey)
+	scert := filepath.Join(c.certPath, serverCert)
+	ca := filepath.Join(c.certPath, caCert)
+	ckey := filepath.Join(c.certPath, clientKey)
+	ccert := filepath.Join(c.certPath, clientCert)
 
 	// if specific files are supplied, use those
 	explicit := false
@@ -967,6 +979,9 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 	// to diagnose errors
 	if cert.Leaf.Subject.CommonName != c.cname {
 		log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
+		if c.Debug.Debug > 2 {
+			log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
+		}
 		return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.certPath)
 	}
 
@@ -992,9 +1007,6 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 		certs = b
 
 		// load client certs - we ensure the client certs validate with the provided CA or ignore any we find
-		ckey := fmt.Sprintf("./%s/%s", c.certPath, clientKey)
-		ccert := fmt.Sprintf("./%s/%s", c.certPath, clientCert)
-
 		cpair := certificate.NewKeyPair(ccert, ckey, nil, nil)
 		if err := cpair.LoadCertificate(); err != nil {
 			log.Warnf("Unable to load client certificate - validation of API endpoint will be best effort only: %s", err)
@@ -1002,7 +1014,7 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 
 		clientCert, err := cpair.Certificate()
 		if err != nil || clientCert.Leaf == nil {
-			log.Debugf("Unable to create CA pool to check client certificate: %s", err)
+			log.Debugf("Unable to parse client certificate: %s", err)
 			return certs, keypair, nil
 		}
 
@@ -1062,20 +1074,20 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 
 	var certs []byte
 	// generate the certs and keys with names conforming the default the docker client expects
-	err := os.MkdirAll(fmt.Sprintf("./%s", c.certPath), 0700)
+	err := os.MkdirAll(c.certPath, 0700)
 	if err != nil {
 		log.Errorf("Unable to make directory to hold certificates (set via --cert-path)")
 		return nil, nil, err
 	}
 
-	c.skey = fmt.Sprintf("./%s/%s", c.certPath, serverKey)
-	c.scert = fmt.Sprintf("./%s/%s", c.certPath, serverCert)
+	c.skey = filepath.Join(c.certPath, serverKey)
+	c.scert = filepath.Join(c.certPath, serverCert)
 
-	c.ckey = fmt.Sprintf("./%s/%s", c.certPath, clientKey)
-	c.ccert = fmt.Sprintf("./%s/%s", c.certPath, clientCert)
+	c.ckey = filepath.Join(c.certPath, clientKey)
+	c.ccert = filepath.Join(c.certPath, clientCert)
 
-	cakey := fmt.Sprintf("./%s/%s", c.certPath, caKey)
-	c.cacert = fmt.Sprintf("./%s/%s", c.certPath, caCert)
+	cakey := filepath.Join(c.certPath, caKey)
+	c.cacert = filepath.Join(c.certPath, caCert)
 
 	if server && !client {
 		log.Infof("Generating self-signed certificate/key pair - private key in %s", c.skey)
