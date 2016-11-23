@@ -34,7 +34,7 @@ Docker logs with tail
     Should Be Equal As Integers  ${rc}  0
     ${linecount}=  Get Line Count  ${output}
     Should Be Equal As Integers  ${linecount}  0
-    
+
 Docker logs with follow
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -63,11 +63,12 @@ Docker logs with follow and tail
     Wait Until Keyword Succeeds  20x  200 milliseconds  Grep Logs And Count Lines  ${id}  5  10
     # kill -HUP will create another 5 lines of log output
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill -s HUP ${id}
+    Should Be Equal As Integers  ${rc}  0
     # --tail=5 to skip the first 5 lines and --follow to wait for the rest
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --tail=5 --follow ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --tail 5 --follow ${id}
     Should Be Equal As Integers  ${rc}  0
     ${linecount}=  Get Line Count  ${output}
-    Should Be Equal As Integers  ${linecount}  15
+    Should Be True  ${linecount} >= 5
 
 Docker logs follow shutdown
     # Test that logs --follow reads all data following a close (shutdown) event.
