@@ -393,17 +393,9 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
-    # get docker_cert_path or empty string if it's unset
-    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
-    # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-${vch-name}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz -b /tmp/cookies-${vch-name} | tar tvzf -
-    Should Be Equal As Integers  ${rc}  0
-    Log  ${output}
-    Should Contain  ${output}  ${container}/output.log
-    Should Contain  ${output}  ${container}/vmware.log
-    Should Contain  ${output}  ${container}/tether.debug
+
+    Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${container}
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
@@ -429,6 +421,18 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
+
+Check For The Proper Log Files
+    [Arguments]  ${container}
+    # Ensure container logs are correctly being gathered for debugging purposes
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz -b /tmp/cookies-${vch-name} | tar tvzf -
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Should Contain  ${output}  ${container}/output.log
+    Should Contain  ${output}  ${container}/vmware.log
+    Should Contain  ${output}  ${container}/tether.debug
 
 Put Host Into Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.enter -host.ip=%{TEST_URL}
