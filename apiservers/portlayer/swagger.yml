@@ -1,0 +1,184 @@
+swagger: "2.0"
+info:
+  description: "Port Layer API"
+  title: "Port Layer API"
+  version: "v0.0.1"
+produces:
+- application/json
+consumes:
+- application/json
+schemes:
+- http
+paths:
+  /storage:
+    get:
+      tags: ["storage"]
+      operationId: ListImageStores
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/ImageStore"
+        default:
+          description: "error"
+          schema:
+           $ref: "#/definitions/Error"
+    post:
+      tags: ["storage"]
+      operationId: CreateImageStore
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/ImageStore"
+      responses:
+        '201':
+          description: "Created"
+          schema:
+            $ref: "#/definitions/StoreUrl"
+        '400':
+          description: "An image store with that name already exists."
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+  /storage/{store_name}:
+    parameters:
+      - name: store_name
+        type: string
+        in: path
+        required: true
+    get:
+      tags: ["storage"]
+      operationId: ListImages
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/Image"
+        '404':
+          description: "Not found"
+        default:
+          description: "error"
+          schema:
+           $ref: "#/definitions/Error"
+    post:
+      tags: ["storage"]
+      operationId: WriteImage
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/Image"
+      responses:
+        '201':
+          description: "Created"
+          schema:
+            $ref: "#/definitions/Image"
+        default:
+          description: "error"
+          schema:
+           $ref: "#/definitions/Error"
+  /storage/{store_name}/info/{id}:
+    parameters:
+      - name: store_name
+        type: string
+        in: path
+        required: true
+      - name: id
+        type: string
+        in: path
+        required: true
+    get:
+      tags: ["storage"]
+      operationId: GetImageInfo
+      responses:
+        '404':
+          description: "Not found"
+        '200':
+          description: "OK"
+          schema:
+            type: array
+            items:
+                $ref: "#/definitions/Image"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+  /storage/{store_name}/tar/{id}:
+    parameters:
+      - name: store_name
+        type: string
+        in: path
+        required: true
+      - name: id
+        type: string
+        in: path
+        required: true
+    get:
+      tags: ["storage"]
+      operationId: GetImageTar
+      produces:
+        - application/gzip
+      responses:
+        '404':
+          description: "Not found"
+        '200':
+          description: "OK"
+          schema:
+            $ref: "#/definitions/ImageTar"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+definitions:
+  Error:
+    type: object
+    required:
+      - message
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+  StoreUrl:
+    type: object
+    required:
+      - url
+    properties:
+      code:
+        type: integer
+        format: int64
+      url:
+        type: string
+  ImageStore:
+    type: object
+    required:
+      - name
+    properties:
+      name:
+        type: string
+  Image:
+    type: object
+    required:
+      - id
+      - store
+    properties:
+      id:
+        type: string
+      selflink:
+        type: string
+      parent:
+        type: string
+      store:
+        type: string
+      data:
+        type: object
+  ImageTar:
+    type: string
+    format: base64
