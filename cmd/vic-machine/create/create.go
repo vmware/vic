@@ -1263,7 +1263,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	defer func() {
 		if timeoutctx.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
-			err = errors.Errorf("Creating VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a slow network connection or a busy vSphere target", c.Timeout.String())
+			err = errors.Errorf("Creating VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", c.Timeout.String())
 		}
 	}()
 
