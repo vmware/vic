@@ -4,14 +4,11 @@ In this example, we will install VMware's Harbor registry and show how to get vS
 
 ## Prerequisite
 
-The following example requires a vCenter installation.  We will use the OVA deployment mechanism in the vSphere client, and the Harbor OVA setup currently does not work with ESXi.  This will be resolved by 1.0.  We will also use openssl to generate a certificate authority and self sign a server certificate.  We'll show steps to follow, but a background in certificates management should be helpful.
-
-The following will show steps for creating certificates for both static IP and fully qualified domain names (FQDN).
+The following example requires a vCenter installation.
 
 Note: Certificate verification requires all machines using certificates are time/date accurate.  This can be achieved using several options, suchas, vSphere web client, vSphere thick client for Windows or govc. In the following, we deploy this example on a vCenter where all ESXi hosts in the cluster have been set up with NTP and were sync'd prior to installing VIC Engine or Harbor.
 
 ## Workflows
 
-1. [Install Harbor with static IP](harbor_with_static_ip.md)
-2. [Install Harbor with FQDN](harbor_with_fqdn.md)
-3. [Post-Install Usage](post_install_usage.md)
+1. [Deploy a VCH to use with Harbor](deploy_vch_with_harbor.md)
+2. [Post-Install Usage](post_install_usage.md)
