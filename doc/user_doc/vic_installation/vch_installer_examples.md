@@ -309,6 +309,7 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
 - Provides `vch1.example.org` as the FQDN for the virtual container host, for use as the Common Name in the certificate.
+- Specifies a folder in which to store the auto-generated certificates.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -316,6 +317,7 @@ This example deploys a virtual container host with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --tls-cname vch1.example.org
+--cert-path <i>path_to_cert_folder</i>
 --name vch1
 </pre>
 

@@ -135,12 +135,15 @@ The Common Name to use in an auto-generated CA certificate if you require two-wa
 
 The `--tls-cname` option is the minimum option that you must specify when using auto-generated trusted TLS certificates. For information about further options that you can specify when using auto-generated trusted certificates, see  the descriptions of the `--tls-ca`, `--certificate-key-size`, and `--organization` options in [Advanced Security Options](#adv-security).
 
-If you specify a static IP address for the virtual container host on the client network by setting the `--client-network-ip` and `--client-network-gateway` options, `vic-machine create` uses this address as the Common Name when it creates auto-generated trusted certificates. In this case, you do not need to specify `--tls-cname` or any other authentication options. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+If you specify a static IP address for the virtual container host on the client network by setting the `--client-network-ip` option, `vic-machine create` uses this address as the Common Name when it creates auto-generated trusted certificates. In this case, you do not need to specify `--tls-cname` or any other authentication options. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+
+You can reuse an existing certificate that was generated for a virtual container host that has been deleted. To reuse an existing certificate, specify the same Common Name in the `--tls-cname` option as was used by the deleted virtual container host. Reusing certificates allows you to delete and recreate virtual container hosts for which you have already distributed the certificates to container developers. If certificates are present that include a different Common Name attribute to the one that you specify in `--tls-cname`, `vic-machine create` fails. 
 
 When you specify the `--tls-cname` option, and potentially other options for auto-generating trusted TLS certificates, `vic-machine create` performs the following actions during the deployment of the virtual container host.
 
-- Creates a folder with the same name as the virtual container host in the location in which you run `vic-machine create`.
-- Creates trusted CA, server, and client certificate/key pairs in the newly created folder:
+- Checks for an existing certificate in either a folder with the same name as the virtual container host in the location in which you run `vic-machine create`, or in a location that you specify in the [`--cert-path`](#cert-path) option. If a valid certificate exists that includes the same Common Name attribute as the one that you specify in `--tls-cname`, `vic-machine create` reuses it. 
+- If a certificate folder does not exist, creates a folder with the same name as the virtual container host, or creates a folder in the location that you specify in the `--cert-path` option. 
+- If valid certificates do not already exist, `vic-machine create` creates trusted CA, server, and client certificate/key pairs in the certificate folder:
   - `ca.pem`
   - `ca-key.pem`
   - `cert.pem`
@@ -531,6 +534,18 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 
 <pre>--cert '<i>path to certificate file</i>'/<i>certificate_file_name</i>.pem 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem
+</pre>
+
+<a name="cert-path"></a>
+### `--cert-path` ###
+
+Short name: none
+
+A folder in which to store auto-generated certificates. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. If not specified, `vic-machine create` stores auto-generated certificates in a folder with the same name as the virtual container host, in the folder from which you run `vic-machine create`. 
+
+When you deploy a virtual container host, `vic-machine create` checks for existing certificates, either in the default location or in the folder that you specify in `--cert-path`. If an auto-generated certificates exists that includes the same Common Name attribute as the  one that you specify in either the `--tls-cname` option or `--client-network-ip` option, `vic-machine` reuses it. Reusing certificates allows you to delete and recreate virtual container hosts for which you have already distributed the certificates to container developers. If certificates are present that are not valid for the virtual container host that you are deploying, `vic-machine create` fails. 
+
+<pre>--cert-path '<i>path_to_certificate_folder</i>'
 </pre>
 
 <a name="no-tls"></a>
