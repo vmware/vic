@@ -90,7 +90,6 @@ func waitForDevice(op trace.Operation, sysPath string) (string, error) {
 
 					// try again
 					if os.IsNotExist(err) {
-						op.Debugf("Expected %s to appear. Trying again.", blockDev)
 						continue
 					}
 

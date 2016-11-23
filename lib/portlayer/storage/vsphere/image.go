@@ -145,6 +145,12 @@ func (v *ImageStore) CreateImageStore(op trace.Operation, storeName string) (*ur
 	return u, nil
 }
 
+// DeleteImageStore deletes the image store top level directory
+func (v *ImageStore) DeleteImageStore(op trace.Operation, storeName string) error {
+	op.Infof("Cleaning up image store %s", storeName)
+	return v.ds.Rm(op, v.imageStorePath(storeName))
+}
+
 // GetImageStore checks to see if the image store exists on disk and returns an
 // error or the store's URL.
 func (v *ImageStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
