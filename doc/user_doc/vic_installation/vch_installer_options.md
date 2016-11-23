@@ -552,13 +552,7 @@ If you use the `no-tls` option, container developers connect Docker clients to t
 
 You can specify a static IP address for the virtual container host endpoint VM on each of the client, public, and management networks. DHCP is used for the endpoint VM for any network on which you do not specify a static IP address.
 
-You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks shares a port group, you can only specify an IP address on one of those networks. The same address is then used for all of the networks that share that port group.
-
-Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
-
 To specify a static IP address for the endpoint VM on the client, public, or management network, you provide an IP address in the `client/public/management-network-ip` option. If you set a static IP address, you must also provide a gateway address. You can optionally specify one or more DNS server addresses.
-
-**IMPORTANT**: If you assign a static IP address to the virtual container host endpoint VM on the client network by setting the `--client-network-ip` option, and you do not specify one of the TLS options, `vic-machine create` uses this address to auto-generate trusted CA certificates. If you do not specify `--tls-cname`, `--no-tls` or `--no-tlsverify`, two-way TLS authentication with trusted certificates is implemented by default when you deploy the virtual container host. If you assign a static IP address to the endpoint VM on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname). If the client network shares a network with the public network you cannot set a static IP address for the endpoint VM on the client network. In this case, you can set a static IP address on the public network, and `vic-machine create` uses this address to auto-generate trusted CA certificates. 
 
 ### `--dns-server` ###
 
@@ -581,21 +575,31 @@ Short name: None
 
 A static IP address for the virtual container host endpoint VM on the public, client, or management network. 
 
-You specify a static IP address for the endpoint VM on the public, client, or management networks by using the `--public/client/management-network-ip` option. If you set a static IP address for the endpoint VM on any of the networks, you must specify a corresponding gateway address by using the `--public/client/management-network-gateway` option. 
+You specify a static IP address for the endpoint VM on the public, client, or management networks by using the `--public/client/management-network-ip` options. If you set a static IP address for the endpoint VM on any of the networks, you must specify a corresponding gateway address by using the `--public/client/management-network-gateway` option. 
 
-- If you use the same network for the public network and either or both of the client or management networks, you cannot specify a static IP address for the endpoint VM on the client or management networks. The endpoint VM can have a static IP address on only the public network if the public network is shared with either of the other networks.
+- You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks shares a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
+- If either of the client or management networks shares a port group with the public network, you can only specify a static IP address on the public network.
 - If either or both of the client or management networks do not use the same network as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
 - If the client and management networks both use the same network, and the public network does not use that network, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
+- If you assign a static IP address to the virtual container host endpoint VM on the client network by setting the `--client-network-ip` option, and you do not specify one of the TLS options, `vic-machine create` uses this address as the Common Name with which to auto-generate trusted CA certificates. If you do not specify `--tls-cname`, `--no-tls` or `--no-tlsverify`, two-way TLS authentication with trusted certificates is implemented by default when you deploy the virtual container host with a static IP address on the client network. If you assign a static IP address to the endpoint VM on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname).
+ 
+  **IMPORTANT**: If the client network shares a network with the public network you cannot set a static IP address for the endpoint VM on the client network. To assign a static IP address to the endpoint VM you must set a static IP address on the public network by using the `--public-network-ip` option. In this case, unlike when specifying `--client-network-ip`, you must also specify one of the TLS options. To auto-generate trusted CA certificates, you can specify the same IP address in the `--tls-cname` option as you specify in `--public-network-ip`.
+
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
 
-You can specify IP addresses in CIDR format.
+You can specify addresses either as IPv4 addresses or in CIDR format.
+
+<pre>--public-network-ip 192.168.X.N
+--management-network-ip 192.168.Y.N
+--client-network-ip 192.168.Z.N
+</pre>
 
 <pre>--public-network-ip 192.168.X.N/24
 --management-network-ip 192.168.Y.N/24
 --client-network-ip 192.168.Z.N/24
 </pre>
 
-You can also specify IP addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
+You can also specify addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
 
 <pre>--public-network-ip=vch27-team-a.internal.domain.com
 --management-network-ip=vch27-team-b.internal.domain.com
@@ -612,7 +616,9 @@ You specify the public network gateway address in CIDR format.
 
 <pre>--public-network-gateway 192.168.X.1/24</pre>
 
-The public, management, and client networks route traffic through the virtual container host endpoint VM to vSphere. The default route to vSphere through the endpoint VM is assigned to the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify all of the addresses in CIDR format:
+**IMPORTANT**: Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
+
+The public, management, and client networks route traffic through the virtual container host endpoint VM to vSphere. The default route to vSphere through the endpoint VM is assigned to the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
 
 <pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
 <i>routing_destination_2</i>/<i>subnet</i>:

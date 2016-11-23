@@ -185,18 +185,17 @@ For more information about the networking options, see the [Networking Options s
 <a name="static-ip"></a>
 ### Set a Static IP Address for the Virtual Container Host Endpoint VM on the Different Networks ###
 
-If you specify networks for any or all of the public, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on one or more of those networks. 
-
-**NOTE**: When you specify a static IP address for the virtual container host endpoint VM on the client network, and you do not specify one of the TLS options, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. In this case, full TLS authentication is implemented by default and `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname). 
+If you specify networks for any or all of the public, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on one or more of those networks.  
 
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
-- Directs public and management to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
+- Directs public and management traffic to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Sets a DNS server for use by the public, management, and client networks.
 - Sets a static IP address for the virtual container host endpoint VM on the public and client networks. Because the management network shares a network with the public network, you cannot set a static IP address on the management network.
 - Specifies the gateway for the public network. If you set a static IP address on the public network, you must also specify the gateway address.
-- Specifies a gateway for the client network. The `--client-network-gateway` options specifies the routing destination for client network traffic through the virtual container host endpoint VM, as well as the gateway address. The routing destination  informs the virtual container host that it can reach all of the Docker clients at the network addresses in the ranges that you specify in the routing destinations by sending packets to the specified gateway.
+- Specifies a gateway for the client network. The `--client-network-gateway` option specifies the routing destination for client network traffic through the virtual container host endpoint VM, as well as the gateway address. The routing destination informs the virtual container host that it can reach all of the Docker clients at the network addresses in the ranges that you specify in the routing destinations by sending packets to the specified gateway.
+- Because this example specifies a static IP address for the virtual container host endpoint VM on the client network, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. Full TLS authentication is implemented by default, so no TLS options are specified. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -204,11 +203,11 @@ This example deploys a virtual container host with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --public-network 'network 1'
+--public-network-ip 192.168.1.10
 --public-network-gateway 192.168.1.1/24
---public-network-ip 192.168.1.10/24
 --management-network 'network 1'
 --client-network 'network 2'
---client-network-ip 192.168.3.10/24
+--client-network-ip 192.168.3.10
 --client-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
 --dns-server <i>dns_server_address</i>
 --name vch1
