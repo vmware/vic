@@ -29,10 +29,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
-func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (err error) {
 	defer trace.End(trace.Begin(conf.Name))
-
-	var err error
 
 	if err = d.checkExistence(conf, settings); err != nil {
 		return err
@@ -94,11 +92,6 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 	if err != nil {
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
-
-	if err = d.ensureApplianceInitializes(conf); err != nil {
-		return errors.Errorf("%s. Exiting...", err)
-	}
-
 	return nil
 }
 

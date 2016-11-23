@@ -673,10 +673,10 @@ func (d *Dispatcher) applianceConfiguration(conf *config.VirtualContainerHostCon
 }
 
 // waitForKey squashes the return values and simpy blocks until the key is updated or there is an error
-func (d *Dispatcher) waitForKey(key string) {
+func (d *Dispatcher) waitForKey(ctx context.Context, key string) {
 	defer trace.End(trace.Begin(key))
 
-	d.appliance.WaitForKeyInExtraConfig(d.ctx, key)
+	d.appliance.WaitForKeyInExtraConfig(ctx, key)
 	return
 }
 
@@ -705,7 +705,7 @@ func isPortLayerRunning(res *http.Response) bool {
 
 // CheckDockerAPI checks if the appliance components are initialized by issuing
 // `docker info` to the appliance
-func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
+func (d *Dispatcher) CheckDockerAPI(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
 	defer trace.End(trace.Begin(""))
 
 	var (
@@ -798,7 +798,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 	if err != nil {
 		return errors.New("invalid HTTP request for docker info")
 	}
-	req = req.WithContext(d.ctx)
+	req = req.WithContext(ctx)
 
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -900,8 +900,8 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 		select {
 		case <-ticker.C:
-		case <-d.ctx.Done():
-			return d.ctx.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 
 		log.Debug("Components not yet initialized, retrying")
@@ -911,7 +911,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 }
 
 // ensureApplianceInitializes checks if the appliance component processes are launched correctly
-func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) EnsureApplianceInit(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	if d.appliance == nil {
@@ -919,13 +919,13 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
-	ctxerr := d.ctx.Err()
+	d.waitForKey(ctx, extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
+	ctxerr := ctx.Err()
 
 	if ctxerr == nil {
 		log.Info("Waiting for major appliance components to launch")
 		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
-			d.waitForKey(k)
+			d.waitForKey(ctx, k)
 		}
 	}
 
@@ -943,7 +943,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 
 	// it's possible we timed out... get updated info having adjusted context to allow it
 	// keeping it short
-	ctxerr = d.ctx.Err()
+	ctxerr = ctx.Err()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
