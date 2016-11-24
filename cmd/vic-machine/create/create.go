@@ -26,15 +26,13 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
-
-	"path/filepath"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
@@ -1350,34 +1348,19 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	log.Info("Checking VCH connectivity with vSphere target")
 	vch, err := executor.NewVCHFromComputePath(c.Data.ComputeResourcePath, c.Data.DisplayName, validator)
 	if err != nil {
-		executor.CollectDiagnosticLogs()
-		log.Errorf("Failed to get Virtual Container Host %s", c.Data.DisplayName)
-		log.Error(err)
-		return errors.New("Running diagnostics failed.")
-	}
-
-	// Checking access to vSphere API
-	cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
-	code := int(cd)
-	if err != nil {
-		log.Errorf("Failed to access target vSphere API %s: %v", vchConfig.Target, err)
-		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Could not run vSphere API diagnostic on VCH")
-	}
-
-	const apiTestTxt = "vSphere API Test:"
-	// In case of fatal error, log error and exist.
-	if code >= diag.StatusCodeFatalThreshold {
-		log.Errorf("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-		executor.CollectDiagnosticLogs()
-		return fmt.Errorf("Access to vSphere target from VCH failed")
-	}
-
-	// In case of non fatal error, log an error on warning level.
-	if code > 0 {
-		log.Warningf("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
+		log.Warningf("Failed to get Virtual Container Host %s. Error: %v", c.Data.DisplayName, err)
 	} else {
-		log.Infof("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
+		// Checking access to vSphere API
+		if cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target); err == nil {
+			code := int(cd)
+			if code > 0 {
+				log.Warningf("vSphere API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
+			} else {
+				log.Infof("vSphere API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
+			}
+		} else {
+			log.Warningf("Could not run VCH vSphere API target check due to %v", err)
+		}
 	}
 
 	// check the docker endpoint is responsive
