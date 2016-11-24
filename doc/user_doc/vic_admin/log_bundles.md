@@ -2,7 +2,9 @@
 
 vSphere Integrated Containers Engine provides log bundles that you can download from the VCH Admin portal for a virtual container host.
 
-- The **Log Bundle** contains logs that relate specifically to the virtual container host that you created. If the virtual container host is unable to connect to vSphere, logs that require a vSphere connection are disabled, and you get an error message. You can download the log bundle to troubleshoot the error.
+If the virtual container host is unable to connect to vSphere, logs that require a vSphere connection are disabled, and you see an error message. You can download the log bundle to troubleshoot the error.
+
+- The **Log Bundle** contains logs that relate specifically to the virtual container host that you created. 
 - The **Log Bundle with container logs** contains the logs for the virtual container host and also includes the logs regarding  the containers that the virtual container host manages.
 - Live logs (tail files) allow you to view the current status of how components are running.
   - **Docker Personality** is the interface to Docker. When configured with client certificate security, it reports unauthorized access attempts to the Docker server web page.
