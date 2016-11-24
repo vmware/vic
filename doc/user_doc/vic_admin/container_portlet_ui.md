@@ -8,7 +8,7 @@ After you have installed the vSphere Web Client plug-in for vSphere Integrated C
 
 - You deployed a virtual container host and pulled and ran at least one container.
 - You installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
-- If you deployed the virtual container host to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client. The vSphere Web Client plug-in for vSphere Integrated Containers Engine does not support the new HTML5 vSphere Client.
+- If you deployed the virtual container host to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client to view the vSphere Web Client plug-in for vSphere Integrated Containers Engine. vSphere Integrated Containers Engine does not currently provide a plug-in for the new HTML5 vSphere Client.
 
 **Procedure**
 

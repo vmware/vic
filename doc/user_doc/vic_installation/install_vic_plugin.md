@@ -4,7 +4,7 @@ You can install a plug-in that adds information about virtual container hosts an
 
 You can install the plug-in for vSphere Integrated Containers Engine either on a vCenter Server instance that runs on Windows, or on a vCenter Server Appliance. 
 
-**NOTE**: If you deployed the virtual container host to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client. The vSphere Web Client plug-in for vSphere Integrated Containers Engine does not support the new HTML5 vSphere Client.
+**NOTE**: If you deployed the virtual container host to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client to view the vSphere Web Client plug-in for vSphere Integrated Containers Engine. vSphere Integrated Containers Engine does not currently provide a plug-in for the new HTML5 vSphere Client.
 
 Information about virtual container hosts and container VMs appears in the **Summary** tabs for those VMs.
 
