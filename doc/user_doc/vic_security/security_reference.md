@@ -33,4 +33,4 @@ Download a new version of vSphere Integrated Containers Engine and upgrade your 
 
 <a name="logs"></a>
 ## Security Related Log Messages
-vSphere Integrated Containers Engine security related information appears in `docker-personality.log` and `vicadmin.log`, that you can access from the VCH Admin portal for a virtual container host.
+Security-related information for vSphere Integrated Containers Engine appears in `docker-personality.log` and `vicadmin.log`, that you can access from the VCH Admin portal for a virtual container host.

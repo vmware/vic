@@ -15,4 +15,4 @@ Live logs can help you to see how any current changes you make might affect the 
 You can share the non-live version of the logs with administrators or VMware Support to help you to solve issues.
 
 ## Collecting Logs Manually
-If the VCH Admin portal is offline, use `vic-machine debug` to enable ssh and `scp -r` to capture the logs to the virtual container host.
+If the VCH Admin portal is offline, use `vic-machine debug` to enable SSH on the virtual container host and use `scp -r` to capture the logs from `/var/log/vic/`.
