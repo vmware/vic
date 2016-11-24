@@ -602,16 +602,11 @@ You specify a static IP address for the endpoint VM on the public, client, or ma
 
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
 
-You can specify addresses either as IPv4 addresses or in CIDR format.
+You can specify addresses either as IPv4 addresses. Do not use CIDR notation.
 
 <pre>--public-network-ip 192.168.X.N
 --management-network-ip 192.168.Y.N
 --client-network-ip 192.168.Z.N
-</pre>
-
-<pre>--public-network-ip 192.168.X.N/24
---management-network-ip 192.168.Y.N/24
---client-network-ip 192.168.Z.N/24
 </pre>
 
 You can also specify addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
