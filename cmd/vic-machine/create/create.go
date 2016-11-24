@@ -21,20 +21,19 @@ import (
 	"encoding"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
-
-	"path/filepath"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
@@ -1357,14 +1356,33 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	}
 
 	// Checking access to vSphere API
+	const maxChecks = 5
+	checkCnt := 0
+
+checkRetry:
+	checkCnt++
 	cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target)
-	code := int(cd)
 	if err != nil {
+		if checkCnt <= maxChecks {
+			log.Debugf("Could not run VCH vSphere API target check: %v. Current attempt: %d of %d",
+				err, checkCnt, maxChecks)
+
+			// Will be waiting 0.2s for 1, 0.4s for 2, 0.8s for 3, 1.6 for 4, 3.2s for 5.
+			sleepInterval := time.Duration(math.Pow(2, float64(checkCnt))*100) * time.Second / 1000
+			select {
+			case <-time.After(sleepInterval):
+				err = nil
+				goto checkRetry
+			case <-ctx.Done():
+				log.Errorf("VCH diagnostic has been interrupted due to: %s", ctx.Err())
+			}
+		}
 		log.Errorf("Failed to access target vSphere API %s: %v", vchConfig.Target, err)
 		executor.CollectDiagnosticLogs()
 		return fmt.Errorf("Could not run vSphere API diagnostic on VCH")
 	}
 
+	code := int(cd)
 	const apiTestTxt = "vSphere API Test:"
 	// In case of fatal error, log error and exist.
 	if code >= diag.StatusCodeFatalThreshold {
