@@ -1384,6 +1384,7 @@ checkRetry:
 
 	code := int(cd)
 	const apiTestTxt = "vSphere API Test:"
+
 	// In case of fatal error, log error and exist.
 	if code >= diag.StatusCodeFatalThreshold {
 		log.Errorf("%s %s %s", apiTestTxt, vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
