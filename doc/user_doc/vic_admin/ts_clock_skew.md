@@ -14,11 +14,12 @@ vic-machine-windows.exe failed: tls: bad certificate
 - Connections to the virtual container host from Docker clients fail with a `bad certificate` error.
 
 ## Cause ##
-There is a clock skew between the virtual container host and the system from which you are connecting to the virtual container host.
+There is potentially a clock skew between the virtual container host and the system from which you are connecting to the virtual container host.
 
 ## Solution ##
 
-1. Run `vic-machine debug` to enable SSH access to the virtual container host. 
+1. Go to the VCH Admin portal for the virtual container host at https://<i>vch_address</i>:2378 and check the System Time under **Virtual Container Host Info**.
+2. If the system time of the virtual container host is wrong, run `vic-machine debug` to enable SSH access to the virtual container host. 
 
   For information about enabling SSH on a virtual container host, see [Authorize SSH Access to the Virtual Container Host Endpoint VM](vch_ssh_access.md).
 2.  Connect to the virtual container host endpoit VM by using SSH.
