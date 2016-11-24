@@ -4,7 +4,7 @@ You delete virtual container hosts by using the `vic-machine delete` command.
 
 For descriptions of the options that `vic-machine delete` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [Virtual Container Host Delete Options](delete_vch_options.md).
 
-When you delete a virtual container host that uses TLS authentication with trusted Certificate Authority (CA) certificates, `vic-machine delete` does not delete the certificates, even if you specify the `--force` option. Because `vic-machine delete` does not delete the certificates, you can delete and recreate virtual container hosts for which you have already distributed the client certificates.
+When you delete a virtual container host that uses TLS authentication with trusted Certificate Authority (CA) certificates, `vic-machine delete` does not delete the certificates or the certificate folder, even if you specify the `--force` option. Because `vic-machine delete` does not delete the certificates, you can delete virtual container hosts and create new ones that reuse the same certificates. This is useful if you have already distributed the client certificates for virtual container hosts that you need to recreate.
 
 **Prerequisites**
 
