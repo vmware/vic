@@ -4,8 +4,6 @@
 
 **Product version: 0.8 Release Candidate 2**
 
-**NOTE**  This book is a work in progress.
-
 For an introduction to vSphere Integrated Containers Engine and descriptions of its main components, see *vSphere Integrated Containers Engine for vSphere Installation*.
 
 ## Intended Audience

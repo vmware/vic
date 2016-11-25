@@ -4,8 +4,6 @@
 
 **Product version: 0.8 Release Candidate 2**
 
-**NOTE**  This book is a work in progress.
-
 ## Intended Audience
 
 This information is intended for anyone who wants to install, configure, and get started with using vSphere Integrated Containers Engine. The information is written for experienced VMware vSphere&reg; administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
