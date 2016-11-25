@@ -2,10 +2,9 @@
 
 This topic provides examples of the options of the `vic-machine create` command to use when deploying virtual container hosts in different vSphere configurations.
 
-- [Basic Deployment Examples](#basic)
-  - [Deploy to an ESXi Host with no Resource Pools and a Single Datastore](#esxi)
-  - [Deploy to a vCenter Server Cluster](#cluster)
-  - [Deploy to a Standalone Host in vCenter Server](#standalone)
+- [General Deployment Examples](#general)
+  - [Deploy to a vCenter Server Cluster with Multiple Datacenters and Datastores](#cluster)
+  - [Deploy to a Specific Standalone Host in vCenter Server](#standalone)
   - [Deploy to a Resource Pool on an ESXi Host](#rp_host)
   - [Deploy to a Resource Pool in a vCenter Server Cluster](#rp_cluster)
   - [Set Limits on Resource Use](#customized)
@@ -24,24 +23,13 @@ For simplicity, unless stated otherwise, these examples assume that the vSphere 
 
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md).
 
-<a name="basic"></a>
-## Basic Deployment Examples ##
+<a name="general"></a>
+## General Deployment Examples ##
 
 The examples in this section demonstrate the deployment of virtual container hosts in different vSphere environments.
 
-<a name="esxi"></a>
-### Deploy to an ESXi Host with no Resource Pools and a Single Datastore###
-
-You can deploy a virtual container host directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the minimum options required to deploy a virtual container host, namely the `--target` and `--user` options and an authentication option. The `vic-machine create` command prompts you for the password for the ESXi host and deploys a virtual container host with the default name `virtual-container-host`. If there is only one datastore on the host and there are no resource pools, you do not need to specify the `--image-store` or `--compute-resource` options. When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a distributed port group, so you do not need to specify any network options if you do not have specific network requirements. The example uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
-
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
---target <i>esxi_host_address</i>
---user root
---no-tlsverify
-</pre>
-
 <a name="cluster"></a>
-### Deploy to a vCenter Server Cluster ###
+### Deploy to a vCenter Server Cluster with Multiple Datacenters and Datastores ###
 
 If vCenter Server has more than one datacenter, you specify the datacenter in the `--target` option.
 
@@ -66,7 +54,7 @@ This example deploys a virtual container host with the following configuration:
 </pre>
 
 <a name="standalone"></a> 
-### Deploy to a Standalone Host in vCenter Server ###
+### Deploy to a Specific Standalone Host in vCenter Server ###
 
 If vCenter Server manages multiple standalone ESXi hosts that are not part of a cluster, you use the `--compute-resource` option to specify the address of the ESXi host to which to deploy the virtual container host.
 
