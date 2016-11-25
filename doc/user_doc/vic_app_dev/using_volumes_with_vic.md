@@ -1,6 +1,6 @@
 # Using Volumes with vSphere Integrated Containers Engine #
 
-vSphere Integrated Containers Engine supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [Virtual Container Host Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Engine Installation*.  
+vSphere Integrated Containers Engine supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host (VCH), you or the Administrator specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [VCH Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Engine Installation*.  
 
 - [Obtain the List of Available Volume Stores](#list_vs) 
 - [Obtain the List of Available Volumes](#list_vols)
@@ -11,16 +11,16 @@ vSphere Integrated Containers Engine supports the use of container volumes. When
 - [Obtain Information About a Volume](#inspect_vol) 
 - [Delete a Named Volume from a Volume Store](#delete_vol) 
 
-For simplicity, the examples in this topic assume that the virtual container hosts implement TLS authentication with self-signed untrusted certificates, with no client verification.
+For simplicity, the examples in this topic assume that the VCHs implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <a name="list_vs"></a>
 ## Obtain the List of Available Volume Stores ##
 
-To obtain the list of volume stores that are available on a virtual container host, run `docker info`.
+To obtain the list of volume stores that are available on a VCH, run `docker info`.
 
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls info</pre>
 
-The list of available volume stores for this virtual container host appears in the `docker info` output under `VolumeStores`.
+The list of available volume stores for this VCH appears in the `docker info` output under `VolumeStores`.
 
 <pre>[...]
 Storage Driver: vSphere Integrated Containers Backend Engine
@@ -31,7 +31,7 @@ vSphere Integrated Containers Backend Engine: RUNNING
 <a name="list_vols"></a>
 ## Obtain the List of Available Volumes ##
 
-To obtain a list of volumes that are available on a virtual container host, run `docker volume ls`.
+To obtain a list of volumes that are available on a VCH, run `docker volume ls`.
 
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume ls
 
@@ -78,7 +78,7 @@ create -v /<i>volume_name</i> busybox</pre>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 run -v /<i>volume_name</i> busybox</pre>
 
-**NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option an error stating that a bad driver has been selected will occur.
+**NOTE**: When using a vSphere Integrated Containers Engine VCH as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option an error stating that a bad driver has been selected will occur.
 
 <a name="image_volumes"></a>
 ## Creating Volumes from Images ##
@@ -90,14 +90,14 @@ If you require an image volume with a different volume capacity to the default, 
 <a name="create_container"></a>
 ## Create a Container and Attach it to an Anonymous or Named Volume ##
 
-If you intend to create named or anonymous volumes by using `docker create -v` when creating containers, a volume store named `default` must exist in the virtual container host. In this case, you include the path to the destination at which you want to mount an anonymous volume in the `docker create -v` command. Docker creates the anonymous volume in the `default` volume store, if it exists. The virtual container host attaches the anonymous volume to the container.
+If you intend to create named or anonymous volumes by using `docker create -v` when creating containers, a volume store named `default` must exist in the VCH. In this case, you include the path to the destination at which you want to mount an anonymous volume in the `docker create -v` command. Docker creates the anonymous volume in the `default` volume store, if it exists. The VCH attaches the anonymous volume to the container.
 
 For example, to create a busybox container that is mounted to the `volumes` folder of an anonymous volume in the default volume store, run the following command:
 
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 create -v /volumes busybox</pre>
 
-You can create containers that are attached to named volumes by using `docker create -v` and specifying a volume name. When you create containers that are attached to named volumes, the virtual container host checks whether the volume exists in the volume store, and if it does not, creates it. The virtual container host attaches the existing or new volume to the container.
+You can create containers that are attached to named volumes by using `docker create -v` and specifying a volume name. When you create containers that are attached to named volumes, the VCH checks whether the volume exists in the volume store, and if it does not, creates it. The VCH attaches the existing or new volume to the container.
 
 For example, to create a busybox container that is mounted to the `volumes` folder of a volume named `volume_1` in the default volume store with default capacity, run the following command:
 

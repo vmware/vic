@@ -1,5 +1,5 @@
 # VCH Deployment Fails with Resource Pool Creation Error #
-When you use `vic-machine create` to deploy a virtual container host directly on an ESXi host, the installation fails with a resource pool creation error.
+When you use `vic-machine create` to deploy a virtual container host (VCH) directly on an ESXi host, the installation fails with a resource pool creation error.
 
 ## Problem ##
 Deployment on an ESXi host fails during the validation of the configuration that you provided: 

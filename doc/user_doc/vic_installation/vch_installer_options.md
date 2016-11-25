@@ -1,6 +1,6 @@
-# Virtual Container Host Deployment Options
+# VCH Deployment Options
 
-The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides a `create` command with options that allow you to customize the deployment of virtual container hosts to correspond to your vSphere environment.
+The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides a `create` command with options that allow you to customize the deployment of virtual container hosts (VCHs) to correspond to your vSphere environment.
 
 - [vSphere Target Options](#vsphere)
 - [Security Options](#security)
@@ -8,25 +8,25 @@ The command line utility for vSphere Integrated Containers Engine, `vic-machine`
 - [Networking Options](#networking)
 - [Appliance Deployment Options](#deployment)
 
-To allow you to fine-tune the deployment of virtual container hosts, `vic-machine create` provides [Advanced Options](#advanced).
+To allow you to fine-tune the deployment of VCHs, `vic-machine create` provides [Advanced Options](#advanced).
 
 - [Advanced Security Options](#adv-security)
-- [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip)
+- [Options for Specifying a Static IP Address for the VCH Endpoint VM](#static-ip)
 - [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net)
-- [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy)
+- [Options to Configure VCHs to Use Proxy Servers](#proxy)
 - [Advanced Resource Management Options](#adv-mgmt)
 - [Other Advanced Options](#adv-other)
 
 <a name="vsphere"></a>
 ## vSphere Target Options ##
 
-The `create` command of the `vic-machine` utility requires you to provide information about where in your vSphere environment to deploy the virtual container host and the vCenter Server or ESXi user account to use.
+The `create` command of the `vic-machine` utility requires you to provide information about where in your vSphere environment to deploy the VCH and the vCenter Server or ESXi user account to use.
 
 ### `--target` ###
 
 Short name: `-t`
 
-The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you are deploying a virtual container host. This option is always **mandatory**.
+The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you are deploying a VCH. This option is always **mandatory**.
 
 To facilitate IP address changes in your infrastructure, provide an FQDN whenever possible, rather than an IP address.
 
@@ -37,7 +37,7 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
   Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>'<i>vcenter_or_esxi_usern@me</i>':'<i>p@ssword</i>'@<i>vcenter_or_esxi_address</i></pre>
   
   If you do not include the user name in the target URL, you must specify the `user` option. If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
-- If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. 
+- If you are deploying a VCH on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. 
 
   <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
 
@@ -48,9 +48,9 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
 Short name: `-u`
 
-The username for the ESXi host or vCenter Server instance on which you are deploying a virtual container host.
+The username for the ESXi host or vCenter Server instance on which you are deploying a VCH.
 
-If you are deploying a virtual container host on vCenter Server, specify a username for an account that has the Administrator role on that vCenter Server instance. 
+If you are deploying a VCH on vCenter Server, specify a username for an account that has the Administrator role on that vCenter Server instance. 
 
 <pre>--user <i>esxi_or_vcenter_server_username</i></pre>
 
@@ -64,7 +64,7 @@ You can also specify the username in the URL that you pass to `vic-machine creat
 
 Short name: `-p`
 
-The password for the user account on the vCenter Server on which you  are deploying the virtual container host, or the password for the ESXi host if you are deploying directly to an ESXi host. If not specified, `vic-machine` prompts you to enter the password during deployment.
+The password for the user account on the vCenter Server on which you  are deploying the VCH, or the password for the ESXi host if you are deploying directly to an ESXi host. If not specified, `vic-machine` prompts you to enter the password during deployment.
 
 <pre>--password <i>esxi_host_or_vcenter_server_password</i></pre>
 
@@ -78,17 +78,17 @@ You can also specify the username and password in the URL that you pass to `vic-
 
 Short name: `-r`
 
-The relative path to the host, cluster, or resource pool in which to deploy the virtual container host. 
+The relative path to the host, cluster, or resource pool in which to deploy the VCH. 
 
-If the vCenter Server instance on which you are deploying a virtual container host only includes a single instance of a standalone host or  cluster, `vic-machine create` automatically detects and uses those resources. If you are deploying to an ESXi host that has no resource pools, `vic-machine create` automatically uses the default resource pool. In these cases, you do not need to specify a compute resource when you run `vic-machine create`.
+If the vCenter Server instance on which you are deploying a VCH only includes a single instance of a standalone host or  cluster, `vic-machine create` automatically detects and uses those resources. If you are deploying to an ESXi host that has no resource pools, `vic-machine create` automatically uses the default resource pool. In these cases, you do not need to specify a compute resource when you run `vic-machine create`.
 
 You specify the `compute-resource` option in the following circumstances:
 
 - A vCenter Server instance includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.
 - An ESXi host includes multiple resource pools. 
-- You want to deploy the virtual container host to a specific resource pool in your environment. 
+- You want to deploy the VCH to a specific resource pool in your environment. 
 
-If you do not specify the `compute-resource` option and multiple possible resources exist, `vic-machine create` fails and suggests valid targets for `compute-resource` in the failure message. 
+If you do not specify the `compute-resource` option and multiple possible resources exist, or if you specify an invalid resource name, `vic-machine create` fails and suggests valid targets for `compute-resource` in the failure message. 
 
 * To deploy to a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre>
 * To deploy to a vCenter Server instance that has more than one standalone host that are not part of a cluster, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
@@ -106,60 +106,63 @@ The thumbprint of the vCenter Server or ESXi host certificate. Specify this opti
 
 **NOTE** If your vSphere environment uses untrusted, self-signed certificates, you can run `vic-machine create` without the `--thumbprint` option by using the `--force` option. However, running `vic-machine create` with the `--force` option rather than providing the certificate thumbprint is not recommended, because it permits man-in-the-middle attacks to go undetected.
 
-To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine create` without the specifying the `--thumbprint` or `--force` options. The deployment of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run vic-machine create again, including the `thumbprint` option.
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine create` without the specifying the `--thumbprint` or `--force` options. The deployment of the VCH fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run vic-machine create again, including the `thumbprint` option.
 
 <pre>--thumbprint <i>certificate_thumbprint</i></pre>
 
 <a name="security"></a>
 ## Security Options ##
 
-When you deploy a virtual container host, you must specify the type of authentication to use when Docker clients connect to that virtual container host. 
+When you deploy a VCH, you must specify the type of authentication to use when Docker clients connect to that VCH. 
 <!--
-- Two-way authentication with trusted auto-generated TLS certificates that are signed by a Certificate Authority (CA). Specify the [`tls-cname`](#tls-cname) option when you deploy the virtual container host.
-- Server-side authentication with auto-generated, untrusted TLS certificates that are not signed by a CA, with no client-side verification. Specify the [`no-tlsverify`](#no-tlsverify) option when you deploy the virtual container host.
-- Authentication with trusted custom TLS certificates that are signed by a CA.  Specify the [`cert`](#cert) and [`key`](#key) advanced options when you deploy the virtual container host.
-- No TLS authentication. Any Docker client can connect to the virtual container host. Specify the [`no-tls`](#no-tls) advanced option when you deploy the virtual container host.
+- Two-way authentication with trusted auto-generated TLS certificates that are signed by a Certificate Authority (CA). Specify the [`tls-cname`](#tls-cname) option when you deploy the VCH.
+- Server-side authentication with auto-generated, untrusted TLS certificates that are not signed by a CA, with no client-side verification. Specify the [`no-tlsverify`](#no-tlsverify) option when you deploy the VCH.
+- Authentication with trusted custom TLS certificates that are signed by a CA.  Specify the [`cert`](#cert) and [`key`](#key) advanced options when you deploy the VCH.
+- No TLS authentication. Any Docker client can connect to the VCH. Specify the [`no-tls`](#no-tls) advanced option when you deploy the VCH.
 
-For more information about the possible security configurations for virtual container hosts, see [Securing Virtual Container Host Connections](security.md).
+For more information about the possible security configurations for VCHs, see [Securing VCH Connections](security.md).
 
-**IMPORTANT**: If you assign a static IP address to a virtual container host on the client network and you do not specify any authentication options, `vic-machine` behaves in the same way as if you set the `--tls-cname` option. If you do not set a static IP address on the virtual container host, it is **mandatory** to specify an authentication option when you deploy a virtual container host. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+**IMPORTANT**: If you assign a static IP address to a VCH on the client network and you do not specify any authentication options, `vic-machine` behaves in the same way as if you set the `--tls-cname` option. If you do not set a static IP address on the VCH, it is **mandatory** to specify an authentication option when you deploy a VCH. For information about setting a static IP address on a VCH, see [Options for Specifying a Static IP Address for the VCH Endpoint VM](#static-ip) in Advanced Options.
 -->
-The security options also allow you to configure virtual container hosts to connect to insecure registries and download container images by setting the `--insecure-registry` option.
+The security options also allow you to configure VCHs to connect to insecure registries and download container images by setting the `--insecure-registry` option.
 
 <a name="tls-cname"></a>
 ### `--tls-cname` ###
 
 Short name: None
 
-The Common Name to use in an auto-generated CA certificate if you require two-way, trusted TLS certificate authentication when connecting Docker clients to the virtual container host.
+The Common Name to use in an auto-generated CA certificate if you require two-way, trusted TLS certificate authentication when connecting Docker clients to the VCH.
 
 The `--tls-cname` option is the minimum option that you must specify when using auto-generated trusted TLS certificates. For information about further options that you can specify when using auto-generated trusted certificates, see  the descriptions of the `--tls-ca`, `--certificate-key-size`, and `--organization` options in [Advanced Security Options](#adv-security).
 
-If you specify a static IP address for the virtual container host on the client network by setting the `--client-network-ip` and `--client-network-gateway` options, `vic-machine create` uses this address as the Common Name when it creates auto-generated trusted certificates. In this case, you do not need to specify `--tls-cname` or any other authentication options. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+If you specify a static IP address for the VCH on the client network by setting the `--client-network-ip` option, `vic-machine create` uses this address as the Common Name when it creates auto-generated trusted certificates. In this case, you do not need to specify `--tls-cname` or any other authentication options. For information about setting a static IP address on a VCH, see [Options for Specifying a Static IP Address for the VCH Endpoint VM](#static-ip) in Advanced Options.
 
-When you specify the `--tls-cname` option, and potentially other options for auto-generating trusted TLS certificates, `vic-machine create` performs the following actions during the deployment of the virtual container host.
+You can reuse an existing certificate that was generated for a VCH that has subsequently been deleted. To reuse an existing certificate, specify the same Common Name in the `--tls-cname` option as was used by the deleted VCH. Reusing certificates allows you to delete and recreate VCHs for which you have already distributed the certificates to container developers. If certificates are present that include a different Common Name attribute to the one that you specify in `--tls-cname`, `vic-machine create` fails. 
 
-- Creates a folder with the same name as the virtual container host in the location in which you run `vic-machine create`.
-- Creates trusted CA, server, and client certificate/key pairs in the newly created folder:
+When you specify the `--tls-cname` option, `vic-machine create` performs the following actions during the deployment of the VCH:
+
+- Checks for an existing certificate in either a folder that has the same name as the VCH that you are deploying, or in a location that you specify in the [`--cert-path`](#cert-path) option. If a valid certificate exists that includes the same Common Name attribute as the one that you specify in `--tls-cname`, `vic-machine create` reuses it. 
+- If a certificate folder does not exist, creates a folder with the same name as the VCH, or creates a folder in the location that you specify in the `--cert-path` option. 
+- If valid certificates do not already exist, `vic-machine create` creates trusted CA, server, and client certificate/key pairs in the certificate folder:
   - `ca.pem`
   - `ca-key.pem`
   - `cert.pem`
   - `key.pem`
   - `server-cert.pem`
   - `server-key.pem`
-- Creates a browser-friendly PFX client certificate, `cert.pfx`, to use to authenticate connections to the VCH Admin portal for the virtual container host.
+- Creates a browser-friendly PFX client certificate, `cert.pfx`, to use to authenticate connections to the VCH Admin portal for the VCH.
 
 Running `vic-machine create` with the `--tls-cname` option also creates an environment file named <code><i>vch_name</i>.env</code>, that contains Docker environment variables that container developers can use to configure their Docker client environment:
 
 - Activates TLS client verification.<pre>DOCKER_TLS_VERIFY=1</pre>
 - The path to the client certificates.<pre>DOCKER_CERT_PATH=<i>path_to_certs</i></pre>
-- The address of the virtual container host.<pre>DOCKER_HOST=<i>vch_address</i>:2376</pre>
+- The address of the VCH.<pre>DOCKER_HOST=<i>vch_address</i>:2376</pre>
 
-You must provide copies of the certificate files and the environment file to container developers so that they can connect Docker clients to the virtual container host. 
+You must provide copies of the certificate files and the environment file to container developers so that they can connect Docker clients to the VCH. 
 
 If you use trusted certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
 
-When you specify the `--tls-cname` option, you must provide an FQDN for the virtual container host or the name of the domain to which the virtual container host will belong. The system on which you run `vic-machine create` and the remote vCenter Server system must agree on the vCenter Server system's FQDN or domain. As a consequence, to use the `--tls-cname` option, you must have a DNS service running on the client network that the virtual container host uses. You cannot specify an IP address in the `--tls-cname` option. If you do not have a DNS service on the client network, you can still implement full TLS authentication with trusted certificates by either specifying a static IP address or by using the `--cert` and `--key` options to upload custom certificates.  
+When you specify the `--tls-cname` option, you must provide an FQDN for the VCH or the name of the domain to which the VCH will belong. The system on which you run `vic-machine create` and the remote vCenter Server system must agree on the vCenter Server system's FQDN or domain. As a consequence, to use the `--tls-cname` option, you must have a DNS service running on the client network that the VCH uses. You cannot specify an IP address in the `--tls-cname` option. If you do not have a DNS service on the client network, you can still implement full TLS authentication with trusted certificates by either specifying a static IP address or by using the `--cert` and `--key` options to upload custom certificates.  
 
 <pre>--tls-cname vch-name.example.org</pre>
 <pre>--tls-cname *.example.org</pre>
@@ -169,13 +172,13 @@ When you specify the `--tls-cname` option, you must provide an FQDN for the virt
 
 Short name: `--kv`
 
-Authentication of the virtual container host with auto-generated TLS certificates that are not signed by a CA, with no client-side verification. The `vic-machine create` command still generates certificates, but these are untrusted, self-signed certificates. 
+Authentication of the VCH with auto-generated TLS certificates that are not signed by a CA, with no client-side verification. The `vic-machine create` command still generates certificates, but these are untrusted, self-signed certificates. 
 
-If you configure the virtual container host for untrusted TLS certificate authentication, clients are not verified. Consequently, container developers do not require copies of the certificate and key files.
+If you configure the VCH for untrusted TLS certificate authentication, clients are not verified. Consequently, container developers do not require copies of the certificate and key files.
 
-When you specify the `--no-tlsverify` option, `vic-machine create` performs the following actions during the deployment of the virtual container host.
+When you specify the `--no-tlsverify` option, `vic-machine create` performs the following actions during the deployment of the VCH.
 
-- Creates a folder with the same name as the virtual container host in the location in which you run `vic-machine create`.
+- Creates a folder with the same name as the VCH in the location in which you run `vic-machine create`.
 - Creates an environment file named <code><i>vch_name</i>.env</code>, that contains the `DOCKER_HOST=vch_address` environment variable, that you can provide to container developers to use to set up their Docker client environment.
 
 If you use untrusted certificates, container developers run Docker commands with the `--tls` option. The `--no-tlsverify` option takes no arguments. 
@@ -187,9 +190,9 @@ If you use untrusted certificates, container developers run Docker commands with
 
 Short name: `--dir`
 
-If your Docker environment stores Docker images in an insecure private registry server, you must configure virtual container hosts to connect to this private registry server when you deploy them. An insecure  private registry server is a private registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a virtual container host to an insecure private registry server by setting the URL of a registry server in the `insecure-registry` option. If the registry server listens on a specific port, add the port number to the URL.
+If your Docker environment stores Docker images in an insecure private registry server, you must configure VCHs to connect to this private registry server when you deploy them. An insecure  private registry server is a private registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a VCH to an insecure private registry server by setting the URL of a registry server in the `insecure-registry` option. If the registry server listens on a specific port, add the port number to the URL.
 
-You can specify `insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure  private registry servers.
+You can specify `insecure-registry` multiple times to allow connections from the VCH to multiple insecure  private registry servers.
 
 <pre>--insecure-registry <i>registry_URL_1</i>
 --insecure-registry <i>registry_URL_2</i>:<i>port_number</i>
@@ -199,7 +202,7 @@ You can specify `insecure-registry` multiple times to allow connections from the
 
 <a name="datastore"></a>
 ## Datastore Options ##
-The `vic-machine` utility allows you to specify the datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. You can also specify datastores in which to create container volumes. 
+The `vic-machine` utility allows you to specify the datastore in which to store container image files, container VM files, and the files for the VCH appliance. You can also specify datastores in which to create container volumes. 
 
 - vSphere Integrated Containers Engine fully supports VMware vSAN datastores. 
 - vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
@@ -214,20 +217,20 @@ may not work as intended.</pre>
 
 Short name: `-i`
 
-The datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. The `--image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `--image-store` option is not required. 
+The datastore in which to store container image files, container VM files, and the files for the VCH appliance. The `--image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `--image-store` option is not required. 
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion&reg; and VMware vSphere Distributed Resource Scheduler&trade; (DRS).
+If you do not specify the `--image-store` option and multiple possible datastores exist, or if you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores in the failure message. 
 
-When you deploy a virtual container host, `vic-machine` creates a set of folders in the target datastore: 
+If you are deploying the VCH to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion&reg; and VMware vSphere Distributed Resource Scheduler&trade; (DRS).
 
-- A folder with the same name as the virtual container host, at the top level of the datastore. This folder contains the VM files for the virtual container host appliance.
-- A folder named `VIC` inside the virtual container host folder. The `VIC` folder contains a folder that uses the UUID of the virtual container host endpoint VM as its name. The <code>VIC/<i>vch_uuid</i></code> folder contains a subfolder named `images`, in which to store all of the container images that you pull into the virtual container host. 
+When you deploy a VCH, `vic-machine` creates a set of folders in the target datastore: 
 
-You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the virtual container host appliance at the top level of the datastore. However, `vic-machine create` creates the `VIC` folder inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the virtual container host files. 
+- A folder with the same name as the VCH, at the top level of the datastore. This folder contains the VM files for the VCH appliance. It also contains a key-value store folder for the VCH, named `kvStores`.
+- A folder named `VIC` inside the VCH folder. The `VIC` folder contains a folder that uses the UUID of the VCH endpoint VM as its name. The <code>VIC/<i>vch_uuid</i></code> folder contains a subfolder named `images`, in which to store all of the container images that you pull into the VCH. 
 
-By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple virtual container hosts. In this way, `vic-machine create` creates only one `VIC` folder in the datastore, at the path that you specify. The `VIC` folder contains one <code><i>vch_uuid</i>/images</code> folder for each virtual container host that you deploy. By creating one <code><i>vch_uuid</i>/images</code> folder for each virtual container host, vSphere Integrated Containers Engine limits the potential for conflicts of image use between virtual container hosts, even if you share the same image store folder between multiple hosts.
+You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the VCH appliance and the key-value store at the top level of the datastore. However, `vic-machine create` creates the `VIC` folder inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the VCH files. 
 
-**NOTE**: In the current builds of vSphere Integrated Containers Engine, sharing an image store folder between multiple virtual container hosts can lead to inconsistent behavior. Designate a different folder for the image store for each virtual container host, or omit the datastore folder from the `--image-store` option.
+By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple VCHs. In this way, `vic-machine create` creates only one `VIC` folder in the datastore, at the path that you specify. The `VIC` folder contains one <code><i>vch_uuid</i>/images</code> folder for each VCH that you deploy. By creating one <code><i>vch_uuid</i>/images</code> folder for each VCH, vSphere Integrated Containers Engine limits the potential for conflicts of image use between VCHs, even if you share the same image store folder between multiple hosts.
 
 When container developers create containers, vSphere Integrated Containers Engine stores the files for container VMs at the top level of the image store, in folders that have the same name as the containers.
 
@@ -237,8 +240,6 @@ vSphere Integrated Containers Engine supports all alphanumeric characters, hyphe
 - Specify a datastore folder as the image store:<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
 - Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:  <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
 
-If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
-
 <a name="volume-store"></a>
 ### `--volume-store` ###
 
@@ -246,11 +247,11 @@ Short name: `--vs`
 
 The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
 
-**IMPORTANT**: If multiple virtual container hosts will use the same datastore for their volume stores, specify a different datastore folder for each virtual container host. Do not designate the same datastore folder as the volume store for multiple virtual container hosts.
+**IMPORTANT**: If multiple VCHs will use the same datastore for their volume stores, specify a different datastore folder for each VCH. Do not designate the same datastore folder as the volume store for multiple VCHs.
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as vSphere vMotion and DRS.
+If you are deploying the VCH to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as vSphere vMotion and DRS.
 
-The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run `docker info`. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a volume.
+The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a VCH when container developers run `docker info`. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a volume.
 
 **IMPORTANT** If you do not specify the `volume-store` option, no  volume store is created and container developers cannot use the `docker volume create` or `docker create -v` commands.
 
@@ -269,7 +270,7 @@ The label that you specify is the volume store name that Docker uses. For exampl
 - Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces. The volume store label cannot include spaces.
 
   <pre>--volume-store '<i>datastore name</i>'/'<i>datastore path</i>':<i>volume_store_label</i></pre>
-- You can specify the `volume-store` option multiple times, to create multiple volume stores for the virtual container host.
+- You can specify the `volume-store` option multiple times, to create multiple volume stores for the VCH.
 
   <pre>--volume-store <i>datastore_name</i>/path:<i>volume_store_label_1</i>
 --volume-store <i>datastore_name</i>/<i>path</i>:<i>volume_store_label_2</i>
@@ -279,13 +280,13 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
 <a name="networking"></a>
 ## Networking Options ##
-The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment. For information about the different networks that virtual container hosts use, see [Networks Used by vSphere Integrated Containers Engine](networks.md).
+The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the VCH, the external internet, and your vSphere environment. For information about the different networks that VCHs use, see [Networks Used by vSphere Integrated Containers Engine](networks.md).
 
-**IMPORTANT**: A virtual container host supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the external, client, and management networks must share a network.
+**IMPORTANT**: A VCH supports a maximum of 3 distinct network interfaces. Because the bridge and container networks require their own distributed port groups, at least two of the public, client, and management networks must share a network interface.
 
-By default, `vic-machine create` obtains IP addresses for virtual container host endpoint VMs by using DHCP. For information about how to specify a static IP address for the virtual container host endpoint VM on the client, external, and management networks, see [Specify a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+By default, `vic-machine create` obtains IP addresses for VCH endpoint VMs by using DHCP. For information about how to specify a static IP address for the VCH endpoint VM on the client, public, and management networks, see [Specify a Static IP Address for the VCH Endpoint VM](#static-ip) in Advanced Options.
 
-If your network access is controlled by a proxy server, see [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy) in Advanced Options. 
+If your network access is controlled by a proxy server, see [Options to Configure VCHs to Use Proxy Servers](#proxy) in Advanced Options. 
 
 <a name="bridge"></a>
 ### `--bridge-network` ###
@@ -294,19 +295,19 @@ Short name: `-b`
 
 A distributed port group that container VMs use to communicate with each other. 
 
-The `bridge-network` option is **mandatory** if you are deploying a virtual container host to vCenter Server.
+The `bridge-network` option is **mandatory** if you are deploying a VCH to vCenter Server.
 
 In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch, and assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
 
-You pass the name of the distributed port group to the `bridge-network` option. Each virtual container host requires its own distributed port group. 
+You pass the name of the distributed port group to the `bridge-network` option. Each VCH requires its own distributed port group. 
 
 **IMPORTANT** 
-- Do not assign the same `bridge-network` distributed port group to multiple virtual container hosts. Sharing a distributed port group between virtual container hosts might result in multiple container VMs being assigned the same IP address. 
+- Do not assign the same `bridge-network` distributed port group to multiple VCHs. Sharing a distributed port group between VCHs might result in multiple container VMs being assigned the same IP address. 
 - Do not use the `bridge-network` distributed port group as the target for any of the other `vic-machine create` networking options.
 
-If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
 
-The `bridge-network` option is **optional** when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.
+The `bridge-network` option is **optional** when you are deploying a VCH to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the VCH. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the VCH.
 
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
@@ -321,9 +322,9 @@ For information about how to specify a range of IP addresses for additional brid
 
 Short name: `--cln`
 
-The network that the virtual container host uses to generate the Docker API. The Docker API only uses this network.
+The network that the VCH uses to generate the Docker API. The Docker API only uses this network.
 
-If not specified, the virtual container host uses the external network for client traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If not specified, the VCH uses the public network for client traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--client-network <i>network_name</i></pre>
 
@@ -331,29 +332,46 @@ Wrap the network name in single quotes (') on Mac OS and Linux and in double quo
 
 <pre>--client-network '<i>network name</i>'</pre>
 
-<a name="external-network"></a>
-### `--external-network` ###
+<a name="public-network"></a>
+### `--public-network` ###
 
 Short name: `--en`
 
-The network for containers to use to connect to the Internet. Virtual container hosts use the external network to pull container images, for example from https://hub.docker.com/. Container VMs use the external network to publish network services. If you define the external network, you can deploy containers directly on the external interface. 
+The network for containers to use to connect to the Internet. VCHs use the public network to pull container images, for example from https://hub.docker.com/. Container VMs use the public network to publish network services. If you define the public network, you can deploy containers directly on the public interface. 
 
-If not specified, containers use the default VM Network for external traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If not specified, containers use the default VM Network for public network traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
-<pre>--external-network <i>network_name</i></pre>
+<pre>--public-network <i>network_name</i></pre>
 
 Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
-<pre>--external-network '<i>network name</i>'</pre>
+<pre>--public-network '<i>network name</i>'</pre>
 
 <a name="management-network"></a>
 ### `--management-network` ###
 
 Short name: `--mn`
 
-The network that the virtual container host uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the virtual container host. 
+The network that the VCH uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the VCH. 
 
-If not specified, the virtual container host uses the external network for management traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+**IMPORTANT**: Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the VCH, always use a secure network for the management network. Ideally, use separate networks for the management network and the container network.
+
+When you create a VCH, `vic-machine create` checks that the firewall on ESXi hosts allows connections to port 2377 from the management network of the VCH. If access to port 2377 on ESXi hosts is subject to IP address restrictions, and if those restrictions block access to the management network interface, `vic-machine create` fails with a firewall configuration error:
+<pre>Firewall configuration incorrect due to allowed IP restrictions on hosts: 
+"/ha-datacenter/host/localhost.localdomain/localhost.localdomain" 
+Firewall must permit dst 2377/tcp outbound to the VCH management interface
+</pre>
+
+**NOTE**: If the management network uses DHCP, `vic-machine` checks the firewall status of the management network before the VCH receives an IP address. It is therefore not possible to fully assess whether the firewall permits the IP address of the VCH. In this case, `vic-machine create` issues a warning. 
+
+<pre>Unable to fully verify firewall configuration due to DHCP use on management network 
+VCH management interface IP assigned by DHCP must be permitted by allowed IP settings 
+Firewall allowed IP configuration may prevent required connection on hosts: 
+"/ha-datacenter/host/localhost.localdomain/localhost.localdomain" 
+Firewall must permit dst 2377/tcp outbound to the VCH management interface
+</pre>
+
+If not specified, the VCH uses the public network for management traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--management-network <i>network_name</i></pre>
 
@@ -368,6 +386,8 @@ Short name: `--cn`
 
 A network for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. 
 
+**IMPORTANT**: For security reasons, whenever possible, use separate networks for the container network and the management network.
+
 To specify a container network, you provide the name of a distributed port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 - You can specify a vSphere network as the container network.
@@ -375,7 +395,7 @@ To specify a container network, you provide the name of a distributed port group
 - You cannot use the same distributed port group as you use for the bridge network. 
 - You can create the distributed port group on the same distributed virtual switch as the distributed port group that you use for the bridge network.
 - If the network that you specify in the `container-network` option does not support DHCP, see [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net) in Advanced Options. 
-- The descriptive name appears under `Networks` when you run `docker info` on the deployed virtual container host.
+- The descriptive name appears under `Networks` when you run `docker info` on the deployed VCH.
 - Container developers use the descriptive name in the `--net` option when they run `docker run` or `docker create`.
 
 If you do not specify the `container-network` option, or if container developers run `docker run` or `docker create` without specifying `--net`, container VMs use the bridge network. 
@@ -389,13 +409,13 @@ Wrap the distributed port group name in single quotes (') on Mac OS and Linux an
 <a name="deployment"></a>
 ## Appliance Deployment Options ##
 
-The `vic-machine` utility provides options to customize the virtual container host appliance.
+The `vic-machine` utility provides options to customize the VCH appliance.
 
 ### `--name` ###
 
 Short name: `-n`
 
-A name for the virtual container host appliance. If not specified, `vic-machine` sets the name of the virtual container host to `virtual-container-host`. If a virtual container host of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the virtual container host fails.
+A name for the VCH appliance. If not specified, `vic-machine` sets the name of the VCH to `virtual-container-host`. If a VCH of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the VCH fails.
 
 <pre>--name <i>vch_appliance_name</i></pre>
 
@@ -407,7 +427,7 @@ Wrap the appliance name in single quotes (') on Mac OS and Linux and in double q
 
 Short name: `--mem`
 
-Limit the amount of memory that is available for use by the virtual container host appliance and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+Limit the amount of memory that is available for use by the VCH appliance and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
 <pre>--memory 1024</pre>
 
@@ -415,7 +435,7 @@ Limit the amount of memory that is available for use by the virtual container ho
 
 Short name: None
 
-Limit the amount of CPU capacity that is available for use by the virtual container host appliance and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+Limit the amount of CPU capacity that is available for use by the VCH appliance and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
 <pre>--cpu 1024</pre>
 
@@ -423,9 +443,9 @@ Limit the amount of CPU capacity that is available for use by the virtual contai
 
 Short name: `-f`
 
-Forces `vic-machine create` to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail.
+Forces `vic-machine create` to ignore warnings and non-fatal errors and continue with the deployment of a VCH. Errors such as an incorrect compute resource still cause the installation to fail.
 
-If your vSphere environment uses untrusted, self-signed certificates, you can use the `--force` option to deploy a virtual container host without providing the thumbprint of the vCenter Server or ESXi host in the `thumbprint` option. 
+If your vSphere environment uses untrusted, self-signed certificates, you can use the `--force` option to deploy a VCH without providing the thumbprint of the vCenter Server or ESXi host in the `thumbprint` option. 
 
 **IMPORTANT** Running `vic-machine create` with the `--force` option rather than providing the certificate thumbprint is not recommended, because it permits man-in-the-middle attacks to go undetected.
 
@@ -447,7 +467,7 @@ The options in this section are exposed in the `vic-machine create` help if you 
 <a name="adv-security"></a>
 ## Advanced Security Options ##
 
-The advanced security options allow you to customize the authentication of connections from Docker clients to virtual container hosts.
+The advanced security options allow you to customize the authentication of connections from Docker clients to VCHs.
 
 - Add optional information to auto-generated trusted TLS certificates by specifying the `--tls-ca`, `--certificate-key-size`, and `--organization` options.
 - Use custom trusted TLS certificates by using the `--cert` and `--key` options.
@@ -473,7 +493,7 @@ The size of the key for `vic-machine create` to use when it creates auto-generat
 
 Short name: None
 
-A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the virtual container host as the organization value. It also uses the IP address or FQND of the virtual container host as the organization if you set a static IP address by using the `--client-network-ip` and `--client-network-gateway` options.
+A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the VCH as the organization value. It also uses the IP address or FQND of the VCH as the organization if you set a static IP address by using the `--client-network-ip` and `--client-network-gateway` options.
 
 <pre>--organization <i>organization_name</i></pre>
 
@@ -482,9 +502,9 @@ A list of identifiers to record in auto-generated trusted certificates. If not s
 
 Short name: none
 
-The path to a custom X.509 certificate that has been signed by a CA, for the Docker API to use to authenticate the virtual container host with a Docker client.
+The path to a custom X.509 certificate that has been signed by a CA, for the Docker API to use to authenticate the VCH with a Docker client.
 
-- This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates, to authenticate connections between Docker clients and the virtual container hosts.
+- This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates, to authenticate connections between Docker clients and the VCHs.
 - Use this option in combination with the `key` option, that provides the path to the private key file for the custom certificate.
 - Include the names of the certificate and key files in the paths.
 - If you use trusted custom certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
@@ -516,81 +536,111 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem
 </pre>
 
+<a name="cert-path"></a>
+### `--cert-path` ###
+
+Short name: none
+
+A folder in which to store auto-generated certificates. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. If not specified, `vic-machine create` stores auto-generated certificates in a folder with the same name as the VCH, in the folder from which you run `vic-machine create`. 
+
+When you deploy a VCH, `vic-machine create` checks for existing certificates, either in the default location or in the folder that you specify in `--cert-path`. If an auto-generated certificate exists that includes the same Common Name attribute as the  one that you specify in either the `--tls-cname` option, the `--client-network-ip` option, or potentially the `--public-network-ip` option, `vic-machine` reuses it. Reusing existing certificates allows you to recreate VCHs for which you have already distributed the client certificates to container developers. If certificates are present that are not valid for the VCH that you are deploying, `vic-machine create` fails. 
+
+<pre>--cert-path '<i>path_to_certificate_folder</i>'
+</pre>
+
 <a name="no-tls"></a>
 ### `--no-tls` ###
 
 Short name: `-k`
 
-Disables TLS authentication of connections between the Docker client and  the virtual container host. 
+Disables TLS authentication of connections between the Docker client and  the VCH. 
 
-Set the `no-tls` option if you do not require TLS authentication between the virtual container host and the Docker client. Any Docker client can connect to the virtual container host if you disable TLS authentication. 
+Set the `no-tls` option if you do not require TLS authentication between the VCH and the Docker client. Any Docker client can connect to the VCH if you disable TLS authentication. 
 
-If you use the `no-tls` option, container developers connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
+If you use the `no-tls` option, container developers connect Docker clients to the VCH via port 2375, instead of via port 2376.
 
 <pre>--no-tls</pre>
 
 
 <a name="static-ip"></a>
-## Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM ##
+## Options for Specifying a Static IP Address for the VCH Endpoint VM ##
 
-You can specify a static IP address for the virtual container host endpoint VM on each of the client, external, and management networks. DHCP is used for the endpoint VM for any network on which you do not specify a static IP address.
+You can specify a static IP address for the VCH endpoint VM on each of the client, public, and management networks. DHCP is used for the endpoint VM for any network on which you do not specify a static IP address.
 
-If you specify static IP addresses, you can only specify one static IP address on a given port group. If more than one of the client, external, or management networks shares a port group, you can only specify an IP address for one of those networks. The same address is then used for all of the networks that share that port group.
-
-Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
-
-To specify a static IP address for the endpoint VM, you provide an IP address, and a gateway address. You can also optionally specify one or more DNS server addresses.
-
-**IMPORTANT**: If you assign a static IP address to a virtual container host on the client network by setting the `--client-network-ip` and `--client-network-gateway` options, `vic-machine create` uses this address to auto-generate trusted CA certificates. In this case, two-way TLS authentication with trusted certificates is implemented by default, and you do not need to perform any additional TLS configuration when you deploy the virtual container host. If you assign a static IP to a virtual container host on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname).
+To specify a static IP address for the endpoint VM on the client, public, or management network, you provide an IP address in the `client/public/management-network-ip` option. If you set a static IP address, you must also provide a gateway address. You can optionally specify one or more DNS server addresses.
 
 ### `--dns-server` ###
 
 Short name: None
 
-A DNS server to use if you specify static IP addresses for the virtual container host on the client, external, and management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
+A DNS server to use if you specify static IP addresses for the VCH endpoint VM on the client, public, or management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
 
-If you specify `dns-server` but you do not specify a static IP address for one or more of the client, external, and management networks, `vic-machine create` ignores the `dns-server` setting for that network and uses the DNS servers that are provided by DHCP. 
-
-If you use a mixture of static and DHCP addresses for the virtual container host on the different networks, the virtual container host uses the DNS servers that you specify in `dns-server` and those that DHCP provides.
-
-If you specify static IP address for the virtual container host on any of the client, external, and management networks and you do not specify `dns-server`, the DNS server defaults to 8.8.8.8 and 8.8.4.4. 
+- If you specify `dns-server`, `vic-machine create` always uses the `--dns-server` setting for all three of the client, public, and management networks.
+- If you do not specify `dns-server` and you specify a static IP address for the endpoint VM on all three of the client, public, and management networks, `vic-machine create` uses the Google public DNS service. 
+- If you do not specify `dns-server` and you use a mixture of static IP addresses and DHCP for the client, public, and management networks, `vic-machine create` uses the DNS servers that DHCP provides.
+- If you do not specify `dns-server` and you use DHCP for all of the client, public, and management networks, `vic-machine create` uses the DNS servers that DHCP provides.
 
 <pre>--dns-server=172.16.10.10
 --dns-server=172.16.10.11
 </pre>
 
-### `--client-network-ip`, `--external-network-ip`, `--management-network-ip` ###
+### `--client-network-ip`, `--public-network-ip`, `--management-network-ip` ###
 
 Short name: None
 
-A static IP address for the virtual container host on the client, external, or management network. If you specify an IP address by using `client/external/management-network-ip`, you must also specify a  corresponding gateway address by using `client/external/management-network-gateway`. If you specify neither a gateway nor an IP address for a given network, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host endpoint VM on that network.
+A static IP address for the VCH endpoint VM on the public, client, or management network. 
 
-You can specify IP addresses in CIDR format.
+You specify a static IP address for the endpoint VM on the public, client, or management networks by using the `--public/client/management-network-ip` options. If you set a static IP address for the endpoint VM on any of the networks, you must specify a corresponding gateway address by using the `--public/client/management-network-gateway` option. 
 
-<pre>--external-network-ip 192.168.X.N/24
---management-network-ip 192.168.Y.N/24
---client-network-ip 192.168.Z.N/24
+- You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks shares a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
+- If either of the client or management networks shares a port group with the public network, you can only specify a static IP address on the public network.
+- If either or both of the client or management networks do not use the same network as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
+- If the client and management networks both use the same network, and the public network does not use that network, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
+- If you assign a static IP address to the VCH endpoint VM on the client network by setting the `--client-network-ip` option, and you do not specify one of the TLS options, `vic-machine create` uses this address as the Common Name with which to auto-generate trusted CA certificates. If you do not specify `--tls-cname`, `--no-tls` or `--no-tlsverify`, two-way TLS authentication with trusted certificates is implemented by default when you deploy the VCH with a static IP address on the client network. If you assign a static IP address to the endpoint VM on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname).
+ 
+  **IMPORTANT**: If the client network shares a network with the public network you cannot set a static IP address for the endpoint VM on the client network. To assign a static IP address to the endpoint VM you must set a static IP address on the public network by using the `--public-network-ip` option. In this case, `vic-machine create` uses the public network IP address as the Common Name with which to auto-generate trusted CA certificates, in the same way as it would for the client network.
+
+- If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
+
+You can specify addresses either as IPv4 addresses. Do not use CIDR notation.
+
+<pre>--public-network-ip 192.168.X.N
+--management-network-ip 192.168.Y.N
+--client-network-ip 192.168.Z.N
 </pre>
 
-You can also specify IP addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
+You can also specify addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
 
-<pre>--external-network-ip=vch27-team-a.internal.domain.com
+<pre>--public-network-ip=vch27-team-a.internal.domain.com
 --management-network-ip=vch27-team-b.internal.domain.com
 --client-network-ip=vch27-team-c.internal.domain.com
 </pre>
 
-### `--client-network-gateway`, `--external-network-gateway`, `--management-network-gateway` ###
+### `--client-network-gateway`, `--public-network-gateway`, `--management-network-gateway` ###
 
 Short name: None
 
-The gateway to use if you specify a static IP address for the virtual container host on the client, external, or management network. If you specify a gateway address by using `client/external/management-network-gateway`, you must also specify a corresponding IP address by using `client/external/management-network-ip`. If you specify neither a gateway nor an IP address for a given network, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host endpoint VM on that network.
+The gateway to use if you use `--public/client/management-network-ip` to specify a static IP address for the VCH endpoint VM on the public, client, or management networks. If you specify a static IP address on any network, you must specify a gateway by using the `--public/client/management-network-gateway` options. 
 
-You specify gateway addresses in CIDR format.
+You specify the public network gateway address in CIDR format.
 
-<pre>
---external-network-gateway 192.168.X.1/24
---management-network-gateway 192.168.Y.1/24
---client-network-gateway 192.168.Z.1/24
+<pre>--public-network-gateway 192.168.X.1/24</pre>
+
+**IMPORTANT**: Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
+
+The public, management, and client networks route traffic through the VCH endpoint VM to vSphere. The default route to vSphere through the endpoint VM is assigned to the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
+
+<pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
+<i>routing_destination_2</i>/<i>subnet</i>:
+<i>gateway_address</i>/<i>subnet</i></pre>
+<pre>--client-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
+<i>routing_destination_2</i>/<i>subnet</i>:
+<i>gateway_address</i>/<i>subnet</i>
+</pre>
+
+In the following example, `--management-network-gateway` informs the VCH that it can reach all of the Docker clients that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that run Docker clients that will connect to this VCH instance. 
+
+<pre>--management-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
 </pre>
 
 
@@ -632,7 +682,7 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 Short name: `--cnr`
 
-The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, virtual container hosts manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`. 
+The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, VCHs manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`. 
 
 When you specify the container network IP range, you must use the distributed port group that you specify in the `container-network `option. If you specify `container-network-ip-range` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
@@ -647,17 +697,17 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 <pre>--container-network-ip-range '<i>distributed port group name</i>':192.168.100.0/24</pre>
 
 <a name="proxy"></a>
-## Options to Configure Virtual Container Hosts to Use Proxy Servers ##
+## Options to Configure VCHs to Use Proxy Servers ##
 
-If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it. The proxy that you specify serves exclusively for pulling images into the virtual container host from an external source, and is not used for any other purpose.
+If your network access is controlled by a proxy server, you must   configure a VCH to connect to the proxy server when you deploy it. The proxy that you specify serves exclusively for pulling images into the VCH from an external source, and is not used for any other purpose.
 
-**IMPORTANT**: Configuring a virtual container host to use a proxy server does not configure proxy support on the containers that this virtual container host runs. Container developers must configure proxy servers on containers when they create them. 
+**IMPORTANT**: Configuring a VCH to use a proxy server does not configure proxy support on the containers that this VCH runs. Container developers must configure proxy servers on containers when they create them. 
 
 ### `--http-proxy` ###
 
 Short name: `--hproxy`
 
-The address of the HTTP proxy server through which the virtual container host accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+The address of the HTTP proxy server through which the VCH accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
 
 <pre>--http-proxy http://<i>proxy_server_address</i>:<i>port</i></pre>
 
@@ -665,7 +715,7 @@ The address of the HTTP proxy server through which the virtual container host ac
 
 Short name: `--sproxy`
 
-The address of the HTTPS proxy server through which the virtual container host accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+The address of the HTTPS proxy server through which the VCH accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
 
 <pre>--https-proxy https://<i>proxy_server_address</i>:<i>port</i></pre>
 
@@ -676,7 +726,7 @@ The address of the HTTPS proxy server through which the virtual container host a
 
 Short name: `--memr`
 
-Reserve a quantity of memory for use by the virtual container host appliance and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
+Reserve a quantity of memory for use by the VCH appliance and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
 
 <pre>--memory-reservation 1024</pre>
 
@@ -684,7 +734,7 @@ Reserve a quantity of memory for use by the virtual container host appliance and
 
 Short name: `--mems`
 
-Set memory shares on the virtual container host appliance. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+Set memory shares on the VCH appliance. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
 
 <pre>--memory-shares low</pre>
 
@@ -692,7 +742,7 @@ Set memory shares on the virtual container host appliance. Specify the share val
 
 Short name: `--cpur`
 
-Reserve a quantity of CPU capacity for use by the virtual container host appliance and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
+Reserve a quantity of CPU capacity for use by the VCH appliance and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
 
 <pre>--cpu-reservation 1024</pre>
 
@@ -700,7 +750,7 @@ Reserve a quantity of CPU capacity for use by the virtual container host applian
 
 Short name: `--cpus`
 
-Set CPU shares on the virtual container host appliance. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+Set CPU shares on the VCH appliance. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
 
 <pre>--cpu-shares low</pre>
 
@@ -708,7 +758,7 @@ Set CPU shares on the virtual container host appliance. Specify the share value 
 
 Short name: none
 
-The number of virtual CPUs for the virtual container host endpoint VM. The default is 1. Set this option to increase the number of CPUs in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that require a lot of processing power.
+The number of virtual CPUs for the VCH endpoint VM. The default is 1. Set this option to increase the number of CPUs in the VCH VM, for example if the VCH will handle large volumes of containers, or containers that require a lot of processing power.
 
 **NOTE** Use the `--cpu` option instead of the `--appliance-cpu` option. The `--appliance-cpu` option is mainly intended for use by VMware Support.
 
@@ -718,7 +768,7 @@ The number of virtual CPUs for the virtual container host endpoint VM. The defau
 
 Short name: none
 
-The amount of memory for the virtual container host endpoint VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.
+The amount of memory for the VCH endpoint VM. The default is 2048MB. Set this option to increase the amount of memory in the VCH VM, for example if the VCH will handle large volumes of containers, or containers that consume a lot of memory.
 
 **NOTE** Use the `--memory` option instead of the `--appliance-memory` option. The `--appliance-memory` option is mainly intended for use by VMware Support.
 
@@ -757,7 +807,7 @@ The `container-store` option is not enabled. Container VM files are stored in th
 
 Short name: `--ai`
 
-The path to the ISO image from which the virtual container host appliance boots. Set this option if you have moved the `appliance.iso` file to a folder that is not the folder that contains the `vic-machine` binary or is not the folder from which you are running `vic-machine`. Include the name of the ISO file in the path.
+The path to the ISO image from which the VCH appliance boots. Set this option if you have moved the `appliance.iso` file to a folder that is not the folder that contains the `vic-machine` binary or is not the folder from which you are running `vic-machine`. Include the name of the ISO file in the path.
 
 **NOTE**: Do not use the `--appliance-iso` option to point `vic-machine` to an `--appliance-iso` file that is of a different version to the version of `vic-machine` that you are running.
 
@@ -785,7 +835,7 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 Short name: none
 
-Deploy the virtual container host appliance to a resource pool on vCenter Server rather than to a vApp. If you specify this option, `vic-machine create` creates a resource pool with the same name as the virtual container host.
+Deploy the VCH appliance to a resource pool on vCenter Server rather than to a vApp. If you specify this option, `vic-machine create` creates a resource pool with the same name as the VCH.
 
 <pre>--use-rp</pre>
 

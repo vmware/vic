@@ -6,13 +6,13 @@ These are some use cases of containers using network ports to communicate with e
 
 Launch a container and expose a port: `run -p`
 
-Connect the container with the external mapped port on the external surface of the vSphere Container Host.
+Connect the container with the external mapped port on the public network of the vSphere Container Host.
 
 `$ docker run -p 8080:80 --name test1 my_container my_app`
 
 #### Outcome
 
-You can access Port 80 on test1 from the external network interface on the virtual container host at port 8080.
+You can access Port 80 on test1 from the public network interface on the virtual container host (VCH) at port 8080.
 
 ### Container on a Simple Bridge Network
 
@@ -39,7 +39,7 @@ Server and Client can ping each other by name.
 
 ### Bridged Containers with Exposed Port
 
-Connect two containers on a bridge network and set up one of the containers to publish a port via the virtual container host. Assume server_app binds to port 5000.
+Connect two containers on a bridge network and set up one of the containers to publish a port via the VCH. Assume server_app binds to port 5000.
 
 
     $ docker network create -d bridge my-bridge-network
@@ -60,7 +60,7 @@ Connect two containers on a bridge network and set up one of the containers to p
     GET /
 
     Hello world!Connection closed by foreign host
-    $ telnet vch_external_interface 5000
+    $ telnet vch_public_interface 5000
     Trying 192.168.218.137...
     Connected to 192.168.218.137.
     Escape character is '^]'.
@@ -69,11 +69,11 @@ Connect two containers on a bridge network and set up one of the containers to p
     Hello world!Connection closed by foreign host.
 
 #### Outcome
-Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the virtual container host external interface.
+Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the VCH public interface.
 
 ### Containers on Multiple Bridge Networks
 
-Create containers on multiple bridge networks by mapping ports through the Docker server. The virtual container host must have an IP address on the relevant bridge networks. To create bridge networks, use  `network create`
+Create containers on multiple bridge networks by mapping ports through the Docker server. The VCH must have an IP address on the relevant bridge networks. To create bridge networks, use  `network create`
 
 Example:
 Run a container:
@@ -88,13 +88,13 @@ For this container to reach both networks or containers connected to only those 
 n1 and n2 cannot talk to each other<br>
 n12 can talk to both n1 and n2
 
-### Containers using External Network
+### Containers Using External Networks
 
 Configure two external networks in vSphere:
 `default-external` is `10.2.0.0/16` with gateway `10.2.0.1`  
 `vic-production` is `208.91.3.0/24` with gateway `208.91.3.1`  
 
-Associate a virtual container host, then set up the virtual container host to the default external network at 208.91.3.2.
+Associate a VCH, then set up the VCH to the default external network at 208.91.3.2.
 
 `docker network ls` shows:
 
@@ -173,12 +173,14 @@ Set up a server on the vic-production network:
 
 The server container port is exposed on the external network vic-production.
 
-### Containers Using Multiple External Networks
-Create external networks only using `vic-machine`.
+### Containers Using Multiple Container Networks
+Create multiple container networks using `vic-machine`. 
+
+**NOTE**: The networks known as container networks in vSphere Integrated Containers Engine terminology correspond to  public networks in Docker terminology.
 
 Example:
 
-    ./vic-machine-darwin create --target 172.16.252.131 --image-store datastore1 --name vic-demo --user root --password 'Vmware!23' --compute-resource /ha-datacenter/host/*/Resources --cn pg1:pg1 --cn pg2:pg2 --cn pg3:pg3
+    ./vic-machine-darwin create --target 172.16.252.131 --image-store datastore1 --name vic-demo --user root --password 'Vmware!23' --compute-resource /ha-datacenter/host/*/Resources --container-network pg1:pg1 --container-network pg2:pg2 --container-network pg3:pg3
 
 pg1-3 are port groups on the ESX Server that are now mapped into docker network ls.
 
@@ -190,9 +192,9 @@ pg1-3 are port groups on the ESX Server that are now mapped into docker network 
     2df4101caac2 pg3    external
 
 
-If a container is connected to an external network, the traffic to and from that network does not go through the appliance VM.
+If a container is connected to a container network, the traffic to and from that network does not go through the VCH.
 
-You also can create more bridge networks via the docker API. These are all backed by the same port group as the default bridge, but those networks are isolated via IP address management.
+You also can create more bridge networks via the Docker API. These are all backed by the same port group as the default bridge, but those networks are isolated via IP address management.
 
     Example:
     $ docker -H 172.16.252.150:2376 --tls network create mikes
@@ -211,3 +213,4 @@ You also can create more bridge networks via the docker API. These are all backe
 #### Outcome
 
 You can create containers with --net mikes or --net pg1 and be on the correct network. With docker you can combine them and attach multiple networks.
+

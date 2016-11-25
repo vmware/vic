@@ -4,12 +4,12 @@ After you download and unpack a vSphere Integrated Containers Engine binary bund
 
 | **File** | **Description** |
 | --- | --- |
-|`appliance.iso` | The ISO from which a virtual container host appliance boots.|
+|`appliance.iso` | The ISO from which a virtual container host (VCH) appliance boots.|
 |`bootstrap.iso` | A Photon OS kernel from which container VMs boot.|
 |`ui/` | A folder that contains the files and scripts for the deployment of the vSphere Web Client Plug-in for vSphere Integrated Containers Engine.| 
-|`vic-machine-darwin` | The Mac OS command line utility for the installation and management of virtual container hosts.| 
-|`vic-machine-linux` | The Linux command line utility for the installation and management of virtual container hosts.| 
-|`vic-machine-windows.exe` | The Windows command line utility for the installation and management of virtual container hosts.| 
+|`vic-machine-darwin` | The Mac OS command line utility for the installation and management of VCHs.| 
+|`vic-machine-linux` | The Linux command line utility for the installation and management of VCHs.| 
+|`vic-machine-windows.exe` | The Windows command line utility for the installation and management of VCHs.| 
 |`vic-ui-darwin` | The Mac OS executable for the deployment of the vSphere Web Client Plug-in for vSphere Integrated Containers Engine. <br><br> **NOTE**: Do not run this executable directly.<sup>(1)</sup>| 
 |`vic-ui-linux` | The Linux executable for the deployment of the vSphere Web Client Plug-in for vSphere Integrated Containers Engine.  <br><br> **NOTE**: Do not run this executable directly.<sup>(1)</sup>| 
 |`vic-ui-windows.exe` | The Windows executable for the deployment of the vSphere Web Client Plug-in for vSphere Integrated Containers Engine.  <br><br> **NOTE**: Do not run this executable directly.<sup>(1)</sup>| 

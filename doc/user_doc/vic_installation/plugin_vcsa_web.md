@@ -4,8 +4,10 @@ If you are running the vCenter Server Appliance, you can use a Web server to hos
 
 **Prerequisites**
 
-- You deployed at least one virtual container host to a vCenter Server Appliance instance.
+- You deployed at least one virtual container host (VCH) to a vCenter Server  Appliance instance.
 - You are running a Web server that the vCenter Server Appliance can access.
+- If you deployed the VCH to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client to view the vSphere Web Client plug-in for vSphere Integrated Containers Engine. vSphere Integrated Containers Engine does not currently provide a plug-in for the new HTML5 vSphere Client.
+
 
 **Procedure**
 

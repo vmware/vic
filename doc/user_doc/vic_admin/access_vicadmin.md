@@ -1,27 +1,26 @@
-# Access the Administration Portal for a Virtual Container Host #
+# Access the Administration Portal for a VCH #
 
-vSphere Integrated Containers Engine provides a Web-based administration portal for virtual container hosts, called VCH Admin.
+vSphere Integrated Containers Engine provides a Web-based administration portal for virtual container hosts (VCHs), called VCH Admin.
 
 **Prerequisites**
 
-- You deployed a virtual container host.
-- Obtain the address of the virtual container host:
+- You deployed a VCH.
+- Obtain the address of the VCH:
   - Copy the address from the output of `vic-machine create` or `vic-machine inspect`. 
-  - If you deployed the virtual container host to vCenter Server, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Web Client.
-  - If you deployed the virtual container host to an ESXi host, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Client.
-- If you deployed the virtual container host with full TLS authentication with trusted CA certificates, import the `*.pfx` certificate that `vic-machine create` generated into your browser.
-  - In the current builds of vSphere Integrated Containers, the certificates do not work in Chrome or Internet Explorer. Use Firefox to access the VCH Admin portal.
-  - When you import the certificate into your browser, do not enter a password. Select **Automatically select the certificate store based on the type of certificate**. 
+  - If you deployed the VCH to vCenter Server, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Web Client.
+  - If you deployed the VCH to an ESXi host, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Client.
 
 **Procedure**
 
-In a Web browser, go to https://<i>vch_address</i>:2378.
+1. In a Web browser, go to https://<i>vch_address</i>:2378.
+2. (Optional) If the VCH uses full TLS authentication with trusted CA certificates, enter the username and password for the vCenter Server instance or ESXi host.
 
 **Result**
 
-The VCH Admin portal displays information about the virtual container host and the environment in which is running:  
+The VCH Admin portal displays information about the VCH and the environment in which is running:  
 
-- Status information about the virtual container host, network,  firewall configuration, and license. For information about these statuses and how to remedy error states, see the [Virtual Container Host Status Reference](vicadmin_status_ref.md).
+- Status information about the VCH, registry and Internet connections,  firewall configuration, and license. For information about these statuses and how to remedy error states, see the [VCH Status Reference](vicadmin_status_ref.md).
 - The address of the Docker endpoint.
-- The remaining capacity of the datastore that you designated as the image store.
-- Live logs and log bundles for different aspects of the virtual container host. For information about the logs, see [Access vSphere Integrated Containers Engine Log Bundles](log_bundles.md).
+- The system time of the VCH. This is useful to know because clock skews between VCHs and client systems can cause TLS authentication to fail. For information about clock skews, see [Connections Fail with Certificate Errors when Using Full TLS Authentication with Trusted Certificates](ts_clock_skew.md). 
+- The remaining capacity of the datastore that you designated as the image store. If the VCH is unable to connect to vSphere, the datastore information is not displayed.
+- Live logs and log bundles for different aspects of the VCH. For information about the logs, see [Access vSphere Integrated Containers Engine Log Bundles](log_bundles.md).

@@ -8,22 +8,24 @@ vRealize Suite is available for health monitoring, performance analysis, and com
 
 IT teams can assure service-level agreements for container workloads with VMware vSphere Distributed Resource Scheduler&trade; (DRS) as well as reduce planned and unplanned downtime with VMware vSphere vMotion.
 
-You can restart or upgrade the virtual container host without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
+You can restart the virtual container host (VCH) without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
 
+
+## Maintenance Mode ##
 Hosts with container VMs can enter maintenance mode without manual intervention, with these exceptions:
 
-- For a standalone host, you must first power down the virtual container host or any other VMs before entering maintenance mode. 
-- In a clustered vSphere environment with DRS set to automatic, DRS first migrates the virtual container host to another host in the cluster and then enters maintenance mode. 
-- For a host with a container VM running, DRS first migrates the VM to another host in the cluster and then enters maintenance mode.
+- For a standalone ESXi host, you must power down the VCH and any container VMs before entering maintenance mode. 
+- In a clustered vSphere environment with DRS set to automatic, DRS migrates the VCH to another host in the cluster before the host enters maintenance mode. 
+- For a host with container VMs running, DRS migrates the container VMs to another host in the cluster before the host enters maintenance mode.
 
 ## VMware vSAN&trade;
-The virtual container host maintains filesystem layers inherent in container images by mapping to discrete VMDK files, all of which can be which can be housed in shared vSphere datastores, including vSAN and NFS datastores.
+The VCH maintains filesystem layers inherent in container images by mapping to discrete VMDK files, all of which can be which can be housed in shared vSphere datastores, including vSAN and NFS datastores.
 
-## Enhanced Link Mode Environments
-You can deploy virtual container hosts in enhanced linked mode environments.
+## vCenter Linked Mode Environments
+You can deploy VCHs in vCenter Linked Mode environments.
 
 ## Multiple VLAN
-You can deploy and run Docker commands against a virtual container host on a vCenter appliance that has multiple portgroups on different VLANs within the datacenter.
+You can deploy and run Docker commands against a VCH on a vCenter appliance that has multiple portgroups on different VLANs within the datacenter.
 
 <!--
 ## vSphere Instant Clone
@@ -33,9 +35,9 @@ vSphere Integrated Containers Engine allows you to create and run multiple conta
 ## vSphere Features Not Supported in This Release
 vSphere Integrated Containers Engine does not currently support the following vSphere features:
 
-- vSphere Storage DRS&trade;: You cannot use datastores in Storage DRS clusters as the target datastores for image stores or volume stores.
-- vSphere High Availability: You can deploy virtual container hosts to systems that are configured with High Availability, but you cannot use High Availability to fail over the virtual container hosts themselves.
-- vSphere Fault Tolerance: You cannot configure Fault Tolerance on virtual container hosts.
+- vSphere Storage DRS&trade;: You cannot configure VCHs to use datastores that are in Storage DRS clusters.
+- vSphere High Availability: You can deploy VCHs to systems that are configured with High Availability, but you cannot use High Availability to fail over the VCHs themselves.
+- vSphere Fault Tolerance: You cannot configure Fault Tolerance on VCHs.
 - vSphere Virtual Volumes&trade;: You cannot use Virtual Volumes as the target datastores for image stores or volume stores.
-- Snapshots: Creating snapshots of the virtual container host endpoint VM or container VMs can cause vSphere Integrated Containers Engine not to function correctly.
-- Powering on, powering off, or deleting the virtual container host endpoint VM or container VMs can cause vSphere Integrated Containers Engine not to function correctly.
+- Snapshots: Creating snapshots of the VCH endpoint VM or container VMs can cause vSphere Integrated Containers Engine not to function correctly.
+- Powering on, powering off, or deleting the VCH endpoint VM or container VMs can cause vSphere Integrated Containers Engine not to function correctly. Use vic-machine to delete VCHs and use Docker commands to perform operations on container VMs.
