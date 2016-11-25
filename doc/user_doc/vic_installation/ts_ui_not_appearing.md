@@ -4,7 +4,7 @@ After you have installed the vSphere Web Client plug-in for vSphere Integrated C
 
 ## Problem ##
 
-The UI plug-in installer reported success, but the Virtual Container Host portlet does not appear in the **Summary** tab for the virtual container host endpoint VM. Logging out of the vSphere Web Client and logging back in again does not resolve the issue.
+The UI plug-in installer reported success, but the virtual container host (VCH) portlet does not appear in the **Summary** tab for the VCH endpoint VM. Logging out of the vSphere Web Client and logging back in again does not resolve the issue.
 
 ## Cause ##
 

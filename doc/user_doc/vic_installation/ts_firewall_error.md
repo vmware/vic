@@ -1,5 +1,5 @@
 # VCH Deployment Fails with Firewall Validation Error #
-When you use `vic-machine create` to deploy a virtual container host, deployment fails because firewall port 2377 is not open on the target ESXi host or hosts.
+When you use `vic-machine create` to deploy a virtual container host (VCH), deployment fails because firewall port 2377 is not open on the target ESXi host or hosts.
 
 ## Problem ##
 Deployment fails with a firewall error during the validation phase: 
@@ -8,7 +8,7 @@ Deployment fails with a firewall error during the validation phase:
 
 ## Cause ##
 
-ESXi hosts communicate with the virtual container hosts through port 2377 via Serial Over LAN. For deployment of a virtual container host to succeed, port 2377 must be open for outgoing connections on all ESXi hosts before you run `vic-machine create`. Opening port 2377 for outgoing connections on ESXi hosts opens port 2377 for inbound connections on the virtual container hosts.
+ESXi hosts communicate with the VCHs through port 2377 via Serial Over LAN. For deployment of a VCH to succeed, port 2377 must be open for outgoing connections on all ESXi hosts before you run `vic-machine create`. Opening port 2377 for outgoing connections on ESXi hosts opens port 2377 for inbound connections on the VCHs.
 
 ## Solution ##
 

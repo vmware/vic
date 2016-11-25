@@ -1,14 +1,14 @@
-# Authorize SSH Access to the Virtual Container Host Endpoint VM #
+# Authorize SSH Access to the VCH Endpoint VM #
 
-By default, SSH access to the virtual container host endpoint VM is disabled. The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides a `debug` command that allows you to enable SSH access to the virtual container host endpoint VM. The `debug` command also allows you to set a password for the root user account on the endpoint VM. You can also use `debug` to upload a key file for public key authentication when accessing the endpoint VM. 
+By default, SSH access to the virtual container host (VCH) endpoint VM is disabled. The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides a `debug` command that allows you to enable SSH access to the VCH endpoint VM. The `debug` command also allows you to set a password for the root user account on the endpoint VM. You can also use `debug` to upload a key file for public key authentication when accessing the endpoint VM. 
 
-**IMPORTANT**: If you set a password for the virtual container host endpoint VM, this password does not persist if you reboot the VM. You must run `vic-machine debug` to reset the password each time you reboot the virtual container host endpoint VM.
+**IMPORTANT**: If you set a password for the VCH endpoint VM, this password does not persist if you reboot the VM. You must run `vic-machine debug` to reset the password each time you reboot the VCH endpoint VM.
 
-For descriptions of the options that `vic-machine debug` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [Virtual Container Host Debug Options](debug_vch_options.md).
+For descriptions of the options that `vic-machine debug` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [VCH Debug Options](debug_vch_options.md).
 
 **Prerequisites**
 
-You have deployed at least one virtual container host.
+You have deployed at least one VCH.
 
 **Procedure**
 

@@ -5,7 +5,7 @@
   * [Networks Used by vSphere Integrated Containers Engine](networks.md)
 * [Download vSphere Integrated Containers Engine](download_vic_engine.md)
   * [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md)
-* [Deploy Virtual Container Hosts](deploy_vch.md) 
+* [Deploy VCHs](deploy_vch.md) 
   * [Environment Prerequisites for VCH Deployment](vic_installation_prereqs.md)
   * [Deploy a VCH to an ESXi Host](deploy_vch_esxi.md)
   * [Deploy a VCH to a vCenter Server Cluster](deploy_vch_vcenter.md)

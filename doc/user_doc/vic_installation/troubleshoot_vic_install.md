@@ -1,6 +1,6 @@
 # Troubleshooting vSphere Integrated Containers Engine Installation #
 
-This information provides solutions for common problems that you might encounter when deploying virtual container hosts.
+This information provides solutions for common problems that you might encounter when deploying virtual container hosts (VCHs).
 
 * [Installation Fails with Resource Pool Creation Error](ts_resource_pool_error.md)
 * [VCH Deployment Fails with a Certificate Verification Error](ts_thumbprint_error.md)

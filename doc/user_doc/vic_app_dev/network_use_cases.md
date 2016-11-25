@@ -12,7 +12,7 @@ Connect the container with the external mapped port on the public network of the
 
 #### Outcome
 
-You can access Port 80 on test1 from the public network interface on the virtual container host at port 8080.
+You can access Port 80 on test1 from the public network interface on the virtual container host (VCH) at port 8080.
 
 ### Container on a Simple Bridge Network
 
@@ -39,7 +39,7 @@ Server and Client can ping each other by name.
 
 ### Bridged Containers with Exposed Port
 
-Connect two containers on a bridge network and set up one of the containers to publish a port via the virtual container host. Assume server_app binds to port 5000.
+Connect two containers on a bridge network and set up one of the containers to publish a port via the VCH. Assume server_app binds to port 5000.
 
 
     $ docker network create -d bridge my-bridge-network
@@ -69,11 +69,11 @@ Connect two containers on a bridge network and set up one of the containers to p
     Hello world!Connection closed by foreign host.
 
 #### Outcome
-Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the virtual container host public interface.
+Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the VCH public interface.
 
 ### Containers on Multiple Bridge Networks
 
-Create containers on multiple bridge networks by mapping ports through the Docker server. The virtual container host must have an IP address on the relevant bridge networks. To create bridge networks, use  `network create`
+Create containers on multiple bridge networks by mapping ports through the Docker server. The VCH must have an IP address on the relevant bridge networks. To create bridge networks, use  `network create`
 
 Example:
 Run a container:
@@ -94,7 +94,7 @@ Configure two external networks in vSphere:
 `default-external` is `10.2.0.0/16` with gateway `10.2.0.1`  
 `vic-production` is `208.91.3.0/24` with gateway `208.91.3.1`  
 
-Associate a virtual container host, then set up the virtual container host to the default external network at 208.91.3.2.
+Associate a VCH, then set up the VCH to the default external network at 208.91.3.2.
 
 `docker network ls` shows:
 
@@ -192,7 +192,7 @@ pg1-3 are port groups on the ESX Server that are now mapped into docker network 
     2df4101caac2 pg3    external
 
 
-If a container is connected to a container network, the traffic to and from that network does not go through the virtual container host.
+If a container is connected to a container network, the traffic to and from that network does not go through the VCH.
 
 You also can create more bridge networks via the Docker API. These are all backed by the same port group as the default bridge, but those networks are isolated via IP address management.
 

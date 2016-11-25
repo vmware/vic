@@ -1,12 +1,12 @@
-# Virtual Container Host Status Reference #
+# VCH Status Reference #
 
-The Web-based administration portal for virtual container hosts, VCH Admin, presents status information about a virtual container host.
+The Web-based administration portal for virtual container hosts (VCHs), VCH Admin, presents status information about a VCH.
 
-If the vSphere environment in which you are deploying a virtual container host does not meet the requirements, the deployment does not succeed. However, a successfully deployed virtual container host can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the virtual container host, the status of the affected component changes from green to yellow.
+If the vSphere environment in which you are deploying a VCH does not meet the requirements, the deployment does not succeed. However, a successfully deployed VCH can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the VCH, the status of the affected component changes from green to yellow.
 
-## Virtual Container Host (VCH) ##
+## VCH (VCH) ##
 
-VCH Admin checks the status of the processes that the virtual container host runs:
+VCH Admin checks the status of the processes that the VCH runs:
 
 - The port layer server, that presents an API of low-level container primitive operations, and implements those container operations via the vSphere APIs.
 - VCH Admin server, that runs the VCH Admin portal. 
@@ -15,19 +15,19 @@ VCH Admin checks the status of the processes that the virtual container host run
 
 ### Error ###
 
-- The **Virtual Container Host** status is yellow.
-- The **Virtual Container Host** status is yellow and an error message informs you that the virtual container host cannot connect to vSphere.
+- The **VCH** status is yellow.
+- The **VCH** status is yellow and an error message informs you that the VCH cannot connect to vSphere.
 
 #### Cause ####
 
-- One or more of the virtual container host processes is not running correctly, or the virtual container host is unable to connect to vSphere.
-- The management network connection is down and the virtual container host endpoint VM cannot connect to vSphere.
+- One or more of the VCH processes is not running correctly, or the VCH is unable to connect to vSphere.
+- The management network connection is down and the VCH endpoint VM cannot connect to vSphere.
 
 #### Solution ####
 
-1. (Optional) If you see the error that the virtual container host is unable to connect to vSphere, check the virtual container host management network.
-2. In the VCH Admin portal for the virtual container host, click the link for the **VCH Admin Server** log.
-2. Search the log for references to the different virtual container host processes.
+1. (Optional) If you see the error that the VCH is unable to connect to vSphere, check the VCH management network.
+2. In the VCH Admin portal for the VCH, click the link for the **VCH Admin Server** log.
+2. Search the log for references to the different VCH processes.
 
   The different processes are identified in the log by the following names:
 
@@ -40,7 +40,7 @@ VCH Admin checks the status of the processes that the virtual container host run
 
 ## Registry and Internet Connectivity ##
 
-VCH Admin checks connectivity on the public network by attempting to connect from the virtual container host to docker.io and google.com. VCH Admin only checks the public network connection. It does not check other networks, for example the bridge, management, client, or container networks.
+VCH Admin checks connectivity on the public network by attempting to connect from the VCH to docker.io and google.com. VCH Admin only checks the public network connection. It does not check other networks, for example the bridge, management, client, or container networks.
 
 ### Error ###
 
@@ -56,7 +56,7 @@ Check the **VCH Admin Server** log for references to network issues. Use the vSp
 
 ## Firewall ##
 
-VCH Admin checks that the firewall is correctly configured on the ESXi host or the ESXi hosts in the cluster on which the virtual container host is running.
+VCH Admin checks that the firewall is correctly configured on the ESXi host or the ESXi hosts in the cluster on which the VCH is running.
 
 ### Error ###
 
@@ -65,11 +65,11 @@ VCH Admin checks that the firewall is correctly configured on the ESXi host or t
 
 #### Cause ####
 
-- The management network connection is down and the virtual container host endpoint VM cannot connect to vSphere. 
-- The firewall on the ESXi host on which the virtual container host is running no longer allows outbound connections on port 2377.
+- The management network connection is down and the VCH endpoint VM cannot connect to vSphere. 
+- The firewall on the ESXi host on which the VCH is running no longer allows outbound connections on port 2377.
 
-  - The firewall was switched off when the virtual container host was deployed. The firewall has been switched on since the deployment of the virtual container host.
-  - A firewall ruleset was applied to the ESXi host to allow outbound connections on port 2377. The ESXi host has been rebooted since the deployment of the virtual container host. Firewall rulesets are not retained when an ESXi host reboots.
+  - The firewall was switched off when the VCH was deployed. The firewall has been switched on since the deployment of the VCH.
+  - A firewall ruleset was applied to the ESXi host to allow outbound connections on port 2377. The ESXi host has been rebooted since the deployment of the VCH. Firewall rulesets are not retained when an ESXi host reboots.
 
 #### Solution ####
 
@@ -81,7 +81,7 @@ VCH Admin checks that the firewall is correctly configured on the ESXi host or t
 
 ## License ##
 
-VCH Admin checks that the ESXi hosts on which you deploy virtual container hosts have the appropriate licenses.
+VCH Admin checks that the ESXi hosts on which you deploy VCHs have the appropriate licenses.
 
 ### Error ###
 
@@ -90,15 +90,15 @@ VCH Admin checks that the ESXi hosts on which you deploy virtual container hosts
 
 #### Cause ####
 
-- The license for the ESXi host or for one or more of the hosts in a vCenter Server cluster on which the virtual container host is deployed has been removed, downgraded, or has expired since the deployment of the virtual container host.
-- The management network is down, or the virtual container host endpoint VM is unable to connect to vSphere.
+- The license for the ESXi host or for one or more of the hosts in a vCenter Server cluster on which the VCH is deployed has been removed, downgraded, or has expired since the deployment of the VCH.
+- The management network is down, or the VCH endpoint VM is unable to connect to vSphere.
 
 #### Solution ####
 
 - If the license does not meet the requirements:
-  - If the virtual container host is running on an ESXi host that is not managed by vCenter Server, replace the ESXi host license with a valid vSphere Enterprise license.
-  - If the virtual container host is running on a standalone ESXi host in vCenter Server, replace the ESXi host license with a valid vSphere Enterprise Plus license.
-  - If the virtual container host is running in a vCenter Server cluster, check that all of the hosts in the cluster have a valid vSphere Enterprise Plus license, and replace any licenses that have been removed, downgraded, or have expired.
+  - If the VCH is running on an ESXi host that is not managed by vCenter Server, replace the ESXi host license with a valid vSphere Enterprise license.
+  - If the VCH is running on a standalone ESXi host in vCenter Server, replace the ESXi host license with a valid vSphere Enterprise Plus license.
+  - If the VCH is running in a vCenter Server cluster, check that all of the hosts in the cluster have a valid vSphere Enterprise Plus license, and replace any licenses that have been removed, downgraded, or have expired.
 - If the **License** status is unavailable: 
   - Check the **VCH Admin Server** log for references to network issues. 
   - Use the vSphere Web Client to remediate the management network issues as required.

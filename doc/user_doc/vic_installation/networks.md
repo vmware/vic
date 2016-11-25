@@ -1,19 +1,19 @@
 # Networks Used by vSphere Integrated Containers Engine #
 
-You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host are determined by the networks that you define when you configure the virtual container host.
+You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host (VCH) are determined by the networks that you define when you configure the VCH.
 
-Virtual container hosts connect to different types of network. 
+VCHs connect to different types of network. 
 
  ![vSphere Container Host Management Network](graphics/vch-net.png)
 
 This topic provides an overview of the different network types. 
 
-**IMPORTANT**: A virtual container host supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the public, client, and management networks must share a network.
+**IMPORTANT**: A VCH supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the public, client, and management networks must share a network.
 
 ## Container Bridge Networks ##
-The network or networks that container VMs use to communicate with each other. Each virtual container host requires a unique bridge network.
+The network or networks that container VMs use to communicate with each other. Each VCH requires a unique bridge network.
 
-You define the bridge networks by setting the `bridge-network` option when you run `vic-machine create`.  For  more detailed information about bridge networks, see the section on the `bridge-network` option in [Virtual Container Host Deployment Options](vch_installer_options.md#bridge).
+You define the bridge networks by setting the `bridge-network` option when you run `vic-machine create`.  For  more detailed information about bridge networks, see the section on the `bridge-network` option in [VCH Deployment Options](vch_installer_options.md#bridge).
 
 Container application developers can also use `docker network create` to create additional bridge networks. You can define a range of IP addresses that additional bridge networks can use by defining the `bridge-network-range` option when you run `vic-machine create`. For  more detailed information about  how to set bridge network ranges, see the section on the [`bridge-network-range` option](vch_installer_options.md#bridge-range). 
 
@@ -22,25 +22,25 @@ Container application developers can also use `docker network create` to create 
 ## Public Network  ##
 The network that container VMs use to connect to the internet. Containers can use this public network to publish network services. After defining the public network, you can deploy containers directly on the public interface.
 
-You define the public network by setting the `public-network` option when you run `vic-machine create`. For  more detailed information about management networks, see the section on the `public-network` option in [Virtual Container Host Deployment Options](vch_installer_options.md#public-network).
+You define the public network by setting the `public-network` option when you run `vic-machine create`. For  more detailed information about management networks, see the section on the `public-network` option in [VCH Deployment Options](vch_installer_options.md#public-network).
 
  ![Public Network](graphics/vch-external-net.png)
 
 ## vSphere Management Network ##
 
-The network for communication between the virtual container host and vCenter Server and ESXi hosts. Container VMs use this network to communicate with the virtual container host.
+The network for communication between the VCH and vCenter Server and ESXi hosts. Container VMs use this network to communicate with the VCH.
 
-**IMPORTANT**: Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the virtual container host, always use a secure network for the management network. Ideally, use separate networks for the management network and the container network.
+**IMPORTANT**: Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the VCH, always use a secure network for the management network. Ideally, use separate networks for the management network and the container network.
 
-You define the management network by setting the `management-network` option when you run `vic-machine create`. For  more detailed information about management networks, see the section on the `management-network` option in [Virtual Container Host Deployment Options](vch_installer_options.md#management-network).
+You define the management network by setting the `management-network` option when you run `vic-machine create`. For  more detailed information about management networks, see the section on the `management-network` option in [VCH Deployment Options](vch_installer_options.md#management-network).
 
  ![vSphere Management Network](graphics/vch-management-net.png)
 
 ## Client Network ##
 
-Connects the virtual container host endpoint VM to Docker clients and isolates the Docker endpoints from the public network.
+Connects the VCH endpoint VM to Docker clients and isolates the Docker endpoints from the public network.
 
-You define the Docker management endpoint network by setting the `client-network` option when you run `vic-machine create`. For  more detailed information about Docker management endpoint networks, see the section on the `client-network` option in [Virtual Container Host Deployment Options](vch_installer_options.md#client-network).
+You define the Docker management endpoint network by setting the `client-network` option when you run `vic-machine create`. For  more detailed information about Docker management endpoint networks, see the section on the `client-network` option in [VCH Deployment Options](vch_installer_options.md#client-network).
 
  ![Docker Management Endpoint Network](graphics/vch-docker-net.png)
 
@@ -48,4 +48,4 @@ You define the Docker management endpoint network by setting the `client-network
 
 Networks for container VMs to use for external communication when container developers run `docker run` or `docker create` with the `--net` option. 
 
-You can share one network alias between multiple containers. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 
+You can share one network alias between multiple containers. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [VCH Deployment Options](vch_installer_options.md#container-network). 

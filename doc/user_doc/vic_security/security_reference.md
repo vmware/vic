@@ -9,12 +9,12 @@ Use the Security Reference to learn about the security features of vSphere Integ
 
 <a name="network"></a>
 ## Network Security 
-Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the virtual container host, always use a secure network for the management network. Ideally, use separate networks for the management network and the container network.
+Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the virtual container host (VCH), always use a secure network for the management network. Ideally, use separate networks for the management network and the container network.
 
 <a name="list_open_ports"></a>
 ## External Interfaces, Ports, and Services
 
-The following ports must be open on the virtual container host appliance:<br>
+The following ports must be open on the VCH appliance:<br>
 
 - 2375 if no TLS is deployed
 - 2376 for TLS
@@ -29,8 +29,8 @@ vSphere Integrated Containers Engine does not create service accounts and does n
 
 <a name="patches"></a>
 ## Apply Security Updates and Patches
-Download a new version of vSphere Integrated Containers Engine and upgrade your existing virtual container hosts.
+Download a new version of vSphere Integrated Containers Engine and upgrade your existing VCHs.
 
 <a name="logs"></a>
 ## Security Related Log Messages
-Security-related information for vSphere Integrated Containers Engine appears in `docker-personality.log` and `vicadmin.log`, that you can access from the VCH Admin portal for a virtual container host.
+Security-related information for vSphere Integrated Containers Engine appears in `docker-personality.log` and `vicadmin.log`, that you can access from the VCH Admin portal for a VCH.
