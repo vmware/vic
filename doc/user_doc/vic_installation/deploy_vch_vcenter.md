@@ -41,7 +41,6 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
      --bridge-network vic-bridge
      --no-tlsverify
      </pre> 
-
    - Mac OS:
        <pre>$ vic-machine-darwin create
      --target <i>vcenter_server_address</i>

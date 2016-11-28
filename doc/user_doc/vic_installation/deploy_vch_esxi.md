@@ -34,7 +34,6 @@ This topic provides instructions for deploying a virtual container host (VCH) to
      --password <i>esxi_host_password</i>
      --no-tlsverify
      </pre> 
-
    - Mac OS:
        <pre>$ vic-machine-darwin create
      --target <i>esxi_host_address</i>

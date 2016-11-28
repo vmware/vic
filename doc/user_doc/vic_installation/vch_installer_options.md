@@ -245,13 +245,17 @@ vSphere Integrated Containers Engine supports all alphanumeric characters, hyphe
 
 Short name: `--vs`
 
-The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
+The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. 
+
+The `vic-machine create` creates command creates the `volumes` folder independently from the folders for VCH files so that you can share volumes between VCHs. If you delete a VCH, any volumes that the VCH managed will remain available in the volume store unless you specify the `--force` option when you delete the VCH. You can then assign an existing volume store that already contains data to a newly created VCH. 
 
 **IMPORTANT**: If multiple VCHs will use the same datastore for their volume stores, specify a different datastore folder for each VCH. Do not designate the same datastore folder as the volume store for multiple VCHs.
 
 If you are deploying the VCH to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as vSphere vMotion and DRS.
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a VCH when container developers run `docker info`. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a volume.
+
+If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
 
 **IMPORTANT** If you do not specify the `volume-store` option, no  volume store is created and container developers cannot use the `docker volume create` or `docker create -v` commands.
 
@@ -261,7 +265,7 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
   <pre>--volume-store <i>datastore_name</i>:default</pre>
  
-- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` at the top level of the target datastore. Any volumes that container developers create will appear in the `VIC/volumes` folder.
+- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` at the top level of the target datastore. Any volumes that container developers create will appear in the `VIC/volumes` folder. 
 
   <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre>
 - If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `volumes` in the location that you specify in the datastore path. Any volumes that container developers create will appear in the <code><i>path</i>/volumes</code> folder.
@@ -608,7 +612,7 @@ You specify a static IP address for the endpoint VM on the public, client, or ma
 
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
 
-You can specify addresses either as IPv4 addresses. Do not use CIDR notation.
+You can specify addresses as IPv4 addresses. Do not use CIDR notation.
 
 <pre>--public-network-ip 192.168.X.N
 --management-network-ip 192.168.Y.N
