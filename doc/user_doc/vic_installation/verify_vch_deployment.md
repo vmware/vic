@@ -8,7 +8,6 @@ After you have deployed a virtual container host (VCH), you can verify the deplo
 
 - You followed the instructions in [Deploy a VCH to an ESXi Host](deploy_vch_esxi.md) or [Deploy a VCH to a vCenter Server Cluster](deploy_vch_vcenter.md) to deploy a VCH to either an ESXi host or to a vCenter Server instance.
 - You have installed a Docker client.
-- Configure your Docker client to disable TLS client authentication.<pre>set DOCKER_TLS_VERIFY=0</pre> 
 - If you deployed the VCH to vCenter Server, connect a vSphere Web Client to that vCenter Server instance.
 - If you deployed the VCH to an ESXi host, connect a vSphere Client to that host.
 
