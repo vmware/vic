@@ -2,7 +2,7 @@
 
 *vSphere Integrated Containers Engine Security* provides security-related information about VMware vSphere&reg; Integrated Containers&trade; Engine.
 
-**Product version: 0.8 Release Candidate 2**
+**Product version: 0.8 Release Candidate 3**
 
 For an introduction to vSphere Integrated Containers Engine and descriptions of its main components, see *vSphere Integrated Containers Engine Installation*.
 
