@@ -76,4 +76,11 @@ Docker run ps password check
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox ps auxww
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ps auxww
-    Should Not Contain  ${output}  %{TEST_PASSWORD}
+    ${output}=  Split To Lines  ${output}
+    :FOR  ${line}  IN  @{output}
+    \   ${line}=  Strip String  ${line}
+    \   ${command}=  Split String  ${line}  max_split=3
+    \   ${len}=  Get Length  ${command}
+    \   Continue For Loop If  ${len} <= 4
+    \   Should Not Contain  @{command}[4]  %{TEST_USERNAME}
+    \   Should Not Contain  @{command}[4]  %{TEST_PASSWORD}
