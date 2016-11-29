@@ -398,23 +398,23 @@ A network for container VMs to use for external communication when container dev
 
 **IMPORTANT**: For security reasons, whenever possible, use separate networks for the container network and the management network.
 
-To specify a container network, you provide the name of a distributed port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+To specify a container network, you provide the name of a port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 - You can specify a vSphere network as the container network.
 - The distributed port group must exist before you run `vic-machine create`. 
-- You cannot use the same distributed port group as you use for the bridge network. 
-- You can create the distributed port group on the same distributed virtual switch as the distributed port group that you use for the bridge network.
+- You cannot use the same port group as you use for the bridge network. 
+- You can create the port group on the same distributed virtual switch as the port group that you use for the bridge network.
 - If the network that you specify in the `container-network` option does not support DHCP, see [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net) in Advanced Options. 
 - The descriptive name appears under `Networks` when you run `docker info` on the deployed VCH.
 - Container developers use the descriptive name in the `--net` option when they run `docker run` or `docker create`.
 
 If you do not specify the `container-network` option, or if container developers run `docker run` or `docker create` without specifying `--net`, container VMs use the bridge network. 
 
-<pre>--container-network <i>distributed_port_group_name</i>:<i>container_network_name</i></pre>
+<pre>--container-network <i>port_group_name</i>:<i>container_network_name</i></pre>
 
-Wrap the distributed port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
+Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
-<pre>--container-network '<i>distributed port group name</i>':<i>container_network_name</i></pre>
+<pre>--container-network '<i>port group name</i>':<i>container_network_name</i></pre>
 
 <a name="deployment"></a>
 ## Appliance Deployment Options ##
@@ -664,9 +664,9 @@ For information about the container network, see the section on the [`container-
 
 Short name: `--cng`
 
-The gateway for the subnet of the container network. This option is required if the network that you specify in the `container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `container-network-dns` option.
+The gateway for the subnet of the container network. This option is required if the network that you specify in the `--container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `--container-network-dns` option.
 
-When you specify the container network gateway, you must use the distributed port group that you specify in the `container-network` option. If you specify `container-network-gateway` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
+When you specify the container network gateway, you must use the port group that you specify in the `--container-network` option. If you specify `--container-network-gateway` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
@@ -678,9 +678,9 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 Short name: `--cnd`
 
-The address of the DNS server for the container network. This option is recommended if the network that you specify in the `container-network` option does not support DHCP. 
+The address of the DNS server for the container network. This option is recommended if the network that you specify in the `--container-network` option does not support DHCP. 
 
-When you specify the container network DNS server, you must use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers. If you specify `container-network-dns` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
+When you specify the container network DNS server, you must use the  port group that you specify in the `--container-network` option. You can specify `--container-network-dns` multiple times, to configure multiple DNS servers. If you specify `--container-network-dns` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
@@ -692,9 +692,9 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 Short name: `--cnr`
 
-The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, VCHs manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`. 
+The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, VCHs manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `--container-network-gateway`. 
 
-When you specify the container network IP range, you must use the distributed port group that you specify in the `container-network `option. If you specify `container-network-ip-range` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
+When you specify the container network IP range, you must use the distributed port group that you specify in the `--container-network `option. If you specify `--container-network-ip-range` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
 
