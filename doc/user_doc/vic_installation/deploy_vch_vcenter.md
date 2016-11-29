@@ -11,10 +11,9 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
   * One datacenter
   * One cluster with two ESXi hosts and DRS enabled. You can use nested ESXi hosts for this example.
   * One datastore
-  * One network, for example the default VM Network
-  * One distributed virtual switch with one distributed port group named `vic-bridge`.
+  * The default VM Network and no other networks
+  * One distributed virtual switch with one distributed port group named `vic-bridge`
 * Verify that your vCenter Server instance and both of the ESXi hosts in the cluster meet the requirements in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md).
-* If your vSphere environment does not use trusted certificates that have been signed by a Certificate Authority (CA), obtain the thumbprint of the vCenter Server or ESXi host certificate.
 * Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md). 
 * Familiarize yourself with the options of the `vic-machine create` command described in [VCH Deployment Options](vch_installer_options.md).
  
@@ -57,18 +56,18 @@ The `vic-machine create` command in this example specifies the minimum informati
 - The distributed port group named `vic-bridge`, for use as the container bridge network. 
 - Disables the verification of clients that connect to this VCH by specifying the `--no-tlsverify` option.
    
-Because the vCenter Server instance only has one datacenter, one cluster, one network, and one datastore, `vic-machine create` automatically detects and uses these resources.
+Because the vCenter Server instance only has one datacenter, one cluster, one datastore, and uses the default VM Network network, `vic-machine create` automatically detects and uses these resources.
 
 This example deploys a VCH with the default name `virtual-container-host`.
 
 **Result**
 
-If you see the error `Failed to verify certificate for target`, see [VCH Deployment Fails with a Certificate Verification Error](ts_thumbprint_error.md).
+If deployment fails with the error `Failed to verify certificate for target`, see [VCH Deployment Fails with a Certificate Verification Error](ts_thumbprint_error.md).
 
 At the end of a successful installation, `vic-machine` displays information about the new VCH:
    
 <pre>Initialization of appliance successful
-vic-admin portal:
+VCH Admin Portal:
 https://<i>vch_address</i>:2378
 Published ports can be reached at:
 <i>vch_address</i>
