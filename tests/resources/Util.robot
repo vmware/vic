@@ -140,11 +140,13 @@ Run VIC Machine Command
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
+    [Arguments]  ${test_resource}=%{TEST_RESOURCE}
     Log To Console  Gathering logs from the test server ${vch-name}
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance ${vch-name}
-    ${output}=  Run VIC Machine Delete Command
+    ${output}=  Run VIC Machine Delete Command  ${test_resource}
     Run Keyword And Ignore Error  Cleanup VCH Bridge Network  ${vch-name}
+    Run  govc pool.destroy "*/Resources/*"
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
@@ -167,12 +169,13 @@ Check Delete Success
 
 Run Secret VIC Machine Delete Command
     [Tags]  secret
-    [Arguments]  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    [Arguments]  ${vch-name}  ${test_resource}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=${test_resource} --timeout %{TEST_TIMEOUT}
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
-    ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vch-name}
+    [Arguments]  ${test_resource}
+    ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vch-name}  ${test_resource}
     Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vch-name}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
