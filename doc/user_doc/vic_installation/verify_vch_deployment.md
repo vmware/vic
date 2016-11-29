@@ -20,7 +20,6 @@ After you have deployed a virtual container host (VCH), you can verify the deplo
 
    The vApp or resource pool contains the VCH endpoint VM.   
 
-2.  In your Docker client terminal, disable TLS client authentication.<pre>set DOCKER_TLS_VERIFY=0</pre> 
 3.  Run the `docker info` command to confirm that you can connect to the VCH.<pre>docker -H <i>vch_address</i>:2376 --tls info</pre>
 
      You should see confirmation that the Storage Driver is ``` vSphere Integrated Containers Backend Engine```. If the connection fails with a Docker API version error, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
@@ -42,7 +41,7 @@ After you have deployed a virtual container host (VCH), you can verify the deplo
     - vCenter Server: Go to **Hosts and Clusters** and expand the VCH vApp.
     - ESXi host: Go to **Inventory** and expand the VCH resource pool.
  
-    You should see a VM for every container that you run, including a VM named `test`.
+    You should see a VM for every container that you run, including a VM named <code>test-<i>container_id</i></code>.
 
 1. View the container VM files in the vSphere Web Client or vSphere Client.
 
