@@ -33,9 +33,6 @@ You can deploy VCHs in vCenter Linked Mode environments.
 ## Multiple VLAN
 You can deploy and run Docker commands against a VCH on a vCenter appliance that has multiple portgroups on different VLANs within the datacenter.
 
-## Multiple VLAN
-You can deploy and run Docker commands against a virtual container host on a vCenter appliance that has multiple portgroups on different VLANs within the datacenter.
-
 <!--
 ## vSphere Instant Clone
 vSphere Integrated Containers Engine allows you to create and run multiple containers rapidly with minimal overhead using vSphere 6 Instant Clone technology, which provisions child VMs forked directly from a parent VM template running a Linux kernel. vSphere Integrated Containers Engine creates the kernel and a few supporting resources to run containers using Photon OS technology.
