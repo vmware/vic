@@ -56,7 +56,7 @@ Check the **VCH Admin Server** log for references to network issues. Use the vSp
 
 ## Firewall ##
 
-VCH Admin checks that the firewall is correctly configured on a an ESXi host on which the VCH is running. If the VCH is running in a cluster, VCH Admin checks the firewall configuration on all of the hosts in the cluster.
+VCH Admin checks that the firewall is correctly configured on an ESXi host on which the VCH is running. If the VCH is running in a cluster, VCH Admin checks the firewall configuration on all of the hosts in the cluster.
 
 ### Error ###
 
