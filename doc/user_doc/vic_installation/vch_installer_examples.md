@@ -44,7 +44,7 @@ This example deploys a VCH with the following configuration:
 - Uses a distributed port group named `vic-bridge` for the bridge network. 
 - Designates `datastore1` as the datastore in which to store container images, the files for the VCH appliance, and container VMs. 
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -63,7 +63,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name, password, image store, bridge network, and name for the VCH.
 - Deploys the VCH on the ESXi host with the FQDN `esxihost1.organization.company.com` in the datacenter `dc1`. You can also specify an IP address.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -82,7 +82,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name and password, and a name for the VCH.
 - Designates `rp 1` as the resource pool in which to place the VCH. Note that the resource pool name is wrapped in quotes, because it contains a space. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target root:<i>password</i>@<i>esxi_host_address</i>
 --compute-resource 'rp 1'
 --name vch1
@@ -99,7 +99,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name, password, datacenter, image store, bridge network, and name for the VCH.
 - Designates `rp 1` in cluster `cluster 1` as the resource pool in which to place the VCH. Note that the resource pool and cluster names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource 'cluster 1'/'rp 1'
 --image-store datastore1
@@ -118,7 +118,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name, password, image store, cluster, bridge network, and name for the VCH.
 - Sets resource limits on the VCH by imposing memory and CPU reservations, limits, and shares.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -156,7 +156,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the VCH.
 - Directs public and management traffic to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -185,7 +185,7 @@ This example deploys a VCH with the following configuration:
 - Specifies a gateway for the client network. The `--client-network-gateway` option specifies the routing destination for client network traffic through the VCH endpoint VM, as well as the gateway address. The routing destination informs the VCH that it can reach all of the Docker clients at the network addresses in the ranges that you specify in the routing destinations by sending packets to the specified gateway.
 - Because this example specifies a static IP address for the VCH endpoint VM on the client network, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. Full TLS authentication is implemented by default, so no TLS options are specified. 
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -218,7 +218,7 @@ This example deploys a VCH with the following configuration:
 - Gives the container network the name `vic-container-network`, for use by Docker. 
 - Specifies the gateway, two DNS servers, and a range of IP addresses on the container network for container VMs to use.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -244,7 +244,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name, password, image store, cluster, bridge network, and name for the VCH.
 - Configures the VCH to access the network via an HTTPS proxy server.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -269,7 +269,7 @@ This example deploys a VCH with the following configuration:
 - Specifies a second volume store named `volume_store_2` in the `volumes` folder on `datastore 2`. 
 - Note that the datastore names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --bridge-network vic-bridge
@@ -299,7 +299,7 @@ This example deploys a VCH with the following configuration:
 - Provides `vch1.example.org` as the FQDN for the VCH, for use as the Common Name in the certificate.
 - Specifies a folder in which to store the auto-generated certificates.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -321,7 +321,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name, password, image store, cluster, bridge network, and name for the VCH.
 - Provides the paths relative to the current location of the `*.pem` files for the custom CA certificate and key files.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
@@ -344,7 +344,7 @@ This example deploys a VCH with the following configuration:
 - Authorizes the VCH to pull Docker images from the insecure private registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.
 - The registry server at <i>registry_URL_2</i> listens for connections on port 5000. 
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+<pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1

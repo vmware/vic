@@ -472,7 +472,7 @@ The timeout period for uploading the vSphere Integrated Containers Engine  appli
 <a name="advanced"></a>
 # Advanced Options #
 
-The options in this section are exposed in the `vic-machine create` help if you run <code>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create --extended-help</code>, or <code>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create -x</code>. 
+The options in this section are exposed in the `vic-machine create` help if you run <code>vic-machine-<i>operating_system</i> create --extended-help</code>, or <code>vic-machine-<i>operating_system</i> create -x</code>. 
 
 <a name="adv-security"></a>
 ## Advanced Security Options ##
