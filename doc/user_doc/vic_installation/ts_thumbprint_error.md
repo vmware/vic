@@ -26,5 +26,5 @@ If you are using untrusted certificates and you cannot use trusted certificates:
 1. Copy the thumbprint of the untrusted certificate from the `vic-machine create` error message.
 2. Run `vic-machine create` again, specifying the certificate thumbprint in the `--thumbprint` option.
 
-If you are using trusted certificates, check you that you have the correct client certificate.
+If you are using trusted certificates, check that you have the correct client certificate.
 
