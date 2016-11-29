@@ -6,15 +6,13 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
 
 **Prerequisites**
 * Download and unpack the vSphere Integrated Containers Engine bundle. For information about where to obtain vSphere Integrated Containers Engine, see [Download vSphere Integrated Containers Engine](download_vic_engine.md).
-* Add the folder that contains the vSphere Integrated Containers Engine binaries to the `PATH` environment variable on the machine on which you are running `vic-machine`. 
 * Create or obtain a vCenter Server instance with the following configuration:
   * One datacenter
   * One cluster with two ESXi hosts and DRS enabled. You can use nested ESXi hosts for this example.
   * One datastore
-  * One network, for example the default VM Network
-  * One distributed virtual switch with one distributed port group named `vic-bridge`.
+  * The default VM Network and no other networks
+  * One distributed virtual switch with one distributed port group named `vic-bridge`
 * Verify that your vCenter Server instance and both of the ESXi hosts in the cluster meet the requirements in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md).
-* If your vSphere environment does not use trusted certificates that have been signed by a Certificate Authority (CA), obtain the thumbprint of the vCenter Server or ESXi host certificate.
 * Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md). 
 * Familiarize yourself with the options of the `vic-machine create` command described in [VCH Deployment Options](vch_installer_options.md).
  
@@ -32,6 +30,7 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
      --password <i>vcenter_server_password</i>
      --bridge-network vic-bridge
      --no-tlsverify
+     --force
      </pre>  
    - Windows:
       <pre>$ vic-machine-windows create
@@ -40,8 +39,8 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
      --password <i>vcenter_server_password</i>
      --bridge-network vic-bridge
      --no-tlsverify
+     --force
      </pre> 
-
    - Mac OS:
        <pre>$ vic-machine-darwin create
      --target <i>vcenter_server_address</i>
@@ -49,6 +48,7 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
      --password <i>vcenter_server_password</i>
      --bridge-network vic-bridge
      --no-tlsverify
+     --force
      </pre> 
 
 The `vic-machine create` command in this example specifies the minimum information required to deploy a VCH to vCenter Server:
@@ -57,19 +57,18 @@ The `vic-machine create` command in this example specifies the minimum informati
 - The vCenter Single Sign-On user and password in the `--user` and `--password` options. Note that the user name is wrapped in quotes, because it contains the `@` character. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system. 
 - The distributed port group named `vic-bridge`, for use as the container bridge network. 
 - Disables the verification of clients that connect to this VCH by specifying the `--no-tlsverify` option.
+- Disables the verification of the vCenter Server certificate by specifying the `--force` option.
    
-Because the vCenter Server instance only has one datacenter, one cluster, one network, and one datastore, `vic-machine create` automatically detects and uses these resources.
+Because the vCenter Server instance only has one datacenter, one cluster, one datastore, and uses the default VM Network network, `vic-machine create` automatically detects and uses these resources.
 
 This example deploys a VCH with the default name `virtual-container-host`.
 
 **Result**
 
-If you see the error `Failed to verify certificate for target`, see [VCH Deployment Fails with a Certificate Verification Error](ts_thumbprint_error.md).
-
 At the end of a successful installation, `vic-machine` displays information about the new VCH:
    
 <pre>Initialization of appliance successful
-vic-admin portal:
+VCH Admin Portal:
 https://<i>vch_address</i>:2378
 Published ports can be reached at:
 <i>vch_address</i>

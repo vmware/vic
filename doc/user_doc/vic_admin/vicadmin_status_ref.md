@@ -4,7 +4,7 @@ The Web-based administration portal for virtual container hosts (VCHs), VCH Admi
 
 If the vSphere environment in which you are deploying a VCH does not meet the requirements, the deployment does not succeed. However, a successfully deployed VCH can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the VCH, the status of the affected component changes from green to yellow.
 
-## VCH (VCH) ##
+## Virtual Container Host (VCH) ##
 
 VCH Admin checks the status of the processes that the VCH runs:
 
@@ -56,7 +56,7 @@ Check the **VCH Admin Server** log for references to network issues. Use the vSp
 
 ## Firewall ##
 
-VCH Admin checks that the firewall is correctly configured on the ESXi host or the ESXi hosts in the cluster on which the VCH is running.
+VCH Admin checks that the firewall is correctly configured on an ESXi host on which the VCH is running. If the VCH is running in a cluster, VCH Admin checks the firewall configuration on all of the hosts in the cluster.
 
 ### Error ###
 

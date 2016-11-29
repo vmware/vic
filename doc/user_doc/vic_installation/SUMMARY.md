@@ -21,7 +21,7 @@
 * [Troubleshooting vSphere Integrated Containers Engine Installation](troubleshoot_vic_install.md)
   * [Resource Pool Creation Error](ts_resource_pool_error.md)
   * [Certificate Verification Error](ts_thumbprint_error.md)
-  * [Unknown or Non-Specified Argument Error or Incorrect User Name Error](ts_cli_argument_error.md)
+  * [Missing Common Name Error When TLS Options Are Specified](ts_cli_argument_error.md)
   * [Firewall Validation Error](ts_firewall_error.md)
   * [Certificate cname Mismatch](ts_cname_mismatch.md)
   * [Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md)

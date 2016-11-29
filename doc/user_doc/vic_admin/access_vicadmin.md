@@ -8,12 +8,15 @@ vSphere Integrated Containers Engine provides a Web-based administration portal 
 - Obtain the address of the VCH:
   - Copy the address from the output of `vic-machine create` or `vic-machine inspect`. 
   - If you deployed the VCH to vCenter Server, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Web Client.
-  - If you deployed the VCH to an ESXi host, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the vSphere Client.
+  - If you deployed the VCH to an ESXi host, copy the address from the **Summary** tab for the vSphere Integrated Containers Engine endpoint VM in the desktop vSphere Client.
 
 **Procedure**
 
 1. In a Web browser, go to https://<i>vch_address</i>:2378.
-2. (Optional) If the VCH uses full TLS authentication with trusted CA certificates, enter the username and password for the vCenter Server instance or ESXi host.
+
+   If prompted about an insecure or not private connection, click Advanced and follow the prompts to proceed to the portal.   
+
+2. Enter the username and password for the vCenter Server instance or ESXi host.
 
 **Result**
 
