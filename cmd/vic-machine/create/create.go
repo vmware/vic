@@ -612,26 +612,20 @@ func (c *Create) processCertificates() error {
 	// if we've not got a specific CommonName but do have a static IP then go with that.
 	if c.cname == "" {
 		if c.clientNetworkIP != "" {
-			if cnameIP, _, _ := net.ParseCIDR(c.clientNetworkIP); cnameIP != nil {
-				c.cname = cnameIP.String()
-			} else {
-				c.cname = c.clientNetworkIP
-			}
+			c.cname = c.clientNetworkIP
 			log.Infof("Using client-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
 		} else if c.publicNetworkIP != "" && (c.publicNetworkName == c.clientNetworkName || c.clientNetworkName == "") {
-			if cnameIP, _, _ := net.ParseCIDR(c.publicNetworkIP); cnameIP != nil {
-				c.cname = cnameIP.String()
-			} else {
-				c.cname = c.publicNetworkIP
-			}
+			c.cname = c.publicNetworkIP
 			log.Infof("Using public-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
 		} else if c.managementNetworkIP != "" && (c.managementNetworkName == c.clientNetworkName || (c.clientNetworkName == "" && c.managementNetworkName == c.publicNetworkName)) {
-			if cnameIP, _, _ := net.ParseCIDR(c.managementNetworkIP); cnameIP != nil {
-				c.cname = cnameIP.String()
-			} else {
-				c.cname = c.managementNetworkIP
-			}
+			c.cname = c.managementNetworkIP
 			log.Infof("Using management-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
+		}
+	}
+
+	if c.cname != "" {
+		if cnameIP, _, _ := net.ParseCIDR(c.cname); cnameIP != nil {
+			c.cname = cnameIP.String()
 		}
 	}
 
