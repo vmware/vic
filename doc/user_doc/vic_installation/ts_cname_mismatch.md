@@ -10,26 +10,26 @@ Unable to load certificates: cname option doesn't match existing server certific
 in certificate path <i>path_to_certificate</i></pre>
 
 ## Cause ##
-This error can occur in the following circumstances when you run `vic-machine create`:
-- You specified the Common Name attribute to use in auto-generated CA certificates in one of the following ways:
-  - You specified the `--tls-cname` option.
-  - You specified a static IP address in the `--client-network-ip` option.
-  - You specified a static IP address in the `--public-network-ip` option and the public network shares a port group with the client network.
-- `vic-machine create` finds and attempts to use an existing auto-generated certificate. 
-- The existing certificate includes a Common Name attribute that is different to the address that you specified in `--tls-cname`, `--client-network-ip`, or `--public-network-ip`. 
+`vic-machine create` attempts to re-use certificates that it finds in `--cert-path`. The default value of `--cert-path` derives from the value that you specify in `--name`. If you are deploying a VCH from the same location and with the same name as a previous VCH, `vic-machine create` reuses the old certificates. This behavior is intentional, to allow you to easily redeploy a VCH without requiring you to re-issue client certificates to users.
 
-`vic-machine create` is attempting to use an existing certificate for one of the following reasons:
+Before reusing the existing certificates, `vic-machine` confirms that the existing certificate is valid given the options supplied for the new deployment. The options that influence this in order of priority are:
+* `--tls-cname` if specified, or
+* `--client-ip-address`, or 
+* `--public-ip-address` if the client and public network roles share an interface.
 
-- You specified a VCH name in the `--name` option that is the same as that of an existing VCH. The certificate folder for the existing VCH has the same name as the one you specified in the `--name` option for the new VCH.
-- You specified a VCH name in the `--name` option that is the same as that of a VCH that has been deleted, but for which the default certificate folder still exists. The certificate folder for the deleted VCH has the same name as the one you specified in the `--name` option for the new VCH.
-- You used the `--cert-path` option to specify a certificate folder that already contains certificates for another VCH.
-- You intentionally attempted to reuse an existing certificate, but the value that you provided in `--tls-cname`, `--client-network-ip`, or `--public-network-ip` does not match the Common Name attribute in the existing certificate.
+The error message means that the existing certificate has a Common Name attribute that differs from the value derived from the options detailed above.
 
 ## Solution ##
 
-Run `vic-machine create` again with one of the following modifications:
+- To reuse the certificates directly, change `--tls-cname`, `--client-ip-address`, or `--public-ip-address` to match the Common Name in the existing certificate.
 
-- If another VCH of the same name already exists, specify a different name for the new VCH in the `--name` option.
-- If a certificate folder still exists for a VCH that has been deleted, if that folder has the same name as the one you are specifying in `--name`, and if you do not intend to reuse the existing certificate, delete the existing certificates.
-- If you used the `--cert-path` option, delete the existing certificate if it is no longer required, or specify a different certificate folder in  `--cert-path`.
-- If you do intend to reuse the existing certificate, update the `--tls-cname` option or `--client-network-ip` option to match the `cname` that the error message included. 
+- To reuse the Certificate Authority so that client certificates remain valid, but you need to provide a different IP address
+
+  1. Manually generate the server certificates by using `openssl`, signing them with the existing CA
+  2.  Use the `--cert` and `--key` options to pass the newly generated certificates to `vic-machine create`.
+
+- If you do not want to reuse the certificates, choose one of the following options:
+  - Change the location from which you run `vic-machine`. This alters the default `--cert-path`.
+  - Change the value of `--name`. This alters the default `--cert-path`.
+  - Specify `--cert-path` explicitly.
+  - Delete the existing certificates from `--cert-path`
