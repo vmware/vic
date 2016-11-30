@@ -25,7 +25,11 @@ Restart the vSphere Web Client service.
 ### vCenter Server Appliance ###
 
 1. Use SSH to log in to the vCenter Server Appliance as root.
-2. Stop the vSphere Web Client service by running the following command:<pre>service vsphere-client stop</pre>
-3. Restart the vSphere Web Client service by running the following command:<pre>service vsphere-client start</pre>
+2. Stop the vSphere Web Client service by running one of the following commands.
+   - vCenter Server 6.0: <pre>service vsphere-client stop</pre>
+   - vCenter Server 6.5: <pre>service-control --stop vsphere-client</pre>
+3. Restart the vSphere Web Client service by running one of the following commands.
+   - vCenter Server 6.0:<pre>service vsphere-client start</pre>
+   - vCenter Server 6.5: <pre>service-control --start vsphere-client</pre>
 
 
