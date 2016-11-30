@@ -7,9 +7,11 @@ After you have deployed a virtual container host (VCH), you can verify the deplo
 **Prerequisites**
 
 - You followed the instructions in [Deploy a VCH to an ESXi Host](deploy_vch_esxi.md) or [Deploy a VCH to a vCenter Server Cluster](deploy_vch_vcenter.md) to deploy a VCH to either an ESXi host or to a vCenter Server instance.
+- You ran `vic-machine create` with the `--no-tlsverify` option.
 - You have installed a Docker client.
 - If you deployed the VCH to vCenter Server, connect a vSphere Web Client to that vCenter Server instance.
 - If you deployed the VCH to an ESXi host, connect a vSphere Client to that host.
+
 
 **Procedure**    
 
@@ -24,7 +26,7 @@ After you have deployed a virtual container host (VCH), you can verify the deplo
 
      You should see confirmation that the Storage Driver is ``` vSphere Integrated Containers Backend Engine```. If the connection fails with a Docker API version error, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
 
-1.  Pull a Docker container image into the VCH, for example, the `BusyBox` container.<pre>docker -H <i>vch_address</i>:2376 --tls pull busybox:latest</pre>
+1.  Pull a Docker container image into the VCH, for example, the `BusyBox` container.<pre>docker -H <i>vch_address</i>:2376 --tls pull busybox</pre>
 1. View the container image files in the vSphere Web Client or vSphere Client.
 
     - vCenter Server: Go to **Storage**, select the datastore that you designated as the image store, and click **Manage** > **Files**. 

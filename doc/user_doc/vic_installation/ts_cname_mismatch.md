@@ -23,9 +23,9 @@ The error message means that the existing certificate has a Common Name attribut
 
 - To reuse the certificates directly, change `--tls-cname`, `--client-ip-address`, or `--public-ip-address` to match the Common Name in the existing certificate.
 
-- To reuse the Certificate Authority so that client certificates remain valid, but you need to provide a different IP address
+- If you want to reuse the Certificate Authority so that client certificates remain valid, but you need to provide a different IP address:
 
-  1. Manually generate the server certificates by using `openssl`, signing them with the existing CA
+  1. Manually generate the server certificates by using `openssl`, signing them with the existing CA.
   2.  Use the `--cert` and `--key` options to pass the newly generated certificates to `vic-machine create`.
 
 - If you do not want to reuse the certificates, choose one of the following options:
