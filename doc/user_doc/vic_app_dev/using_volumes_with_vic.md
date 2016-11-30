@@ -48,7 +48,7 @@ vsphere        <i>volume_n</i></pre>
 
 When you use the `docker volume create` command to create a volume, you can optionally provide a name for the volume by specifying the `--name` option. If you do not specify `--name`, `docker volume create` assigns a random UUID to the volume.
 
-- If you or the vSphere Administrator created the VCH with one or more volume stores, but none of the volume stores is named `default`, you must specify the name of an existing volume store in the `--opt VolumeStore` option. If you do not specify `--opt VolumeStore`, `docker volume create` searches for a volume store named `default`, and returns an error if no such volume store exists. 
+- If you or the vSphere Administrator created the VCH with one or more volume stores, but none of the volume stores are named `default`, you must specify the name of an existing volume store in the `--opt VolumeStore` option. If you do not specify `--opt VolumeStore`, `docker volume create` searches for a volume store named `default`, and returns an error if no such volume store exists. 
 
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
   --opt VolumeStore=<i>volume_store_label</i> 
