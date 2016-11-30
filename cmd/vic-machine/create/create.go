@@ -1001,6 +1001,8 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 			return certs, keypair, errors.New("failed to load certificate authority")
 		}
 
+		c.cacert = ca
+
 		log.Infof("Loaded CA with default name from certificate path %s", c.certPath)
 		certs = b
 
