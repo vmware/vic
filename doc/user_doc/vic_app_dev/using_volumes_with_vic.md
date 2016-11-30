@@ -142,8 +142,7 @@ volume inspect <i>volume_name</i></pre>
 
 <a name="delete_vol"></a>
 ## Delete a Named Volume from a Volume Store ##
-To delete a volume, run `docker volume rm` and specify the name of the volume to delete.
+To delete a volume, run `docker volume rm` and specify the name of the volume to delete. `docker rm -v` to remove volumes associated with the container is not supported.
+
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 volume rm <i>volume_name</i></pre>
-
-
