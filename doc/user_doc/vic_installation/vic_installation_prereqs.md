@@ -34,7 +34,6 @@ You can install vSphere Integrated Containers Engine in the following vSphere se
 
 Caveats and limitations:
 
-- Deploying vSphere Integrated Containers Engine to vSphere 5.5 environments should work but is unsupported and might not work in the future.
 - VMware does not support the use of nested ESXi hosts, namely running ESXi in virtual machines. Deploying vSphere Integrated Containers Engine to a nested ESXi host is acceptable for testing purposes only.
 - Deploying vSphere Integrated Containers Engine to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported. 
 

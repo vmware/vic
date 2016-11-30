@@ -18,22 +18,18 @@ If you are running the vCenter Server Appliance, you can use a Web server to hos
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>VCENTER_IP="<i>vcenter_server_address</i>"</pre>
 5. Enter the path to the folder on your Web server that contains the <code>com.vmware.vicui.Vicui-<i>version</i>.zip</code>  file.<pre>VIC_UI_HOST_URL="<i>vicui_zip_location</i>"</pre>
 6. (Optional) If you used an HTTPS address in `VIC_UI_HOST_URL`, provide the SHA-1 thumbprint of the Web server.<pre>VIC_UI_HOST_THUMBPRINT="<i>thumbprint</i>"</pre>**NOTE**: Use colon delimitation in the thumbprint. Do not use space delimitation. 
-6. (Optional) If you are deploying the plug-in to a vCenter Server 5.5 instance, change the  value of `IS_VCENTER_5_5` from 0 to 1. 
-
-    **IMPORTANT**: Deploying vSphere Integrated Containers Engine to vSphere 5.5 environments works but is not officially supported.
-    <pre>IS_VCENTER_5_5=1</pre>
 6. Save and close the `configs` file.
 7. (Optional) If you run `vic-machine` on a Windows system, open  the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/install.sh</code> file in a text editor and point `PLUGIN_MANAGER_BIN` to the Windows UI executable.
 
- - Before:
-    <pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
+    Before:
+     <pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
       PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
-    else
+     else
       PLUGIN_MANAGER_BIN="../../vic-ui-linux"</pre>
-  - After:
-    <pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
+    After:
+     <pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
       PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
-    else
+     else
       PLUGIN_MANAGER_BIN="../../vic-ui-windows"</pre>
 
 7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>, and run the installer.
