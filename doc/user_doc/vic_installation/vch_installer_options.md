@@ -709,25 +709,25 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 <a name="proxy"></a>
 ## Options to Configure VCHs to Use Proxy Servers ##
 
-If your network access is controlled by a proxy server, you must   configure a VCH to connect to the proxy server when you deploy it. The proxy that you specify serves exclusively for pulling images into the VCH from an external source, and is not used for any other purpose.
+If access to the Internet or to your private image registries requires the use of a proxy server, you must configure a VCH to connect to the proxy server when you deploy it. The proxy is used only when pulling images, and not for any other purpose.
 
 **IMPORTANT**: Configuring a VCH to use a proxy server does not configure proxy support on the containers that this VCH runs. Container developers must configure proxy servers on containers when they create them. 
-
-### `--http-proxy` ###
-
-Short name: `--hproxy`
-
-The address of the HTTP proxy server through which the VCH accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
-
-<pre>--http-proxy http://<i>proxy_server_address</i>:<i>port</i></pre>
 
 ### `--https-proxy` ###
 
 Short name: `--sproxy`
 
-The address of the HTTPS proxy server through which the VCH accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+The address of the HTTPS proxy server through which the VCH accesses image registries when using HTTPS. Specify the address of the proxy server as either an FQDN or an IP address.
 
 <pre>--https-proxy https://<i>proxy_server_address</i>:<i>port</i></pre>
+
+### `--http-proxy` ###
+
+Short name: `--hproxy`
+
+The address of the HTTP proxy server through which the VCH accesses image registries when using HTTP. Specify the address of the proxy server as either an FQDN or an IP address.
+
+<pre>--http-proxy http://<i>proxy_server_address</i>:<i>port</i></pre>
 
 <a name="adv-mgmt"></a>
 ## Advanced Resource Management Options ##
