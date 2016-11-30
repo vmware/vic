@@ -10,11 +10,19 @@ If the VCH is unable to connect to vSphere, logs that require a vSphere connecti
   - **Docker Personality** is the interface to Docker. When configured with client certificate security, it reports unauthorized access attempts to the Docker server web page.
   - **Port Layer Service** is the interface to vSphere.
   - **Initialization & watchdog** reports network configuration, component launch status for the VCH Admin portal and the port layer,  records if they fail, and relaunches them if they do. The binary  `vic-init` launches the components and redirects their output to the log files in `/var/log/vic/`. At higher debug levels, the component output is duplicated in that log file, so `init.log`  includes a superset of the log data.
-  - **Admin Server** includes logs for the admin server, may contain processes that failed, and network issues. When configured with client certificate security, it reports unauthorized access attempts to the admin server web page.
+  - **Admin Server** includes logs for the VCH admin server, may contain processes that failed, and network issues. When configured with client certificate security, it reports unauthorized access attempts to the admin server web page.
 
-Live logs can help you to see how any current changes you make might affect the logs. For example, when you try to troubleshoot an issue, you can see if your attempt worked or failed by looking at the live logs.
+Live logs can help you see information about current commands and changes as you perform them. For example, when you are troubleshooting an issue, you can see if your command worked or failed by looking at the live logs.
 
-You can share the non-live version of the logs with administrators or VMware Support to help you to solve issues.
+You can share the non-live version of the logs with administrators or VMware Support to help you resolve issues.
 
 ## Collecting Logs Manually
 If the VCH Admin portal is offline, use `vic-machine debug` to enable SSH on the VCH and use `scp -r` to capture the logs from `/var/log/vic/`.
+
+## Setting the Log Size Cap
+The log size cap is set at 20MB. If the size exceeds 20 MB, then vSphere Integrated Containers Engine compresses the files and saves a history of the last two rotations. These files are rotated:
+
+`/var/log/vic/port-layer.log` <br>
+`/var/log/vic/init.log` <br>
+`/var/log/vic/docker-personality.log` <br>
+`/var/log/vic/vicadmin.log`
