@@ -1,6 +1,6 @@
 # VCH Deployment Fails with a Certificate Verification Error #
 
-When you use `vic-machine create` to deploy a virtual container host (VCH), the installation fails with a certificate verification error.
+When you use `vic-machine create` to deploy a virtual container host (VCH), the installation fails with a certificate verification error, noting that it `failed to create validator`.
 
 ## Problem ##
 Deployment of the VCH fails during the validation of the configuration that you provided: 
@@ -13,18 +13,16 @@ vic-machine-<i>platform</i>.exe failed: x509: certificate signed by unknown auth
 </pre>
 
 ## Cause ##
-
-This error can occur for the following reasons:
-
-- The vCenter Server or ESXi host on which you are deploying the VCH uses untrusted certificates that have not been signed by a Certificate Authority (CA).
-- The vCenter Server or ESXi host on which you are deploying the VCH uses trusted certificates that have been signed by a Certificate Authority (CA) and you are using an incorrect certificate on the machine on which you are running `vic-machine create`.
-- There is a security problem and the connection has possibly been subject to a spoofing attack.
+The certificate on the vCenter Server or ESXi host that you specified in the `--target` option cannot be validated on the client system.
  
 ## Solution ##
-If you are using untrusted certificates and you cannot use trusted certificates:
 
-1. Copy the thumbprint of the untrusted certificate from the `vic-machine create` error message.
-2. Run `vic-machine create` again, specifying the certificate thumbprint in the `--thumbprint` option.
+If the certificate was signed by a certificate authority (CA), add that CA to the trusted roots for the client system.
 
-If you are using trusted certificates, check that you have the correct client certificate.
-
+If the CA should not be generally trusted, or the certificate is self-signed:
+*  If the server is trusted and you did not specify the certificate thumbprint when you ran `vic-machine create`, specify the `--thumbprint` option, using the thumbprint from the error message.
+*  If the thumbprint that you specified in `--thumbprint` does not match the server certificate reported in the error message: 
+    1.  Remove the thumbprint from the `vic-machine create` command. 
+    **WARNING:** A thumbprint mismatch could mean the server you have connected to is not the intended target and might have be spoofed.
+    2. Validate that the change in server certificate is legitimate
+    3. Re-run `vic-machine create`, specifying the new thumbprint in the `--thumbprint` option.

@@ -14,7 +14,7 @@
 * [Find VCH Information in the vSphere Web Client](vch_portlet_ui.md)
 * [Find Container Information in the vSphere Web Client](container_portlet_ui.md)
 * [Access the VCH Admin Portal](access_vicadmin.md)
-  * [VCH Status Reference](vicadmin_status_ref.md)
+  * [VCH Admin Status Reference](vicadmin_status_ref.md)
 * [Troubleshooting](troubleshoot_vic_admin.md)
   * [Access Log Bundles](log_bundles.md)
   * [Running `vic-machine ls` on an ESXi Host Fails with an Error](ts_ls_error.md)

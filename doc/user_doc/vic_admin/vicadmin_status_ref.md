@@ -1,4 +1,4 @@
-# VCH Status Reference #
+# VCH Admin Status Reference #
 
 The Web-based administration portal for virtual container hosts (VCHs), VCH Admin, presents status information about a VCH.
 

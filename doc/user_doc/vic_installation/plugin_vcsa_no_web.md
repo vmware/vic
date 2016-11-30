@@ -11,19 +11,15 @@ If you are running the vCenter Server Appliance and you do not have access to a 
 
 1. On the system on which you run `vic-machine`, open the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/configs</code> file in a text editor.
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in. <pre>VCENTER_IP="<i>vcenter_server_address</i>"</pre>
-6. (Optional) If you are deploying the plug-in to a vCenter Server 5.5 instance, change the  value of `IS_VCENTER_5_5` from 0 to 1. 
-
-    **IMPORTANT**: Deploying vSphere Integrated Containers Engine to vSphere 5.5 environments works but is not officially supported.
-    <pre>IS_VCENTER_5_5=1</pre>
 6. Save and close the `configs` file.
 7. (Optional) If you run `vic-machine` on a Windows system, open  the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/install.sh</code> file in a text editor and point `PLUGIN_MANAGER_BIN` to the Windows UI executable.
 
-   - Before:
+   Before:
      <pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
        PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
      else
        PLUGIN_MANAGER_BIN="../../vic-ui-linux"</pre>
-    - After:
+   After:
       <pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
        PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
       else
@@ -38,10 +34,10 @@ If you are running the vCenter Server Appliance and you do not have access to a 
 
 10. Enter the root password for the vCenter Server Appliance.
 
-  The installer requires the root password of the vCenter Server Appliance three times: 
-   - Once to check whether the Bash shell is enabled on the vCenter Server Appliance. If the Bash shell is not enabled, the installation fails and the installer provides remedial instructions.
-   - Once to copy the files to the appliance over SSH.
-   - Once to set the correct ownership on the files and folders.
+    The installer requires the root password of the vCenter Server Appliance three times: 
+     - Once to check whether the Bash shell is enabled on the vCenter Server Appliance. If the Bash shell is not enabled, the installation fails and the installer provides remedial instructions.
+     - Once to copy the files to the appliance over SSH.
+     - Once to set the correct ownership on the files and folders.
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.
 
 **What to Do Next**
