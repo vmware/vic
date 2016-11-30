@@ -206,11 +206,13 @@ The `vic-machine` utility allows you to specify the datastore in which to store 
 
 - vSphere Integrated Containers Engine fully supports VMware vSAN datastores. 
 - vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
-- If you specify different datastores in the different datastore options, and if no single host in a cluster can access all of those datastores, `vic-machine create` fails with an error.<pre>No single host can access all of the requested datastores. 
-Installation cannot continue.</pre>
-- If you specify different datastores in the different datastore options, and if only one host in a cluster can access all of them, `vic-machine create` succeeds with a warning.<pre>Only one host can access all of the image/container/volume datastores. 
-This may be a point of contention/performance degradation and HA/DRS 
-may not work as intended.</pre> 
+- If you specify different datastores in the different datastore options, and if no single host in a cluster can access all of those datastores, `vic-machine create` fails with an error.
+  <pre>No single host can access all of the requested datastores. 
+  Installation cannot continue.</pre>
+- If you specify different datastores in the different datastore options, and if only one host in a cluster can access all of them, `vic-machine create` succeeds with a warning.
+  <pre>Only one host can access all of the image/container/volume datastores. 
+  This may be a point of contention/performance degradation and HA/DRS 
+  may not work as intended.</pre> 
 
 <a name="image"></a>
 ### `--image-store` ###
@@ -223,22 +225,31 @@ If you do not specify the `--image-store` option and multiple possible datastore
 
 If you are deploying the VCH to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion&reg; and VMware vSphere Distributed Resource Scheduler&trade; (DRS).
 
-When you deploy a VCH, `vic-machine` creates a set of folders in the target datastore: 
+To specify a whole datastore as the image store, specify the datastore name in the `--image-store` option:
 
-- A folder with the same name as the VCH, at the top level of the datastore. This folder contains the VM files for the VCH appliance. It also contains a key-value store folder for the VCH, named `kvStores`.
-- A folder named `VIC` inside the VCH folder. The `VIC` folder contains a folder that uses the UUID of the VCH endpoint VM as its name. The <code>VIC/<i>vch_uuid</i></code> folder contains a subfolder named `images`, in which to store all of the container images that you pull into the VCH. 
+<pre>--image-store <i>datastore_name</i></pre>
 
-You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the VCH appliance and the key-value store at the top level of the datastore. However, `vic-machine create` creates the `VIC` folder inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the VCH files. 
+If you designate a whole datastore as the image store, `vic-machine` creates the following set of folders in the target datastore: 
+
+-  <code><i>datastore_name</i>/VIC/<i>vch_uuid</i>/images</code>, in which to store all of the container images that you pull into the VCH.
+- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH appliance.
+- <code><i>datastore_name</i>/<i>vch_name</i>/kvstores</code>, a key-value store folder for the VCH.
+
+You can specify a datastore folder to use as the image store by specifying a path in the `--image-store` option</code>: 
+
+<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
+
+If the folder that you specify in `/path` does not already exist, `vic-machine create` creates it. Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:  <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre>  
+
+If you designate a datastore folder as the image store, `vic-machine` creates the following set of folders in the target datastore:
+
+- <code><i>datastore_name</i>/<i>path</i>/VIC/<i>vcu_uuid</i>/images</code>, in which to store all of the container images that you pull into the VCH. 
+- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH appliance. This is the same as if you specified a datastore as the image store.
+- <code><i>datastore_name</i>/<i>vch_name</i>/kvstores</code>, a key-value store folder for the VCH. This is the same as if you specified a datastore as the image store.
 
 By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple VCHs. In this way, `vic-machine create` creates only one `VIC` folder in the datastore, at the path that you specify. The `VIC` folder contains one <code><i>vch_uuid</i>/images</code> folder for each VCH that you deploy. By creating one <code><i>vch_uuid</i>/images</code> folder for each VCH, vSphere Integrated Containers Engine limits the potential for conflicts of image use between VCHs, even if you share the same image store folder between multiple hosts.
 
 When container developers create containers, vSphere Integrated Containers Engine stores the files for container VMs at the top level of the image store, in folders that have the same name as the containers.
-
-vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
-
-- Specify a datastore as the image store:<pre>--image-store <i>datastore_name</i></pre> 
-- Specify a datastore folder as the image store:<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
-- Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:  <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
 
 <a name="volume-store"></a>
 ### `--volume-store` ###
