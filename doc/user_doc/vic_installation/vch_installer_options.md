@@ -206,11 +206,13 @@ The `vic-machine` utility allows you to specify the datastore in which to store 
 
 - vSphere Integrated Containers Engine fully supports VMware vSAN datastores. 
 - vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
-- If you specify different datastores in the different datastore options, and if no single host in a cluster can access all of those datastores, `vic-machine create` fails with an error.<pre>No single host can access all of the requested datastores. 
-Installation cannot continue.</pre>
-- If you specify different datastores in the different datastore options, and if only one host in a cluster can access all of them, `vic-machine create` succeeds with a warning.<pre>Only one host can access all of the image/container/volume datastores. 
-This may be a point of contention/performance degradation and HA/DRS 
-may not work as intended.</pre> 
+- If you specify different datastores in the different datastore options, and if no single host in a cluster can access all of those datastores, `vic-machine create` fails with an error.
+  <pre>No single host can access all of the requested datastores. 
+  Installation cannot continue.</pre>
+- If you specify different datastores in the different datastore options, and if only one host in a cluster can access all of them, `vic-machine create` succeeds with a warning.
+  <pre>Only one host can access all of the image/container/volume datastores. 
+  This may be a point of contention/performance degradation and HA/DRS 
+  may not work as intended.</pre> 
 
 <a name="image"></a>
 ### `--image-store` ###
@@ -223,35 +225,48 @@ If you do not specify the `--image-store` option and multiple possible datastore
 
 If you are deploying the VCH to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion&reg; and VMware vSphere Distributed Resource Scheduler&trade; (DRS).
 
-When you deploy a VCH, `vic-machine` creates a set of folders in the target datastore: 
+To specify a whole datastore as the image store, specify the datastore name in the `--image-store` option:
 
-- A folder with the same name as the VCH, at the top level of the datastore. This folder contains the VM files for the VCH appliance. It also contains a key-value store folder for the VCH, named `kvStores`.
-- A folder named `VIC` inside the VCH folder. The `VIC` folder contains a folder that uses the UUID of the VCH endpoint VM as its name. The <code>VIC/<i>vch_uuid</i></code> folder contains a subfolder named `images`, in which to store all of the container images that you pull into the VCH. 
+<pre>--image-store <i>datastore_name</i></pre>
 
-You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the VCH appliance and the key-value store at the top level of the datastore. However, `vic-machine create` creates the `VIC` folder inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the VCH files. 
+If you designate a whole datastore as the image store, `vic-machine` creates the following set of folders in the target datastore: 
+
+-  <code><i>datastore_name</i>/VIC/<i>vch_uuid</i>/images</code>, in which to store all of the container images that you pull into the VCH.
+- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH appliance.
+- <code><i>datastore_name</i>/<i>vch_name</i>/kvstores</code>, a key-value store folder for the VCH.
+
+You can specify a datastore folder to use as the image store by specifying a path in the `--image-store` option</code>: 
+
+<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
+
+If the folder that you specify in `/path` does not already exist, `vic-machine create` creates it. Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:  <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre>  
+
+If you designate a datastore folder as the image store, `vic-machine` creates the following set of folders in the target datastore:
+
+- <code><i>datastore_name</i>/<i>path</i>/VIC/<i>vcu_uuid</i>/images</code>, in which to store all of the container images that you pull into the VCH. 
+- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH appliance. This is the same as if you specified a datastore as the image store.
+- <code><i>datastore_name</i>/<i>vch_name</i>/kvstores</code>, a key-value store folder for the VCH. This is the same as if you specified a datastore as the image store.
 
 By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple VCHs. In this way, `vic-machine create` creates only one `VIC` folder in the datastore, at the path that you specify. The `VIC` folder contains one <code><i>vch_uuid</i>/images</code> folder for each VCH that you deploy. By creating one <code><i>vch_uuid</i>/images</code> folder for each VCH, vSphere Integrated Containers Engine limits the potential for conflicts of image use between VCHs, even if you share the same image store folder between multiple hosts.
 
 When container developers create containers, vSphere Integrated Containers Engine stores the files for container VMs at the top level of the image store, in folders that have the same name as the containers.
-
-vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
-
-- Specify a datastore as the image store:<pre>--image-store <i>datastore_name</i></pre> 
-- Specify a datastore folder as the image store:<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
-- Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:  <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
 
 <a name="volume-store"></a>
 ### `--volume-store` ###
 
 Short name: `--vs`
 
-The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
+The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. 
+
+The `vic-machine create` creates command creates the `volumes` folder independently from the folders for VCH files so that you can share volumes between VCHs. If you delete a VCH, any volumes that the VCH managed will remain available in the volume store unless you specify the `--force` option when you delete the VCH. You can then assign an existing volume store that already contains data to a newly created VCH. 
 
 **IMPORTANT**: If multiple VCHs will use the same datastore for their volume stores, specify a different datastore folder for each VCH. Do not designate the same datastore folder as the volume store for multiple VCHs.
 
 If you are deploying the VCH to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as vSphere vMotion and DRS.
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a VCH when container developers run `docker info`. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a volume.
+
+If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
 
 **IMPORTANT** If you do not specify the `volume-store` option, no  volume store is created and container developers cannot use the `docker volume create` or `docker create -v` commands.
 
@@ -261,7 +276,7 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
   <pre>--volume-store <i>datastore_name</i>:default</pre>
  
-- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` at the top level of the target datastore. Any volumes that container developers create will appear in the `VIC/volumes` folder.
+- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` at the top level of the target datastore. Any volumes that container developers create will appear in the `VIC/volumes` folder. 
 
   <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre>
 - If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `volumes` in the location that you specify in the datastore path. Any volumes that container developers create will appear in the <code><i>path</i>/volumes</code> folder.
@@ -288,6 +303,12 @@ By default, `vic-machine create` obtains IP addresses for VCH endpoint VMs by us
 
 If your network access is controlled by a proxy server, see [Options to Configure VCHs to Use Proxy Servers](#proxy) in Advanced Options. 
 
+When you specify different network interfaces for the different types of traffic, `vic-machine create` checks that the firewalls on the ESXi hosts allow connections to port 2377 from those networks. If access to port 2377 on one or more ESXi hosts is subject to IP address restrictions, and if those restrictions block access to the network interfaces that you specify, `vic-machine create` fails with a firewall configuration error:
+<pre>Firewall configuration incorrect due to allowed IP restrictions on hosts: 
+"/ha-datacenter/host/localhost.localdomain/localhost.localdomain" 
+Firewall must permit dst 2377/tcp outbound to the VCH management interface
+</pre>
+
 <a name="bridge"></a>
 ### `--bridge-network` ###
 
@@ -297,7 +318,7 @@ A distributed port group that container VMs use to communicate with each other.
 
 The `bridge-network` option is **mandatory** if you are deploying a VCH to vCenter Server.
 
-In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch, and assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
+In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch, and assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to create a distributed virtual switch and port group, see [vCenter Server Network Requirements](vic_installation_prereqs.md#networkreqs) in *Environment Prerequisites for vSphere Integrated Containers Engine Installation*.
 
 You pass the name of the distributed port group to the `bridge-network` option. Each VCH requires its own distributed port group. 
 
@@ -388,23 +409,23 @@ A network for container VMs to use for external communication when container dev
 
 **IMPORTANT**: For security reasons, whenever possible, use separate networks for the container network and the management network.
 
-To specify a container network, you provide the name of a distributed port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+To specify a container network, you provide the name of a port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 - You can specify a vSphere network as the container network.
 - The distributed port group must exist before you run `vic-machine create`. 
-- You cannot use the same distributed port group as you use for the bridge network. 
-- You can create the distributed port group on the same distributed virtual switch as the distributed port group that you use for the bridge network.
+- You cannot use the same port group as you use for the bridge network. 
+- You can create the port group on the same distributed virtual switch as the port group that you use for the bridge network.
 - If the network that you specify in the `container-network` option does not support DHCP, see [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net) in Advanced Options. 
 - The descriptive name appears under `Networks` when you run `docker info` on the deployed VCH.
 - Container developers use the descriptive name in the `--net` option when they run `docker run` or `docker create`.
 
 If you do not specify the `container-network` option, or if container developers run `docker run` or `docker create` without specifying `--net`, container VMs use the bridge network. 
 
-<pre>--container-network <i>distributed_port_group_name</i>:<i>container_network_name</i></pre>
+<pre>--container-network <i>port_group_name</i>:<i>container_network_name</i></pre>
 
-Wrap the distributed port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
+Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
-<pre>--container-network '<i>distributed port group name</i>':<i>container_network_name</i></pre>
+<pre>--container-network '<i>port group name</i>':<i>container_network_name</i></pre>
 
 <a name="deployment"></a>
 ## Appliance Deployment Options ##
@@ -462,7 +483,7 @@ The timeout period for uploading the vSphere Integrated Containers Engine  appli
 <a name="advanced"></a>
 # Advanced Options #
 
-The options in this section are exposed in the `vic-machine create` help if you run <code>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create --extended-help</code>, or <code>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create -x</code>. 
+The options in this section are exposed in the `vic-machine create` help if you run <code>vic-machine-<i>operating_system</i> create --extended-help</code>, or <code>vic-machine-<i>operating_system</i> create -x</code>. 
 
 <a name="adv-security"></a>
 ## Advanced Security Options ##
@@ -602,7 +623,7 @@ You specify a static IP address for the endpoint VM on the public, client, or ma
 
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
 
-You can specify addresses either as IPv4 addresses. Do not use CIDR notation.
+You can specify addresses as IPv4 addresses. Do not use CIDR notation.
 
 <pre>--public-network-ip 192.168.X.N
 --management-network-ip 192.168.Y.N
@@ -654,9 +675,9 @@ For information about the container network, see the section on the [`container-
 
 Short name: `--cng`
 
-The gateway for the subnet of the container network. This option is required if the network that you specify in the `container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `container-network-dns` option.
+The gateway for the subnet of the container network. This option is required if the network that you specify in the `--container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `--container-network-dns` option.
 
-When you specify the container network gateway, you must use the distributed port group that you specify in the `container-network` option. If you specify `container-network-gateway` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
+When you specify the container network gateway, you must use the port group that you specify in the `--container-network` option. If you specify `--container-network-gateway` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
@@ -668,9 +689,9 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 Short name: `--cnd`
 
-The address of the DNS server for the container network. This option is recommended if the network that you specify in the `container-network` option does not support DHCP. 
+The address of the DNS server for the container network. This option is recommended if the network that you specify in the `--container-network` option does not support DHCP. 
 
-When you specify the container network DNS server, you must use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers. If you specify `container-network-dns` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
+When you specify the container network DNS server, you must use the  port group that you specify in the `--container-network` option. You can specify `--container-network-dns` multiple times, to configure multiple DNS servers. If you specify `--container-network-dns` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
@@ -682,9 +703,9 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 Short name: `--cnr`
 
-The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, VCHs manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`. 
+The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, VCHs manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `--container-network-gateway`. 
 
-When you specify the container network IP range, you must use the distributed port group that you specify in the `container-network `option. If you specify `container-network-ip-range` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
+When you specify the container network IP range, you must use the distributed port group that you specify in the `--container-network `option. If you specify `--container-network-ip-range` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
 
@@ -699,25 +720,25 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 <a name="proxy"></a>
 ## Options to Configure VCHs to Use Proxy Servers ##
 
-If your network access is controlled by a proxy server, you must   configure a VCH to connect to the proxy server when you deploy it. The proxy that you specify serves exclusively for pulling images into the VCH from an external source, and is not used for any other purpose.
+If access to the Internet or to your private image registries requires the use of a proxy server, you must configure a VCH to connect to the proxy server when you deploy it. The proxy is used only when pulling images, and not for any other purpose.
 
 **IMPORTANT**: Configuring a VCH to use a proxy server does not configure proxy support on the containers that this VCH runs. Container developers must configure proxy servers on containers when they create them. 
-
-### `--http-proxy` ###
-
-Short name: `--hproxy`
-
-The address of the HTTP proxy server through which the VCH accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
-
-<pre>--http-proxy http://<i>proxy_server_address</i>:<i>port</i></pre>
 
 ### `--https-proxy` ###
 
 Short name: `--sproxy`
 
-The address of the HTTPS proxy server through which the VCH accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+The address of the HTTPS proxy server through which the VCH accesses image registries when using HTTPS. Specify the address of the proxy server as either an FQDN or an IP address.
 
 <pre>--https-proxy https://<i>proxy_server_address</i>:<i>port</i></pre>
+
+### `--http-proxy` ###
+
+Short name: `--hproxy`
+
+The address of the HTTP proxy server through which the VCH accesses image registries when using HTTP. Specify the address of the proxy server as either an FQDN or an IP address.
+
+<pre>--http-proxy http://<i>proxy_server_address</i>:<i>port</i></pre>
 
 <a name="adv-mgmt"></a>
 ## Advanced Resource Management Options ##

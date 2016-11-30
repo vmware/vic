@@ -20,7 +20,7 @@ You have deployed at least one VCH.
    - Specify the `--enable-ssh` and `--rootpw` options. Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.
    - Optionally, specify the `--authorized-key` option to upload a public key file to `/root/.ssh/authorized_keys` folder in the endpoint VM. Include the name of the `*.pub` file in the path.
 
-  <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> debug
+  <pre>$ vic-machine-<i>operating_system</i> debug
 --target <i>esxi_host_address</i>
 --user root
 --password <i>esxi_host_password</i>

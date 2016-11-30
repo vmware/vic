@@ -28,6 +28,7 @@ The following ports must be open on the VCH appliance:<br>
 vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. Instead, it creates a vSphere Extension and authenticates against it.
 
 <a name="patches"></a>
+<<<<<<< 4e63a38c7c5b8dae62933e2eb63cefb8bf5b5cee
 ## Apply Security Updates and Patches
 Download a new version of vSphere Integrated Containers Engine and upgrade your existing VCHs.
 

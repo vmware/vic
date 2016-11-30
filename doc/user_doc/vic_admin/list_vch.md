@@ -22,14 +22,14 @@ You have deployed at least one VCH.
    - You must specify the username and optionally the password, either in the `--target` option or separately in the `--user` and `--password` options. 
    - If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the `--thumbprint` option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine` without the specifying the `--thumbprint` option. The listing of the VCHs fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run `vic-machine` again, including the `--thumbprint` option.
 
-  <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
+  <pre>$ vic-machine-<i>operating_system</i> ls
 --target <i>esxi_host_address</i>
 --user root
 --password <i>esxi_host_password</i>
 --thumbprint <i>certificate_thumbprint</i>
 </pre>
 
-   <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
+   <pre>$ vic-machine-<i>operating_system</i> ls
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --thumbprint <i>certificate_thumbprint</i>
 </pre>
