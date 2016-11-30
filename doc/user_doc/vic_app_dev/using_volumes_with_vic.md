@@ -48,7 +48,7 @@ vsphere        <i>volume_n</i></pre>
 
 When you use the `docker volume create` command to create a volume, you can optionally provide a name for the volume by specifying the `--name` option. If you do not specify `--name`, `docker volume create` assigns a random UUID to the volume.
 
-- If you or the vSphere Administrator created the VCH with one or more volume stores, but none of the volume stores is named `default`, you must specify the name of an existing volume store in the `--opt VolumeStore` option. If you do not specify `--opt VolumeStore`, `docker volume create` searches for a volume store named `default`, and returns an error if no such volume store exists. 
+- If you or the vSphere Administrator created the VCH with one or more volume stores, but none of the volume stores are named `default`, you must specify the name of an existing volume store in the `--opt VolumeStore` option. If you do not specify `--opt VolumeStore`, `docker volume create` searches for a volume store named `default`, and returns an error if no such volume store exists. 
 
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
   --opt VolumeStore=<i>volume_store_label</i> 
@@ -80,7 +80,7 @@ create -v <i>volume_name</i>:/<i>folder</i> busybox</pre>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 run -v <i>volume_name</i>:/<i>folder</i> busybox</pre>
 
-In the examples above, Docker mounts the volume <code><i>volume_name</i></code> in the container at the location that you specify in <code><i>folder</i></code>.
+In the examples above, Docker mounts the volume <code><i>volume_name</i></code> to <code>/<i>folder</i></code> in the container.
 
 **NOTE**: When using a vSphere Integrated Containers Engine VCH as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option an error stating that a bad driver has been selected will occur.
 
@@ -130,8 +130,8 @@ create -v volume_1:/volumes busybox</pre>
 Mounting existing volumes on containers is subject to the following limitations:
 
 - vSphere Integrated Containers Engine currently supports mounting a volume on only one container at a time. 
-- Docker not support unmounting a volume from a container, whether that container is running or not. When you mount a volume on a container by using `docker create -v`,  that volume remains mounted on the container until you remove the container. When you have removed the container you can mount the volume onto a new container.
-- If you intend to create and mount a volume on one container, remove that container, and then mount the same volume on another container, you must use a named volume. You cannot mount an anonymous volume on one container, remove that container, and then mount the anonymous volume on another container.
+- Docker does not support unmounting a volume from a container, whether that container is running or not. When you mount a volume on a container by using `docker create -v`,  that volume remains mounted on the container until you remove the container. When you have removed the container you can mount the volume onto a new container.
+- If you intend to create and mount a volume on one container, remove that container, and then mount the same volume on another container, use a named volume. It is possible to mount an anonymous volume on one container, remove that container, and then mount the anonymous volume on another container, but it is not recommended to do so.
 
 The `docker create -v` example below performs the following operations:
 
