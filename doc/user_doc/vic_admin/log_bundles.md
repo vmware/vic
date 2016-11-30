@@ -19,5 +19,10 @@ You can share the non-live version of the logs with administrators or VMware Sup
 ## Collecting Logs Manually
 If the VCH Admin portal is offline, use `vic-machine debug` to enable SSH on the VCH and use `scp -r` to capture the logs from `/var/log/vic/`.
 
-## Setting Log Size Cap
-The log size cap is set at 20MB and rotates automatically if the size exceeds 20 MB. Log rotation depends on the amount of memory you allocate when you configure a VCH and the debug level you set.
+## Setting the Log Size Cap
+The log size cap is set at 20MB. If the size exceeds 20 MB, then vSphere Integrated Containers Engine compresses the files and saves a history of the last two rotations. These files are rotated:
+
+`/var/log/vic/port-layer.log` <br>
+`/var/log/vic/init.log` <br>
+`/var/log/vic/docker-personality.log` <br>
+`/var/log/vic/vicadmin.log`

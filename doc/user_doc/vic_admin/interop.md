@@ -10,7 +10,6 @@ IT teams can assure service-level agreements for container workloads with VMware
 
 You can restart the virtual container host (VCH) without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
 
-
 ## Maintenance Mode ##
 Hosts with container VMs can enter maintenance mode without manual intervention, with these exceptions:
 
