@@ -19,7 +19,7 @@ This topic provides examples of the options of the `vic-machine create` command 
   - [Use Custom Trusted CA Certificates](#custom_cert)
   - [Authorize Access to an Insecure Private Registry Server](#registry)
 
-For simplicity, unless stated otherwise, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified. Similarly, all examples that do not relate explicitly to certificate use specify the `--tls-noverify` option.
+For simplicity, these examples use the `--force` option to disable the verification of the vCenter Server certificate, so the `--thumbprint` option is not specified. Similarly, all examples that do not relate explicitly to certificate use specify the `--tls-noverify` option.
 
 For detailed descriptions of all of the `vic-machine create` options, see [VCH Deployment Options](vch_installer_options.md).
 
@@ -50,6 +50,7 @@ This example deploys a VCH with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -69,6 +70,7 @@ This example deploys a VCH with the following configuration:
 --bridge-network vic-bridge
 --compute-resource esxihost1.organization.company.com
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -79,13 +81,15 @@ To deploy a VCH in a specific resource pool on an ESXi host that is not managed 
 
 This example deploys a VCH with the following configuration:
 
-- Specifies the user name and password, and a name for the VCH.
+- Specifies the user name and password, image store, and a name for the VCH.
 - Designates `rp 1` as the resource pool in which to place the VCH. Note that the resource pool name is wrapped in quotes, because it contains a space. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
 <pre>vic-machine-<i>operating_system</i> create
 --target root:<i>password</i>@<i>esxi_host_address</i>
 --compute-resource 'rp 1'
+--image-store datastore1
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -105,6 +109,7 @@ This example deploys a VCH with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -130,6 +135,7 @@ This example deploys a VCH with the following configuration:
 --cpu-reservation 1024
 --cpu-shares low
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -165,6 +171,7 @@ This example deploys a VCH with the following configuration:
 --management-network 'network 1'
 --client-network 'network 2'
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -198,6 +205,7 @@ This example deploys a VCH with the following configuration:
 --client-network-ip 192.168.3.10
 --client-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
 --dns-server <i>dns_server_address</i>
+--force
 --name vch1
 </pre>
 
@@ -229,6 +237,7 @@ This example deploys a VCH with the following configuration:
 --container-network-dns vic-containers:<i>dns2_ip_address</i>
 --container-network-ip-range vic-containers:192.168.100.0/24
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -251,6 +260,7 @@ This example deploys a VCH with the following configuration:
 --bridge-network vic-bridge
 --https-proxy https://<i>proxy_server_address</i>:<i>port</i>
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -277,6 +287,7 @@ This example deploys a VCH with the following configuration:
 --volume-store 'datastore 1'/volumes:default</i>
 --volume-store 'datastore 2'/volumes:volume_store_2</i>
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
@@ -306,6 +317,7 @@ This example deploys a VCH with the following configuration:
 --bridge-network vic-bridge
 --tls-cname vch1.example.org
 --cert-path <i>path_to_cert_folder</i>
+--force
 --name vch1
 </pre>
 
@@ -329,6 +341,7 @@ This example deploys a VCH with the following configuration:
 --cert ../some/relative/path/<i>certificate_file</i>.pem
 --key ../some/relative/path/<i>key_file</i>.pem
 --name vch1
+--force
 </pre>
 
 For more information about using custom CA certificates, see the [Advanced Security Options section](vch_installer_options.md#adv-security) in VCH Deployment Options.
@@ -352,6 +365,7 @@ This example deploys a VCH with the following configuration:
 --insecure-registry <i>registry_URL_1</i>
 --insecure-registry <i>registry_URL_2:5000</i>
 --name vch1
+--force
 --no-tlsverify
 </pre>
 
