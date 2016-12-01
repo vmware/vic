@@ -593,7 +593,7 @@ To specify a static IP address for the endpoint VM on the client, public, or man
 
 Short name: None
 
-A DNS server to use if you specify static IP addresses for the VCH endpoint VM on the client, public, or management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
+A DNS server for the VCH endpoint VM to use on the client, public, or management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
 
 - If you specify `dns-server`, `vic-machine create` always uses the `--dns-server` setting for all three of the client, public, and management networks.
 - If you do not specify `dns-server` and you specify a static IP address for the endpoint VM on all three of the client, public, and management networks, `vic-machine create` uses the Google public DNS service. 
@@ -614,13 +614,14 @@ You specify a static IP address for the endpoint VM on the public, client, or ma
 
 - You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks shares a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
 - If either of the client or management networks shares a port group with the public network, you can only specify a static IP address on the public network.
-- If either or both of the client or management networks do not use the same network as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
-- If the client and management networks both use the same network, and the public network does not use that network, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
+- If either or both of the client or management networks do not use the same port group as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
+- If the client and management networks both use the same port group, and the public network does not use that port group, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
 - If you assign a static IP address to the VCH endpoint VM on the client network by setting the `--client-network-ip` option, and you do not specify one of the TLS options, `vic-machine create` uses this address as the Common Name with which to auto-generate trusted CA certificates. If you do not specify `--tls-cname`, `--no-tls` or `--no-tlsverify`, two-way TLS authentication with trusted certificates is implemented by default when you deploy the VCH with a static IP address on the client network. If you assign a static IP address to the endpoint VM on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname).
  
   **IMPORTANT**: If the client network shares a network with the public network you cannot set a static IP address for the endpoint VM on the client network. To assign a static IP address to the endpoint VM you must set a static IP address on the public network by using the `--public-network-ip` option. In this case, `vic-machine create` uses the public network IP address as the Common Name with which to auto-generate trusted CA certificates, in the same way as it would for the client network.
 
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
+-  When you specify an address, `vic-machine create` uses the netmask from the gateway.
 
 You can specify addresses as IPv4 addresses. Do not use CIDR notation.
 
@@ -629,7 +630,7 @@ You can specify addresses as IPv4 addresses. Do not use CIDR notation.
 --client-network-ip 192.168.Z.N
 </pre>
 
-You can also specify addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
+You can also specify addresses as resolvable FQDNs.
 
 <pre>--public-network-ip=vch27-team-a.internal.domain.com
 --management-network-ip=vch27-team-b.internal.domain.com
@@ -648,17 +649,17 @@ You specify the public network gateway address in CIDR format.
 
 **IMPORTANT**: Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
 
-The public, management, and client networks route traffic through the VCH endpoint VM to vSphere. The default route to vSphere through the endpoint VM is assigned to the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
+The default route for the VCH endpoint VM is always on the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
 
-<pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
-<i>routing_destination_2</i>/<i>subnet</i>:
-<i>gateway_address</i>/<i>subnet</i></pre>
-<pre>--client-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
-<i>routing_destination_2</i>/<i>subnet</i>:
-<i>gateway_address</i>/<i>subnet</i>
+<pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
+<i>routing_destination_2</i>/<i>subnet_mask</i>:
+<i>gateway_address</i>/<i>subnet_mask</i></pre>
+<pre>--client-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
+<i>routing_destination_2</i>/<i>subnet_mask</i>:
+<i>gateway_address</i>/<i>subnet_mask</i>
 </pre>
 
-In the following example, `--management-network-gateway` informs the VCH that it can reach all of the Docker clients that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that run Docker clients that will connect to this VCH instance. 
+In the following example, `--management-network-gateway` informs the VCH that it can reach all of the vSphere management endoints that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that will connect to this VCH instance. 
 
 <pre>--management-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
 </pre>
