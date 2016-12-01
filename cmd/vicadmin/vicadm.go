@@ -434,7 +434,9 @@ func (r datastoreReader) open() (entry, error) {
 	}
 
 	req, err := http.NewRequest("GET", u.String(), nil)
-	req.AddCookie(ticket)
+	if ticket != nil {
+		req.AddCookie(ticket)
+	}
 
 	res, err := r.ds.Client().Do(req)
 	if err != nil {
