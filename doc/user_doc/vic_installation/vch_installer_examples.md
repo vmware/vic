@@ -1,6 +1,6 @@
-# Examples of Deploying a VCH #
+# Advanced Examples of Deploying a VCH #
 
-This topic provides examples of the options of the `vic-machine create` command to use when deploying virtual container hosts (VCHs) in different vSphere configurations.
+This topic provides examples of the options of the `vic-machine create` command to use when deploying virtual container hosts (VCHs) in various vSphere configurations.
 
 - [General Deployment Examples](#general)
   - [Deploy to a vCenter Server Cluster with Multiple Datacenters and Datastores](#cluster)

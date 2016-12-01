@@ -1,4 +1,4 @@
-# Deploy a VCH to an ESXi Host #
+# Deploy a VCH to an ESXi Host with No vCenter Server #
 
 This topic provides instructions for deploying a virtual container host (VCH) to an ESXi host that is not managed by vCenter Server. This is the most straightforward way to deploy a VCH, and is ideal for testing.
 
@@ -18,11 +18,13 @@ This topic provides instructions for deploying a virtual container host (VCH) to
 2. Navigate to the directory that contains the `vic-machine` utility:
 3. Run the `vic-machine create` command.
 
+  Wrap any option arguments that include spaces or special characters in quotes. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.  In these examples, the password is wrapped in quotes because it contains `@`.
+
    - Linux OS:
       <pre>$ vic-machine-linux create
      --target <i>esxi_host_address</i>
      --user root
-     --password <i>esxi_host_password</i>
+     --password '<i>esxi_host_p@ssword</i>'
      --no-tlsverify
      --force
      </pre>  
@@ -30,7 +32,7 @@ This topic provides instructions for deploying a virtual container host (VCH) to
       <pre>$ vic-machine-windows create
      --target <i>esxi_host_address</i>
      --user root
-     --password <i>esxi_host_password</i>
+     --password "<i>esxi_host_p@ssword</i>"
      --no-tlsverify
      --force
      </pre> 
@@ -38,7 +40,7 @@ This topic provides instructions for deploying a virtual container host (VCH) to
        <pre>$ vic-machine-darwin create
      --target <i>esxi_host_address</i>
      --user root
-     --password <i>esxi_host_password</i>
+     --password '<i>esxi_host_p@ssword</i>'
      --no-tlsverify
      --force
      </pre> 
@@ -46,7 +48,7 @@ This topic provides instructions for deploying a virtual container host (VCH) to
 The `vic-machine create` command in this example specifies the minimum information required to deploy a VCH to an ESXi host:
 
 - The address of the ESXi host on which to deploy the VCH, in the `--target` option. 
-- The ESXi host `root` user and password in the `--user` and `--password` options. If the password contains special characters, wrap it in quotes. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system. 
+- The ESXi host `root` user and password in the `--user` and `--password` options. 
 - Disables the verification of clients that connect to this VCH by specifying the `--no-tlsverify` option.
 - Disables the verification of the ESXi host certificate by specifying the `--force` option.
    
@@ -76,4 +78,4 @@ Installer completed successfully</pre>
 
 To test your VCH, see [Verify the Deployment of a VCH](verify_vch_deployment.md).
     
-For examples of commands to deploy a VCH in various other vSphere configurations, see [Examples of Deploying a VCH](vch_installer_examples.md). 
+For examples of commands to deploy a VCH in various other vSphere configurations, see [Advanced Examples of Deploying a VCH](vch_installer_examples.md). 
