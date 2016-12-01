@@ -188,8 +188,9 @@ If you use untrusted certificates, container developers run Docker commands with
 <a name="registry"></a>
 ## Private Registry Options ##
 
-If container developers need to access Docker images that are stored in a private registry server, you must configure VCHs to allow them  to connect to the private registry servers when you deploy the VCHs. VCHs can connect to both secure and insecure private registries.
+If container developers need to access Docker images that are stored in private registry servers, you must configure VCHs to allow them to connect to the private registry servers when you deploy the VCHs. VCHs can connect to both secure and insecure private registry servers.
 
+<a name="registry-ca"></a>
 ### `--registry-ca` ###
 
 Short name: `--rc`
@@ -205,7 +206,9 @@ The path to a self-generated CA certificate, to allow the VCH to connect to a se
 
 Short name: `--dir`
 
-An insecure private registry server is a private registry server for Docker images that provides TLS encrypted communication. It does not confirm the identity of the remote system that is connecting to it. TLS encrypted communication protects you from attackers listening in on your network traffic, but does not protect against man-in-the-middle attacks. 
+An insecure private registry server is a private registry server for Docker images that provides TLS encrypted communication but that does not confirm the identity of the remote system that is connecting to it. TLS encrypted communication protects you from attackers listening in on your network traffic, but does not protect against man-in-the-middle attacks. Insecure private registries are not recommended in production environments.  
+
+If you authorize a VCH to connect to an insecure private registry server, the VCH attempts to access the registry server via HTTP if access via HTTPS fails. VCHs always use HTTPS when connecting to registry servers for which you have not authorized insecure access.
 
 To authorize connections from a VCH to an insecure private registry server, set the `--insecure-registry` option. You can specify `--insecure-registry` multiple times to allow connections from the VCH to multiple insecure private registry servers. If the registry server listens on a specific port, add the port number to the URL.
 
