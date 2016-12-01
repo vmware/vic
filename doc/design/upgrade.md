@@ -1,20 +1,39 @@
 # Upgrade
 
-After installed VCH, VIC admin would want to upgrade existing instances to latest version. This document describes the upgrade requirement, and design options.
+After installing a VCH, a VIC engine admin will need to manage the lifecycle of the VCH. One aspect of this lifecycle management is upgrading and patching. For our purposes, patching and upgrading will be treated the same. 
+
+The VIC engine product will release a new, complete, software download bundle for both patches and upgrades, versus, having a sparse patch or a separate upgrade model.
 
 ## Requirements
 
 ### Scope
 
-While a new version is ready, new version's vic-machine upgrade can upgrade one running or powered off VCH appliance. The containers managed by this VCH will be left in existing version. To have a new version container, user need to create new container from upgraded VCH instance. If existing container is stopped and restarted, the old version should be kept.
+vic-machine can upgrade VCH appliance no matter it's running or not, so vic-machine upgrade cannot rely on services running in VCH appliance.
 
-VIC version includes three parts, "release tag"-"build id"-"github commit hash".
+For the VCH appliance, vic-machine upgrade will detect the version difference between the old VCH and itself, this includes detecting the guestinfo changes between the two versions. Then vic-machine upgrade will migrate the guestinfo metadata, and replace the iso files. If anything incorrect happens during this process, vic-machine upgrade will revert back to old version and status. The VCH will have downtime during upgrade, but should not be broken after this process.
 
-vic-machine upgrade will rely on build id change only. User need to provide newer binary with bigger build id, to upgrade existing VCH.
+The containers managed by this VCH will be left running the existing version. If the container is running, it will work well if it's not coupled with appliance through port-forwarding. But after VCH is upgraded, the container management might not be fully functional if there is configuration or communication level changes.
 
-We could also use github commit hash for version diff, but that will be difficult to check if one version is newer than another one, so at this time, we'll leverage build id only. This requires our build system to keep increase build id no matter any system change. 
+To update the containers, especially while there is security patch available, two options are available. 
 
-vic-machine upgrade cannot upgrade VCH to a version newer than itself.
+- First is to upgrade the containers from vic-machine. We can migrate container configuration, replace iso file, and then restart the container process. This update requires container downtime as we cannot update tether without stop container process at this time.
+
+ We could upgrade the containers sequentially or in parallel based on user preference.
+
+- Second, leave it to customer like what docker did. User could easily destroy and recreate same containers through docker commands. The new container will be in new version automatically as container iso file is already updated during the appliance upgrade.
+
+In theory, the first option does not add much value, as both options need downtime for the container. If user could accept container stop, they could recreate that container through their own script easily and flexibily, which could be related to their own business requirement.
+Ideally, we should improve tether to separate tether and container lifecycle, so we can replace iso file and restart tether process transparently. Then it will be helpful to have vic-machine upgrade to update containers.
+
+My preference: second option.
+
+### Version Difference
+
+VIC version includes three parts, "release tag"-"build id"-"github commit hash". vic-machine upgrade will rely on build id to detect which version is newer or older than another one.
+
+User need to provide newer binary with bigger build id, to upgrade existing VCH. This also requires our build system to keep increase build id number no matter any kind of system change. 
+
+Note: as introduced data migration between versions, the upgrade can only happens between different tagged versions, instead of different builds, even we rely on build id to detect version difference. The reason is tightly coupled with our data migration design, which will be described in data migration section.
 
 ### Impact
 
@@ -26,7 +45,9 @@ There will be impact on container interaction while the appliance is down:
 - no attach ability
 - network outage for NAT based port forwarding
 
-All of those facets should resume normal operation after upgrade is complete
+All of those facets should resume normal operation after upgrade is complete. 
+
+Note: Exception might happen if there is container configuration or communication changes. Addtional operations are required to fix the problem.
 
 ### VCH status
 
@@ -38,14 +59,16 @@ If anything wrong happens during upgrade, vic-machine will rollback VCH to origi
 
 ### Downgrade
 
-For any running VCH, VIC admin can downgrade existing VCH to an old version. (I assume this function is only used for upgrade roll back, we might not want to recommend downgrade for anything working well, then the downgrade scope will be same to upgrade versions)
-
-Verified docker-engine upgrade/downgrade, which works well between 1.11.2 and 1.12. The running container will be stopped after upgrade/downgrade, but is good to start again in new version. And all images and containers information is not lost. So from technical point of view, we should support same story.
+Verified docker-engine upgrade/downgrade, which works well between 1.11.2 and 1.12. The running container will be stopped after upgrade/downgrade, but is good to start again in new version. And all images and containers information is not lost. But think of the complexity to support version downgrade, we'll not go with this at this moment, unless there is explicity user requirement.
 
 ### Internet connection
 Internet connection is not required to upgrade/downgrade VCH, but newer version's binary should be available for vic-machine.
 
-## Implementation/Issues
+## Design/Implementation - Phase1
+
+This section described the first simple implementation of upgrade. After this phase, user could upgrade VCH appliance from build to build, as long as there is no metadata changes, which means no changes in guestinfo, key value store and image metadata.
+
+This code is already merged, and works for security patch update.
 
 ### Versioning
 
@@ -88,20 +111,7 @@ VM snapshot is one good option for upgrade roll back. Before upgrade, vic-machin
 
 Note: VM snapshot does not persist data in serial port, as we will use datastore files through serial port for vch logs, after roll back, log files will have all error message during upgrade if VCH appliance VM is ever started with new configuration.
 
-### Limitation
-This document does not include approach for significant change which might break backward compatibility.
-- if datastore structure change break current data consumption model, new version cannot read back images from old version's data, we'll not try to migrate docker data during upgrade.
-- serial port is replaced by VMCI
-
-# Plan
-
-## Prerequisites
-
-- Need to have versioning support before we claim we can upgrade from this version.
-- Need to have VCH restart ready.
-- As all version is built into binary, we need to automatically generate new build after tag release.
-
-## Simple Upgrade
+### Upgrade Workflow
 
 At this point, we'd like to start from a simple solution, which does not include data migration. 
 
@@ -125,15 +135,107 @@ Here is the upgrade workflow
 - Cleanup env after upgrade (remove upgrade snapshot, remove uploaded iso files if upgrade failed)
 
 This ensures that a failure to upload ISOs for whatever reason is detected before we take down the existing version. It limits the failure modes after shutting down the appliance to:
+
 1. failed to update appliance configuration
 2. failed to power on the appliance (e.g. system resource constraints)
 3. failed to boot appliance
 4. failed to acquire network addresses (this has been seen in real world examples - we may wish to attempt to preserve/reuse the IPs the appliance had prior to update, which should still be present in the extraconfig)
 5. failed to rebuild system state from vsphere infrastructure
 
+## Design - Phase2
+
+Although we did lots of code refactor for VCH appliance configuration, it's still unavoidable to continue changing that structure. To make sure we don't break  upgrade after GA, we need a solution for the data migration anyway.
+
+- Appliance guestinfo, which is used to persist VCH appliance configuration
+- Container guestinfo, which is used to persist container configuration
+- KeyValue Store, which is used to persist image metadata and network portlayer data
+- Appliance log files
+- vSphere object management logic change
+
+### Guestinfo Migration
+
+- One VirtualContainerHost structure per one version, this will be used by extraconfig package to read back old vch's configuration
+- Write plugin to migrate data from from previous version, and register that plugin with correct release version
+- Each version should have a separate directory, which contains all configuration files and plugins for that version
+- vic-machine upgrade framework will calculate the plugin chain based on old VCH's version and vic-machine version, and then call those plugins sequentially. This will look like r1->r2->r3->f4->latest or r3->r4->r5
+- Run guestinfo validation to figure out if there is any field missing (one possible option here is to translate configuration back to vic-machine input data, and then rerun validator to make sure all vsphere related objects are still exist and correct)
+- Prompt missing parameters if there is any (for new parameters added and cannot be empty)
+- Write new configuration back to appliance guestinfo
+
+With this design, developer is able to add/delete/repurpose existing configuration items, except VCH version. And we'll need one guidline for what to do while one configuration item is changed.
+
+Besides of this solution, we also dicussed another option, that is to revert configuration back to vic-machine create option, and try to recreate a new VCH appliance, and then migrate containers from the old appliance to new appliance. This solution can reduce VCH downtime, and even migrate alive.
+
+We have two concerns for this option. 
+
+First and most important, is that we cannot actually migrate containers from appliance1 to appliance2. This will introduce too many production refactor. For example, image store directory is created uniquely with appliance UUID, network will have conflict, connection over serial port need to be switched, etc.
+
+Second concern is that we'll need to version more objects and logics, includes appliance guestinfo, vic-machine create options, and the logic to revert guestinfo back to vic-machine create options, those are all version sensitive.
+
+We didn't try to figure out how to do it at this time, cause it looks overdesigned.
+
+Note: extraconfig package should always be backward compatible. If it breaks this assumption, upgrade does not work for both options.
+
+### Secret Configuration
+
+In appliance configuration, there are few items are encrypted for security reason, including user password and certificate so far. The encryption key is readable from in guest only. vic-machine is reading configuration through vsphere API, so not be able to decrypt secret information from old appliance configuration.
+
+Ideally, it's ok to leave them there, but if in the future there are new secret items added, it's not possible to reencrypt with old encryption key, and no way to get back old encrypted value.
+
+For this issue, one option is to get input from user for all existing secret value, and together with new secret filed, encrypt with new key. Currently, only operation user password and certificate key are required.
+
+This feature can be delayed until there is new secret key added.
+
+### Container Guestinfo
+
+VIC should not force user to upgrade containers after upgrade appliance, which means appliance will need to talk with old version's containers. Read back container configuration will be similiar to appliance configuration upgrade process. Corresponding data migration plugin should be prepared for each change, and registered to upgrade framework with release version. The process is listed below.
+
+- One ExecutorConfig structure per one version, where the container configuration is changed. If no changes, that version will be skipped.
+- Portlayer will check configuration version first while reading configuration. If it's older version, run in memory data migration through upgrade framework.
+- Together with upgrade configuration, portlayer need to know if configuration is migrated or not.
+- If no data migration, continue same to new version's container
+- If has data migration, do not write back configuration (old version's container is running in readonly mode)
+
+If container data migration happens, some of docker functions, e.g. start/attach/log, and docker ps/inspect information might be impacted, but docker image/volume/stop/rm should still work well, to make sure user can destroy and recreate container easily.
+
+During appliance upgrade, vic-machine should have clear information to mention the container functional limitation after upgrade, and the solution for it.
+
+### KeyValue Store Migration
+
+Different to guestinfo object, KeyValue store does not have data structure to define the key value types and usage. It's used directly from persona and portlayer for image metadata and network cache persistent. But similar to guestinfo configuration migration, if the key is changed or repurposed, data migration is also needed.
+
+Same to guestinfo migration, for keyvalue store changes, add correponding data migration plugin and register to upgrade framework.
+
+But if there is new key added, caller should handle the logic while that key is absent. Cause vic-machine should not be the place to go though all containers, images to figure out what's missing.
+
+### Appliance log files
+
+Appliance log files configuration will not be touched at this time. So upgraded VCH will use old log files if there is any such kind of change. We can revisit this while there is customer requiement on this.
+
+### vSphere Object Management Logic
+
+There will have new vSphere API come up, so the logic to manage vsphere objects will be enhanced, for example, as Caglar said the vmdk can be managed directly in vSphere 6.5, instead of through vm operations in vSphere 6.0. We'll switch to these new interfaces for image and volume management sometime later.
+
+vic-machine is not supposed to migrate old image data or volume data to new vmdk files, so portlayer will need to be backward compatible. (Suppose vSphere will be backward compatibile, there should be nothing to do in vic, but need to do some research on it)
+
+### Why Not Support Upgrade Between Builds
+
+We need to keep old version's guestinfo structure definition, to make sure we can read back old configuration, and need plugin to migrate data from old structure to new structure. If we support upgrade per build, we cannot pre-estimate the build number from when the old configuration is dropped and new configuration starts to work.
+
+We might be able to check in configuration change first, and then update upgrade related code, but that means upgrade between builds is broken for few specific builds.
+
+Another thing is that data migration introduced lot of effort to maintain upgrade correctness, accumualte changes in one version, add one data migration plugin for each object per one version, will reduce development and maintenance effort.
+
+So this proposal is to upgrade between releases only. 
+
+As we're relying on build number to get migration chain, if there is requirement to add more upgrade hook, it's still doable, just we cannot support upgrade between any builds.
+
+### Limitation
+This document does not include approach for tether communication change, that means from serial port to VMCI or something else. Need to think about how to support old version's container while that change is made.
+
 ## Restrictions
 
 User cannot run two upgrades for same VCH at the same time. 
 
-vic-machine will check if there is already another upgrade snapshot is created before it start to create snapshot. But as create vsphere snapshot will take some time, e.g. one minute, if at this time, another upgrade process is started, it will start upgrade again cause the snapshot of previous task is not finished yet.
+vic-machine will check if there is already another upgrade snapshot is created before it starts to create snapshot. But as create vsphere snapshot will take some time, e.g. one minute, if at this time, another upgrade process is started, it will start upgrade again cause the snapshot of previous task is not finished yet.
  
