@@ -20,18 +20,18 @@ You have deployed a VCH.
   - If multiple compute resources exist in the datacenter, you must specify the `--compute-resource` or `--id` option.
   - If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the `--thumbprint` option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine` without the specifying the `--thumbprint` option. The inspection of the VCH fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run `vic-machine` again, including the `--thumbprint` option.
 
-   <pre>$ vic-machine-<i>operating_system</i> inspect
---target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
---thumbprint <i>certificate_thumbprint</i>
---name <i>vch_name</i></pre>
+     <pre>$ vic-machine-<i>operating_system</i> inspect
+    --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
+    --thumbprint <i>certificate_thumbprint</i>
+    --name <i>vch_name</i></pre>
 
 **Result**
 
 The `vic-machine inspect` command displays information about the VCH:
 
 - The VCH ID:<pre>VCH ID: VirtualMachine:vm-101</pre> The vSphere Managed Object Reference, or moref, of the VCH. You can use VCH ID when you run the `vic-machine delete` or `debug` commands. Using a VCH ID reduces the number of options that you need to specify when you run those commands.
-- The version of the `vic-machine` utility and the version of the VCH that you are inspecting.<pre>Installer version: <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>tag</i>
-VCH version: <i>vch_version</i>-<i>vch_build</i>-<i>tag</i></pre>
+- The version of the `vic-machine` utility and the version of the VCH that you are inspecting.<pre>Installer version: <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>git_commit</i>
+VCH version: <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i></pre>
 
 <!--
 - The upgrade status of the VCH:<pre>
@@ -43,7 +43,7 @@ No upgrade available with this installer version</pre>
 
 - The address of the VCH Admin portal for the VCH.
   
-  <pre>vic-admin portal:
+  <pre>VCH Admin Portal:
 https://<i>vch_address</i>:2378</pre>
 
 - The address at which the VCH publishes ports.
@@ -61,7 +61,7 @@ DOCKER_HOST=<i>vch_address</i>:2376</pre>
 - The Docker command to use to connect to the Docker endpoint.
   - VCH with full TLS authentication with trusted Certificate Authority certificates:
   <pre>docker -H <i>vch_address</i>:2376 --tlsverify info</pre>
-  - VCH with TLS authentication with untrusted self-signed certificates or no TLS authentication:
+  - VCH with TLS authentication with untrusted self-signed certificates:
   <pre>docker -H <i>vch_address</i>:2376 --tls info</pre>
   - VCH with no TLS authentication:
   <pre>docker -H <i>vch_address</i>:2375 info</pre>

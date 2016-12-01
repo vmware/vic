@@ -59,6 +59,7 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
 The `vic-machine create` command in this example specifies the minimum information required to deploy a VCH to vCenter Server:
 
 - The address of the vCenter Server instance on which to deploy the VCH, in the `--target` option.  
+- The vCenter Single Sign-On user and password in the `--user` and `--password` options. 
 - The distributed port group named `vic-bridge`, for use as the container bridge network. 
 - The name of the shared datastore to use as the image store, in which to store container images.
 - Disables the verification of clients that connect to this VCH by specifying the `--no-tlsverify` option.
