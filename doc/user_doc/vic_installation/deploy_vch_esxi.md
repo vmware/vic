@@ -6,7 +6,7 @@ This topic provides instructions for deploying a virtual container host (VCH) to
 * Download and unpack the vSphere Integrated Containers Engine bundle. For information about where to obtain vSphere Integrated Containers Engine, see [Download vSphere Integrated Containers Engine](download_vic_engine.md).
 * Create or obtain an ESXi host with the following configuration:
   * One datastore
-  * The default VM Network and no other networks
+  * The VM Network is present
   * You can use a nested ESXi host for this example
 * Verify that the ESXi host meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md).
 * Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md). 
