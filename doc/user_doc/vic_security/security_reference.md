@@ -2,33 +2,54 @@
 Use the Security Reference to learn about the security features of vSphere Integrated Containers Engine.
 
 - [Network Security](#network)
-- [List of External Interfaces, Ports, and Services](#list_open_ports)
-- [vSphere Integrated Containers Service Accounts and Privileges](#accounts)
+- [External Interfaces, Ports, and Services](#open_ports)
+- [Service Accounts and Privileges](#accounts)
 - [Apply Security Updates and Patches](#patches)
 - [Security Related Log Messages](#logs)
 
 <a name="network"></a>
 ## Network Security 
-Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the virtual container host (VCH), always use a secure network for the management network. Ideally, use separate networks for the management network and the container network.
+VMware highly recommends using a secure management network for vSphere Integrated Containers Engine 0.8. The container VMs communicate with the endpoint VM over the management network when an interactive shell is required. While the communication is encrypted, the public keys are not validated, which leaves scope for man-in-the-middle attacks. This connection is only used for the interactive console when enabled (stdin/out/err), and not for any other purpose.
 
-<a name="list_open_ports"></a>
+<a name="open_ports"></a>
 ## External Interfaces, Ports, and Services
 
-The following ports must be open on the VCH appliance:<br>
+The following ports must be open on the VCH appliance.
 
-- 2375 if no TLS is deployed
-- 2376 for TLS
-- 2377 to configure or disable the firewall
-- 2378 vic-admin
-- 53 DNS server
-- 22 for SSH for debugging purposes
+### Endpoint VM
+Client interface:
+
+- 2375 insecure port for Docker API access if deployed with `--no-tls`
+- 2376 for TLS secured port for Docker API access
+- 22 SSH when enabled with `vic-machine deubg`
+- 2378 VIC admin server health and log access (HTTPS)
+- 6060 pprof debug data when enabled with --debug levels
+
+Management interface:
+
+- 2377 incoming connections from container VMs
+- 443 outgoing connections established to vSphere target
+- 443 outgoing connections established to ESX hosts
+
+Bridge interface:
+
+- 53 DNS server for container name resolution
+
+Public interface:
+
+- any port not listed as used elsewhere can be forwarded to a container VM
+
+### Container VM
+
+- 6060 pprof debug data when enabled with --debug levels
+- vSphere Integrated Containers Engine does not use ports when not configured for debug
 
 <a name="accounts"></a>
 ## Service Accounts and Privileges
 vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. Instead, it creates a vSphere Extension and authenticates against it.
 
 <a name="patches"></a>
-<<<<<<< 4e63a38c7c5b8dae62933e2eb63cefb8bf5b5cee
+
 ## Apply Security Updates and Patches
 Download a new version of vSphere Integrated Containers Engine and upgrade your existing VCHs.
 
