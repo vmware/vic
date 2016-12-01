@@ -6,7 +6,7 @@ After you have deployed a virtual container host (VCH), you can verify the deplo
 
 **Prerequisites**
 
-- You followed the instructions in [Deploy a VCH to an ESXi Host](deploy_vch_esxi.md) or [Deploy a VCH to a vCenter Server Cluster](deploy_vch_vcenter.md) to deploy a VCH to either an ESXi host or to a vCenter Server instance.
+- You followed the instructions in [Deploy a VCH to an ESXi Host with No vCenter Server](deploy_vch_esxi.md) or [Deploy a VCH to a Basic vCenter Server Cluster](deploy_vch_vcenter.md) to deploy a VCH to either an ESXi host or to a vCenter Server instance.
 - You ran `vic-machine create` with the `--no-tlsverify` option.
 - You have installed a Docker client.
 - If you deployed the VCH to vCenter Server, connect a vSphere Web Client to that vCenter Server instance.

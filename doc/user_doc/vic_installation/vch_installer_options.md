@@ -4,6 +4,7 @@ The command line utility for vSphere Integrated Containers Engine, `vic-machine`
 
 - [vSphere Target Options](#vsphere)
 - [Security Options](#security)
+- [Private Registry Options](#registry)
 - [Datastore Options](#datastore)
 - [Networking Options](#networking)
 - [Appliance Deployment Options](#deployment)
@@ -80,15 +81,14 @@ Short name: `-r`
 
 The relative path to the host, cluster, or resource pool in which to deploy the VCH. 
 
-If the vCenter Server instance on which you are deploying a VCH only includes a single instance of a standalone host or  cluster, `vic-machine create` automatically detects and uses those resources. If you are deploying to an ESXi host that has no resource pools, `vic-machine create` automatically uses the default resource pool. In these cases, you do not need to specify a compute resource when you run `vic-machine create`.
+If the vCenter Server instance on which you are deploying a VCH only includes a single instance of a standalone host or a cluster, `vic-machine create` automatically detects and uses those resources. In this case, you do not need to specify a compute resource when you run `vic-machine create`. If you are deploying to an ESXi host and you do not specify `--compute-resource`, `vic-machine create` automatically uses the default resource pool. 
 
-You specify the `compute-resource` option in the following circumstances:
+You specify the `--compute-resource` option in the following circumstances:
 
 - A vCenter Server instance includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.
-- An ESXi host includes multiple resource pools. 
 - You want to deploy the VCH to a specific resource pool in your environment. 
 
-If you do not specify the `compute-resource` option and multiple possible resources exist, or if you specify an invalid resource name, `vic-machine create` fails and suggests valid targets for `compute-resource` in the failure message. 
+If you do not specify the `--compute-resource` option and multiple possible resources exist, or if you specify an invalid resource name, `vic-machine create` fails and suggests valid targets for `--compute-resource` in the failure message. 
 
 * To deploy to a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre>
 * To deploy to a vCenter Server instance that has more than one standalone host that are not part of a cluster, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
@@ -106,7 +106,7 @@ The thumbprint of the vCenter Server or ESXi host certificate. Specify this opti
 
 **NOTE** If your vSphere environment uses untrusted, self-signed certificates, you can run `vic-machine create` without the `--thumbprint` option by using the `--force` option. However, running `vic-machine create` with the `--force` option rather than providing the certificate thumbprint is not recommended, because it permits man-in-the-middle attacks to go undetected.
 
-To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine create` without the specifying the `--thumbprint` or `--force` options. The deployment of the VCH fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run vic-machine create again, including the `thumbprint` option.
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine create` without the specifying the `--thumbprint` or `--force` options. The deployment of the VCH fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run vic-machine create again, including the `--thumbprint` option. If you obtain the thumbprint by other means, use upper-case letters and colon delimitation rather than space delimitation when you specify `--thumbprint`.
 
 <pre>--thumbprint <i>certificate_thumbprint</i></pre>
 
@@ -186,19 +186,35 @@ If you use untrusted certificates, container developers run Docker commands with
 <pre>--no-tlsverify</pre>
 
 <a name="registry"></a>
+## Private Registry Options ##
+
+If container developers need to access Docker images that are stored in private registry servers, you must configure VCHs to allow them to connect to the private registry servers when you deploy the VCHs. VCHs can connect to both secure and insecure private registry servers.
+
+<a name="registry-ca"></a>
+### `--registry-ca` ###
+
+Short name: `--rc`
+
+The path to a self-generated CA certificate, to allow the VCH to connect to a secure private registry that uses a TLS certificate and private key that are signed with the self-generated CA certificate. You can specify `--registry-ca` multiple times to specify multiple CA certificates for different registries. The use of these certificates is independent of the client security options that you specify. For example, it is possible to disable TLS for client authentication by using `--no-tls`, and to use `--registry-ca` tospecify CA certificates to validate a private registry.
+
+<pre>--registry-ca <i>path_to_ca_cert_1</i>
+--registry-ca <i>path_to_ca_cert_2</i>
+</pre>
+
+<a name="insecure-registry"></a>
 ### `--insecure-registry` ###
 
 Short name: `--dir`
 
-If your Docker environment stores Docker images in an insecure private registry server, you must configure VCHs to connect to this private registry server when you deploy them. An insecure  private registry server is a private registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a VCH to an insecure private registry server by setting the URL of a registry server in the `insecure-registry` option. If the registry server listens on a specific port, add the port number to the URL.
+An insecure private registry server is a private registry server for Docker images that provides TLS encrypted communication but that does not confirm the identity of the remote system that is connecting to it. TLS encrypted communication protects you from attackers listening in on your network traffic, but does not protect against man-in-the-middle attacks. Insecure private registries are not recommended in production environments.  
 
-You can specify `insecure-registry` multiple times to allow connections from the VCH to multiple insecure  private registry servers.
+If you authorize a VCH to connect to an insecure private registry server, the VCH attempts to access the registry server via HTTP if access via HTTPS fails. VCHs always use HTTPS when connecting to registry servers for which you have not authorized insecure access.
+
+To authorize connections from a VCH to an insecure private registry server, set the `--insecure-registry` option. You can specify `--insecure-registry` multiple times to allow connections from the VCH to multiple insecure private registry servers. If the registry server listens on a specific port, add the port number to the URL.
 
 <pre>--insecure-registry <i>registry_URL_1</i>
 --insecure-registry <i>registry_URL_2</i>:<i>port_number</i>
 </pre>
-
-**NOTE**: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.
 
 <a name="datastore"></a>
 ## Datastore Options ##
@@ -514,7 +530,7 @@ The size of the key for `vic-machine create` to use when it creates auto-generat
 
 Short name: None
 
-A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the VCH as the organization value. It also uses the IP address or FQND of the VCH as the organization if you set a static IP address by using the `--client-network-ip` and `--client-network-gateway` options.
+A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the VCH as the organization value. It uses IP addresses that you configure on the client interface by using `--client-network-ip`, or by using `--public-network-ip` if the client and public networks share an interface.
 
 <pre>--organization <i>organization_name</i></pre>
 
@@ -523,10 +539,10 @@ A list of identifiers to record in auto-generated trusted certificates. If not s
 
 Short name: none
 
-The path to a custom X.509 certificate that has been signed by a CA, for the Docker API to use to authenticate the VCH with a Docker client.
+The path to a custom X.509 server certificate, for the Docker API to use to authenticate the VCH with a Docker client.
 
 - This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates, to authenticate connections between Docker clients and the VCHs.
-- Use this option in combination with the `key` option, that provides the path to the private key file for the custom certificate.
+- Use this option in combination with the `--key` option, that provides the path to the private key file for the custom certificate.
 - Include the names of the certificate and key files in the paths.
 - If you use trusted custom certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
 
@@ -545,7 +561,7 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 
 Short name: none
 
-The path to the private key file to use with a custom CA certificate. This option is mandatory if you specify the `cert` option, that provides the path to a custom X.509 certificate file. Include the names of the certificate and key files in the paths. 
+The path to the private key file to use with a custom server certificate. This option is mandatory if you specify the `--cert` option, that provides the path to a custom X.509 certificate file. Include the names of the certificate and key files in the paths. 
 
 <pre>--cert <i>path_to_certificate_file</i>/<i>certificate_file_name</i>.pem 
 --key <i>path_to_key_file</i>/<i>key_file_name</i>.pem
@@ -562,9 +578,14 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 
 Short name: none
 
-A folder in which to store auto-generated certificates. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. If not specified, `vic-machine create` stores auto-generated certificates in a folder with the same name as the VCH, in the folder from which you run `vic-machine create`. 
+By default `--cert-path` is a folder in the current directory, that takes its name from the VCH name that you specify in the `--name` option. `vic-machine create` checks in `--cert-path` for existing certificates with the standard names and uses those certificates if  they are present:
+* `server-cert.pem` 
+* `server-key.pem`
+* `ca.pem`
 
-When you deploy a VCH, `vic-machine create` checks for existing certificates, either in the default location or in the folder that you specify in `--cert-path`. If an auto-generated certificate exists that includes the same Common Name attribute as the  one that you specify in either the `--tls-cname` option, the `--client-network-ip` option, or potentially the `--public-network-ip` option, `vic-machine` reuses it. Reusing existing certificates allows you to recreate VCHs for which you have already distributed the client certificates to container developers. If certificates are present that are not valid for the VCH that you are deploying, `vic-machine create` fails. 
+If `vic-machine create` does not find existing certificates with the standard names in `--cert-path`, or if you do not specify certificates directly by using the `--cert`, `--key`, and `--tls-ca` options, `vic-machine create` generates certificates. Generated certificates are saved in the `--cert-path` folder with the standard names listed. `vic-machine create` additionally generates other certificates:
+* `cert.pem` and `key.pem` for client certificates, if required.
+* `ca-key.pem`, the private key for the certificate authority. 
 
 <pre>--cert-path '<i>path_to_certificate_folder</i>'
 </pre>
@@ -594,7 +615,7 @@ To specify a static IP address for the endpoint VM on the client, public, or man
 
 Short name: None
 
-A DNS server to use if you specify static IP addresses for the VCH endpoint VM on the client, public, or management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
+A DNS server for the VCH endpoint VM to use on the client, public, or management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
 
 - If you specify `dns-server`, `vic-machine create` always uses the `--dns-server` setting for all three of the client, public, and management networks.
 - If you do not specify `dns-server` and you specify a static IP address for the endpoint VM on all three of the client, public, and management networks, `vic-machine create` uses the Google public DNS service. 
@@ -615,13 +636,14 @@ You specify a static IP address for the endpoint VM on the public, client, or ma
 
 - You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks shares a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
 - If either of the client or management networks shares a port group with the public network, you can only specify a static IP address on the public network.
-- If either or both of the client or management networks do not use the same network as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
-- If the client and management networks both use the same network, and the public network does not use that network, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
+- If either or both of the client or management networks do not use the same port group as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
+- If the client and management networks both use the same port group, and the public network does not use that port group, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
 - If you assign a static IP address to the VCH endpoint VM on the client network by setting the `--client-network-ip` option, and you do not specify one of the TLS options, `vic-machine create` uses this address as the Common Name with which to auto-generate trusted CA certificates. If you do not specify `--tls-cname`, `--no-tls` or `--no-tlsverify`, two-way TLS authentication with trusted certificates is implemented by default when you deploy the VCH with a static IP address on the client network. If you assign a static IP address to the endpoint VM on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname).
  
-  **IMPORTANT**: If the client network shares a network with the public network you cannot set a static IP address for the endpoint VM on the client network. To assign a static IP address to the endpoint VM you must set a static IP address on the public network by using the `--public-network-ip` option. In this case, `vic-machine create` uses the public network IP address as the Common Name with which to auto-generate trusted CA certificates, in the same way as it would for the client network.
+  **IMPORTANT**: If the client network shares a port group with the public network you cannot set a static IP address for the endpoint VM on the client network. To assign a static IP address to the endpoint VM you must set a static IP address on the public network by using the `--public-network-ip` option. In this case, `vic-machine create` uses the public network IP address as the Common Name with which to auto-generate trusted CA certificates, in the same way as it would for the client network.
 
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
+-  When you specify an address, `vic-machine create` uses the netmask from the gateway.
 
 You can specify addresses as IPv4 addresses. Do not use CIDR notation.
 
@@ -630,7 +652,7 @@ You can specify addresses as IPv4 addresses. Do not use CIDR notation.
 --client-network-ip 192.168.Z.N
 </pre>
 
-You can also specify addresses as resolvable FQDNs. If you specify an FQDN, `vic-machine create` uses the netmask from the gateway.
+You can also specify addresses as resolvable FQDNs.
 
 <pre>--public-network-ip=vch27-team-a.internal.domain.com
 --management-network-ip=vch27-team-b.internal.domain.com
@@ -649,17 +671,17 @@ You specify the public network gateway address in CIDR format.
 
 **IMPORTANT**: Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
 
-The public, management, and client networks route traffic through the VCH endpoint VM to vSphere. The default route to vSphere through the endpoint VM is assigned to the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
+The default route for the VCH endpoint VM is always on the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
 
-<pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
-<i>routing_destination_2</i>/<i>subnet</i>:
-<i>gateway_address</i>/<i>subnet</i></pre>
-<pre>--client-network-gateway <i>routing_destination_1</i>/<i>subnet</i>,
-<i>routing_destination_2</i>/<i>subnet</i>:
-<i>gateway_address</i>/<i>subnet</i>
+<pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
+<i>routing_destination_2</i>/<i>subnet_mask</i>:
+<i>gateway_address</i>/<i>subnet_mask</i></pre>
+<pre>--client-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
+<i>routing_destination_2</i>/<i>subnet_mask</i>:
+<i>gateway_address</i>/<i>subnet_mask</i>
 </pre>
 
-In the following example, `--management-network-gateway` informs the VCH that it can reach all of the Docker clients that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that run Docker clients that will connect to this VCH instance. 
+In the following example, `--management-network-gateway` informs the VCH that it can reach all of the vSphere management endoints that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that will connect to this VCH instance. 
 
 <pre>--management-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
 </pre>

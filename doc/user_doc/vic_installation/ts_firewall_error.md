@@ -4,7 +4,7 @@ When you use `vic-machine create` to deploy a virtual container host (VCH), depl
 ## Problem ##
 Deployment fails with a firewall error during the validation phase: 
 
-<pre>Firewall must permit 2377/tcp outbound to use VIC.</pre>
+<pre>Firewall must permit dst 2377/tcp outbound to the VCH management interface</pre>
 
 ## Cause ##
 
