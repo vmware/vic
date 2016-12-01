@@ -251,11 +251,14 @@ func ParseCertificate(cb, kb []byte) (*x509.Certificate, *rsa.PrivateKey, error)
 		return nil, nil, err
 	}
 
+	var key *rsa.PrivateKey
 	block, _ = pem.Decode(kb)
-	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		err = errors.Errorf("Failed to parse key data: %s", err)
-		return nil, nil, err
+	if block != nil {
+		key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			err = errors.Errorf("Failed to parse key data: %s", err)
+			return nil, nil, err
+		}
 	}
 
 	return cert, key, nil

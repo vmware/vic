@@ -168,7 +168,7 @@ type Contacts struct {
 // RawCertificate is present until we add extraconfig support for [][]byte slices that are present
 // in tls.Certificate
 type RawCertificate struct {
-	Key  []byte
+	Key  []byte `vic:"0.1" scope:"secret"`
 	Cert []byte
 }
 
