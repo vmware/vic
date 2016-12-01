@@ -16,7 +16,7 @@ This topic provides examples of the options of the `vic-machine create` command 
 - [Specify One or More Volume Stores](#volume-stores)
 - [Security Examples](#security)
   - [Use Auto-Generated Trusted CA Certificates](#auto_cert)
-  - [Use Custom Trusted CA Certificates](#custom_cert)
+  - [Use Custom Server Certificates](#custom_cert)
   - [Authorize Access to an Insecure Private Registry Server](#registry)
 
 For simplicity, these examples use the `--force` option to disable the verification of the vCenter Server certificate, so the `--thumbprint` option is not specified. Similarly, all examples that do not relate explicitly to certificate use specify the `--tls-noverify` option.
@@ -48,7 +48,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --name vch1
 --force
 --no-tlsverify
@@ -67,7 +67,7 @@ This example deploys a VCH with the following configuration:
 <pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --compute-resource esxihost1.organization.company.com
 --name vch1
 --force
@@ -107,7 +107,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource 'cluster 1'/'rp 1'
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --name vch1
 --force
 --no-tlsverify
@@ -127,7 +127,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --memory 1024
 --memory-reservation 1024
 --memory-shares low
@@ -166,7 +166,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --public-network 'network 1'
 --management-network 'network 1'
 --client-network 'network 2'
@@ -196,7 +196,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --public-network 'network 1'
 --public-network-ip 192.168.1.10
 --public-network-gateway 192.168.1.1/24
@@ -230,7 +230,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --container-network vic-containers:vic-container-network
 --container-network-gateway vic-containers:<i>gateway_ip_address</i>/255.255.255.0
 --container-network-dns vic-containers:<i>dns1_ip_address</i>
@@ -257,7 +257,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --https-proxy https://<i>proxy_server_address</i>:<i>port</i>
 --name vch1
 --force
@@ -282,7 +282,7 @@ This example deploys a VCH with the following configuration:
 <pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --image-store 'datastore 1'
 --volume-store 'datastore 1'/volumes:default</i>
 --volume-store 'datastore 2'/volumes:volume_store_2</i>
@@ -300,44 +300,48 @@ The examples in this section demonstrate how to configure a VCH to use Certifica
 <a name="auto_cert"></a>
 ###  Use Auto-Generated Trusted CA Certificates ###
 
-You can deploy a VCH that implements two-way authentication with trusted auto-generated TLS certificates that are signed by a CA. To automatically generate a trusted CA certificate, you provide information that `vic-machine create` uses to populate the fields of a certificate request. At a minimum, you must specify the FQDN or the name of the domain in which the VCH will run in the `--tls-cname` option. `vic-machine create` uses the name as the Common Name in the certificate request. You can also optionally specify a CA file, an organization name, and a size for the certificate key. 
+You can deploy a VCH that implements two-way authentication with trusted auto-generated TLS certificates that are signed by a CA. 
 
-**NOTE**: Because the `--tls-cname` option requires an FQDN or domain name, you must have a DNS service running on the client network on which you deploy the VCH. However, if you specify a static IP address for the VCH endpoint VM on the client network, `vic-machine create` uses this address as the Common Name with which to create an auto-generated trusted certificate. In this case, full TLS authentication is implemented by default and you do not need to specify any authentication options, and DNS is not required on the client network.
+To automatically generate a server certificate that can pass client verification, you must specify the Common Name (CN) for the certificate by using the [`--tls-cname`](vch_installer_options.md#tls-cname) option. The CN should be the FQDN or IP address of the server, or a domain with a wildcard. The CN value must match the name or address that clients will use to connect to the server. You can use the `--organization` option to add basic descriptive information to the server certificate. This information is visible to clients if they inspect the server certificate.
+
+If you specify an existing CA file with which to validate clients, you must also provide an existing server certificate that is compatible with the `--tls-cname` value or the IP address of the client interface.
 
 This example deploys a VCH with the following configuration:
 
-- Specifies the user name, password, image store, cluster, bridge network, and name for the VCH.
-- Provides `vch1.example.org` as the FQDN for the VCH, for use as the Common Name in the certificate.
+- Specifies the user, password, datacenter, image store, cluster, bridge network, and name for the VCH.
+- Provides a wildcard domain `*.example.org` as the FQDN for the VCH, for use as the Common Name in the certificate. This assumes that there is a DHCP server offering IP addresses on default VM Network, and that those addresses have corresponding DNS entries such as `dhcp-a-b-c.example.com`.
 - Specifies a folder in which to store the auto-generated certificates.
 
 <pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
---tls-cname vch1.example.org
+--bridge-network vch1-bridge
+--tls-cname *.example.org
 --cert-path <i>path_to_cert_folder</i>
 --force
 --name vch1
 </pre>
 
+The Docker API for this VCH will be accessible at `https://dhcp-a-b-c.example.com:2376`.
+
 For more information about using auto-generated CA certificates, see the [Security Options section](vch_installer_options.md#security) in VCH Deployment Options.
 
 <a name="custom_cert"></a>
-### Use Custom Trusted CA Certificates ###
+### Use Custom Server Certificates ###
 
-If your development environment uses custom CA certificates to authenticate connections between Docker clients and VCHs, use the `--cert` and `--key` options to provide the paths to a custom X.509 certificate and its key when you deploy a VCH. The paths to the certificate and key files must be relative to the location from which you are running `vic-machine create`.
+You can create a VCH that uses a custom server certificate, for example  a server certificate that has been signed by Verisign or another public root. You use the `--cert` and `--key` options to provide the paths to a custom X.509 certificate and its key when you deploy a VCH. The paths to the certificate and key files must be relative to the location from which you are running `vic-machine create`.
 
 This example deploys a VCH with the following configuration:
 
 - Specifies the user name, password, image store, cluster, bridge network, and name for the VCH.
-- Provides the paths relative to the current location of the `*.pem` files for the custom CA certificate and key files.
+- Provides the paths relative to the current location of the `*.pem` files for the custom server certificate and key files.
 
 <pre>vic-machine-<i>operating_system</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --cert ../some/relative/path/<i>certificate_file</i>.pem
 --key ../some/relative/path/<i>key_file</i>.pem
 --name vch1
@@ -349,7 +353,9 @@ For more information about using custom CA certificates, see the [Advanced Secur
 <a name="registry"></a>
 ### Authorize Access to an Insecure Private Registry Server ###
 
-An insecure private registry server is a private registry server for Docker images that is secured by self-signed certificates rather than by TLS. To authorize connections from a VCH to an insecure private registry server, set the `insecure-registry` option. You can specify `insecure-registry` multiple times to allow connections from the VCH to multiple insecure private registry servers.
+An insecure private registry server is a private registry server for Docker images that provides TLS encrypted communication. It does not confirm the identity of the remote system that is connecting to it. TLS encrypted communication protects you from attackers listening in on your network traffic, but does not protect against man-in-the-middle attacks. 
+
+To authorize connections from a VCH to an insecure private registry server, set the `insecure-registry` option. You can specify `insecure-registry` multiple times to allow connections from the VCH to multiple insecure private registry servers.
 
 This example deploys a VCH with the following configuration:
 
@@ -361,7 +367,7 @@ This example deploys a VCH with the following configuration:
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
 --compute-resource cluster1
 --image-store datastore1
---bridge-network vic-bridge
+--bridge-network vch1-bridge
 --insecure-registry <i>registry_URL_1</i>
 --insecure-registry <i>registry_URL_2:5000</i>
 --name vch1
