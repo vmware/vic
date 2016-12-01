@@ -4,6 +4,7 @@ The command line utility for vSphere Integrated Containers Engine, `vic-machine`
 
 - [vSphere Target Options](#vsphere)
 - [Security Options](#security)
+- [Private Registry Options](#registry)
 - [Datastore Options](#datastore)
 - [Networking Options](#networking)
 - [Appliance Deployment Options](#deployment)
@@ -185,19 +186,32 @@ If you use untrusted certificates, container developers run Docker commands with
 <pre>--no-tlsverify</pre>
 
 <a name="registry"></a>
+## Private Registry Options ##
+
+If container developers need to access Docker images that are stored in a private registry server, you must configure VCHs to allow them  to connect to the private registry servers when you deploy the VCHs. VCHs can connect to both secure and insecure private registries.
+
+### `--registry-ca` ###
+
+Short name: `--rc`
+
+The path to a self-generated CA certificate, to allow the VCH to connect to a secure private registry that uses a TLS certificate and private key that are signed with the self-generated CA certificate. You can specify `--registry-ca` multiple times to specify multiple CA certificates for different registries. The use of these certificates is independent of the client security options that you specify. For example, it is possible to disable TLS for client authentication by using `--no-tls`, and to use `--registry-ca` tospecify CA certificates to validate a private registry.
+
+<pre>--registry-ca <i>path_to_ca_cert_1</i>
+--registry-ca <i>path_to_ca_cert_2</i>
+</pre>
+
+<a name="insecure-registry"></a>
 ### `--insecure-registry` ###
 
 Short name: `--dir`
 
-If your Docker environment stores Docker images in an insecure private registry server, you must configure VCHs to connect to this private registry server when you deploy them. An insecure  private registry server is a private registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a VCH to an insecure private registry server by setting the URL of a registry server in the `insecure-registry` option. If the registry server listens on a specific port, add the port number to the URL.
+An insecure private registry server is a private registry server for Docker images that provides TLS encrypted communication. It does not confirm the identity of the remote system that is connecting to it. TLS encrypted communication protects you from attackers listening in on your network traffic, but does not protect against man-in-the-middle attacks. 
 
-You can specify `insecure-registry` multiple times to allow connections from the VCH to multiple insecure  private registry servers.
+To authorize connections from a VCH to an insecure private registry server, set the `--insecure-registry` option. You can specify `--insecure-registry` multiple times to allow connections from the VCH to multiple insecure private registry servers. If the registry server listens on a specific port, add the port number to the URL.
 
 <pre>--insecure-registry <i>registry_URL_1</i>
 --insecure-registry <i>registry_URL_2</i>:<i>port_number</i>
 </pre>
-
-**NOTE**: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.
 
 <a name="datastore"></a>
 ## Datastore Options ##
@@ -513,7 +527,7 @@ The size of the key for `vic-machine create` to use when it creates auto-generat
 
 Short name: None
 
-A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the VCH as the organization value. It also uses the IP address or FQND of the VCH as the organization if you set a static IP address by using the `--client-network-ip` and `--client-network-gateway` options.
+A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the VCH as the organization value. It uses IP addresses that you configure on the client interface by using `--client-network-ip`, or by using `--public-network-ip` if the client and public networks share an interface.
 
 <pre>--organization <i>organization_name</i></pre>
 
@@ -522,10 +536,10 @@ A list of identifiers to record in auto-generated trusted certificates. If not s
 
 Short name: none
 
-The path to a custom X.509 certificate that has been signed by a CA, for the Docker API to use to authenticate the VCH with a Docker client.
+The path to a custom X.509 server certificate, for the Docker API to use to authenticate the VCH with a Docker client.
 
 - This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates, to authenticate connections between Docker clients and the VCHs.
-- Use this option in combination with the `key` option, that provides the path to the private key file for the custom certificate.
+- Use this option in combination with the `--key` option, that provides the path to the private key file for the custom certificate.
 - Include the names of the certificate and key files in the paths.
 - If you use trusted custom certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
 
@@ -544,7 +558,7 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 
 Short name: none
 
-The path to the private key file to use with a custom CA certificate. This option is mandatory if you specify the `cert` option, that provides the path to a custom X.509 certificate file. Include the names of the certificate and key files in the paths. 
+The path to the private key file to use with a custom server certificate. This option is mandatory if you specify the `--cert` option, that provides the path to a custom X.509 certificate file. Include the names of the certificate and key files in the paths. 
 
 <pre>--cert <i>path_to_certificate_file</i>/<i>certificate_file_name</i>.pem 
 --key <i>path_to_key_file</i>/<i>key_file_name</i>.pem
@@ -561,9 +575,14 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 
 Short name: none
 
-A folder in which to store auto-generated certificates. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. If not specified, `vic-machine create` stores auto-generated certificates in a folder with the same name as the VCH, in the folder from which you run `vic-machine create`. 
+By default `--cert-path` is a folder in the current directory, that takes its name from the VCH name that you specify in the `--name` option. `vic-machine create` checks in `--cert-path` for existing certificates with the standard names and uses those certificates if  they are present:
+* `server-cert.pem` 
+* `server-key.pem`
+* `ca.pem`
 
-When you deploy a VCH, `vic-machine create` checks for existing certificates, either in the default location or in the folder that you specify in `--cert-path`. If an auto-generated certificate exists that includes the same Common Name attribute as the  one that you specify in either the `--tls-cname` option, the `--client-network-ip` option, or potentially the `--public-network-ip` option, `vic-machine` reuses it. Reusing existing certificates allows you to recreate VCHs for which you have already distributed the client certificates to container developers. If certificates are present that are not valid for the VCH that you are deploying, `vic-machine create` fails. 
+If `vic-machine create` does not find existing certificates with the standard names in `--cert-path`, or if you do not specify certificates directly by using the `--cert`, `--key`, and `--tls-ca` options, `vic-machine create` generates certificates. Generated certificates are saved in the `--cert-path` folder with the standard names listed. `vic-machine create` additionally generates other certificates:
+* `cert.pem` and `key.pem` for client certificates, if required.
+* `ca-key.pem`, the private key for the certificate authority. 
 
 <pre>--cert-path '<i>path_to_certificate_folder</i>'
 </pre>

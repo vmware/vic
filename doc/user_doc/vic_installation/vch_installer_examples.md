@@ -348,12 +348,10 @@ This example deploys a VCH with the following configuration:
 --force
 </pre>
 
-For more information about using custom CA certificates, see the [Advanced Security Options section](vch_installer_options.md#adv-security) in VCH Deployment Options.
+For more information about using custom server certificates, see the [Advanced Security Options section](vch_installer_options.md#adv-security) in VCH Deployment Options.
 
 <a name="registry"></a>
 ### Authorize Access to an Insecure Private Registry Server ###
-
-An insecure private registry server is a private registry server for Docker images that provides TLS encrypted communication. It does not confirm the identity of the remote system that is connecting to it. TLS encrypted communication protects you from attackers listening in on your network traffic, but does not protect against man-in-the-middle attacks. 
 
 To authorize connections from a VCH to an insecure private registry server, set the `insecure-registry` option. You can specify `insecure-registry` multiple times to allow connections from the VCH to multiple insecure private registry servers.
 
@@ -375,6 +373,4 @@ This example deploys a VCH with the following configuration:
 --no-tlsverify
 </pre>
 
-For more information about configuring VCHs to connect to insecure private registry servers, see the section on the [`insecure-registry` option](vch_installer_options.md#registry) in VCH Deployment Options.
-
-**NOTE**: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.
+For more information about configuring VCHs to connect to insecure private registry servers, see the section on the [`insecure-registry` option](vch_installer_options.md#insecure-registry) in VCH Deployment Options.
