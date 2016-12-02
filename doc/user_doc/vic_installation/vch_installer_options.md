@@ -7,7 +7,7 @@ The command line utility for vSphere Integrated Containers Engine, `vic-machine`
 - [Private Registry Options](#registry)
 - [Datastore Options](#datastore)
 - [Networking Options](#networking)
-- [Appliance Deployment Options](#deployment)
+- [Additional Deployment Options](#deployment)
 
 To allow you to fine-tune the deployment of VCHs, `vic-machine create` provides [Advanced Options](#advanced).
 
@@ -201,6 +201,8 @@ The path to a self-generated CA certificate, to allow the VCH to connect to a se
 --registry-ca <i>path_to_ca_cert_2</i>
 </pre>
 
+**NOTE**: The `--registry-ca` option appears in the extended help that you see by running <code>vic-machine-<i>os</i> create --extended-help</code> or <code>vic-machine-<i>os</i> create -x</code>.
+
 <a name="insecure-registry"></a>
 ### `--insecure-registry` ###
 
@@ -218,7 +220,7 @@ To authorize connections from a VCH to an insecure private registry server, set 
 
 <a name="datastore"></a>
 ## Datastore Options ##
-The `vic-machine` utility allows you to specify the datastore in which to store container image files, container VM files, and the files for the VCH appliance. You can also specify datastores in which to create container volumes. 
+The `vic-machine` utility allows you to specify the datastore in which to store container image files, container VM files, and the files for the VCH. You can also specify datastores in which to create container volumes. 
 
 - vSphere Integrated Containers Engine fully supports VMware vSAN datastores. 
 - vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
@@ -235,7 +237,7 @@ The `vic-machine` utility allows you to specify the datastore in which to store 
 
 Short name: `-i`
 
-The datastore in which to store container image files, container VM files, and the files for the VCH appliance. The `--image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `--image-store` option is not required. 
+The datastore in which to store container image files, container VM files, and the files for the VCH. The `--image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `--image-store` option is not required. 
 
 If you do not specify the `--image-store` option and multiple possible datastores exist, or if you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores in the failure message. 
 
@@ -248,7 +250,7 @@ To specify a whole datastore as the image store, specify the datastore name in t
 If you designate a whole datastore as the image store, `vic-machine` creates the following set of folders in the target datastore: 
 
 -  <code><i>datastore_name</i>/VIC/<i>vch_uuid</i>/images</code>, in which to store all of the container images that you pull into the VCH.
-- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH appliance.
+- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH.
 - <code><i>datastore_name</i>/<i>vch_name</i>/kvstores</code>, a key-value store folder for the VCH.
 
 You can specify a datastore folder to use as the image store by specifying a path in the `--image-store` option</code>: 
@@ -260,7 +262,7 @@ If the folder that you specify in `/path` does not already exist, `vic-machine c
 If you designate a datastore folder as the image store, `vic-machine` creates the following set of folders in the target datastore:
 
 - <code><i>datastore_name</i>/<i>path</i>/VIC/<i>vcu_uuid</i>/images</code>, in which to store all of the container images that you pull into the VCH. 
-- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH appliance. This is the same as if you specified a datastore as the image store.
+- <code><i>datastore_name</i>/<i>vch_name</i></code>, that contains the VM files for the VCH. This is the same as if you specified a datastore as the image store.
 - <code><i>datastore_name</i>/<i>vch_name</i>/kvstores</code>, a key-value store folder for the VCH. This is the same as if you specified a datastore as the image store.
 
 By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple VCHs. In this way, `vic-machine create` creates only one `VIC` folder in the datastore, at the path that you specify. The `VIC` folder contains one <code><i>vch_uuid</i>/images</code> folder for each VCH that you deploy. By creating one <code><i>vch_uuid</i>/images</code> folder for each VCH, vSphere Integrated Containers Engine limits the potential for conflicts of image use between VCHs, even if you share the same image store folder between multiple hosts.
@@ -444,27 +446,27 @@ Wrap the port group name in single quotes (') on Mac OS and Linux and in double 
 <pre>--container-network '<i>port group name</i>':<i>container_network_name</i></pre>
 
 <a name="deployment"></a>
-## Appliance Deployment Options ##
+## Additional Deployment Options ##
 
-The `vic-machine` utility provides options to customize the VCH appliance.
+The `vic-machine` utility provides options to customize the VCH.
 
 ### `--name` ###
 
 Short name: `-n`
 
-A name for the VCH appliance. If not specified, `vic-machine` sets the name of the VCH to `virtual-container-host`. If a VCH of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the VCH fails.
+A name for the VCH. If not specified, `vic-machine` sets the name of the VCH to `virtual-container-host`. If a VCH of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, `vic-machine create` creates a folder named <code><i>vch_name</i>_1</code>
+ 
+<pre>--name <i>vch_name</i></pre>
 
-<pre>--name <i>vch_appliance_name</i></pre>
+Wrap the name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
-Wrap the appliance name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
-
-<pre>--name '<i>vch appliance name</i>'</pre>
+<pre>--name '<i>vch name</i>'</pre>
 
 ### `--memory` ###
 
 Short name: `--mem`
 
-Limit the amount of memory that is available for use by the VCH appliance and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+Limit the amount of memory that is available for use by the VCH vApp in vCenter Server, or for the VCH resource pool on an ESXi host. This limit also applies to the container VMs that run in the VCH vApp or resource pool. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
 <pre>--memory 1024</pre>
 
@@ -472,7 +474,7 @@ Limit the amount of memory that is available for use by the VCH appliance and co
 
 Short name: None
 
-Limit the amount of CPU capacity that is available for use by the VCH appliance and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+Limit the amount of CPU capacity that is available for use by the VCH vApp in vCenter Server, or for the VCH resource pool on an ESXi host. This limit also applies to the container VMs that run in the VCH vApp or resource pool. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
 <pre>--cpu 1024</pre>
 
@@ -492,7 +494,7 @@ If your vSphere environment uses untrusted, self-signed certificates, you can us
 
 Short name: none
 
-The timeout period for uploading the vSphere Integrated Containers Engine  appliance and container images to the ESXi host, and for powering on the appliance. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
+The timeout period for uploading the vSphere Integrated Containers Engine files and ISOs to the ESXi host, and for powering on the VCH. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
 
 <pre>--timeout 5m0s</pre> 
 
@@ -769,7 +771,7 @@ The address of the HTTP proxy server through which the VCH accesses image regist
 
 Short name: `--memr`
 
-Reserve a quantity of memory for use by the VCH appliance and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
+Reserve a quantity of memory for use by the VCH vApp in vCenter Server, or for the VCH resource pool on an ESXi host. This limit also applies to the container VMs that run in the VCH vApp or resource pool. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
 
 <pre>--memory-reservation 1024</pre>
 
@@ -777,7 +779,7 @@ Reserve a quantity of memory for use by the VCH appliance and container VMs. Spe
 
 Short name: `--mems`
 
-Set memory shares on the VCH appliance. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+Set memory shares on the VCH vApp in vCenter Server, or on the VCH resource pool on an ESXi host.  This limit also applies to the container VMs that run in the VCH vApp or resource pool. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
 
 <pre>--memory-shares low</pre>
 
@@ -785,7 +787,7 @@ Set memory shares on the VCH appliance. Specify the share value as a level or a 
 
 Short name: `--cpur`
 
-Reserve a quantity of CPU capacity for use by the VCH appliance and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
+Reserve a quantity of CPU capacity for use by the VCH vApp in vCenter Server, or for the VCH resource pool on an ESXi host. This limit also applies to the container VMs that run in the VCH vApp or resource pool.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
 
 <pre>--cpu-reservation 1024</pre>
 
@@ -793,7 +795,7 @@ Reserve a quantity of CPU capacity for use by the VCH appliance and container VM
 
 Short name: `--cpus`
 
-Set CPU shares on the VCH appliance. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+Set CPU shares on the VCH vApp in vCenter Server, or on the VCH resource pool on an ESXi host.  This limit also applies to the container VMs that run in the VCH vApp or resource pool. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
 
 <pre>--cpu-shares low</pre>
 

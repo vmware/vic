@@ -19,7 +19,6 @@
   * [vCenter Server Appliance without a Web Server](plugin_vcsa_no_web.md)
   * [Verify the Deployment of the Plug-In](plugin_verify_deployment.md)
 * [Troubleshooting vSphere Integrated Containers Engine Installation](troubleshoot_vic_install.md)
-  * [Resource Pool Creation Error](ts_resource_pool_error.md)
   * [Certificate Verification Error](ts_thumbprint_error.md)
   * [Missing Common Name Error When TLS Options Are Specified](ts_cli_argument_error.md)
   * [Firewall Validation Error](ts_firewall_error.md)

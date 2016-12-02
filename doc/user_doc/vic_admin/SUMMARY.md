@@ -17,6 +17,5 @@
   * [VCH Admin Status Reference](vicadmin_status_ref.md)
 * [Troubleshooting](troubleshoot_vic_admin.md)
   * [Access Log Bundles](log_bundles.md)
-  * [Running `vic-machine ls` on an ESXi Host Fails with an Error](ts_ls_error.md)
   * [Deleting or Inspecting a VCH Fails with a Resource Pool Error](ts_delete_inspect_error.md)
   * [Connections Fail with Certificate Errors when Using Full TLS Authentication with Trusted Certificates](ts_clock_skew.md)

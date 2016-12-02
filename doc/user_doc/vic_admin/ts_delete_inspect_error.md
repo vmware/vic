@@ -3,10 +3,21 @@
 When you use `vic-machine delete` or `vic-machine inspect` to delete or inspect a virtual container host (VCH) and you specify the address of an ESXi host in the `target` option, the operation fails with a resource pool  error.
 
 ## Problem ##
-Deleting or inspecting a VCH fails with the error message: 
+Deleting or inspecting a VCH fails with the error messages: 
 
-<pre>Failed to get VCH resource pool "/ha-datacenter/host/localhost./Resources/<i>vch_name</i>": 
-resource pool '/ha-datacenter/host/localhost./Resources/<i>vch_name</i>' not found</pre>
+<pre>### Inspecting VCH ####                      
+Not a VCH                                    
+Failed to get Virtual Container Host <i>vch_name</i>   
+Not a VCH                                    
+--------------------                         
+vic-machine-<i>os</i> failed: inspect failed</pre>
+
+<pre>### Removing VCH ####                      
+Not a VCH                                    
+Failed to get Virtual Container Host <i>vch_name</i>    
+Not a VCH                                    
+--------------------                         
+vic-machine-<i>os</i> failed: delete failed</pre>
 
 ## Cause ##
 You set the `target` option to the address of an ESXi host that is managed by a vCenter Server instance.
