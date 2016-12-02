@@ -84,7 +84,7 @@ VICe exploits the portability of the Docker Image format to present itself as an
 
 If we consider a Venn diagram of "What vSphere Does" in one circle and “What Docker Does” in another, the intersection is not insignificant. The vision of VIC is to take as much of vSphere as possible and layer on whatever Docker capabilities are missing, reusing as much of Docker’s own code as possible. The end result should not sacrifice portability of the Docker image format and should be completely transparent to a Docker client. Below are the key concepts and components that make this possible.
 
-![VICe components](graphics/vice-concepts.png)
+![VICe components](graphics/vice-components.png)
 
 *The "ContainerVM"*
 
