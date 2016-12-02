@@ -324,7 +324,7 @@ func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration
 
 	err := c.vm.WaitForPowerState(timeout, state)
 	if err != nil {
-		return timeout.Err() == err, err
+		return timeout.Err() != nil, err
 	}
 
 	return false, nil
