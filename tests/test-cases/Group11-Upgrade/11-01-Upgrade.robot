@@ -33,7 +33,6 @@ Launch Container
 
 *** Test Cases ***
 Upgrade VCH with containers
-    Log  Disabled until PR \#2554 is merged  WARN
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch first container on bridge network
@@ -61,15 +60,13 @@ Upgrade VCH with containers
     Log  ${output}
     Get Docker Params  ${output}  ${true}
 
-    wait for docker info to succeed
+    # wait for docker info to succeed
+    Log To Console  Verify Containers...
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  ${params}
 
-    ${status}=  Get State Of Github Issue  2448
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-1-VCH-Upgrade.robot needs to be updated now that Issue #2448 has been resolved
-    Log  Issue \#2448 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  bar
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect bridge
     Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get Container IP  ${id1}  bridge
@@ -100,4 +97,10 @@ Upgrade VCH with containers
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  port 10000 is not available
 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} stop
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} rm
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    Log To Console  Regression Tests...
     Run Regression Tests
