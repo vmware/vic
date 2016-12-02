@@ -98,6 +98,7 @@ var (
 type logfile struct {
 	URL    url.URL
 	VMName string
+	Host   *object.HostSystem
 }
 
 func init() {
@@ -275,6 +276,7 @@ func (path urlReader) open() (entry, error) {
 type datastoreReader struct {
 	ds   *object.Datastore
 	path string
+	ctx  context.Context
 }
 
 // listVMPaths returns an array of datastore paths for VMs associated with the
@@ -332,10 +334,15 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 		}
 
 		log.Debugf("Adding VM for log collection: %s", path.String())
+		h, err := child.HostSystem(ctx)
+		if err != nil {
+			log.Warnf("Unable to get host system for VM %s - will use default host for log collection: %s", logname, err)
+		}
 
 		log := logfile{
 			URL:    path,
 			VMName: logname,
+			Host:   h,
 		}
 
 		logfiles = append(logfiles, log)
@@ -366,6 +373,13 @@ func addApplianceLogs(ctx context.Context, s *session.Session, readers map[strin
 		return err
 	}
 
+	h, err := self2.HostSystem(ctx)
+	if err != nil {
+		log.Warnf("Unable to get host system for appliance - will use default host for log collection: %s", err)
+	} else {
+		ctx = ds.HostContext(ctx, h)
+	}
+
 	wpath := fmt.Sprintf("appliance/tether.debug")
 	rpath := fmt.Sprintf("%s/%s", path.Path, "tether.debug")
 	log.Infof("Processed File read Path : %s", rpath)
@@ -373,6 +387,7 @@ func addApplianceLogs(ctx context.Context, s *session.Session, readers map[strin
 	readers[wpath] = datastoreReader{
 		ds:   ds,
 		path: rpath,
+		ctx:  ctx,
 	}
 
 	return nil
@@ -407,6 +422,11 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 			continue
 		}
 
+		hCtx := ctx
+		if logfile.Host != nil {
+			hCtx = ds.HostContext(ctx, logfile.Host)
+		}
+
 		// generate the full paths to collect
 		for _, file := range vmFiles {
 			wpath := fmt.Sprintf("%s/%s", logfile.VMName, file)
@@ -416,6 +436,7 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 			readers[wpath] = datastoreReader{
 				ds:   ds,
 				path: rpath,
+				ctx:  hCtx,
 			}
 
 			log.Debugf("Added log file for collection: %s", logfile.URL.String())
@@ -428,7 +449,7 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 func (r datastoreReader) open() (entry, error) {
 	defer trace.End(trace.Begin(r.path))
 
-	u, ticket, err := r.ds.ServiceTicket(context.Background(), r.path, "GET")
+	u, ticket, err := r.ds.ServiceTicket(r.ctx, r.path, "GET")
 	if err != nil {
 		return nil, err
 	}
