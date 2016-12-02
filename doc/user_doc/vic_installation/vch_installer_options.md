@@ -201,6 +201,8 @@ The path to a self-generated CA certificate, to allow the VCH to connect to a se
 --registry-ca <i>path_to_ca_cert_2</i>
 </pre>
 
+**NOTE**: The `--registry-ca` option appears in the extended help that you see by running <code>vic-machine-<i>os</i> create --extended-help</code> or <code>vic-machine-<i>os</i> create -x</code>.
+
 <a name="insecure-registry"></a>
 ### `--insecure-registry` ###
 
