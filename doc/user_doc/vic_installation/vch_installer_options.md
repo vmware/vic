@@ -466,7 +466,7 @@ Wrap the name in single quotes (') on Mac OS and Linux and in double quotes (") 
 
 Short name: `--mem`
 
-Limit the amount of memory that is available for use by the VCH and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+Limit the amount of memory that is available for use by the VCH vApp in vCenter Server, or for the VCH resource pool on an ESXi host. This limit also applies to the container VMs that run in the VCH vApp or resource pool. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
 <pre>--memory 1024</pre>
 
@@ -474,7 +474,7 @@ Limit the amount of memory that is available for use by the VCH and container VM
 
 Short name: None
 
-Limit the amount of CPU capacity that is available for use by the VCH and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+Limit the amount of CPU capacity that is available for use by the VCH vApp in vCenter Server, or for the VCH resource pool on an ESXi host. This limit also applies to the container VMs that run in the VCH vApp or resource pool. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
 <pre>--cpu 1024</pre>
 
