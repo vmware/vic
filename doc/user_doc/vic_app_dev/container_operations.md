@@ -4,40 +4,38 @@
 
 ## General Container Operations ##
 
-| **Container** | **Docker Reference** | **Supported** |
+| **Container Commands** | **Docker Command Reference** | **Supported** |
 | --- | --- | --- |
-|attach|[Attach to a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container)<br> [Attach to a container websocket](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container-websocket)|Yes|
-|container list|[List Containers](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers)|Yes|
-|container resize|[Resize a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.23/#resize-a-container-tty)|Yes|
+|attach|[Attach to a container](https://docs.docker.com/engine/reference/commandline/attach/)|Yes|
 |cp|[Copy files or folders between a container and the local filesystem](https://docs.docker.com/engine/reference/commandline/cp/)|No|
-|create|[Create a container](https://docs.docker.com/engine/reference/commandline/create/)|Yes. <br>`--cpuset-cpus`in Docker specifies CPUs the container is allowed to use during execution (0-3, 0,1). In vSphere Integrated Containers, this parameter specifies the number of virtual CPUs to allocate to the container VM. Minimum CPU count is 1, maximum is unlimited. Default is 2.<br>`--ip` allows you to set a static IP on the container. By default, the virtual container host  manages the container IP.<br>`-m --memory` Minimum memory is 512MB, maximum unlimited. If unspecified, default is 2GB.|
+|create|[Create a container](https://docs.docker.com/engine/reference/commandline/create/)|Yes. <br>`--cpuset-cpus`in Docker specifies CPUs the container is allowed to use during execution (0-3, 0,1). In vSphere Integrated Containers Engine, this parameter specifies the number of virtual CPUs to allocate to the container VM. Minimum CPU count is 1, maximum is unlimited. Default is 2.<br>`--ip` allows you to set a static IP on the container. By default, the virtual container host  manages the container IP.<br>`-m --memory` Minimum memory is 512MB, maximum unlimited. If unspecified, default is 2GB. vSphere Integrated Container Engine supports these options: `-a, --attach`, `--cpuset-cpus`,`-e, --env`, `--ip`, `-m, --memory`, `-i, --interactive`, `--link`, `-l, --label`, `--network`, `--tty`, `-v, --volume`|
 |diff|[Inspect changes on a container's filesystem](https://docs.docker.com/engine/reference/commandline/diff/)|No|
 |events|[Get real time events from the server](https://docs.docker.com/engine/reference/commandline/events/)|No|
 |exec|[Run a command in a running container](https://docs.docker.com/engine/reference/commandline/exec/)|No|
-|export|[Export a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#export-a-container)|No|
-|images|[Images](https://docs.docker.com/engine/reference/commandline/images/)<br>[list-images](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-images)|Yes|
-|info|[Docker system information](https://docs.docker.com/engine/reference/commandline/info/)|Yes, docker-specific data, basic capacity information, list of configured volume stores, virtual container host information. Does not reveal vSphere datastore paths that might contain sensitive vSphere information|
-|inspect|[Inspect a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container) <br>[Inspect an image](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-an-image)|Yes. Includes information about the container network.|
-|kill|[Kill a running container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container)<br> [Kill](https://docs.docker.com/engine/reference/commandline/kill/)|Yes. Docker must wait for the container to shut down.|
-|login| [Log into a Docker registry](https://docs.docker.com/engine/reference/commandline/login/)|Yes, use to access private repository|
-|logs|[Get container logs](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-logs)|Yes, except for the `docker logs --timestamps` (`-t`) and `--since` options, which are not supported.|
-|pause|[Pause processes in a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#pause-a-container)<br> [Pause](https://docs.docker.com/engine/reference/commandline/pause/)|No|
-|port|[Obtain port data](https://docs.docker.com/engine/reference/commandline/port/)|Yes. Displays port mapping data. <br> Mapping a random host port to the container when the host port is not specified is supported.|
-|ps|[Show running containers](https://docs.docker.com/engine/reference/commandline/ps/)|Yes|
-|pull|[Pull an image or repository from a registry](https://docs.docker.com/engine/reference/commandline/pull/)| Yes, pulling from insecure and custom registries is supported|
-|rename|[Rename a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#rename-a-container) [Rename](https://docs.docker.com/engine/reference/commandline/rename/)|No|
-|restart|[Restart a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#restart-a-container)<br> [Restart](https://docs.docker.com/engine/reference/commandline/restart/)|Yes|
-|rm|[Remove a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-a-container)|Yes, only the <code>name</code> parameter is supported. Also removes associated anonymous and regular volumes. `docker rm -v` and `docker rm -f` are not supported. To view volumes attached to a container that is removed, use `docker volume ls` and `docker volume inspect <id>`. If you continually invoke `docker create` to make more anonymous volumes, those volumes are left behind after each subsequent removal of that container.|
-|rmi|[Remove a Docker image](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-an-image)|Yes|
-|run|Composite command of create, start, inspect, attach, rm, resize, wait, kill|Yes. Container search using prettyname-ID `docker run --name` is supported. <br> Mapping a random host port to the container when the host port is not specified is supported. <br>Running images from private and custom registries is supported.<br> `docker run --net=host` is not supported. You can specify a container network by using the [`--container-network` option](../vic_installation/vch_installer_options.html#container-network) when you deploy a virtual container host.|
+|export|[Export a container](https://docs.docker.com/engine/reference/commandline/export/)|No|
+|images|[Images](https://docs.docker.com/engine/reference/commandline/images/)|Yes. vSphere Integrated Container Engine currently supports `--no-trunc` and `-q/--quiet`|
+|info|[Docker system information](https://docs.docker.com/engine/reference/commandline/info/)|Yes, docker-specific data, basic capacity information, list of configured volume stores, virtual container host information. Does not reveal vSphere datastore paths that might contain sensitive vSphere information.|
+|inspect|[Inspect a container or image](https://docs.docker.com/engine/reference/commandline/inspect/)|Yes. Includes information about the container network.|
+|kill|[Kill a running container](https://docs.docker.com/engine/reference/commandline/kill/)|Yes. Docker must wait for the container to shut down.|
+|login| [Log into a Docker registry](https://docs.docker.com/engine/reference/commandline/login/)|Yes|
+|logs|[Get container logs](https://docs.docker.com/engine/reference/commandline/logs/)|Yes,  vSphere Integrated Container Engine does not yet support `docker logs --timestamps` (`-t`) and `--since` options.|
+|pause|[Pause processes in a container](https://docs.docker.com/engine/reference/commandline/pause/)|No|
+|port|[Obtain port data](https://docs.docker.com/engine/reference/commandline/port/)|Yes. Displays port mapping data. <br> vSphere Integrated Container Engine supports mapping a random host port to the container when the host port is not specified.|
+|ps|[Show running containers](https://docs.docker.com/engine/reference/commandline/ps/)|Yes, vSphere Integrated Containers Engine supports only `-a/--all`, `--no-trunc`, and `-q/--quiet` options.|
+|pull|[Pull an image or repository from a registry](https://docs.docker.com/engine/reference/commandline/pull/)| Yes, vSphere Integrated Container Engine supports pulling from public and private registries, secure or insecure.|
+|rename|[Rename a container](https://docs.docker.com/engine/reference/commandline/rename/)|No|
+|restart|[Restart a container](https://docs.docker.com/engine/reference/commandline/restart/)|Yes|
+|rm|[Remove a container](https://docs.docker.com/engine/reference/commandline/rm/)|Yes, vSphere Integrated Containers Engine also removes associated anonymous and regular volumes, supports `-f/--force` option and the <code>name</code> parameter.  `docker rm -v` and `docker rm -f` are not supported. To view volumes attached to a container that is removed, use `docker volume ls` and `docker volume inspect <id>`. If you continually invoke `docker create` to make more anonymous volumes, those volumes are left behind after each subsequent removal of that container.|
+|rmi|[Remove a Docker image](https://docs.docker.com/engine/reference/commandline/rmi/)|Yes. vSphere Integrated Container Engine does not yet support tag or untag operations, or any options.|
+|run|[Run a command in a new container](https://docs.docker.com/engine/reference/commandline/run/)|Yes. vSphere Integrated Container Engine supports container search using prettyname-ID `docker run --name` and these options: `-d, --detach`. `--detach-keys`, `--dns` <br> vSphere Integrated Container Engine supports mapping a random host port to the container when the host port is not specified. <br>vSphere Integrated Container Engine supports running images from private and custom registries.<br> `docker run --net=host` is not supported. You can specify a container network by using the [`--container-network` option](../vic_installation/vch_installer_options.html#container-network) when you deploy a virtual container host.|
 |save|[Save images](https://docs.docker.com/engine/reference/commandline/save/)|No|
 |start|[Start a container](https://docs.docker.com/engine/reference/commandline/start/)|Yes|
-|stats|[Get container stats based on resource usage](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-stats-based-on-resource-usage)<br> [Stats](https://docs.docker.com/engine/reference/commandline/stats/)|No|
-|stop|[Stop a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#stop-a-container)<br> [Stop](https://docs.docker.com/engine/reference/commandline/stop/)|Yes. Powers down the VM.|
-|unpause|[Unpause processes in a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#unpause-a-container)<br> [Unpause](https://docs.docker.com/engine/reference/commandline/unpause/)|No|
-|update| [Update a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#update-a-container) <br> [Update](https://docs.docker.com/engine/reference/commandline/update/)|No|
+|stats|[Get container stats based on resource usage](https://docs.docker.com/engine/reference/commandline/stats/)|No|
+|stop|[Stop a container](https://docs.docker.com/engine/reference/commandline/stop/)|Yes. Yes. vSphere Integrated Containers Engine attempts to politely stop the container. If that fails, it powers down the VM.|
+|unpause|[Unpause processes in a container](https://docs.docker.com/engine/reference/commandline/unpause/)|No|
+|update| [Update a container](https://docs.docker.com/engine/reference/commandline/update/)|No|
 |version|[Docker version information](https://docs.docker.com/engine/reference/commandline/version/)|Yes. vSphere Integrated Containers Engine version provided|
-|wait|[Wait for a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#wait-a-container) <br>[Wait](https://docs.docker.com/engine/reference/commandline/wait/)|Yes|
+|wait|[Wait for a container](https://docs.docker.com/engine/reference/commandline/wait/)|Yes|
 
 ## Network Operations ##
 
@@ -58,7 +56,7 @@ For more information about volume operations, see [Using Volumes with vSphere In
 
 | **Volume** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
-|Volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)| The driver option is ignored even if you specify it. You must include <code>--opt VolumeStore=<name of volumestore> --Capacity=<size  in MB></code> as these are direct vSphere arguments. vSphere Integrated Containers does not assign random names during a volume create, but only for anonymous volumes.|
+|Volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)|Yes|
 |Volume inspect|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes, use with docker compose|
-|Volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/)|Yes|
-|Volume rm|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/)|Yes. `docker rm -v` to remove volumes associated with the container is not supported.|
+|Volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/)|Yes. `--filter` is not supported.|
+|Volume rm|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/)|Yes|
