@@ -32,6 +32,6 @@ Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) 
 
 Short name: `--key`
 
-Upload a public key file to `/root/.ssh/authorized_keys` folder in the endpoint VM to implement public authentication when accessing the VCH endpoint VM. Include the name of the `*.pub` file in the path.
+Upload a public key file to `/root/.ssh/authorized_keys` to enable SSH key authentication for the `root` user. Include the name of the `*.pub` file in the path.
 
 <pre>--authorized-key <i>path_to_public_key_file</i>/<i>key_file</i>.pub</pre>
