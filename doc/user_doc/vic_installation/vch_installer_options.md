@@ -315,7 +315,7 @@ If you specify an invalid datastore name, `vic-machine create` fails and suggest
 ## Networking Options ##
 The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the VCH, the external internet, and your vSphere environment. For information about the different networks that VCHs use, see [Networks Used by vSphere Integrated Containers Engine](networks.md).
 
-**IMPORTANT**: A VCH supports a maximum of 3 network port groups. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a port group.  Container networks do not got through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
+**IMPORTANT**: A VCH supports a maximum of 3 distinct network interfaces. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a network interface and therefore a port group. Container networks do not got through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
 
 By default, `vic-machine create` obtains IP addresses for VCH endpoint VMs by using DHCP. For information about how to specify a static IP address for the VCH endpoint VM on the client, public, and management networks, see [Specify a Static IP Address for the VCH Endpoint VM](#static-ip) in Advanced Options.
 
@@ -380,7 +380,7 @@ A port group for containers to use to connect to the Internet. VCHs use the publ
 
 **NOTE**: vSphere Integrated Containers Engine adds a new capability to Docker that allows you to directly map containers to a network by using the `--container-network` option. This is the recommended way to deploy container services.
 
-If not specified, containers use the default VM Network for public network traffic. If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
+If not specified, containers use the VM Network for public network traffic. If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
 
 <pre>--public-network <i>port_group</i></pre>
 

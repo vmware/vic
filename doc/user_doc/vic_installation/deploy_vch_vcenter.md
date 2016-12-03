@@ -65,7 +65,7 @@ The `vic-machine create` command in this example specifies the minimum informati
 - Disables the verification of clients that connect to this VCH by specifying the `--no-tlsverify` option.
 - Disables the verification of the vCenter Server certificate by specifying the `--force` option.
    
-Because the vCenter Server instance only has one datacenter and one cluster, and uses the default VM Network network, `vic-machine create` automatically detects and uses these resources.
+Because the vCenter Server instance only has one datacenter and one cluster, and uses the VM Network network, `vic-machine create` automatically detects and uses these resources.
 
 This example deploys a VCH with the default name `virtual-container-host`.
 

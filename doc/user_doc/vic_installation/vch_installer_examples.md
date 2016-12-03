@@ -151,11 +151,11 @@ The examples in this section demonstrate how to direct traffic to and from VCHs 
 
 In addition to the mandatory bridge network, if your vCenter Server environment includes multiple networks, you can direct different types of traffic to different networks. 
 
-- You can direct the traffic between the VCH, container VMs, and the internet to a specific network by specifying the `public-network` option. If you do not specify the `public-network` option, the VCH uses the default VM Network for public network traffic.
+- You can direct the traffic between the VCH and the Internet to a specific network by specifying the `--public-network` option. Any container VM traffic that routes through the VCH also uses the public network. If you do not specify the `--public-network` option, the VCH uses the VM Network for public network traffic.
 - You can direct traffic between ESXi hosts, vCenter Server, and the VCH to a specific network by specifying the `--management-network` option. If you do not specify the `--management-network` option, the VCH uses the public network for management traffic.
 - You can designate a specific network for use by the Docker API by specifying the `--client-network` option. If you do not specify the `--client-network` option, the Docker API uses the public network.
 
-**IMPORTANT**: A VCH supports a maximum of 3 network port groups. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a port group. Container networks do not got through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
+**IMPORTANT**: A VCH supports a maximum of 3 distinct network interfaces. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a network interface and therefore a port group. Container networks do not got through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
 
 This example deploys a VCH with the following configuration:
 
@@ -187,7 +187,7 @@ This example deploys a VCH with the following configuration:
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the VCH.
 - Directs public and management traffic to network 1 and Docker API traffic to network 2. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Sets a DNS server for use by the public, management, and client networks.
-- Sets a static IP address for the VCH endpoint VM on the public and client networks. Because the management network shares a network with the public network, you cannot set a static IP address on the management network.
+- Sets a static IP address for the VCH endpoint VM on the public and client networks. Because the management network shares a network with the public network, you only need to specify the public network IP address. You cannot specify a management IP address because you are sharing a port group between the management and public network.
 - Specifies the gateway for the public network. If you set a static IP address on the public network, you must also specify the gateway address.
 - Specifies a gateway for the client network. The `--client-network-gateway` option specifies the routing destination for client network traffic through the VCH endpoint VM, as well as the gateway address. The routing destination informs the VCH that it can reach all of the Docker clients at the network addresses in the ranges that you specify in the routing destinations by sending packets to the specified gateway.
 - Because this example specifies a static IP address for the VCH endpoint VM on the client network, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. Full TLS authentication is implemented by default, so no TLS options are specified. 
@@ -214,14 +214,14 @@ For more information about setting static IP addresses, see the [Options for Spe
 <a name="ip-range"></a>
 ### Configure a Non-DHCP Network for Container VMs ###
 
-You can designate a specific network for container VMs to use by specifying the `--container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a port group that must exist before you run `vic-machine create`. You cannot use the same port group that you use for the bridge network. You can provide a descriptive name for the network, for use by Docker. If you do not specify a descriptive name, Docker uses the vSphere network name. For example, the descriptive name appears as an available network in the output of `docker info`. 
+You can designate a specific network for container VMs to use by specifying the `--container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a port group that must exist before you run `vic-machine create`. You cannot use the same port group that you use for the bridge network. You can provide a descriptive name for the network, for use by Docker. If you do not specify a descriptive name, Docker uses the vSphere network name. For example, the descriptive name appears as an available network in the output of `docker info` and `docker network ls`. 
 
 If the network that you designate as the container network in the `--container-network` option does not support DHCP, you can configure the gateway, DNS server, and a range of IP addresses for container VMs to use. 
 
 This example deploys a VCH with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the VCH.
-- Uses the default VM Network for the public, management, and client networks.
+- Uses the VM Network for the public, management, and client networks.
 - Designates a port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker. 
 - Specifies the gateway, two DNS servers, and a range of IP addresses on the container network for container VMs to use.
@@ -232,7 +232,7 @@ This example deploys a VCH with the following configuration:
 --image-store datastore1
 --bridge-network vch1-bridge
 --container-network vic-containers:vic-container-network
---container-network-gateway vic-containers:<i>gateway_ip_address</i>/255.255.255.0
+--container-network-gateway vic-containers:<i>gateway_ip_address</i>/24
 --container-network-dns vic-containers:<i>dns1_ip_address</i>
 --container-network-dns vic-containers:<i>dns2_ip_address</i>
 --container-network-ip-range vic-containers:192.168.100.0/24
@@ -309,7 +309,7 @@ If you specify an existing CA file with which to validate clients, you must also
 This example deploys a VCH with the following configuration:
 
 - Specifies the user, password, datacenter, image store, cluster, bridge network, and name for the VCH.
-- Provides a wildcard domain `*.example.org` as the FQDN for the VCH, for use as the Common Name in the certificate. This assumes that there is a DHCP server offering IP addresses on default VM Network, and that those addresses have corresponding DNS entries such as `dhcp-a-b-c.example.com`.
+- Provides a wildcard domain `*.example.org` as the FQDN for the VCH, for use as the Common Name in the certificate. This assumes that there is a DHCP server offering IP addresses on VM Network, and that those addresses have corresponding DNS entries such as `dhcp-a-b-c.example.com`.
 - Specifies a folder in which to store the auto-generated certificates.
 
 <pre>vic-machine-<i>operating_system</i> create
