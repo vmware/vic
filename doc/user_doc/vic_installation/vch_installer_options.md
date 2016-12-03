@@ -315,7 +315,7 @@ If you specify an invalid datastore name, `vic-machine create` fails and suggest
 ## Networking Options ##
 The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the VCH, the external internet, and your vSphere environment. For information about the different networks that VCHs use, see [Networks Used by vSphere Integrated Containers Engine](networks.md).
 
-**IMPORTANT**: A VCH supports a maximum of 3 distinct network interfaces. Because the bridge and container networks require their own distributed port groups, at least two of the public, client, and management networks must share a network interface.
+**IMPORTANT**: A VCH supports a maximum of 3 network port groups. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a port group.  Container networks do not got through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
 
 By default, `vic-machine create` obtains IP addresses for VCH endpoint VMs by using DHCP. For information about how to specify a static IP address for the VCH endpoint VM on the client, public, and management networks, see [Specify a Static IP Address for the VCH Endpoint VM](#static-ip) in Advanced Options.
 
@@ -332,17 +332,17 @@ Firewall must permit dst 2377/tcp outbound to the VCH management interface
 
 Short name: `-b`
 
-A distributed port group that container VMs use to communicate with each other. 
+A port group that container VMs use to communicate with each other. 
 
 The `bridge-network` option is **mandatory** if you are deploying a VCH to vCenter Server.
 
-In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch, and assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to create a distributed virtual switch and port group, see [vCenter Server Network Requirements](vic_installation_prereqs.md#networkreqs) in *Environment Prerequisites for vSphere Integrated Containers Engine Installation*.
+In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a port group. You must add the target ESXi host or hosts to the distributed virtual switch, and assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to create a distributed virtual switch and port group, see [vCenter Server Network Requirements](vic_installation_prereqs.md#networkreqs) in *Environment Prerequisites for vSphere Integrated Containers Engine Installation*.
 
-You pass the name of the distributed port group to the `bridge-network` option. Each VCH requires its own distributed port group. 
+You pass the name of the port group to the `bridge-network` option. Each VCH requires its own port group. 
 
 **IMPORTANT** 
-- Do not assign the same `bridge-network` distributed port group to multiple VCHs. Sharing a distributed port group between VCHs might result in multiple container VMs being assigned the same IP address. 
-- Do not use the `bridge-network` distributed port group as the target for any of the other `vic-machine create` networking options.
+- Do not assign the same `bridge-network` port group to multiple VCHs. Sharing a port group between VCHs might result in multiple container VMs being assigned the same IP address. 
+- Do not use the `bridge-network` port group as the target for any of the other `vic-machine create` networking options.
 
 If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
 
@@ -350,9 +350,9 @@ The `bridge-network` option is **optional** when you are deploying a VCH to an E
 
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
-Wrap the distributed port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
+Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
-<pre>--bridge-network '<i>distributed port group name</i>'</pre>
+<pre>--bridge-network '<i>port group name</i>'</pre>
 
 For information about how to specify a range of IP addresses for additional bridge networks, see [`bridge-network-range`](#bridge-range) in Advanced Networking Options.
 
@@ -361,39 +361,41 @@ For information about how to specify a range of IP addresses for additional brid
 
 Short name: `--cln`
 
-The network that the VCH uses to generate the Docker API. The Docker API only uses this network.
+A port group on which the VCH will make the Docker API available to Docker clients. Docker clients use this network to issue Docker API requests to the VCH.
 
-If not specified, the VCH uses the public network for client traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If not specified, the VCH uses the public network for client traffic. If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
 
-<pre>--client-network <i>network_name</i></pre>
+<pre>--client-network <i>port_group_name</i></pre>
 
-Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
+Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
-<pre>--client-network '<i>network name</i>'</pre>
+<pre>--client-network '<i>port group name</i>'</pre>
 
 <a name="public-network"></a>
 ### `--public-network` ###
 
-Short name: `--en`
+Short name: `--pn`
 
-The network for containers to use to connect to the Internet. VCHs use the public network to pull container images, for example from https://hub.docker.com/. Container VMs use the public network to publish network services. If you define the public network, you can deploy containers directly on the public interface. 
+A port group for containers to use to connect to the Internet. VCHs use the public network to pull container images, for example from https://hub.docker.com/. Containers that use use port mapping expose network services on the public interface. 
 
-If not specified, containers use the default VM Network for public network traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+**NOTE**: vSphere Integrated Containers Engine adds a new capability to Docker that allows you to directly map containers to a network by using the `--container-network` option. This is the recommended way to deploy container services.
 
-<pre>--public-network <i>network_name</i></pre>
+If not specified, containers use the default VM Network for public network traffic. If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
+
+<pre>--public-network <i>port_group</i></pre>
 
 Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
-<pre>--public-network '<i>network name</i>'</pre>
+<pre>--public-network '<i>port group name</i>'</pre>
 
 <a name="management-network"></a>
 ### `--management-network` ###
 
 Short name: `--mn`
 
-The network that the VCH uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the VCH. 
+A port group that the VCH uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the VCH. 
 
-**IMPORTANT**: Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the VCH, always use a secure network for the management network. Ideally, use separate networks for the management network and the container network.
+**IMPORTANT**: Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the VCH, always use a secure network for the management network.
 
 When you create a VCH, `vic-machine create` checks that the firewall on ESXi hosts allows connections to port 2377 from the management network of the VCH. If access to port 2377 on ESXi hosts is subject to IP address restrictions, and if those restrictions block access to the management network interface, `vic-machine create` fails with a firewall configuration error:
 <pre>Firewall configuration incorrect due to allowed IP restrictions on hosts: 
@@ -410,40 +412,44 @@ Firewall allowed IP configuration may prevent required connection on hosts:
 Firewall must permit dst 2377/tcp outbound to the VCH management interface
 </pre>
 
-If not specified, the VCH uses the public network for management traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If not specified, the VCH uses the public network for management traffic. If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
 
-<pre>--management-network <i>network_name</i></pre>
+<pre>--management-network <i>port_group_name</i></pre>
 
 Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
-<pre>--management-network '<i>network name</i>'</pre>
+<pre>--management-network '<i>port group name</i>'</pre>
 
 <a name="container-network"></a>
 ### `--container-network` ###
 
 Short name: `--cn`
 
-A network for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. 
+A port group for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. 
 
-**IMPORTANT**: For security reasons, whenever possible, use separate networks for the container network and the management network.
+You can optionally specify one or more container networks. Container networks allow containers to directly attach to a network without having to route through the VCH via network address translation (NAT). Container networks that you add by using the `--container-network` option appear when you run the `docker network ls` command. These networks are available for use by containers. Containers that use these networks are directly attached to the container network, and do not go through the VCH or share the public IP of the VCH.
 
-To specify a container network, you provide the name of a port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+**IMPORTANT**: For security reasons, whenever possible, use separate port groups for the container network and the management network.
+
+To specify a container network, you provide the name of a port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
 
 - You can specify a vSphere network as the container network.
-- The distributed port group must exist before you run `vic-machine create`. 
+- The port group must exist before you run `vic-machine create`. 
 - You cannot use the same port group as you use for the bridge network. 
 - You can create the port group on the same distributed virtual switch as the port group that you use for the bridge network.
-- If the network that you specify in the `container-network` option does not support DHCP, see [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net) in Advanced Options. 
-- The descriptive name appears under `Networks` when you run `docker info` on the deployed VCH.
+- If the port group that you specify in the `container-network` option does not support DHCP, see [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net) in Advanced Options. 
+- The descriptive name appears under `Networks` when you run `docker info` or `docker network ls` on the deployed VCH.
 - Container developers use the descriptive name in the `--net` option when they run `docker run` or `docker create`.
 
-If you do not specify the `container-network` option, or if container developers run `docker run` or `docker create` without specifying `--net`, container VMs use the bridge network. 
+You can specify `--container-network` multiple times to add multiple vSphere networks to Docker.
 
-<pre>--container-network <i>port_group_name</i>:<i>container_network_name</i></pre>
+If you do not specify `--container-network`, or if you deploy containers that do not use a container network, the containers' network services are still be available via port mapping through the VCH, by using NAT through the public interface of the VCH.
+
+<pre>--container-network <i>port_group_name</i>:<i>container_port _group_name</i></pre>
 
 Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
-<pre>--container-network '<i>port group name</i>':<i>container_network_name</i></pre>
+<pre>--container-network '<i>port group name</i>':<i>container port group name</i></pre>
 
 <a name="deployment"></a>
 ## Additional Deployment Options ##
@@ -701,13 +707,13 @@ Short name: `--cng`
 
 The gateway for the subnet of the container network. This option is required if the network that you specify in the `--container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `--container-network-dns` option.
 
-When you specify the container network gateway, you must use the port group that you specify in the `--container-network` option. If you specify `--container-network-gateway` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
+When you specify the container network gateway, you must use the port group that you specify in the `--container-network` option. If you specify `--container-network-gateway` but you do not specify `--container-network`, or if you specify a different port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
-Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
 
-<pre>--container-network-gateway '<i>distributed port group name</i>':<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
+<pre>--container-network-gateway '<i>port group name</i>':<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
 ### `--container-network-dns` ###
 
@@ -715,13 +721,13 @@ Short name: `--cnd`
 
 The address of the DNS server for the container network. This option is recommended if the network that you specify in the `--container-network` option does not support DHCP. 
 
-When you specify the container network DNS server, you must use the  port group that you specify in the `--container-network` option. You can specify `--container-network-dns` multiple times, to configure multiple DNS servers. If you specify `--container-network-dns` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
+When you specify the container network DNS server, you must use the  port group that you specify in the `--container-network` option. You can specify `--container-network-dns` multiple times, to configure multiple DNS servers. If you specify `--container-network-dns` but you do not specify `--container-network`, or if you specify a different port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
-Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
 
-<pre>--container-network-dns '<i>distributed port group name</i>':8.8.8.8</pre>
+<pre>--container-network-dns '<i>port group name</i>':8.8.8.8</pre>
 
 ### `--container-network-ip-range` ###
 
@@ -729,7 +735,7 @@ Short name: `--cnr`
 
 The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, VCHs manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `--container-network-gateway`. 
 
-When you specify the container network IP range, you must use the distributed port group that you specify in the `--container-network `option. If you specify `--container-network-ip-range` but you do not specify `--container-network`, or if you specify a different distributed port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
+When you specify the container network IP range, you must use the port group that you specify in the `--container-network `option. If you specify `--container-network-ip-range` but you do not specify `--container-network`, or if you specify a different port group to the one that you specify in `--container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
 
@@ -737,9 +743,9 @@ You can also specify the IP range as a CIDR.
 
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.0/24</pre>
 
-Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
 
-<pre>--container-network-ip-range '<i>distributed port group name</i>':192.168.100.0/24</pre>
+<pre>--container-network-ip-range '<i>port group name</i>':192.168.100.0/24</pre>
 
 <a name="proxy"></a>
 ## Options to Configure VCHs to Use Proxy Servers ##

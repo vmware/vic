@@ -35,13 +35,13 @@ If vCenter Server has more than one datacenter, you specify the datacenter in th
 
 If vCenter Server manages more than one cluster, you use the `--compute-resource` option to specify the cluster on which to deploy the VCH.
 
-When deploying a VCH to vCenter Server, you must use the `--bridge-network` option to specify an existing distributed port group for container VMs to use to communicate with each other. For information about how to create a distributed virtual switch and port group, see  [vCenter Server Network Requirements](vic_installation_prereqs.md#networkreqs) in *Environment Prerequisites for vSphere Integrated Containers Engine Installation*.
+When deploying a VCH to vCenter Server, you must use the `--bridge-network` option to specify an existing port group for container VMs to use to communicate with each other. For information about how to create a distributed virtual switch and port group, see  [vCenter Server Network Requirements](vic_installation_prereqs.md#networkreqs) in *Environment Prerequisites for vSphere Integrated Containers Engine Installation*.
 
 This example deploys a VCH with the following configuration:
 
 - Provides the vCenter Single Sign-On user and password in the `--target` option. Note that the user name is wrapped in quotes, because it contains the `@` character. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system. 
 - Deploys a VCH named `vch1` to the cluster `cluster1` in datacenter `dc1`. 
-- Uses a distributed port group named `vic-bridge` for the bridge network. 
+- Uses a port group named `vic-bridge` for the bridge network. 
 - Designates `datastore1` as the datastore in which to store container images, the files for the VCH appliance, and container VMs. 
 
 <pre>vic-machine-<i>operating_system</i> create
@@ -155,7 +155,7 @@ In addition to the mandatory bridge network, if your vCenter Server environment 
 - You can direct traffic between ESXi hosts, vCenter Server, and the VCH to a specific network by specifying the `--management-network` option. If you do not specify the `--management-network` option, the VCH uses the public network for management traffic.
 - You can designate a specific network for use by the Docker API by specifying the `--client-network` option. If you do not specify the `--client-network` option, the Docker API uses the public network.
 
-**IMPORTANT**: A VCH supports a maximum of 3 distinct network interfaces. Because the bridge and container networks require their own distributed port groups, at least two of the public, client, and management networks must share a network interface.
+**IMPORTANT**: A VCH supports a maximum of 3 network port groups. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a port group. Container networks do not got through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
 
 This example deploys a VCH with the following configuration:
 
@@ -214,7 +214,7 @@ For more information about setting static IP addresses, see the [Options for Spe
 <a name="ip-range"></a>
 ### Configure a Non-DHCP Network for Container VMs ###
 
-You can designate a specific network for container VMs to use by specifying the `--container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a distributed port group that must exist before you run `vic-machine create`. You cannot use the same distributed port group that you use for the bridge network. You can provide a descriptive name for the network, for use by Docker. If you do not specify a descriptive name, Docker uses the vSphere network name. For example, the descriptive name appears as an available network in the output of `docker info`. 
+You can designate a specific network for container VMs to use by specifying the `--container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a port group that must exist before you run `vic-machine create`. You cannot use the same port group that you use for the bridge network. You can provide a descriptive name for the network, for use by Docker. If you do not specify a descriptive name, Docker uses the vSphere network name. For example, the descriptive name appears as an available network in the output of `docker info`. 
 
 If the network that you designate as the container network in the `--container-network` option does not support DHCP, you can configure the gateway, DNS server, and a range of IP addresses for container VMs to use. 
 
@@ -222,7 +222,7 @@ This example deploys a VCH with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the VCH.
 - Uses the default VM Network for the public, management, and client networks.
-- Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
+- Designates a port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker. 
 - Specifies the gateway, two DNS servers, and a range of IP addresses on the container network for container VMs to use.
 

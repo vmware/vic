@@ -8,7 +8,7 @@ VCHs connect to different types of network.
 
 This topic provides an overview of the different network types. 
 
-**IMPORTANT**: A VCH supports connecting to a maximum of 3 network port groups. Because the bridge and container networks require their own port groups, at least two of the public, client, and management networks must share a network port group.
+**IMPORTANT**: A VCH supports a maximum of 3 network port groups. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a port group. Container networks do not got through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
 
 ## Container Bridge Networks ##
 The network or networks that container VMs use to communicate with each other. Each VCH requires a unique bridge network.

@@ -54,7 +54,7 @@ The `vic-machine create` command in this example specifies the minimum informati
    
 Because the ESXi host only has only one datastore and uses the default VM Network network, `vic-machine create` automatically detects and uses those resources. 
 
-When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a distributed port group for use as the container bridge network, so you do not need to specify any network options if you do not have specific network requirements.
+When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a port group for use as the container bridge network, so you do not need to specify any network options if you do not have specific network requirements.
 
 This example deploys a VCH with the default name `virtual-container-host`.
 

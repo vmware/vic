@@ -77,14 +77,14 @@ The following network requirements apply to deployment of VCHs to standalone ESX
 ## vCenter Server Network Requirements ##
 The following network requirements apply to the deployment of VCHs to vCenter Server: 
  
-- Create a distributed virtual switch with a distributed port group for each VCH, for use as the bridge network. You can create multiple port groups on the same distributed virtual switch, but each VCH requires its own port group for the bridge network.
+- Create a distributed virtual switch with a port group for each VCH, for use as the bridge network. You can create multiple port groups on the same distributed virtual switch, but each VCH requires its own port group for the bridge network.
 - Optionally create port groups for use as mapped container networks.  
-- All hosts in a cluster must be attached to the distributed port groups that you will use for the VCH bridge network and for any mapped container networks.
+- All hosts in a cluster must be attached to the port groups that you will use for the VCH bridge network and for any mapped container networks.
 - If you are not using private VLANs, assign a VLAN ID to the port groups, to ensure that the bridge network and mapped container networks are isolated. 
 
 For information about bridge networks and container networks, see the [`--bridge-network`](vch_installer_options.md#bridge) and [`--container-network`](vch_installer_options.md#container-network) options in *VCH Deployment Options*. 
 
-For information about how to create a distributed virtual switch and a distributed port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-65/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere  documentation. 
+For information about how to create a distributed virtual switch and a port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-65/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere  documentation. 
 
 For information about how to add hosts to a distributed virtual switch, see [Add Hosts to a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-65/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html) in the vSphere  documentation.
 
