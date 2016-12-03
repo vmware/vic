@@ -829,16 +829,16 @@ Short name: `--bnr`
 
 The range of IP addresses that additional bridge networks can use when container application developers use `docker network create` to create new bridge networks. If you do not specify the `bridge-network-range` option, the IP range for bridge networks is 172.16.0.0/12.
 
-When you specify the bridge network IP range, you specify the IP range as a CIDR.
+When you specify the bridge network IP range, you specify the IP range as a CIDR. The smallest subnet that you can specify is 16.
 
-<pre>--bridge-network-range 192.168.100.0/24</pre>
+<pre>--bridge-network-range 192.168.100.0/16</pre>
 
 
 ### `--base-image-size` ###
 
 Short name: None
 
-The size of the base image from which to create other images. You should not normally need to use this option. Specify the size in `GB` or `MB`. The default is 8GB. 
+The size of the base image from which to create other images. You should not normally need to use this option. Specify the size in `GB` or `MB`. The default size is 8GB. Images are thin-provisioned, so they do not usually consume 8GB of space.  
 
 <pre>--base-image-size 4GB</pre>
 
@@ -888,6 +888,6 @@ Deploy the VCH appliance to a resource pool on vCenter Server rather than to a v
 ### `--debug` ###
 Short name: `-v`
 
-Provide verbose logging output, for troubleshooting purposes when running `vic-machine create`. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`.
+Deploy the VCH with a more verbose level of logging, for troubleshooting purposes. Specifying the `--debug` option increases the verbosity of the logging for all aspects of VCH operation, not just deployment. For example, by setting `--debug`, you increase the verbosity of the logging for VCH initialization, VCH services, container VM initialization, and so on. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`. For example, setting `--debug` to 2 or greater automatically enables SSH access to the VCH endpoint VM. Setting `--debug` to 3 suppresses the restart of failed components.
 
 <pre>--debug 1</pre>
