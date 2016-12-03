@@ -884,10 +884,14 @@ Deploy the VCH appliance to a resource pool on vCenter Server rather than to a v
 
 <pre>--use-rp</pre>
 
-
+<a name="debug"></a>
 ### `--debug` ###
 Short name: `-v`
 
-Deploy the VCH with a more verbose level of logging, for troubleshooting purposes. Specifying the `--debug` option increases the verbosity of the logging for all aspects of VCH operation, not just deployment. For example, by setting `--debug`, you increase the verbosity of the logging for VCH initialization, VCH services, container VM initialization, and so on. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`. For example, setting `--debug` to 2 or greater automatically enables SSH access to the VCH endpoint VM. Setting `--debug` to 3 suppresses the restart of failed components.
+Deploy the VCH with a more verbose level of logging, for troubleshooting purposes. Specifying the `--debug` option increases the verbosity of the logging for all aspects of VCH operation, not just deployment. For example, by setting `--debug`, you increase the verbosity of the logging for VCH initialization, VCH services, container VM initialization, and so on. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`. For example, setting `--debug` to 3 suppresses the restart of failed components.
+
+Additionally, deploying a VCH with a `debug` value of 3 or higher enables access to the VCH endpoint VM console by default, with a root password of `password`. This functionality enables you to perform targeted interactive diagnostics in environments in which a VCH endpoint VM failure occurs consistently and in a fashion that prevents `vic-machine debug` from functioning. 
+
+**IMPORTANT**: There is no provision for persistently changing the default root password. This configuration should not be used other than for debugging in a secured environment
 
 <pre>--debug 1</pre>
