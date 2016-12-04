@@ -3,7 +3,7 @@
 * [Introduction](README.md)
 * [Overview of vSphere Integrated Containers Engine for vSphere Administrators](introduction.md)
   * [Networks Used by vSphere Integrated Containers Engine](networks.md)
-* [Download vSphere Integrated Containers Engine](download_vic_engine.md)
+* [Download vSphere Integrated Containers Engine](download_vic.md)
   * [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md)
 * [Deploy VCHs](deploy_vch.md) 
   * [Environment Prerequisites for VCH Deployment](vic_installation_prereqs.md)
