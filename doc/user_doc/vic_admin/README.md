@@ -10,6 +10,13 @@ For an introduction to vSphere Integrated Containers and descriptions of its mai
 
 This information is intended for vSphere&reg; Administrators who must manage a vSphere Integrated Containers implementation in their vSphere environment. The information is written for experienced vSphere  administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
 
+# Send Documentation Feedback #
+
+Help us to improve the vSphere Integrated Containers documentation. 
+
+- <a href="mailto:docfeedback@vmware.com?subject=vSphere Integrated Containers&body=Please include the document name, HTML link, PDF page number, and section heading in your feedback. Thank you!">Send doc feedback to VMware</a>
+- [Submit a doc issue in Github](https://github.com/vmware/vic-product/issues)
+
 ----------
 
 Copyright &copy; 2016 VMware, Inc. All rights reserved. [Copyright and trademark information](http://pubs.vmware.com/copyright-trademark.html). Any feedback you provide to VMware is subject to the terms at [www.vmware.com/community_terms.html](http://www.vmware.com/community_terms.html).
