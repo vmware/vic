@@ -113,37 +113,32 @@ To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vi
 <a name="security"></a>
 ## Security Options ##
 
-When you deploy a VCH, you must specify the type of authentication to use when Docker clients connect to that VCH. 
-<!--
-- Two-way authentication with trusted auto-generated TLS certificates that are signed by a Certificate Authority (CA). Specify the [`tls-cname`](#tls-cname) option when you deploy the VCH.
-- Server-side authentication with auto-generated, untrusted TLS certificates that are not signed by a CA, with no client-side verification. Specify the [`no-tlsverify`](#no-tlsverify) option when you deploy the VCH.
-- Authentication with trusted custom TLS certificates that are signed by a CA.  Specify the [`cert`](#cert) and [`key`](#key) advanced options when you deploy the VCH.
-- No TLS authentication. Any Docker client can connect to the VCH. Specify the [`no-tls`](#no-tls) advanced option when you deploy the VCH.
+As a convenience, `vic-machine create` provides the option of generating a client certificate, server certificate, and certificate authority (CA) as appropriate when you deploy a VCH. The generated certificates are functional, but they do not allow for fine control over aspects such as expiration, intermediate certificate authorities, and so on. To exercise fine control over the certificates used, obtain or generate custom certificates yourself before deploying a VCH. Use the [`--key`](#key), [`--cert`](#cert), and [`--tls-ca`](#tls-ca) options to pass the custom certificates to `vic-machine create`.
 
-For more information about the possible security configurations for VCHs, see [Securing VCH Connections](security.md).
+### Restrict access to the Docker API ###
+vSphere Integrated Containers Engine authenticates Docker API clients by using client certificates. This configuration is commonly referred to as `tlsverify` in documentation about containers and Docker. A client certificate is accepted if it is signed by a CA that you provide by specifying one or more instances of the `--tls-ca` option. In the case of the certificates that `vic-machine create` generates, `vic-machine create` creates a CA and uses it to create and sign a single client certificate.
 
-**IMPORTANT**: If you assign a static IP address to a VCH on the client network and you do not specify any authentication options, `vic-machine` behaves in the same way as if you set the `--tls-cname` option. If you do not set a static IP address on the VCH, it is **mandatory** to specify an authentication option when you deploy a VCH. For information about setting a static IP address on a VCH, see [Options for Specifying a Static IP Address for the VCH Endpoint VM](#static-ip) in Advanced Options.
--->
-The security options also allow you to configure VCHs to connect to insecure registries and download container images by setting the `--insecure-registry` option.
+When using the Docker client, the CA also validates the server either by using CAs that are present in the root certificate bundle of the client system, or that are provided explicitly by using the `--tlscacert` option when running Docker commands. As a part of this validation, the server certificate must explicitly state at least one of the following, and must match the name or address that the client uses to access the server:
+
+- The FQDN used to communicate with the server
+- The IP address used to communicate with the server
+- A wildcard domain that matches all of the FQDNs in a specific subdomain. For an example of a domain wildcard, see [https://en.wikipedia.org/wiki/Wildcard_certificate#Example](https://en.wikipedia.org/wiki/Wildcard_certificate#Example).
 
 <a name="tls-cname"></a>
-### `--tls-cname` ###
+#### `--tls-cname` ####
 
 Short name: None
 
-The Common Name to use in an auto-generated CA certificate if you require two-way, trusted TLS certificate authentication when connecting Docker clients to the VCH.
+The FQDN or IP address to embed in the generated server certificate. Specify an FQDN, IP address, or a domain wildcard. If you provide a  custom server certificate by using the `--cert` option, you can use `--tls-cname` as a sanity check to ensure that the certificate is valid for the deployment.
 
-The `--tls-cname` option is the minimum option that you must specify when using auto-generated trusted TLS certificates. For information about further options that you can specify when using auto-generated trusted certificates, see  the descriptions of the `--tls-ca`, `--certificate-key-size`, and `--organization` options in [Advanced Security Options](#adv-security).
-
-If you specify a static IP address for the VCH on the client network by setting the `--client-network-ip` option, `vic-machine create` uses this address as the Common Name when it creates auto-generated trusted certificates. In this case, you do not need to specify `--tls-cname` or any other authentication options. For information about setting a static IP address on a VCH, see [Options for Specifying a Static IP Address for the VCH Endpoint VM](#static-ip) in Advanced Options.
-
-You can reuse an existing certificate that was generated for a VCH that has subsequently been deleted. To reuse an existing certificate, specify the same Common Name in the `--tls-cname` option as was used by the deleted VCH. Reusing certificates allows you to delete and recreate VCHs for which you have already distributed the certificates to container developers. If certificates are present that include a different Common Name attribute to the one that you specify in `--tls-cname`, `vic-machine create` fails. 
+If you do not specify `--tls-cname` but you do set a static address for the VCH on the client network interface, `vic-machine create` uses that  address for the Common Name, with the same results as if you had specified `--tls-cname=x.x.x.x`. For information about setting a static IP address on the client network, see [Options for Specifying a Static IP Address for the VCH Endpoint VM](#static-ip).
 
 When you specify the `--tls-cname` option, `vic-machine create` performs the following actions during the deployment of the VCH:
 
-- Checks for an existing certificate in either a folder that has the same name as the VCH that you are deploying, or in a location that you specify in the [`--cert-path`](#cert-path) option. If a valid certificate exists that includes the same Common Name attribute as the one that you specify in `--tls-cname`, `vic-machine create` reuses it. 
-- If a certificate folder does not exist, creates a folder with the same name as the VCH, or creates a folder in the location that you specify in the `--cert-path` option. 
-- If valid certificates do not already exist, `vic-machine create` creates trusted CA, server, and client certificate/key pairs in the certificate folder:
+- Checks for an existing certificate in either a folder that has the same name as the VCH that you are deploying, or in a location that you specify in the [`--cert-path`](#cert-path) option. If a valid certificate exists that includes the same Common Name attribute as the one that you specify in `--tls-cname`, `vic-machine create` reuses it. Reusing certificates allows you to delete and recreate VCHs for which you have already distributed the certificates to container developers.
+- If certificates are present in the certificate folder that include a different Common Name attribute to the one that you specify in `--tls-cname`, `vic-machine create` fails.  
+- If a certificate folder does not exist, `vic-machine create` creates a folder with the same name as the VCH, or creates a folder in the location that you specify in the `--cert-path` option. 
+- If valid certificates do not already exist, `vic-machine create` creates the following trusted CA, server, and client certificate/key pairs in the certificate folder:
   - `ca.pem`
   - `ca-key.pem`
   - `cert.pem`
@@ -158,30 +153,39 @@ Running `vic-machine create` with the `--tls-cname` option also creates an envir
 - The path to the client certificates.<pre>DOCKER_CERT_PATH=<i>path_to_certs</i></pre>
 - The address of the VCH.<pre>DOCKER_HOST=<i>vch_address</i>:2376</pre>
 
-You must provide copies of the certificate files and the environment file to container developers so that they can connect Docker clients to the VCH. 
-
-If you use trusted certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
-
-When you specify the `--tls-cname` option, you must provide an FQDN for the VCH or the name of the domain to which the VCH will belong. The system on which you run `vic-machine create` and the remote vCenter Server system must agree on the vCenter Server system's FQDN or domain. As a consequence, to use the `--tls-cname` option, you must have a DNS service running on the client network that the VCH uses. You cannot specify an IP address in the `--tls-cname` option. If you do not have a DNS service on the client network, you can still implement full TLS authentication with trusted certificates by either specifying a static IP address or by using the `--cert` and `--key` options to upload custom certificates.  
+You must provide copies of the certificate files and the environment file to container developers so that they can connect Docker clients to the VCH. If you deploy the VCH with the `--tls-cname` option, container developers must specify the Docker `--tlsverify` option when they  run Docker commands against this VCH.
 
 <pre>--tls-cname vch-name.example.org</pre>
 <pre>--tls-cname *.example.org</pre>
 
+<a name="tls-ca"></a>
+#### `--tls-ca` ####
+
+Short name: `--ca`
+
+You can specify `--tls-ca` multiple times, to point `vic-machine create` to a file that contains the public portion of a CA. `vic-machine create` uses these CAs to validate client certificates that are offered as credentials for Docker API access.
+
+<pre>--tls-ca <i>path_to_ca_file</i></pre>
+
+**NOTE**: The `--tls-ca` option appears in the extended help that you see by running <code>vic-machine-<i>os</i> create --extended-help</code> or <code>vic-machine-<i>os</i> create -x</code>.
+
+### Unrestricted access to the Docker API ###
+To deploy a VCH that does not restrict access to the Docker API,  use the `--no-tlsverify` option. 
+
 <a name="no-tlsverify"></a>
-### `--no-tlsverify` ###
+#### `--no-tlsverify` ####
 
 Short name: `--kv`
 
-Authentication of the VCH with auto-generated TLS certificates that are not signed by a CA, with no client-side verification. The `vic-machine create` command still generates certificates, but these are untrusted, self-signed certificates. 
-
-If you configure the VCH for untrusted TLS certificate authentication, clients are not verified. Consequently, container developers do not require copies of the certificate and key files.
+The `--no-tlsverify` option prevents the use of CAs for client authentication. You still require a server certificate if you use `--no-tlsverify`. You can supply a custom server certificate by using the  [`--cert`](#cert) and [`--key`](#key)  options. If you do not use `--cert` and `--key` to supply a custom server certificate, `vic-machine create` generates a self-signed server certificate.
 
 When you specify the `--no-tlsverify` option, `vic-machine create` performs the following actions during the deployment of the VCH.
 
+- Generates a self-signed server certificate if you do not specify `--cert` and `--key`.
 - Creates a folder with the same name as the VCH in the location in which you run `vic-machine create`.
-- Creates an environment file named <code><i>vch_name</i>.env</code>, that contains the `DOCKER_HOST=vch_address` environment variable, that you can provide to container developers to use to set up their Docker client environment.
+- Creates an environment file named <code><i>vch_name</i>.env</code> in that folder, that contains the `DOCKER_HOST=vch_address` environment variable, that you can provide to container developers to use to set up their Docker client environment.
 
-If you use untrusted certificates, container developers run Docker commands with the `--tls` option. The `--no-tlsverify` option takes no arguments. 
+If you deploy a VCH with the `--no-tlsverify` option, container developers run Docker commands with the `--tls` option. The `--no-tlsverify` option takes no arguments. 
 
 <pre>--no-tlsverify</pre>
 
@@ -514,17 +518,9 @@ The options in this section are exposed in the `vic-machine create` help if you 
 
 The advanced security options allow you to customize the authentication of connections from Docker clients to VCHs.
 
-- Add optional information to auto-generated trusted TLS certificates by specifying the `--tls-ca`, `--certificate-key-size`, and `--organization` options.
-- Use custom trusted TLS certificates by using the `--cert` and `--key` options.
+- Add optional information to auto-generated trusted TLS certificates by specifying the `--certificate-key-size`, and `--organization` options.
+- Use custom CA server certificates by using the `--cert` and `--key` options.
 - Disable TLS authentication completely by using the `--no-tls` option.
-
-### `--tls-ca` ###
-
-Short name: `--ca`
-
-Certificate Authority (CA) files to use to verify Docker client certificates. Specify the `--tls-ca` option if your certificates are validated by a CA that is not commonly recognized. Specify the `--tls-ca` option multiple times to specify multiple CA files. 
-
-<pre>--tls-ca <i>path_to_ca_file</i></pre>
 
 ### `--certificate-key-size` ###
 
@@ -549,7 +545,7 @@ Short name: none
 
 The path to a custom X.509 server certificate, for the Docker API to use to authenticate the VCH with a Docker client.
 
-- This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates, to authenticate connections between Docker clients and the VCHs.
+- This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates.
 - Use this option in combination with the `--key` option, that provides the path to the private key file for the custom certificate.
 - Include the names of the certificate and key files in the paths.
 - If you use trusted custom certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
