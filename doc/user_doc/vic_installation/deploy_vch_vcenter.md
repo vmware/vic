@@ -11,7 +11,7 @@ The vCenter Server instance to which you deploy the VCH must match the specifica
   * One cluster with two ESXi hosts and DRS enabled. You can use nested ESXi hosts for this example.
   * A shared datastore, that is accessible by both of the ESXi hosts.
   * The VM Network is present
-  * One distributed virtual switch with one distributed port group named `vic-bridge`
+  * One distributed virtual switch with one port group named `vic-bridge`
 * Verify that your vCenter Server instance and both of the ESXi hosts in the cluster meet the requirements in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md).
 * Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md). 
 * Familiarize yourself with the options of the `vic-machine create` command described in [VCH Deployment Options](vch_installer_options.md).
@@ -60,12 +60,12 @@ The `vic-machine create` command in this example specifies the minimum informati
 
 - The address of the vCenter Server instance on which to deploy the VCH, in the `--target` option.  
 - The vCenter Single Sign-On user and password in the `--user` and `--password` options. 
-- The distributed port group named `vic-bridge`, for use as the container bridge network. 
+- The port group named `vic-bridge`, for use as the container bridge network. 
 - The name of the shared datastore to use as the image store, in which to store container images.
 - Disables the verification of clients that connect to this VCH by specifying the `--no-tlsverify` option.
 - Disables the verification of the vCenter Server certificate by specifying the `--force` option.
    
-Because the vCenter Server instance only has one datacenter and one cluster, and uses the default VM Network network, `vic-machine create` automatically detects and uses these resources.
+Because the vCenter Server instance only has one datacenter and one cluster, and uses the VM Network network, `vic-machine create` automatically detects and uses these resources.
 
 This example deploys a VCH with the default name `virtual-container-host`.
 

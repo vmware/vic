@@ -52,9 +52,9 @@ The `vic-machine create` command in this example specifies the minimum informati
 - Disables the verification of clients that connect to this VCH by specifying the `--no-tlsverify` option.
 - Disables the verification of the ESXi host certificate by specifying the `--force` option.
    
-Because the ESXi host only has only one datastore and uses the default VM Network network, `vic-machine create` automatically detects and uses those resources. 
+Because the ESXi host only has only one datastore and uses the VM Network network, `vic-machine create` automatically detects and uses those resources. 
 
-When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a distributed port group for use as the container bridge network, so you do not need to specify any network options if you do not have specific network requirements.
+When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a port group for use as the container bridge network, so you do not need to specify any network options if you do not have specific network requirements.
 
 This example deploys a VCH with the default name `virtual-container-host`.
 
