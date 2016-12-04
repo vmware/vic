@@ -1,12 +1,12 @@
-# vSphere Integrated Containers Engine Installation
+# vSphere Integrated Containers Installation
 
-*vSphere Integrated Containers Engine Installation* provides information about how to install and configure VMware vSphere&reg; Integrated Containers&trade; Engine.
+*vSphere Integrated Containers Installation* provides information about how to install and configure VMware vSphere&reg; Integrated Containers&trade;.
 
-**Product version: 0.8 Release Candidate 3**
+**Product version: 1.0**
 
 ## Intended Audience
 
-This information is intended for anyone who wants to install, configure, and get started with using vSphere Integrated Containers Engine. The information is written for experienced VMware vSphere&reg; administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
+This information is intended for anyone who wants to install, configure, and get started with using vSphere Integrated Containers. The information is written for experienced VMware vSphere&reg; administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
 
 ----------
 
