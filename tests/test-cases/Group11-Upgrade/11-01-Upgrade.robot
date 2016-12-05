@@ -1,13 +1,13 @@
 *** Settings ***
 Documentation  Test 11-01 - Upgrade
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC with version to Test Server  7301
+Suite Setup  Install VIC with version to Test Server  7315
 Suite Teardown  Clean up VIC Appliance And Local Binary
 Default Tags
 
 *** Keywords ***
 Install VIC with version to Test Server
-    [Arguments]  ${version}=7301
+    [Arguments]  ${version}=7315
     Log To Console  \nDownloading vic ${version} from bintray...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
