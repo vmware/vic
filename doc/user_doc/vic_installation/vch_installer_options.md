@@ -235,6 +235,7 @@ The `vic-machine` utility allows you to specify the datastore in which to store 
   <pre>Only one host can access all of the image/container/volume datastores. 
   This may be a point of contention/performance degradation and HA/DRS 
   may not work as intended.</pre> 
+- VCHs do not support datastore name changes. If a datastore changes name after you have deployed a VCH that uses that datastore, that VCH will no longer function.
 
 <a name="image"></a>
 ### `--image-store` ###
