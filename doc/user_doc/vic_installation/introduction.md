@@ -1,6 +1,8 @@
 # Overview of vSphere Integrated Containers for vSphere Administrators # 
 
-This section provides a general introduction to container technology and to vSphere Integrated Containers. This overview is intended for vSphere Administrators who must use vSphere Integrated Containers to manage container workloads in their vSphere environment.
+vSphere Integrated Containers enables IT teams to run traditional and container workloads side-by-side on existing infrastructure seamlessly. With vSphere Integrated Containers Engine, containers are provisioned as virtual machines, offering the same security and functionality of virtual machines in VMware ESXi&trade; hosts or vCenter Server&reg; instances.
+
+This overview is intended for vSphere Administrators who must use vSphere Integrated Containers to manage container workloads in their vSphere environment. 
 
 - [Introduction to Containers, Images and Volumes](#containers)
   - [Runtime](#runtime)
@@ -146,8 +148,12 @@ The provisioned container VM does not contain any OS container abstraction.
 A virtual container host (VCH) is the virtual functional equivalent of a Linux VM that runs Docker, but with some significant benefits. A VCH represents the following elements:
 - A clustered pool of resource into which to provision container VMs.
 - A single-tenant container namespace.
-- A secure API endpoint. 
+- A an isolated Docker API endpoint. 
 - Authorization to use and configure pre-approved virtual infrastructure.
+- A private network that containers are attached to by default.
+
+
+If you deploy a VCH in a vCenter Server cluster it spans all of the hosts in the cluster, providing the same flexibility and dynamic use of host resources as is the norm.
 
 A VCH is functionally distinct from a traditional container host in the following ways:
 
