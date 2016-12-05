@@ -28,7 +28,7 @@ Private Registry Cleanup
 Pull image
     [Arguments]  ${image}
     Log To Console  \nRunning docker pull ${image}...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull ${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Digest:
