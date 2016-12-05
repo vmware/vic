@@ -9,7 +9,7 @@ Use the Security Reference to learn about the security features of vSphere Integ
 
 <a name="network"></a>
 ## Network Security 
-VMware highly recommends using a secure management network for vSphere Integrated Containers Engine 0.8. The container VMs communicate with the endpoint VM over the management network when an interactive shell is required. While the communication is encrypted, the public keys are not validated, which leaves scope for man-in-the-middle attacks. This connection is only used for the interactive console when enabled (stdin/out/err), and not for any other purpose.
+VMware highly recommends using a secure management network for vSphere Integrated Containers Engine. The container VMs communicate with the endpoint VM over the management network when an interactive shell is required. While the communication is encrypted, the public keys are not validated, which leaves scope for man-in-the-middle attacks. This connection is only used for the interactive console when enabled (stdin/out/err), and not for any other purpose.
 
 <a name="open_ports"></a>
 ## External Interfaces, Ports, and Services
@@ -46,7 +46,7 @@ Public interface:
 
 <a name="accounts"></a>
 ## Service Accounts and Privileges
-vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. Instead, it creates a vSphere Extension and authenticates against it.
+vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. The `--ops-user` and `--ops-password` options allow a VCH to operate with less-privileged credentials than those that are required for deploying a new VCH.
 
 <a name="patches"></a>
 
