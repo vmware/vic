@@ -69,9 +69,11 @@ For information about image stores and volumes stores, see the [Datastore Option
 The following network requirements apply to deployment of VCHs to standalone ESXi hosts and to vCenter Server:
 
 - Use a trusted network for the deployment and use of vSphere Integrated Containers Engine.
-- Use a trusted network for connections between Docker clients and the VCHs.
-- Each VCH requires an IP address that can be either static or obtained by DHCP.
-- Each VCH requires access to at least one network, for use as the public network. You can share this network between multiple VCHs.
+- Use a trusted network for the management network.
+- Connections between Docker clients and the VCH are encrypted via TLS unless you explicitly disable TLS. The client network does not need to be trusted.
+- Each VCH requires an IPv4 address on each of the networks that it is connected to. The bridge network is handled internally, but other interfaces must have a static IP configured on them, or be able to acquire one via DHCP.
+- Each VCH requires access to at least one network, for use as the public network. You can share this network between multiple VCHs. The public network does not need to be trusted.
+- Do not share the bridge network interface with with any other network, unless you ensure that the bridge IP ranges do not conflict with other VCHs or VMs on that network. It is highly recommended that a bridge network be solely for use by only one VCH.
 
 <a name="networkreqs"></a>
 ## vCenter Server Network Requirements ##
