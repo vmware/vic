@@ -3,7 +3,7 @@
 * [Introduction](README.md)
 * [Overview of vSphere Integrated Containers Engine for vSphere Administrators](introduction.md)
   * [Networks Used by vSphere Integrated Containers Engine](networks.md)
-* [Download vSphere Integrated Containers Engine](download_vic_engine.md)
+* [Download vSphere Integrated Containers](download_vic.md)
   * [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md)
 * [Deploy VCHs](deploy_vch.md) 
   * [Environment Prerequisites for VCH Deployment](vic_installation_prereqs.md)
@@ -25,3 +25,4 @@
   * [Certificate cname Mismatch](ts_cname_mismatch.md)
   * [Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md)
   * [Docker API Version Error](ts_docker_version_error.md)
+* [Send Documentation Feedback](feedback.md)

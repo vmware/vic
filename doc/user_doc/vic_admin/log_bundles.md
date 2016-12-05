@@ -10,19 +10,19 @@ If the VCH is unable to connect to vSphere, logs that require a vSphere connecti
   - **Docker Personality** is the interface to Docker. When configured with client certificate security, it reports unauthorized access attempts to the Docker server web page.
   - **Port Layer Service** is the interface to vSphere.
   - **Initialization & watchdog** reports:
-  		- network configuration
-  		- component launch status for the other components
-  		- reports component failures and restart counts
+  		- Network configuration
+  		- Component launch status for the other components
+  		- Reports component failures and restart counts
 
-  		At higher debug levels, the component output is duplicated in that log file, so `init.log`  includes a superset of the log data.
+  	At higher debug levels, the component output is duplicated in the log files for those components, so `init.log`  includes a superset of the log data.
 
-		**Note:** This log file is duplicated on the datastore in the endpointVM folder and is named tether.debug to allow debugging of early stage initialization and network configuration issues.
+    **Note:** This log file is duplicated on the datastore in a file in the endpoint VM folder named `tether.debug`, to allow the debugging of early stage initialization and network configuration issues.
 
   - **Admin Server** includes logs for the VCH admin server, may contain processes that failed, and network issues. When configured with client certificate security, it reports unauthorized access attempts to the admin server web page.
 
-Live logs can help you see information about current commands and changes as you perform them. For example, when you are troubleshooting an issue, you can see if your command worked or failed by looking at the live logs.
+Live logs can help you to see information about current commands and changes as you make them. For example, when you are troubleshooting an issue, you can see whether your command worked or failed by looking at the live logs.
 
-You can share the non-live version of the logs with administrators or VMware Support to help you resolve issues.
+You can share the non-live version of the logs with administrators or VMware Support to help you to resolve issues.
 
 Logs also include vic-machine commands used during VCH installation to help you resolve issues.
 

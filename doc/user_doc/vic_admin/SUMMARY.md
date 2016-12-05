@@ -12,6 +12,8 @@
 * [Find VCH Information in the vSphere Web Client](vch_portlet_ui.md)
 * [Find Container Information in the vSphere Web Client](container_portlet_ui.md)
 * [Access the VCH Admin Portal](access_vicadmin.md)
+  * [Browser-Based Certificate Login](browser_login.md)
+  * [Command Line Certificate Login](cmdline_login.md)
   * [VCH Admin Status Reference](vicadmin_status_ref.md)
 * [Troubleshooting](troubleshoot_vic_admin.md)
   * [Access Log Bundles](log_bundles.md)
@@ -21,3 +23,4 @@
     * [VCH Debug Options](debug_vch_options.md)
   * [Deleting or Inspecting a VCH Fails with a Resource Pool Error](ts_delete_inspect_error.md)
   * [Connections Fail with Certificate Errors when Using Full TLS Authentication with Trusted Certificates](ts_clock_skew.md)
+* [Send Documentation Feedback](feedback.md)

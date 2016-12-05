@@ -9,3 +9,4 @@
 * [Using Private Registry Servers with vSphere Integrated Containers Engine](using_registries_with_vic.md)
 * [Network Port Use Cases](network_use_cases.md)
 * [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md)
+* [Send Documentation Feedback](feedback.md)
