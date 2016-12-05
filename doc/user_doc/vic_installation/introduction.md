@@ -1,4 +1,4 @@
-# Overview of vSphere Integrated Containers for vSphere Administrators # 
+# Overview of vSphere Integrated Containers for vSphere Administrators #
 
 vSphere Integrated Containers enables IT teams to run traditional and container workloads side-by-side on existing infrastructure seamlessly. With vSphere Integrated Containers Engine, containers are provisioned as virtual machines, offering the same security and functionality of virtual machines in VMware ESXi&trade; hosts or vCenter Server&reg; instances.
 
