@@ -35,7 +35,7 @@ Launch Container
 Upgrade VCH with containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create bar
     Should Be Equal As Integers  ${rc}  0
-    Comment  Launch first container on bridge network
+    Comment  Launch container on bridge network
     ${id1}  ${ip1}=  Launch Container  vch-restart-test1  bridge
     ${id2}  ${ip2}=  Launch Container  vch-restart-test2  bridge
 
@@ -49,12 +49,12 @@ Upgrade VCH with containers
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
 
     Log To Console  \nUpgrading VCH...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  Completed successfully
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
