@@ -132,6 +132,9 @@ build:
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
       - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
       - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
+      - shasum -a 1 $BIN/vic_$$BUILD_NUMBER.tar.gz
+      - md5sum $BIN/vic_$$BUILD_NUMBER.tar.gz
+      - du -h $BIN/vic_$$BUILD_NUMBER.tar.gz
       - make sincemark
     when:
       repo: vmware/vic
