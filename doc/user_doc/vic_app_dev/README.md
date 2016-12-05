@@ -4,8 +4,6 @@
 
 **Product version: 1.0**
 
-For an introduction to vSphere Integrated Containers and descriptions of its main components, see *vSphere Integrated Containers Installation*.
-
 ## Intended Audience
 
 This information is intended for container application developers whose Docker environment uses vSphere Integrated Containers as its endpoint. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.

@@ -4,11 +4,11 @@
 
 **Product version: 1.0**
 
-For an introduction to vSphere Integrated Containers and descriptions of its main components, see *vSphere Integrated Containers Installation*.
-
 ## Intended Audience
 
 This information is intended for VMware vSphere&reg; administrators who must deploy vSphere Integrated Containers in a secure environment. 
+
+For an introduction to vSphere Integrated Containers and descriptions of its main components, see [Overview of vSphere Integrated Containers for vSphere Administrators](../vic_installation/introduction.html) in *vSphere Integrated Containers Installation*.
 
 # Send Documentation Feedback #
 
