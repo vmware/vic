@@ -24,7 +24,7 @@ Set a new password for the root user account on the VCH endpoint VM.
 
 **IMPORTANT**: If you set a password for the VCH endpoint VM, this password does not persist if you reboot the VM. You must run vic-machine debug to reset the password each time that the VCH endpoint VM reboots.
 
-Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters. If not specified, the default root password is `password`. It is strongly recommended that you use `--rootpw` to set a new password rather than leaving the default.
+Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes shell characters such as `$`, `!` or `%`.
 
 <pre>--rootpw '<i>new_p@ssword</i>'</pre>
 
