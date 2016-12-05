@@ -19,7 +19,7 @@ This test requires access to a vSphere Server
 4. Push the tagged image to the registry:  
 ```docker push localhost:5000/busybox```
 5. Attempt to pull the local registry image using the VCH appliance:  
-```docker pull ${params} 172.17.0.1:5000/busybox```
+```docker pull %{VCH-PARAMS} 172.17.0.1:5000/busybox```
 
 #Expected Outcome:
 The VCH appliance should be able to successfully pull the image from a local registry without error
