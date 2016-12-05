@@ -2,7 +2,7 @@
 
 You can use certificate-based authentication with tools such as `curl` or `wget` to access the VCH Admin log server.
 
-## With TLS Client Authentication ## 
+## With TLS Client Authentication ##
 
 If you deployed the VCH with client authentication by using `--tls-cname` or by specifying a static IP address on the client network, you can point `curl` to the `cert.pem` and `key.pem` files for the VCH. The following example authenticates connections to the `port-layer.log` file.
 
