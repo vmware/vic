@@ -20,7 +20,7 @@ You have downloaded and unpacked the vSphere Integrated Containers Engine binari
 The `vic-machine` utility displays the version of the instance of `vic-machine` that you are using. 
 
 <pre>vic-machine-<i>operating_system</i> 
-version <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>tag</i></pre>
+version <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>git_commit</i></pre>
 
 - <code><i>vic_machine_version</i></code> is the version number of this release of vSphere Integrated Containers Engine.
 - <code><i>vic_machine_build</i></code> is the build number of this release.
