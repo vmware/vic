@@ -1,6 +1,6 @@
-# Deleting or Inspecting a VCH Fails with a Not a VCH Error #
+# Deleting or Inspecting a VCH Fails with a Not a VCH or Resource Pool Not Found Error #
 
-When you use `vic-machine delete` or `vic-machine inspect` to delete or inspect a virtual container host (VCH) and you specify the address of an ESXi host in the `target` option, the operation fails with an error stating that the target is not a VCH.
+When you use `vic-machine delete` or `vic-machine inspect` to delete or inspect a virtual container host (VCH) and you specify the address of an ESXi host in the `target` option, the operation fails with "an error stating that the target is not a VCH or that the resource pool cannot be found".
 
 ## Problem ##
 Deleting or inspecting a VCH fails with one of the following error messages: 
@@ -16,7 +16,7 @@ vic-machine-<i>os</i> failed: inspect failed</pre>
 Failed to get VCH resource pool "<i>path_to_resource_pool</i>": 
 resource pool '<i>path_to_resource_pool</i>' not found
 Failed to get Virtual Container Host <i>vch_name</i>   
-Not a VCH                                    
+resource pool '<i>path_to_resource_pool</i>' not found                                   
 --------------------                         
 vic-machine-<i>os</i> failed: inspect failed</pre>
 
@@ -31,7 +31,7 @@ vic-machine-<i>os</i> failed: delete failed</pre>
 Failed to get VCH resource pool "<i>path_to_resource_pool</i>": 
 resource pool '<i>path_to_resource_pool</i>' not found
 Failed to get Virtual Container Host <i>vch_name</i>   
-Not a VCH                                    
+resource pool '<i>path_to_resource_pool</i>' not found                                   
 --------------------                         
 vic-machine-<i>os</i> failed: delete failed</pre>
 
