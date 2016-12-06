@@ -21,8 +21,7 @@ import (
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/urfave/cli"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-ui/ui"
 	"github.com/vmware/vic/pkg/errors"

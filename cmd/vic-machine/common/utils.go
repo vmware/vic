@@ -15,21 +15,19 @@
 package common
 
 import (
+	log "github.com/Sirupsen/logrus"
+
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/vmware/vic/pkg/errors"
 )
 
-type VCHID struct {
-	// VCH id
-	ID string
-}
-
-func (i *VCHID) IDFlags() []cli.Flag {
-	return []cli.Flag{
-		cli.StringFlag{
-			Name:        "id",
-			Value:       "",
-			Usage:       "The ID of the Virtual Container Host, e.g. vm-220",
-			Destination: &i.ID,
-		},
+func LogErrorIfAny(clic *cli.Context, err error) error {
+	if err == nil {
+		return nil
 	}
+
+	log.Errorf("--------------------")
+	log.Errorf("%s %s failed: %s\n", clic.App.Name, clic.Command.Name, errors.ErrorStack(err))
+	return cli.NewExitError("", 1)
 }

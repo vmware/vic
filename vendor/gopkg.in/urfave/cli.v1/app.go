@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -17,8 +19,11 @@ var (
 
 	contactSysadmin = "This is an error in the application.  Please contact the distributor of this application if this is not you."
 
-	errInvalidActionType = NewExitError("ERROR invalid Action type. "+
-		fmt.Sprintf("Must be `func(*Context`)` or `func(*Context) error).  %s", contactSysadmin)+
+	errNonFuncAction = NewExitError("ERROR invalid Action type.  "+
+		fmt.Sprintf("Must be a func of type `cli.ActionFunc`.  %s", contactSysadmin)+
+		fmt.Sprintf("See %s", appActionDeprecationURL), 2)
+	errInvalidActionSignature = NewExitError("ERROR invalid Action signature.  "+
+		fmt.Sprintf("Must be `cli.ActionFunc`.  %s", contactSysadmin)+
 		fmt.Sprintf("See %s", appActionDeprecationURL), 2)
 )
 
@@ -37,8 +42,6 @@ type App struct {
 	ArgsUsage string
 	// Version of the program
 	Version string
-	// Description of the program
-	Description string
 	// List of commands to execute
 	Commands []Command
 	// List of flags to parse
@@ -59,7 +62,6 @@ type App struct {
 	// An action to execute after any subcommands are run, but after the subcommand has finished
 	// It is run even if Action() panics
 	After AfterFunc
-
 	// The action to execute when no subcommands are specified
 	// Expects a `cli.ActionFunc` but will accept the *deprecated* signature of `func(*cli.Context) {}`
 	// *Note*: support for the deprecated `Action` signature will be removed in a future version
@@ -158,14 +160,6 @@ func (a *App) Setup() {
 		a.categories = a.categories.AddCommand(command.Category, command)
 	}
 	sort.Sort(a.categories)
-
-	if a.Metadata == nil {
-		a.Metadata = make(map[string]interface{})
-	}
-
-	if a.Writer == nil {
-		a.Writer = os.Stdout
-	}
 }
 
 // Run is the entry point to the cli app. Parses the arguments slice and routes
@@ -195,7 +189,7 @@ func (a *App) Run(arguments []string) (err error) {
 			HandleExitCoder(err)
 			return err
 		}
-		fmt.Fprintf(a.Writer, "%s %s\n\n", "Incorrect Usage.", err.Error())
+		fmt.Fprintf(a.Writer, "%s\n\n", "Incorrect Usage.")
 		ShowAppHelp(context)
 		return err
 	}
@@ -316,7 +310,7 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 			HandleExitCoder(err)
 			return err
 		}
-		fmt.Fprintf(a.Writer, "%s %s\n\n", "Incorrect Usage.", err.Error())
+		fmt.Fprintf(a.Writer, "%s\n\n", "Incorrect Usage.")
 		ShowSubcommandHelp(context)
 		return err
 	}
@@ -457,22 +451,47 @@ type Author struct {
 func (a Author) String() string {
 	e := ""
 	if a.Email != "" {
-		e = " <" + a.Email + ">"
+		e = "<" + a.Email + "> "
 	}
 
-	return fmt.Sprintf("%v%v", a.Name, e)
+	return fmt.Sprintf("%v %v", a.Name, e)
 }
 
-// HandleAction attempts to figure out which Action signature was used.  If
-// it's an ActionFunc or a func with the legacy signature for Action, the func
-// is run!
+// HandleAction uses ✧✧✧reflection✧✧✧ to figure out if the given Action is an
+// ActionFunc, a func with the legacy signature for Action, or some other
+// invalid thing.  If it's an ActionFunc or a func with the legacy signature for
+// Action, the func is run!
 func HandleAction(action interface{}, context *Context) (err error) {
-	if a, ok := action.(func(*Context) error); ok {
-		return a(context)
-	} else if a, ok := action.(func(*Context)); ok { // deprecated function signature
-		a(context)
-		return nil
-	} else {
-		return errInvalidActionType
+	defer func() {
+		if r := recover(); r != nil {
+			// Try to detect a known reflection error from *this scope*, rather than
+			// swallowing all panics that may happen when calling an Action func.
+			s := fmt.Sprintf("%v", r)
+			if strings.HasPrefix(s, "reflect: ") && strings.Contains(s, "too many input arguments") {
+				err = NewExitError(fmt.Sprintf("ERROR unknown Action error: %v.  See %s", r, appActionDeprecationURL), 2)
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
+	if reflect.TypeOf(action).Kind() != reflect.Func {
+		return errNonFuncAction
 	}
+
+	vals := reflect.ValueOf(action).Call([]reflect.Value{reflect.ValueOf(context)})
+
+	if len(vals) == 0 {
+		return nil
+	}
+
+	if len(vals) > 1 {
+		return errInvalidActionSignature
+	}
+
+	if retErr, ok := vals[0].Interface().(error); vals[0].IsValid() && ok {
+		return retErr
+	}
+
+	return err
 }

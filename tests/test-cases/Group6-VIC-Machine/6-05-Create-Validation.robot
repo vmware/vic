@@ -15,7 +15,7 @@ Suggest resources - Invalid datacenter
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/WOW --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Should Contain  ${output}  Suggested datacenters:
-    Should Contain  ${output}  vic-machine-linux failed
+    Should Contain  ${output}  vic-machine-linux create failed:
 
 Suggest resources - Invalid target path
     Log To Console  \nRunning vic-machine create
@@ -28,7 +28,7 @@ Suggest resources - Invalid target path
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/MUCH/DATACENTER --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Should Contain  ${output}  Suggested datacenters:
-    Should Contain  ${output}  vic-machine-linux failed
+    Should Contain  ${output}  vic-machine-linux create failed:
 
 Create VCH - target thumbprint verification
     Log To Console  \nRunning vic-machine create - thumbprint verification
