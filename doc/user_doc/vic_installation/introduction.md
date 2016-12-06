@@ -32,7 +32,7 @@ Conceptually, a container represents many of the same capabilities as a VM. The 
 
 * In contrast, a VM is a sandbox within a hypervisor. It is the hypervisor that provides a VM with its dependencies, such as virtual disks and NICs. A VM has to boot an OS and its lifecycle is typically tied to that of the OS rather than to that of any one process. By design, a VM is strongly isolated from other VMs and its host.
 
-One of the most interesting facets of containers is how they deal with state. Any that a container writes is non-persistent by default and is lost when that container is deleted. State, however, can persist beyond the lifespan of a container by attaching a *volume* to it or by sending it over a network. Binary dependencies that the container needs, such as OS libraries or application binaries, are encapsulated in *images* . Images are immutable.
+One of the most interesting facets of containers is how they deal with state. Any data that a container writes is non-persistent by default and is lost when that container is deleted. State, however, can persist beyond the lifespan of a container by attaching a *volume* to it or by sending it over a network. Binary dependencies that the container needs, such as OS libraries or application binaries, are encapsulated in *images* . Images are immutable.
 
 <a name="packaging"></a>
 ### Packaging ###
@@ -43,7 +43,7 @@ The format of this packaging is called an *image*. An image is a template from w
 
 The immutability of the image format means that you never modify an image, you always create a new one. The layered nature of the image format means that you can cache commonly-used layers so that you only need to download or upload the layers that you do not already have. It also means that if you want to patch a particular image, you create a new image and then rebuild all of its children. 
 
-The main advantage of the image format is its portability. As long as you have a destination that is running a container engine, for example Docker, and a compatible kernel ABI, you can download and run an image on it. This portability is facilitated by a *registry*. A registry is a service that indexes and stores images. You can run your own private image registry that forms part of a development pipeline. You can *push* images to the registry from development, *pull* them into a test environment for verification, and then *pull* them into a production environment.
+The main advantage of the image format is its portability. As long as you have a destination that is running a container engine, for example Docker, you can download and run an image on it. This portability is facilitated by a *registry*. A registry is a service that indexes and stores images. You can run your own private image registry that forms part of a development pipeline. You can *push* images to the registry from development, *pull* them into a test environment for verification, and then *pull* them into a production environment.
 
 <a name="whatis_vic"></a>
 ## What is vSphere Integrated Containers? ##
@@ -85,7 +85,7 @@ In a classic container environment:
 - You provision a large Linux VM and send them the IP address.
 - The user installs Docker, patches the OS, configures in-guest network and storage virtualization, secures the guest, isolates the containers, packages the containers efficiently, and manages upgrades and downtime. 
  
-In this scenario, what you have given to the is user something like a nested hypervisor that they have to manage and which is opaque to you. If you scale that up to one large Linux VM per tenant, you end up creating a large distributed silo for containers.
+In this scenario, what you have provided is similar to a nested hypervisor that they have to manage and which is opaque to you.If you scale that up to one large Linux VM per tenant, you end up creating a large distributed silo for containers.
 
 **Scenario 2: vSphere Integrated Containers Engine**
 
@@ -97,7 +97,7 @@ With vSphere Integrated Containers Engine:
 - The appliance runs a secure remote Docker API, that is the only access that the user has to the vSphere infrastructure.
 - Instead of sending your user a Linux VM, you send them the IP address of the appliance, the port of the remote Docker API, and a certificate for secure access.
 
-In this scenario, you have provide the user with a service portal. This is better for the user because they do not have to worry about isolation, patching, security, backup, and so on. It is better for you because every container that the user spins up is a VM known as a container VM. You can perform vMotion and monitor container VMs just like all of your other VMs.
+In this scenario, you have provided the user with a service portal. This is better for the user because they do not have to worry about isolation, patching, security, backup, and so on. It is better for you because every container that the user deploys is a VM known as a container VM. You can perform vMotion and monitor container VMs just like all of your other VMs.
 
 If the user needs more compute capacity, in Scenario 1, the pragmatic choice is to power down the VM and reconfigure it, or give the user a new VM and let them deal with the clustering implications. Both of these solutions are disruptive to the user. With vSphere Integrated Containers Engine in Scenario 2, you can perform a simple reconfiguration that is completely transparent to the user.
 
@@ -145,10 +145,10 @@ The provisioned container VM does not contain any OS container abstraction.
 <a name="vch"></a>
 ### Virtual Container Hosts ###
 
-A virtual container host (VCH) is the virtual functional equivalent of a Linux VM that runs Docker, but with some significant benefits. A VCH represents the following elements:
+A virtual container host (VCH) is the functional equivalent of a Linux VM that runs Docker, but with some significant benefits. A VCH represents the following elements:
 - A clustered pool of resource into which to provision container VMs.
 - A single-tenant container namespace.
-- A an isolated Docker API endpoint. 
+- An isolated Docker API endpoint. 
 - Authorization to use and configure pre-approved virtual infrastructure.
 - A private network that containers are attached to by default.
 
@@ -160,7 +160,7 @@ A VCH is functionally distinct from a traditional container host in the followin
 - It naturally encapsulates clustering and dynamic scheduling by provisioning to vSphere targets.
 - The resource constraints are dynamically configurable with no impact on the containers.
 - Containers do not share a kernel.
-- There is no local image cache. This is kept on a datastore somewhere in the cluster.
+- There is no local image cache. This is kept on a datastore in the cluster that you specify when you deploy a VCH. 
 - There is no read-write shared storage
 
 A VCH is a multi-functional appliance that you deploy as a vApp in a vCenter Server cluster or as a resource pool on an ESXi host. The vApp or resource pool provides a useful visual parent-child relationship in the vSphere Web Client so that you can easily identify the container VMs that are provisioned into a VCH. You can also specify resource limits on the vApp. You can provision multiple VCHs onto a single ESXi host, into a vSphere resource pool, or into a vCenter Server cluster.
