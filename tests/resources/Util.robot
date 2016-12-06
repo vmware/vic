@@ -55,12 +55,12 @@ Set Test Environment Variables
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 %{VCH-NAME}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-bridge
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
-    Set Suite Variable  ${vch-name}  ${name}
+    Set Environment Variable  VCH-NAME  ${name}
 
 Get Docker Params
     # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
@@ -85,15 +85,8 @@ Get Docker Params
     @{hostParts}=  Split String  ${dockerHost}  :
     ${ip}=  Strip String  @{hostParts}[0]
     ${port}=  Strip String  @{hostParts}[1]
-    Set Suite Variable  ${vch-ip}  ${ip}
-    Set Suite Variable  ${vch-port}  ${port}
-
-    ${proto}=  Set Variable If  ${port} == 2376  "https"  "http"
-    Set Suite Variable  ${proto}
-
-    Run Keyword If  ${port} == 2376  Set Suite Variable  ${params}  -H ${dockerHost} --tls
-    Run Keyword If  ${port} == 2375  Set Suite Variable  ${params}  -H ${dockerHost}
-
+    Set Environment Variable  VCH-IP  ${ip}
+    Set Environment Variable  VCH-PORT  ${port}
 
     :FOR  ${index}  ${item}  IN ENUMERATE  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
@@ -104,10 +97,13 @@ Get Docker Params
 
     ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}
     ${ext-ip} =  Strip String  ${ext-ip}
-    Set Suite Variable  ${ext-ip}  ${ext-ip}
+    Set Environment Variable  EXT-IP  ${ext-ip}
 
     ${rest}  ${vic-admin}=  Split String From Right  ${line}
-    Set Suite Variable  ${vic-admin}
+    Set Environment Variable  VIC-ADMIN  ${vic-admin}
+
+    Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
+    Run Keyword If  ${port} == 2375  Set Environment Variable  VCH-PARAMS  -H ${dockerHost}
 
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
@@ -126,44 +122,50 @@ Install VIC Appliance To Test Server
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${certs}
-    Log To Console  Installer completed successfully: ${vch-name}
+    Log To Console  Installer completed successfully: %{VCH-NAME}...
+
+Setup Snapshot
+    ${hostname}=  Get Test Server Hostname
+    Set Environment Variable  TEST_HOSTNAME  ${hostname}
+    Set Environment Variable  SNAPSHOT  vic-ci-test-%{DRONE_BUILD_NUMBER}
+    Create Test Server Snapshot  %{TEST_HOSTNAME}  %{SNAPSHOT}
 
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tlsverify
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tlsverify
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
-    Log To Console  Gathering logs from the test server ${vch-name}
+    Log To Console  Gathering logs from the test server %{VCH-NAME}
     Gather Logs From Test Server
-    Log To Console  Deleting the VCH appliance ${vch-name}
+    Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  ${vch-name}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
-    [Arguments]  ${vch-name}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    [Arguments]  ${name}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${name}-bridge
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}-bridge
 
 Check Delete Success
-    [Arguments]  ${vch-name}
+    [Arguments]  ${name}
     ${out}=  Run  govc ls vm
     Log  ${out}
-    Should Not Contain  ${out}  ${vch-name}
+    Should Not Contain  ${out}  ${name}
     ${out}=  Run  govc datastore.ls
     Log  ${out}
-    Should Not Contain  ${out}  ${vch-name}
+    Should Not Contain  ${out}  ${name}
     ${out}=  Run  govc ls host/*/Resources/*
     Log  ${out}
-    Should Not Contain  ${out}  ${vch-name}
+    Should Not Contain  ${out}  ${name}
 
 Run Secret VIC Machine Delete Command
     [Tags]  secret
@@ -172,10 +174,11 @@ Run Secret VIC Machine Delete Command
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
-    ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vch-name}
-    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vch-name}
+    ${rc}  ${output}=  Run Secret VIC Machine Delete Command  %{VCH-NAME}
+    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
+    ${output}=  Run  rm -f %{VCH-NAME}-*.pem
     [Return]  ${output}
 
 Cleanup Datastore On Test Server
@@ -234,9 +237,9 @@ Cleanup Dangling vSwitches On Test Server
 
 Gather Logs From Test Server
     [Tags]  secret
-    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} ${vic-admin}/authentication
+    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies ${vic-admin}/container-logs.zip -o ${SUITE NAME}-${vch-name}-container-logs.zip
+    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs.zip
     Log  ${out}
     Remove File  vic-admin-cookies
 
@@ -302,7 +305,7 @@ Verify Checksums
 Wait Until Container Stops
     [Arguments]  ${container}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${out}=  Run  docker ${params} inspect ${container} | grep Status
+    \   ${out}=  Run  docker %{VCH-PARAMS} inspect ${container} | grep Status
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  exited
     \   Return From Keyword If  ${status}
     \   Sleep  1
@@ -311,7 +314,7 @@ Wait Until Container Stops
 Wait Until VM Powers Off
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vm}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info %{VCH-NAME}/${vm}
     \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
     \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
     \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
@@ -323,7 +326,7 @@ Wait Until VM Powers Off
 Wait Until VM Is Destroyed
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls vm/${vch-name}/${vm}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls vm/%{VCH-NAME}/${vm}
     \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
     \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc ls vm/${vm}
     \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
@@ -335,7 +338,7 @@ Wait Until VM Is Destroyed
 Wait Until VM Powers On
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vm}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info %{VCH-NAME}/${vm}
     \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
     \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
     \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
@@ -372,62 +375,62 @@ Get VM Info
     [Return]  ${out}
 
 Run Regression Tests
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     # Pull an image that has been pulled already
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  busybox
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Container Stops  ${container}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
 
     Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${container}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  /bin/top
 
     # Check for regression for #1265
-    ${rc}  ${container1}=  Run And Return Rc And Output  docker ${params} create -it busybox /bin/top
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container2}=  Run And Return Rc And Output  docker ${params} create -it busybox
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox
     Should Be Equal As Integers  ${rc}  0
     ${shortname}=  Get Substring  ${container2}  1  12
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     ${lines}=  Get Lines Containing String  ${output}  ${shortname}
     Should Not Contain  ${lines}  /bin/top
-    ${rc}=  Run And Return Rc  docker ${params} rm ${container1}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container1}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  docker ${params} rm ${container2}
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container2}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
 
 Check For The Proper Log Files
     [Arguments]  ${container}
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-${vch-name}
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz -b /tmp/cookies-${vch-name} | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/output.log
@@ -467,7 +470,7 @@ Install Harbor To Test Server
 
 Power Off VM OOB
     [Arguments]  ${vm}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"${vm}"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off %{VCH-NAME}/"${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
@@ -476,16 +479,45 @@ Power Off VM OOB
 
 Power On VM OOB
     [Arguments]  ${vm}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on ${vch-name}/"${vm}"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on %{VCH-NAME}/"${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on "${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VM to power on ...
     Wait Until VM Powers On  ${vm}
 
+Create Test Server Snapshot
+    [Arguments]  ${vm}  ${snapshot}
+    Set Environment Variable  GOVC_URL  %{BUILD_SERVER}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc snapshot.create -vm ${vm} ${snapshot}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Empty  ${out}
+    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+
+Revert Test Server Snapshot
+    [Arguments]  ${vm}  ${snapshot}
+    Set Environment Variable  GOVC_URL  %{BUILD_SERVER}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc snapshot.revert -vm ${vm} ${snapshot}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Empty  ${out}
+    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+
+Delete Test Server Snapshot
+    [Arguments]  ${vm}  ${snapshot}
+    Set Environment Variable  GOVC_URL  %{BUILD_SERVER}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc snapshot.remove -vm ${vm} ${snapshot}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Empty  ${out}
+    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+
+Get Test Server Hostname
+    [Tags]  secret
+    ${hostname}=  Run  sshpass -p $TEST_PASSWORD ssh $TEST_USERNAME@$TEST_URL hostname
+    [Return]  ${hostname}
+
 Destroy VM OOB
     [Arguments]  ${vm}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy ${vch-name}/"*-${vm}"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"*-${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "*-${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0

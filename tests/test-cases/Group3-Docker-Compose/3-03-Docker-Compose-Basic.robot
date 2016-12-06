@@ -14,17 +14,17 @@ Compose basic
     Set Environment Variable  CURL_CA_BUNDLE  ${EMPTY}
 
     Run  echo '${yml}' > basic-compose.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create vic_default
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create vic_default
     Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml create
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml start
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml create
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml logs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml start
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml stop
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml logs
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml stop
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0

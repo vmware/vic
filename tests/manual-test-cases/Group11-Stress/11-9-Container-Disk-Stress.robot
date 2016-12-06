@@ -6,9 +6,9 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Container Disk Stress
-    ${out}=  Run  docker ${params} pull busybox
+    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run ubuntu bash -c "apt-get update; apt-get install bonnie++; bonnie++ -u root;"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ubuntu bash -c "apt-get update; apt-get install bonnie++; bonnie++ -u root;"
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Delete files in random order...done.
     
