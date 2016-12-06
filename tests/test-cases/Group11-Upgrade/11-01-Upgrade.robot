@@ -32,6 +32,10 @@ Launch Container
     [Return]  ${id}  ${ip}
 
 *** Test Cases ***
+Upgrade Present in vic-machine
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
+    Should Contain  ${output}  upgrade
+
 Upgrade VCH with containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create bar
     Should Be Equal As Integers  ${rc}  0
