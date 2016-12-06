@@ -31,19 +31,19 @@ In a classic container environment:
 - The vSphere administrator provisions a large Linux VM and sends you the IP address.
 - You install Docker, patch the OS, configure in-guest network and storage virtualization, secure the guest, isolate the containers, package the containers efficiently, and manage upgrades and downtime. 
  
-In this scenario, what the vSphere administrator has given you is something like a nested hypervisor that you have to manage and which is opaque to them.
+In this scenario, what the vSphere administrator has given you is similar to a nested hypervisor that you have to manage and which is opaque to them.
 
 **Scenario 2: vSphere Integrated Containers Engine**
 
 With vSphere Integrated Containers Engine: 
 
 - You raise a ticket and say, "I need Docker". 
-- The vSphere administrator sets aside a certain amount of storage, networking, and compute on a cluster by using a tool called `vic-machine`. 
-- The `vic-machine` utility installs a small appliance. The appliance represents an authorization for you to use the infrastructure that the vSphere administrator has assigned, into which you can self-provision container workloads.
+- The vSphere administrator sets aside a certain amount of storage, networking, and compute on a cluster. 
+- The vSphere administrator uses a utility called `vic-machine` to install a small appliance. The appliance represents an authorization for you to use the infrastructure that the vSphere administrator has assigned, into which you can self-provision container workloads.
 - The appliance runs a secure remote Docker API, that is the only access that you have to the vSphere infrastructure.
 - Instead of sending you a Linux VM, the vSphere administrator sends you the IP address of the appliance, the port of the remote Docker API, and a certificate for secure access.
 
-In this scenario, the vSphere administrator has provided you with a service portal. This is better for you because you do not have to worry about isolation, patching, security, backup, and so on. It is better for the vSphere administrator because every container that the you spin up is a VM known as a container VM, that they can manage just like all of their other VMs.
+In this scenario, the vSphere administrator has provided you with a service portal. This is better for you because you do not have to worry about isolation, patching, security, backup, and so on. It is better for the vSphere administrator because every container that you deploy is a container VM, that they can manage just like all of their other VMs.
 
 ## vSphere Integrated Containers Engine Concepts ##
 
@@ -71,7 +71,7 @@ The provisioned container VM does not contain any OS container abstraction.
 <a name="vch"></a>
 ### Virtual Container Hosts ###
 
-A virtual container host (VCH) is the virtual functional equivalent of a Linux VM that runs Docker, but with some significant benefits. A VCH represents the following elements:
+A virtual container host (VCH) is the functional equivalent of a Linux VM that runs Docker, but with some significant benefits. A VCH represents the following elements:
 - A clustered pool of resource into which to provision container VMs.
 - A single-tenant container namespace.
 - A secure API endpoint. 
@@ -82,5 +82,5 @@ A VCH is functionally distinct from a traditional container host in the followin
 - It naturally encapsulates clustering and dynamic scheduling by provisioning to vSphere targets.
 - The resource constraints are dynamically configurable with no impact on the containers.
 - Containers do not share a kernel.
-- There is no local image cache. This is kept on a datastore somewhere in the cluster.
+- There is no local image cache. This is kept on a datastore in the cluster that the vSphere administrator specified when they deployed a VCH.
 - There is no read-write shared storage
