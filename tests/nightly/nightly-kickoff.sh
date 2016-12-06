@@ -432,7 +432,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1'>https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1&_ga=1.215892951.1122363360.1480435214</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
@@ -783,7 +783,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1'>https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1&_ga=1.215892951.1122363360.1480435214</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
