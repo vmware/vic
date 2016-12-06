@@ -2,7 +2,7 @@
 
 The example in this topic modifies the multi-tiered [voting app](https://github.com/docker/example-voting-app) by Docker to illustrate how to work around the constraints that the current version of vSphere Integrated Containers Engine imposes. For information about the constraints, see [Constraints of Using vSphere Integrated Containers Engine to Build Applications](constraints_using_vic.md). 
 
-This example focuses on how to modify the Docker Compose YML file from the voting app to make it work with vSphere Integrated Containers. It does not describe the general function of the voting app.  
+This example focuses on how to modify the Docker Compose YML file from the voting app to make it work with vSphere Integrated Containers. It does not describe the general function or makeup of the voting app.  
 
 ## Getting Started ##
 
