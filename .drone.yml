@@ -134,7 +134,7 @@ build:
       - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
       - shasum -a 1 $BIN/vic_$$BUILD_NUMBER.tar.gz
       - md5sum $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - du -ks vic_7315.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
+      - du -ks $BIN/vic_$$BUILD_NUMBER.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
       - make sincemark
     when:
       repo: vmware/vic
