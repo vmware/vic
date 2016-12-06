@@ -38,14 +38,17 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     ${name1}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     ${name2}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     ${name3}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus ESXi server: ${name1}
-    Log To Console  \nDeploying Nimbus ESXi server: ${name2}
-    Log To Console  \nDeploying Nimbus ESXi server: ${name3}
 
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-esxdeploy ${name1} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name2} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name3} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
+    ${handle1}=    Deploy Nimbus ESXi Server Async  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${name1}
+    ${handle2}=    Deploy Nimbus ESXi Server Async  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${name2}
+    ${handle3}=    Deploy Nimbus ESXi Server Async  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${name3}
+
+    ${result1}=  Wait For Process  ${handle1}
+    ${result2}=  Wait For Process  ${handle2}
+    ${result3}=  Wait For Process  ${handle3}
 
     ${out}=  Execute Command  nimbus-ctl ip ${user}-${name1}
 
@@ -105,7 +108,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Should Be Empty  ${out}
     Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name3}
-    Log To Console  \nNimbus VC server IP: ${ip3}
+    Log To Console  \nNimbus ESXi server IP: ${ip3}
 
     Close connection
     [Return]  ${user}-${name1}  ${ip1}  ${user}-${name2}  ${ip2}  ${user}-${name3}  ${ip3}
@@ -134,6 +137,23 @@ Deploy Nimbus vCenter Server
     Log To Console  Successfully deployed new vCenter server - ${user}-${name}
     Close connection
     [Return]  ${user}-${name}  ${ip}
+
+Deploy Nimbus ESXi Server Async
+    [Arguments]  ${user}  ${password}  ${name}  ${version}=${ESX_VERSION} 
+    ${handle}=  Evaluate  'esx-handle-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  \nDeploying Nimbus ESXi server: ${name}
+
+    Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no ${user}@%{NIMBUS_GW} nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ${version}  shell=True  alias=${handle}
+    [Return]  ${handle}
+
+Deploy Nimbus vCenter Server Async
+    [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}
+    ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${handle}=  Evaluate  'vc-handle-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  \nDeploying Nimbus vCenter server: ${name}
+
+    Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no ${user}@%{NIMBUS_GW} nimbus-vcvadeploy --vcvaBuild ${version} ${name}  shell=True  alias=${handle}
+    [Return]  ${handle}
 
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${testbed}
