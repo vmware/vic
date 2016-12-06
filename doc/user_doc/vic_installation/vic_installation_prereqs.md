@@ -1,10 +1,19 @@
 # Environment Prerequisites for VCH Deployment #
 
-Before you install vSphere Integrated Containers Engine, you must ensure that your infrastructure meets certain requirements.
+Before you install vSphere Integrated Containers Engine, you must ensure that your vSphere infrastructure meets the requirements.
 
+- [Supported Platforms for `vic-machine`](#platforms)
+- [Supported vSphere Configurations](#configs)
+- [License Requirements](#license)
+- [ESXi Host Firewall Requirements](#firewall)
+- [ESXi Host Storage Requirements for vCenter Server Clusters](#storage)
+- [General Network Requirements](#general_networkreqs)
+- [vCenter Server Network Requirements](#networkreqs)
+
+<a name="platforms"></a>
 ## Supported Platforms for `vic-machine` ##
 
-The vSphere Integrated Containers Engine installation and management utility, `vic-machine`, has been tested and verified on the following  64-bit OS, Windows, Mac OS, and Photon OS systems.
+The vSphere Integrated Containers Engine installation and management utility, `vic-machine`, has been tested and verified on the following  64-bit Windows, Mac OS, and Linux OS systems.
 
 |**Platform**|**Supported Versions**|
 |---|---|
@@ -14,53 +23,77 @@ The vSphere Integrated Containers Engine installation and management utility, `v
 
 Other recent 64-bit OS versions should work but are untested.
 
+<a name="configs"></a>
 ## Supported vSphere Configurations ##
 
 You can install vSphere Integrated Containers Engine in the following vSphere setups:
 
-* Standalone ESXi 6.0 or 6.5 host that is not managed by a vCenter Server instance.
-* vCenter Server 6.0 or 6.5, managing one or more standalone ESXi 6.0 or 6.5 hosts.
 * vCenter Server 6.0 or 6.5, managing a cluster of ESXi 6.0 or 6.5 hosts, with VMware vSphere Distributed Resource Scheduler&trade; (DRS) enabled.
+* vCenter Server 6.0 or 6.5, managing one or more standalone ESXi 6.0 or 6.5 hosts.
+* Standalone ESXi 6.0 or 6.5 host that is not managed by a vCenter Server instance.
 
 Caveats and limitations:
 
-- Deploying vSphere Integrated Containers Engine to vSphere 5.5 environments works but is unsupported.
-- Deploying vSphere Integrated Containers Engine to a nested ESXi host, namely ESXi running in a virtual machine, is not supported in production environments. Deploying vSphere Integrated Containers Engine to a nested ESXi host is acceptable for testing purposes only.
-- Deploying vSphere Integrated Containers Engine to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported.  
+- VMware does not support the use of nested ESXi hosts, namely running ESXi in virtual machines. Deploying vSphere Integrated Containers Engine to a nested ESXi host is acceptable for testing purposes only.
+- Deploying vSphere Integrated Containers Engine to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported. 
 
-## ESXi Host Requirements ##
-
-To be valid targets for virtual container hosts (VCHs) and container VMs, standalone ESXi hosts and all ESXi hosts in vCenter Server clusters must meet the following criteria:
-
-- In vCenter Server clusters, at least two ESXi hosts must be attached to shared storage for use as container stores, image stores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware vSAN&trade; datastores is fully supported.
-- The firewall on all ESXi hosts must be configured to allow connections on the back channel and to allow outbound connections on port 2377. For instruction about how to open port 2377 on ESXi hosts, see [VCH Deployment Fails with Firewall Validation Error](ts_firewall_error.md).
-- All ESXi hosts must be attached to the distributed virtual switch for the bridge network in vCenter Server. For more information about distributed virtual switches, see [Network Requirements](#networkreqs) below.
-- All ESXi hosts must be attached to any mapped vSphere networks.
-
-During deployment of VCHs, the `vic-machine` utilty checks that the target ESXi hosts meet the requirements, and issues warnings if they do not.
-
+<a name="license"></a>
 ## License Requirements ##
-The type of license that vSphere Integrated Containers Engine requires depends on the way in which you deploy the software.
+vSphere Integrated Containers Engine requires a vSphere Enterprise Plus license.
 
-| **Type of Installation** | **vSphere Feature Used** | **Required License** |
-| --- | --- | --- |
-|ESXi host|Network Serial Port|vSphere Enterprise|
-|vCenter Server|Distributed Virtual Switch|vSphere Enterprise Plus|
+All of the ESXi hosts in a cluster require an appropriate license. Installation fails if your environment includes one or more ESXi hosts that have inadequate licenses. 
 
-All of the ESXi hosts in a cluster require an appropriate license. Installation fails if your environment includes one or more ESXi hosts that have inadequate licenses.
+<a name="firewall"></a>
+## ESXi Host Firewall Requirements ##
 
-## Role and Permissions Requirements
-You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers Engine.
+To be valid targets for virtual container hosts (VCHs) and container VMs, ESXi hosts must have the following firewall configuration:
+- Allow outbound TCP traffic to port 2377 on the endpoint VM, for use by the interactive container shell.
+- Allow inbound HTTPS/TCP traffic on port 443, for uploading to and downloading from datastores.
+
+These requirements apply to standalone ESXi hosts and to ESXi hosts in vCenter Server clusters.
+
+For information about how to open ports on ESXi hosts, see [VCH Deployment Fails with Firewall Validation Error](ts_firewall_error.md).
+
+<a name="storage"></a>
+## ESXi Host Storage Requirements for vCenter Server Clusters ##
+
+ESXi hosts in vCenter Server clusters must meet the following storage requirements in order to be usable by a VCH:
+- Be attached to the datastores that you will use for image stores and volume stores. 
+- Have access to shared storage to allow VCHs to use more than one host in the cluster.
+
+For information about image stores and volumes stores, see the [Datastore Options](vch_installer_options.md#datastore) section of *VCH Deployment Options*.
+
+<a name="general_networkreqs"></a>
+## General Network Requirements ##
+
+The following network requirements apply to deployment of VCHs to standalone ESXi hosts and to vCenter Server:
+
+- Use a trusted network for the deployment and use of vSphere Integrated Containers Engine.
+- Use a trusted network for the management network.
+- Connections between Docker clients and the VCH are encrypted via TLS unless you explicitly disable TLS. The client network does not need to be trusted.
+- Each VCH requires an IPv4 address on each of the networks that it is connected to. The bridge network is handled internally, but other interfaces must have a static IP configured on them, or be able to acquire one via DHCP.
+- Each VCH requires access to at least one network, for use as the public network. You can share this network between multiple VCHs. The public network does not need to be trusted.
+- Do not share the bridge network interface with with any other network, unless you ensure that the bridge IP ranges do not conflict with other VCHs or VMs on that network. It is highly recommended that a bridge network be solely for use by only one VCH.
 
 <a name="networkreqs"></a>
-## Network Requirements
-* Use a trusted network for the deployment and use of vSphere Integrated Containers Engine.
-* Use a trusted network for connections between Docker clients and the VCHs.
-* Each VCH requires the following network configuration:
- * An IP address that can be either static or obtained by DHCP.
- * A network for use as the public network. You can share this network between multiple VCHs.
-* In vCenter Server environment, before you deploy a VCH, you must create a bridge network for use by container VMs.
- - Create one distributed virtual switch with a distributed port group for each VCH, for use as the bridge network. You can create multiple port groups on the same distributed virtual switch, but each VCH requires its own port group.  For information about how to create a distributed virtual switch and a distributed port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere  documentation. 
- - Add the target ESXi host or hosts to the distributed virtual switch. For information about how to add hosts to a distributed virtual switch, see [Add Hosts to a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html) in the vSphere  documentation.
- - If you are not using private VLANs, assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to assign a VLAN ID to a port group, see [VMware KB 1003825](https://kb.vmware.com/kb/1003825). For more information about private VLAN, see [VMware KB 1010691](https://kb.vmware.com/kb/1010691).
+## vCenter Server Network Requirements ##
+The following network requirements apply to the deployment of VCHs to vCenter Server: 
+ 
+- Create a distributed virtual switch with a port group for each VCH, for use as the bridge network. You can create multiple port groups on the same distributed virtual switch, but each VCH requires its own port group for the bridge network.
+- Optionally create port groups for use as mapped container networks.  
+- All hosts in a cluster must be attached to the port groups that you will use for the VCH bridge network and for any mapped container networks.
+- Isolate the bridge network and any mapped container networks. You can isolate networks by using a separate VLAN for each network. 
 
+For information about bridge networks and container networks, see the [`--bridge-network`](vch_installer_options.md#bridge) and [`--container-network`](vch_installer_options.md#container-network) options in *VCH Deployment Options*. 
+
+For information about how to create a distributed virtual switch and a port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-65/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere  documentation. 
+
+For information about how to add hosts to a distributed virtual switch, see [Add Hosts to a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-65/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html) in the vSphere  documentation.
+
+For information about how to assign a VLAN ID to a port group, see [VMware KB 1003825](https://kb.vmware.com/kb/1003825). For more information about private VLAN, see [VMware KB 1010691](https://kb.vmware.com/kb/1010691).
+
+
+<!--
+## Role and Permissions Requirements
+You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers Engine.
+-->

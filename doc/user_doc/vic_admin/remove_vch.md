@@ -22,18 +22,18 @@ You have deployed a VCH that you no longer require.
   - If multiple compute resources exist in the datacenter, you must specify the `--compute-resource` or `--id` option.
   - If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the `--thumbprint` option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine` without the specifying the `--thumbprint` or `--force` options. The deletion of the VCH fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run `vic-machine` again, including the `--thumbprint` option.
 
-   <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> delete
+   <pre>$ vic-machine-<i>operating_system</i> delete
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --thumbprint <i>certificate_thumbprint</i>
 --name <i>vch_name</i></pre>
 
-3. If the delete operation fails with a message about container VMs that are powered on, run `vic-machine delete` again with the `--force` option.
+3. If the delete operation fails with a message about container VMs that are powered on, run `docker stop` on the containers and run `vic-machine delete`. Alternatively, run `vic-machine delete` with the `--force` option.
 
-  **CAUTION** Running `vic-machine delete` with the `--force` option removes all running container VMs that the VCH manages, as well as any associated volumes and volume stores.
+  **CAUTION** Running `vic-machine delete` with the `--force` option removes all running container VMs that the VCH manages, as well as any associated volumes and volume stores. It is not recommended to use the `--force` option to remove running containers.
 
   If your vSphere environment uses untrusted, self-signed certificates, running `vic-machine delete` with the `--force` option allows you to omit the `--thumbprint` option.
 
-   <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> delete
+   <pre>$ vic-machine-<i>operating_system</i> delete
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
---name <i>cluster_name</i></i>
+--name <i>vch_name</i></i>
 --force</pre>

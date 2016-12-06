@@ -49,7 +49,7 @@ Short name: None
 
 The thumbprint of the vCenter Server or ESXi host certificate. Specify this option if your vSphere environment uses untrusted, self-signed certificates. Alternatively, specifying the `--force` option allows you to omit the `--thumbprint` option. If your vSphere environment uses trusted certificates that are signed by a known Certificate Authority (CA), you do not need to specify the `--thumbprint` option.
 
-To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine` without the specifying the `--thumbprint` or `--force` options. The operation fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run `vic-machine` again, including the `thumbprint` option.
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine` without the specifying the `--thumbprint` or `--force` options. The operation fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run `vic-machine` again, including the `thumbprint` option. If you obtain the thumbprint by other means, use upper-case letters and colon delimitation rather than space delimitation when you specify `--thumbprint`.
 
 <pre>--thumbprint <i>certificate_thumbprint</i></pre>
 
@@ -60,7 +60,6 @@ Short name: `-r`
 The relative path to the host, cluster, or resource pool in which you deployed the VCH. Specify `--compute-resource` with exactly the same value that you used when you ran `vic-machine create`. You specify the `compute-resource` option in the following circumstances:
 
 - vCenter Server includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.
-- The ESXi host includes multiple resource pools. 
 - You deployed the VCH in a specific resource pool in your environment. 
 
 If you specify the `id` option, you do not need to specify the `compute-resource` option.
@@ -90,7 +89,7 @@ Wrap the appliance name in single quotes (Linux or Mac OS) or double quotes (Win
 
 Short name: None
 
-The vSphere Managed Object Reference, or moref, of the VCH, for example `vm-100`.  You obtain the ID of a VCH by running `vic-machine ls`. If you specify the `id` option, you do not need to specify the `--name` or `--compute-resource` options. This option is not used by `vic-machine ls`.
+The vSphere Managed Object Reference, or moref, of the VCH, for example `vm-100`.  You obtain the ID of a VCH by running `vic-machine ls`. If you specify the `id` option, you do not need to specify the `--name` or `--compute-resource` options. This option is not used by `vic-machine create` or `vic-machine version`.
 
 <pre>--id <i>vch_id</i></pre>
 

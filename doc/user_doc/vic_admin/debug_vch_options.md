@@ -24,7 +24,7 @@ Set a new password for the root user account on the VCH endpoint VM.
 
 **IMPORTANT**: If you set a password for the VCH endpoint VM, this password does not persist if you reboot the VM. You must run vic-machine debug to reset the password each time that the VCH endpoint VM reboots.
 
-Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters. If not specified, the default root password is `password`. It is strongly recommended that you use `--rootpw` to set a new password rather than leaving the default.
+Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes shell characters such as `$`, `!` or `%`.
 
 <pre>--rootpw '<i>new_p@ssword</i>'</pre>
 
@@ -32,6 +32,6 @@ Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) 
 
 Short name: `--key`
 
-Upload a public key file to `/root/.ssh/authorized_keys` folder in the endpoint VM to implement public authentication when accessing the VCH endpoint VM. Include the name of the `*.pub` file in the path.
+Upload a public key file to `/root/.ssh/authorized_keys` to enable SSH key authentication for the `root` user. Include the name of the `*.pub` file in the path.
 
 <pre>--authorized-key <i>path_to_public_key_file</i>/<i>key_file</i>.pub</pre>

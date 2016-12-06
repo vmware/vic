@@ -13,11 +13,11 @@ If your vCenter Server instance runs on Windows, you can use a Web server to hos
 
 1. On the Windows system on which you have downloaded and unpacked vSphere Integrated Containers Engine, navigate to the folder that contains the `vic-machine` utility and open the `ui` folder.
 2. Upload the plug-in bundle to your Web server.
-  <pre><i>vic_unpack_dir</i>\vic\ui\vsphere-client-serenity\com.vmware.vicui.Vicui-<i>version</i>.zip</pre>
+    <pre><i>unpack_dir</i>\vic\ui\vsphere-client-serenity\com.vmware.vicui.Vicui-<i>version</i>.zip</pre>
 3. On the `vic-machine` system, open the <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows\configs</code> file in a text editor.
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>SET target_vcenter_ip=<i>vcenter_server_address</i></pre>
 5. Enter the path to the folder on your Web server that contains the <code>com.vmware.vicui.Vicui-<i>version</i>.zip</code> file.<pre>SET vic_ui_host_url="<i>vicui_zip_location</i>"</pre>
-6. (Optional) If you used an HTTPS address in `vic_ui_host_url`, provide the SHA-1 thumbprint of the Web server.<pre>SET vic_ui_host_thumbprint="<i>thumbprint</i>"</pre> 
+6. (Optional) If you used an HTTPS address in `vic_ui_host_url`, provide the SHA-1 thumbprint of the Web server.<pre>SET vic_ui_host_thumbprint="<i>thumbprint</i>"</pre>**NOTE**: Use colon delimitation in the thumbprint. Do not use space delimitation. 
 6. Save and close the `configs` file.
 7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows</code>, and run the installer.<pre>install.bat</pre>
 9. Enter the user name and password for the vCenter Server administrator account.

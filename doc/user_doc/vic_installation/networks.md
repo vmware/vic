@@ -8,7 +8,7 @@ VCHs connect to different types of network.
 
 This topic provides an overview of the different network types. 
 
-**IMPORTANT**: A VCH supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the public, client, and management networks must share a network.
+**IMPORTANT**: A VCH supports a maximum of 3 distinct network interfaces. Because the bridge network requires its own port group, at least two of the public, client, and management networks must share a network interface and therefore a port group. Container networks do not go through the VCH, so they are not subject to this limitation. This limitation will be removed in a future release.
 
 ## Container Bridge Networks ##
 The network or networks that container VMs use to communicate with each other. Each VCH requires a unique bridge network.
@@ -48,4 +48,4 @@ You define the Docker management endpoint network by setting the `client-network
 
 Networks for container VMs to use for external communication when container developers run `docker run` or `docker create` with the `--net` option. 
 
-You can share one network alias between multiple containers. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [VCH Deployment Options](vch_installer_options.md#container-network). 
+You can share one network alias between multiple containers. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 
