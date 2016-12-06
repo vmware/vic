@@ -8,5 +8,8 @@
 * [Using Volumes with vSphere Integrated Containers Engine](using_volumes_with_vic.md)
 * [Using Private Registry Servers with vSphere Integrated Containers Engine](using_registries_with_vic.md)
 * [Network Port Use Cases](network_use_cases.md)
+* [Creating a Multi-Tiered Application](creating_multitier_app_with_vic.md)
+  * [Constraints of Using vSphere Integrated Containers Engine to Build Applications](constraints_using_vic.md)
+  * [Example of Building an Application with vSphere Integrated Containers Engine](build_app_with_vic.md)
 * [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md)
 * [Send Documentation Feedback](feedback.md)
