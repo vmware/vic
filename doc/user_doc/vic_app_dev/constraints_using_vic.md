@@ -1,4 +1,4 @@
-# Constraints of Using vSphere Integrated Containers Engine to Build Applications # 
+# Constraints of Using vSphere Integrated Containers Engine to Build Applications #
 
 There are some constraints on the types of containerized applications that you can deploy with this release of vSphere Integrated Containers Engine. For the lists of Docker features that this release of vSphere Integrated Containers Engine supports and does not support, see [Use and Limitations of Containers in vSphere Integrated Containers Engine](container_limitations.md). 
 
