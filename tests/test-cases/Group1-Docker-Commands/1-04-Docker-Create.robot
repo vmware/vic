@@ -108,42 +108,57 @@ Create a container with custom CPU count
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/CPU:/ {print $2}'
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  3
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/CPU:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  3
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${id} |awk '/CPU:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  3
 
 Create a container with custom amount of memory in GB
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 4G busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  4096MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  4096MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  4096MB
 
 Create a container with custom amount of memory in MB
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 2048M busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2048MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  2048MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  2048MB
 
 Create a container with custom amount of memory in KB
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 2097152K busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2048MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  2048MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  2048MB
 
 Create a container with custom amount of memory in Bytes
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 2147483648B busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2048MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  2048MB
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  2048MB
