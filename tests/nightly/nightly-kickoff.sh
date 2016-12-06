@@ -63,10 +63,10 @@ for i in $nightly_list_var; do
     if [ $? -eq 0 ]
     then
     echo "Passed"
-    nightlystatus[$count]="Passed"
+    nightlystatus[$count]="PASS"
     else
     echo "Failed"
-    nightlystatus[$count]="FAILED!"
+    nightlystatus[$count]="FAIL!"
     fi
 
     mv *.log $i
@@ -78,7 +78,7 @@ done
 for i in "${nightlystatus[@]}" 
 do
     echo $i
-    if [ $i = "Passed" ]
+    if [ $i = "PASS" ]
     then
     buildStatus=0
     echo "Test Passed!"
@@ -432,7 +432,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1'>https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1</a>
+                        <a href='https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1'>https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1&_ga=1.215892951.1122363360.1480435214</a>
                       </td>
                     </tr>
                   </table>
@@ -783,7 +783,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1'>https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1</a>
+                        <a href='https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1'>https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/functional_logs_$input.zip?authuser=1&_ga=1.215892951.1122363360.1480435214</a>
                       </td>
                     </tr>
                   </table>
