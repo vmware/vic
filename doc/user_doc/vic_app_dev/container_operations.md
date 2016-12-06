@@ -2,7 +2,6 @@
 
  vSphere Integrated Containers Engine supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md). **Note:**  This release of vSphere Integrated Containers Engine does not support Swarm.
 
-
 ## General Container Operations ##
 
 | **Container Commands** | **Docker Command Reference** | **Supported** |
@@ -25,7 +24,7 @@
 |kill|[Kill a running container](https://docs.docker.com/engine/reference/commandline/kill/)|Yes. Docker must wait for the container to shut down.|
 |load|[Load an image from a tar archive or STDIN](https://docs.docker.com/engine/reference/commandline/load/)|No|
 |login| [Log into a registry](https://docs.docker.com/engine/reference/commandline/login/)|Yes|
-|logout| [Log out from a registry](https://docs.docker.com/engine/reference/commandline/logout/)|No|
+|logout| [Log out from a registry](https://docs.docker.com/engine/reference/commandline/logout/)|Yes|
 |logs|[Get container logs](https://docs.docker.com/engine/reference/commandline/logs/)|Yes,  vSphere Integrated Container Engine does not yet support `docker logs --timestamps` (`-t`) and `--since` options.|
 |pause|[Pause processes in a container](https://docs.docker.com/engine/reference/commandline/pause/)|No|
 |port|[Obtain port data](https://docs.docker.com/engine/reference/commandline/port/)|Yes. Displays port mapping data. <br> vSphere Integrated Container Engine supports mapping a random host port to the container when the host port is not specified.|
@@ -55,7 +54,7 @@ For more information about network operations, see [Network Port Use Cases](netw
 
 | **Network** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
-|Network connect|[Connect to a network](https://docs.docker.com/engine/reference/commandline/network_connect/)|Yes, not supported for running containers|
+|Network connect|[Connect to a network](https://docs.docker.com/engine/reference/commandline/network_connect/)|Yes, However, this is not supported for running containers.|
 |Network create|[Create a network](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network in vSphere Integrated Container for vSphere Administrators. Bridge is also supported.|
 |Network disconnect|[Disconnect a network](https://docs.docker.com/engine/reference/commandline/network_disconnect/)|No|
 |Network inspect|[Inspect a network](https://docs.docker.com/engine/reference/commandline/network_inspect/)|Yes|
