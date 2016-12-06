@@ -21,6 +21,6 @@
     * [Enable Shell Access to the VCH Endpoint VM](vch_shell_access.md)
     * [Authorize SSH Access to the VCH Endpoint VM](vch_ssh_access.md) 
     * [VCH Debug Options](debug_vch_options.md)
-  * [Deleting or Inspecting a VCH Fails with a Resource Pool Error](ts_delete_inspect_error.md)
+  * [Deleting or Inspecting a VCH Fails with an Error](ts_delete_inspect_error.md)
   * [Connections Fail with Certificate Errors when Using Full TLS Authentication with Trusted Certificates](ts_clock_skew.md)
 * [Send Documentation Feedback](feedback.md)
