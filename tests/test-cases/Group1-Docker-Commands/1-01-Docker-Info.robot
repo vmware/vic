@@ -53,7 +53,7 @@ Correct container count
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${cid}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
