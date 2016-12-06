@@ -92,14 +92,14 @@ In this scenario, what you have provided is similar to a nested hypervisor that 
 With vSphere Integrated Containers Engine: 
 
 - A user raises a ticket and says, "I need Docker". 
-- You set aside a certain amount of storage, networking, and compute on your cluster by using a tool called `vic-machine`. 
-- The `vic-machine` utility installs a small appliance. The appliance represents an authorization to use the infrastructure that you have assigned, into which the user can self-provision container workloads.
+- You set aside a certain amount of storage, networking, and compute on your cluster. 
+- You use a utility called `vic-machine` to install a small appliance. The appliance represents an authorization to use the infrastructure that you have assigned, into which the user can self-provision container workloads.
 - The appliance runs a secure remote Docker API, that is the only access that the user has to the vSphere infrastructure.
 - Instead of sending your user a Linux VM, you send them the IP address of the appliance, the port of the remote Docker API, and a certificate for secure access.
 
-In this scenario, you have provided the user with a service portal. This is better for the user because they do not have to worry about isolation, patching, security, backup, and so on. It is better for you because every container that the user deploys is a VM known as a container VM. You can perform vMotion and monitor container VMs just like all of your other VMs.
+In this scenario, you have provided the user with a service portal. This is better for the user because they do not have to worry about isolation, patching, security, backup, and so on. It is better for you because every container that the user deploys is a container VM. You can perform vMotion and monitor container VMs just like all of your other VMs.
 
-If the user needs more compute capacity, in Scenario 1, the pragmatic choice is to power down the VM and reconfigure it, or give the user a new VM and let them deal with the clustering implications. Both of these solutions are disruptive to the user. With vSphere Integrated Containers Engine in Scenario 2, you can perform a simple reconfiguration that is completely transparent to the user.
+If the user needs more compute capacity, in Scenario 1, the pragmatic choice is to power down the VM and reconfigure it, or give the user a new VM and let them deal with the clustering implications. Both of these solutions are disruptive to the user. With vSphere Integrated Containers Engine in Scenario 2, you can redeploy the VCH with a new configuration in a way that is completely transparent to the user.
 
 vSphere Integrated Containers Engine allows you to select and dictate the appropriate infrastructure for the task in hand:
 
