@@ -29,9 +29,6 @@ VCHs maintain filesystem layers inherent in container images by mapping to discr
 ## vCenter Linked Mode Environments
 You can deploy VCHs in vCenter Linked Mode environments.
 
-## Multiple VLAN
-You can deploy and run Docker commands against a VCH on a vCenter appliance that has multiple portgroups on different VLANs within the datacenter.
-
 ## vSphere Features Not Supported in This Release
 vSphere Integrated Containers Engine does not currently support the following vSphere features:
 

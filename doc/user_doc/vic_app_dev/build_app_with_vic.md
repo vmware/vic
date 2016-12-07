@@ -1,6 +1,6 @@
 # Example of Building an Application with vSphere Integrated Containers Engine #
 
-The example in this topic modifies the multi-tiered [voting app](https://github.com/docker/example-voting-app) by Docker to illustrate how to work around the constraints that the current version of vSphere Integrated Containers Engine imposes. For information about the constraints, see [Constraints of Using vSphere Integrated Containers Engine to Build Applications](constraints_using_vic.md). 
+The example in this topic modifies the [voting app](https://github.com/docker/example-voting-app) by Docker to illustrate how to work around the constraints that the current version of vSphere Integrated Containers Engine imposes. For information about the constraints, see [Constraints of Using vSphere Integrated Containers Engine to Build Applications](constraints_using_vic.md). 
 
 This example focuses on how to modify the Docker Compose YML file from the voting app to make it work with vSphere Integrated Containers. It does not describe the general function or makeup of the voting app.  
 
@@ -81,7 +81,8 @@ This version of vSphere Integrated Containers Engine does not support the `docke
 
     - Remove local folder mapping
     - Remove all of the build directives
-    - Update <i>dockerhub_username</i> to your Docker Hub account name 
+    - Update <i>dockerhub_username</i> to your Docker Hub account name
+    - Save the modified file with the name `docker-compose.yml`.  
 
 The example below shows the YML file after the modifications:
  
@@ -120,13 +121,16 @@ You can download the modified YML file from the vSphere Integrated Containers En
 The steps in this section make the following assumptions:
 
 - You have deployed a virtual container host (VCH).
-- You deployed the VCH with the `--no-tlsverify` option, to disable client authentication.
+- You deployed the VCH with a volume store named `default` by specifying  `--volume-store datastore_name/path:default`.
+- You deployed the VCH with the `--no-tls` option, to disable TLS authentication between the Docker client and the VCH.
 - You are using Docker Compose 1.8.1.
 
-In the procedure below, run the commands from the `example-voting-app`  folder that contains the modified `docker-compose-simple.yml` file
+In the procedure below, run the commands from the `example-voting-app`  folder that contains the modified `docker-compose.yml` file.
 
 1. Run the `docker-compose` command.
 
-	<pre>docker-compose -H <i>vch_address</i>:2376 --tls up -d</pre>
+	<pre>docker-compose -H <i>vch_address</i>:2375 up -d</pre>
 
 2. In a browser, go to http://*vch_address*:5000 and http://*vch_address*:5001 to verify that the Docker voting application is running.
+ 
+   You can vote on port 5000 and see the results on port 5001.

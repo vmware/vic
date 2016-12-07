@@ -4,7 +4,7 @@ There are some constraints on the types of containerized applications that you c
 
 ##  Building Container Images ##
 
-This release of vSphere Integrated Containers Engine does not support  the `docker build` or `push` commands. As a consequence, you must use regular Docker without vSphere Integrated Containers Engine to build a container and to push it to the global hub or to your private registry server. 
+This release of vSphere Integrated Containers Engine does not support  the `docker build` or `push` commands. As a consequence, you must use regular Docker without vSphere Integrated Containers Engine to build a container image and to push it to the global hub or to your private registry server. 
 
 ## Sharing Configuration ##
 

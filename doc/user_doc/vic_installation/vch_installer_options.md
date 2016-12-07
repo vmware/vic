@@ -118,7 +118,7 @@ As a convenience, `vic-machine create` provides the option of generating a clien
 ### Restrict access to the Docker API ###
 vSphere Integrated Containers Engine authenticates Docker API clients by using client certificates. This configuration is commonly referred to as `tlsverify` in documentation about containers and Docker. A client certificate is accepted if it is signed by a CA that you provide by specifying one or more instances of the `--tls-ca` option. In the case of the certificates that `vic-machine create` generates, `vic-machine create` creates a CA and uses it to create and sign a single client certificate.
 
-When using the Docker client, the CA also validates the server either by using CAs that are present in the root certificate bundle of the client system, or that are provided explicitly by using the `--tlscacert` option when running Docker commands. As a part of this validation, the server certificate must explicitly state at least one of the following, and must match the name or address that the client uses to access the server:
+When using the Docker client, the client validates the server either by using CAs that are present in the root certificate bundle of the client system, or that are provided explicitly by using the `--tlscacert` option when running Docker commands. As a part of this validation, the server certificate must explicitly state at least one of the following, and must match the name or address that the client uses to access the server:
 
 - The FQDN used to communicate with the server
 - The IP address used to communicate with the server
@@ -155,7 +155,9 @@ Running `vic-machine create` with the `--tls-cname` option also creates an envir
 - The path to the client certificates.<pre>DOCKER_CERT_PATH=<i>path_to_certs</i></pre>
 - The address of the VCH.<pre>DOCKER_HOST=<i>vch_address</i>:2376</pre>
 
-You must provide copies of the certificate files and the environment file to container developers so that they can connect Docker clients to the VCH. If you deploy the VCH with the `--tls-cname` option, container developers must specify the Docker `--tlsverify` option when they  run Docker commands against this VCH.
+You must provide copies of the `cert.pem` and `key.pem` client certificate files and the environment file to container developers so that they can connect Docker clients to the VCH. If you deploy the VCH with the `--tls-cname` option, container developers must configure the client appropriately with one of the following options:
+- By using the following `tlsverify`, `tlscert`, and `tlskey` Docker options, adding `tlscacert` if a custom CA was used to sign the server certificate.
+- By setting `DOCKER_CERT_PATH=/path/to/client/cert.pem` and `DOCKER_TLS_VERIFY=1`.
 
 <pre>--tls-cname vch-name.example.org</pre>
 <pre>--tls-cname *.example.org</pre>
@@ -165,7 +167,7 @@ You must provide copies of the certificate files and the environment file to con
 
 Short name: `--ca`
 
-You can specify `--tls-ca` multiple times, to point `vic-machine create` to a file that contains the public portion of a CA. `vic-machine create` uses these CAs to validate client certificates that are offered as credentials for Docker API access.
+You can specify `--tls-ca` multiple times, to point `vic-machine create` to a file that contains the public portion of a CA. `vic-machine create` uses these CAs to validate client certificates that are offered as credentials for Docker API access. This does not need to be the same CA that you use to sign the server certificate.
 
 <pre>--tls-ca <i>path_to_ca_file</i></pre>
 
@@ -187,7 +189,9 @@ When you specify the `--no-tlsverify` option, `vic-machine create` performs the 
 - Creates a folder with the same name as the VCH in the location in which you run `vic-machine create`.
 - Creates an environment file named <code><i>vch_name</i>.env</code> in that folder, that contains the `DOCKER_HOST=vch_address` environment variable, that you can provide to container developers to use to set up their Docker client environment.
 
-If you deploy a VCH with the `--no-tlsverify` option, container developers run Docker commands with the `--tls` option. The `--no-tlsverify` option takes no arguments. 
+If you deploy a VCH with the `--no-tlsverify` option, container developers run Docker commands with the `--tls` option, and the `DOCKER_TLS_VERIFY` environment variable must not be set. Note that setting `DOCKER_TLS_VERIFY` to 0 or `false` has no effect. 
+
+The `--no-tlsverify` option takes no arguments. 
 
 <pre>--no-tlsverify</pre>
 
@@ -201,7 +205,7 @@ If container developers need to access Docker images that are stored in private 
 
 Short name: `--rc`
 
-The path to a self-generated CA certificate, to allow the VCH to connect to a secure private registry that uses a TLS certificate and private key that are signed with the self-generated CA certificate. You can specify `--registry-ca` multiple times to specify multiple CA certificates for different registries. The use of these certificates is independent of the client security options that you specify. For example, it is possible to disable TLS for client authentication by using `--no-tls`, and to use `--registry-ca` tospecify CA certificates to validate a private registry.
+The path to a CA certificate that can validate the registry's server certificate. You can specify `--registry-ca` multiple times to specify multiple CA certificates for different registries. The use of these certificates is independent of the client security options that you specify. For example, it is possible to disable TLS for client authentication by using `--no-tls`, and to use `--registry-ca` tospecify CA certificates to validate a private registry.
 
 <pre>--registry-ca <i>path_to_ca_cert_1</i>
 --registry-ca <i>path_to_ca_cert_2</i>
@@ -214,11 +218,11 @@ The path to a self-generated CA certificate, to allow the VCH to connect to a se
 
 Short name: `--dir`
 
-An insecure private registry server is a private registry server for Docker images that provides TLS encrypted communication but that does not confirm the identity of the remote system that is connecting to it. TLS encrypted communication protects you from attackers listening in on your network traffic, but does not protect against man-in-the-middle attacks. Insecure private registries are not recommended in production environments.  
+An insecure private registry server is a private registry server for Docker images that does not provide TLS. The VCH cannot confirm the identity of the remote system that it is pulling images from and the communication is not encrypted. Insecure private registries are not recommended in production environments.  
 
 If you authorize a VCH to connect to an insecure private registry server, the VCH attempts to access the registry server via HTTP if access via HTTPS fails. VCHs always use HTTPS when connecting to registry servers for which you have not authorized insecure access.
 
-To authorize connections from a VCH to an insecure private registry server, set the `--insecure-registry` option. You can specify `--insecure-registry` multiple times to allow connections from the VCH to multiple insecure private registry servers. If the registry server listens on a specific port, add the port number to the URL.
+To permit pulling images from an insecure private registry, use the `--insecure-registry` option. You can specify `--insecure-registry` multiple times if multiple insecure registries are permitted. If the registry server listens on a specific port, add the port number to the URL
 
 <pre>--insecure-registry <i>registry_URL_1</i>
 --insecure-registry <i>registry_URL_2</i>:<i>port_number</i>
@@ -522,7 +526,7 @@ The options in this section are exposed in the `vic-machine create` help if you 
 The advanced security options allow you to customize the authentication of connections from Docker clients to VCHs.
 
 - Add optional information to auto-generated trusted TLS certificates by specifying the `--certificate-key-size`, and `--organization` options.
-- Use custom CA server certificates by using the `--cert` and `--key` options.
+- Use custom server certificates by using the `--cert` and `--key` options.
 - Disable TLS authentication completely by using the `--no-tls` option.
 
 ### `--certificate-key-size` ###
@@ -537,7 +541,9 @@ The size of the key for `vic-machine create` to use when it creates auto-generat
 
 Short name: None
 
-A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the VCH as the organization value. It uses IP addresses that you configure on the client interface by using `--client-network-ip`, or by using `--public-network-ip` if the client and public networks share an interface.
+A list of identifiers to record in certificates generated by vic-machine. If not specified,`vic-machine create` uses the name of the VCH as the organization value.
+
+**NOTE**: The `client-ip-address` is used for `CommonName` but not  for  `Organisation`.
 
 <pre>--organization <i>organization_name</i></pre>
 
@@ -546,8 +552,13 @@ A list of identifiers to record in auto-generated trusted certificates. If not s
 
 Short name: none
 
-The path to a custom X.509 server certificate, for the Docker API to use to authenticate the VCH with a Docker client.
+The path to a custom X.509 server certificate. This certificate identifies the VCH endpoint VM both to Docker clients and to browsers  that connect to the VCH Admin portal.
 
+- This certificate should have the following certificate usages:
+  - `KeyEncipherment`
+  - `DigitalSignature`
+  - `KeyAgreement`
+  - `ServerAuth`
 - This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates.
 - Use this option in combination with the `--key` option, that provides the path to the private key file for the custom certificate.
 - Include the names of the certificate and key files in the paths.
@@ -609,6 +620,35 @@ Set the `no-tls` option if you do not require TLS authentication between the VCH
 If you use the `no-tls` option, container developers connect Docker clients to the VCH via port 2375, instead of via port 2376.
 
 <pre>--no-tls</pre>
+
+<a name="ops-user"></a>
+### `--ops-user` ###
+
+Short name: None
+
+A vSphere user account with which the VCH runs after deployment. Because deploying a VCH requires greater levels of permissions than running a VCH, you can configure a VCH so that it uses different user accounts for deployment and for operation. In this way, you can limit the day-to-day operation of a VCH to an account that does not have full administrator permissions on the target vCenter Server.
+
+If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+
+<pre>--ops-user <i>user_name</i></pre>
+
+Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes special characters.
+
+<pre>--ops-user '<i>user_n@me</i>'</pre>
+
+### `--ops-password` ###
+
+Short name: None
+
+The password or token for the operations user that you specify in `--ops-user`.
+ 
+If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+
+<pre>--ops-password <i>password</i></pre>
+
+Wrap the password in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes special characters.
+
+<pre>--ops-password '<i>p@ssword</i>'</pre>
 
 
 <a name="static-ip"></a>
@@ -811,9 +851,9 @@ Set CPU shares on the VCH vApp in vCenter Server, or on the VCH resource pool on
 
 Short name: none
 
-The number of virtual CPUs for the VCH endpoint VM. The default is 1. Set this option to increase the number of CPUs in the VCH VM, for example if the VCH will handle large volumes of containers, or containers that require a lot of processing power.
+The number of virtual CPUs for the VCH endpoint VM. The default is 1. Set this option to increase the number of CPUs in the VCH endpoint VM.
 
-**NOTE** Use the `--cpu` option instead of the `--appliance-cpu` option. The `--appliance-cpu` option is mainly intended for use by VMware Support.
+**NOTE** Always use the `--cpu` option instead of the `--appliance-cpu` option to increase the overall CPU capacity of the VCH vApp, rather than increasing the number of CPUs on the VCH endpoint VM. The `--appliance-cpu` option is mainly intended for use by VMware Support.
 
 <pre>--appliance-cpu <i>number_of_CPUs</i></pre>
 
@@ -821,9 +861,9 @@ The number of virtual CPUs for the VCH endpoint VM. The default is 1. Set this o
 
 Short name: none
 
-The amount of memory for the VCH endpoint VM. The default is 2048MB. Set this option to increase the amount of memory in the VCH VM, for example if the VCH will handle large volumes of containers, or containers that consume a lot of memory.
+The amount of memory for the VCH endpoint VM. The default is 2048MB. Set this option to increase the amount of memory in the VCH endpoint VM if the VCH will pull large container images.
 
-**NOTE** Use the `--memory` option instead of the `--appliance-memory` option. The `--appliance-memory` option is mainly intended for use by VMware Support.
+**NOTE** With the exception of VCHs that pull large container images, always use the `--memory` option instead of the `--appliance-memory` option to increase the overall amount of memory for the VCH vApp, rather than on the VCH endpoint VM. Use `docker create -m` to set the memory on container VMs. The `--appliance-memory` option is mainly intended for use by VMware Support.
 
 <pre>--appliance-memory <i>amount_of_memory</i></pre>
 

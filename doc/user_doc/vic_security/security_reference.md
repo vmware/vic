@@ -6,6 +6,7 @@ Use the Security Reference to learn about the security features of vSphere Integ
 - [Service Accounts and Privileges](#accounts)
 - [Apply Security Updates and Patches](#patches)
 - [Security Related Log Messages](#logs)
+- [Sensitive Data](#data)
 
 <a name="network"></a>
 ## Network Security 
@@ -46,7 +47,7 @@ Public interface:
 
 <a name="accounts"></a>
 ## Service Accounts and Privileges
-vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. The `--ops-user` and `--ops-password` options allow a VCH to operate with less-privileged credentials than those that are required for deploying a new VCH.
+vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. The `--ops-user` and `--ops-password` options allow a VCH to operate with less-privileged credentials than those that are required for deploying a new VCH. For information about the `--ops-user` option, see the descriptions of `--ops-user` in [VCH Deployment Options](../vic_installation/vch_installer_options.html#ops-user) and [Advanced Examples of Deploying a VCH](../vic_installation/vch_installer_examples.html#ops-user) in *vSphere Integrated Containers Installation*.
 
 <a name="patches"></a>
 
@@ -56,3 +57,8 @@ Download a new version of vSphere Integrated Containers Engine and upgrade your 
 <a name="logs"></a>
 ## Security Related Log Messages
 Security-related information for vSphere Integrated Containers Engine appears in `docker-personality.log` and `vicadmin.log`, that you can access from the VCH Admin portal for a VCH.
+
+<a name="data"></a>
+## Sensitive Data 
+
+The VMX file of the VCH endpoint VM stores vSphere Integrated Containers Engine configuration information, which allows most of the configuration to be read-only by the guest. The container VMs might hold sensitive application data, such as environment variables for processes, command arguments, and so on.

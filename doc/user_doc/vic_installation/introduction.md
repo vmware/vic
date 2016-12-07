@@ -13,7 +13,7 @@ This overview is intended for vSphere Administrators who must use vSphere Integr
 - [vSphere Integrated Containers Engine Concepts](#concepts)
   - [Container VMs](#containervm) 
   - [Virtual Container Hosts](#vch) 
-  - [The vSphere Integrated Containers Engine Appliance](#appliance) 
+  - [The VCH Endpoint VM](#endpoint) 
   - [The vic-machine Utility](#vic-machine) 
 
 <a name="containers"></a>
@@ -60,7 +60,7 @@ vSphere Integrated Containers is designed to solve many of the challenges associ
 vSphere Integrated Containers Engine allows you, the vSphere administrator, to provide a container management endpoint to a user as a service. At the same time, you remain in complete control over the infrastructure that the container management endpoint service depends on. The main differences between vSphere Integrated Containers Engine and a classic container environment are the following:
 
 - vSphere, not Linux, is the container host:
-  - Containers are spun up *as* VMs, not *in* VMs.
+  - Containers are deployed *as* VMs, not *in* VMs.
   - Every container is fully isolated from the host and from the other containers.
   - vSphere provides per-tenant dynamic resource limits within a vCenter Server cluster
 - vSphere, not Linux, is the infrastructure:
@@ -92,14 +92,14 @@ In this scenario, what you have provided is similar to a nested hypervisor that 
 With vSphere Integrated Containers Engine: 
 
 - A user raises a ticket and says, "I need Docker". 
-- You set aside a certain amount of storage, networking, and compute on your cluster. 
-- You use a utility called `vic-machine` to install a small appliance. The appliance represents an authorization to use the infrastructure that you have assigned, into which the user can self-provision container workloads.
+- You identify datastores, networking, and compute on your cluster that the user can use for their Docker environment. 
+- You use a utility called `vic-machine` to install a small appliance. The appliance represents an authorization to use the infrastructure that you have identified, into which the user can self-provision container workloads.
 - The appliance runs a secure remote Docker API, that is the only access that the user has to the vSphere infrastructure.
 - Instead of sending your user a Linux VM, you send them the IP address of the appliance, the port of the remote Docker API, and a certificate for secure access.
 
 In this scenario, you have provided the user with a service portal. This is better for the user because they do not have to worry about isolation, patching, security, backup, and so on. It is better for you because every container that the user deploys is a container VM. You can perform vMotion and monitor container VMs just like all of your other VMs.
 
-If the user needs more compute capacity, in Scenario 1, the pragmatic choice is to power down the VM and reconfigure it, or give the user a new VM and let them deal with the clustering implications. Both of these solutions are disruptive to the user. With vSphere Integrated Containers Engine in Scenario 2, you can redeploy the VCH with a new configuration in a way that is completely transparent to the user.
+If the user needs more compute capacity, in Scenario 1, the pragmatic choice is to power down the VM and reconfigure it, or give the user a new VM and let them deal with the clustering implications. Both of these solutions are disruptive to the user. With vSphere Integrated Containers Engine in Scenario 2, you can reconfigure the VCH in vSphere, or redeploy it with a new configuration in a way that is completely transparent to the user.
 
 vSphere Integrated Containers Engine allows you to select and dictate the appropriate infrastructure for the task in hand:
 
@@ -165,18 +165,19 @@ A VCH is functionally distinct from a traditional container host in the followin
 
 A VCH is a multi-functional appliance that you deploy as a vApp in a vCenter Server cluster or as a resource pool on an ESXi host. The vApp or resource pool provides a useful visual parent-child relationship in the vSphere Web Client so that you can easily identify the container VMs that are provisioned into a VCH. You can also specify resource limits on the vApp. You can provision multiple VCHs onto a single ESXi host, into a vSphere resource pool, or into a vCenter Server cluster.
 
-<a name="appliance"></a>
-### The vSphere Integrated Containers Engine Appliance ###
+<a name="endpoint"></a>
+### The VCH Endpoint VM ###
 
-There is a 1:1 relationship between a VCH and a vSphere Integrated Containers Engine appliance. The appliance provides the following functions:
+The VCH endoint VM is the VM that runs inside the VCH vApp or resource pool. There is a 1:1 relationship between a VCH and a VCH endpoint VM. The VCH endpoint VM provides the following functions:
 
 - Runs the services that a VCH requires.
 - Provides a secure remote API to a client.
-- Provides network forwarding so that ports to containers can be opened on the appliance and the containers can access a public network
+- Receives Docker commands and translates those commands into vSphere API calls and vSphere infrastructure constructs.
+- Provides network forwarding so that ports to containers can be opened on the VCH endoint VM and the containers can access a public network.
 - Manages the lifecycle of the containers, the image store, the volume store, and the container state
 - Provides logging and monitoring of its own services and of its containers.
 
-The lifecycle of the vSphere Integrated Containers Engine appliance is managed by a utility called `vic-machine`. 
+The lifecycle of the VCH endpoint VM is managed by a utility called `vic-machine`. 
 
 <a name="vic-machine"></a>
 ### The `vic-machine` Utility ###
@@ -184,7 +185,7 @@ The lifecycle of the vSphere Integrated Containers Engine appliance is managed b
 The `vic-machine` utility is a binary for Windows, Linux, and OSX that manages the lifecycle of VCHs. `vic-machine` has been designed for use by vSphere administrators. It takes pre-existing compute, network, storage and a vSphere user as input and creates a VCH as output. It has the following additional functions:
 
 - Creates certificates for Docker client TLS authentication.
-- Checks that prerequisites have been met on the cluster (firewall, licenses etc)
+- Checks that the prerequisites for VCH deployment are met on the cluster or host, namely that the firewall, licenses, and so on are configured correctly.
 - Configures existing VCHs for debugging.
 - Lists and deletes VCHs.
 
