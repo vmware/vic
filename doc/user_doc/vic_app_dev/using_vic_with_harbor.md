@@ -1,4 +1,4 @@
-# Setting Up a Private Registry Using vSphere Integrated Container Registry (Harbor)
+# Using vSphere Integrated Containers Engine with vSphere Integrated Containers Registry (Harbor)
 
 This example illustrates using a deployed Virtual Container Host (VCH) with Harbor as a private registry with the assumption that a VCH has been set up using either static IP or FQDN and standard docker has been updated with the certificate authority cert that can verify the deployed Harbor's server certificate. See [Deploying vSphere Integrated Container Engine with vSphere Integrated Containers Registry (Harbor)](deploy_vic_with_harbor.md) for more information on updating certificates.
 
@@ -33,6 +33,7 @@ This example illustrates using a deployed Virtual Container Host (VCH) with Harb
     e88b3f82283b: Pushed 
     latest: digest: sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912 size: 527
 
+## Pull the Image from Harbor to the VCH
 In another terminal, pull the image from Harbor to the VCH.
 
     user@Devbox:~$ export DOCKER_HOST=tcp://<Deployed VCH IP>:2375
