@@ -121,7 +121,8 @@ You can download the modified YML file from the vSphere Integrated Containers En
 The steps in this section make the following assumptions:
 
 - You have deployed a virtual container host (VCH).
-- You deployed the VCH with the `--no-tlsverify` option, to disable client authentication.
+- You deployed the VCH with a volume store named `default` by specifying  `--volume-store datastore_name/path:default`.
+- You deployed the VCH with the `--no-tls` option, to disable TLS authentication between the Docker client and the VCH.
 - You are using Docker Compose 1.8.1.
 
 In the procedure below, run the commands from the `example-voting-app`  folder that contains the modified `docker-compose.yml` file.
@@ -131,3 +132,5 @@ In the procedure below, run the commands from the `example-voting-app`  folder t
 	<pre>docker-compose -H <i>vch_address</i>:2376 --tls up -d</pre>
 
 2. In a browser, go to http://*vch_address*:5000 and http://*vch_address*:5001 to verify that the Docker voting application is running.
+ 
+   You can vote on port 5000 and see the results on port 5001.
