@@ -15,6 +15,7 @@
   * [Browser-Based Certificate Login](browser_login.md)
   * [Command Line Certificate Login](cmdline_login.md)
   * [VCH Admin Status Reference](vicadmin_status_ref.md)
+* [Setting Up a Private Registry Using vSphere Integrated Containers Registry (Harbor)](private_registry_using_harbor.md)
 * [Troubleshooting](troubleshoot_vic_admin.md)
   * [Access Log Bundles](log_bundles.md)
   * [Debugging the VCH](debug_vch.md)
