@@ -6,11 +6,12 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Make sure container starts
-    :FOR  ${idx}  IN RANGE  0  30
+    :FOR  ${idx}  IN RANGE  0  60
     \   ${out}=  Run  docker %{VCH-PARAMS} ps
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  /bin/top
-    \   Exit For Loop If  ${status}
+    \   Return From Keyword If  ${status}
     \   Sleep  1
+    Fail  Container failed to start
 
 *** Test Cases ***
 Simple docker run
@@ -27,7 +28,7 @@ Docker run with -t
 
 Simple docker run with app that doesn't exit
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs -n1 docker %{VCH-PARAMS} rm -f
-    ${result}=  Start Process  docker %{VCH-PARAMS} run busybox /bin/top  shell=True  alias=top
+    ${result}=  Start Process  docker %{VCH-PARAMS} run -d busybox /bin/top  shell=True  alias=top
 
     Make sure container starts
     ${containerID}=  Run  docker %{VCH-PARAMS} ps -q
