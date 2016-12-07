@@ -172,7 +172,8 @@ The VCH endoint VM is the VM that runs inside the VCH vApp or resource pool. The
 
 - Runs the services that a VCH requires.
 - Provides a secure remote API to a client.
-- Provides network forwarding so that ports to containers can be opened on the VCH endoint VM and the containers can access a public network
+- Receives Docker commands and translates those commands into vSphere API calls and vSphere infrastructure constructs.
+- Provides network forwarding so that ports to containers can be opened on the VCH endoint VM and the containers can access a public network.
 - Manages the lifecycle of the containers, the image store, the volume store, and the container state
 - Provides logging and monitoring of its own services and of its containers.
 
