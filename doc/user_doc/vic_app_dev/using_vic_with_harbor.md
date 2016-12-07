@@ -1,6 +1,6 @@
 # Using vSphere Integrated Containers Engine with vSphere Integrated Containers Registry (Harbor)
 
-This example illustrates using a deployed Virtual Container Host (VCH) with Harbor as a private registry with the assumption that a VCH has been set up using either static IP or FQDN.  It also assumes there is access to standard Docker that has been updated with the CA certificate used by the Harbor instance.
+This example illustrates using a deployed Virtual Container Host (VCH) with Harbor as a private registry with the assumption that a VCH has been set up using either static IP or FQDN.  It also assumes there is access to standard Docker that has been updated with the CA certificate used to sign the Harbor instance's server certificate and server private key.
 
 ## Workflow
 
