@@ -29,6 +29,13 @@ Create several containers
     Should Be Equal As Integers  ${rc}  0
     Wait Until VM Powers Off  *-${container2}
 
+Assert Number Of Containers
+    [Arguments]  ${num}  ${type}=-q
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps ${type}
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  ${num}
+
 *** Test Cases ***
 Empty docker ps command
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
@@ -79,10 +86,7 @@ Docker ps powerOn container OOB
 
     Power On VM OOB  jojo*
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  ${len+1}
+    Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len+1}
 
 Docker ps powerOff container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name koko busybox /bin/top
@@ -96,10 +100,7 @@ Docker ps powerOff container OOB
 
     Power Off VM OOB  koko*
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  ${len-1}
+    Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}
 
 Docker ps ports output
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 nginx
@@ -132,10 +133,7 @@ Docker ps Remove container OOB
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Wait Until VM Is Destroyed  "lolo*"
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  ${len-1}
+    Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}  -aq
 
 Docker ps last container
     ${status}=  Get State Of Github Issue  1545
