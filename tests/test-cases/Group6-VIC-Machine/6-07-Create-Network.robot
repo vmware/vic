@@ -30,7 +30,7 @@ Public network - invalid
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --public-network=AAAAAAAAAA ${vicmachinetls}
     Should Contain  ${output}  --public-network: network 'AAAAAAAAAA' not found
-    Should Contain  ${output}  vic-machine-linux failed
+    Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
@@ -71,7 +71,7 @@ Management network - invalid
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --management-network=AAAAAAAAAA ${vicmachinetls}
     Should Contain  ${output}  --management-network: network 'AAAAAAAAAA' not found
-    Should Contain  ${output}  vic-machine-linux failed
+    Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
@@ -136,7 +136,7 @@ Bridge network - invalid
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls}
     Should Contain  ${output}  --bridge-network: network 'AAAAAAAAAA' not found
-    Should Contain  ${output}  vic-machine-linux failed
+    Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
