@@ -20,10 +20,16 @@ set +x
 
 dpkg -l > package.list
 
+buildinfo=$(drone build info vmware/vic $DRONE_BUILD_NUMBER)
+
 if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
     pybot --removekeywords TAG:secret --exclude skip tests/test-cases
 elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); then
     pybot --removekeywords TAG:secret --exclude skip tests/test-cases
+elif (echo $buildinfo | grep -q "\[specific ci="); then
+    buildtype=$(echo $buildinfo | grep "\[specific ci=")
+    testsuite=$(echo $buildtype | awk -v FS="(=|])" '{print $2}')
+    pybot --removekeywords TAG:secret --suite $testsuite tests/test-cases
 else
     pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
 fi
