@@ -1,10 +1,8 @@
-# Setting Up a Private Registry Using vSphere Integrated Containers Registry (Harbor)
+# Setting Up a Private Registry with vSphere Integrated Containers Engine 
 
-The example in this topic illustrates how to run a private Docker registry on vSphere Integrated Containers Engine and push and pull images.  An enterprise ready registry named [vSphere Integrated Containers Registry (Harbor)](https://github.com/vmware/harbor) can be used in place of the base Docker registry.
+This example illustrates running a private Docker registry on vSphere Integrated Containers Engine, then push and pull images.
 
-## Prerequisites
-
-The following examples use Linux and do not differ much for Windows and Mac users.
+The following example uses Linux and does not differ much for Windows and Mac users.
 
 vSphere Integrated Containers Engine requires you to install Docker locally, so you get both a client (CLI or command line interface) and a daemon that handles all local container operations. 
 
@@ -12,11 +10,11 @@ Local containers run on your local machine instead of on a VMWare vSphere/ESXi e
 
 The distinction between using the CLI against the two environments is very important in this example. By default, the CLI uses the local Docker daemon. After setting two environment variables DOCKER_HOST and DOCKER_API_VERSION, you can instruct the CLI to send all operations to vSphere Integrated Containers Engine instead of the local Docker daemon.
 
-This example shows how to deploy an insecure registry with no authentication for simplicity.  We will also be targeting an ESXi environment.
+This example shows how to deploy an insecure registry with no authentication.  We will also be targeting an ESXi environment.
 
 ## Workflow
 
-In terminal #1: (local Docker)
+In terminal #1: (ocal Docker)
 
 1. Open a terminal and make sure that it uses the local Docker daemon. At the command prompt, type:  
 `$> unset DOCKER_HOST`
@@ -28,7 +26,7 @@ In terminal #1: (local Docker)
 7. Restart the docker daemon.
 8. Push the image using the full tagged name including host IP and port.
 
-In terminal #2: (VIC VCH)
+In terminal #2: (VCH)
 
 1. Open a terminal and make sure it is using the second VCH. At the command prompt, type:  
 `$> export DOCKER_HOST=tcp://<VCH_IP>:<VCH_PORT>`
