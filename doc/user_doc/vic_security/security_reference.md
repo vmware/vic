@@ -6,6 +6,7 @@ Use the Security Reference to learn about the security features of vSphere Integ
 - [Service Accounts and Privileges](#accounts)
 - [Apply Security Updates and Patches](#patches)
 - [Security Related Log Messages](#logs)
+- [Sensitive Data](#data)
 
 <a name="network"></a>
 ## Network Security 
@@ -56,3 +57,8 @@ Download a new version of vSphere Integrated Containers Engine and upgrade your 
 <a name="logs"></a>
 ## Security Related Log Messages
 Security-related information for vSphere Integrated Containers Engine appears in `docker-personality.log` and `vicadmin.log`, that you can access from the VCH Admin portal for a VCH.
+
+<a name="data"></a>
+## Sensitive Data 
+
+The VMX file of the VCH endpoint VM stores vSphere Integrated Containers Engine configuration information, which allows most of the configuration to be read-only by the guest. The container VMs might hold sensitive application data, such as environment variables for processes, command arguments, and so on.
