@@ -129,7 +129,7 @@ In the procedure below, run the commands from the `example-voting-app`  folder t
 
 1. Run the `docker-compose` command.
 
-	<pre>docker-compose -H <i>vch_address</i>:2376 --tls up -d</pre>
+	<pre>docker-compose -H <i>vch_address</i>:2375 up -d</pre>
 
 2. In a browser, go to http://*vch_address*:5000 and http://*vch_address*:5001 to verify that the Docker voting application is running.
  
