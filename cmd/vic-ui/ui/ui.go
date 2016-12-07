@@ -19,10 +19,9 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/urfave/cli.v1"
 
 	"context"
-
-	"github.com/urfave/cli"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/plugin"
