@@ -621,6 +621,35 @@ If you use the `no-tls` option, container developers connect Docker clients to t
 
 <pre>--no-tls</pre>
 
+<a name="ops-user"></a>
+### `--ops-user` ###
+
+Short name: None
+
+A vSphere user account with which the VCH runs after deployment. Because deploying a VCH requires greater levels of permissions than running a VCH, you can configure a VCH so that it uses different user accounts for deployment and for operation. In this way, you can limit the day-to-day operation of a VCH to an account that does not have full administrator permissions on the target vCenter Server.
+
+If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+
+<pre>--ops-user <i>user_name</i></pre>
+
+Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes special characters.
+
+<pre>--ops-user '<i>user_n@me</i>'</pre>
+
+### `--ops-password` ###
+
+Short name: None
+
+The password or token for the operations user that you specify in `--ops-user`.
+ 
+If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+
+<pre>--ops-password <i>password</i></pre>
+
+Wrap the password in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes special characters.
+
+<pre>--ops-password '<i>p@ssword</i>'</pre>
+
 
 <a name="static-ip"></a>
 ## Options for Specifying a Static IP Address for the VCH Endpoint VM ##

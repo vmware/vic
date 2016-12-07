@@ -17,6 +17,7 @@ This topic provides examples of the options of the `vic-machine create` command 
 - [Security Examples](#security)
   - [Use Auto-Generated Trusted CA Certificates](#auto_cert)
   - [Use Custom Server Certificates](#custom_cert)
+  - [Specify Different User Accounts for VCH Deployment and Operation](#ops-user)
   - [Authorize Access to an Insecure Private Registry Server](#registry)
 
 For simplicity, these examples use the `--force` option to disable the verification of the vCenter Server certificate, so the `--thumbprint` option is not specified. Similarly, all examples that do not relate explicitly to certificate use specify the `--tls-noverify` option.
@@ -349,6 +350,31 @@ This example deploys a VCH with the following configuration:
 </pre>
 
 For more information about using custom server certificates, see the [Advanced Security Options section](vch_installer_options.md#adv-security) in VCH Deployment Options.
+
+<a name="ops-user"></a>
+### Specify Different User Accounts for VCH Deployment and Operation ###
+
+When you deploy a VCH, you can use different vSphere user accounts for deployment and for operation. This allows you to run VCHs with lower levels of privileges than are required for deployment.
+
+This example deploys a VCH with the following configuration:
+
+- Specifies the image store, cluster, bridge network, and name for the VCH.
+- Specifies <i>vsphere_admin</i> in the `--target` option, to identify the user account with which to deploy the VCH.
+- Specifies <i>vsphere_user</i> and its password in the `--ops-user` and `--ops-password` options, to identify the user account with which the VCH runs.
+
+<pre>vic-machine-<i>operating_system</i> create
+--target <i>vsphere_admin</i>:<i>vsphere_admin_password</i>@<i>vcenter_server_address</i>/dc1
+--compute-resource cluster1
+--image-store datastore1
+--bridge-network vch1-bridge
+--name vch1
+--ops-user <i>vsphere_user</i>
+--ops-password <i>vsphere_user_password</i>
+--force
+--no-tlsverify
+</pre>
+
+For more information about using custom server certificates, see [--ops-user](vch_installer_options.md#ops-user) in VCH Deployment Options.
 
 <a name="registry"></a>
 ### Authorize Access to an Insecure Private Registry Server ###
