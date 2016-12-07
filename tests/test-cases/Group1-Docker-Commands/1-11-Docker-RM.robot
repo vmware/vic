@@ -4,6 +4,22 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Check That VM Is Removed
+    [Arguments]  ${container}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc ls %{VCH-NAME}/vm
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  ${container}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc ls vm
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  ${container}
+
+Check That Datastore Is Cleaned
+    [Arguments]  ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  ${container}
+
 *** Test Cases ***
 Basic docker remove container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -12,12 +28,8 @@ Basic docker remove container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  ${container}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  ${container}
+    Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container}
+    Wait Until Keyword Succeeds  10x  6s  Check That Datastore Is Cleaned  ${container}
 
 Remove a stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -29,12 +41,8 @@ Remove a stopped container
     Wait Until Container Stops  ${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  ${container}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  ${container}
+    Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container}
+    Wait Until Keyword Succeeds  10x  6s  Check That Datastore Is Cleaned  ${container}
 
 Remove a running container
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
@@ -52,7 +60,9 @@ Force remove a running container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container}
     Should Be Equal As Integers  ${rc}  0
-    
+    Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container}
+    Wait Until Keyword Succeeds  10x  6s  Check That Datastore Is Cleaned  ${container}
+
 Remove a fake container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm fakeContainer
     Should Be Equal As Integers  ${rc}  1
@@ -75,4 +85,4 @@ Remove a container created with unknown executable
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  0
-    
+    Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container}

@@ -304,12 +304,12 @@ Verify Checksums
 
 Wait Until Container Stops
     [Arguments]  ${container}
-    :FOR  ${idx}  IN RANGE  0  30
+    :FOR  ${idx}  IN RANGE  0  60
     \   ${out}=  Run  docker %{VCH-PARAMS} inspect ${container} | grep Status
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  exited
     \   Return From Keyword If  ${status}
     \   Sleep  1
-    Fail  Container did not stop within 30 seconds
+    Fail  Container did not stop within 60 seconds
 
 Wait Until VM Powers Off
     [Arguments]  ${vm}
