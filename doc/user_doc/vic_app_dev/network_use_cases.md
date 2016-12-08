@@ -2,26 +2,10 @@
 
 This section presents some examples of how to perform container networking operations when using vSphere Integrated Containers Engine as your Docker endpoint.
 
-## Correspondance of Docker Networks to vSphere Integrated Containers Engine Networks ##
-
-The following table matches the default Docker networks to their equivalents in vSphere Integrated Containers Engine. 
-
 - For information about the default Docker networks, see https://docs.docker.com/engine/userguide/networking/.
 
 - For an overview of the networks that vSphere Integrated Containers Engine uses, see [Networks Used by vSphere Integrated Containers Engine](../vic_installation/networks.html) in *vSphere Integrated Containers Engine Installation*.
-
-| **Docker Nomenclature** | **VIC Engine Nomenclature** |
-| --- | --- |
-| Default bridge network, also known as `docker0` | Bridge network |
-| External networks for containers | Container networks |
-| Host network | Client network |
-| `none` network | No equivalent |
-| User-defined bridge networks | Bridge network addresses made available by `--bridge-network-ip-range` |
-| No equivalent | Management network |
-| Exposed container ports | Public network |
-| Overlay network | You can consider the bridge network as an overlay network as it spans all of the hosts in a cluster. |
-
-
+- 
 ## Publish a Container Port
 
 Connect a container to an external mapped port on the public network of the virtual container host (VCH):

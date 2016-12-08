@@ -36,8 +36,7 @@ You define the management network by setting the `--management-network` option w
 
 <a name="public"></a>
 ## Public Network  ##
-The network that container VMs use to connect to the internet.  Ports that containers forward with 
-`docker create -p` are served on the public network, so that containers can publish network services. Container developers can deploy containers directly on the public interface.
+The network that container VMs use to connect to the internet. Ports that containers expose with `docker create -p` when connected to the default bridge network are made available on the public interface of the VCH endpoint VM via network address translation (NAT), so that containers can publish network services.
 
 You define the public network by setting the `--public-network` option when you run `vic-machine create`. For  more detailed information about management networks, see the section on the `--public-network` option in [VCH Deployment Options](vch_installer_options.md#public-network).
 
@@ -61,22 +60,6 @@ Container application developers can also use `docker network create` to create 
 <a name="container"></a>
 ## Container Networks ##
 
-Networks for container VMs to use for external communication when container developers run `docker run` or `docker create` with the `--net` option. Container communication on these networks does not route through the VCH, as is the case with port forwarding via the bridge network. In this way, you can remove the VCH endpoint VM as a single-point-of-failure for network traffic.
+Container networks allow the vSphere administrator to make vSphere networks directly available to containers. This is done during deployment of a VCH by providing a mapping of the vSphere network name to an alias that is used inside the VCH endpoint VM. The mapped networks are then listed as available by the Docker API. Running `docker network ls` shows these networks, and container developers can attach them to containers in the normal way by using commands such as `docker run` or `create`, with the `--network=_mapped-network-name_` or `docker network connect`. The containers connected to container networks are connected directly to these networks, and traffic does not route though the VCH endpoint VM using NAT.
 
 You can share one network alias between multiple containers. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 
-
-<a name="docker_vic"></a>
-## Correspondance of Docker Networks to vSphere Integrated Containers Engine Networks ##
-
-The following table matches the default Docker networks to their equivalents in vSphere Integrated Containers Engine. For information about the default Docker networks, see https://docs.docker.com/engine/userguide/networking/.
-
-| **Docker Nomenclature** | **VIC Engine Nomenclature** |
-| --- | --- |
-| Default bridge network, also known as `docker0` | Bridge network |
-| External networks for containers | Container networks |
-| Host network | Client network |
-| `none` network | No equivalent |
-| User-defined bridge networks | Bridge network addresses made available by `--bridge-network-ip-range` |
-| No equivalent | Management network |
-| Exposed container ports | Public network |
-| Overlay network | You can consider the bridge network as an overlay network as it spans all of the hosts in a cluster. |
