@@ -28,7 +28,7 @@ The following sections describe each of the VCH network types, that are represen
 <a name="management"></a>
 ## Management Network ##
 
-The network for communication between the VCH and vCenter Server and ESXi hosts. The VCH uses this network to communicate with the container VMs.
+The network for communication between the VCH and vCenter Server and ESXi hosts. The VCH uses this network to provide the `attach` function of the Docker API.
 
 **IMPORTANT**: Because the management network provides access to your vSphere environment, and because container VMs use this network to communicate with the VCH, always use a secure network for the management network. Ideally, use separate networks for the management network and the container networks.
 
@@ -52,18 +52,16 @@ You define the Docker management endpoint network by setting the `--client-netwo
 ## Bridge Network ##
 The network or networks that container VMs use to communicate with each other. Each VCH requires a unique bridge network. The bridge network is a port group on a distributed virtual switch.
 
-**IMPORTANT**: Do not use the bridge network for any other VM workloads. The bridge network should not use DHCP.
+**IMPORTANT**: Do not use the bridge network for any other VM workloads, or as a bridge for more than one VCH.
 
 You define the bridge networks by setting the `--bridge-network` option when you run `vic-machine create`.  For  more detailed information about bridge networks, see the section on the `--bridge-network` option in [VCH Deployment Options](vch_installer_options.md#bridge).
 
-Container application developers can also use `docker network create` to create additional bridge networks. These networks are represented by the User-Created Bridge Network in the image above. You can define a range of IP addresses that additional bridge networks can use by defining the `bridge-network-range` option when you run `vic-machine create`. For  more detailed information about  how to set bridge network ranges, see the section on the [`bridge-network-range` option](vch_installer_options.md#bridge-range). 
-
-Finally, container developers can create isolated networks that containers can only use to communicate with other containers by specifying `--isolated` when they run `docker network create`. These isolated networks are not connected to either the bridge or any other network, or to the VCH.
+Container application developers can also use `docker network create` to create additional bridge networks. These networks are represented by the User-Created Bridge Network in the image above. Additional bridge networks are created by IP address segregation and are not new port groups. You can define a range of IP addresses that additional bridge networks can use by defining the `bridge-network-range` option when you run `vic-machine create`. For  more detailed information about  how to set bridge network ranges, see the section on the [`bridge-network-range` option](vch_installer_options.md#bridge-range). 
 
 <a name="container"></a>
 ## Container Networks ##
 
-Networks for container VMs to use for external communication when container developers run `docker run` or `docker create` with the `--net` option. 
+Networks for container VMs to use for external communication when container developers run `docker run` or `docker create` with the `--net` option. Container communication on these networks does not route through the VCH, as is the case with port forwarding via the bridge network. In this way, you can remove the VCH endpoint VM as a single-point-of-failure for network traffic.
 
 You can share one network alias between multiple containers. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 
 
@@ -81,4 +79,4 @@ The following table matches the default Docker networks to their equivalents in 
 | User-defined bridge networks | Bridge network addresses made available by `--bridge-network-ip-range` |
 | No equivalent | Management network |
 | Exposed container ports | Public network |
-| Overlay network | Not supported |
+| Overlay network | You can consider the bridge network as an overlay network as it spans all of the hosts in a cluster. |
