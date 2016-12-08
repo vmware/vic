@@ -1,3 +1,6 @@
+*** Settings ***
+Documentation  This resource contains any keywords related to using the Nimbus cluster
+
 *** Variables ***
 ${ESX_VERSION}  4564106  #6.5 RTM
 ${VC_VERSION}  4602587   #6.5 RTM
