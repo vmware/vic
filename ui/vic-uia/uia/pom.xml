@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- VMware Confidential 2012 VMware, Inc. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.vmware.vsphere.client.test</groupId>
+    <artifactId>automation-projects</artifactId>
+    <version>1.0.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>ui-automation-projects</artifactId>
+  <packaging>pom</packaging>
+  <name>UI Automation Framework Projects</name>
+
+  <!-- Start / Stop selenium server local / configuration -->
+  <profiles>
+    <profile>
+      <id>selenium</id>
+      <activation>
+        <property>
+          <name>runSelenium</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <!-- Start the selenium server by forking, so as not to wait on
+            it. We can't use the dedicated plugin due to the SUITA customization; classpath
+            set by maven order -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>1.7</version>
+            <executions>
+              <execution>
+                <id>startSelenium</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <target>
+                <java fork="true" spawn="true" classpathref="maven.runtime.classpath"
+                  className="org.openqa.selenium.server.SeleniumServer" />
+              </target>
+            </configuration>
+          </plugin>
+
+          <!-- stop the server, using the dedicated plugin -->
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>selenium-maven-plugin</artifactId>
+            <version>2.3</version>
+            <executions>
+              <execution>
+                <phase>post-integration-test</phase>
+                <goals>
+                  <goal>stop-server</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+
+      <dependencies>
+        <!-- Important to have the SUITA customization before the selenium
+          server in the CP -->
+        <dependency>
+          <groupId>org.seleniumhq.selenium</groupId>
+          <artifactId>selenium-server</artifactId>
+          <version>${selenium.version}</version>
+          <scope>compile</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.sikuli.script</groupId>
+          <artifactId>sikuli-script</artifactId>
+          <version>1.0rc3</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>runTests</id>
+      <activation>
+        <property>
+          <name>suiteXmlFile</name>
+        </property>
+      </activation>
+      <properties>
+        <skipTests>false</skipTests>
+        <suiteXmlFile>${project.basedir}/defaultSuite.xml</suiteXmlFile>
+        <reportsDirectory>${project.build.directory}/reports</reportsDirectory>
+      </properties>
+
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <version>${maven.surefire.version}</version>
+              <configuration>
+                <testSourceDirectory>src/main/java</testSourceDirectory>
+                <testClassesDirectory>target/classes</testClassesDirectory>
+                <skipTests>${skipTests}</skipTests>
+                <reportsDirectory>${reportsDirectory}</reportsDirectory>
+                <suiteXmlFiles>
+                  <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
+                </suiteXmlFiles>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
+    <profile>
+      <id>selenium-grid</id>
+      <activation>
+        <property>
+          <name>gridHub</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <!-- Similar approach to the other start of selenium, but this
+            is grid edition -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>1.7</version>
+            <executions>
+              <execution>
+                <id>startSelenium</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <target>
+                <java fork="true" spawn="true"
+                  classpathref="maven.dependency.classpath" className="org.openqa.grid.selenium.GridLauncher">
+                  <arg value="-trustAllSSLCertificates" />
+                  <arg value="-role" />
+                  <arg value="node" />
+                  <arg value="-nodeConfig" />
+                  <arg value="${nodeConfig}" />
+                </java>
+              </target>
+            </configuration>
+          </plugin>
+          <!-- stop the server, using the dedicated plugin -->
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>selenium-maven-plugin</artifactId>
+            <version>2.3</version>
+            <executions>
+              <execution>
+                <phase>post-integration-test</phase>
+                <goals>
+                  <goal>stop-server</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+
+      <dependencies>
+        <dependency>
+          <groupId>org.seleniumhq.selenium</groupId>
+          <artifactId>selenium-server</artifactId>
+          <version>${selenium.version}</version>
+          <scope>compile</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.sikuli.script</groupId>
+          <artifactId>sikuli-script</artifactId>
+          <version>1.0rc3</version>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>runGridTests</id>
+      <activation>
+        <property>
+          <name>parallel</name>
+        </property>
+      </activation>
+      <properties>
+        <skipTests>false</skipTests>
+        <reportsDirectory>${project.build.directory}/reports</reportsDirectory>
+      </properties>
+
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <version>${maven.surefire.version}</version>
+              <configuration>
+                <forkCount>${parallel}</forkCount>
+                <reuseForks>false</reuseForks>
+                <testSourceDirectory>src/main/java</testSourceDirectory>
+                <testClassesDirectory>target/classes</testClassesDirectory>
+                <skipTests>${skipTests}</skipTests>
+                <reportsDirectory>${reportsDirectory}</reportsDirectory>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
+    <!-- Build submodules by default -->
+    <profile>
+      <id>uia-tests</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>!runSelenium</name>
+        </property>
+      </activation>
+
+      <properties>
+        <skipTests>true</skipTests>
+      </properties>
+
+      <!-- Modules to be built by default -->
+
+      <modules>
+        <module>common-uia-lib</module>
+        <module>cluster-uia-lib</module>
+        <module>host-ui-lib</module>
+        <module>hostprofiles-uia-lib</module>
+        <module>ds-cluster-uia-lib</module>
+        <module>storage-uia-lib</module>
+        <module>vapp-uia-lib</module>
+        <module>vm-uia</module>
+        <module>vm-uia-lib</module>
+        <module>utils</module>
+      </modules>
+
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <version>${maven.surefire.version}</version>
+              <configuration>
+                <skipTests>${skipTests}</skipTests>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+
+      <!-- common dependencies of the test automation projects -->
+      <dependencies>
+        <dependency>
+          <groupId>org.testng</groupId>
+          <artifactId>testng</artifactId>
+          <version>${testng.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>org.seleniumhq.selenium</groupId>
+          <artifactId>selenium-java</artifactId>
+          <version>${selenium.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.vmware.vsphere.client.test</groupId>
+          <artifactId>common-srva-lib</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.vmware.vsphere.client.test</groupId>
+          <artifactId>NGC-SUITA</artifactId>
+          <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.vmware.vsphere.client.test</groupId>
+      <artifactId>vcui-toolkit</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>

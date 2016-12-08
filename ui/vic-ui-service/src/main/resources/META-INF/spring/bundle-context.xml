@@ -8,7 +8,7 @@
       configuration file so that this file can easily be used
       for integration testing outside of an OSGi environment. -->
 
-   <bean name="VicUIServiceImpl" class="com.vmware.vicui.VicUIServiceImpl">
+   <bean name="VicUIPropertyProvider" class="com.vmware.vic.VicUIPropertyProvider">
       <constructor-arg index="0" ref="dataServiceExtensionRegistry"></constructor-arg>
       <constructor-arg index="1" ref="vimObjectReferenceService"></constructor-arg>
       <constructor-arg index="2" ref="userSessionService"></constructor-arg>

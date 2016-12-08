@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<pluginPackage id="com.vmware.vicui.Vicui" version="0.0.1" name="VicUI"
+<pluginPackage id="com.vmware.vic.ui" version="0.0.1" name="VicUI"
       description="VicUI" vendor="VMware">
    <dependencies>
       <!-- Minimum vSphere Client version compatible with this plugin -->
@@ -14,6 +14,6 @@
          Bundle Ids must match the Bundle-SymbolicName in each plugin's MANIFEST.MF
       -->
       <bundle id="com.vmware.wsvim25" />
-      <bundle id="com.vmware.vicui.VicUIService" />
+      <bundle id="com.vmware.vic.service" />
    </bundlesOrder>
 </pluginPackage>

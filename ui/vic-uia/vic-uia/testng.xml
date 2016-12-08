@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="VIC UI Automation Tests Suite" configfailurepolicy="skip">
+	<!-- Global parameters section -->
+
+	<!-- The scope which tests will be executed. Supported values are: BAT, 
+		SAT, UI, FULL. If this parameter is not specified, tests are run with FULL 
+		test scope -->
+	<parameter name="testScope" value="FULL" />
+
+	<!-- Path to the local providers resource folder. -->
+	<parameter name="providersResourceFolder" value="./resources" />
+
+	<!-- This section specifies which tests will be executed -->
+
+	<!-- Example how to run specific tests by name -->
+	<test verbose="2" name="Verify VIC UI Plugin Installation">
+		<classes>
+			<class
+				name="com.vmware.vsphere.client.automation.vicui.plugininstalled.PluginInstalledTest" />
+		</classes>
+	</test>
+	<test verbose="2" name="Verify VCH VM Portlet Functionality">
+		<classes>
+			<class
+				name="com.vmware.vsphere.client.automation.vicui.vchportlet.VchPortletExistsTest" />
+			<class
+				name="com.vmware.vsphere.client.automation.vicui.vchportlet.VchPortletDisplaysInfoWhileOffTest" />
+			<class
+				name="com.vmware.vsphere.client.automation.vicui.vchportlet.VchPortletDisplaysInfoWhileOnTest" />
+		</classes>
+	</test>
+	<test verbose="2" name="Verify Container VM Portlet Functionality">
+		<classes>
+			<class
+				name="com.vmware.vsphere.client.automation.vicui.containerportlet.ContainerPortletExistsTest" />
+		</classes>
+	</test>
+</suite>

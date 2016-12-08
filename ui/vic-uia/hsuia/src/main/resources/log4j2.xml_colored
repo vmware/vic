@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%highlight{%d{HH:mm:ss} [%-5level] %-30c{1} - %msg%n}{STYLE=Logback}"/>
+    </Console>
+    <Console name="WorkflowConsole" target="SYSTEM_OUT">
+      <PatternLayout pattern="%highlight{%d{HH:mm:ss} [%-5level] %-30c{1} - %msg%n}{INFO=green}"/>
+    </Console>
+    <File name="MyFile" fileName="logs/app.html">
+      <HTMLLoyout locationInfo="true" title="Test Logs">
+        <Pattern>%d{HH:mm:ss} [%-5level] %-40c{1} - %msg%n</Pattern>
+      </HTMLLoyout>
+    </File>
+  </Appenders>
+  <Loggers>
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+      <AppenderRef ref="MyFile"/>
+    </Root>
+    <Logger name="org.reflections.Reflections" level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="com.vmware.identity.token.impl" level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="com.vmware.suitaf.util.Logger" level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="org.springframework" level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="com.vmware.vim" level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="com.vmware.cis" level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="com.vmware.vise" level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+    <Logger name="com.vmware.flexui.selenium.MethodCallUtil"
+        level="error" additivity="false">
+      <AppenderRef ref="Console"/>
+    </Logger>
+
+    <Logger name="com.vmware.client.automation.workflow.test.TestWorkflowController"
+        level="info" additivity="false">
+      <AppenderRef ref="WorkflowConsole"/>
+    </Logger>
+
+  </Loggers>
+</Configuration>
