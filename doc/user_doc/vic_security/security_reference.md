@@ -22,7 +22,7 @@ Client interface:
 
 - 2375 insecure port for Docker API access if deployed with `--no-tls`
 - 2376 for TLS secured port for Docker API access
-- 22 SSH when enabled with `vic-machine deubg`
+- 22 SSH when enabled with `vic-machine debug`
 - 2378 VIC admin server health and log access (HTTPS)
 - 6060 pprof debug data when enabled with --debug levels
 
