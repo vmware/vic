@@ -64,7 +64,7 @@
 |`top`|[Display the running processes of a container](https://docs.docker.com/engine/reference/commandline/top/)|No|
 |`unpause`|[Unpause processes within a container](https://docs.docker.com/engine/reference/commandline/unpause/)|No|
 |`update`| [Update a container](https://docs.docker.com/engine/reference/commandline/update/)|No|
-|`wait`|wait|[Wait for a container](https://docs.docker.com/engine/reference/commandline/wait/)|Yes|
+|`wait`|[Wait for a container](https://docs.docker.com/engine/reference/commandline/wait/)|Yes|
 
 <a name="registry"></a>
 ## Hub and Registry Commands ##

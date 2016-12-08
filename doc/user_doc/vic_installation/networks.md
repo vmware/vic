@@ -12,7 +12,6 @@ This topic provides an overview of the different network types that virtual cont
 - [Client Network](#client)
 - [Bridge Network](#bridge)
 - [Container Networks](#container)
-- [Correspondance of Docker Networks to vSphere Integrated Containers Engine Networks](#docker_vic)
 
 <a name="highlevel"></a>
 ## High-Level View of VCH Networking  ##

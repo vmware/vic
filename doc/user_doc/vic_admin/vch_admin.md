@@ -7,4 +7,3 @@ The `vic-machine` utility provides commands that allow you to manage existing vi
   * [List VCHs and Obtain their IDs](list_vch.md)
   * [Obtain Information About a VCH](inspect_vch.md)
   * [Delete a VCH](remove_vch.md)
-  * [Authorize SSH Access to the VCH Endpoint VM](vch_ssh_access.md)
