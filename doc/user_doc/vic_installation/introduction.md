@@ -1,4 +1,4 @@
-# Overview of vSphere Integrated Containers for vSphere Administrators #
+# Overview of vSphere Integrated Containers Engine for vSphere Administrators #
 
 vSphere Integrated Containers enables IT teams to run traditional and container workloads side-by-side on existing infrastructure seamlessly. With vSphere Integrated Containers Engine, containers are provisioned as virtual machines, offering the same security and functionality of virtual machines in VMware ESXi&trade; hosts or vCenter Server&reg; instances.
 
@@ -118,7 +118,7 @@ vSphere Integrated Containers Engine exploits the portability of the Docker imag
 <a name="concepts"></a>
 ## vSphere Integrated Containers Engine Concepts ##
 
-If you consider a Venn diagram with "What vSphere Does" in one circle and “What Docker Does” in another, the overlap is significant. The objective of vSphere Integrated Containers Engine is to take as much of vSphere as possible and layer whatever Docker capabilities are missing on top, reusing as much of Docker’s own code as possible. The  result should not sacrifice the portability of the Docker image format and should be completely transparent to a Docker client. The following sections describe key concepts and components that make this possible.
+If you consider a Venn diagram with "What vSphere Does" in one circle and "What Docker Does" in another, the overlap is significant. The objective of vSphere Integrated Containers Engine is to take as much of vSphere as possible and layer whatever Docker capabilities are missing on top, reusing as much of Docker's own code as possible. The  result should not sacrifice the portability of the Docker image format and should be completely transparent to a Docker client. The following sections describe key concepts and components that make this possible.
 
 ![vSphere Integrated Containers Engine components](graphics/vice-components.png)
 
