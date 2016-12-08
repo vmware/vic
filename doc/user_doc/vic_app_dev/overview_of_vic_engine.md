@@ -38,12 +38,14 @@ In this scenario, what the vSphere administrator has given you is similar to a n
 With vSphere Integrated Containers Engine: 
 
 - You raise a ticket and say, "I need Docker". 
-- The vSphere administrator sets aside a certain amount of storage, networking, and compute on a cluster. 
-- The vSphere administrator uses a utility called `vic-machine` to install a small appliance. The appliance represents an authorization for you to use the infrastructure that the vSphere administrator has assigned, into which you can self-provision container workloads.
+- The vSphere administrator identifies datastores, networking, and compute on a cluster that you can use in your Docker environment. 
+- The vSphere administrator uses a utility called `vic-machine` to install a small appliance. The appliance represents an authorization for you to use the infrastructure that the vSphere administrator has identified, into which you can self-provision container workloads.
 - The appliance runs a secure remote Docker API, that is the only access that you have to the vSphere infrastructure.
 - Instead of sending you a Linux VM, the vSphere administrator sends you the IP address of the appliance, the port of the remote Docker API, and a certificate for secure access.
 
 In this scenario, the vSphere administrator has provided you with a service portal. This is better for you because you do not have to worry about isolation, patching, security, backup, and so on. It is better for the vSphere administrator because every container that you deploy is a container VM, that they can manage just like all of their other VMs.
+
+If you discover that you need more compute capacity, in Scenario 1, the vSphere administrator has to power down the VM and reconfigure it, or give you a new VM and let you deal with the clustering implications. Both of these solutions are disruptive to you. With vSphere Integrated Containers Engine in Scenario 2, the vSphere administrator can reconfigure the VCH in vSphere, or redeploy it with a new configuration in a way that is completely transparent to you.
 
 ## vSphere Integrated Containers Engine Concepts ##
 

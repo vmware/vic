@@ -12,3 +12,11 @@ Refer to CONTRIBUTING.MD for more details.
 -->
 
 Fixes #
+
+<!--
+To trigger a custom build with this PR, include one of these in the PR's title or commit messages:
+* [skip ci]
+* [full ci]
+* [specific ci=$suitename] e.g. [specific ci=1-01-Docker-Info]
+    With this option, running only one suite is supported.
+-->

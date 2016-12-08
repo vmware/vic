@@ -15,7 +15,7 @@
 package common
 
 import (
-	"github.com/urfave/cli"
+	"gopkg.in/urfave/cli.v1"
 )
 
 type VCHID struct {

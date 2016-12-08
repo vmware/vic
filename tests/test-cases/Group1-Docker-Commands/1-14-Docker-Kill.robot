@@ -16,6 +16,13 @@ Assert Container Output
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${match}
 
+Check That Container Was Killed
+    [Arguments]  ${container}
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} ${container}
+    Log  ${out}
+    Should Contain  ${out}  false
+    Should Be Equal As Integers  ${rc}  0
+
 *** Test Cases ***
 Signal a container with default kill signal
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
@@ -68,7 +75,4 @@ Signal a tough to kill container - nginx
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} ${id}
-    Log  ${out}
-    Should Contain  ${out}  false
-    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  10x  6s  Check That Container Was Killed  ${id}

@@ -19,9 +19,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/urfave/cli"
-
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (

@@ -35,7 +35,7 @@ You can install vSphere Integrated Containers Engine in the following vSphere se
 Caveats and limitations:
 
 - VMware does not support the use of nested ESXi hosts, namely running ESXi in virtual machines. Deploying vSphere Integrated Containers Engine to a nested ESXi host is acceptable for testing purposes only.
-- Deploying vSphere Integrated Containers Engine to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported. 
+- If you deploy a virtual container host (VCH) onto an ESXi host that is not managed by vCenter Server, and you then move that host into a cluster, the VCH might not function correctly.
 
 <a name="license"></a>
 ## License Requirements ##
@@ -46,7 +46,7 @@ All of the ESXi hosts in a cluster require an appropriate license. Installation 
 <a name="firewall"></a>
 ## ESXi Host Firewall Requirements ##
 
-To be valid targets for virtual container hosts (VCHs) and container VMs, ESXi hosts must have the following firewall configuration:
+To be valid targets for VCHs and container VMs, ESXi hosts must have the following firewall configuration:
 - Allow outbound TCP traffic to port 2377 on the endpoint VM, for use by the interactive container shell.
 - Allow inbound HTTPS/TCP traffic on port 443, for uploading to and downloading from datastores.
 
