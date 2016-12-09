@@ -15,6 +15,7 @@
 package plugin1
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -24,16 +25,19 @@ import (
 	"github.com/vmware/vic/lib/migration/manager"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // sample plugin to migrate data in appliance configuration VirtualContainerHost
+// If only a couple of items changed in the configuration, you don't have to copy all VirtualContainerHost. Only define the few items used by
+// this upgrade plugin will simplify the extraconfig encoding/decoding process
 const (
 	id     = 1
 	target = manager.ApplianceConfigure
 )
 
 func init() {
-	log.Debugf("Registering plugin %s:%d", target, id)
+	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, id)))
 	if err := manager.Migrator.Register(id, target, &ApplianceStopSignalRename{}); err != nil {
 		log.Errorf("Failed to register plugin %s:%d", target, id, err)
 	}
@@ -67,14 +71,12 @@ type NewSessionConfig struct {
 	StopSignal string `vic:"0.1" scope:"read-only" key:"forceStopSignal"`
 }
 
-func (p *ApplianceStopSignalRename) Migrate(data interface{}) (bool, error) {
+func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("%d", id)))
-	mapData, ok := data.(map[string]string)
-	if !ok {
-		return false, &errors.DataTypeError{
-			"map[string]string",
-		}
+	if data == nil {
+		return false, nil
 	}
+	mapData := data.(map[string]string)
 	oldStruct := &OldStopSignal{}
 	result := extraconfig.Decode(extraconfig.MapSource(mapData), oldStruct)
 	if result == nil {

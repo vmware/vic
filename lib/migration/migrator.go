@@ -15,28 +15,32 @@
 package migration
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/manager"
 	_ "github.com/vmware/vic/lib/migration/plugins"
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-// MigrateApplianceConfigure migrate VCH appliance configuration.
-// Migrated data will be returned in map, and input object is not changed.
-// If there is error returned, returned map might have half-migrated value.
-func MigrateApplianceConfigure(data map[string]string) (map[string]string, bool, error) {
-	return migrateConfigure(data, manager.ApplianceConfigure)
+// MigrateApplianceConfigure migrate VCH appliance configuration, including guestinfo, keyvaluestore, or any other kinds of change
+// InIt accept VCH appliance guestinfo map, and return all configurations need to be made in guestinfo, keyvaluestore, and can have
+// more kinds of change in the future. Each kind is one map key/value pair.
+// If there is error returned, returned map might have half-migrated value, this is why we don't persist any data in plugin.
+//func MigrateApplianceConfigure(data map[string]string) (map[string]string, bool, error) {
+func MigrateApplianceConfigure(ctx context.Context, s *session.Session, conf map[string]string) (map[string]string, bool, error) {
+	return migrateConfigure(ctx, s, conf, manager.ApplianceConfigure)
 }
 
-// MigrateContainerConfigure migrate container configuration.
+// MigrateContainerConfigure migrate container configuration
 // Migrated data will be returned in map, and input object is not changed.
 // If there is error returned, returned map might have half-migrated value.
-func MigrateContainerConfigure(data map[string]string) (map[string]string, bool, error) {
-	return migrateConfigure(data, manager.ContainerConfigure)
+func MigrateContainerConfigure(conf map[string]string) (map[string]string, bool, error) {
+	return migrateConfigure(nil, nil, conf, manager.ContainerConfigure)
 }
 
-func migrateConfigure(data map[string]string, target string) (map[string]string, bool, error) {
+func migrateConfigure(ctx context.Context, s *session.Session, data map[string]string, target string) (map[string]string, bool, error) {
 	dst := make(map[string]string)
 	if len(data) == 0 {
 		return dst, false, nil
@@ -61,47 +65,10 @@ func migrateConfigure(data map[string]string, target string) (map[string]string,
 		dst[k] = v
 	}
 
-	latestID, err := manager.Migrator.Migrate(target, currentID, dst)
+	latestID, err := manager.Migrator.Migrate(ctx, s, target, currentID, dst)
 	if latestID == currentID {
 		return dst, false, err
 	}
 	dst[manager.ConfigureVersionKey] = strconv.Itoa(latestID)
-	return dst, true, err
-}
-
-// MigrateKeyValueStore migrate vic keyvalue store.
-// Migrated data will be returned in map, and input object is not changed.
-// If there is error returned, returned map might have half-migrated value.
-func MigrateKeyValueStore(data map[string][]byte) (map[string][]byte, bool, error) {
-	dst := make(map[string][]byte)
-	if len(data) == 0 {
-		return dst, false, nil
-	}
-
-	var currentID int
-	var err error
-	byteID := data[manager.KeyValueStoreVersionKey]
-
-	if len(byteID) == 0 {
-		currentID = 0
-	} else {
-		strID := string(byteID)
-		if currentID, err = strconv.Atoi(strID); err != nil {
-			return dst, false, &errors.InvalidMigrationID{
-				ID:  strID,
-				Err: err,
-			}
-		}
-	}
-
-	for k, v := range data {
-		dst[k] = v
-	}
-
-	latestID, err := manager.Migrator.Migrate(manager.KeyValueStore, currentID, dst)
-	if latestID == currentID {
-		return dst, false, err
-	}
-	dst[manager.KeyValueStoreVersionKey] = []byte(strconv.Itoa(latestID))
 	return dst, true, err
 }

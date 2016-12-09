@@ -15,6 +15,7 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 var testMap map[int]bool
@@ -34,7 +36,7 @@ func NewTestPlugin(id int) *TestPlugin {
 	return &TestPlugin{id}
 }
 
-func (p *TestPlugin) Migrate(data interface{}) (bool, error) {
+func (p *TestPlugin) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
 	testMap[p.ID] = true
 	return true, nil
 }
@@ -84,13 +86,13 @@ func TestMigratePluginExecution(t *testing.T) {
 		}
 	}
 
-	dataID, err := tester.Migrate(ApplianceConfigure, 0, nil)
+	dataID, err := tester.Migrate(nil, nil, ApplianceConfigure, 0, nil)
 	assert.Equal(t, 20, dataID, "migrated id mismatch")
 	for _, id := range ids {
 		assert.True(t, testMap[id], fmt.Sprintf("plugin %d should be executed", id))
 	}
 	testMap = make(map[int]bool)
-	dataID, err = tester.Migrate(ApplianceConfigure, 5, nil)
+	dataID, err = tester.Migrate(nil, nil, ApplianceConfigure, 5, nil)
 	assert.Equal(t, 20, dataID, "migrated id mismatch")
 	for _, id := range ids[:4] {
 		assert.False(t, testMap[id], fmt.Sprintf("plugin %d should not be executed", id))
@@ -100,14 +102,14 @@ func TestMigratePluginExecution(t *testing.T) {
 	}
 
 	testMap = make(map[int]bool)
-	dataID, err = tester.Migrate(ApplianceConfigure, 20, nil)
+	dataID, err = tester.Migrate(nil, nil, ApplianceConfigure, 20, nil)
 	assert.Equal(t, 20, dataID, "migrated id mismatch")
 	for _, id := range ids {
 		assert.False(t, testMap[id], fmt.Sprintf("plugin %d should not be executed", id))
 	}
 
 	testMap = make(map[int]bool)
-	dataID, err = tester.Migrate(ApplianceConfigure, 30, nil)
+	dataID, err = tester.Migrate(nil, nil, ApplianceConfigure, 30, nil)
 	assert.Equal(t, 30, dataID, "migrated id mismatch")
 	for _, id := range ids {
 		assert.False(t, testMap[id], fmt.Sprintf("plugin %d should not be executed", id))

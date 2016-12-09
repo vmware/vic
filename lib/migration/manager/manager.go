@@ -15,6 +15,7 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -22,15 +23,14 @@ import (
 
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 const (
 	ApplianceConfigure = "ApplianceConfigure"
 	ContainerConfigure = "ContainerConfigure"
-	KeyValueStore      = "KeyValueStore"
 
-	ConfigureVersionKey     = "guestinfo.vice.migration.version"
-	KeyValueStoreVersionKey = "vice.migration.version"
+	ConfigureVersionKey = "guestinfo.vice.migration.version"
 )
 
 var (
@@ -41,14 +41,14 @@ var (
 )
 
 type Plugin interface {
-	Migrate(data interface{}) (bool, error)
+	Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error)
 }
 
 type DataMigration interface {
 	// Register plugin to data migration system
 	Register(id int, target string, plugin Plugin) error
 	// Migrate data with current version ID, return true if has any plugin executed
-	Migrate(target string, currentID int, data interface{}) (int, error)
+	Migrate(ctx context.Context, s *session.Session, target string, currentID int, data interface{}) (int, error)
 }
 
 type DataMigrator struct {
@@ -101,7 +101,7 @@ func (m *DataMigrator) insertID(id int, target string) {
 	log.Debugf("id array: %d", m.targetIDs[target])
 }
 
-func (m *DataMigrator) Migrate(target string, currentID int, data interface{}) (int, error) {
+func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target string, currentID int, data interface{}) (int, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("migrate %s from %d", target, currentID)))
 
 	pluginIDs := m.targetIDs[target]
@@ -124,7 +124,7 @@ func (m *DataMigrator) Migrate(target string, currentID int, data interface{}) (
 	for ; j < len(pluginIDs); j++ {
 		id := pluginIDs[j]
 		p := m.idPlugins[id]
-		c, err := p.Migrate(data)
+		c, err := p.Migrate(ctx, s, data)
 		if err != nil {
 			return latestID, err
 		}
