@@ -18,3 +18,5 @@ VIC Manual Test Suite
 -
 [Group 17 - Manual TTY](Group17-ManualTTY/TestCases.md)
 -
+[Group 18 - VIC UI](Group18-VIC-UI/TestCases.md)
+-

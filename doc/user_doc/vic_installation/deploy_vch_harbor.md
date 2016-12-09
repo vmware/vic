@@ -55,10 +55,21 @@ This example creates folders for both FQDN and IP in the docker cert folder and 
 Deploy a VCH and specify the CA cert with `--registry-ca` parameter in vic-machine.  This parameter is a list, and you can easily add multiple CA certs by specifying multiple `--registry-ca` parameters.
 
 For simplicity, this example installs a VCH with the `--no-tls` flag, so you do not need TLS from a docker CLI to the VCH. However, it does not imply that access to Harbor is performed without TLS.
+<pre>
+./vic-machine-linux create 
+--target=<vCenter_IP> 
+--image-store="vsanDatastore" 
+--name=vic-docker 
+--user=root 
+--password=<vCenter_password> 
+--compute-resource="/dc1/host/cluster1/Resources" 
+--bridge-network DPortGroup 
+--force 
+--no-tls 
+--registry-ca=ca.crt
 
-    root@Devbox:/home/loc/go/src/github.com/vmware/vic/bin# ./vic-machine-linux create --target=<vCenter_IP> --image-store="vsanDatastore" --name=vic-docker --user=root -password=<vCenter_password> --compute-resource="/dc1/host/cluster1/Resources" --bridge-network DPortGroup --force --no-tls --registry-ca=ca.crt
+ WARN[2016-11-11T11:46:37-08:00] Configuring without TLS 
+- all communications will be insecure
+ ...
 
-    WARN[2016-11-11T11:46:37-08:00] Configuring without TLS - all communications will be insecure
-    ...
-
-    INFO[2016-11-11T11:47:57-08:00] Installer completed successfully             
+ INFO[2016-11-11T11:47:57-08:00] Installer completed successfully</pre>            

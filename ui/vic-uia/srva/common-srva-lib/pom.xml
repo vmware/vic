@@ -1,0 +1,271 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.vmware.vsphere.client.test</groupId>
+    <artifactId>srv-automation-projects</artifactId>
+    <version>1.0.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>common-srva-lib</artifactId>
+  <packaging>jar</packaging>
+  <name>Common Server Automation</name>
+
+  <properties>
+	<spring.version>3.0.5.RELEASE</spring.version>
+  </properties>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <skipTests>true</skipTests>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <dependencies>
+
+    <!-- JSON dependencies -->
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20080701</version>
+    </dependency>
+
+    <!-- Util Dependencies -->
+    <dependency>
+	  <groupId>org.apache.commons</groupId>
+	  <artifactId>commons-collections4</artifactId>
+	  <version>4.0</version>
+    </dependency>
+
+    <!-- Direct SDK dependencies  -->
+    <dependency>
+      <groupId>com.vmware.vsphere.client</groupId>
+      <artifactId>vsphere-client-lib-jar</artifactId>
+      <version>${vimclients.sdk.version}</version>
+    </dependency>
+    <!-- Inherited (by NGC SDK) dependencies  -->
+    <dependency>
+      <!-- Last working vsphere-client-lib-jar without dependency of blazeds-core is 1.0.0.1090494 -->
+      <groupId>com.adobe.blazeds</groupId>
+      <artifactId>blazeds-core</artifactId>
+      <version>4.0.1.21287</version>
+    </dependency>
+    <dependency>
+      <groupId>bouncycastle</groupId>
+      <artifactId>bcprov-jdk15</artifactId>
+      <version>140</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vlsi</groupId>
+      <artifactId>vlsi-core</artifactId>
+      <version>${vlsi.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vlsi</groupId>
+      <artifactId>vlsi-client</artifactId>
+      <version>${vlsi.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vsphere.client</groupId>
+      <artifactId>install-spbm-vmodl</artifactId>
+      <version>${spbmVmodl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vsphere.client</groupId>
+      <artifactId>install-sms-vmodl</artifactId>
+      <version>${smsVmodl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vsphere.client</groupId>
+      <artifactId>install-vimbase-vmodl</artifactId>
+      <version>${vimVmodl.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vlsi</groupId>
+      <artifactId>vlsi-query-vmodl</artifactId>
+      <version>${vlsi.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vlsi</groupId>
+      <artifactId>query-client</artifactId>
+      <version>${cis.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vlsi</groupId>
+      <artifactId>invsvc-vmodl</artifactId>
+      <version>${invsvc.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vlsi</groupId>
+      <artifactId>vlsi-reflect-vmodl</artifactId>
+      <version>${vlsi.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>com.springsource.com.ctc.wstx</artifactId>
+      <version>3.2.8</version>
+    </dependency>
+    <dependency>
+      <!-- Needed by SsoServiceImpl -->
+      <groupId>org.apache.commons</groupId>
+      <artifactId>com.springsource.org.apache.commons.pool</artifactId>
+      <version>1.5.3</version>
+    </dependency>
+    <dependency>
+       <!-- Needed by SessionUtil's InternalSessionRequestWrapper class -->
+       <groupId>javax.servlet</groupId>
+       <artifactId>servlet-api</artifactId>
+       <version>2.5</version>
+    </dependency>
+    <!-- End of inherited (by NGC SDK) dependencies -->
+
+    <dependency>
+      <groupId>com.vmware.vlsi</groupId>
+      <artifactId>cm-vmodl</artifactId>
+      <version>${cmVmodl.version}</version>
+    </dependency>
+    <!-- VAPI dependencies -->
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>${httpcomponents.httpclient.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpcore</artifactId>
+      <version>4.3.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vapi</groupId>
+      <artifactId>vapi-runtime</artifactId>
+      <version>${vapi.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vapi</groupId>
+      <artifactId>vapi-authn</artifactId>
+      <version>${vapi.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vsphere.client</groupId>
+      <artifactId>vcde-vmodl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.cis.authz</groupId>
+      <artifactId>vmodl2-authz</artifactId>
+      <version>${cis.version}</version>
+    </dependency>
+    <!-- Forged Dependencies -->
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-core-asl</artifactId>
+      <version>1.9.6</version>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-mapper-asl</artifactId>
+      <version>1.9.6</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware</groupId>
+      <artifactId>cm-common</artifactId>
+      <version>${fakedeps.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware</groupId>
+      <artifactId>cm-client</artifactId>
+      <version>${fakedeps.version}</version>
+    </dependency>
+    <!-- SSO Dependencies -->
+    <dependency>
+      <groupId>com.vmware.vim.sso.client</groupId>
+      <artifactId>samltoken</artifactId>
+      <version>${platformservices.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vim.sso.client</groupId>
+      <artifactId>wstClient</artifactId>
+      <version>${platformservices.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vim.sso.client</groupId>
+      <artifactId>admin-interfaces</artifactId>
+      <version>${platformservices.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.vmware.vim.sso.client</groupId>
+      <artifactId>sso-adminserver-client-bindings</artifactId>
+        <version>${platformservices.version}</version>
+    </dependency>
+    <!-- End of SSO Dependencies -->    
+    <dependency>
+      <groupId>javax.json</groupId>
+      <artifactId>javax.json-api</artifactId>
+      <version>1.0</version>
+    </dependency>
+	<!-- Host CLient dependencies -->
+    <dependency>
+	  <groupId>org.apache.commons</groupId>
+	  <artifactId>com.springsource.org.apache.commons.httpclient</artifactId>
+	  <version>${springsource.commons.httpclient.version}</version>
+	  <exclusions>
+		<exclusion>
+		  <groupId>org.apache.commons</groupId>
+		  <artifactId>com.springsource.org.apache.commons.codec</artifactId>
+		</exclusion>
+	  </exclusions>
+	</dependency>
+	<!-- End of Racetrack dependencies -->
+	<dependency>
+      <groupId>commons-httpclient</groupId>
+      <artifactId>commons-httpclient</artifactId>
+      <version>3.1</version>
+	</dependency>
+
+    <!-- Spring framework dependencies -->
+    <!-- Previously these were in NGC-SUITA project in
+    com.borland.silktest:silktest-jtf-nodeps:11.1.0.4376 -->
+	<dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-core</artifactId>
+      <version>${spring.version}</version>
+      <scope>runtime</scope>
+	  <exclusions>
+		<exclusion>
+	      <groupId>commons-logging</groupId>
+	      <artifactId>commons-logging</artifactId>
+		</exclusion>
+	  </exclusions>
+	</dependency>
+	<dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>${spring.version}</version>
+      <scope>runtime</scope>
+	</dependency>
+	<dependency>
+	    <groupId>org.springframework</groupId>
+	    <artifactId>spring-web</artifactId>
+	    <version>${spring.version}</version>
+	    <scope>runtime</scope>
+	</dependency>
+	<dependency>
+	    <groupId>xml-apis</groupId>
+	    <artifactId>xml-apis</artifactId>
+	    <version>1.4.01</version>
+	</dependency>
+  </dependencies>
+</project>

@@ -9,7 +9,7 @@ This example illustrates using a deployed Virtual Container Host (VCH) with Harb
 
 ## Push a Container Image to Harbor Using Standard Docker
 
-1. Pull the busybox container image from the docker hub to your machine, which you  have updated with the CA certificate earlier. See  [Deploying vSphere Integrated Container Engine with vSphere Integrated Containers Registry (Harbor)](deploy_vic_with_harbor.md) for more information on updating certificates.
+1. Pull the busybox container image from the docker hub to your machine, which you  have updated with the CA certificate earlier. See  [Deploying vSphere Integrated Container Engine with vSphere Integrated Containers Registry (Harbor)](../vic_installation/deploy_vic_with_harbor.html) for more information on updating certificates.
 2. Tag the image for uploading to your Harbor registry and push the image up to it. 
 
 **Important** You must log onto the Harbor server before pushing the image up to it.
@@ -19,10 +19,11 @@ This example illustrates using a deployed Virtual Container Host (VCH) with Harb
     latest: Pulling from library/busybox
 
     56bec22e3559: Pull complete 
-    Digest: sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912
+    Digest: sha256:digest
     Status: Downloaded newer image for busybox:latest
     user@Devbox:~/mycerts$ 
-    user@Devbox:~/mycerts$ docker tag busybox <Harbor FQDN or static IP>/test/busybox
+    user@Devbox:~/mycerts$ docker tag busybox <Harbor FQDN or static
+    IP>/test/busybox
 
     user@Devbox:~/mycerts$ docker login <Harbor FQDN or static IP>
     Username: user
@@ -32,7 +33,7 @@ This example illustrates using a deployed Virtual Container Host (VCH) with Harb
     user@Devbox:~/mycerts$ docker push <Harbor FQDN or static IP>/test/busybox
     The push refers to a repository [<Harbor FQDN or static IP>/test/busybox]
     e88b3f82283b: Pushed 
-    latest: digest: sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912 size: 527
+    latest: digest: sha256:digest size: 527
 
 ## Pull the Image from Harbor to the VCH
 In another terminal, pull the image from Harbor to the VCH.
@@ -57,7 +58,7 @@ In another terminal, pull the image from Harbor to the VCH.
     Pulling from test/busybox
     56bec22e3559: Pull complete 
     a3ed95caeb02: Pull complete 
-    Digest: sha256:97af7f861fb557c1eaafb721946af5c7aefaedd51f78d38fa1828d7ccaae4141
+    Digest: sha256:digest
     Status: Downloaded newer image for test/busybox:latest
 
     user@Devbox:~$ docker images

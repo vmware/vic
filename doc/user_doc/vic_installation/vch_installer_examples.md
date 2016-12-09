@@ -140,7 +140,7 @@ This example deploys a VCH with the following configuration:
 --no-tlsverify
 </pre>
 
-For more information about setting resource use limitations on VCHs, see the [vApp Deployment Options](vch_installer_options.md#deployment) and [Advanced Resource Management Options](vch_installer_options.md#adv-mgmt) sections in VCH Deployment Options.
+For more information about setting resource use limitations on VCHs, see the [Advanced Deployment Options](vch_installer_options.md#deployment) and [Advanced Resource Management Options](vch_installer_options.md#adv-mgmt) sections in VCH Deployment Options.
 
 <a name="networking"></a>
 ## Networking Examples ##
@@ -294,6 +294,7 @@ This example deploys a VCH with the following configuration:
 
 For more information about volume stores, see the [volume-store section](vch_installer_options.md#volume-store) in VCH Deployment Options. 
 
+<a name="security"></a>
 ## Security Examples ##
 
 The examples in this section demonstrate how to configure a VCH to use Certificate Authority (CA) certificates to enable `TLSVERIFY` in your Docker environment, and to allow access to insecure registries of Docker images.
