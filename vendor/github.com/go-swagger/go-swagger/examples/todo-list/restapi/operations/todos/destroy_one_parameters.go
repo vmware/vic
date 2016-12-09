@@ -6,10 +6,10 @@ package todos
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime/middleware"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewDestroyOneParams creates a new DestroyOneParams object
@@ -24,6 +24,10 @@ func NewDestroyOneParams() DestroyOneParams {
 //
 // swagger:parameters destroyOne
 type DestroyOneParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*
 	  Required: true
 	  In: path
@@ -35,6 +39,7 @@ type DestroyOneParams struct {
 // for simple values it will use straight method calls
 func (o *DestroyOneParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
 
 	rID, rhkID, _ := route.Params.GetOK("id")
 	if err := o.bindID(rID, rhkID, route.Formats); err != nil {

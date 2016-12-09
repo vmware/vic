@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/go-swagger/go-swagger/client"
-	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-openapi/runtime"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 
 	"github.com/go-swagger/go-swagger/examples/todo-list/models"
 )
@@ -20,8 +19,8 @@ type AddOneReader struct {
 	formats strfmt.Registry
 }
 
-// ReadResponse reads a server response into the recieved o.
-func (o *AddOneReader) ReadResponse(response client.Response, consumer httpkit.Consumer) (interface{}, error) {
+// ReadResponse reads a server response into the received o.
+func (o *AddOneReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
 
 	case 201:
@@ -35,6 +34,9 @@ func (o *AddOneReader) ReadResponse(response client.Response, consumer httpkit.C
 		result := NewAddOneDefault(response.Code())
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
+		}
+		if response.Code()/100 == 2 {
+			return result, nil
 		}
 		return nil, result
 	}
@@ -57,7 +59,7 @@ func (o *AddOneCreated) Error() string {
 	return fmt.Sprintf("[POST /][%d] addOneCreated  %+v", 201, o.Payload)
 }
 
-func (o *AddOneCreated) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
+func (o *AddOneCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Item)
 
@@ -95,7 +97,7 @@ func (o *AddOneDefault) Error() string {
 	return fmt.Sprintf("[POST /][%d] addOne default  %+v", o._statusCode, o.Payload)
 }
 
-func (o *AddOneDefault) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
+func (o *AddOneDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Error)
 

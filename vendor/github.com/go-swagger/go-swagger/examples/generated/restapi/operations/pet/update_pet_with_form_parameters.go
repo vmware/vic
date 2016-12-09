@@ -6,12 +6,12 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
-	"github.com/go-swagger/go-swagger/httpkit/validate"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/validate"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewUpdatePetWithFormParams creates a new UpdatePetWithFormParams object
@@ -26,6 +26,10 @@ func NewUpdatePetWithFormParams() UpdatePetWithFormParams {
 //
 // swagger:parameters updatePetWithForm
 type UpdatePetWithFormParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*Updated name of the pet
 	  Required: true
 	  In: formData
@@ -47,6 +51,8 @@ type UpdatePetWithFormParams struct {
 // for simple values it will use straight method calls
 func (o *UpdatePetWithFormParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		if err != http.ErrNotMultipart {
 			return err
@@ -54,7 +60,7 @@ func (o *UpdatePetWithFormParams) BindRequest(r *http.Request, route *middleware
 			return err
 		}
 	}
-	fds := httpkit.Values(r.Form)
+	fds := runtime.Values(r.Form)
 
 	fdName, fdhkName, _ := fds.GetOK("name")
 	if err := o.bindName(fdName, fdhkName, route.Formats); err != nil {

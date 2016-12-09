@@ -15,8 +15,8 @@
 package operations
 
 import (
+	"github.com/go-openapi/strfmt"
 	"github.com/go-swagger/go-swagger/fixtures/goparsing/classification/transitive/mods"
-	"github.com/go-swagger/go-swagger/strfmt"
 )
 
 // A GenericError is an error that is used when no other error is appropriate
@@ -32,6 +32,11 @@ type GenericError struct {
 // A ValidationError is an error that is used when the required input fails validation.
 // swagger:response validationError
 type ValidationError struct {
+    // in: header
+    // enum: foo,bar
+    // default: foo
+    Code int `json:"code"`
+
 	// The error message
 	// in: body
 	Body struct {
@@ -49,6 +54,12 @@ type SimpleOne struct {
 	Age  int32  `json:"age"`
 }
 
+// SimpleOnes is a collection of SimpleOne
+// swagger:response simpleOnes
+type SimpleOnes struct {
+	Ones []*SimpleOne `json:"ones"`
+}
+
 // A ComplexerOne is composed of a SimpleOne and some extra fields.
 // swagger:response complexerOne
 type ComplexerOne struct {
@@ -56,6 +67,7 @@ type ComplexerOne struct {
 	mods.NotSelected
 	mods.Notable
 	CreatedAt strfmt.DateTime `json:"createdAt"`
+	NoTagName string          `json:",omitempty"`
 }
 
 // A SomeResponse is a dummy response object to test parsing.

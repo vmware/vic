@@ -4,56 +4,72 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
-	"github.com/go-swagger/go-swagger/swag"
+	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit/validate"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/validate"
 )
 
-/*Task a structure describing a complete task.
-
-A Task is the main entity in this application. Everything revolves around tasks and managing them.
-
-
-swagger:model Task
-*/
+// Task a structure describing a complete task.
+//
+// A Task is the main entity in this application. Everything revolves around tasks and managing them.
+//
+// swagger:model Task
 type Task struct {
 	TaskCard
 
-	/* The attached files.
+	// The attached files.
+	//
+	// An issue can have at most 20 files attached to it.
+	//
+	Attachments map[string]TaskAttachmentsAnon `json:"attachments,omitempty"`
 
-	An issue can have at most 20 files attached to it.
+	// The 5 most recent items for this issue.
+	//
+	// The detail view of an issue includes the 5 most recent comments.
+	// This field is read only, comments are added through a separate process.
+	//
+	// Read Only: true
+	Comments []*Comment `json:"comments"`
 
-	*/
-	Attachments map[string]*TaskAttachmentsAnon `json:"attachments,omitempty"`
+	// The time at which this issue was last updated.
+	//
+	// This field is read only so it's only sent as part of the response.
+	//
+	// Read Only: true
+	LastUpdated strfmt.DateTime `json:"lastUpdated,omitempty"`
 
-	/* The 5 most recent items for this issue.
-
-	The detail view of an issue includes the 5 most recent comments.
-	This field is read only, comments are added through a separate process.
-
-
-	Read Only: true
-	*/
-	Comments []*Comment `json:"comments,omitempty"`
-
-	/* The time at which this issue was last updated.
-
-	This field is read only so it's only sent as part of the response.
-
-
-	Read Only: true
-	*/
-	LastUpdated *strfmt.DateTime `json:"lastUpdated,omitempty"`
-
-	/* LastUpdatedBy last updated by
-	 */
+	// last updated by
 	LastUpdatedBy *UserCard `json:"lastUpdatedBy,omitempty"`
 
-	/* ReportedBy reported by
-	 */
+	// reported by
 	ReportedBy *UserCard `json:"reportedBy,omitempty"`
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (m *Task) UnmarshalJSON(raw []byte) error {
+
+	var aO0 TaskCard
+	if err := swag.ReadJSON(raw, &aO0); err != nil {
+		return err
+	}
+	m.TaskCard = aO0
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (m Task) MarshalJSON() ([]byte, error) {
+	var _parts [][]byte
+
+	aO0, err := swag.WriteJSON(m.TaskCard)
+	if err != nil {
+		return nil, err
+	}
+	_parts = append(_parts, aO0)
+
+	return swag.ConcatJSON(_parts...), nil
 }
 
 // Validate validates this task
@@ -69,6 +85,14 @@ func (m *Task) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateComments(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateLastUpdatedBy(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateReportedBy(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -90,9 +114,9 @@ func (m *Task) validateAttachments(formats strfmt.Registry) error {
 			continue
 		}
 
-		if m.Attachments[k] != nil {
+		if val, ok := m.Attachments[k]; ok {
 
-			if err := m.Attachments[k].Validate(formats); err != nil {
+			if err := val.Validate(formats); err != nil {
 				return err
 			}
 		}
@@ -106,6 +130,10 @@ func (m *Task) validateComments(formats strfmt.Registry) error {
 
 	for i := 0; i < len(m.Comments); i++ {
 
+		if swag.IsZero(m.Comments[i]) { // not required
+			continue
+		}
+
 		if m.Comments[i] != nil {
 
 			if err := m.Comments[i].Validate(formats); err != nil {
@@ -118,55 +146,67 @@ func (m *Task) validateComments(formats strfmt.Registry) error {
 	return nil
 }
 
-/*TaskAttachmentsAnon TaskAttachmentsAnon task attachments anon
+func (m *Task) validateLastUpdatedBy(formats strfmt.Registry) error {
 
-swagger:model TaskAttachmentsAnon
-*/
+	if m.LastUpdatedBy != nil {
+
+		if err := m.LastUpdatedBy.Validate(formats); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Task) validateReportedBy(formats strfmt.Registry) error {
+
+	if m.ReportedBy != nil {
+
+		if err := m.ReportedBy.Validate(formats); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// TaskAttachmentsAnon task attachments anon
+// swagger:model TaskAttachmentsAnon
 type TaskAttachmentsAnon struct {
 
-	/* The content type of the file.
+	// The content type of the file.
+	//
+	// The content type of the file is inferred from the upload request.
+	//
+	// Read Only: true
+	ContentType string `json:"contentType,omitempty"`
 
-	The content type of the file is inferred from the upload request.
-
-
-	Read Only: true
-	*/
-	ContentType *string `json:"contentType,omitempty"`
-
-	/* Extra information to attach to the file.
-
-	This is a free form text field with support for github flavored markdown.
-
-
-	Min Length: 3
-	*/
+	// Extra information to attach to the file.
+	//
+	// This is a free form text field with support for github flavored markdown.
+	//
+	// Min Length: 3
 	Description string `json:"description,omitempty"`
 
-	/* The name of the file.
+	// The name of the file.
+	//
+	// This name is inferred from the upload request.
+	//
+	// Read Only: true
+	Name string `json:"name,omitempty"`
 
-	This name is inferred from the upload request.
+	// The file size in bytes.
+	//
+	// This property was generated during the upload request of the file.
+	// Read Only: true
+	Size float64 `json:"size,omitempty"`
 
-
-	Read Only: true
-	*/
-	Name *string `json:"name,omitempty"`
-
-	/* The file size in bytes.
-
-	This property was generated during the upload request of the file.
-
-	Read Only: true
-	*/
-	Size *float64 `json:"size,omitempty"`
-
-	/* The url to download or view the file.
-
-	This URL is generated on the server, based on where it was able to store the file when it was uploaded.
-
-
-	Read Only: true
-	*/
-	URL *strfmt.URI `json:"url,omitempty"`
+	// The url to download or view the file.
+	//
+	// This URL is generated on the server, based on where it was able to store the file when it was uploaded.
+	//
+	// Read Only: true
+	URL strfmt.URI `json:"url,omitempty"`
 }
 
 // Validate validates this task attachments anon

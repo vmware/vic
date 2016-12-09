@@ -21,8 +21,7 @@ import (
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
-
-	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -56,15 +55,15 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 }
 
 func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.IP, dns []net.IP, err error) {
-	if cfg.Subnet != nil {
-		if _, subnet, err = net.ParseCIDR(*cfg.Subnet); err != nil {
+	if cfg.Subnet != "" {
+		if _, subnet, err = net.ParseCIDR(cfg.Subnet); err != nil {
 			return
 		}
 	}
 
 	gateway = net.IPv4(0, 0, 0, 0)
-	if cfg.Gateway != nil {
-		if gateway = net.ParseIP(*cfg.Gateway); gateway == nil {
+	if cfg.Gateway != "" {
+		if gateway = net.ParseIP(cfg.Gateway); gateway == nil {
 			err = fmt.Errorf("invalid gateway")
 			return
 		}
@@ -106,12 +105,14 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 
 	cfg := params.Config
 	if cfg.ScopeType == "external" {
-		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: "cannot create external networks"})
+		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(
+			&models.Error{Message: "cannot create external networks"})
 	}
 
 	subnet, gateway, dns, err := parseScopeConfig(cfg)
 	if err != nil {
-		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
+		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(
+			errorPayload(err))
 	}
 
 	s, err := handler.netCtx.NewScope(context.Background(), cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
@@ -120,7 +121,8 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 	}
 
 	if err != nil {
-		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
+		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(
+			errorPayload(err))
 	}
 
 	return scopes.NewCreateScopeCreated().WithPayload(toScopeConfig(s))
@@ -142,7 +144,7 @@ func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams)
 	return scopes.NewDeleteScopeOK()
 }
 
-func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
+func (handler *ScopesHandlersImpl) ScopesListAll(params scopes.ListAllParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 
 	cfgs, err := handler.listScopes("")
@@ -196,17 +198,16 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 	}
 
 	err := func() error {
-		var ip *net.IP
-		if params.Config.NetworkConfig.Address != nil && *params.Config.NetworkConfig.Address != "" {
-			i := net.ParseIP(*params.Config.NetworkConfig.Address)
-			if i == nil {
-				return fmt.Errorf("invalid ip address %q", *params.Config.NetworkConfig.Address)
+		addr := params.Config.NetworkConfig.Address
+		var ip net.IP
+		if addr != "" {
+			ip = net.ParseIP(addr)
+			if ip == nil {
+				return fmt.Errorf("invalid ip address %q", addr)
 			}
-
-			ip = &i
 		}
 
-		if params.Config.NetworkConfig.Aliases != nil {
+		if len(params.Config.NetworkConfig.Aliases) > 0 {
 			log.Debugf("Links/Aliases: %#v", params.Config.NetworkConfig.Aliases)
 		}
 
@@ -322,13 +323,12 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 		gateway = scope.Gateway().String()
 	}
 
-	id := scope.ID().String()
 	sc := &models.ScopeConfig{
-		ID:        &id,
+		ID:        scope.ID().String(),
 		Name:      scope.Name(),
 		ScopeType: scope.Type(),
-		Subnet:    &subnet,
-		Gateway:   &gateway,
+		Subnet:    subnet,
+		Gateway:   gateway,
 	}
 
 	var pools []string

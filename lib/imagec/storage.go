@@ -16,13 +16,12 @@ package imagec
 
 import (
 	"io"
-
 	"context"
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/go-swagger/go-swagger/httpkit"
-	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	"github.com/go-openapi/runtime"
+	rc "github.com/go-openapi/runtime/client"
 
 	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
@@ -40,7 +39,7 @@ var (
 func PingPortLayer(host string) (bool, error) {
 	defer trace.End(trace.Begin(host))
 
-	transport := httptransport.New(host, "/", []string{"http"})
+	transport := rc.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	ok, err := client.Misc.Ping(misc.NewPingParamsWithContext(ctx))
@@ -54,7 +53,7 @@ func PingPortLayer(host string) (bool, error) {
 func ListImages(host, storename string, images []*ImageWithMeta) (map[string]*models.Image, error) {
 	defer trace.End(trace.Begin(storename))
 
-	transport := httptransport.New(host, "/", []string{"http"})
+	transport := rc.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	ids := make([]string, len(images))
@@ -82,13 +81,13 @@ func ListImages(host, storename string, images []*ImageWithMeta) (map[string]*mo
 func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 	defer trace.End(trace.Begin(image.ID))
 
-	transport := httptransport.New(host, "/", []string{"http"})
+	transport := rc.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
-	transport.Consumers["application/json"] = httpkit.JSONConsumer()
-	transport.Producers["application/json"] = httpkit.JSONProducer()
-	transport.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-	transport.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
+	transport.Consumers["application/json"] = runtime.JSONConsumer()
+	transport.Producers["application/json"] = runtime.JSONProducer()
+	transport.Consumers["application/octet-stream"] = runtime.ByteStreamConsumer()
+	transport.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
 
 	key := new(string)
 	blob := new(string)
@@ -99,7 +98,7 @@ func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 	r, err := client.Storage.WriteImage(
 		storage.NewWriteImageParamsWithContext(ctx).
 			WithImageID(image.ID).
-			WithParentID(*image.Parent).
+			WithParentID(image.Parent).
 			WithStoreName(image.Store).
 			WithMetadatakey(key).
 			WithMetadataval(blob).

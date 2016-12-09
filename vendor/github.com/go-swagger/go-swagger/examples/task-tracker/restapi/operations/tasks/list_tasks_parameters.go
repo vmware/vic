@@ -7,20 +7,20 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
-	"github.com/go-swagger/go-swagger/httpkit/validate"
-	"github.com/go-swagger/go-swagger/swag"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewListTasksParams creates a new ListTasksParams object
 // with the default values initialized.
 func NewListTasksParams() ListTasksParams {
 	var (
-		pageSizeDefault int32 = int32(20)
+		pageSizeDefault = int32(20)
 	)
 	return ListTasksParams{
 		PageSize: &pageSizeDefault,
@@ -32,6 +32,10 @@ func NewListTasksParams() ListTasksParams {
 //
 // swagger:parameters listTasks
 type ListTasksParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*Amount of items to return in a single page
 	  In: query
 	  Default: 20
@@ -58,7 +62,9 @@ type ListTasksParams struct {
 // for simple values it will use straight method calls
 func (o *ListTasksParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
-	qs := httpkit.Values(r.URL.Query())
+	o.HTTPRequest = r
+
+	qs := runtime.Values(r.URL.Query())
 
 	qPageSize, qhkPageSize, _ := qs.GetOK("pageSize")
 	if err := o.bindPageSize(qPageSize, qhkPageSize, route.Formats); err != nil {
@@ -131,34 +137,24 @@ func (o *ListTasksParams) bindStatus(rawData []string, hasKey bool, formats strf
 		qvStatus = rawData[len(rawData)-1]
 	}
 
-	raw := swag.SplitByFormat(qvStatus, "pipes")
-	size := len(raw)
+	statusIC := swag.SplitByFormat(qvStatus, "pipes")
 
-	if size == 0 {
+	if len(statusIC) == 0 {
 		return nil
 	}
 
-	ic := raw
-	isz := size
-	var ir []string
-	iValidateElement := func(i int, statusI string) *errors.Validation {
+	var statusIR []string
+	for i, statusIV := range statusIC {
+		statusI := statusIV
 
-		if err := validate.Enum(fmt.Sprintf("%s.%v", "status", i), "query", o.Status[i], []interface{}{"open", "closed", "ignored", "rejected"}); err != nil {
+		if err := validate.Enum(fmt.Sprintf("%s.%v", "status", i), "query", statusI, []interface{}{"open", "closed", "ignored", "rejected"}); err != nil {
 			return err
 		}
 
-		return nil
+		statusIR = append(statusIR, statusI)
 	}
 
-	for i := 0; i < isz; i++ {
-
-		if err := iValidateElement(i, ic[i]); err != nil {
-			return err
-		}
-		ir = append(ir, ic[i])
-	}
-
-	o.Status = ir
+	o.Status = statusIR
 	if err := o.validateStatus(formats); err != nil {
 		return err
 	}
@@ -182,30 +178,20 @@ func (o *ListTasksParams) bindTags(rawData []string, hasKey bool, formats strfmt
 		qvTags = rawData[len(rawData)-1]
 	}
 
-	raw := swag.SplitByFormat(qvTags, "")
-	size := len(raw)
+	tagsIC := swag.SplitByFormat(qvTags, "")
 
-	if size == 0 {
+	if len(tagsIC) == 0 {
 		return nil
 	}
 
-	ic := raw
-	isz := size
-	var ir []string
-	iValidateElement := func(i int, tagsI string) *errors.Validation {
+	var tagsIR []string
+	for _, tagsIV := range tagsIC {
+		tagsI := tagsIV
 
-		return nil
+		tagsIR = append(tagsIR, tagsI)
 	}
 
-	for i := 0; i < isz; i++ {
-
-		if err := iValidateElement(i, ic[i]); err != nil {
-			return err
-		}
-		ir = append(ir, ic[i])
-	}
-
-	o.Tags = ir
+	o.Tags = tagsIR
 	if err := o.validateTags(formats); err != nil {
 		return err
 	}

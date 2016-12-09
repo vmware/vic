@@ -4,18 +4,47 @@ package todos
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"github.com/go-swagger/go-swagger/client"
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/swag"
+	"net/http"
+	"time"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	"golang.org/x/net/context"
+
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	cr "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/swag"
+
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewFindParams creates a new FindParams object
 // with the default values initialized.
 func NewFindParams() *FindParams {
 	var ()
-	return &FindParams{}
+	return &FindParams{
+
+		timeout: cr.DefaultTimeout,
+	}
+}
+
+// NewFindParamsWithTimeout creates a new FindParams object
+// with the default values initialized, and the ability to set a timeout on a request
+func NewFindParamsWithTimeout(timeout time.Duration) *FindParams {
+	var ()
+	return &FindParams{
+
+		timeout: timeout,
+	}
+}
+
+// NewFindParamsWithContext creates a new FindParams object
+// with the default values initialized, and the ability to set a context for a request
+func NewFindParamsWithContext(ctx context.Context) *FindParams {
+	var ()
+	return &FindParams{
+
+		Context: ctx,
+	}
 }
 
 /*FindParams contains all the parameters to send to the API endpoint
@@ -29,29 +58,71 @@ type FindParams struct {
 	Limit int32
 	/*Tags*/
 	Tags []int32
+
+	timeout    time.Duration
+	Context    context.Context
+	HTTPClient *http.Client
+}
+
+// WithTimeout adds the timeout to the find params
+func (o *FindParams) WithTimeout(timeout time.Duration) *FindParams {
+	o.SetTimeout(timeout)
+	return o
+}
+
+// SetTimeout adds the timeout to the find params
+func (o *FindParams) SetTimeout(timeout time.Duration) {
+	o.timeout = timeout
+}
+
+// WithContext adds the context to the find params
+func (o *FindParams) WithContext(ctx context.Context) *FindParams {
+	o.SetContext(ctx)
+	return o
+}
+
+// SetContext adds the context to the find params
+func (o *FindParams) SetContext(ctx context.Context) {
+	o.Context = ctx
 }
 
 // WithXRateLimit adds the xRateLimit to the find params
 func (o *FindParams) WithXRateLimit(xRateLimit int32) *FindParams {
-	o.XRateLimit = xRateLimit
+	o.SetXRateLimit(xRateLimit)
 	return o
+}
+
+// SetXRateLimit adds the xRateLimit to the find params
+func (o *FindParams) SetXRateLimit(xRateLimit int32) {
+	o.XRateLimit = xRateLimit
 }
 
 // WithLimit adds the limit to the find params
 func (o *FindParams) WithLimit(limit int32) *FindParams {
-	o.Limit = limit
+	o.SetLimit(limit)
 	return o
+}
+
+// SetLimit adds the limit to the find params
+func (o *FindParams) SetLimit(limit int32) {
+	o.Limit = limit
 }
 
 // WithTags adds the tags to the find params
 func (o *FindParams) WithTags(tags []int32) *FindParams {
-	o.Tags = tags
+	o.SetTags(tags)
 	return o
 }
 
-// WriteToRequest writes these params to a swagger request
-func (o *FindParams) WriteToRequest(r client.Request, reg strfmt.Registry) error {
+// SetTags adds the tags to the find params
+func (o *FindParams) SetTags(tags []int32) {
+	o.Tags = tags
+}
 
+// WriteToRequest writes these params to a swagger request
+func (o *FindParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
+
+	r.SetTimeout(o.timeout)
 	var res []error
 
 	// header param X-Rate-Limit

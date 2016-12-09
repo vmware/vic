@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,50 +10,14 @@ import (
 	"text/template"
 	"text/template/parse"
 
-	"bitbucket.org/pkg/inflect"
-	"github.com/go-swagger/go-swagger/swag"
+	"log"
+
+	"github.com/go-openapi/inflect"
+	"github.com/go-openapi/swag"
+	"github.com/kr/pretty"
 )
 
-var protectedTemplates = map[string]bool{
-	"schemabody":                     true,
-	"privtuplefield":                 true,
-	"withoutBaseTypeBody":            true,
-	"swaggerJsonEmbed":               true,
-	"validationCustomformat":         true,
-	"tuplefield":                     true,
-	"header":                         true,
-	"withBaseTypeBody":               true,
-	"primitivefieldvalidator":        true,
-	"mapvalidator":                   true,
-	"propertyValidationDocString":    true,
-	"typeSchemaType":                 true,
-	"docstring":                      true,
-	"dereffedSchemaType":             true,
-	"model":                          true,
-	"modelvalidator":                 true,
-	"privstructfield":                true,
-	"schemavalidator":                true,
-	"tuplefieldIface":                true,
-	"tupleSerializer":                true,
-	"tupleserializer":                true,
-	"propertyvalidator":              true,
-	"structfieldIface":               true,
-	"schemaBody":                     true,
-	"objectvalidator":                true,
-	"schematype":                     true,
-	"additionalpropertiesserializer": true,
-	"slicevalidator":                 true,
-	"validationStructfield":          true,
-	"validationPrimitive":            true,
-	"schemaType":                     true,
-	"subTypeBody":                    true,
-	"schema":                         true,
-	"additionalPropertiesSerializer": true,
-	"serverDoc":                      true,
-	"structfield":                    true,
-	"hasDiscriminatedSerializer":     true,
-	"discriminatedSerializer":        true,
-}
+var templates *Repository
 
 // FuncMap is a map with default functions for use n the templates.
 // These are available in every template
@@ -65,6 +30,7 @@ var FuncMap template.FuncMap = map[string]interface{}{
 		return swag.ToGoName("Nr " + arg)
 	},
 	"camelize":  swag.ToJSONName,
+	"varname":   golang.MangleVarName,
 	"humanize":  swag.ToHumanNameLower,
 	"snakize":   swag.ToFileName,
 	"dasherize": swag.ToCommandName,
@@ -111,6 +77,123 @@ var FuncMap template.FuncMap = map[string]interface{}{
 		}
 		return false
 	},
+	"padSurround": func(entry, padWith string, i, ln int) string {
+		var res []string
+		if i > 0 {
+			for j := 0; j < i; j++ {
+				res = append(res, padWith)
+			}
+		}
+		res = append(res, entry)
+		tot := ln - i - 1
+		for j := 0; j < tot; j++ {
+			res = append(res, padWith)
+		}
+		return strings.Join(res, ",")
+	},
+	"joinFilePath": filepath.Join,
+	"comment": func(str string) string {
+		lines := strings.Split(str, "\n")
+		return strings.Join(lines, "\n// ")
+	},
+	"inspect": pretty.Sprint,
+}
+
+func init() {
+	templates = NewRepository(FuncMap)
+	templates.LoadDefaults()
+
+}
+
+var assets = map[string][]byte{
+	"validation/primitive.gotmpl":           MustAsset("templates/validation/primitive.gotmpl"),
+	"validation/customformat.gotmpl":        MustAsset("templates/validation/customformat.gotmpl"),
+	"docstring.gotmpl":                      MustAsset("templates/docstring.gotmpl"),
+	"validation/structfield.gotmpl":         MustAsset("templates/validation/structfield.gotmpl"),
+	"modelvalidator.gotmpl":                 MustAsset("templates/modelvalidator.gotmpl"),
+	"structfield.gotmpl":                    MustAsset("templates/structfield.gotmpl"),
+	"tupleserializer.gotmpl":                MustAsset("templates/tupleserializer.gotmpl"),
+	"additionalpropertiesserializer.gotmpl": MustAsset("templates/additionalpropertiesserializer.gotmpl"),
+	"schematype.gotmpl":                     MustAsset("templates/schematype.gotmpl"),
+	"schemabody.gotmpl":                     MustAsset("templates/schemabody.gotmpl"),
+	"schema.gotmpl":                         MustAsset("templates/schema.gotmpl"),
+	"schemavalidator.gotmpl":                MustAsset("templates/schemavalidator.gotmpl"),
+	"model.gotmpl":                          MustAsset("templates/model.gotmpl"),
+	"header.gotmpl":                         MustAsset("templates/header.gotmpl"),
+	"swagger_json_embed.gotmpl":             MustAsset("templates/swagger_json_embed.gotmpl"),
+
+	"server/parameter.gotmpl":    MustAsset("templates/server/parameter.gotmpl"),
+	"server/urlbuilder.gotmpl":   MustAsset("templates/server/urlbuilder.gotmpl"),
+	"server/responses.gotmpl":    MustAsset("templates/server/responses.gotmpl"),
+	"server/operation.gotmpl":    MustAsset("templates/server/operation.gotmpl"),
+	"server/builder.gotmpl":      MustAsset("templates/server/builder.gotmpl"),
+	"server/server.gotmpl":       MustAsset("templates/server/server.gotmpl"),
+	"server/configureapi.gotmpl": MustAsset("templates/server/configureapi.gotmpl"),
+	"server/main.gotmpl":         MustAsset("templates/server/main.gotmpl"),
+	"server/doc.gotmpl":          MustAsset("templates/server/doc.gotmpl"),
+
+	"client/parameter.gotmpl": MustAsset("templates/client/parameter.gotmpl"),
+	"client/response.gotmpl":  MustAsset("templates/client/response.gotmpl"),
+	"client/client.gotmpl":    MustAsset("templates/client/client.gotmpl"),
+	"client/facade.gotmpl":    MustAsset("templates/client/facade.gotmpl"),
+}
+
+var protectedTemplates = map[string]bool{
+	"schemabody":                     true,
+	"privtuplefield":                 true,
+	"withoutBaseTypeBody":            true,
+	"swaggerJsonEmbed":               true,
+	"validationCustomformat":         true,
+	"tuplefield":                     true,
+	"header":                         true,
+	"withBaseTypeBody":               true,
+	"primitivefieldvalidator":        true,
+	"mapvalidator":                   true,
+	"propertyValidationDocString":    true,
+	"typeSchemaType":                 true,
+	"docstring":                      true,
+	"dereffedSchemaType":             true,
+	"model":                          true,
+	"modelvalidator":                 true,
+	"privstructfield":                true,
+	"schemavalidator":                true,
+	"tuplefieldIface":                true,
+	"tupleSerializer":                true,
+	"tupleserializer":                true,
+	"schemaSerializer":               true,
+	"propertyvalidator":              true,
+	"structfieldIface":               true,
+	"schemaBody":                     true,
+	"objectvalidator":                true,
+	"schematype":                     true,
+	"additionalpropertiesserializer": true,
+	"slicevalidator":                 true,
+	"validationStructfield":          true,
+	"validationPrimitive":            true,
+	"schemaType":                     true,
+	"subTypeBody":                    true,
+	"schema":                         true,
+	"additionalPropertiesSerializer": true,
+	"serverDoc":                      true,
+	"structfield":                    true,
+	"hasDiscriminatedSerializer":     true,
+	"discriminatedSerializer":        true,
+}
+
+func asJSON(data interface{}) (string, error) {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func asPrettyJSON(data interface{}) (string, error) {
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 // NewRepository creates a new template repository with the provided functions defined
@@ -122,7 +205,6 @@ func NewRepository(funcs template.FuncMap) *Repository {
 	}
 
 	if repo.funcs == nil {
-
 		repo.funcs = make(template.FuncMap)
 	}
 
@@ -140,7 +222,9 @@ type Repository struct {
 func (t *Repository) LoadDefaults() {
 
 	for name, asset := range assets {
-		t.addFile(name, string(asset), true)
+		if err := t.addFile(name, string(asset), true); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -151,8 +235,10 @@ func (t *Repository) LoadDir(templatePath string) error {
 
 		if strings.HasSuffix(path, ".gotmpl") {
 			assetName := strings.TrimPrefix(path, templatePath)
-			if data, err := ioutil.ReadFile(path); err == nil {
-				t.AddFile(assetName, string(data))
+			if data, e := ioutil.ReadFile(path); e == nil {
+				if ee := t.AddFile(assetName, string(data)); ee != nil {
+					log.Fatal(ee)
+				}
 			}
 		}
 		if err != nil {
@@ -172,7 +258,7 @@ func (t *Repository) addFile(name, data string, allowOverride bool) error {
 	templ, err := template.New(name).Funcs(t.funcs).Parse(data)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to load template %s: %v", name, err)
 	}
 
 	// check if any protected templates are defined
@@ -192,6 +278,15 @@ func (t *Repository) addFile(name, data string, allowOverride bool) error {
 	}
 
 	return nil
+}
+
+// MustGet a template by name, panics when fails
+func (t *Repository) MustGet(name string) *template.Template {
+	tpl, err := t.Get(name)
+	if err != nil {
+		panic(err)
+	}
+	return tpl
 }
 
 // AddFile adds a file to the repository. It will create a new template based on the filename.

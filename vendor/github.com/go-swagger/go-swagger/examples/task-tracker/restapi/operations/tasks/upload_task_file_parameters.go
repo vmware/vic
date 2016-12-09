@@ -6,12 +6,12 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
-	"github.com/go-swagger/go-swagger/swag"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/swag"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewUploadTaskFileParams creates a new UploadTaskFileParams object
@@ -26,6 +26,10 @@ func NewUploadTaskFileParams() UploadTaskFileParams {
 //
 // swagger:parameters uploadTaskFile
 type UploadTaskFileParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*Extra information describing the file
 	  In: formData
 	*/
@@ -33,7 +37,7 @@ type UploadTaskFileParams struct {
 	/*The file to upload
 	  In: formData
 	*/
-	File httpkit.File
+	File runtime.File
 	/*The id of the item
 	  Required: true
 	  In: path
@@ -45,6 +49,8 @@ type UploadTaskFileParams struct {
 // for simple values it will use straight method calls
 func (o *UploadTaskFileParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		if err != http.ErrNotMultipart {
 			return err
@@ -52,7 +58,7 @@ func (o *UploadTaskFileParams) BindRequest(r *http.Request, route *middleware.Ma
 			return err
 		}
 	}
-	fds := httpkit.Values(r.Form)
+	fds := runtime.Values(r.Form)
 
 	fdDescription, fdhkDescription, _ := fds.GetOK("description")
 	if err := o.bindDescription(fdDescription, fdhkDescription, route.Formats); err != nil {
@@ -63,7 +69,7 @@ func (o *UploadTaskFileParams) BindRequest(r *http.Request, route *middleware.Ma
 	if err != nil {
 		res = append(res, errors.New(400, "reading file %q failed: %v", "file", err))
 	} else {
-		o.File = httpkit.File{Data: file, Header: fileHeader}
+		o.File = runtime.File{Data: file, Header: fileHeader}
 	}
 
 	rID, rhkID, _ := route.Params.GetOK("id")
