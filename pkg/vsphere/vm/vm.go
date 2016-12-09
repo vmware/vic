@@ -52,6 +52,8 @@ type VirtualMachine struct {
 	*object.VirtualMachine
 
 	*session.Session
+
+	Fixing bool
 }
 
 // NewVirtualMachine returns a NewVirtualMachine object
@@ -484,6 +486,7 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 
 	name := mvm.Summary.Config.Name
 	log.Debugf("Unregister VM %s", name)
+	vm.Fixing = true
 	if err := vm.Unregister(ctx); err != nil {
 		log.Errorf("Unable to unregister vm %q: %s", name, err)
 		return err
