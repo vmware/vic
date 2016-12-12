@@ -159,31 +159,31 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	if err != nil || vchInfo == nil {
 		log.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
 	} else {
-		if vchInfo.CPUMhz != nil {
-			info.NCPU = int(*vchInfo.CPUMhz)
+		if vchInfo.CPUMhz > 0 {
+			info.NCPU = int(vchInfo.CPUMhz)
 
 			customInfo := [2]string{systemStatusMhz, fmt.Sprintf("%d Mhz", info.NCPU)}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if vchInfo.Memory != nil {
-			info.MemTotal = *vchInfo.Memory << 20 //Multiply by 1024*1024 to get Mebibytes
+		if vchInfo.Memory > 0 {
+			info.MemTotal = vchInfo.Memory * 1024 * 1024 // Get Mebibytes
 
 			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if vchInfo.HostProductName != nil {
-			customInfo := [2]string{systemProductName, *vchInfo.HostProductName}
+		if vchInfo.HostProductName != "" {
+			customInfo := [2]string{systemProductName, vchInfo.HostProductName}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if vchInfo.HostOS != nil {
-			info.OperatingSystem = *vchInfo.HostOS
-			info.OSType = *vchInfo.HostOS //Value for OS and OS Type the same from vmomi
+		if vchInfo.HostOS != "" {
+			info.OperatingSystem = vchInfo.HostOS
+			info.OSType = vchInfo.HostOS //Value for OS and OS Type the same from vmomi
 
-			customInfo := [2]string{systemOS, *vchInfo.HostOS}
+			customInfo := [2]string{systemOS, vchInfo.HostOS}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if vchInfo.HostOSVersion != nil {
-			customInfo := [2]string{systemOSVersion, *vchInfo.HostOSVersion}
+		if vchInfo.HostOSVersion != "" {
+			customInfo := [2]string{systemOSVersion, vchInfo.HostOSVersion}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 	}

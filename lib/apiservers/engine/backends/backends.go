@@ -26,12 +26,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/registry"
-	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
-	"github.com/go-swagger/go-swagger/swag"
+	rc "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/swag"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
@@ -52,7 +52,7 @@ const (
 )
 
 var (
-	portLayerClient     *client.PortLayer
+	portLayerClient     *apiclient.PortLayer
 	portLayerServerAddr string
 	portLayerName       string
 	productName         string
@@ -88,8 +88,9 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		portLayerName = product + " Backend Engine"
 	}
 
-	t := httptransport.New(portLayerAddr, "/", []string{"http"})
-	portLayerClient = client.New(t, nil)
+	t := rc.New(portLayerAddr, "/", []string{"http"})
+
+	portLayerClient = apiclient.New(t, nil)
 	portLayerServerAddr = portLayerAddr
 
 	// block indefinitely while waiting on the portlayer to respond to pings
@@ -123,22 +124,22 @@ func hydrateCaches() error {
 
 	wg := sync.WaitGroup{}
 	wg.Add(waiters)
-	errors := make(chan error, waiters)
+	errChan := make(chan error, waiters)
 
 	go func() {
 		defer wg.Done()
 		if err := imagec.InitializeLayerCache(portLayerClient); err != nil {
-			errors <- fmt.Errorf("Failed to initialize layer cache: %s", err)
+			errChan <- fmt.Errorf("Failed to initialize layer cache: %s", err)
 			return
 		}
 		log.Info("Layer cache initialized successfully")
-		errors <- nil
+		errChan <- nil
 	}()
 
 	go func() {
 		defer wg.Done()
 		if err := cache.InitializeImageCache(portLayerClient); err != nil {
-			errors <- fmt.Errorf("Failed to initialize image cache: %s", err)
+			errChan <- fmt.Errorf("Failed to initialize image cache: %s", err)
 			return
 		}
 		log.Info("Image cache initialized successfully")
@@ -146,29 +147,29 @@ func hydrateCaches() error {
 		// container cache relies on image cache so we share a goroutine to update
 		// them serially
 		if err := syncContainerCache(); err != nil {
-			errors <- fmt.Errorf("Failed to update container cache: %s", err)
+			errChan <- fmt.Errorf("Failed to update container cache: %s", err)
 			return
 		}
 		log.Info("Container cache updated successfully")
-		errors <- nil
+		errChan <- nil
 	}()
 
 	go func() {
 		log.Info("Refreshing repository cache")
 		defer wg.Done()
 		if err := cache.NewRepositoryCache(portLayerClient); err != nil {
-			errors <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
+			errChan <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
 			return
 		}
-		errors <- nil
+		errChan <- nil
 		log.Info("Repository cache updated successfully")
 	}()
 
 	wg.Wait()
-	close(errors)
+	close(errChan)
 
 	var errs []string
-	for err := range errors {
+	for err := range errChan {
 		if err != nil {
 			// accumulate all errors into one
 			errs = append(errs, err.Error())
@@ -182,7 +183,7 @@ func hydrateCaches() error {
 	return e
 }
 
-func PortLayerClient() *client.PortLayer {
+func PortLayerClient() *apiclient.PortLayer {
 	return portLayerClient
 }
 
@@ -285,12 +286,12 @@ func syncContainerCache() error {
 }
 
 func setPortMapping(info *models.ContainerInfo, backend *Container, container *container.VicContainer) error {
-	if info.ContainerConfig.State == nil {
+	if info.ContainerConfig.State == "" {
 		log.Infof("container state is nil")
 		return nil
 	}
-	if *info.ContainerConfig.State != "Running" || len(container.HostConfig.PortBindings) == 0 {
-		log.Infof("Container info state: %s", *info.ContainerConfig.State)
+	if info.ContainerConfig.State != "Running" || len(container.HostConfig.PortBindings) == 0 {
+		log.Infof("Container info state: %s", info.ContainerConfig.State)
 		log.Infof("container portbinding: %+v", container.HostConfig.PortBindings)
 		return nil
 	}

@@ -20,14 +20,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	spec "github.com/go-swagger/go-swagger/spec"
-	flags "github.com/jessevdk/go-flags"
+	"github.com/go-openapi/loads"
+	"github.com/jessevdk/go-flags"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
-	"github.com/vmware/vic/lib/pprof"
-
 	"github.com/vmware/vic/lib/dns"
+	"github.com/vmware/vic/lib/pprof"
 )
 
 var (
@@ -39,7 +38,8 @@ func init() {
 }
 
 func main() {
-	swaggerSpec, err := spec.New(restapi.SwaggerJSON, "")
+
+	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -53,12 +53,22 @@ func main() {
 	parser.LongDescription = `Port Layer API`
 
 	server.ConfigureFlags()
+
 	for _, optsGroup := range api.CommandLineOptionsGroups {
-		parser.AddGroup(optsGroup.ShortDescription, optsGroup.LongDescription, optsGroup.Options)
+		_, err := parser.AddGroup(optsGroup.ShortDescription, optsGroup.LongDescription, optsGroup.Options)
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	if _, err := parser.Parse(); err != nil {
-		os.Exit(1)
+		code := 1
+		if fe, ok := err.(*flags.Error); ok {
+			if fe.Type == flags.ErrHelp {
+				code = 0
+			}
+		}
+		os.Exit(code)
 	}
 
 	server.ConfigureAPI()
@@ -66,6 +76,7 @@ func main() {
 	// BEGIN
 	// Set the Interface name to instruct listeners to bind on this interface
 	options.Interface = "bridge"
+
 	// Start the DNS Server
 	dnsserver := dns.NewServer(options)
 	if dnsserver != nil {
@@ -81,7 +92,7 @@ func main() {
 
 		dnsserver.Stop()
 
-		server.Stop()
+		server.Shutdown()
 	}()
 
 	go func() {

@@ -16,6 +16,7 @@ package network
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -23,15 +24,12 @@ import (
 	"strings"
 	"testing"
 
-	"context"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
@@ -567,7 +565,7 @@ func TestContextAddContainer(t *testing.T) {
 		h     *exec.Handle
 		s     *spec.VirtualMachineConfigSpec
 		scope string
-		ip    *net.IP
+		ip    net.IP
 		err   error
 	}{
 		// nil handle
@@ -724,7 +722,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 	ip := net.IPv4(172, 16, 0, 10)
 	options = &AddContainerOptions{
 		Scope: ctx.DefaultScope().Name(),
-		IP:    &ip,
+		IP:    ip,
 	}
 	if err = ctx.AddContainer(staticIP, options); err != nil {
 		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", staticIP, ctx.DefaultScope().Name(), err)
@@ -748,7 +746,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 
 	options = &AddContainerOptions{
 		Scope: ctx.DefaultScope().Name(),
-		IP:    &gw,
+		IP:    gw,
 	}
 	ctx.AddContainer(ipErr, options)
 

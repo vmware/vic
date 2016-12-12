@@ -85,11 +85,7 @@ func (e *endpoint) Iface() libnetwork.InterfaceInfo {
 // Gateway returns the IPv4 gateway assigned by the driver.
 // This will only return a valid value if a container has joined the endpoint.
 func (e *endpoint) Gateway() net.IP {
-	if e.sc.Gateway != nil {
-		return net.ParseIP(*e.sc.Gateway)
-	}
-
-	return nil
+	return net.ParseIP(e.sc.Gateway)
 }
 
 // GatewayIPv6 returns the IPv6 gateway assigned by the driver.
@@ -121,11 +117,7 @@ func (e *endpoint) Address() *net.IPNet {
 		return nil
 	}
 
-	if e.sc.Subnet == nil {
-		return nil
-	}
-
-	_, snet, err := net.ParseCIDR(*e.sc.Subnet)
+	_, snet, err := net.ParseCIDR(e.sc.Subnet)
 	if err != nil {
 		return nil
 	}

@@ -110,17 +110,15 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 		return nil, fmt.Errorf("at most one ipam config supported")
 	}
 
-	var gateway, subnet *string
+	var gateway, subnet string
 	var pools []string
 	if len(ipam.Config) > 0 {
 		if ipam.Config[0].Gateway != "" {
-			gateway = new(string)
-			*gateway = ipam.Config[0].Gateway
+			gateway = ipam.Config[0].Gateway
 		}
 
 		if ipam.Config[0].Subnet != "" {
-			subnet = new(string)
-			*subnet = ipam.Config[0].Subnet
+			subnet = ipam.Config[0].Subnet
 		}
 
 		if ipam.Config[0].IPRange != "" {
@@ -182,7 +180,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 	nc := &models.NetworkConfig{NetworkName: networkName}
 	if endpointConfig != nil {
 		if endpointConfig.IPAMConfig != nil && endpointConfig.IPAMConfig.IPv4Address != "" {
-			nc.Address = &endpointConfig.IPAMConfig.IPv4Address
+			nc.Address = endpointConfig.IPAMConfig.IPv4Address
 
 		}
 
@@ -314,7 +312,7 @@ func (n *network) Name() string {
 
 // A system generated id for this network.
 func (n *network) ID() string {
-	return *n.cfg.ID
+	return n.cfg.ID
 }
 
 // The type of network, which corresponds to its managing driver.
@@ -386,16 +384,16 @@ func (n *network) IpamConfig() (string, map[string]string, []*libnetwork.IpamCon
 	confs := make([]*libnetwork.IpamConf, len(n.cfg.IPAM))
 	for j, i := range n.cfg.IPAM {
 		conf := &libnetwork.IpamConf{
-			PreferredPool: *n.cfg.Subnet,
+			PreferredPool: n.cfg.Subnet,
 			Gateway:       "",
 		}
 
-		if i != *n.cfg.Subnet {
+		if i != n.cfg.Subnet {
 			conf.SubPool = i
 		}
 
-		if n.cfg.Gateway != nil {
-			conf.Gateway = *n.cfg.Gateway
+		if n.cfg.Gateway != "" {
+			conf.Gateway = n.cfg.Gateway
 		}
 
 		confs[j] = conf
@@ -420,8 +418,11 @@ func (n *network) IpamInfo() ([]*libnetwork.IpamInfo, []*libnetwork.IpamInfo) {
 		}
 
 		info.Pool = pool
-		if n.cfg.Gateway != nil {
-			info.Gateway = &net.IPNet{IP: net.ParseIP(*n.cfg.Gateway), Mask: net.CIDRMask(32, 32)}
+		if n.cfg.Gateway != "" {
+			info.Gateway = &net.IPNet{
+				IP:   net.ParseIP(n.cfg.Gateway),
+				Mask: net.CIDRMask(32, 32),
+			}
 		}
 
 		info.AuxAddresses = make(map[string]*net.IPNet)
