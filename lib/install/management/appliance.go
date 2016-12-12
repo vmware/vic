@@ -149,6 +149,20 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("vm %q, force %t", vm.String(), force)))
 
 	var err error
+	// get the actual folder name before we delete it
+	folder, err := vm.FolderName(d.ctx)
+	if err != nil {
+		// failed to get folder name, might not be able to remove files for this VM
+		name := d.getName(vm)
+		if name == "" {
+			log.Errorf("Unable to automatically remove all files in datastore for VM %q", vm.Reference())
+		} else {
+			// try to use the vm name in place of folder
+			log.Infof("Delete will attempt to remove datastore files for VM %q", name)
+			folder = name
+		}
+	}
+
 	power, err := vm.PowerState(d.ctx)
 	if err != nil || power != types.VirtualMachinePowerStatePoweredOff {
 		if err != nil {
@@ -170,19 +184,6 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			return vm.PowerOff(ctx)
 		}); err != nil {
 			log.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
-		}
-	}
-	// get the actual folder name before we delete it
-	folder, err := vm.FolderName(d.ctx)
-	if err != nil {
-		// failed to get folder name, might not be able to remove files for this VM
-		name := d.getName(vm)
-		if name == "" {
-			log.Errorf("Unable to automatically remove all files in datastore for VM %q", vm.Reference())
-		} else {
-			// try to use the vm name in place of folder
-			log.Infof("Delete will attempt to remove datastore files for VM %q", name)
-			folder = name
 		}
 	}
 
