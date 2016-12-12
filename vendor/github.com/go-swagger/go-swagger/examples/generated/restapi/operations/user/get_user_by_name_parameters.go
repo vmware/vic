@@ -6,10 +6,10 @@ package user
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime/middleware"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewGetUserByNameParams creates a new GetUserByNameParams object
@@ -24,6 +24,10 @@ func NewGetUserByNameParams() GetUserByNameParams {
 //
 // swagger:parameters getUserByName
 type GetUserByNameParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*The name that needs to be fetched. Use user1 for testing.
 	  Required: true
 	  In: path
@@ -35,6 +39,7 @@ type GetUserByNameParams struct {
 // for simple values it will use straight method calls
 func (o *GetUserByNameParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
 
 	rUsername, rhkUsername, _ := route.Params.GetOK("username")
 	if err := o.bindUsername(rUsername, rhkUsername, route.Formats); err != nil {

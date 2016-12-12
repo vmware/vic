@@ -19,7 +19,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-openapi/spec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +35,7 @@ func TestScanFileParam(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	assert.Len(t, noParamOps, 6)
+	assert.Len(t, noParamOps, 7)
 
 	of, ok := noParamOps["myOperation"]
 	assert.True(t, ok)
@@ -59,11 +59,11 @@ func TestParamsParser(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	assert.Len(t, noParamOps, 6)
+	assert.Len(t, noParamOps, 7)
 
 	cr, ok := noParamOps["yetAnotherOperation"]
 	assert.True(t, ok)
-	assert.Len(t, cr.Parameters, 7)
+	assert.Len(t, cr.Parameters, 8)
 	for _, param := range cr.Parameters {
 		switch param.Name {
 		case "id":
@@ -87,6 +87,11 @@ func TestParamsParser(t *testing.T) {
 		case "informity":
 			assert.Equal(t, "string", param.Type)
 			assert.Equal(t, "formData", param.In)
+		case "NoTagName":
+			assert.Equal(t, "string", param.Type)
+			assert.Equal(t, "", param.Format)
+		default:
+			assert.Fail(t, "unkown property: "+param.Name)
 		}
 	}
 
@@ -99,9 +104,19 @@ func TestParamsParser(t *testing.T) {
 	assert.Equal(t, "#/definitions/order", bodyParam.Schema.Ref.String())
 	assert.True(t, bodyParam.Required)
 
+	mop, ok := noParamOps["getOrders"]
+	assert.True(t, ok)
+	assert.Len(t, mop.Parameters, 2)
+	ordersParam := mop.Parameters[0]
+	assert.Equal(t, "The orders", ordersParam.Description)
+	assert.True(t, ordersParam.Required)
+	assert.Equal(t, "array", ordersParam.Type)
+	otherParam := mop.Parameters[1]
+	assert.Equal(t, "And another thing", otherParam.Description)
+
 	op, ok := noParamOps["someOperation"]
 	assert.True(t, ok)
-	assert.Len(t, op.Parameters, 7)
+	assert.Len(t, op.Parameters, 8)
 
 	for _, param := range op.Parameters {
 		switch param.Name {
@@ -146,6 +161,15 @@ func TestParamsParser(t *testing.T) {
 			assert.Equal(t, "date-time", param.Format)
 			assert.False(t, param.Required)
 			assert.Equal(t, "Created", param.Extensions["x-go-name"])
+
+		case "category":
+			assert.Equal(t, "The Category of this model", param.Description)
+			assert.Equal(t, "query", param.In)
+			assert.Equal(t, "string", param.Type)
+			assert.True(t, param.Required)
+			assert.Equal(t, "Category", param.Extensions["x-go-name"])
+            assert.EqualValues(t, []interface{}{"foo","bar","none"}, param.Enum, "%s enum values are incorrect", param.Name)
+            assert.Equal(t, "bar", param.Default, "%s default value is incorrect", param.Name)
 
 		case "foo_slice":
 			assert.Equal(t, "a FooSlice has foos which are strings", param.Description)
@@ -229,6 +253,34 @@ func TestParamsParser(t *testing.T) {
 				}
 			}
 
+		default:
+			assert.Fail(t, "unkown property: "+param.Name)
+		}
+	}
+
+	// assert that the order of the parameters is maintained
+	order, ok := noParamOps["anotherOperation"]
+	assert.True(t, ok)
+	assert.Len(t, order.Parameters, 8)
+
+	for index, param := range order.Parameters {
+		switch param.Name {
+		case "id":
+			assert.Equal(t, 0, index, "%s index incorrect", param.Name)
+		case "score":
+			assert.Equal(t, 1, index, "%s index incorrect", param.Name)
+		case "x-hdr-name":
+			assert.Equal(t, 2, index, "%s index incorrect", param.Name)
+		case "created":
+			assert.Equal(t, 3, index, "%s index incorrect", param.Name)
+        case "category":
+            assert.Equal(t, 4, index, "%s index incorrect", param.Name)
+		case "foo_slice":
+			assert.Equal(t, 5, index, "%s index incorrect", param.Name)
+		case "bar_slice":
+			assert.Equal(t, 6, index, "%s index incorrect", param.Name)
+		case "items":
+			assert.Equal(t, 7, index, "%s index incorrect", param.Name)
 		default:
 			assert.Fail(t, "unkown property: "+param.Name)
 		}

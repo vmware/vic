@@ -6,7 +6,7 @@ package store
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-openapi/runtime"
 
 	"github.com/go-swagger/go-swagger/examples/generated/models"
 )
@@ -17,7 +17,9 @@ swagger:response placeOrderOK
 */
 type PlaceOrderOK struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.Order `json:"body,omitempty"`
 }
 
@@ -32,12 +34,18 @@ func (o *PlaceOrderOK) WithPayload(payload *models.Order) *PlaceOrderOK {
 	return o
 }
 
+// SetPayload sets the payload to the place order o k response
+func (o *PlaceOrderOK) SetPayload(payload *models.Order) {
+	o.Payload = payload
+}
+
 // WriteResponse to the client
-func (o *PlaceOrderOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *PlaceOrderOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -56,7 +64,7 @@ func NewPlaceOrderBadRequest() *PlaceOrderBadRequest {
 }
 
 // WriteResponse to the client
-func (o *PlaceOrderBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *PlaceOrderBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(400)
 }

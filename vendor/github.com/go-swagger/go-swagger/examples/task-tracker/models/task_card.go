@@ -7,115 +7,99 @@ import (
 	"encoding/json"
 	"strconv"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
-	"github.com/go-swagger/go-swagger/swag"
+	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit/validate"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/validate"
 )
 
-/*TaskCard a card for a task
-
-A task card is a minimalistic representation of a task. Useful for display in list views, like a card list.
-
-
-swagger:model TaskCard
-*/
+// TaskCard a card for a task
+//
+// A task card is a minimalistic representation of a task. Useful for display in list views, like a card list.
+//
+// swagger:model TaskCard
 type TaskCard struct {
 
-	/* AssignedTo assigned to
-	 */
+	// assigned to
 	AssignedTo *UserCard `json:"assignedTo,omitempty"`
 
-	/* The description of the task.
+	// The description of the task.
+	//
+	// The task description is a longer, more detailed description of the issue.
+	// Perhaps it even mentions steps to reproduce.
+	//
+	Description string `json:"description,omitempty"`
 
-	The task description is a longer, more detailed description of the issue.
-	Perhaps it even mentions steps to reproduce.
+	// the level of effort required to get this task completed
+	// Maximum: 27
+	// Multiple Of: 3
+	Effort int32 `json:"effort,omitempty"`
 
-	*/
-	Description *string `json:"description,omitempty"`
+	// The id of the task.
+	//
+	// A unique identifier for the task. These are created in ascending order.
+	// Read Only: true
+	ID int64 `json:"id,omitempty"`
 
-	/* the level of effort required to get this task completed
-
-	Maximum: 27
-	Multiple Of: 3
-	*/
-	Effort *int32 `json:"effort,omitempty"`
-
-	/* The id of the task.
-
-	A unique identifier for the task. These are created in ascending order.
-
-	Read Only: true
-	*/
-	ID *int64 `json:"id,omitempty"`
-
-	/* the karma donated to this item.
-
-	Karma is a lot like voting.  Users can donate a certain amount or karma to an issue.
-	This is used to determine the weight users place on an issue. Not that +1 comments aren't great.
-
-
-	Minimum: > 0
-	Multiple Of: 0.5
-	*/
+	// the karma donated to this item.
+	//
+	// Karma is a lot like voting.  Users can donate a certain amount or karma to an issue.
+	// This is used to determine the weight users place on an issue. Not that +1 comments aren't great.
+	//
+	// Minimum: > 0
+	// Multiple Of: 0.5
 	Karma *float64 `json:"karma,omitempty"`
 
-	/* Milestone milestone
-	 */
+	// milestone
 	Milestone *Milestone `json:"milestone,omitempty"`
 
-	/* The time at which this issue was reported.
+	// The time at which this issue was reported.
+	//
+	// This field is read-only, so it's only sent as part of the response.
+	//
+	// Read Only: true
+	ReportedAt strfmt.DateTime `json:"reportedAt,omitempty"`
 
-	This field is read-only, so it's only sent as part of the response.
+	// severity
+	// Maximum: 5
+	// Minimum: 1
+	Severity int32 `json:"severity,omitempty"`
 
+	// the status of the issue
+	//
+	// There are 4 possible values for a status.
+	// Ignored means as much as accepted but not now, perhaps later.
+	//
+	// Required: true
+	Status *string `json:"status"`
 
-	Read Only: true
-	*/
-	ReportedAt *strfmt.DateTime `json:"reportedAt,omitempty"`
+	// task tags.
+	//
+	// a task can be tagged with text blurbs.
+	// Max Items: 5
+	// Unique: true
+	Tags []string `json:"tags"`
 
-	/* Severity severity
-
-	Maximum: 5
-	Minimum: 1
-	*/
-	Severity *int32 `json:"severity,omitempty"`
-
-	/* the status of the issue
-
-	There are 4 possible values for a status.
-	Ignored means as much as accepted but not now, perhaps later.
-
-
-	Required: true
-	*/
-	Status string `json:"status,omitempty"`
-
-	/* task tags.
-
-	a task can be tagged with text blurbs.
-
-	Max Items: 5
-	Unique: true
-	*/
-	Tags []string `json:"tags,omitempty"`
-
-	/* The title of the task.
-
-	The title for a task, this needs to be at least 5 chars long.
-	Titles don't allow any formatting, besides emoji.
-
-
-	Required: true
-	Max Length: 150
-	Min Length: 5
-	*/
-	Title string `json:"title,omitempty"`
+	// The title of the task.
+	//
+	// The title for a task, this needs to be at least 5 chars long.
+	// Titles don't allow any formatting, besides emoji.
+	//
+	// Required: true
+	// Max Length: 150
+	// Min Length: 5
+	Title *string `json:"title"`
 }
 
 // Validate validates this task card
 func (m *TaskCard) Validate(formats strfmt.Registry) error {
 	var res []error
+
+	if err := m.validateAssignedTo(formats); err != nil {
+		// prop
+		res = append(res, err)
+	}
 
 	if err := m.validateEffort(formats); err != nil {
 		// prop
@@ -123,6 +107,11 @@ func (m *TaskCard) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateKarma(formats); err != nil {
+		// prop
+		res = append(res, err)
+	}
+
+	if err := m.validateMilestone(formats); err != nil {
 		// prop
 		res = append(res, err)
 	}
@@ -153,17 +142,33 @@ func (m *TaskCard) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *TaskCard) validateAssignedTo(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.AssignedTo) { // not required
+		return nil
+	}
+
+	if m.AssignedTo != nil {
+
+		if err := m.AssignedTo.Validate(formats); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *TaskCard) validateEffort(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.Effort) { // not required
 		return nil
 	}
 
-	if err := validate.Maximum("effort", "body", float64(*m.Effort), 27, false); err != nil {
+	if err := validate.MaximumInt("effort", "body", int64(m.Effort), 27, false); err != nil {
 		return err
 	}
 
-	if err := validate.MultipleOf("effort", "body", float64(*m.Effort), 3); err != nil {
+	if err := validate.MultipleOf("effort", "body", float64(m.Effort), 3); err != nil {
 		return err
 	}
 
@@ -187,17 +192,33 @@ func (m *TaskCard) validateKarma(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *TaskCard) validateMilestone(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Milestone) { // not required
+		return nil
+	}
+
+	if m.Milestone != nil {
+
+		if err := m.Milestone.Validate(formats); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *TaskCard) validateSeverity(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.Severity) { // not required
 		return nil
 	}
 
-	if err := validate.Minimum("severity", "body", float64(*m.Severity), 1, false); err != nil {
+	if err := validate.MinimumInt("severity", "body", int64(m.Severity), 1, false); err != nil {
 		return err
 	}
 
-	if err := validate.Maximum("severity", "body", float64(*m.Severity), 5, false); err != nil {
+	if err := validate.MaximumInt("severity", "body", int64(m.Severity), 5, false); err != nil {
 		return err
 	}
 
@@ -206,16 +227,29 @@ func (m *TaskCard) validateSeverity(formats strfmt.Registry) error {
 
 var taskCardTypeStatusPropEnum []interface{}
 
-func (m *TaskCard) validateStatusEnum(path, location string, value string) error {
-	if taskCardTypeStatusPropEnum == nil {
-		var res []string
-		if err := json.Unmarshal([]byte(`["open","closed","ignored","rejected"]`), &res); err != nil {
-			return err
-		}
-		for _, v := range res {
-			taskCardTypeStatusPropEnum = append(taskCardTypeStatusPropEnum, v)
-		}
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["open","closed","ignored","rejected"]`), &res); err != nil {
+		panic(err)
 	}
+	for _, v := range res {
+		taskCardTypeStatusPropEnum = append(taskCardTypeStatusPropEnum, v)
+	}
+}
+
+const (
+	// TaskCardStatusOpen captures enum value "open"
+	TaskCardStatusOpen string = "open"
+	// TaskCardStatusClosed captures enum value "closed"
+	TaskCardStatusClosed string = "closed"
+	// TaskCardStatusIgnored captures enum value "ignored"
+	TaskCardStatusIgnored string = "ignored"
+	// TaskCardStatusRejected captures enum value "rejected"
+	TaskCardStatusRejected string = "rejected"
+)
+
+// prop value enum
+func (m *TaskCard) validateStatusEnum(path, location string, value string) error {
 	if err := validate.Enum(path, location, value, taskCardTypeStatusPropEnum); err != nil {
 		return err
 	}
@@ -224,11 +258,12 @@ func (m *TaskCard) validateStatusEnum(path, location string, value string) error
 
 func (m *TaskCard) validateStatus(formats strfmt.Registry) error {
 
-	if err := validate.RequiredString("status", "body", string(m.Status)); err != nil {
+	if err := validate.Required("status", "body", m.Status); err != nil {
 		return err
 	}
 
-	if err := m.validateStatusEnum("status", "body", m.Status); err != nil {
+	// value enum
+	if err := m.validateStatusEnum("status", "body", *m.Status); err != nil {
 		return err
 	}
 
@@ -253,10 +288,6 @@ func (m *TaskCard) validateTags(formats strfmt.Registry) error {
 
 	for i := 0; i < len(m.Tags); i++ {
 
-		if err := validate.RequiredString("tags"+"."+strconv.Itoa(i), "body", string(m.Tags[i])); err != nil {
-			return err
-		}
-
 		if err := validate.MinLength("tags"+"."+strconv.Itoa(i), "body", string(m.Tags[i]), 3); err != nil {
 			return err
 		}
@@ -272,15 +303,15 @@ func (m *TaskCard) validateTags(formats strfmt.Registry) error {
 
 func (m *TaskCard) validateTitle(formats strfmt.Registry) error {
 
-	if err := validate.RequiredString("title", "body", string(m.Title)); err != nil {
+	if err := validate.Required("title", "body", m.Title); err != nil {
 		return err
 	}
 
-	if err := validate.MinLength("title", "body", string(m.Title), 5); err != nil {
+	if err := validate.MinLength("title", "body", string(*m.Title), 5); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("title", "body", string(m.Title), 150); err != nil {
+	if err := validate.MaxLength("title", "body", string(*m.Title), 150); err != nil {
 		return err
 	}
 
