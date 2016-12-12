@@ -15,18 +15,21 @@
 package handlers
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
+	"context"
+
+	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
+
+	"net/http"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -92,31 +95,31 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	m := &executor.ExecutorConfig{
 		Common: executor.Common{
 			ID:   id,
-			Name: params.CreateConfig.Name,
+			Name: *params.CreateConfig.Name,
 		},
 		CreateTime: time.Now().UTC().Unix(),
 		Version:    version.GetBuild(),
 		Sessions: map[string]*executor.SessionConfig{
-			id: {
+			id: &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   id,
-					Name: params.CreateConfig.Name,
+					Name: *params.CreateConfig.Name,
 				},
-				Tty:       params.CreateConfig.Tty,
-				Attach:    params.CreateConfig.Attach,
-				OpenStdin: params.CreateConfig.OpenStdin,
+				Tty:       *params.CreateConfig.Tty,
+				Attach:    *params.CreateConfig.Attach,
+				OpenStdin: *params.CreateConfig.OpenStdin,
 				Cmd: executor.Cmd{
 					Env:  params.CreateConfig.Env,
-					Dir:  params.CreateConfig.WorkingDir,
-					Path: params.CreateConfig.Path,
-					Args: append([]string{params.CreateConfig.Path}, params.CreateConfig.Args...),
+					Dir:  *params.CreateConfig.WorkingDir,
+					Path: *params.CreateConfig.Path,
+					Args: append([]string{*params.CreateConfig.Path}, params.CreateConfig.Args...),
 				},
-				StopSignal: params.CreateConfig.StopSignal,
+				StopSignal: *params.CreateConfig.StopSignal,
 			},
 		},
 		Key:      pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:  params.CreateConfig.Image,
-		RepoName: params.CreateConfig.RepoName,
+		LayerID:  *params.CreateConfig.Image,
+		RepoName: *params.CreateConfig.RepoName,
 	}
 
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
@@ -129,11 +132,11 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
 		Metadata:       m,
-		ParentImageID:  params.CreateConfig.Image,
+		ParentImageID:  *params.CreateConfig.Image,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 		Resources: exec.Resources{
-			NumCPUs:  params.CreateConfig.NumCpus,
-			MemoryMB: params.CreateConfig.MemoryMB,
+			NumCPUs:  *params.CreateConfig.NumCpus,
+			MemoryMB: *params.CreateConfig.MemoryMB,
 		},
 	}
 
@@ -202,11 +205,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
 	}
 
-	return containers.NewGetStateOK().WithPayload(
-		&models.ContainerGetStateResponse{
-			Handle: h.String(),
-			State:  state,
-		})
+	return containers.NewGetStateOK().WithPayload(&models.ContainerGetStateResponse{Handle: h.String(), State: state})
 }
 
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
@@ -405,16 +404,19 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	}
 
 	ccid := container.ExecConfig.ID
-	info.ContainerConfig.ContainerID = ccid
+	info.ContainerConfig.ContainerID = &ccid
 
 	s := container.State().String()
-	info.ContainerConfig.State = s
-	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
+	info.ContainerConfig.State = &s
+	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
-	info.ContainerConfig.CreateTime = container.ExecConfig.CreateTime
+	info.ContainerConfig.CreateTime = &container.ExecConfig.CreateTime
 	info.ContainerConfig.Names = []string{container.ExecConfig.Name}
-	info.ContainerConfig.RestartCount = int64(container.ExecConfig.Diagnostics.ResurrectionCount)
-	info.ContainerConfig.StorageSize = container.VMUnsharedDisk
+
+	restart := int32(container.ExecConfig.Diagnostics.ResurrectionCount)
+	info.ContainerConfig.RestartCount = &restart
+
+	info.ContainerConfig.StorageSize = &container.VMUnsharedDisk
 
 	if container.ExecConfig.Annotations != nil && len(container.ExecConfig.Annotations) > 0 {
 		info.ContainerConfig.Annotations = make(map[string]string)
@@ -428,23 +430,39 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	// session id in execConfig -- this has only manifested itself in short lived containers
 	// that were initilized via run
 	if session, exists := container.ExecConfig.Sessions[ccid]; exists {
-		info.ContainerConfig.Tty = &session.Tty
-		info.ContainerConfig.AttachStdin = &session.Attach
-		info.ContainerConfig.AttachStdout = &session.Attach
-		info.ContainerConfig.AttachStderr = &session.Attach
-		info.ContainerConfig.OpenStdin = &session.OpenStdin
+		tty := session.Tty
+		info.ContainerConfig.Tty = &tty
+
+		attach := session.Attach
+		info.ContainerConfig.AttachStdin = &attach
+		info.ContainerConfig.AttachStdout = &attach
+		info.ContainerConfig.AttachStderr = &attach
+
+		openstdin := session.OpenStdin
+		info.ContainerConfig.OpenStdin = &openstdin
+
+		path := session.Cmd.Path
+		info.ProcessConfig.ExecPath = &path
+
+		dir := session.Cmd.Dir
+		info.ProcessConfig.WorkingDir = &dir
+
+		info.ProcessConfig.ExecArgs = session.Cmd.Args
+		info.ProcessConfig.Env = session.Cmd.Env
+
+		exitcode := int32(session.ExitStatus)
+		info.ProcessConfig.ExitCode = &exitcode
+
+		startTime := session.StartTime
+		info.ProcessConfig.StartTime = &startTime
+
+		stopTime := session.StopTime
+		info.ProcessConfig.StopTime = &stopTime
 
 		// started is a string in the vmx that is not to be confused
 		// with started the datetime in the models.ContainerInfo
-		info.ProcessConfig.Status = session.Started
-		info.ProcessConfig.ExecPath = session.Cmd.Path
-		info.ProcessConfig.WorkingDir = &session.Cmd.Dir
-		info.ProcessConfig.ExecArgs = session.Cmd.Args
-		info.ProcessConfig.Env = session.Cmd.Env
-		info.ProcessConfig.ExitCode = int32(session.ExitStatus)
-		info.ProcessConfig.StartTime = session.StartTime
-		info.ProcessConfig.StopTime = session.StopTime
-
+		status := session.Started
+		info.ProcessConfig.Status = &status
 	} else {
 		// log that sessionID is missing and print the ExecConfig
 		log.Errorf("Session ID is missing from execConfig: %#v", container.ExecConfig)

@@ -15,24 +15,28 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-swagger/go-swagger/swag"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
+
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
+
 	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	vsphereSpl "github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
-	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/datastore"
+
+	"context"
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
@@ -119,21 +123,18 @@ func (h *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStorePa
 		if os.IsExist(err) {
 			return storage.NewCreateImageStoreConflict().WithPayload(
 				&models.Error{
-					Code:    http.StatusConflict,
+					Code:    swag.Int64(http.StatusConflict),
 					Message: "An image store with that name already exists",
 				})
 		}
 
 		return storage.NewCreateImageStoreDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 	}
-	s := &models.StoreURL{
-		Code: http.StatusCreated,
-		URL:  url.String(),
-	}
+	s := &models.StoreURL{Code: swag.Int64(http.StatusCreated), URL: url.String()}
 	return storage.NewCreateImageStoreCreated().WithPayload(s)
 }
 
@@ -145,7 +146,7 @@ func (h *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware
 	if err != nil {
 		return storage.NewGetImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 	}
@@ -153,10 +154,7 @@ func (h *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware
 	op := trace.NewOperation(context.Background(), fmt.Sprintf("GetImage(%s)", id))
 	image, err := h.imageCache.GetImage(op, url, id)
 	if err != nil {
-		e := &models.Error{
-			Code:    http.StatusNotFound,
-			Message: err.Error(),
-		}
+		e := &models.Error{Code: swag.Int64(http.StatusNotFound), Message: err.Error()}
 		return storage.NewGetImageNotFound().WithPayload(e)
 	}
 
@@ -171,7 +169,7 @@ func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) midd
 		log.Errorf("DeleteImage: error %s", err.Error())
 		return storage.NewDeleteImageDefault(code).WithPayload(
 			&models.Error{
-				Code:    int64(code),
+				Code:    swag.Int64(int64(code)),
 				Message: err.Error(),
 			})
 	}
@@ -230,7 +228,7 @@ func (h *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middle
 	if err != nil {
 		return storage.NewListImagesDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 	}
@@ -240,7 +238,7 @@ func (h *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middle
 	if err != nil {
 		return storage.NewListImagesNotFound().WithPayload(
 			&models.Error{
-				Code:    http.StatusNotFound,
+				Code:    swag.Int64(http.StatusNotFound),
 				Message: err.Error(),
 			})
 	}
@@ -259,7 +257,7 @@ func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middle
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 	}
@@ -280,7 +278,7 @@ func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middle
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 	}
@@ -289,7 +287,7 @@ func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middle
 }
 
 // VolumeStoresList lists the configured volume stores and their datastore path URIs.
-func (h *StorageHandlersImpl) VolumeStoresList(params storage.VolumeStoresListParams) middleware.Responder {
+func (h *StorageHandlersImpl) VolumeStoresList() middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.VolumeStoresList"))
 
 	op := trace.NewOperation(context.Background(), "VolumeStoresList")
@@ -297,7 +295,7 @@ func (h *StorageHandlersImpl) VolumeStoresList(params storage.VolumeStoresListPa
 	if err != nil {
 		return storage.NewVolumeStoresListInternalServerError().WithPayload(
 			&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 	}
@@ -322,7 +320,7 @@ func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) mi
 	if err != nil {
 		log.Errorf("storagehandler: VolumeStoreName error: %s", err)
 		return storage.NewCreateVolumeInternalServerError().WithPayload(&models.Error{
-			Code:    http.StatusInternalServerError,
+			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
@@ -346,20 +344,20 @@ func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) mi
 
 		if os.IsExist(err) {
 			return storage.NewCreateVolumeConflict().WithPayload(&models.Error{
-				Code:    http.StatusConflict,
+				Code:    swag.Int64(http.StatusConflict),
 				Message: err.Error(),
 			})
 		}
 
 		if _, ok := err.(spl.VolumeStoreNotFoundError); ok {
 			return storage.NewCreateVolumeNotFound().WithPayload(&models.Error{
-				Code:    http.StatusNotFound,
+				Code:    swag.Int64(http.StatusNotFound),
 				Message: err.Error(),
 			})
 		}
 
 		return storage.NewCreateVolumeInternalServerError().WithPayload(&models.Error{
-			Code:    http.StatusInternalServerError,
+			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
@@ -376,7 +374,7 @@ func (h *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middlewa
 	data, err := h.volumeCache.VolumeGet(op, params.Name)
 	if err == os.ErrNotExist {
 		return storage.NewGetVolumeNotFound().WithPayload(&models.Error{
-			Code:    http.StatusNotFound,
+			Code:    swag.Int64(http.StatusNotFound),
 			Message: err.Error(),
 		})
 	}
@@ -384,7 +382,7 @@ func (h *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middlewa
 	response, err := fillVolumeModel(data)
 	if err != nil {
 		return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
-			Code:    http.StatusInternalServerError,
+			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
@@ -430,7 +428,7 @@ func (h *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) midd
 	if err != nil {
 		log.Error(err)
 		return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
-			Code:    http.StatusInternalServerError,
+			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
@@ -442,7 +440,7 @@ func (h *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) midd
 		if err != nil {
 			log.Error(err)
 			return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 		}
@@ -468,7 +466,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		log.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
-			Code:    http.StatusInternalServerError,
+			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
@@ -478,7 +476,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		log.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
-			Code:    http.StatusInternalServerError,
+			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
@@ -491,15 +489,17 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 
 // convert an SPL Image to a swagger-defined Image
 func convertImage(image *spl.Image) *models.Image {
-	var parent, selfLink string
+	var parent, selfLink *string
 
 	// scratch image
 	if image.ParentLink != nil {
-		parent = image.ParentLink.String()
+		s := image.ParentLink.String()
+		parent = &s
 	}
 
 	if image.SelfLink != nil {
-		selfLink = image.SelfLink.String()
+		l := image.SelfLink.String()
+		selfLink = &l
 	}
 
 	meta := make(map[string]string)

@@ -236,7 +236,7 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 		images[i] = &ImageWithMeta{
 			Image: &models.Image{
 				ID:     v1.ID,
-				Parent: parent,
+				Parent: &parent,
 				Store:  ic.Storename,
 			},
 			Meta:  history.V1Compatibility,

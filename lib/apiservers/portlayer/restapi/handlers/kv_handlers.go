@@ -15,15 +15,19 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 
+	"context"
+
+	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-swagger/go-swagger/swag"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/kv"
+
 	"github.com/vmware/vic/lib/portlayer/store"
 	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
@@ -55,25 +59,23 @@ func (handler *KvHandlersImpl) GetValueHandler(params kv.GetValueParams) middlew
 		default:
 			log.Errorf("Error Getting Key/Value: %s", err.Error())
 			return kv.NewGetValueInternalServerError().WithPayload(&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 		}
 	}
-	return kv.NewGetValueOK().WithPayload(&models.KeyValue{Key: params.Key, Value: string(val)})
+	s := string(val)
+	return kv.NewGetValueOK().WithPayload(&models.KeyValue{Key: &params.Key, Value: &s})
 }
 
 func (handler *KvHandlersImpl) PutValueHandler(params kv.PutValueParams) middleware.Responder {
-	defer trace.End(trace.Begin(params.KeyValue.Key))
+	defer trace.End(trace.Begin(*params.KeyValue.Key))
 
-	err := handler.defaultStore.Put(
-		context.Background(),
-		params.KeyValue.Key,
-		[]byte(params.KeyValue.Value))
+	err := handler.defaultStore.Put(context.Background(), *params.KeyValue.Key, []byte(*params.KeyValue.Value))
 	if err != nil {
 		log.Errorf("Error Setting Key/Value: %s", err.Error())
 		return kv.NewGetValueInternalServerError().WithPayload(&models.Error{
-			Code:    http.StatusInternalServerError,
+			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
@@ -91,7 +93,7 @@ func (handler *KvHandlersImpl) DeleteValueHandler(params kv.DeleteValueParams) m
 		default:
 			log.Errorf("Error deleting Key/Value: %s", err.Error())
 			return kv.NewGetValueInternalServerError().WithPayload(&models.Error{
-				Code:    http.StatusInternalServerError,
+				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
 			})
 		}

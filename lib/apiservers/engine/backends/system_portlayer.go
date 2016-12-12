@@ -94,10 +94,9 @@ func (s *SystemProxy) ContainerCount() (int, int, int, error) {
 	}
 
 	for _, t := range containList.Payload {
-		st := t.ContainerConfig.State
-		if st == "Running" {
+		if *t.ContainerConfig.State == "Running" {
 			running++
-		} else if st == "Stopped" || st == "Created" {
+		} else if *t.ContainerConfig.State == "Stopped" || *t.ContainerConfig.State == "Created" {
 			stopped++
 		}
 	}

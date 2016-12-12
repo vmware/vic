@@ -59,7 +59,7 @@ func Get(client *client.PortLayer, key string) (string, error) {
 			return val, err
 		}
 	}
-	val = resp.Payload.Value
+	val = *resp.Payload.Value
 	// return the value
 	return val, nil
 
@@ -71,8 +71,8 @@ func Put(client *client.PortLayer, key string, val string) error {
 
 	fullKey := createNameSpacedKey(key)
 	keyval := &models.KeyValue{
-		Key:   fullKey,
-		Value: val,
+		Key:   &fullKey,
+		Value: &val,
 	}
 
 	_, err := client.Kv.PutValue(ckv.NewPutValueParamsWithContext(

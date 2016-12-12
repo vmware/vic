@@ -332,7 +332,7 @@ func TestFetchImageBlob(t *testing.T) {
 	image := ImageWithMeta{
 		Image: &models.Image{
 			ID:     LayerID,
-			Parent: parent,
+			Parent: &parent,
 			Store:  Storename,
 		},
 		Meta:  LayerHistory,

@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,6 +22,9 @@ import (
 	"os"
 	"testing"
 
+	"context"
+
+	"github.com/go-swagger/go-swagger/swag"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -200,17 +202,17 @@ func TestCreateImageStore(t *testing.T) {
 		Name: "testStore",
 	}
 
-	params := storage.CreateImageStoreParams{
+	params := &storage.CreateImageStoreParams{
 		Body: store,
 	}
 
-	result := s.CreateImageStore(params)
+	result := s.CreateImageStore(*params)
 	if !assert.NotNil(t, result) {
 		return
 	}
 
 	// try to recreate the same image store
-	result = s.CreateImageStore(params)
+	result = s.CreateImageStore(*params)
 	if !assert.NotNil(t, result) {
 		return
 	}
@@ -218,7 +220,7 @@ func TestCreateImageStore(t *testing.T) {
 	// expect 409 since it already exists
 	conflict := &storage.CreateImageStoreConflict{
 		Payload: &models.Error{
-			Code:    http.StatusConflict,
+			Code:    swag.Int64(http.StatusConflict),
 			Message: "An image store with that name already exists",
 		},
 	}
@@ -241,7 +243,7 @@ func TestGetImage(t *testing.T) {
 	// expect 404 since no image store exists by that name
 	storeNotFound := &storage.GetImageNotFound{
 		Payload: &models.Error{
-			Code:    http.StatusNotFound,
+			Code:    swag.Int64(http.StatusNotFound),
 			Message: fmt.Sprintf("store (%s) doesn't exist", testStoreURL.String()),
 		},
 	}
@@ -269,7 +271,7 @@ func TestGetImage(t *testing.T) {
 	// expect 404 since no image exists by that name in that store
 	imageNotFound := &storage.GetImageNotFound{
 		Payload: &models.Error{
-			Code:    http.StatusNotFound,
+			Code:    swag.Int64(http.StatusNotFound),
 			Message: fmt.Sprintf("store (%s) doesn't have image %s", testStoreURL.String(), testImageID),
 		},
 	}
@@ -316,8 +318,8 @@ func TestGetImage(t *testing.T) {
 	expected := &storage.GetImageOK{
 		Payload: &models.Image{
 			ID:       image.ID,
-			SelfLink: sl,
-			Parent:   p,
+			SelfLink: &sl,
+			Parent:   &p,
 			Store:    testStoreURL.String(),
 			Metadata: eMeta,
 		},
@@ -345,7 +347,7 @@ func TestListImages(t *testing.T) {
 	// expect 404 if image store doesn't exist
 	notFound := &storage.ListImagesNotFound{
 		Payload: &models.Error{
-			Code:    http.StatusNotFound,
+			Code:    swag.Int64(http.StatusNotFound),
 			Message: fmt.Sprintf("store (%s) doesn't exist", testStoreURL.String()),
 		},
 	}
@@ -471,8 +473,8 @@ func TestWriteImage(t *testing.T) {
 	expected := &storage.WriteImageCreated{
 		Payload: &models.Image{
 			ID:       testImageID,
-			Parent:   p,
-			SelfLink: sl,
+			Parent:   &p,
+			SelfLink: &sl,
 			Store:    testStoreURL.String(),
 			Metadata: eMeta,
 		},

@@ -308,13 +308,11 @@
 					{
 						"name": "metadatakey",
 						"type": "string",
-						"x-nullable": false,
 						"in": "query"
 					},
 					{
 						"name": "metadataval",
 						"type": "string",
-						"x-nullable": false,
 						"in": "query"
 					}
 				],
@@ -1408,7 +1406,6 @@
 					{
 						"name": "handle",
 						"required": true,
-						"x-nullable": false,
 						"in": "path",
 						"type": "string"
 					},
@@ -1417,7 +1414,6 @@
 						"required": true,
 						"in": "body",
 						"schema": {
-							"x-nullable": false,
 							"type": "string",
 							"enum": [
 								"RUNNING",
@@ -2200,8 +2196,7 @@
 					"format": "int64"
 				},
 				"message": {
-					"type": "string",
-					"x-nullable": false
+					"type": "string"
 				}
 			}
 		},
@@ -2231,11 +2226,9 @@
 			"type": "object",
 			"properties": {
 				"Key": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Value": {
-					"x-nullable": false,
 					"type": "string"
 				}
 			}
@@ -2251,7 +2244,6 @@
 					"format": "int64"
 				},
 				"url": {
-					"x-nullable": false,
 					"type": "string"
 				}
 			}
@@ -2263,8 +2255,7 @@
 			],
 			"properties": {
 				"name": {
-					"type": "string",
-					"x-nullable": false
+					"type": "string"
 				}
 			}
 		},
@@ -2276,17 +2267,15 @@
 			],
 			"properties": {
 				"ID": {
-					"x-nullable": false,
-					"type": "string"
-				},
-				"Store": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"SelfLink": {
 					"type": "string"
 				},
 				"Parent": {
+					"type": "string"
+				},
+				"Store": {
 					"type": "string"
 				},
 				"Metadata": {
@@ -2308,11 +2297,9 @@
 					"type": "string"
 				},
 				"name": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"scopeType": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"subnet": {
@@ -2356,27 +2343,21 @@
 			],
 			"properties": {
 				"id": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"name": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"scope": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"address": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"gateway": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"container": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"ports": {
@@ -2445,18 +2426,15 @@
 				},
 				"attach": {
 					"type": "boolean",
-					"default": false,
-					"x-nullable": false
+					"default": false
 				},
 				"openStdin": {
 					"type": "boolean",
-					"default": false,
-					"x-nullable": false
+					"default": false
 				},
 				"tty": {
 					"type": "boolean",
-					"default": false,
-					"x-nullable": false
+					"default": false
 				},
 				"stopSignal": {
 					"type": "string"
@@ -2477,12 +2455,10 @@
 			],
 			"properties": {
 				"handle": {
-					"type": "string",
-					"x-nullable": false
+					"type": "string"
 				},
 				"id": {
-					"type": "string",
-					"x-nullable": false
+					"type": "string"
 				}
 			}
 		},
@@ -2497,7 +2473,6 @@
 					"$ref": "#/definitions/NetworkConfig"
 				},
 				"handle": {
-					"x-nullable": false,
 					"type": "string"
 				}
 			}
@@ -2509,7 +2484,6 @@
 			],
 			"properties": {
 				"networkName": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"address": {
@@ -2537,12 +2511,10 @@
 			],
 			"properties": {
 				"handle": {
-					"type": "string",
-					"x-nullable": false
+					"type": "string"
 				},
 				"state": {
 					"type": "string",
-					"x-nullable": false,
 					"enum": [
 						"RUNNING",
 						"STOPPED"
@@ -2560,11 +2532,9 @@
 			],
 			"properties": {
 				"Name": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Driver": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"DriverArgs": {
@@ -2574,12 +2544,11 @@
 					}
 				},
 				"Store": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Capacity": {
-					"x-nullable": false,
-					"type": "integer"
+					"type": "integer",
+					"format": "int64"
 				},
 				"Metadata": {
 					"type": "object",
@@ -2599,20 +2568,16 @@
 			],
 			"properties": {
 				"Name": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Label": {
 					"description": "this is the label used to mount the block device",
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Driver": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Store": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Metadata": {
@@ -2632,11 +2597,9 @@
 			],
 			"properties": {
 				"Handle": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"MountPath": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"Flags": {
@@ -2697,11 +2660,11 @@
 					"type": "string"
 				},
 				"repoName": {
-					"x-nullable": true,
 					"type": "string"
 				},
 				"createTime": {
-					"type": "integer"
+					"type": "integer",
+					"format": "int64"
 				},
 				"names": {
 					"type": "array",
@@ -2719,26 +2682,22 @@
 					"type": "string"
 				},
 				"restartCount": {
-					"type": "integer"
+					"type": "integer",
+					"format": "int32"
 				},
 				"hostName": {
-					"x-nullable": true,
 					"type": "string"
 				},
 				"attachStdin": {
-					"x-nullable": true,
 					"type": "boolean"
 				},
 				"attachStdout": {
-					"x-nullable": true,
 					"type": "boolean"
 				},
 				"attachStderr": {
-					"x-nullable": true,
 					"type": "boolean"
 				},
 				"tty": {
-					"x-nullable": true,
 					"type": "boolean"
 				},
 				"consoleSize": {
@@ -2753,7 +2712,6 @@
 					}
 				},
 				"openStdin": {
-					"x-nullable": true,
 					"type": "boolean"
 				},
 				"logPath": {
@@ -2763,7 +2721,8 @@
 					"$ref": "#/definitions/ReservationConfig"
 				},
 				"storageSize": {
-					"type": "integer"
+					"type": "integer",
+					"format": "int64"
 				}
 			}
 		},
@@ -2818,7 +2777,6 @@
 					}
 				},
 				"workingDir": {
-					"x-nullable": true,
 					"type": "string"
 				},
 				"env": {
@@ -2872,7 +2830,6 @@
 			],
 			"properties": {
 				"handle": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"endpoints": {
@@ -2891,7 +2848,6 @@
 			],
 			"properties": {
 				"handle": {
-					"x-nullable": false,
 					"type": "string"
 				},
 				"endpoints": {

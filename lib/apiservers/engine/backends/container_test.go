@@ -31,10 +31,10 @@ import (
 	"github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
+	"github.com/go-swagger/go-swagger/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 
-	"github.com/go-openapi/runtime"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
@@ -123,8 +123,7 @@ func NewMockContainerProxy() *MockContainerProxy {
 }
 
 func MockCreateHandleData() []CreateHandleMockData {
-
-	createHandleTimeoutErr := runtime.NewAPIError("unknown error", "context deadline exceeded", http.StatusServiceUnavailable)
+	createHandleTimeoutErr := client.NewAPIError("unknown error", "context deadline exceeded", http.StatusServiceUnavailable)
 
 	mockCreateHandleData := []CreateHandleMockData{
 		{"busybox", "321cba", "handle", nil, ""},
@@ -616,7 +615,7 @@ func TestPortInformation(t *testing.T) {
 	mockContainerInfo := &plmodels.ContainerInfo{}
 	mockContainerConfig := &plmodels.ContainerConfig{}
 	containerID := "foo"
-	mockContainerConfig.ContainerID = containerID
+	mockContainerConfig.ContainerID = &containerID
 
 	mockHostConfig := &container.HostConfig{}
 
