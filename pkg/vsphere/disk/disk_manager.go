@@ -244,7 +244,9 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, machineSpec)
 
-		op.Debugf("Attach reconfigure task=%s", t.Reference())
+		if t != nil {
+			op.Debugf("Attach reconfigure task=%s", t.Reference())
+		}
 
 		return t, er
 	})
@@ -293,7 +295,9 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, spec)
 
-		op.Debugf("Detach reconfigure task=%s", t.Reference())
+		if t != nil {
+			op.Debugf("Detach reconfigure task=%s", t.Reference())
+		}
 
 		return t, er
 	})
