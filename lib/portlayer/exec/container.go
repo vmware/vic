@@ -394,7 +394,21 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 
 	name := fmt.Sprintf("%s/%s", url.Path, containerLogName)
 
-	log.Infof("pulling %s", name)
+	var via string
+
+	if c.state == StateRunning && c.vm.IsVC() {
+		hosts, _ := c.vm.Datastore.AttachedHosts(ctx)
+		if len(hosts) > 1 {
+			// In this case, we need download from the VM host as it owns the file lock
+			h, _ := c.vm.HostSystem(ctx)
+			if h != nil {
+				ctx = c.vm.Datastore.HostContext(ctx, h)
+				via = fmt.Sprintf(" via %s", h.Reference())
+			}
+		}
+	}
+
+	log.Infof("pulling %s%s", name, via)
 
 	file, err := c.vm.Datastore.Open(ctx, name)
 	if err != nil {

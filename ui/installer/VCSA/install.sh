@@ -107,6 +107,18 @@ check_prerequisite () {
         cleanup
         exit 1
     fi
+
+    if [[ $(curl -v --head https://$VCENTER_IP -k 2>&1 | grep -i "could not resolve host") ]] ; then
+        echo "Error! Could not resolve the hostname. Please make sure you set VCENTER_IP correctly in the configuration file"
+        cleanup
+        exit 1
+    fi
+}
+
+remove_old_key_installation () {
+    if [[ ! $(ls -la ../vsphere-client-serenity/ | grep -i "com.vmware.vicui") ]] ; then
+        $PLUGIN_MANAGER_BIN remove $COMMONFLAGS --key com.vmware.vicui.Vicui > /dev/null
+    fi
 }
 
 parse_and_register_plugins () {
@@ -138,7 +150,7 @@ parse_and_register_plugins () {
             echo "Registering vCenter Server Extension..."
             echo "----------------------------------------"
 
-            if [[ $OLD_PLUGIN_FOLDERS -eq "" ]] ; then
+            if [[ "$OLD_PLUGIN_FOLDERS" -eq "" ]] ; then
                 OLD_PLUGIN_FOLDERS="$key-*"
             else
                 OLD_PLUGIN_FOLDERS="$OLD_PLUGIN_FOLDERS $key-*"
@@ -260,6 +272,7 @@ verify_plugin_url () {
 }
 
 check_prerequisite
+remove_old_key_installation
 
 if [[ $VIC_UI_HOST_URL == "NOURL" ]] ; then
     parse_and_register_plugins
@@ -274,3 +287,4 @@ cleanup
 
 echo "--------------------------------------------------------------"
 echo "VIC UI registration was successful"
+echo ""

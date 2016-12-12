@@ -12,63 +12,67 @@ Trap Signal Command
 
 Assert Container Output
     [Arguments]  ${id}  ${match}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${id}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${match}
 
+Check That Container Was Killed
+    [Arguments]  ${container}
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} ${container}
+    Log  ${out}
+    Should Contain  ${out}  false
+    Should Be Equal As Integers  ${rc}  0
+
 *** Test Cases ***
 Signal a container with default kill signal
-    ${rc}=  Run And Return Rc  docker ${params} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
-    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create ${trap}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${trap}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  READY
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill ${id}
     Should Be Equal As Integers  ${rc}  0
     # Wait for container VM to stop/powerOff
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${id}
     # Cannot send signal to a powered off container VM
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill ${id}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Cannot kill container ${id}
 
 Signal a container with SIGHUP
-    ${rc}=  Run And Return Rc  docker ${params} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
-    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create ${trap}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${trap}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  READY
     # Expect failure with unknown signal name
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill -s NOPE ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s NOPE ${id}
     Should Be Equal As Integers  ${rc}  1
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill -s HUP ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s HUP ${id}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Container Output  ${id}  KillSignalHUP
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill -s TERM ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill -s TERM ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow ${id}
 
 Signal a non-existent container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill fakeContainer
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  No such container: fakeContainer
 
 Signal a tough to kill container - nginx
-    ${rc}=  Run And Return Rc  docker ${params} pull nginx
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull nginx
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create nginx
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create nginx
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} kill ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} inspect -f {{.State.Running}} ${id}
-    Log  ${out}
-    Should Contain  ${out}  false
-    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  10x  6s  Check That Container Was Killed  ${id}

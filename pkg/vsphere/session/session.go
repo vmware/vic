@@ -165,6 +165,8 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	soapClient := soap.NewClient(soapURL, s.Insecure)
+	soapClient.Version = "6.0" // Pin to 6.0 until we need 6.5+ specific API
+
 	var login func(context.Context) error
 
 	login = func(ctx context.Context) error {

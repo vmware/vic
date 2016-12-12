@@ -7,7 +7,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Assert VM Power State
     [Arguments]  ${name}  ${state}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info -json ${vch-name}/${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info -json %{VCH-NAME}/${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal  ${output}  ${state}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
@@ -15,23 +15,30 @@ Assert VM Power State
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  ${state}
 
 Create several containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container2}=  Run And Return Rc And Output  docker ${params} create busybox ls
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox ls
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container2}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container2}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container1}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container1}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container3}=  Run And Return Rc And Output  docker ${params} create busybox dmesg
+    ${rc}  ${container3}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox dmesg
     Should Be Equal As Integers  ${rc}  0
     Wait Until VM Powers Off  *-${container2}
 
+Assert Number Of Containers
+    [Arguments]  ${num}  ${type}=-q
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps ${type}
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  ${num}
+
 *** Test Cases ***
 Empty docker ps command
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  CONTAINER ID
     Should Contain  ${output}  IMAGE
@@ -44,24 +51,24 @@ Empty docker ps command
     Length Should Be  ${output}  1
 
 Docker ps only running containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
     Create several containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${len+1}
 
 Docker ps all containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
     Create several containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
     Should Contain  ${output}  dmesg
@@ -70,78 +77,69 @@ Docker ps all containers
     Length Should Be  ${output}  ${len+3}
 
 Docker ps powerOn container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name jojo busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name jojo busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
 
     Power On VM OOB  jojo*
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  ${len+1}
+    Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len+1}
 
 Docker ps powerOff container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name koko busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name koko busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start koko
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start koko
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
 
     Power Off VM OOB  koko*
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  ${len-1}
+    Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}
 
 Docker ps ports output
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create -p 8000:80 -p 8443:443 nginx
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 nginx
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  :8000->80/tcp
     Should Contain  ${output}  :8443->443/tcp
 
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d -p 6379 redis:alpine
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ->6379/tcp
 
 Docker ps Remove container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name lolo busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name lolo busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start lolo
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start lolo
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop lolo
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop lolo
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy ${vch-name}/"lolo*"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Wait Until VM Is Destroyed  "lolo*"
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  ${len-1}
+    Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}  -aq
 
 Docker ps last container
     ${status}=  Get State Of Github Issue  1545
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
     Log  Issue \#1545 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -l
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -l
     #Should Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  ls
     #${output}=  Split To Lines  ${output}
@@ -151,7 +149,7 @@ Docker ps two containers
     ${status}=  Get State Of Github Issue  1545
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
     Log  Issue \#1545 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -n=2
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -n=2
     #Should Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  dmesg
     #Should Contain  ${output}  ls
@@ -162,7 +160,7 @@ Docker ps last container with size
     ${status}=  Get State Of Github Issue  1545
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
     Log  Issue \#1545 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -ls
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -ls
     #Should Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  SIZE
     #Should Contain  ${output}  ls
@@ -170,11 +168,11 @@ Docker ps last container with size
     #Length Should Be  ${output}  2
 
 Docker ps all containers with only IDs
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
     Create several containers 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  CONTAINER ID
     Should Not Contain  ${output}  /bin/top
@@ -187,7 +185,7 @@ Docker ps with filter
     ${status}=  Get State Of Github Issue  1676
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1676 has been resolved
     Log  Issue \#1676 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -f status=created
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f status=created
     #Should Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  ls
     #${output}=  Split To Lines  ${output}

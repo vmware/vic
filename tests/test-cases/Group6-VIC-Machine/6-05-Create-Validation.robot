@@ -13,9 +13,9 @@ Suggest resources - Invalid datacenter
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL}/WOW --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/WOW --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Should Contain  ${output}  Suggested datacenters:
-    Should Contain  ${output}  vic-machine-linux failed
+    Should Contain  ${output}  vic-machine-linux create failed:
 
 Suggest resources - Invalid target path
     Log To Console  \nRunning vic-machine create
@@ -26,9 +26,9 @@ Suggest resources - Invalid target path
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL}/MUCH/DATACENTER --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/MUCH/DATACENTER --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Should Contain  ${output}  Suggested datacenters:
-    Should Contain  ${output}  vic-machine-linux failed
+    Should Contain  ${output}  vic-machine-linux create failed:
 
 Create VCH - target thumbprint verification
     Log To Console  \nRunning vic-machine create - thumbprint verification
@@ -38,7 +38,7 @@ Create VCH - target thumbprint verification
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Set Test VCH Name
 
-    ${output}=  Run  bin/vic-machine-linux create --thumbprint=NOPE --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --image-store=ENOENT ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --thumbprint=NOPE --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --image-store=ENOENT ${vicmachinetls}
     Should Contain  ${output}  thumbprint does not match
 
 Default image datastore
@@ -51,12 +51,12 @@ Default image datastore
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Log  ${output}
     Should Contain  ${output}  Using default datastore
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: %{VCH-NAME}...
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
@@ -70,19 +70,19 @@ Custom image datastore
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: %{VCH-NAME}...
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
     
 Trailing slash works as expected
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: %{VCH-NAME}...
     Run Regression Tests
     Cleanup VIC Appliance On Test Server

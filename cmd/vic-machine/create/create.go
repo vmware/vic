@@ -31,9 +31,10 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
+	"gopkg.in/urfave/cli.v1"
 
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -1001,6 +1002,8 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 			return certs, keypair, errors.New("failed to load certificate authority")
 		}
 
+		c.cacert = ca
+
 		log.Infof("Loaded CA with default name from certificate path %s", c.certPath)
 		certs = b
 
@@ -1276,10 +1279,10 @@ func logArguments(cliContext *cli.Context) {
 	}
 }
 
-func (c *Create) Run(cliContext *cli.Context) (err error) {
+func (c *Create) Run(clic *cli.Context) (err error) {
 
 	if c.advancedOptions {
-		cli.HelpPrinter(cliContext.App.Writer, EntireOptionHelpTemplate, cliContext.Command)
+		cli.HelpPrinter(clic.App.Writer, EntireOptionHelpTemplate, clic.Command)
 		return nil
 	}
 
@@ -1289,19 +1292,25 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
+
+	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	defer func() {
+		err = common.LogErrorIfAny(clic, err)
+	}()
+
 	if err = c.processParams(); err != nil {
 		return err
 	}
 
-	logArguments(cliContext)
+	logArguments(clic)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {
 		return err
 	}
 
-	if len(cliContext.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", cliContext.Args()[0])
+	if len(clic.Args()) > 0 {
+		log.Errorf("Unknown argument: %s", clic.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 

@@ -1,0 +1,19 @@
+build:
+  vic-uia:
+    image: vmware-docker-ci-repo.bintray.io/integration/vic-test:1.17
+    pull: true
+    environment:
+      SHELL: /bin/bash
+      DRONE_SERVER: $$DRONE_SERVER
+      DRONE_TOKEN: $$DRONE_TOKEN
+      NIMBUS_USER: $$NIMBUS_USER
+      NIMBUS_PASSWORD: $$NIMBUS_PASSWORD
+      NIMBUS_GW: $$NIMBUS_GW
+      TEST_DATASTORE: $$TEST_DATASTORE
+      TEST_RESOURCE: $$TEST_RESOURCE
+      GOVC_INSECURE: true
+      BUILD_NUMBER: $$buildNumber
+    commands:
+      - set -e
+      - pip install pexpect
+      - $$test

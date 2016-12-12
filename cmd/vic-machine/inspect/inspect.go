@@ -18,9 +18,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/urfave/cli.v1"
 
-	"github.com/urfave/cli"
-
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -80,8 +80,12 @@ func (i *Inspect) processParams() error {
 	return nil
 }
 
-func (i *Inspect) Run(cli *cli.Context) error {
-	var err error
+func (i *Inspect) Run(clic *cli.Context) (err error) {
+	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	defer func() {
+		err = common.LogErrorIfAny(clic, err)
+	}()
+
 	if err = i.processParams(); err != nil {
 		return err
 	}
@@ -91,8 +95,8 @@ func (i *Inspect) Run(cli *cli.Context) error {
 		trace.Logger.Level = log.DebugLevel
 	}
 
-	if len(cli.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", cli.Args()[0])
+	if len(clic.Args()) > 0 {
+		log.Errorf("Unknown argument: %s", clic.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 
@@ -136,9 +140,9 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	log.Info("")
 	log.Infof("Installer version: %s", installerVer.ShortVersion())
 	log.Infof("VCH version: %s", vchConfig.Version.ShortVersion())
-	//	log.Info("")
-	//	log.Info("VCH upgrade status:")
-	//	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
+	log.Info("")
+	log.Info("VCH upgrade status:")
+	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
 
 	if err = executor.InspectVCH(vch, vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()

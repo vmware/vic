@@ -14,7 +14,7 @@
 
 package common
 
-import "github.com/urfave/cli"
+import "gopkg.in/urfave/cli.v1"
 
 type Compute struct {
 	ComputeResourcePath string

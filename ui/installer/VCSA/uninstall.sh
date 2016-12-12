@@ -52,6 +52,11 @@ check_prerequisite () {
         echo "Error! VIC UI plugin bundle was not found. Please try downloading the VIC UI installer again"
         exit 1
     fi
+
+    if [[ $(curl -v --head https://$VCENTER_IP -k 2>&1 | grep -i "could not resolve host") ]] ; then
+        echo "Error! Could not resolve the hostname. Please make sure you set VCENTER_IP correctly in the configuration file"
+        exit 1
+    fi
 }
 
 parse_and_unregister_plugins () {
@@ -91,3 +96,4 @@ parse_and_unregister_plugins
 
 echo "--------------------------------------------------------------"
 echo "VIC UI unregistration was successful"
+echo ""

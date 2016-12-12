@@ -41,7 +41,7 @@ Option arguments that might require quotation marks include the following:
 - Datacenter names in `--target`
 - VCH names in `--name`
 - Datastore names and paths in `--image-store` and `--volume-store`
-- Network and distributed port group names in all networking options.
+- Network and port group names in all networking options.
 - Cluster and resource pool names in `--compute-resource`
 - Folder names in the paths for `--cert-path`, `--cert`, `--key`, `--appliance-iso`, and `--bootstrap-iso`
 

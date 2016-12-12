@@ -52,8 +52,11 @@ type RoundTripper interface {
 	RoundTrip(ctx context.Context, req, res HasFault) error
 }
 
-var DefaultVimNamespace = "urn:vim25"
-var DefaultVimVersion = "6.0"
+const (
+	DefaultVimNamespace  = "urn:vim25"
+	DefaultVimVersion    = "6.5"
+	DefaultMinVimVersion = "5.5"
+)
 
 type Client struct {
 	http.Client
@@ -389,29 +392,7 @@ func (c *Client) do(ctx context.Context, req *http.Request) (*http.Response, err
 		return c.Client.Do(req)
 	}
 
-	var resc = make(chan *http.Response, 1)
-	var errc = make(chan error, 1)
-
-	// Perform request from separate routine.
-	go func() {
-		res, err := c.Client.Do(req)
-		if err != nil {
-			errc <- err
-		} else {
-			resc <- res
-		}
-	}()
-
-	// Wait for request completion of context expiry.
-	select {
-	case <-ctx.Done():
-		c.t.CancelRequest(req)
-		return nil, ctx.Err()
-	case err := <-errc:
-		return nil, err
-	case res := <-resc:
-		return res, nil
-	}
+	return c.Client.Do(req.WithContext(ctx))
 }
 
 func (c *Client) RoundTrip(ctx context.Context, reqBody, resBody HasFault) error {

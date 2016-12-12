@@ -8,7 +8,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Drone CI
     ${output}=  Run  git clone https://github.com/vmware/vic.git drone-ci
     Log  ${output}
-    ${result}=  Run Process  drone exec --docker-host ${vch-ip}:2375 --trusted -e .drone.sec -yaml .drone.yml  shell=True  cwd=drone-ci
+    ${result}=  Run Process  drone exec --docker-host %{VCH-IP}:2375 --trusted -e .drone.sec -yaml .drone.yml  shell=True  cwd=drone-ci
     Log  ${result.stderr}
     Log  ${result.stdout}
     Log  ${result.rc}

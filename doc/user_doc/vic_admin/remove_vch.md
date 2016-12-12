@@ -27,13 +27,13 @@ You have deployed a VCH that you no longer require.
 --thumbprint <i>certificate_thumbprint</i>
 --name <i>vch_name</i></pre>
 
-3. If the delete operation fails with a message about container VMs that are powered on, run `vic-machine delete` again with the `--force` option.
+3. If the delete operation fails with a message about container VMs that are powered on, run `docker stop` on the containers and run `vic-machine delete`. Alternatively, run `vic-machine delete` with the `--force` option.
 
-  **CAUTION** Running `vic-machine delete` with the `--force` option removes all running container VMs that the VCH manages, as well as any associated volumes and volume stores.
+  **CAUTION** Running `vic-machine delete` with the `--force` option removes all running container VMs that the VCH manages, as well as any associated volumes and volume stores. It is not recommended to use the `--force` option to remove running containers.
 
   If your vSphere environment uses untrusted, self-signed certificates, running `vic-machine delete` with the `--force` option allows you to omit the `--thumbprint` option.
 
    <pre>$ vic-machine-<i>operating_system</i> delete
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
---name <i>cluster_name</i></i>
+--name <i>vch_name</i></i>
 --force</pre>

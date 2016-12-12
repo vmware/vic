@@ -25,14 +25,15 @@ Get resource pool CPU and mem values
 Set resource pool CPU and mem values
     [Arguments]  ${cpuval}  ${memval}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} %{TEST_RESOURCE}/${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} %{TEST_RESOURCE}/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} %{TEST_RESOURCE}/${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} %{TEST_RESOURCE}/%{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
 *** Test Cases ***
 Basic Info
-    ${output}=  Run  docker ${params} info
+    Log To Console  \nRunning docker info command...
+    ${output}=  Run  docker %{VCH-PARAMS} info
     Log  ${output}
     Should Contain  ${output}  vSphere
 
@@ -40,36 +41,36 @@ Debug Info
     ${status}=  Get State Of Github Issue  780
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-1-Docker-Info.robot needs to be updated now that Issue #780 has been resolved
     #Log To Console  \nRunning docker -D info command...
-    #${output}=  Run  docker ${params} -D info
+    #${output}=  Run  docker %{VCH-PARAMS} -D info
     #Log  ${output}
     #Should Contain  ${output}  Debug mode
 
 Correct container count
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  Containers: 0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${cid}=  Run And Return Rc And Output  docker ${params} create busybox
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${cid}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  Containers: 1
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${cid}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${cid}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  Containers: 1
     Should Contain  ${output}  Running: 1
 
 Check modified resource pool CPU and memory values
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 
     ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem values  ${output}
@@ -78,7 +79,7 @@ Check modified resource pool CPU and memory values
     ${newmemval}=  Evaluate  1000
     Set resource pool CPU and mem values  ${newcpuval}  ${newmemval}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 
     ${cpuval}  ${memval}=  Get resource pool CPU and mem values  ${output}

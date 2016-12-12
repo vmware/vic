@@ -19,10 +19,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	runtime "runtime/debug"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/urfave/cli"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/cmd/vic-machine/debug"
@@ -30,7 +30,6 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
-	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -81,7 +80,6 @@ func main() {
 			Usage:  "Upgrade VCH to latest version",
 			Action: upgrade.Run,
 			Flags:  upgrade.Flags(),
-			Hidden: true,
 		},
 		{
 			Name:   "version",
@@ -112,12 +110,15 @@ func main() {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("--------------------")
+			log.Errorf("%s failed, please check log file %s for details", app.Name, LogFile)
+			fmt.Fprintf(f, "%s", runtime.Stack())
+		}
+	}()
 
-	if err := app.Run(os.Args); err != nil {
-		log.Errorf("--------------------")
-		log.Errorf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
-		os.Exit(1)
-	}
+	app.Run(os.Args)
 }
 
 func showVersion(cli *cli.Context) error {

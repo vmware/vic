@@ -645,7 +645,7 @@
 			"importpath": "github.com/urfave/cli",
 			"repository": "https://github.com/urfave/cli",
 			"vcs": "git",
-			"revision": "fa949b48f384d8916e1ca94880d665deaa1105c2",
+			"revision": "d86a009f5e13f83df65d0d6cee9a2e3f1445f0da",
 			"branch": "master",
 			"notests": true
 		},
@@ -698,7 +698,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "b9bcc6f44098b110772a4c947f0a233f207955c5",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
 			"branch": "master"
 		},
 		{
@@ -910,6 +910,14 @@
 			"vcs": "",
 			"revision": "dd632973f1e7218eb1089048e0798ec9ae7dceb8",
 			"branch": "v1"
+		},
+		{
+			"importpath": "gopkg.in/urfave/cli.v1",
+			"repository": "https://gopkg.in/urfave/cli.v1",
+			"vcs": "git",
+			"revision": "a14d7d367bc02b1f57d88de97926727f2d936387",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "gopkg.in/yaml.v2",

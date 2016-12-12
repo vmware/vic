@@ -11,7 +11,7 @@ The `vic-machine ls` command does not include any options in addition to the com
 
 **Prerequisites**
 
-You have deployed at least one VCH.
+You have deployed a VCH. If you have not deployed a VCH, `vic-machine ls` returns an empty list.
 
 **Procedure**
 
@@ -40,18 +40,18 @@ You have deployed at least one VCH.
 The `vic-machine ls` command lists the VCHs that are running on the ESXi host or vCenter Server instance that you specified.
 <!--
 <pre>ID         PATH     NAME    VERSION                     UPGRADE STATUS
-vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
+vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i>   Up to date
+vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i>   Up to date
 [...]
-vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
+vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i>   Up to date
 </pre>
 -->
 
 <pre>ID         PATH     NAME    VERSION 
-vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
-vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
+vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i>
+vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i>
 [...]
-vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
+vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i>
 </pre>
 
 - The IDs are the vSphere Managed Object References, or morefs, for the VCH endpoint VMs. You can use VCH IDs when you run the  `vic-machine inspect`, `debug`, and `delete` commands. Using VCH IDs reduces the number of options that you need to specify when you run those commands.
@@ -63,8 +63,8 @@ vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build
   <pre>/<i>datacenter</i>/host/<i>host_address</i>/Resources</pre>
   - vCenter Server cluster:
   <pre>/<i>datacenter</i>/host/<i>cluster_name</i>/Resources</pre>
-  - If VCHs are deployed in resource pools on hosts or clusters, the resource pool names appear after `Resources` in the path.
-- The `VERSION` value includes the version of `vic-machine`  that was used to create the VCH, the build number of this version, and a hashtag to identify the build.
+  If VCHs are deployed in resource pools on hosts or clusters, the resource pool names appear after `Resources` in the path. You can use the information in `PATH` in the `--compute-resource` option of `vic-machine` commands. 
+- The `VERSION` value shows the version of `vic-machine` that was used to create the VCH. It includes the release version, the build number and the short Git commit checksum.
 
 <!--
 - The `UPGRADE STATUS` reflects whether the version of `vic-machine` that you are using is the same as the version of the VCH. If the version or build number of the VCH does not match that of `vic-machine`, `UPGRADE STATUS` is <code>Upgradeable to <i>vch_version</i>-<i>vch_build</i>-<i>tag</i></code>.
