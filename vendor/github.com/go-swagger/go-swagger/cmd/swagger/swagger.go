@@ -18,15 +18,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-openapi/loads"
-	"github.com/go-openapi/loads/fmts"
 	"github.com/go-swagger/go-swagger/cmd/swagger/commands"
 	"github.com/jessevdk/go-flags"
 )
-
-func init() {
-	loads.AddLoader(fmts.YAMLMatcher, fmts.YAMLDoc)
-}
 
 var opts struct {
 	// Version bool `long:"version" short:"v" description:"print the version of the command"`
@@ -51,11 +45,6 @@ It aims to represent the contract of your API with a language agnostic descripti
 	}
 
 	_, err = parser.AddCommand("version", "print the version", "print the version of the swagger command", &commands.PrintVersion{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = parser.AddCommand("serve", "serve spec and docs", "serve a spec and swagger or redoc documentation ui", &commands.ServeCmd{})
 	if err != nil {
 		log.Fatal(err)
 	}

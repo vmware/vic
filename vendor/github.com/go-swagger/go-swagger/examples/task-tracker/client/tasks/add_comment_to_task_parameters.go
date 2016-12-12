@@ -4,47 +4,18 @@ package tasks
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"net/http"
-	"time"
+	"github.com/go-swagger/go-swagger/client"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/swag"
 
-	"golang.org/x/net/context"
-
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime"
-	cr "github.com/go-openapi/runtime/client"
-	"github.com/go-openapi/swag"
-
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 )
 
 // NewAddCommentToTaskParams creates a new AddCommentToTaskParams object
 // with the default values initialized.
 func NewAddCommentToTaskParams() *AddCommentToTaskParams {
 	var ()
-	return &AddCommentToTaskParams{
-
-		timeout: cr.DefaultTimeout,
-	}
-}
-
-// NewAddCommentToTaskParamsWithTimeout creates a new AddCommentToTaskParams object
-// with the default values initialized, and the ability to set a timeout on a request
-func NewAddCommentToTaskParamsWithTimeout(timeout time.Duration) *AddCommentToTaskParams {
-	var ()
-	return &AddCommentToTaskParams{
-
-		timeout: timeout,
-	}
-}
-
-// NewAddCommentToTaskParamsWithContext creates a new AddCommentToTaskParams object
-// with the default values initialized, and the ability to set a context for a request
-func NewAddCommentToTaskParamsWithContext(ctx context.Context) *AddCommentToTaskParams {
-	var ()
-	return &AddCommentToTaskParams{
-
-		Context: ctx,
-	}
+	return &AddCommentToTaskParams{}
 }
 
 /*AddCommentToTaskParams contains all the parameters to send to the API endpoint
@@ -62,60 +33,23 @@ type AddCommentToTaskParams struct {
 
 	*/
 	ID int64
-
-	timeout    time.Duration
-	Context    context.Context
-	HTTPClient *http.Client
-}
-
-// WithTimeout adds the timeout to the add comment to task params
-func (o *AddCommentToTaskParams) WithTimeout(timeout time.Duration) *AddCommentToTaskParams {
-	o.SetTimeout(timeout)
-	return o
-}
-
-// SetTimeout adds the timeout to the add comment to task params
-func (o *AddCommentToTaskParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
-}
-
-// WithContext adds the context to the add comment to task params
-func (o *AddCommentToTaskParams) WithContext(ctx context.Context) *AddCommentToTaskParams {
-	o.SetContext(ctx)
-	return o
-}
-
-// SetContext adds the context to the add comment to task params
-func (o *AddCommentToTaskParams) SetContext(ctx context.Context) {
-	o.Context = ctx
 }
 
 // WithBody adds the body to the add comment to task params
 func (o *AddCommentToTaskParams) WithBody(body AddCommentToTaskBody) *AddCommentToTaskParams {
-	o.SetBody(body)
-	return o
-}
-
-// SetBody adds the body to the add comment to task params
-func (o *AddCommentToTaskParams) SetBody(body AddCommentToTaskBody) {
 	o.Body = body
+	return o
 }
 
 // WithID adds the id to the add comment to task params
 func (o *AddCommentToTaskParams) WithID(id int64) *AddCommentToTaskParams {
-	o.SetID(id)
+	o.ID = id
 	return o
 }
 
-// SetID adds the id to the add comment to task params
-func (o *AddCommentToTaskParams) SetID(id int64) {
-	o.ID = id
-}
-
 // WriteToRequest writes these params to a swagger request
-func (o *AddCommentToTaskParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
+func (o *AddCommentToTaskParams) WriteToRequest(r client.Request, reg strfmt.Registry) error {
 
-	r.SetTimeout(o.timeout)
 	var res []error
 
 	if err := r.SetBodyParam(o.Body); err != nil {

@@ -6,7 +6,7 @@ package user
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/examples/generated/models"
 )
@@ -17,9 +17,7 @@ swagger:response getUserByNameOK
 */
 type GetUserByNameOK struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload *models.User `json:"body,omitempty"`
 }
 
@@ -34,18 +32,12 @@ func (o *GetUserByNameOK) WithPayload(payload *models.User) *GetUserByNameOK {
 	return o
 }
 
-// SetPayload sets the payload to the get user by name o k response
-func (o *GetUserByNameOK) SetPayload(payload *models.User) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *GetUserByNameOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *GetUserByNameOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
 	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
+		if err := producer.Produce(rw, o.Payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -64,7 +56,7 @@ func NewGetUserByNameBadRequest() *GetUserByNameBadRequest {
 }
 
 // WriteResponse to the client
-func (o *GetUserByNameBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *GetUserByNameBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(400)
 }
@@ -82,7 +74,7 @@ func NewGetUserByNameNotFound() *GetUserByNameNotFound {
 }
 
 // WriteResponse to the client
-func (o *GetUserByNameNotFound) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *GetUserByNameNotFound) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(404)
 }

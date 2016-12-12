@@ -1,4 +1,4 @@
-// +build !windows forceposix
+// +build !windows
 
 package flags
 

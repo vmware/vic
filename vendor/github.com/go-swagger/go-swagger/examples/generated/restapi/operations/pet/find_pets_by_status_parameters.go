@@ -6,11 +6,11 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-swagger/go-swagger/httpkit/middleware"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 )
 
 // NewFindPetsByStatusParams creates a new FindPetsByStatusParams object
@@ -25,10 +25,6 @@ func NewFindPetsByStatusParams() FindPetsByStatusParams {
 //
 // swagger:parameters findPetsByStatus
 type FindPetsByStatusParams struct {
-
-	// HTTP Request Object
-	HTTPRequest *http.Request
-
 	/*Status values that need to be considered for filter
 	  In: query
 	  Collection Format: multi
@@ -40,9 +36,7 @@ type FindPetsByStatusParams struct {
 // for simple values it will use straight method calls
 func (o *FindPetsByStatusParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
-	o.HTTPRequest = r
-
-	qs := runtime.Values(r.URL.Query())
+	qs := httpkit.Values(r.URL.Query())
 
 	qStatus, qhkStatus, _ := qs.GetOK("status")
 	if err := o.bindStatus(qStatus, qhkStatus, route.Formats); err != nil {
@@ -57,20 +51,30 @@ func (o *FindPetsByStatusParams) BindRequest(r *http.Request, route *middleware.
 
 func (o *FindPetsByStatusParams) bindStatus(rawData []string, hasKey bool, formats strfmt.Registry) error {
 
-	statusIC := rawData
+	raw := rawData
+	size := len(raw)
 
-	if len(statusIC) == 0 {
+	if size == 0 {
 		return nil
 	}
 
-	var statusIR []string
-	for _, statusIV := range statusIC {
-		statusI := statusIV
+	ic := raw
+	isz := size
+	var ir []string
+	iValidateElement := func(i int, statusI string) *errors.Validation {
 
-		statusIR = append(statusIR, statusI)
+		return nil
 	}
 
-	o.Status = statusIR
+	for i := 0; i < isz; i++ {
+
+		if err := iValidateElement(i, ic[i]); err != nil {
+			return err
+		}
+		ir = append(ir, ic[i])
+	}
+
+	o.Status = ir
 
 	return nil
 }

@@ -4,10 +4,10 @@ package client
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"github.com/go-openapi/runtime"
-	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/go-swagger/go-swagger/client"
+	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 
 	"github.com/go-swagger/go-swagger/examples/task-tracker/client/tasks"
 )
@@ -20,12 +20,12 @@ func NewHTTPClient(formats strfmt.Registry) *TaskTracker {
 	if formats == nil {
 		formats = strfmt.Default
 	}
-	transport := httptransport.New("localhost:8322", "/api", []string{"http", "https"})
+	transport := httptransport.New("localhost:8322", "/", []string{"https", "http"})
 	return New(transport, formats)
 }
 
 // New creates a new task tracker client
-func New(transport runtime.ClientTransport, formats strfmt.Registry) *TaskTracker {
+func New(transport client.Transport, formats strfmt.Registry) *TaskTracker {
 	cli := new(TaskTracker)
 	cli.Transport = transport
 
@@ -38,11 +38,11 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *TaskTracke
 type TaskTracker struct {
 	Tasks *tasks.Client
 
-	Transport runtime.ClientTransport
+	Transport client.Transport
 }
 
 // SetTransport changes the transport on the client and all its subresources
-func (c *TaskTracker) SetTransport(transport runtime.ClientTransport) {
+func (c *TaskTracker) SetTransport(transport client.Transport) {
 	c.Transport = transport
 
 	c.Tasks.SetTransport(transport)

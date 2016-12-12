@@ -14,8 +14,6 @@
 
 package models
 
-import "time"
-
 // A Pet is the main product in the store.
 // It is used to describe the animals available in the store.
 //
@@ -46,9 +44,4 @@ type Pet struct {
 	// Extra bits of information attached to this pet.
 	//
 	Tags []Tag `json:"tags,omitempty"`
-
-	// The pet's birthday
-	//
-	// swagger:strfmt date
-	Birthday time.Time `json:"birthday"`
 }

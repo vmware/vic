@@ -6,7 +6,7 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
 )
@@ -17,9 +17,7 @@ swagger:response updateTaskOK
 */
 type UpdateTaskOK struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload *models.Task `json:"body,omitempty"`
 }
 
@@ -34,18 +32,12 @@ func (o *UpdateTaskOK) WithPayload(payload *models.Task) *UpdateTaskOK {
 	return o
 }
 
-// SetPayload sets the payload to the update task o k response
-func (o *UpdateTaskOK) SetPayload(payload *models.Task) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *UpdateTaskOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *UpdateTaskOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
 	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
+		if err := producer.Produce(rw, o.Payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -57,9 +49,7 @@ swagger:response updateTaskUnprocessableEntity
 */
 type UpdateTaskUnprocessableEntity struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload *models.ValidationError `json:"body,omitempty"`
 }
 
@@ -74,38 +64,23 @@ func (o *UpdateTaskUnprocessableEntity) WithPayload(payload *models.ValidationEr
 	return o
 }
 
-// SetPayload sets the payload to the update task unprocessable entity response
-func (o *UpdateTaskUnprocessableEntity) SetPayload(payload *models.ValidationError) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *UpdateTaskUnprocessableEntity) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *UpdateTaskUnprocessableEntity) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(422)
 	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
+		if err := producer.Produce(rw, o.Payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
 }
 
-/*UpdateTaskDefault Error response
+/*UpdateTaskDefault update task default
 
 swagger:response updateTaskDefault
 */
 type UpdateTaskDefault struct {
 	_statusCode int
-	/*
-	  Required: true
-	*/
-	XErrorCode string `json:"X-Error-Code"`
-
-	/*
-	  In: Body
-	*/
-	Payload *models.Error `json:"body,omitempty"`
 }
 
 // NewUpdateTaskDefault creates UpdateTaskDefault with default headers values
@@ -125,48 +100,8 @@ func (o *UpdateTaskDefault) WithStatusCode(code int) *UpdateTaskDefault {
 	return o
 }
 
-// SetStatusCode sets the status to the update task default response
-func (o *UpdateTaskDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
-// WithXErrorCode adds the xErrorCode to the update task default response
-func (o *UpdateTaskDefault) WithXErrorCode(xErrorCode string) *UpdateTaskDefault {
-	o.XErrorCode = xErrorCode
-	return o
-}
-
-// SetXErrorCode sets the xErrorCode to the update task default response
-func (o *UpdateTaskDefault) SetXErrorCode(xErrorCode string) {
-	o.XErrorCode = xErrorCode
-}
-
-// WithPayload adds the payload to the update task default response
-func (o *UpdateTaskDefault) WithPayload(payload *models.Error) *UpdateTaskDefault {
-	o.Payload = payload
-	return o
-}
-
-// SetPayload sets the payload to the update task default response
-func (o *UpdateTaskDefault) SetPayload(payload *models.Error) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *UpdateTaskDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
-
-	// response header X-Error-Code
-
-	xErrorCode := o.XErrorCode
-	if xErrorCode != "" {
-		rw.Header().Set("X-Error-Code", xErrorCode)
-	}
+func (o *UpdateTaskDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(o._statusCode)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
-	}
 }

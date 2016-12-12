@@ -4,46 +4,53 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	strfmt "github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"strconv"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/validate"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	"github.com/go-swagger/go-swagger/swag"
+
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit/validate"
 )
 
-// Pet pet
-// swagger:model Pet
+/*Pet Pet pet
+
+swagger:model Pet
+*/
 type Pet struct {
 
-	// category
+	/* Category category
+	 */
 	Category *Category `json:"category,omitempty"`
 
-	// id
-	ID int64 `json:"id,omitempty"`
+	/* ID id
+	 */
+	ID *int64 `json:"id,omitempty"`
 
-	// name
-	// Required: true
-	Name *string `json:"name"`
+	/* Name name
 
-	// photo urls
-	// Required: true
-	PhotoUrls []string `json:"photoUrls"`
+	Required: true
+	*/
+	Name string `json:"name,omitempty"`
 
-	// pet status in the store
-	Status string `json:"status,omitempty"`
+	/* PhotoUrls photo urls
 
-	// tags
-	Tags []*Tag `json:"tags"`
+	Required: true
+	*/
+	PhotoUrls []string `json:"photoUrls,omitempty"`
+
+	/* pet status in the store
+	 */
+	Status *string `json:"status,omitempty"`
+
+	/* Tags tags
+	 */
+	Tags []*Tag `json:"tags,omitempty"`
 }
 
 // Validate validates this pet
 func (m *Pet) Validate(formats strfmt.Registry) error {
 	var res []error
-
-	if err := m.validateCategory(formats); err != nil {
-		// prop
-		res = append(res, err)
-	}
 
 	if err := m.validateName(formats); err != nil {
 		// prop
@@ -66,25 +73,9 @@ func (m *Pet) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *Pet) validateCategory(formats strfmt.Registry) error {
-
-	if swag.IsZero(m.Category) { // not required
-		return nil
-	}
-
-	if m.Category != nil {
-
-		if err := m.Category.Validate(formats); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (m *Pet) validateName(formats strfmt.Registry) error {
 
-	if err := validate.Required("name", "body", m.Name); err != nil {
+	if err := validate.RequiredString("name", "body", string(m.Name)); err != nil {
 		return err
 	}
 
@@ -97,6 +88,14 @@ func (m *Pet) validatePhotoUrls(formats strfmt.Registry) error {
 		return err
 	}
 
+	for i := 0; i < len(m.PhotoUrls); i++ {
+
+		if err := validate.RequiredString("photoUrls"+"."+strconv.Itoa(i), "body", string(m.PhotoUrls[i])); err != nil {
+			return err
+		}
+
+	}
+
 	return nil
 }
 
@@ -107,10 +106,6 @@ func (m *Pet) validateTags(formats strfmt.Registry) error {
 	}
 
 	for i := 0; i < len(m.Tags); i++ {
-
-		if swag.IsZero(m.Tags[i]) { // not required
-			continue
-		}
 
 		if m.Tags[i] != nil {
 

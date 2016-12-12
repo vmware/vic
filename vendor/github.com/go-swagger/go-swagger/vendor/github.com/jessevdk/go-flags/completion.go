@@ -77,7 +77,7 @@ func (c *completion) completeOptionNames(names map[string]*Option, prefix string
 	n := make([]Completion, 0, len(names))
 
 	for k, opt := range names {
-		if strings.HasPrefix(k, match) && !opt.Hidden {
+		if strings.HasPrefix(k, match) {
 			n = append(n, Completion{
 				Item:        prefix + k,
 				Description: opt.Description,

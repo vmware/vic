@@ -6,7 +6,7 @@ package tasks
 import (
 	"net/http"
 
-	middleware "github.com/go-openapi/runtime/middleware"
+	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 )
 
 // CreateTaskHandlerFunc turns a function with the right signature into a create task handler

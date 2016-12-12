@@ -15,6 +15,7 @@
 package generator
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,16 +26,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-openapi/analysis"
-	"github.com/go-openapi/loads"
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/spec"
-	"github.com/go-openapi/swag"
+	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-swagger/go-swagger/swag"
 )
 
 // GenerateServer generates a server application
-func GenerateServer(name string, modelNames, operationIDs []string, opts *GenOpts) error {
-	generator, err := newAppGenerator(name, modelNames, operationIDs, opts)
+func GenerateServer(name string, modelNames, operationIDs []string, opts GenOpts) error {
+	generator, err := newAppGenerator(name, modelNames, operationIDs, &opts)
 	if err != nil {
 		return err
 	}
@@ -42,9 +41,9 @@ func GenerateServer(name string, modelNames, operationIDs []string, opts *GenOpt
 }
 
 // GenerateSupport generates the supporting files for an API
-func GenerateSupport(name string, modelNames, operationIDs []string, opts *GenOpts) error {
+func GenerateSupport(name string, modelNames, operationIDs []string, opts GenOpts) error {
 
-	generator, err := newAppGenerator(name, modelNames, operationIDs, opts)
+	generator, err := newAppGenerator(name, modelNames, operationIDs, &opts)
 	if err != nil {
 		return err
 	}
@@ -52,12 +51,6 @@ func GenerateSupport(name string, modelNames, operationIDs []string, opts *GenOp
 }
 
 func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOpts) (*appGenerator, error) {
-	if opts == nil {
-		return nil, errors.New("gen opts are required")
-	}
-	if err := opts.EnsureDefaults(false); err != nil {
-		return nil, err
-	}
 
 	if opts.TemplateDir != "" {
 		if err := templates.LoadDir(opts.TemplateDir); err != nil {
@@ -65,19 +58,19 @@ func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOp
 		}
 	}
 
+	compileTemplates()
+
 	// Load the spec
 	_, specDoc, err := loadSpec(opts.Spec)
 	if err != nil {
 		return nil, err
 	}
-	analyzed := analysis.New(specDoc.Spec())
 
 	models, err := gatherModels(specDoc, modelNames)
 	if err != nil {
 		return nil, err
 	}
-
-	operations := gatherOperations(analyzed, operationIDs)
+	operations := gatherOperations(specDoc, operationIDs)
 	if len(operations) == 0 {
 		return nil, errors.New("no operations were selected")
 	}
@@ -86,23 +79,16 @@ func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOp
 	if defaultScheme == "" {
 		defaultScheme = "http"
 	}
-
 	defaultProduces := opts.DefaultProduces
 	if defaultProduces == "" {
-		defaultProduces = runtime.JSONMime
+		defaultProduces = "application/json"
 	}
 
-	defaultConsumes := opts.DefaultConsumes
-	if defaultConsumes == "" {
-		defaultConsumes = runtime.JSONMime
-	}
-
-	apiPackage := opts.LanguageOpts.MangleName(swag.ToFileName(opts.APIPackage), "api")
+	apiPackage := mangleName(swag.ToFileName(opts.APIPackage), "api")
 	return &appGenerator{
 		Name:       appNameOrDefault(specDoc, name, "swagger"),
 		Receiver:   "o",
 		SpecDoc:    specDoc,
-		Analyzed:   analyzed,
 		Models:     models,
 		Operations: operations,
 		Target:     opts.Target,
@@ -110,13 +96,12 @@ func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOp
 		DumpData:        opts.DumpData,
 		Package:         apiPackage,
 		APIPackage:      apiPackage,
-		ModelsPackage:   opts.LanguageOpts.MangleName(swag.ToFileName(opts.ModelPackage), "definitions"),
-		ServerPackage:   opts.LanguageOpts.MangleName(swag.ToFileName(opts.ServerPackage), "server"),
-		ClientPackage:   opts.LanguageOpts.MangleName(swag.ToFileName(opts.ClientPackage), "client"),
+		ModelsPackage:   mangleName(swag.ToFileName(opts.ModelPackage), "definitions"),
+		ServerPackage:   mangleName(swag.ToFileName(opts.ServerPackage), "server"),
+		ClientPackage:   mangleName(swag.ToFileName(opts.ClientPackage), "client"),
 		Principal:       opts.Principal,
 		DefaultScheme:   defaultScheme,
 		DefaultProduces: defaultProduces,
-		DefaultConsumes: defaultConsumes,
 		GenOpts:         opts,
 	}, nil
 }
@@ -124,8 +109,7 @@ func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOp
 type appGenerator struct {
 	Name            string
 	Receiver        string
-	SpecDoc         *loads.Document
-	Analyzed        *analysis.Spec
+	SpecDoc         *spec.Document
 	Package         string
 	APIPackage      string
 	ModelsPackage   string
@@ -138,7 +122,6 @@ type appGenerator struct {
 	DumpData        bool
 	DefaultScheme   string
 	DefaultProduces string
-	DefaultConsumes string
 	GenOpts         *GenOpts
 }
 
@@ -182,65 +165,47 @@ func (a *appGenerator) Generate() error {
 		return nil
 	}
 
-	// IPC removed concurrent execution because of the FuncMap that is being shared
-	// templates are now lazy loaded so there is concurrent map access I can't guard
-
-	// errChan := make(chan error, 100)
-	// wg := nsync.NewControlWaitGroup(20)
-
 	if a.GenOpts.IncludeModel {
 		log.Printf("rendering %d models", len(app.Models))
 		for _, mod := range app.Models {
-			// if len(errChan) > 0 {
-			// 	wg.Wait()
-			// 	return <-errChan
-			// }
-			modCopy := mod
-			// wg.Do(func() {
-			modCopy.IncludeValidator = true // a.GenOpts.IncludeValidator
-			modCopy.IncludeModel = true
-			if err := a.GenOpts.renderDefinition(&modCopy); err != nil {
+			mod.IncludeValidator = true // a.GenOpts.IncludeValidator
+			gen := &definitionGenerator{
+				Name:    mod.Name,
+				SpecDoc: a.SpecDoc,
+				Target:  filepath.Join(a.Target, a.ModelsPackage),
+				Data:    &mod,
+			}
+			if err := gen.generateModel(); err != nil {
 				return err
 			}
-			// })
 		}
 	}
-	// wg.Wait()
 
 	if a.GenOpts.IncludeHandler {
-		log.Printf("rendering %d operation groups (tags)", app.OperationGroups.Len())
 		for _, opg := range app.OperationGroups {
-			opgCopy := opg
-			log.Printf("rendering %d operations for %s", opg.Operations.Len(), opg.Name)
-			for _, op := range opgCopy.Operations {
-				// if len(errChan) > 0 {
-				// 	wg.Wait()
-				// 	return <-errChan
-				// }
-				opCopy := op
-				// wg.Do(func() {
+			for _, op := range opg.Operations {
+				gen := &opGen{
+					data:              &op,
+					pkg:               opg.Name,
+					cname:             swag.ToGoName(op.Name),
+					IncludeHandler:    a.GenOpts.IncludeHandler,
+					IncludeParameters: a.GenOpts.IncludeParameters,
+					IncludeResponses:  a.GenOpts.IncludeResponses,
+					Doc:               a.SpecDoc,
+					Target:            filepath.Join(a.Target, a.ServerPackage),
+					APIPackage:        a.APIPackage,
+				}
 
-				if err := a.GenOpts.renderOperation(&opCopy); err != nil {
+				if err := gen.Generate(); err != nil {
 					return err
 				}
-				// })
 			}
 		}
 	}
 
 	if a.GenOpts.IncludeSupport {
-		log.Printf("rendering support")
-		// wg.Do(func() {
-		if err := a.GenerateSupport(&app); err != nil {
-			// errChan <- err
-			return err
-		}
-		// })
+		return a.GenerateSupport(&app)
 	}
-	// wg.Wait()
-	// if len(errChan) > 0 {
-	// 	return <-errChan
-	// }
 	return nil
 }
 
@@ -255,6 +220,12 @@ func (a *appGenerator) GenerateSupport(ap *GenApp) error {
 		app = &ca
 	}
 
+	if a.GenOpts == nil || !a.GenOpts.ExcludeSpec {
+		if err := a.generateEmbeddedSwaggerJSON(app); err != nil {
+			return err
+		}
+	}
+
 	importPath := filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ServerPackage, a.APIPackage))
 	app.DefaultImports = append(
 		app.DefaultImports,
@@ -262,50 +233,134 @@ func (a *appGenerator) GenerateSupport(ap *GenApp) error {
 		importPath,
 	)
 
-	return a.GenOpts.renderApplication(app)
+	if err := a.generateAPIBuilder(app); err != nil {
+		return err
+	}
+
+	if err := a.generateAPIServer(app); err != nil {
+		return err
+	}
+
+	if err := a.generateConfigureAPI(app); err != nil {
+		return err
+	}
+
+	if err := a.generateDoc(app); err != nil {
+		return err
+	}
+
+	if a.GenOpts == nil || a.GenOpts.IncludeMain {
+		if err := a.generateMain(app); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *appGenerator) generateConfigureAPI(app *GenApp) error {
+	pth := filepath.Join(a.Target, app.APIPackage)
+	nm := "Configure" + swag.ToGoName(app.Name)
+	if fileExists(pth, nm) {
+		log.Println("skipped (already exists) configure api template:", app.Package+".Configure"+swag.ToGoName(app.Name))
+		return nil
+	}
+
+	buf := bytes.NewBuffer(nil)
+	if err := configureAPITemplate.Execute(buf, app); err != nil {
+		return err
+	}
+	log.Println("rendered configure api template:", app.Package+".Configure"+swag.ToGoName(app.Name))
+	return writeToFileIfNotExist(pth, nm, buf.Bytes())
+}
+
+func (a *appGenerator) generateMain(app *GenApp) error {
+	pth := filepath.Join(a.Target, "cmd", swag.ToCommandName(swag.ToGoName(app.Name)+"Server"))
+	if fileExists(pth, "main") && !a.GenOpts.IncludeMain {
+		log.Println("skipped (already exists) main template:", app.Package+".Main")
+		return nil
+	}
+	buf := bytes.NewBuffer(nil)
+	if err := mainTemplate.Execute(buf, app); err != nil {
+		return err
+	}
+	log.Println("rendered main template:", "server."+swag.ToGoName(app.Name))
+	return writeToFile(pth, "main", buf.Bytes())
+}
+
+func (a *appGenerator) generateEmbeddedSwaggerJSON(app *GenApp) error {
+	buf := bytes.NewBuffer(nil)
+	appc := *app
+	appc.Package = app.APIPackage
+	if err := embeddedSpecTemplate.Execute(buf, &appc); err != nil {
+		return err
+	}
+	log.Println("rendered embedded Swagger JSON template:", app.APIPackage+"."+swag.ToGoName(app.Name))
+	return writeToFile(filepath.Join(a.Target, a.ServerPackage), "embedded_spec", buf.Bytes())
+}
+
+func (a *appGenerator) generateAPIBuilder(app *GenApp) error {
+	buf := bytes.NewBuffer(nil)
+	if err := builderTemplate.Execute(buf, app); err != nil {
+		return err
+	}
+	log.Println("rendered builder template:", app.Package+"."+swag.ToGoName(app.Name))
+	return writeToFile(filepath.Join(a.Target, a.ServerPackage, app.Package), swag.ToGoName(app.Name)+"Api", buf.Bytes())
+}
+
+func (a *appGenerator) generateAPIServer(app *GenApp) error {
+	buf := bytes.NewBuffer(nil)
+	if err := serverTemplate.Execute(buf, app); err != nil {
+		return err
+	}
+	log.Println("rendered server template:", app.APIPackage+".Server")
+	return writeToFile(filepath.Join(a.Target, a.ServerPackage), "Server", buf.Bytes())
+}
+
+func (a *appGenerator) generateDoc(app *GenApp) error {
+	buf := bytes.NewBuffer(nil)
+	if err := mainDocTemplate.Execute(buf, app); err != nil {
+		return err
+	}
+	log.Println("rendered doc template:", app.Package+"."+swag.ToGoName(app.Name))
+	return writeToFile(filepath.Join(a.Target, a.ServerPackage), "Doc", buf.Bytes())
 }
 
 var mediaTypeNames = map[*regexp.Regexp]string{
-	regexp.MustCompile("application/.*json"):                "json",
-	regexp.MustCompile("application/.*yaml"):                "yaml",
-	regexp.MustCompile("application/.*protobuf"):            "protobuf",
-	regexp.MustCompile("application/.*capnproto"):           "capnproto",
-	regexp.MustCompile("application/.*thrift"):              "thrift",
-	regexp.MustCompile("(?:application|text)/.*xml"):        "xml",
-	regexp.MustCompile("text/.*markdown"):                   "markdown",
-	regexp.MustCompile("text/.*html"):                       "html",
-	regexp.MustCompile("text/.*csv"):                        "csv",
-	regexp.MustCompile("text/.*tsv"):                        "tsv",
-	regexp.MustCompile("text/.*javascript"):                 "js",
-	regexp.MustCompile("text/.*css"):                        "css",
-	regexp.MustCompile("text/.*plain"):                      "txt",
-	regexp.MustCompile("application/.*octet-stream"):        "bin",
-	regexp.MustCompile("application/.*tar"):                 "tar",
-	regexp.MustCompile("application/.*gzip"):                "gzip",
-	regexp.MustCompile("application/.*gz"):                  "gzip",
-	regexp.MustCompile("application/.*raw-stream"):          "bin",
-	regexp.MustCompile("application/x-www-form-urlencoded"): "urlform",
-	regexp.MustCompile("multipart/form-data"):               "multipartform",
+	regexp.MustCompile("application/.*json"):         "json",
+	regexp.MustCompile("application/.*yaml"):         "yaml",
+	regexp.MustCompile("application/.*protobuf"):     "protobuf",
+	regexp.MustCompile("application/.*capnproto"):    "capnproto",
+	regexp.MustCompile("application/.*thrift"):       "thrift",
+	regexp.MustCompile("(?:application|text)/.*xml"): "xml",
+	regexp.MustCompile("text/.*markdown"):            "markdown",
+	regexp.MustCompile("text/.*html"):                "html",
+	regexp.MustCompile("text/.*csv"):                 "csv",
+	regexp.MustCompile("text/.*tsv"):                 "tsv",
+	regexp.MustCompile("text/.*javascript"):          "js",
+	regexp.MustCompile("text/.*css"):                 "css",
+	regexp.MustCompile("text/.*plain"):               "txt",
+	regexp.MustCompile("application/.*octet-stream"): "bin",
+	regexp.MustCompile("application/.*tar"):          "tar",
+	regexp.MustCompile("application/.*gzip"):         "gzip",
+	regexp.MustCompile("application/.*gz"):           "gzip",
+	regexp.MustCompile("application/.*raw-stream"):   "bin",
 }
 
 var knownProducers = map[string]string{
-	"json":          "runtime.JSONProducer()",
-	"yaml":          "yamlpc.YAMLProducer()",
-	"xml":           "runtime.XMLProducer()",
-	"txt":           "runtime.TextProducer()",
-	"bin":           "runtime.ByteStreamProducer()",
-	"urlform":       "runtime.DiscardProducer",
-	"multipartform": "runtime.DiscardProducer",
+	"json": "httpkit.JSONProducer",
+	"yaml": "httpkit.YAMLProducer",
+	"xml":  "httpkit.XMLProducer",
+	"txt":  "httpkit.TextProducer",
+	"bin":  "httpkit.ByteStreamProducer",
 }
 
 var knownConsumers = map[string]string{
-	"json":          "runtime.JSONConsumer()",
-	"yaml":          "yamlpc.YAMLConsumer()",
-	"xml":           "runtime.XMLConsumer()",
-	"txt":           "runtime.TextConsumer()",
-	"bin":           "runtime.ByteStreamConsumer()",
-	"urlform":       "runtime.DiscardConsumer",
-	"multipartform": "runtime.DiscardConsumer",
+	"json": "httpkit.JSONConsumer",
+	"yaml": "httpkit.YAMLConsumer",
+	"xml":  "httpkit.XMLConsumer",
+	"txt":  "httpkit.TextConsumer",
+	"bin":  "httpkit.ByteStreamConsumer",
 }
 
 func getSerializer(sers []GenSerGroup, ext string) (*GenSerGroup, bool) {
@@ -327,8 +382,8 @@ func mediaTypeName(tn string) (string, bool) {
 	return "", false
 }
 
-func (a *appGenerator) makeConsumes() (consumes GenSerGroups, consumesJSON bool) {
-	for _, cons := range a.Analyzed.RequiredConsumes() {
+func (a *appGenerator) makeConsumes() (consumes []GenSerGroup, consumesJSON bool) {
+	for _, cons := range a.SpecDoc.RequiredConsumes() {
 		cn, ok := mediaTypeName(cons)
 		if !ok {
 			continue
@@ -346,7 +401,6 @@ func (a *appGenerator) makeConsumes() (consumes GenSerGroups, consumesJSON bool)
 				MediaType:      cons,
 				Implementation: knownConsumers[nm],
 			})
-			sort.Sort(ser.AllSerializers)
 			continue
 		}
 
@@ -372,24 +426,23 @@ func (a *appGenerator) makeConsumes() (consumes GenSerGroups, consumesJSON bool)
 			AppName:      a.Name,
 			ReceiverName: a.Receiver,
 			Name:         "json",
-			MediaType:    runtime.JSONMime,
+			MediaType:    httpkit.JSONMime,
 			AllSerializers: []GenSerializer{GenSerializer{
 				AppName:        a.Name,
 				ReceiverName:   a.Receiver,
 				Name:           "json",
-				MediaType:      runtime.JSONMime,
+				MediaType:      httpkit.JSONMime,
 				Implementation: knownConsumers["json"],
 			}},
 			Implementation: knownConsumers["json"],
 		})
 		consumesJSON = true
 	}
-	sort.Sort(consumes)
 	return
 }
 
-func (a *appGenerator) makeProduces() (produces GenSerGroups, producesJSON bool) {
-	for _, prod := range a.Analyzed.RequiredProduces() {
+func (a *appGenerator) makeProduces() (produces []GenSerGroup, producesJSON bool) {
+	for _, prod := range a.SpecDoc.RequiredProduces() {
 		pn, ok := mediaTypeName(prod)
 		if !ok {
 			continue
@@ -407,10 +460,8 @@ func (a *appGenerator) makeProduces() (produces GenSerGroups, producesJSON bool)
 				MediaType:      prod,
 				Implementation: knownProducers[nm],
 			})
-			sort.Sort(ser.AllSerializers)
 			continue
 		}
-
 		ser := GenSerializer{
 			AppName:        a.Name,
 			ReceiverName:   a.Receiver,
@@ -432,53 +483,45 @@ func (a *appGenerator) makeProduces() (produces GenSerGroups, producesJSON bool)
 			AppName:      a.Name,
 			ReceiverName: a.Receiver,
 			Name:         "json",
-			MediaType:    runtime.JSONMime,
+			MediaType:    httpkit.JSONMime,
 			AllSerializers: []GenSerializer{GenSerializer{
 				AppName:        a.Name,
 				ReceiverName:   a.Receiver,
 				Name:           "json",
-				MediaType:      runtime.JSONMime,
+				MediaType:      httpkit.JSONMime,
 				Implementation: knownProducers["json"],
 			}},
 			Implementation: knownProducers["json"],
 		})
 		producesJSON = true
 	}
-	sort.Sort(produces)
+
 	return
 }
 
-func (a *appGenerator) makeSecuritySchemes() (security GenSecuritySchemes) {
+func (a *appGenerator) makeSecuritySchemes() (security []GenSecurityScheme) {
 
 	prin := a.Principal
 	if prin == "" {
 		prin = "interface{}"
 	}
-	for _, scheme := range a.Analyzed.RequiredSecuritySchemes() {
+	for _, scheme := range a.SpecDoc.RequiredSecuritySchemes() {
 		if req, ok := a.SpecDoc.Spec().SecurityDefinitions[scheme]; ok {
-			isOAuth2 := strings.ToLower(req.Type) == "oauth2"
-			var scopes []string
-			if isOAuth2 {
-				for k := range req.Scopes {
-					scopes = append(scopes, k)
-				}
+			if req.Type == "basic" || req.Type == "apiKey" {
+				security = append(security, GenSecurityScheme{
+					AppName:      a.Name,
+					ID:           scheme,
+					ReceiverName: a.Receiver,
+					Name:         req.Name,
+					IsBasicAuth:  strings.ToLower(req.Type) == "basic",
+					IsAPIKeyAuth: strings.ToLower(req.Type) == "apikey",
+					Principal:    prin,
+					Source:       req.In,
+				})
 			}
-
-			security = append(security, GenSecurityScheme{
-				AppName:      a.Name,
-				ID:           scheme,
-				ReceiverName: a.Receiver,
-				Name:         req.Name,
-				IsBasicAuth:  strings.ToLower(req.Type) == "basic",
-				IsAPIKeyAuth: strings.ToLower(req.Type) == "apikey",
-				IsOAuth2:     isOAuth2,
-				Scopes:       scopes,
-				Principal:    prin,
-				Source:       req.In,
-			})
 		}
 	}
-	sort.Sort(security)
+
 	return
 }
 
@@ -493,8 +536,7 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 
 	consumes, _ := a.makeConsumes()
 	produces, _ := a.makeProduces()
-	sort.Sort(consumes)
-	sort.Sort(produces)
+
 	prin := a.Principal
 	if prin == "" {
 		prin = "interface{}"
@@ -512,7 +554,6 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 			a.ModelsPackage,
 			m,
 			a.SpecDoc,
-			a.GenOpts,
 		)
 		if err != nil {
 			return GenApp{}, err
@@ -526,7 +567,6 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 	var genOps GenOperations
 	for on, opp := range a.Operations {
 		o := opp.Op
-		o.Tags = pruneEmpty(o.Tags)
 		o.ID = on
 		var bldr codeGenOpBuilder
 		bldr.ModelsPackage = a.ModelsPackage
@@ -534,33 +574,29 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		bldr.Target = a.Target
 		bldr.DefaultImports = defaultImports
 		bldr.DefaultScheme = a.DefaultScheme
-		bldr.Doc = a.SpecDoc
-		bldr.Analyzed = a.Analyzed
-		bldr.BasePath = a.SpecDoc.BasePath()
-
+		bldr.Doc = &(*a.SpecDoc)
 		// TODO: change operation name to something safe
 		bldr.Name = on
 		bldr.Operation = *o
 		bldr.Method = opp.Method
 		bldr.Path = opp.Path
-		bldr.Authed = len(a.Analyzed.SecurityRequirementsFor(o)) > 0
+		bldr.Authed = len(a.SpecDoc.SecurityRequirementsFor(o)) > 0
+		ap := a.APIPackage
 		bldr.RootAPIPackage = swag.ToFileName(a.APIPackage)
 		bldr.WithContext = a.GenOpts != nil && a.GenOpts.WithContext
-
 		if len(o.Tags) > 0 {
 			for _, tag := range o.Tags {
 				tns[tag] = struct{}{}
-				bldr.APIPackage = a.GenOpts.LanguageOpts.MangleName(swag.ToFileName(tag), a.APIPackage)
+				bldr.APIPackage = mangleName(swag.ToFileName(tag), a.APIPackage)
 				op, err := bldr.MakeOperation()
 				if err != nil {
 					return GenApp{}, err
 				}
-				op.Tags = o.Tags
 				op.ReceiverName = receiver
 				genOps = append(genOps, op)
 			}
 		} else {
-			bldr.APIPackage = swag.ToFileName(a.APIPackage)
+			bldr.APIPackage = swag.ToFileName(ap)
 			op, err := bldr.MakeOperation()
 			if err != nil {
 				return GenApp{}, err
@@ -606,6 +642,11 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 	sort.Sort(opGroups)
 
 	log.Println("planning meta data and facades")
+	defaultConsumes := "application/json"
+	rc := a.SpecDoc.RequiredConsumes()
+	if len(rc) > 0 {
+		defaultConsumes = rc[0]
+	}
 
 	var collectedSchemes []string
 	var extraSchemes []string
@@ -613,8 +654,6 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		collectedSchemes = concatUnique(collectedSchemes, op.Schemes)
 		extraSchemes = concatUnique(extraSchemes, op.ExtraSchemes)
 	}
-	sort.Strings(collectedSchemes)
-	sort.Strings(extraSchemes)
 
 	host := "localhost"
 	if sw.Host != "" {
@@ -639,7 +678,7 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		Info:                sw.Info,
 		Consumes:            consumes,
 		Produces:            produces,
-		DefaultConsumes:     a.DefaultConsumes,
+		DefaultConsumes:     defaultConsumes,
 		DefaultProduces:     a.DefaultProduces,
 		DefaultImports:      defaultImports,
 		SecurityDefinitions: security,
@@ -650,6 +689,5 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		SwaggerJSON:         fmt.Sprintf("%#v", jsonb),
 		ExcludeSpec:         a.GenOpts != nil && a.GenOpts.ExcludeSpec,
 		WithContext:         a.GenOpts != nil && a.GenOpts.WithContext,
-		GenOpts:             a.GenOpts,
 	}, nil
 }

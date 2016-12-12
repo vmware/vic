@@ -6,7 +6,7 @@ package todos
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/examples/tutorials/todo-list/server-complete/models"
 )
@@ -17,9 +17,7 @@ swagger:response updateOneOK
 */
 type UpdateOneOK struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload *models.Item `json:"body,omitempty"`
 }
 
@@ -34,18 +32,12 @@ func (o *UpdateOneOK) WithPayload(payload *models.Item) *UpdateOneOK {
 	return o
 }
 
-// SetPayload sets the payload to the update one o k response
-func (o *UpdateOneOK) SetPayload(payload *models.Item) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *UpdateOneOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *UpdateOneOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
 	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
+		if err := producer.Produce(rw, o.Payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -58,9 +50,7 @@ swagger:response updateOneDefault
 type UpdateOneDefault struct {
 	_statusCode int
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload *models.Error `json:"body,omitempty"`
 }
 
@@ -81,29 +71,18 @@ func (o *UpdateOneDefault) WithStatusCode(code int) *UpdateOneDefault {
 	return o
 }
 
-// SetStatusCode sets the status to the update one default response
-func (o *UpdateOneDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
 // WithPayload adds the payload to the update one default response
 func (o *UpdateOneDefault) WithPayload(payload *models.Error) *UpdateOneDefault {
 	o.Payload = payload
 	return o
 }
 
-// SetPayload sets the payload to the update one default response
-func (o *UpdateOneDefault) SetPayload(payload *models.Error) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *UpdateOneDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *UpdateOneDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(o._statusCode)
 	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
+		if err := producer.Produce(rw, o.Payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}

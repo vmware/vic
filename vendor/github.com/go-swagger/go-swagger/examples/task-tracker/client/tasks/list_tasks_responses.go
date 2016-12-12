@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/swag"
+	"github.com/go-swagger/go-swagger/client"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-swagger/go-swagger/swag"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 
 	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
 )
@@ -21,8 +22,8 @@ type ListTasksReader struct {
 	formats strfmt.Registry
 }
 
-// ReadResponse reads a server response into the received o.
-func (o *ListTasksReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+// ReadResponse reads a server response into the recieved o.
+func (o *ListTasksReader) ReadResponse(response client.Response, consumer httpkit.Consumer) (interface{}, error) {
 	switch response.Code() {
 
 	case 200:
@@ -43,9 +44,6 @@ func (o *ListTasksReader) ReadResponse(response runtime.ClientResponse, consumer
 		result := NewListTasksDefault(response.Code())
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
-		}
-		if response.Code()/100 == 2 {
-			return result, nil
 		}
 		return nil, result
 	}
@@ -72,7 +70,7 @@ func (o *ListTasksOK) Error() string {
 	return fmt.Sprintf("[GET /tasks][%d] listTasksOK  %+v", 200, o.Payload)
 }
 
-func (o *ListTasksOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+func (o *ListTasksOK) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
 
 	// response header X-Last-Task-Id
 	xLastTaskId, err := swag.ConvertInt64(response.GetHeader("X-Last-Task-Id"))
@@ -106,7 +104,7 @@ func (o *ListTasksUnprocessableEntity) Error() string {
 	return fmt.Sprintf("[GET /tasks][%d] listTasksUnprocessableEntity  %+v", 422, o.Payload)
 }
 
-func (o *ListTasksUnprocessableEntity) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+func (o *ListTasksUnprocessableEntity) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ValidationError)
 
@@ -127,14 +125,10 @@ func NewListTasksDefault(code int) *ListTasksDefault {
 
 /*ListTasksDefault handles this case with default header values.
 
-Error response
+ListTasksDefault list tasks default
 */
 type ListTasksDefault struct {
 	_statusCode int
-
-	XErrorCode string
-
-	Payload *models.Error
 }
 
 // Code gets the status code for the list tasks default response
@@ -143,20 +137,10 @@ func (o *ListTasksDefault) Code() int {
 }
 
 func (o *ListTasksDefault) Error() string {
-	return fmt.Sprintf("[GET /tasks][%d] listTasks default  %+v", o._statusCode, o.Payload)
+	return fmt.Sprintf("[GET /tasks][%d] listTasks default ", o._statusCode)
 }
 
-func (o *ListTasksDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
-
-	// response header X-Error-Code
-	o.XErrorCode = response.GetHeader("X-Error-Code")
-
-	o.Payload = new(models.Error)
-
-	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
-		return err
-	}
+func (o *ListTasksDefault) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
 
 	return nil
 }

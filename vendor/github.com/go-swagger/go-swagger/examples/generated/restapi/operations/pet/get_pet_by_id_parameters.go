@@ -6,11 +6,11 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime/middleware"
-	"github.com/go-openapi/swag"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-swagger/go-swagger/swag"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 )
 
 // NewGetPetByIDParams creates a new GetPetByIDParams object
@@ -20,15 +20,11 @@ func NewGetPetByIDParams() GetPetByIDParams {
 	return GetPetByIDParams{}
 }
 
-// GetPetByIDParams contains all the bound params for the get pet by Id operation
+// GetPetByIDParams contains all the bound params for the get pet by id operation
 // typically these are obtained from a http.Request
 //
 // swagger:parameters getPetById
 type GetPetByIDParams struct {
-
-	// HTTP Request Object
-	HTTPRequest *http.Request
-
 	/*ID of pet that needs to be fetched
 	  Required: true
 	  In: path
@@ -40,7 +36,6 @@ type GetPetByIDParams struct {
 // for simple values it will use straight method calls
 func (o *GetPetByIDParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
-	o.HTTPRequest = r
 
 	rPetID, rhkPetID, _ := route.Params.GetOK("petId")
 	if err := o.bindPetID(rPetID, rhkPetID, route.Formats); err != nil {

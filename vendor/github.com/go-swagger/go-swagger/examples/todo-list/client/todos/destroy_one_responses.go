@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/client"
+	"github.com/go-swagger/go-swagger/httpkit"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 
 	"github.com/go-swagger/go-swagger/examples/todo-list/models"
 )
@@ -19,8 +20,8 @@ type DestroyOneReader struct {
 	formats strfmt.Registry
 }
 
-// ReadResponse reads a server response into the received o.
-func (o *DestroyOneReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+// ReadResponse reads a server response into the recieved o.
+func (o *DestroyOneReader) ReadResponse(response client.Response, consumer httpkit.Consumer) (interface{}, error) {
 	switch response.Code() {
 
 	case 204:
@@ -34,9 +35,6 @@ func (o *DestroyOneReader) ReadResponse(response runtime.ClientResponse, consume
 		result := NewDestroyOneDefault(response.Code())
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
-		}
-		if response.Code()/100 == 2 {
-			return result, nil
 		}
 		return nil, result
 	}
@@ -58,7 +56,7 @@ func (o *DestroyOneNoContent) Error() string {
 	return fmt.Sprintf("[DELETE /{id}][%d] destroyOneNoContent ", 204)
 }
 
-func (o *DestroyOneNoContent) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+func (o *DestroyOneNoContent) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
 
 	return nil
 }
@@ -89,7 +87,7 @@ func (o *DestroyOneDefault) Error() string {
 	return fmt.Sprintf("[DELETE /{id}][%d] destroyOne default  %+v", o._statusCode, o.Payload)
 }
 
-func (o *DestroyOneDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+func (o *DestroyOneDefault) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Error)
 

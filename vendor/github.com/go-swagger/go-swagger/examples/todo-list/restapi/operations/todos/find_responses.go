@@ -6,7 +6,7 @@ package todos
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/examples/todo-list/models"
 )
@@ -17,9 +17,7 @@ swagger:response findOK
 */
 type FindOK struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload []*models.Item `json:"body,omitempty"`
 }
 
@@ -34,21 +32,11 @@ func (o *FindOK) WithPayload(payload []*models.Item) *FindOK {
 	return o
 }
 
-// SetPayload sets the payload to the find o k response
-func (o *FindOK) SetPayload(payload []*models.Item) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *FindOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *FindOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
-	payload := o.Payload
-	if payload == nil {
-		payload = make([]*models.Item, 0, 50)
-	}
-
-	if err := producer.Produce(rw, payload); err != nil {
+	if err := producer.Produce(rw, o.Payload); err != nil {
 		panic(err) // let the recovery middleware deal with this
 	}
 
@@ -61,9 +49,7 @@ swagger:response findDefault
 type FindDefault struct {
 	_statusCode int
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload *models.Error `json:"body,omitempty"`
 }
 
@@ -84,29 +70,18 @@ func (o *FindDefault) WithStatusCode(code int) *FindDefault {
 	return o
 }
 
-// SetStatusCode sets the status to the find default response
-func (o *FindDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
 // WithPayload adds the payload to the find default response
 func (o *FindDefault) WithPayload(payload *models.Error) *FindDefault {
 	o.Payload = payload
 	return o
 }
 
-// SetPayload sets the payload to the find default response
-func (o *FindDefault) SetPayload(payload *models.Error) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *FindDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *FindDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(o._statusCode)
 	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
+		if err := producer.Produce(rw, o.Payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}

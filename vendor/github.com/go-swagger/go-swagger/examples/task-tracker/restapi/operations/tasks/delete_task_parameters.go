@@ -6,11 +6,11 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime/middleware"
-	"github.com/go-openapi/swag"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-swagger/go-swagger/swag"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 )
 
 // NewDeleteTaskParams creates a new DeleteTaskParams object
@@ -25,10 +25,6 @@ func NewDeleteTaskParams() DeleteTaskParams {
 //
 // swagger:parameters deleteTask
 type DeleteTaskParams struct {
-
-	// HTTP Request Object
-	HTTPRequest *http.Request
-
 	/*The id of the item
 	  Required: true
 	  In: path
@@ -40,7 +36,6 @@ type DeleteTaskParams struct {
 // for simple values it will use straight method calls
 func (o *DeleteTaskParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
-	o.HTTPRequest = r
 
 	rID, rhkID, _ := route.Params.GetOK("id")
 	if err := o.bindID(rID, rhkID, route.Formats); err != nil {

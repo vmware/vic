@@ -1,9 +1,8 @@
 package generator
 
 import (
-	"github.com/go-openapi/analysis"
-	"github.com/go-openapi/spec"
-	"github.com/go-openapi/swag"
+	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-swagger/go-swagger/swag"
 )
 
 type discInfo struct {
@@ -27,7 +26,7 @@ type discee struct {
 	ParentRef  spec.Ref `json:"parentRef"`
 }
 
-func discriminatorInfo(doc *analysis.Spec) *discInfo {
+func discriminatorInfo(doc *spec.Document) *discInfo {
 	baseTypes := make(map[string]discor)
 	for _, sch := range doc.AllDefinitions() {
 		if sch.Schema.Discriminator != "" {

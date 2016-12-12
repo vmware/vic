@@ -17,9 +17,9 @@ package operations
 import (
 	"bytes"
 
-	"github.com/go-openapi/strfmt"
 	"github.com/go-swagger/go-swagger/fixtures/goparsing/classification/models"
 	"github.com/go-swagger/go-swagger/fixtures/goparsing/classification/transitive/mods"
+	"github.com/go-swagger/go-swagger/strfmt"
 )
 
 // MyFileParams contains the uploaded file data
@@ -45,22 +45,6 @@ type OrderBodyParams struct {
 	Order *models.StoreOrder `json:"order"`
 }
 
-// An MultipleOrderParams model.
-//
-// This is used for operations that want multiple orders as the body
-// swagger:parameters getOrders
-type MultipleOrderParams struct {
-	// The orders
-	// required: true
-	Orders []*OrderBodyParams `json:"orders"`
-
-	// And another thing
-	// in: body
-	Another []struct {
-		That string `json:"that"`
-	} `json:"another"`
-}
-
 // A ComplexerOneParams is composed of a SimpleOne and some extra fields
 // swagger:parameters yetAnotherOperation
 type ComplexerOneParams struct {
@@ -68,12 +52,9 @@ type ComplexerOneParams struct {
 	mods.NotSelected
 	mods.Notable
 	CreatedAt strfmt.DateTime `json:"createdAt"`
-	Secret    string          `json:"-"`
 
 	// in: formData
 	Informity string `json:"informity"`
-
-	NoTagName string `json:",omitempty"`
 }
 
 // NoParams is a struct that exists in a package
@@ -115,14 +96,6 @@ type NoParams struct {
 	// in: query
 	Created strfmt.DateTime `json:"created"`
 
-	// The Category of this model
-	//
-	// required: true
-	// enum: foo,bar,none
-	// default: bar
-	// in: query
-	Category string `json:"category"`
-
 	// a FooSlice has foos which are strings
 	//
 	// min items: 3
@@ -142,8 +115,6 @@ type NoParams struct {
 	// unique: true
 	// items.minItems: 4
 	// items.maxItems: 9
-    // items.enum: bar1,bar2,bar3
-    // items.default: bar2
 	// items.items.minItems: 5
 	// items.items.maxItems: 8
 	// items.items.items.minLength: 3

@@ -6,9 +6,7 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
-
-	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
+	"github.com/go-swagger/go-swagger/httpkit"
 )
 
 /*CreateTaskCreated Task created
@@ -24,26 +22,17 @@ func NewCreateTaskCreated() *CreateTaskCreated {
 }
 
 // WriteResponse to the client
-func (o *CreateTaskCreated) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *CreateTaskCreated) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(201)
 }
 
-/*CreateTaskDefault Error response
+/*CreateTaskDefault create task default
 
 swagger:response createTaskDefault
 */
 type CreateTaskDefault struct {
 	_statusCode int
-	/*
-	  Required: true
-	*/
-	XErrorCode string `json:"X-Error-Code"`
-
-	/*
-	  In: Body
-	*/
-	Payload *models.Error `json:"body,omitempty"`
 }
 
 // NewCreateTaskDefault creates CreateTaskDefault with default headers values
@@ -63,48 +52,8 @@ func (o *CreateTaskDefault) WithStatusCode(code int) *CreateTaskDefault {
 	return o
 }
 
-// SetStatusCode sets the status to the create task default response
-func (o *CreateTaskDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
-// WithXErrorCode adds the xErrorCode to the create task default response
-func (o *CreateTaskDefault) WithXErrorCode(xErrorCode string) *CreateTaskDefault {
-	o.XErrorCode = xErrorCode
-	return o
-}
-
-// SetXErrorCode sets the xErrorCode to the create task default response
-func (o *CreateTaskDefault) SetXErrorCode(xErrorCode string) {
-	o.XErrorCode = xErrorCode
-}
-
-// WithPayload adds the payload to the create task default response
-func (o *CreateTaskDefault) WithPayload(payload *models.Error) *CreateTaskDefault {
-	o.Payload = payload
-	return o
-}
-
-// SetPayload sets the payload to the create task default response
-func (o *CreateTaskDefault) SetPayload(payload *models.Error) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *CreateTaskDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
-
-	// response header X-Error-Code
-
-	xErrorCode := o.XErrorCode
-	if xErrorCode != "" {
-		rw.Header().Set("X-Error-Code", xErrorCode)
-	}
+func (o *CreateTaskDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(o._statusCode)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
-	}
 }

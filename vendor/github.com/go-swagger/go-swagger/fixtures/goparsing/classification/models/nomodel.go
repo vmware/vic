@@ -15,8 +15,8 @@
 package models
 
 import (
-	"github.com/go-openapi/strfmt"
 	"github.com/go-swagger/go-swagger/fixtures/goparsing/classification/transitive/mods"
+	"github.com/go-swagger/go-swagger/strfmt"
 )
 
 // NoModel is a struct without an annotation.
@@ -35,9 +35,6 @@ type NoModel struct {
 
 	Ignored      string `json:"-"`
 	IgnoredOther string `json:"-,omitempty"`
-
-	// A field which has omitempty set but no name
-	NoNameOmitEmpty string `json:",omitempty"`
 
 	// The Score of this model
 	//
@@ -120,14 +117,12 @@ type NoModel struct {
 
 // A OtherTypes struct contains type aliases
 type OtherTypes struct {
-	Named       SomeStringType     `json:"named"`
-	Numbered    SomeIntType        `json:"numbered"`
-	Dated       SomeTimeType       `json:"dated"`
-	Timed       SomeTimedType      `json:"timed"`
-	Petted      SomePettedType     `json:"petted"`
-	Somethinged SomethingType      `json:"somethinged"`
-	StrMap      SomeStringMap      `json:"strMap"`
-	StrArrMap   SomeArrayStringMap `json:"strArrMap"`
+	Named       SomeStringType `json:"named"`
+	Numbered    SomeIntType    `json:"numbered"`
+	Dated       SomeTimeType   `json:"dated"`
+	Timed       SomeTimedType  `json:"timed"`
+	Petted      SomePettedType `json:"petted"`
+	Somethinged SomethingType  `json:"somethinged"`
 
 	ManyNamed       SomeStringsType `json:"manyNamed"`
 	ManyNumbered    SomeIntsType    `json:"manyNumbered"`
@@ -197,18 +192,7 @@ type AllOfModel struct {
 	CreatedAt strfmt.DateTime `json:"createdAt"`
 }
 
-// An Embedded is to be embedded in EmbeddedStarExpr
-type Embedded struct {
-	EmbeddedMember int64 `json:"embeddedMember"`
-}
-
-// An EmbeddedStarExpr for testing the embedded StarExpr
-type EmbeddedStarExpr struct {
-	*Embedded
-	NotEmbedded int64 `json:"notEmbedded"`
-}
-
-// A PrimateModel is a struct with nothing but builtins.
+// A PrimateModel is a struct with nothing but primitives.
 //
 // It only has values 1 level deep and each of those is of a very simple
 // builtin type.
@@ -232,10 +216,6 @@ type PrimateModel struct {
 
 	N float32 `json:"n"`
 	O float64 `json:"o"`
-
-	P byte `json:"p"`
-
-	Q uintptr `json:"q"`
 }
 
 // A FormattedModel is a struct with only strfmt types
@@ -262,7 +242,6 @@ type FormattedModel struct {
 	R strfmt.UUID3      `json:"r"`
 	S strfmt.UUID4      `json:"s"`
 	T strfmt.UUID5      `json:"t"`
-	U strfmt.MAC        `json:"u"`
 }
 
 // A SimpleComplexModel is a struct with only other struct types
@@ -548,11 +527,4 @@ type ModelA struct {
 	Tesla TeslaCar
 	// The number of doors on this Model A
 	Doors int `json:"doors"`
-}
-
-// Cars is a collection of cars
-//
-// swagger:model cars
-type Cars struct {
-	Cars []*TeslaCar `json:"cars"`
 }

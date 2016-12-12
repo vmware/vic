@@ -17,7 +17,6 @@ package scan
 import (
 	"fmt"
 	"go/ast"
-	"log"
 
 	"golang.org/x/tools/go/loader"
 )
@@ -72,9 +71,6 @@ type programClassifier struct {
 func (pc *programClassifier) Classify(prog *loader.Program) (*classifiedProgram, error) {
 	var cp classifiedProgram
 	for pkg, pkgInfo := range prog.AllPackages {
-		if Debug {
-			log.Printf("analyzing: %s\n", pkg.Path())
-		}
 		if pc.Includes.HasFilters() {
 			if !pc.Includes.Matches(pkg.Path()) {
 				continue
@@ -134,7 +130,7 @@ func (pc *programClassifier) Classify(prog *loader.Program) (*classifiedProgram,
 								} else {
 									return nil, fmt.Errorf("classifier: already annotated as %s, can't also be %q", seenStruct, matches[1])
 								}
-							case "strfmt", "name", "discriminated", "file", "enum", "default":
+							case "strfmt", "name", "discriminated", "file":
 								// TODO: perhaps collect these and pass along to avoid lookups later on
 							case "allOf":
 							default:

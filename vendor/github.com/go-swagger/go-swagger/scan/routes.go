@@ -19,7 +19,7 @@ import (
 	"go/ast"
 	"strings"
 
-	"github.com/go-openapi/spec"
+	"github.com/go-swagger/go-swagger/spec"
 
 	"golang.org/x/tools/go/loader"
 )

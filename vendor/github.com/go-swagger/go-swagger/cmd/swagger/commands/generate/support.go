@@ -14,13 +14,7 @@
 
 package generate
 
-import (
-	"fmt"
-	"os"
-	"path/filepath"
-
-	"github.com/go-swagger/go-swagger/generator"
-)
+import "github.com/go-swagger/go-swagger/generator"
 
 // Support generates the supporting files
 type Support struct {
@@ -35,41 +29,20 @@ type Support struct {
 
 // Execute generates the supporting files file
 func (s *Support) Execute(args []string) error {
-	opts := generator.GenOpts{
-		Spec:          string(s.Spec),
-		Target:        string(s.Target),
-		APIPackage:    s.APIPackage,
-		ModelPackage:  s.ModelPackage,
-		ServerPackage: s.ServerPackage,
-		ClientPackage: s.ClientPackage,
-		Principal:     s.Principal,
-		DumpData:      s.DumpData,
-		DefaultScheme: s.DefaultScheme,
-		TemplateDir:   string(s.TemplateDir),
-	}
-
-	if err := generator.GenerateSupport(s.Name, nil, nil, &opts); err != nil {
-		return err
-	}
-
-	rp, err := filepath.Rel(".", opts.Target)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(os.Stderr, `Generation completed!
-
-For this generation to compile you need to have some packages in your vendor or GOPATH:
-
-  * github.com/go-openapi/runtime
-  * github.com/asaskevich/govalidator
-  * golang.org/x/net/context
-  * github.com/tylerb/graceful
-  * github.com/jessevdk/go-flags
-  * golang.org/x/net/context/ctxhttp
-
-You can get these now with: go get -u -f %s/...
-`, rp)
-
-	return nil
+	return generator.GenerateSupport(
+		s.Name,
+		nil,
+		nil,
+		generator.GenOpts{
+			Spec:          string(s.Spec),
+			Target:        string(s.Target),
+			APIPackage:    s.APIPackage,
+			ModelPackage:  s.ModelPackage,
+			ServerPackage: s.ServerPackage,
+			ClientPackage: s.ClientPackage,
+			Principal:     s.Principal,
+			DumpData:      s.DumpData,
+			DefaultScheme: s.DefaultScheme,
+			TemplateDir:   string(s.TemplateDir),
+		})
 }

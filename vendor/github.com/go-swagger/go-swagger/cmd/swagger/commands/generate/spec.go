@@ -20,9 +20,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/go-openapi/loads"
-	"github.com/go-openapi/spec"
 	"github.com/go-swagger/go-swagger/scan"
+	"github.com/go-swagger/go-swagger/spec"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -30,7 +29,6 @@ import (
 type SpecFile struct {
 	BasePath   string         `long:"base-path" short:"b" description:"the base path to use" default:"."`
 	ScanModels bool           `long:"scan-models" short:"m" description:"includes models that were annotated with 'swagger:model'"`
-	Compact    bool           `long:"compact" description:"when present, doesn't prettify the the json"`
 	Output     flags.Filename `long:"output" short:"o" description:"the file to write to"`
 	Input      flags.Filename `long:"input" short:"i" description:"the file to use as input"`
 }
@@ -51,7 +49,7 @@ func (s *SpecFile) Execute(args []string) error {
 		return err
 	}
 
-	return writeToFile(swspec, !s.Compact, string(s.Output))
+	return writeToFile(swspec, string(s.Output))
 }
 
 var (
@@ -63,7 +61,7 @@ func loadSpec(input string) (*spec.Swagger, error) {
 		if fi.IsDir() {
 			return nil, fmt.Errorf("expected %q to be a file not a directory", input)
 		}
-		sp, err := loads.Spec(input)
+		sp, err := spec.Load(input)
 		if err != nil {
 			return nil, err
 		}
@@ -72,14 +70,8 @@ func loadSpec(input string) (*spec.Swagger, error) {
 	return nil, nil
 }
 
-func writeToFile(swspec *spec.Swagger, pretty bool, output string) error {
-	var b []byte
-	var err error
-	if pretty {
-		b, err = json.MarshalIndent(swspec, "", "  ")
-	} else {
-		b, err = json.Marshal(swspec)
-	}
+func writeToFile(swspec *spec.Swagger, output string) error {
+	b, err := json.Marshal(swspec)
 	if err != nil {
 		return err
 	}

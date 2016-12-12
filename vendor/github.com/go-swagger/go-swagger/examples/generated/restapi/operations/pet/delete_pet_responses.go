@@ -6,7 +6,7 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 )
 
 /*DeletePetBadRequest Invalid pet value
@@ -22,7 +22,7 @@ func NewDeletePetBadRequest() *DeletePetBadRequest {
 }
 
 // WriteResponse to the client
-func (o *DeletePetBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *DeletePetBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(400)
 }

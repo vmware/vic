@@ -6,7 +6,7 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
 )
@@ -17,9 +17,7 @@ swagger:response getTaskCommentsOK
 */
 type GetTaskCommentsOK struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload []*models.Comment `json:"body,omitempty"`
 }
 
@@ -34,41 +32,22 @@ func (o *GetTaskCommentsOK) WithPayload(payload []*models.Comment) *GetTaskComme
 	return o
 }
 
-// SetPayload sets the payload to the get task comments o k response
-func (o *GetTaskCommentsOK) SetPayload(payload []*models.Comment) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *GetTaskCommentsOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *GetTaskCommentsOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
-	payload := o.Payload
-	if payload == nil {
-		payload = make([]*models.Comment, 0, 50)
-	}
-
-	if err := producer.Produce(rw, payload); err != nil {
+	if err := producer.Produce(rw, o.Payload); err != nil {
 		panic(err) // let the recovery middleware deal with this
 	}
 
 }
 
-/*GetTaskCommentsDefault Error response
+/*GetTaskCommentsDefault get task comments default
 
 swagger:response getTaskCommentsDefault
 */
 type GetTaskCommentsDefault struct {
 	_statusCode int
-	/*
-	  Required: true
-	*/
-	XErrorCode string `json:"X-Error-Code"`
-
-	/*
-	  In: Body
-	*/
-	Payload *models.Error `json:"body,omitempty"`
 }
 
 // NewGetTaskCommentsDefault creates GetTaskCommentsDefault with default headers values
@@ -88,48 +67,8 @@ func (o *GetTaskCommentsDefault) WithStatusCode(code int) *GetTaskCommentsDefaul
 	return o
 }
 
-// SetStatusCode sets the status to the get task comments default response
-func (o *GetTaskCommentsDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
-// WithXErrorCode adds the xErrorCode to the get task comments default response
-func (o *GetTaskCommentsDefault) WithXErrorCode(xErrorCode string) *GetTaskCommentsDefault {
-	o.XErrorCode = xErrorCode
-	return o
-}
-
-// SetXErrorCode sets the xErrorCode to the get task comments default response
-func (o *GetTaskCommentsDefault) SetXErrorCode(xErrorCode string) {
-	o.XErrorCode = xErrorCode
-}
-
-// WithPayload adds the payload to the get task comments default response
-func (o *GetTaskCommentsDefault) WithPayload(payload *models.Error) *GetTaskCommentsDefault {
-	o.Payload = payload
-	return o
-}
-
-// SetPayload sets the payload to the get task comments default response
-func (o *GetTaskCommentsDefault) SetPayload(payload *models.Error) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *GetTaskCommentsDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
-
-	// response header X-Error-Code
-
-	xErrorCode := o.XErrorCode
-	if xErrorCode != "" {
-		rw.Header().Set("X-Error-Code", xErrorCode)
-	}
+func (o *GetTaskCommentsDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(o._statusCode)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
-	}
 }

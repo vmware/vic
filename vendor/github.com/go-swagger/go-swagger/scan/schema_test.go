@@ -18,7 +18,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-openapi/spec"
+	"github.com/go-swagger/go-swagger/spec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +30,7 @@ func TestSchemaParser(t *testing.T) {
 	assert.Equal(t, "NoModel is a struct without an annotation.", schema.Title)
 	assert.Equal(t, "NoModel exists in a package\nbut is not annotated with the swagger model annotations\nso it should now show up in a test.", schema.Description)
 	assert.Len(t, schema.Required, 3)
-	assert.Len(t, schema.Properties, 8)
+	assert.Len(t, schema.Properties, 7)
 
 	assertProperty(t, &schema, "integer", "id", "int64", "ID")
 	prop, ok := schema.Properties["id"]
@@ -41,11 +41,6 @@ func TestSchemaParser(t *testing.T) {
 	assert.NotNil(t, prop.Minimum)
 	assert.EqualValues(t, 10, *prop.Minimum)
 	assert.True(t, prop.ExclusiveMinimum, "'id' should have had an exclusive minimum")
-
-	assertProperty(t, &schema, "string", "NoNameOmitEmpty", "", "")
-	prop, ok = schema.Properties["NoNameOmitEmpty"]
-	assert.Equal(t, "A field which has omitempty set but no name", prop.Description)
-	assert.True(t, ok, "should have had an 'NoNameOmitEmpty' property")
 
 	assertProperty(t, &schema, "integer", "score", "int32", "Score")
 	prop, ok = schema.Properties["score"]
@@ -179,11 +174,6 @@ func TestEmbeddedTypes(t *testing.T) {
 	assertProperty(t, &schema, "string", "notes", "", "Notes")
 }
 
-func TestArrayOfPointers(t *testing.T) {
-	schema := noModelDefs["cars"]
-	assertProperty(t, &schema, "array", "cars", "", "Cars")
-}
-
 func TestEmbeddedAllOf(t *testing.T) {
 	schema := noModelDefs["AllOfModel"]
 
@@ -202,62 +192,53 @@ func TestEmbeddedAllOf(t *testing.T) {
 	assertProperty(t, &asch, "string", "cat", "", "Cat")
 }
 
-func TestEmbeddedStarExpr(t *testing.T) {
-	schema := noModelDefs["EmbeddedStarExpr"]
-
-	assertProperty(t, &schema, "integer", "embeddedMember", "int64", "EmbeddedMember")
-	assertProperty(t, &schema, "integer", "notEmbedded", "int64", "NotEmbedded")
-}
-
 func TestAliasedTypes(t *testing.T) {
 	schema := noModelDefs["OtherTypes"]
-	assertRef(t, &schema, "named", "Named", "#/definitions/SomeStringType")
-	assertRef(t, &schema, "numbered", "Numbered", "#/definitions/SomeIntType")
+	assertProperty(t, &schema, "string", "named", "", "Named")
+	assertProperty(t, &schema, "integer", "numbered", "int64", "Numbered")
+	assertProperty(t, &schema, "string", "timed", "date-time", "Timed")
+	assertRef(t, &schema, "petted", "Petted", "#/definitions/pet")
+	assertRef(t, &schema, "somethinged", "Somethinged", "#/definitions/Something")
 	assertProperty(t, &schema, "string", "dated", "date-time", "Dated")
-	assertRef(t, &schema, "timed", "Timed", "#/definitions/SomeTimedType")
-	assertRef(t, &schema, "petted", "Petted", "#/definitions/SomePettedType")
-	assertRef(t, &schema, "somethinged", "Somethinged", "#/definitions/SomethingType")
-	assertRef(t, &schema, "strMap", "StrMap", "#/definitions/SomeStringMap")
-	assertRef(t, &schema, "strArrMap", "StrArrMap", "#/definitions/SomeArrayStringMap")
 
-	assertRef(t, &schema, "manyNamed", "ManyNamed", "#/definitions/SomeStringsType")
-	assertRef(t, &schema, "manyNumbered", "ManyNumbered", "#/definitions/SomeIntsType")
+	assertArrayProperty(t, &schema, "string", "manyNamed", "", "ManyNamed")
+	assertArrayProperty(t, &schema, "integer", "manyNumbered", "int64", "ManyNumbered")
+	assertArrayProperty(t, &schema, "string", "manyTimed", "date-time", "ManyTimed")
+	assertArrayRef(t, &schema, "manyPetted", "ManyPetted", "#/definitions/pet")
+	assertArrayRef(t, &schema, "manySomethinged", "ManySomethinged", "#/definitions/Something")
 	assertArrayProperty(t, &schema, "string", "manyDated", "date-time", "ManyDated")
-	assertRef(t, &schema, "manyTimed", "ManyTimed", "#/definitions/SomeTimedsType")
-	assertRef(t, &schema, "manyPetted", "ManyPetted", "#/definitions/SomePettedsType")
-	assertRef(t, &schema, "manySomethinged", "ManySomethinged", "#/definitions/SomethingsType")
 
-	assertArrayRef(t, &schema, "nameds", "Nameds", "#/definitions/SomeStringType")
-	assertArrayRef(t, &schema, "numbereds", "Numbereds", "#/definitions/SomeIntType")
+	assertArrayProperty(t, &schema, "string", "nameds", "", "Nameds")
+	assertArrayProperty(t, &schema, "integer", "numbereds", "int64", "Numbereds")
+	assertArrayProperty(t, &schema, "string", "timeds", "date-time", "Timeds")
+	assertArrayRef(t, &schema, "petteds", "Petteds", "#/definitions/pet")
+	assertArrayRef(t, &schema, "somethingeds", "Somethingeds", "#/definitions/Something")
 	assertArrayProperty(t, &schema, "string", "dateds", "date-time", "Dateds")
-	assertArrayRef(t, &schema, "timeds", "Timeds", "#/definitions/SomeTimedType")
-	assertArrayRef(t, &schema, "petteds", "Petteds", "#/definitions/SomePettedType")
-	assertArrayRef(t, &schema, "somethingeds", "Somethingeds", "#/definitions/SomethingType")
 
-	assertRef(t, &schema, "modsNamed", "ModsNamed", "#/definitions/modsSomeStringType")
-	assertRef(t, &schema, "modsNumbered", "ModsNumbered", "#/definitions/modsSomeIntType")
+	assertProperty(t, &schema, "string", "modsNamed", "", "ModsNamed")
+	assertProperty(t, &schema, "integer", "modsNumbered", "int64", "ModsNumbered")
+	assertProperty(t, &schema, "string", "modsTimed", "date-time", "ModsTimed")
+	assertRef(t, &schema, "modsPetted", "ModsPetted", "#/definitions/pet")
 	assertProperty(t, &schema, "string", "modsDated", "date-time", "ModsDated")
-	assertRef(t, &schema, "modsTimed", "ModsTimed", "#/definitions/modsSomeTimedType")
-	assertRef(t, &schema, "modsPetted", "ModsPetted", "#/definitions/modsSomePettedType")
 
-	assertArrayRef(t, &schema, "modsNameds", "ModsNameds", "#/definitions/modsSomeStringType")
-	assertArrayRef(t, &schema, "modsNumbereds", "ModsNumbereds", "#/definitions/modsSomeIntType")
-	assertArrayProperty(t, &schema, "string", "modsDateds", "date-time", "ModsDateds")
-	assertArrayRef(t, &schema, "modsTimeds", "ModsTimeds", "#/definitions/modsSomeTimedType")
-	assertArrayRef(t, &schema, "modsPetteds", "ModsPetteds", "#/definitions/modsSomePettedType")
-
-	assertRef(t, &schema, "manyModsNamed", "ManyModsNamed", "#/definitions/modsSomeStringsType")
-	assertRef(t, &schema, "manyModsNumbered", "ManyModsNumbered", "#/definitions/modsSomeIntsType")
+	assertArrayProperty(t, &schema, "string", "manyModsNamed", "", "ManyModsNamed")
+	assertArrayProperty(t, &schema, "integer", "manyModsNumbered", "int64", "ManyModsNumbered")
+	assertArrayProperty(t, &schema, "string", "manyModsTimed", "date-time", "ManyModsTimed")
+	assertArrayRef(t, &schema, "manyModsPetted", "ManyModsPetted", "#/definitions/pet")
 	assertArrayProperty(t, &schema, "string", "manyModsDated", "date-time", "ManyModsDated")
-	assertRef(t, &schema, "manyModsTimed", "ManyModsTimed", "#/definitions/modsSomeTimedsType")
-	assertRef(t, &schema, "manyModsPetted", "ManyModsPetted", "#/definitions/modsSomePettedsType")
-	assertRef(t, &schema, "manyModsPettedPtr", "ManyModsPettedPtr", "#/definitions/modsSomePettedsPtrType")
+	assertArrayRef(t, &schema, "manyModsPettedPtr", "ManyModsPettedPtr", "#/definitions/pet")
+
+	assertArrayProperty(t, &schema, "string", "modsNameds", "", "ModsNameds")
+	assertArrayProperty(t, &schema, "integer", "modsNumbereds", "int64", "ModsNumbereds")
+	assertArrayProperty(t, &schema, "string", "modsTimeds", "date-time", "ModsTimeds")
+	assertArrayRef(t, &schema, "modsPetteds", "ModsPetteds", "#/definitions/pet")
+	assertArrayProperty(t, &schema, "string", "modsDateds", "date-time", "ModsDateds")
 }
 
 func TestParsePrimitiveSchemaProperty(t *testing.T) {
 	schema := noModelDefs["PrimateModel"]
 	assertProperty(t, &schema, "boolean", "a", "", "A")
-	assertProperty(t, &schema, "integer", "b", "int32", "B")
+	assertProperty(t, &schema, "string", "b", "", "B")
 	assertProperty(t, &schema, "string", "c", "", "C")
 	assertProperty(t, &schema, "integer", "d", "int64", "D")
 	assertProperty(t, &schema, "integer", "e", "int8", "E")
@@ -271,8 +252,6 @@ func TestParsePrimitiveSchemaProperty(t *testing.T) {
 	assertProperty(t, &schema, "integer", "m", "uint64", "M")
 	assertProperty(t, &schema, "number", "n", "float", "N")
 	assertProperty(t, &schema, "number", "o", "double", "O")
-	assertProperty(t, &schema, "integer", "p", "uint8", "P")
-	assertProperty(t, &schema, "integer", "q", "uint64", "Q")
 }
 
 func TestParseStringFormatSchemaProperty(t *testing.T) {
@@ -297,7 +276,6 @@ func TestParseStringFormatSchemaProperty(t *testing.T) {
 	assertProperty(t, &schema, "string", "r", "uuid3", "R")
 	assertProperty(t, &schema, "string", "s", "uuid4", "S")
 	assertProperty(t, &schema, "string", "t", "uuid5", "T")
-	assertProperty(t, &schema, "string", "u", "mac", "U")
 }
 
 func assertProperty(t testing.TB, schema *spec.Schema, typeName, jsonName, format, goName string) {
@@ -308,16 +286,11 @@ func assertProperty(t testing.TB, schema *spec.Schema, typeName, jsonName, forma
 			assert.Equal(t, typeName, schema.Properties[jsonName].Type[0])
 		}
 	}
-	if goName == "" {
-		assert.Equal(t, nil, schema.Properties[jsonName].Extensions["x-go-name"])
-	} else {
-		assert.Equal(t, goName, schema.Properties[jsonName].Extensions["x-go-name"])
-	}
+	assert.Equal(t, goName, schema.Properties[jsonName].Extensions["x-go-name"])
 	assert.Equal(t, format, schema.Properties[jsonName].Format)
 }
 
 func assertRef(t testing.TB, schema *spec.Schema, jsonName, goName, fragment string) {
-
 	assertProperty(t, schema, "", jsonName, "", goName)
 	psch := schema.Properties[jsonName]
 	assert.Equal(t, fragment, psch.Ref.String())
@@ -523,167 +496,5 @@ func TestInterfaceDiscriminators(t *testing.T) {
 		}
 
 		assertProperty(t, &schema, "integer", "doors", "int64", "Doors")
-	}
-}
-
-func TestAliasedModels(t *testing.T) {
-	_, defs := extraModelsClassifier(t)
-
-	names := []string{
-		"SomeStringType",
-		"SomeIntType",
-		"SomeTimeType",
-		"SomeTimedType",
-		"SomePettedType",
-		"SomethingType",
-		"SomeStringsType",
-		"SomeIntsType",
-		"SomeTimesType",
-		"SomeTimedsType",
-		"SomePettedsType",
-		"SomethingsType",
-		"SomeObject",
-	}
-	for k := range defs {
-		for i, b := range names {
-			if b == k {
-				names = append(names[:i], names[i+1:]...)
-			}
-		}
-	}
-	if assert.Empty(t, names) {
-		// single value types
-		assertDefinition(t, defs, "SomeStringType", "string", "", "")
-		assertDefinition(t, defs, "SomeIntType", "integer", "int64", "")
-		assertDefinition(t, defs, "SomeTimeType", "string", "date-time", "")
-		assertDefinition(t, defs, "SomeTimedType", "string", "date-time", "")
-		assertRefDefinition(t, defs, "SomePettedType", "#/definitions/pet", "")
-		assertRefDefinition(t, defs, "SomethingType", "#/definitions/Something", "")
-
-		// slice types
-		assertArrayDefinition(t, defs, "SomeStringsType", "string", "", "")
-		assertArrayDefinition(t, defs, "SomeIntsType", "integer", "int64", "")
-		assertArrayDefinition(t, defs, "SomeTimesType", "string", "date-time", "")
-		assertArrayDefinition(t, defs, "SomeTimedsType", "string", "date-time", "")
-		assertArrayWithRefDefinition(t, defs, "SomePettedsType", "#/definitions/pet", "")
-		assertArrayWithRefDefinition(t, defs, "SomethingsType", "#/definitions/Something", "")
-
-		// map types
-		assertMapDefinition(t, defs, "SomeObject", "object", "", "")
-		assertMapDefinition(t, defs, "SomeStringMap", "string", "", "")
-		assertMapDefinition(t, defs, "SomeIntMap", "integer", "int64", "")
-		assertMapDefinition(t, defs, "SomeTimeMap", "string", "date-time", "")
-		assertMapDefinition(t, defs, "SomeTimedMap", "string", "date-time", "")
-		assertMapWithRefDefinition(t, defs, "SomePettedMap", "#/definitions/pet", "")
-		assertMapWithRefDefinition(t, defs, "SomeSomethingMap", "#/definitions/Something", "")
-	}
-}
-
-func assertDefinition(t testing.TB, defs map[string]spec.Schema, defName, typeName, formatName, goName string) {
-	schema, ok := defs[defName]
-	if assert.True(t, ok) {
-
-		if assert.NotEmpty(t, schema.Type) {
-			assert.Equal(t, typeName, schema.Type[0])
-			if goName != "" {
-				assert.Equal(t, goName, schema.Extensions["x-go-name"])
-			} else {
-				assert.Nil(t, schema.Extensions["x-go-name"])
-			}
-			assert.Equal(t, formatName, schema.Format)
-		}
-	}
-}
-
-func assertMapDefinition(t testing.TB, defs map[string]spec.Schema, defName, typeName, formatName, goName string) {
-	schema, ok := defs[defName]
-	if assert.True(t, ok) {
-		if assert.NotEmpty(t, schema.Type) {
-			assert.Equal(t, "object", schema.Type[0])
-			adl := schema.AdditionalProperties
-			if assert.NotNil(t, adl) && assert.NotNil(t, adl.Schema) {
-				assert.Equal(t, typeName, adl.Schema.Type[0])
-				assert.Equal(t, formatName, adl.Schema.Format)
-			}
-			if goName != "" {
-				assert.Equal(t, goName, schema.Extensions["x-go-name"])
-			} else {
-				assert.Nil(t, schema.Extensions["x-go-name"])
-			}
-		}
-	}
-}
-
-func assertMapWithRefDefinition(t testing.TB, defs map[string]spec.Schema, defName, refURL, goName string) {
-	schema, ok := defs[defName]
-	if assert.True(t, ok) {
-		if assert.NotEmpty(t, schema.Type) {
-			assert.Equal(t, "object", schema.Type[0])
-			adl := schema.AdditionalProperties
-			if assert.NotNil(t, adl) && assert.NotNil(t, adl.Schema) {
-				if assert.NotZero(t, adl.Schema.Ref) {
-					assert.Equal(t, refURL, adl.Schema.Ref.String())
-				}
-			}
-			if goName != "" {
-				assert.Equal(t, goName, schema.Extensions["x-go-name"])
-			} else {
-				assert.Nil(t, schema.Extensions["x-go-name"])
-			}
-		}
-	}
-}
-
-func assertArrayDefinition(t testing.TB, defs map[string]spec.Schema, defName, typeName, formatName, goName string) {
-	schema, ok := defs[defName]
-	if assert.True(t, ok) {
-		if assert.NotEmpty(t, schema.Type) {
-			assert.Equal(t, "array", schema.Type[0])
-			adl := schema.Items
-			if assert.NotNil(t, adl) && assert.NotNil(t, adl.Schema) {
-				assert.Equal(t, typeName, adl.Schema.Type[0])
-				assert.Equal(t, formatName, adl.Schema.Format)
-			}
-			if goName != "" {
-				assert.Equal(t, goName, schema.Extensions["x-go-name"])
-			} else {
-				assert.Nil(t, schema.Extensions["x-go-name"])
-			}
-		}
-	}
-}
-
-func assertArrayWithRefDefinition(t testing.TB, defs map[string]spec.Schema, defName, refURL, goName string) {
-	schema, ok := defs[defName]
-	if assert.True(t, ok) {
-		if assert.NotEmpty(t, schema.Type) {
-			assert.Equal(t, "array", schema.Type[0])
-			adl := schema.Items
-			if assert.NotNil(t, adl) && assert.NotNil(t, adl.Schema) {
-				if assert.NotZero(t, adl.Schema.Ref) {
-					assert.Equal(t, refURL, adl.Schema.Ref.String())
-				}
-			}
-			if goName != "" {
-				assert.Equal(t, goName, schema.Extensions["x-go-name"])
-			} else {
-				assert.Nil(t, schema.Extensions["x-go-name"])
-			}
-		}
-	}
-}
-
-func assertRefDefinition(t testing.TB, defs map[string]spec.Schema, defName, refURL, goName string) {
-	schema, ok := defs[defName]
-	if assert.True(t, ok) {
-		if assert.NotZero(t, schema.Ref) {
-			url := schema.Ref.String()
-			assert.Equal(t, refURL, url)
-			if goName != "" {
-				assert.Equal(t, goName, schema.Extensions["x-go-name"])
-			} else {
-				assert.Nil(t, schema.Extensions["x-go-name"])
-			}
-		}
 	}
 }

@@ -20,11 +20,10 @@ import (
 	goparser "go/parser"
 	"log"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
-	"github.com/go-openapi/spec"
+	"github.com/go-swagger/go-swagger/spec"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/tools/go/loader"
 
@@ -33,17 +32,6 @@ import (
 
 var classificationProg *loader.Program
 var noModelDefs map[string]spec.Schema
-
-type namedParam struct {
-	Index int
-	Name  string
-}
-
-type namedParams []namedParam
-
-func (g namedParams) Len() int           { return len(g) }
-func (g namedParams) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-func (g namedParams) Less(i, j int) bool { return g[i].Name < g[j].Name }
 
 func init() {
 	classificationProg = classifierProgram()
@@ -60,22 +48,6 @@ func init() {
 	}
 }
 
-func extraModelsClassifier(t testing.TB) (*loader.Program, map[string]spec.Schema) {
-	prog := classifierProgram()
-	docFile := "../fixtures/goparsing/classification/models/extranomodel.go"
-	fileTree, err := goparser.ParseFile(prog.Fset, docFile, nil, goparser.ParseComments)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sp := newSchemaParser(prog)
-	defs := make(map[string]spec.Schema)
-	err = sp.Parse(fileTree, defs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return prog, defs
-}
-
 func TestAppScanner_NewSpec(t *testing.T) {
 	scanner, err := newAppScanner(&Opts{BasePath: "../fixtures/goparsing/petstore/petstore-fixture"}, nil, nil)
 	assert.NoError(t, err)
@@ -87,23 +59,15 @@ func TestAppScanner_NewSpec(t *testing.T) {
 	}
 }
 
-func TestAppScanner_Definitions(t *testing.T) {
+func TestAppScanner_BookingCrossRepo(t *testing.T) {
 	scanner, err := newAppScanner(&Opts{BasePath: "../fixtures/goparsing/bookings"}, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, scanner)
 	doc, err := scanner.Parse()
 	assert.NoError(t, err)
 	if assert.NotNil(t, doc) {
-		_, ok := doc.Definitions["Booking"]
-		assert.True(t, ok, "Should include cross repo structs")
-		_, ok = doc.Definitions["Customer"]
-		assert.True(t, ok, "Should include package structs with swagger:model")
-		_, ok = doc.Definitions["DateRange"]
-		assert.True(t, ok, "Should include package structs that are used in responses")
-		_, ok = doc.Definitions["BookingResponse"]
-		assert.False(t, ok, "Should not include responses")
-		_, ok = doc.Definitions["IgnoreMe"]
-		assert.False(t, ok, "Should not include un-annotated/un-referenced structs")
+		_, ok := doc.Definitions["BookingResponse"]
+		assert.False(t, ok)
 	}
 }
 
@@ -119,11 +83,7 @@ func verifyParsedPetStore(t testing.TB, doc *spec.Swagger) {
 	if assert.NotNil(t, doc.Paths) {
 		assert.Len(t, doc.Paths.Paths, 4)
 	}
-	var keys []string
-	for k := range doc.Definitions {
-		keys = append(keys, k)
-	}
-	assert.Len(t, keys, 3)
+	assert.Len(t, doc.Definitions, 3)
 	assert.Len(t, doc.Responses, 3)
 
 	definitions := doc.Definitions
@@ -172,10 +132,6 @@ func verifyParsedPetStore(t testing.TB, doc *spec.Swagger) {
 	assertProperty(t, &mod, "string", "status", "", "Status")
 	prop, ok = mod.Properties["status"]
 	assert.Equal(t, "The current status of the pet in the store.", prop.Description)
-
-	assertProperty(t, &mod, "string", "birthday", "date", "Birthday")
-	prop, ok = mod.Properties["birthday"]
-	assert.Equal(t, "The pet's birthday", prop.Description)
 
 	assertArrayRef(t, &mod, "tags", "Tags", "#/definitions/tag")
 	prop, ok = mod.Properties["tags"]
@@ -252,27 +208,14 @@ func verifyParsedPetStore(t testing.TB, doc *spec.Swagger) {
 	assert.Equal(t, "By default it will only lists pets that are available for sale.\nThis can be changed with the status flag.", op.Get.Description)
 	assert.Equal(t, "listPets", op.Get.ID)
 	assert.EqualValues(t, []string{"pets"}, op.Get.Tags)
-	var names namedParams
-	for i, v := range op.Get.Parameters {
-		names = append(names, namedParam{Index: i, Name: v.Name})
-	}
-	sort.Sort(names)
-	sparam := op.Get.Parameters[names[1].Index]
-	assert.Equal(t, "Status", sparam.Description)
+	sparam := op.Get.Parameters[0]
+	assert.Equal(t, "", sparam.Description)
 	assert.Equal(t, "query", sparam.In)
 	assert.Equal(t, "string", sparam.Type)
 	assert.Equal(t, "", sparam.Format)
 	assert.False(t, sparam.Required)
 	assert.Equal(t, "Status", sparam.Extensions["x-go-name"])
 	assert.Equal(t, "#/responses/genericError", op.Get.Responses.Default.Ref.String())
-	assert.Len(t, op.Get.Parameters, 2)
-	sparam1 := op.Get.Parameters[names[0].Index]
-	assert.Equal(t, "Birthday", sparam1.Description)
-	assert.Equal(t, "query", sparam1.In)
-	assert.Equal(t, "string", sparam1.Type)
-	assert.Equal(t, "date", sparam1.Format)
-	assert.False(t, sparam1.Required)
-	assert.Equal(t, "Birthday", sparam1.Extensions["x-go-name"])
 	rs, ok := op.Get.Responses.StatusCodeResponses[200]
 	assert.True(t, ok)
 	assert.NotNil(t, rs.Schema)
@@ -673,7 +616,6 @@ func TestSchemaValueExtractors(t *testing.T) {
 		" swagger:parameters     ",
 		"swagger:parameters      ",
 	}
-
 	validParams := []string{
 		"yada123",
 		"date",

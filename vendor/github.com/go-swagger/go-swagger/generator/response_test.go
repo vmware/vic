@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-openapi/spec"
+	"github.com/go-swagger/go-swagger/spec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,35 +29,11 @@ func TestSimpleResponseRender(t *testing.T) {
 		op, err := b.MakeOperation()
 		if assert.NoError(t, err) {
 			var buf bytes.Buffer
-			opts := opts()
-			if assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op)) {
-				ff, err := opts.LanguageOpts.FormatContent("update_task_responses.go", buf.Bytes())
+			if assert.NoError(t, responsesTemplate.Execute(&buf, op)) {
+				ff, err := formatGoFile("update_task_responses.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					assertInCode(t, "o.XErrorCode", string(ff))
 					assertInCode(t, "o.Payload", string(ff))
-				} else {
-					fmt.Println(buf.String())
-				}
-			}
-		}
-	}
-}
-
-func TestDefaultResponseRender(t *testing.T) {
-	b, err := opBuilder("getAllParameters", "../fixtures/codegen/todolist.responses.yml")
-	if assert.NoError(t, err) {
-		op, err := b.MakeOperation()
-		if assert.NoError(t, err) {
-			var buf bytes.Buffer
-			opts := opts()
-			if assert.NoError(t, templates.MustGet("clientResponse").Execute(&buf, op)) {
-				ff, err := opts.LanguageOpts.FormatContent("get_all_parameters_responses.go", buf.Bytes())
-				if assert.NoError(t, err) {
-					res := string(ff)
-					assertInCode(t, "type GetAllParametersDefault struct", res)
-					assertInCode(t, `if response.Code()/100 == 2`, res)
-					assertNotInCode(t, `switch response.Code()`, res)
-					assertNotInCode(t, "o.Payload", res)
 				} else {
 					fmt.Println(buf.String())
 				}
@@ -73,7 +49,7 @@ func TestSimpleResponses(t *testing.T) {
 		t.FailNow()
 	}
 
-	_, _, op, ok := b.Analyzed.OperationForName("updateTask")
+	_, _, op, ok := b.Doc.OperationForName("updateTask")
 	if assert.True(t, ok) && assert.NotNil(t, op) && assert.NotNil(t, op.Responses) {
 		resolver := &typeResolver{ModelsPackage: b.ModelsPackage, Doc: b.Doc}
 		if assert.NotNil(t, op.Responses.Default) {
@@ -113,7 +89,7 @@ func TestInlinedSchemaResponses(t *testing.T) {
 		t.FailNow()
 	}
 
-	_, _, op, ok := b.Analyzed.OperationForName("getTasks")
+	_, _, op, ok := b.Doc.OperationForName("getTasks")
 	if assert.True(t, ok) && assert.NotNil(t, op) && assert.NotNil(t, op.Responses) {
 		resolver := &typeResolver{ModelsPackage: b.ModelsPackage, Doc: b.Doc}
 		if assert.NotNil(t, op.Responses.Default) {
@@ -267,64 +243,4 @@ func (ctx *respHeaderTestContext) Assert(t testing.TB, header spec.Header, hdr G
 		return false
 	}
 	return true
-}
-
-func TestGenResponses_Issue540(t *testing.T) {
-	b, err := opBuilder("postPet", "../fixtures/bugs/540/swagger.yml")
-	if assert.NoError(t, err) {
-		op, err := b.MakeOperation()
-		if assert.NoError(t, err) {
-			var buf bytes.Buffer
-			opts := opts()
-			if assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op)) {
-				ff, err := opts.LanguageOpts.FormatContent("post_pet_responses.go", buf.Bytes())
-				if assert.NoError(t, err) {
-					assertInCode(t, "func (o *PostPetOK) WithPayload(payload models.Pet) *PostPetOK {", string(ff))
-					assertInCode(t, "func (o *PostPetOK) SetPayload(payload models.Pet) {", string(ff))
-				} else {
-					fmt.Println(buf.String())
-				}
-			}
-		}
-	}
-}
-
-func TestGenResponses_Issue718_NotRequired(t *testing.T) {
-	b, err := opBuilder("doEmpty", "../fixtures/codegen/todolist.simple.yml")
-	if assert.NoError(t, err) {
-		op, err := b.MakeOperation()
-		if assert.NoError(t, err) {
-			var buf bytes.Buffer
-			opts := opts()
-			if assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op)) {
-				ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf.Bytes())
-				if assert.NoError(t, err) {
-					assertInCode(t, "if payload == nil", string(ff))
-					assertInCode(t, "payload = make([]models.Foo, 0, 50)", string(ff))
-				} else {
-					fmt.Println(buf.String())
-				}
-			}
-		}
-	}
-}
-
-func TestGenResponses_Issue718_Required(t *testing.T) {
-	b, err := opBuilder("doEmpty", "../fixtures/codegen/todolist.simple.yml")
-	if assert.NoError(t, err) {
-		op, err := b.MakeOperation()
-		if assert.NoError(t, err) {
-			var buf bytes.Buffer
-			opts := opts()
-			if assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op)) {
-				ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf.Bytes())
-				if assert.NoError(t, err) {
-					assertInCode(t, "if payload == nil", string(ff))
-					assertInCode(t, "payload = make([]models.Foo, 0, 50)", string(ff))
-				} else {
-					fmt.Println(buf.String())
-				}
-			}
-		}
-	}
 }

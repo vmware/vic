@@ -4,16 +4,10 @@ package todos
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"net/http"
-	"time"
+	"github.com/go-swagger/go-swagger/client"
+	"github.com/go-swagger/go-swagger/errors"
 
-	"golang.org/x/net/context"
-
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime"
-	cr "github.com/go-openapi/runtime/client"
-
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 
 	"github.com/go-swagger/go-swagger/examples/todo-list/models"
 )
@@ -22,30 +16,7 @@ import (
 // with the default values initialized.
 func NewUpdateOneParams() *UpdateOneParams {
 	var ()
-	return &UpdateOneParams{
-
-		timeout: cr.DefaultTimeout,
-	}
-}
-
-// NewUpdateOneParamsWithTimeout creates a new UpdateOneParams object
-// with the default values initialized, and the ability to set a timeout on a request
-func NewUpdateOneParamsWithTimeout(timeout time.Duration) *UpdateOneParams {
-	var ()
-	return &UpdateOneParams{
-
-		timeout: timeout,
-	}
-}
-
-// NewUpdateOneParamsWithContext creates a new UpdateOneParams object
-// with the default values initialized, and the ability to set a context for a request
-func NewUpdateOneParamsWithContext(ctx context.Context) *UpdateOneParams {
-	var ()
-	return &UpdateOneParams{
-
-		Context: ctx,
-	}
+	return &UpdateOneParams{}
 }
 
 /*UpdateOneParams contains all the parameters to send to the API endpoint
@@ -57,60 +28,23 @@ type UpdateOneParams struct {
 	Body *models.Item
 	/*ID*/
 	ID string
-
-	timeout    time.Duration
-	Context    context.Context
-	HTTPClient *http.Client
-}
-
-// WithTimeout adds the timeout to the update one params
-func (o *UpdateOneParams) WithTimeout(timeout time.Duration) *UpdateOneParams {
-	o.SetTimeout(timeout)
-	return o
-}
-
-// SetTimeout adds the timeout to the update one params
-func (o *UpdateOneParams) SetTimeout(timeout time.Duration) {
-	o.timeout = timeout
-}
-
-// WithContext adds the context to the update one params
-func (o *UpdateOneParams) WithContext(ctx context.Context) *UpdateOneParams {
-	o.SetContext(ctx)
-	return o
-}
-
-// SetContext adds the context to the update one params
-func (o *UpdateOneParams) SetContext(ctx context.Context) {
-	o.Context = ctx
 }
 
 // WithBody adds the body to the update one params
 func (o *UpdateOneParams) WithBody(body *models.Item) *UpdateOneParams {
-	o.SetBody(body)
-	return o
-}
-
-// SetBody adds the body to the update one params
-func (o *UpdateOneParams) SetBody(body *models.Item) {
 	o.Body = body
+	return o
 }
 
 // WithID adds the id to the update one params
 func (o *UpdateOneParams) WithID(id string) *UpdateOneParams {
-	o.SetID(id)
+	o.ID = id
 	return o
 }
 
-// SetID adds the id to the update one params
-func (o *UpdateOneParams) SetID(id string) {
-	o.ID = id
-}
-
 // WriteToRequest writes these params to a swagger request
-func (o *UpdateOneParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
+func (o *UpdateOneParams) WriteToRequest(r client.Request, reg strfmt.Registry) error {
 
-	r.SetTimeout(o.timeout)
 	var res []error
 
 	if o.Body == nil {

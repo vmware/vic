@@ -6,19 +6,19 @@ package todos
 import (
 	"net/http"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/runtime/middleware"
-	"github.com/go-openapi/swag"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-swagger/go-swagger/swag"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 )
 
 // NewFindTodosParams creates a new FindTodosParams object
 // with the default values initialized.
 func NewFindTodosParams() FindTodosParams {
 	var (
-		limitDefault = int32(20)
+		limitDefault int32 = int32(20)
 	)
 	return FindTodosParams{
 		Limit: &limitDefault,
@@ -30,10 +30,6 @@ func NewFindTodosParams() FindTodosParams {
 //
 // swagger:parameters findTodos
 type FindTodosParams struct {
-
-	// HTTP Request Object
-	HTTPRequest *http.Request
-
 	/*
 	  In: query
 	  Default: 20
@@ -49,9 +45,7 @@ type FindTodosParams struct {
 // for simple values it will use straight method calls
 func (o *FindTodosParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
-	o.HTTPRequest = r
-
-	qs := runtime.Values(r.URL.Query())
+	qs := httpkit.Values(r.URL.Query())
 
 	qLimit, qhkLimit, _ := qs.GetOK("limit")
 	if err := o.bindLimit(qLimit, qhkLimit, route.Formats); err != nil {

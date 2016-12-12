@@ -6,9 +6,7 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
-
-	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
+	"github.com/go-swagger/go-swagger/httpkit"
 )
 
 /*UploadTaskFileCreated File added
@@ -24,26 +22,17 @@ func NewUploadTaskFileCreated() *UploadTaskFileCreated {
 }
 
 // WriteResponse to the client
-func (o *UploadTaskFileCreated) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *UploadTaskFileCreated) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(201)
 }
 
-/*UploadTaskFileDefault Error response
+/*UploadTaskFileDefault upload task file default
 
 swagger:response uploadTaskFileDefault
 */
 type UploadTaskFileDefault struct {
 	_statusCode int
-	/*
-	  Required: true
-	*/
-	XErrorCode string `json:"X-Error-Code"`
-
-	/*
-	  In: Body
-	*/
-	Payload *models.Error `json:"body,omitempty"`
 }
 
 // NewUploadTaskFileDefault creates UploadTaskFileDefault with default headers values
@@ -63,48 +52,8 @@ func (o *UploadTaskFileDefault) WithStatusCode(code int) *UploadTaskFileDefault 
 	return o
 }
 
-// SetStatusCode sets the status to the upload task file default response
-func (o *UploadTaskFileDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
-// WithXErrorCode adds the xErrorCode to the upload task file default response
-func (o *UploadTaskFileDefault) WithXErrorCode(xErrorCode string) *UploadTaskFileDefault {
-	o.XErrorCode = xErrorCode
-	return o
-}
-
-// SetXErrorCode sets the xErrorCode to the upload task file default response
-func (o *UploadTaskFileDefault) SetXErrorCode(xErrorCode string) {
-	o.XErrorCode = xErrorCode
-}
-
-// WithPayload adds the payload to the upload task file default response
-func (o *UploadTaskFileDefault) WithPayload(payload *models.Error) *UploadTaskFileDefault {
-	o.Payload = payload
-	return o
-}
-
-// SetPayload sets the payload to the upload task file default response
-func (o *UploadTaskFileDefault) SetPayload(payload *models.Error) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *UploadTaskFileDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
-
-	// response header X-Error-Code
-
-	xErrorCode := o.XErrorCode
-	if xErrorCode != "" {
-		rw.Header().Set("X-Error-Code", xErrorCode)
-	}
+func (o *UploadTaskFileDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(o._statusCode)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
-	}
 }

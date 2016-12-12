@@ -4,27 +4,34 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/validate"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit/validate"
 )
 
-// Item item
-// swagger:model item
+/*item Item item
+
+swagger:model item
+*/
 type Item struct {
 
-	// completed
-	Completed bool `json:"completed,omitempty"`
+	/* Completed completed
+	 */
+	Completed *bool `json:"completed,omitempty"`
 
-	// description
-	// Required: true
-	// Min Length: 1
-	Description *string `json:"description"`
+	/* Description description
 
-	// id
-	// Read Only: true
-	ID int64 `json:"id,omitempty"`
+	Required: true
+	Min Length: 1
+	*/
+	Description string `json:"description,omitempty"`
+
+	/* ID id
+
+	Read Only: true
+	*/
+	ID *int64 `json:"id,omitempty"`
 }
 
 // Validate validates this item
@@ -44,11 +51,11 @@ func (m *Item) Validate(formats strfmt.Registry) error {
 
 func (m *Item) validateDescription(formats strfmt.Registry) error {
 
-	if err := validate.Required("description", "body", m.Description); err != nil {
+	if err := validate.RequiredString("description", "body", string(m.Description)); err != nil {
 		return err
 	}
 
-	if err := validate.MinLength("description", "body", string(*m.Description), 1); err != nil {
+	if err := validate.MinLength("description", "body", string(m.Description), 1); err != nil {
 		return err
 	}
 

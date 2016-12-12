@@ -6,7 +6,7 @@ package events
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 )
 
 /*PostEventCreated Successful response.
@@ -19,12 +19,12 @@ type PostEventCreated struct {
 }
 
 // NewPostEventCreated creates PostEventCreated with default headers values
-func NewPostEventCreated() *PostEventCreated {
-	return &PostEventCreated{}
+func NewPostEventCreated() PostEventCreated {
+	return PostEventCreated{}
 }
 
 // WriteResponse to the client
-func (o *PostEventCreated) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *PostEventCreated) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(201)
 }
@@ -34,33 +34,15 @@ func (o *PostEventCreated) WriteResponse(rw http.ResponseWriter, producer runtim
 swagger:response postEventDefault
 */
 type PostEventDefault struct {
-	_statusCode int
 }
 
 // NewPostEventDefault creates PostEventDefault with default headers values
-func NewPostEventDefault(code int) *PostEventDefault {
-	if code <= 0 {
-		code = 500
-	}
-
-	return &PostEventDefault{
-		_statusCode: code,
-	}
-}
-
-// WithStatusCode adds the status to the post event default response
-func (o *PostEventDefault) WithStatusCode(code int) *PostEventDefault {
-	o._statusCode = code
-	return o
-}
-
-// SetStatusCode sets the status to the post event default response
-func (o *PostEventDefault) SetStatusCode(code int) {
-	o._statusCode = code
+func NewPostEventDefault() PostEventDefault {
+	return PostEventDefault{}
 }
 
 // WriteResponse to the client
-func (o *PostEventDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *PostEventDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
-	rw.WriteHeader(o._statusCode)
+	rw.WriteHeader(500)
 }

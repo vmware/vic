@@ -17,9 +17,11 @@ package scan
 import (
 	"fmt"
 	"go/ast"
+	"reflect"
+	"strconv"
 	"strings"
 
-	"github.com/go-openapi/spec"
+	"github.com/go-swagger/go-swagger/spec"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -113,15 +115,6 @@ func (sv paramValidations) SetMaxLength(val int64)         { sv.current.MaxLengt
 func (sv paramValidations) SetPattern(val string)          { sv.current.Pattern = val }
 func (sv paramValidations) SetUnique(val bool)             { sv.current.UniqueItems = val }
 func (sv paramValidations) SetCollectionFormat(val string) { sv.current.CollectionFormat = val }
-func (sv paramValidations) SetEnum(val string)           {
-    list := strings.Split(val, ",")
-    interfaceSlice := make([]interface{}, len(list))
-    for i, d := range list {
-        interfaceSlice[i] = d
-    }
-    sv.current.Enum = interfaceSlice
-}
-func (sv paramValidations) SetDefault(val string)          { sv.current.Default = val }
 
 type itemsValidations struct {
 	current *spec.Items
@@ -143,15 +136,6 @@ func (sv itemsValidations) SetMaxLength(val int64)         { sv.current.MaxLengt
 func (sv itemsValidations) SetPattern(val string)          { sv.current.Pattern = val }
 func (sv itemsValidations) SetUnique(val bool)             { sv.current.UniqueItems = val }
 func (sv itemsValidations) SetCollectionFormat(val string) { sv.current.CollectionFormat = val }
-func (sv itemsValidations) SetEnum(val string)           {
-    list := strings.Split(val, ",")
-    interfaceSlice := make([]interface{}, len(list))
-    for i, d := range list {
-        interfaceSlice[i] = d
-    }
-    sv.current.Enum = interfaceSlice
-}
-func (sv itemsValidations) SetDefault(val string)          { sv.current.Default = val }
 
 type paramDecl struct {
 	File         *ast.File
@@ -256,7 +240,7 @@ func (pp *paramStructParser) parseEmbeddedStruct(gofile *ast.File, operation *sp
 	case *ast.Ident:
 		// do lookup of type
 		// take primitives into account, they should result in an error for swagger
-		pkg, err := pp.scp.packageForFile(gofile, tpe)
+		pkg, err := pp.scp.packageForFile(gofile)
 		if err != nil {
 			return fmt.Errorf("embedded struct: %v", err)
 		}
@@ -298,18 +282,24 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 			}
 		}
 
-		// a slice used to keep track of the sequence of the map keys, as maps does not keep to any specific sequence (since Go-1.4)
-		sequence := []string{}
-
 		for _, fld := range tpe.Fields.List {
+			var nm, gnm string
 			if len(fld.Names) > 0 && fld.Names[0] != nil && fld.Names[0].IsExported() {
-				gnm := fld.Names[0].Name
-				nm, ignore, err := parseJSONTag(fld)
-				if err != nil {
-					return err
-				}
-				if ignore {
-					continue
+				nm = fld.Names[0].Name
+				gnm = nm
+				if fld.Tag != nil && len(strings.TrimSpace(fld.Tag.Value)) > 0 {
+					tv, err := strconv.Unquote(fld.Tag.Value)
+					if err != nil {
+						return err
+					}
+
+					if strings.TrimSpace(tv) != "" {
+						st := reflect.StructTag(tv)
+						jsonTag := st.Get("json")
+						if jsonTag != "" && jsonTag != "-" {
+							nm = strings.Split(jsonTag, ",")[0]
+						}
+					}
 				}
 
 				in := "query"
@@ -334,14 +324,9 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 				if in == "formData" && fld.Doc != nil && fileParam(fld.Doc) {
 					pty.Typed("file", "")
 				} else {
-					if err := pp.scp.parseNamedType(gofile, fld.Type, pty); err != nil {
+					if err := parseProperty(pp.scp, gofile, fld.Type, pty); err != nil {
 						return err
 					}
-				}
-
-				if strfmtName, ok := strfmtName(fld.Doc); ok {
-					ps.Typed("string", strfmtName)
-					ps.Ref = spec.Ref{}
 				}
 
 				sp := new(sectionedParser)
@@ -358,8 +343,6 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 						newSingleLineTagParser("minItems", &setMinItems{paramValidations{&ps}, rxf(rxMinItemsFmt, "")}),
 						newSingleLineTagParser("maxItems", &setMaxItems{paramValidations{&ps}, rxf(rxMaxItemsFmt, "")}),
 						newSingleLineTagParser("unique", &setUnique{paramValidations{&ps}, rxf(rxUniqueFmt, "")}),
-						newSingleLineTagParser("enum", &setEnum{paramValidations{&ps}, rxf(rxEnumFmt, "")}),
-						newSingleLineTagParser("default", &setDefault{paramValidations{&ps}, rxf(rxDefaultFmt, "")}),
 						newSingleLineTagParser("required", &setRequiredParam{&ps}),
 						newSingleLineTagParser("in", &matchOnlyParam{&ps, rxIn}),
 					}
@@ -379,54 +362,31 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 							newSingleLineTagParser(fmt.Sprintf("items%dMinItems", level), &setMinItems{itemsValidations{items}, rxf(rxMinItemsFmt, itemsPrefix)}),
 							newSingleLineTagParser(fmt.Sprintf("items%dMaxItems", level), &setMaxItems{itemsValidations{items}, rxf(rxMaxItemsFmt, itemsPrefix)}),
 							newSingleLineTagParser(fmt.Sprintf("items%dUnique", level), &setUnique{itemsValidations{items}, rxf(rxUniqueFmt, itemsPrefix)}),
-							newSingleLineTagParser(fmt.Sprintf("items%dEnum", level), &setEnum{itemsValidations{items}, rxf(rxEnumFmt, itemsPrefix)}),
-							newSingleLineTagParser(fmt.Sprintf("items%dDefault", level), &setDefault{itemsValidations{items}, rxf(rxDefaultFmt, itemsPrefix)}),
-						}
-					}
-
-					var parseArrayTypes func(expr ast.Expr, items *spec.Items, level int) ([]tagParser, error)
-					parseArrayTypes = func(expr ast.Expr, items *spec.Items, level int) ([]tagParser, error) {
-						if items == nil {
-							return []tagParser{}, nil
-						}
-						switch iftpe := expr.(type) {
-						case *ast.ArrayType:
-							eleTaggers := itemsTaggers(items, level)
-							sp.taggers = append(eleTaggers, sp.taggers...)
-							otherTaggers, err := parseArrayTypes(iftpe.Elt, items.Items, level+1)
-							if err != nil {
-								return nil, err
-							}
-							return otherTaggers, nil
-						case *ast.Ident:
-							taggers := []tagParser{}
-							if iftpe.Obj == nil {
-								taggers = itemsTaggers(items, level)
-							}
-							otherTaggers, err := parseArrayTypes(expr, items.Items, level+1)
-							if err != nil {
-								return nil, err
-							}
-							return append(taggers, otherTaggers...), nil
-						case *ast.StarExpr:
-							otherTaggers, err := parseArrayTypes(iftpe.X, items, level)
-							if err != nil {
-								return nil, err
-							}
-							return otherTaggers, nil
-						default:
-							return nil, fmt.Errorf("unknown field type ele for %q", nm)
 						}
 					}
 
 					// check if this is a primitive, if so parse the validations from the
 					// doc comments of the slice declaration.
 					if ftped, ok := fld.Type.(*ast.ArrayType); ok {
-						taggers, err := parseArrayTypes(ftped.Elt, ps.Items, 0)
-						if err != nil {
-							return err
+						ftpe := ftped
+						items, level := ps.Items, 0
+						for items != nil {
+							switch iftpe := ftpe.Elt.(type) {
+							case *ast.ArrayType:
+								eleTaggers := itemsTaggers(items, level)
+								sp.taggers = append(eleTaggers, sp.taggers...)
+								ftpe = iftpe
+							case *ast.Ident:
+								if iftpe.Obj == nil {
+									sp.taggers = append(itemsTaggers(items, level), sp.taggers...)
+								}
+								break
+							default:
+								return fmt.Errorf("unknown field type ele for %q", nm)
+							}
+							items = items.Items
+							level = level + 1
 						}
-						sp.taggers = append(taggers, sp.taggers...)
 					}
 
 				} else {
@@ -448,12 +408,10 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 					ps.AddExtension("x-go-name", gnm)
 				}
 				pt[nm] = ps
-				sequence = append(sequence, nm)
 			}
 		}
 
-		for _, k := range sequence {
-			p := pt[k]
+		for k, p := range pt {
 			for i, v := range operation.Parameters {
 				if v.Name == k {
 					operation.Parameters = append(operation.Parameters[:i], operation.Parameters[i+1:]...)

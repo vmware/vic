@@ -15,12 +15,19 @@
 package generate
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/go-swagger/go-swagger/generator"
+	"github.com/jessevdk/go-flags"
 )
+
+type shared struct {
+	Spec          flags.Filename `long:"spec" short:"f" description:"the spec file to use" default:"./swagger.json"`
+	APIPackage    string         `long:"api-package" short:"a" description:"the package to save the operations" default:"operations"`
+	ModelPackage  string         `long:"model-package" short:"m" description:"the package to save the models" default:"models"`
+	ServerPackage string         `long:"server-package" short:"s" description:"the package to save the server specific code" default:"restapi"`
+	ClientPackage string         `long:"client-package" short:"c" description:"the package to save the client specific code" default:"client"`
+	Target        flags.Filename `long:"target" short:"t" default:"./" description:"the base directory for generating the files"`
+	TemplateDir   flags.Filename `long:"template-dir"`
+}
 
 // Server the command to generate an entire server application
 type Server struct {
@@ -42,13 +49,7 @@ type Server struct {
 
 // Execute runs this command
 func (s *Server) Execute(args []string) error {
-	cfg, err := readConfig(string(s.ConfigFile))
-	if err != nil {
-		return err
-	}
-	setDebug(cfg)
-
-	opts := &generator.GenOpts{
+	opts := generator.GenOpts{
 		Spec:              string(s.Spec),
 		Target:            string(s.Target),
 		APIPackage:        s.APIPackage,
@@ -62,47 +63,13 @@ func (s *Server) Execute(args []string) error {
 		IncludeHandler:    !s.SkipOperations,
 		IncludeParameters: !s.SkipOperations,
 		IncludeResponses:  !s.SkipOperations,
-		IncludeURLBuilder: !s.SkipOperations,
 		IncludeMain:       !s.ExcludeMain,
 		IncludeSupport:    !s.SkipSupport,
 		ExcludeSpec:       s.ExcludeSpec,
 		TemplateDir:       string(s.TemplateDir),
 		WithContext:       s.WithContext,
 		DumpData:          s.DumpData,
-		Models:            s.Models,
-		Operations:        s.Operations,
-		Tags:              s.Tags,
-		Name:              s.Name,
 	}
 
-	if e := opts.EnsureDefaults(false); e != nil {
-		return e
-	}
-
-	if e := configureOptsFromConfig(cfg, opts); e != nil {
-		return e
-	}
-
-	if e := generator.GenerateServer(s.Name, s.Models, s.Operations, opts); e != nil {
-		return e
-	}
-
-	rp, err := filepath.Rel(".", opts.Target)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(os.Stderr, `Generation completed!
-
-For this generation to compile you need to have some packages in your GOPATH:
-
-  * github.com/go-openapi/runtime
-  * github.com/tylerb/graceful
-  * github.com/jessevdk/go-flags
-  * golang.org/x/net/context
-
-You can get these now with: go get -u -f %s/...
-`, rp)
-
-	return nil
+	return generator.GenerateServer(s.Name, s.Models, s.Operations, opts)
 }

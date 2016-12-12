@@ -19,14 +19,13 @@ import (
 	"go/ast"
 	goparser "go/parser"
 	"log"
-	"os"
 	"regexp"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
 
-	"github.com/go-openapi/spec"
-	"github.com/go-openapi/swag"
+	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-swagger/go-swagger/swag"
 )
 
 const (
@@ -43,8 +42,6 @@ const (
 	rxMinLengthFmt        = "%s[Mm]in(?:imum)?(?:\\p{Zs}*[\\p{Pd}\\p{Pc}]?[Ll]en(?:gth)?)\\p{Zs}*:\\p{Zs}*(\\p{N}+)$"
 	rxPatternFmt          = "%s[Pp]attern\\p{Zs}*:\\p{Zs}*(.*)$"
 	rxCollectionFormatFmt = "%s[Cc]ollection(?:\\p{Zs}*[\\p{Pd}\\p{Pc}]?[Ff]ormat)\\p{Zs}*:\\p{Zs}*(.*)$"
-	rxEnumFmt             = "%s[Ee]num\\p{Zs}*:\\p{Zs}*(.*)$"
-	rxDefaultFmt          = "%s[Dd]efault\\p{Zs}*:\\p{Zs}*(.*)$"
 
 	rxMaxItemsFmt = "%s[Mm]ax(?:imum)?(?:\\p{Zs}*|[\\p{Pd}\\p{Pc}]|\\.)?[Ii]tems\\p{Zs}*:\\p{Zs}*(\\p{N}+)$"
 	rxMinItemsFmt = "%s[Mm]in(?:imum)?(?:\\p{Zs}*|[\\p{Pd}\\p{Pc}]|\\.)?[Ii]tems\\p{Zs}*:\\p{Zs}*(\\p{N}+)$"
@@ -64,8 +61,6 @@ var (
 	rxDiscriminated      = regexp.MustCompile("swagger:discriminated\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\p{Zs}]+)$")
 	rxResponseOverride   = regexp.MustCompile("swagger:response\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)?$")
 	rxParametersOverride = regexp.MustCompile("swagger:parameters\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\p{Zs}]+)$")
-	rxEnum               = regexp.MustCompile("swagger:enum\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)$")
-	rxDefault            = regexp.MustCompile("swagger:default\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)$")
 	rxRoute              = regexp.MustCompile(
 		"swagger:route\\p{Zs}*" +
 			rxMethod +
@@ -77,6 +72,7 @@ var (
 			rxOpID + "\\p{Zs}*$")
 
 	rxSpace              = regexp.MustCompile("\\p{Zs}+")
+	rxNotAlNumSpaceComma = regexp.MustCompile("[^\\p{L}\\p{N}\\p{Zs},]")
 	rxPunctuationEnd     = regexp.MustCompile("\\p{Po}$")
 	rxStripComments      = regexp.MustCompile("^[^\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\+]*")
 	rxStripTitleComments = regexp.MustCompile("^[^\\p{L}]*[Pp]ackage\\p{Zs}+[^\\p{Zs}]+\\p{Zs}*")
@@ -133,17 +129,6 @@ type Opts struct {
 	ScanModels bool
 }
 
-func safeConvert(str string) bool {
-	b, err := swag.ConvertBool(str)
-	if err != nil {
-		return false
-	}
-	return b
-}
-
-// Debug is true when process is run with DEBUG=1 env var
-var Debug = safeConvert(os.Getenv("DEBUG"))
-
 // Application scans the application and builds a swagger spec based on the information from the code files.
 // When there are includes provided, only those files are considered for the initial discovery.
 // Similarly the excludes will exclude an item from initial discovery through scanning for annotations.
@@ -176,9 +161,6 @@ type appScanner struct {
 
 // newAppScanner creates a new api parser
 func newAppScanner(opts *Opts, includes, excludes packageFilters) (*appScanner, error) {
-	if Debug {
-		log.Println("scanning packages discovered through entrypoint @ ", opts.BasePath)
-	}
 	var ldr loader.Config
 	ldr.ParserMode = goparser.ParseComments
 	ldr.ImportWithTests(opts.BasePath)
@@ -318,7 +300,7 @@ func (a *appScanner) processDiscovered() error {
 		}
 		a.discovered = nil
 		for _, sd := range queue {
-			if err := a.parseDiscoveredSchema(sd); err != nil {
+			if err := a.parseSchema(sd.File); err != nil {
 				return err
 			}
 		}
@@ -331,17 +313,6 @@ func (a *appScanner) processDiscovered() error {
 func (a *appScanner) parseSchema(file *ast.File) error {
 	sp := newSchemaParser(a.prog)
 	if err := sp.Parse(file, a.definitions); err != nil {
-		return err
-	}
-	a.discovered = append(a.discovered, sp.postDecls...)
-	return nil
-}
-
-func (a *appScanner) parseDiscoveredSchema(sd schemaDecl) error {
-	sp := newSchemaParser(a.prog)
-	sp.discovered = &sd
-
-	if err := sp.Parse(sd.File, a.definitions); err != nil {
 		return err
 	}
 	a.discovered = append(a.discovered, sp.postDecls...)
@@ -401,53 +372,34 @@ type swaggerTypable interface {
 	Level() int
 }
 
-// Map all Go builtin types that have Json representation to Swagger/Json types.
-// See https://golang.org/pkg/builtin/ and http://swagger.io/specification/
 func swaggerSchemaForType(typeName string, prop swaggerTypable) error {
 	switch typeName {
 	case "bool":
 		prop.Typed("boolean", "")
-	case "byte":
-		prop.Typed("integer", "uint8")
-	case "complex128", "complex64":
-		return fmt.Errorf("unsupported builtin %q (no JSON marshaller)", typeName)
-	case "error":
-		// TODO: error is often marshalled into a string but not always (e.g. errors package creates
-		// errors that are marshalled into an empty object), this could be handled the same way
-		// custom JSON marshallers are handled (in future)
+	case "error", "rune", "string":
 		prop.Typed("string", "")
-	case "float32":
-		prop.Typed("number", "float")
-	case "float64":
-		prop.Typed("number", "double")
-	case "int":
-		prop.Typed("integer", "int64")
+	case "int8":
+		prop.Typed("integer", "int8")
 	case "int16":
 		prop.Typed("integer", "int16")
 	case "int32":
 		prop.Typed("integer", "int32")
-	case "int64":
+	case "int", "int64":
 		prop.Typed("integer", "int64")
-	case "int8":
-		prop.Typed("integer", "int8")
-	case "rune":
-		prop.Typed("integer", "int32")
-	case "string":
-		prop.Typed("string", "")
-	case "uint":
-		prop.Typed("integer", "uint64")
+	case "uint8":
+		prop.Typed("integer", "uint8")
 	case "uint16":
 		prop.Typed("integer", "uint16")
 	case "uint32":
 		prop.Typed("integer", "uint32")
-	case "uint64":
+	case "uint", "uint64":
 		prop.Typed("integer", "uint64")
-	case "uint8":
-		prop.Typed("integer", "uint8")
-	case "uintptr":
-		prop.Typed("integer", "uint64")
+	case "float32":
+		prop.Typed("number", "float")
+	case "float64":
+		prop.Typed("number", "double")
 	default:
-		return fmt.Errorf("unsupported type %q", typeName)
+		return fmt.Errorf("unknown primitive %q", typeName)
 	}
 	return nil
 }

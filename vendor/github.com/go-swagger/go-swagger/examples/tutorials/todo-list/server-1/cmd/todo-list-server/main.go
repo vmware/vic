@@ -2,9 +2,8 @@ package main
 
 import (
 	"log"
-	"os"
 
-	loads "github.com/go-openapi/loads"
+	spec "github.com/go-swagger/go-swagger/spec"
 	flags "github.com/jessevdk/go-flags"
 
 	"github.com/go-swagger/go-swagger/examples/tutorials/todo-list/server-1/restapi"
@@ -15,7 +14,7 @@ import (
 // Make sure not to overwrite this file after you generated it because all your edits would be lost!
 
 func main() {
-	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
+	swaggerSpec, err := spec.New(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -28,25 +27,13 @@ func main() {
 	parser.ShortDescription = `A To Do list application`
 	parser.LongDescription = `The product of a tutorial on goswagger.io`
 
-	server.ConfigureFlags()
 	for _, optsGroup := range api.CommandLineOptionsGroups {
-		_, err := parser.AddGroup(optsGroup.ShortDescription, optsGroup.LongDescription, optsGroup.Options)
-		if err != nil {
-			log.Fatalln(err)
-		}
+		parser.AddGroup(optsGroup.ShortDescription, optsGroup.LongDescription, optsGroup.Options)
 	}
 
 	if _, err := parser.Parse(); err != nil {
-		code := 1
-		if fe, ok := err.(*flags.Error); ok {
-			if fe.Type == flags.ErrHelp {
-				code = 0
-			}
-		}
-		os.Exit(code)
+		log.Fatalln(err)
 	}
-
-	server.ConfigureAPI()
 
 	if err := server.Serve(); err != nil {
 		log.Fatalln(err)

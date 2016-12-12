@@ -6,10 +6,10 @@ package user
 import (
 	"net/http"
 
-	"github.com/go-openapi/errors"
-	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit/middleware"
 
-	strfmt "github.com/go-openapi/strfmt"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 )
 
 // NewDeleteUserParams creates a new DeleteUserParams object
@@ -24,10 +24,6 @@ func NewDeleteUserParams() DeleteUserParams {
 //
 // swagger:parameters deleteUser
 type DeleteUserParams struct {
-
-	// HTTP Request Object
-	HTTPRequest *http.Request
-
 	/*The name that needs to be deleted
 	  Required: true
 	  In: path
@@ -39,7 +35,6 @@ type DeleteUserParams struct {
 // for simple values it will use straight method calls
 func (o *DeleteUserParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
-	o.HTTPRequest = r
 
 	rUsername, rhkUsername, _ := route.Params.GetOK("username")
 	if err := o.bindUsername(rUsername, rhkUsername, route.Formats); err != nil {

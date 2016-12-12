@@ -189,7 +189,7 @@ func NormalizeEmail(str string) (string, error) {
 	return strings.Join(parts, "@"), nil
 }
 
-// Truncate a string to the closest length without breaking words.
+// Will truncate a string closest length without breaking words.
 func Truncate(str string, length int, ending string) string {
 	var aftstr, befstr string
 	if len(str) > length {
@@ -203,8 +203,9 @@ func Truncate(str string, length int, ending string) string {
 			if present > length && i != 0 {
 				if (length - before) < (present - length) {
 					return Trim(befstr, " /\\.,\"'#!?&@+-") + ending
+				} else {
+					return Trim(aftstr, " /\\.,\"'#!?&@+-") + ending
 				}
-				return Trim(aftstr, " /\\.,\"'#!?&@+-") + ending
 			}
 		}
 	}

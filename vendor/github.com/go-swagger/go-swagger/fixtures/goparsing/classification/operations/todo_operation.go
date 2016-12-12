@@ -90,7 +90,7 @@ func ServeAPI(host, basePath string, schemes []string) error {
 	//
 	// Security:
 	// api_key:
-	// oauth: orders:read, https://www.googleapis.com/auth/userinfo.email
+	// oauth: read, write
 	//
 	// Responses:
 	// default: genericError

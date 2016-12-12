@@ -4,21 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 
-	"github.com/go-openapi/spec"
+	"github.com/go-swagger/go-swagger/spec"
 )
 
 // GenDefinition contains all the properties to generate a
-// definition from a swagger spec
+// defintion from a swagger spec
 type GenDefinition struct {
 	GenSchema
-	Package        string
-	Imports        map[string]string
-	DefaultImports []string
-	ExtraSchemas   []GenSchema
-	DependsOn      []string
+	Package          string
+	Imports          map[string]string
+	DefaultImports   []string
+	ExtraSchemas     []GenSchema
+	DependsOn        []string
+	IncludeValidator bool
 }
 
 // GenSchemaList is a list of schemas for generation.
@@ -68,8 +68,6 @@ type GenSchema struct {
 	DiscriminatorValue      string
 	Discriminates           map[string]string
 	Parents                 []string
-	IncludeValidator        bool
-	IncludeModel            bool
 }
 
 type sharedValidations struct {
@@ -122,9 +120,7 @@ type GenHeader struct {
 
 	Package      string
 	ReceiverName string
-	IndexVar     string
 
-	ID   string
 	Name string
 	Path string
 
@@ -133,15 +129,8 @@ type GenHeader struct {
 	Default     interface{}
 	HasDefault  bool
 
-	CollectionFormat string
-
-	Child  *GenItems
-	Parent *GenItems
-
 	Converter string
 	Formatter string
-
-	ZeroValue string
 }
 
 // GenHeaders is a sorted collection of headers for codegen
@@ -157,7 +146,6 @@ type GenParameter struct {
 	resolvedType
 	sharedValidations
 
-	ID              string
 	Name            string
 	ModelsPackage   string
 	Path            string
@@ -181,6 +169,7 @@ type GenParameter struct {
 
 	Default         interface{}
 	HasDefault      bool
+	Enum            []interface{}
 	ZeroValue       string
 	AllowEmptyValue bool
 }
@@ -237,7 +226,6 @@ type GenItems struct {
 	Formatter        string
 
 	Location string
-	IndexVar string
 }
 
 // GenOperationGroup represents a named (tagged) group of operations
@@ -261,11 +249,7 @@ func (g GenOperationGroups) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
 func (g GenOperationGroups) Less(i, j int) bool { return g[i].Name < g[j].Name }
 
 // GenStatusCodeResponses a container for status code responses
-type GenStatusCodeResponses []GenResponse
-
-func (g GenStatusCodeResponses) Len() int           { return len(g) }
-func (g GenStatusCodeResponses) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-func (g GenStatusCodeResponses) Less(i, j int) bool { return g[i].Code < g[j].Code }
+type GenStatusCodeResponses map[int]GenResponse
 
 // MarshalJSON marshals these responses to json
 func (g GenStatusCodeResponses) MarshalJSON() ([]byte, error) {
@@ -275,7 +259,7 @@ func (g GenStatusCodeResponses) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteRune('{')
 	s := 0
-	for _, v := range g {
+	for k, v := range g {
 		rb, err := json.Marshal(v)
 		if err != nil {
 			return nil, err
@@ -283,7 +267,7 @@ func (g GenStatusCodeResponses) MarshalJSON() ([]byte, error) {
 		if s > 0 {
 			buf.WriteRune(',')
 		}
-		buf.WriteString(fmt.Sprintf("%q:", strconv.Itoa(v.Code)))
+		buf.WriteString(fmt.Sprintf("%q:", strconv.Itoa(k)))
 		buf.Write(rb)
 	}
 	buf.WriteRune('}')
@@ -296,12 +280,18 @@ func (g *GenStatusCodeResponses) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &dd); err != nil {
 		return err
 	}
-	var gg GenStatusCodeResponses
-	for _, v := range dd {
-		gg = append(gg, v)
+	var gg map[int]GenResponse
+	for k, v := range dd {
+		if gg == nil {
+			gg = make(map[int]GenResponse)
+		}
+		ii, err := strconv.Atoi(k)
+		if err != nil {
+			return err
+		}
+		gg[ii] = v
 	}
-	sort.Sort(gg)
-	*g = gg
+	*g = GenStatusCodeResponses(gg)
 	return nil
 }
 
@@ -314,7 +304,6 @@ type GenOperation struct {
 	Description  string
 	Method       string
 	Path         string
-	BasePath     string
 	Tags         []string
 	RootPackage  string
 
@@ -325,28 +314,40 @@ type GenOperation struct {
 	Authorized bool
 	Principal  string
 
-	SuccessResponse  *GenResponse
-	SuccessResponses []GenResponse
-	Responses        GenStatusCodeResponses
-	DefaultResponse  *GenResponse
+	SuccessResponse *GenResponse
+	Responses       GenStatusCodeResponses
+	DefaultResponse *GenResponse
 
-	Params               GenParameters
-	QueryParams          GenParameters
-	PathParams           GenParameters
-	HeaderParams         GenParameters
-	FormParams           GenParameters
-	HasQueryParams       bool
-	HasFormParams        bool
-	HasFormValueParams   bool
-	HasFileParams        bool
-	HasStreamingResponse bool
+	Params         GenParameters
+	QueryParams    GenParameters
+	PathParams     GenParameters
+	HeaderParams   GenParameters
+	FormParams     GenParameters
+	HasQueryParams bool
+	HasFormParams  bool
+	HasFileParams  bool
 
 	Schemes            []string
 	ExtraSchemes       []string
 	ProducesMediaTypes []string
 	ConsumesMediaTypes []string
 	WithContext        bool
-	TimeoutName        string
+}
+
+// HasStreamingResponse returns true when this operation has a streaming response
+func (o *GenOperation) HasStreamingResponse() bool {
+	if o.DefaultResponse != nil && o.DefaultResponse.Schema != nil && o.DefaultResponse.Schema.IsStream {
+		return true
+	}
+	if o.SuccessResponse != nil && o.SuccessResponse.Schema != nil && o.SuccessResponse.Schema.IsStream {
+		return true
+	}
+	for _, k := range o.Responses {
+		if k.Schema != nil && k.Schema.IsStream {
+			return true
+		}
+	}
+	return false
 }
 
 // GenOperations represents a list of operations to generate
@@ -375,8 +376,8 @@ type GenApp struct {
 	DefaultImports      []string
 	Schemes             []string
 	ExtraSchemes        []string
-	Consumes            GenSerGroups
-	Produces            GenSerGroups
+	Consumes            []GenSerGroup
+	Produces            []GenSerGroup
 	SecurityDefinitions []GenSecurityScheme
 	Models              []GenDefinition
 	Operations          GenOperations
@@ -384,15 +385,7 @@ type GenApp struct {
 	SwaggerJSON         string
 	ExcludeSpec         bool
 	WithContext         bool
-	GenOpts             *GenOpts
 }
-
-// GenSerGroups sorted representation of serializer groups
-type GenSerGroups []GenSerGroup
-
-func (g GenSerGroups) Len() int           { return len(g) }
-func (g GenSerGroups) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-func (g GenSerGroups) Less(i, j int) bool { return g[i].MediaType < g[j].MediaType }
 
 // GenSerGroup represents a group of serializers, most likely this is a media type to a list of
 // prioritized serializers.
@@ -402,15 +395,8 @@ type GenSerGroup struct {
 	Name           string
 	MediaType      string
 	Implementation string
-	AllSerializers GenSerializers
+	AllSerializers []GenSerializer
 }
-
-// GenSerializers sorted representation of serializers
-type GenSerializers []GenSerializer
-
-func (g GenSerializers) Len() int           { return len(g) }
-func (g GenSerializers) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-func (g GenSerializers) Less(i, j int) bool { return g[i].MediaType < g[j].MediaType }
 
 // GenSerializer represents a single serializer for a particular media type
 type GenSerializer struct {
@@ -421,13 +407,6 @@ type GenSerializer struct {
 	Implementation string
 }
 
-// GenSecuritySchemes sorted representation of serializers
-type GenSecuritySchemes []GenSecurityScheme
-
-func (g GenSecuritySchemes) Len() int           { return len(g) }
-func (g GenSecuritySchemes) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-func (g GenSecuritySchemes) Less(i, j int) bool { return g[i].Name < g[j].Name }
-
 // GenSecurityScheme represents a security scheme for code generation
 type GenSecurityScheme struct {
 	AppName      string
@@ -436,8 +415,6 @@ type GenSecurityScheme struct {
 	ReceiverName string
 	IsBasicAuth  bool
 	IsAPIKeyAuth bool
-	IsOAuth2     bool
-	Scopes       []string
 	Source       string
 	Principal    string
 }

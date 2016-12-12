@@ -5,13 +5,13 @@ package tasks
 
 import (
 	"fmt"
-	"io"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/client"
+	"github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-swagger/go-swagger/httpkit/validate"
 
-	strfmt "github.com/go-openapi/strfmt"
-
-	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 )
 
 // AddCommentToTaskReader is a Reader for the AddCommentToTask structure.
@@ -19,8 +19,8 @@ type AddCommentToTaskReader struct {
 	formats strfmt.Registry
 }
 
-// ReadResponse reads a server response into the received o.
-func (o *AddCommentToTaskReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+// ReadResponse reads a server response into the recieved o.
+func (o *AddCommentToTaskReader) ReadResponse(response client.Response, consumer httpkit.Consumer) (interface{}, error) {
 	switch response.Code() {
 
 	case 201:
@@ -34,9 +34,6 @@ func (o *AddCommentToTaskReader) ReadResponse(response runtime.ClientResponse, c
 		result := NewAddCommentToTaskDefault(response.Code())
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
-		}
-		if response.Code()/100 == 2 {
-			return result, nil
 		}
 		return nil, result
 	}
@@ -58,7 +55,7 @@ func (o *AddCommentToTaskCreated) Error() string {
 	return fmt.Sprintf("[POST /tasks/{id}/comments][%d] addCommentToTaskCreated ", 201)
 }
 
-func (o *AddCommentToTaskCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+func (o *AddCommentToTaskCreated) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
 
 	return nil
 }
@@ -72,14 +69,10 @@ func NewAddCommentToTaskDefault(code int) *AddCommentToTaskDefault {
 
 /*AddCommentToTaskDefault handles this case with default header values.
 
-Error response
+AddCommentToTaskDefault add comment to task default
 */
 type AddCommentToTaskDefault struct {
 	_statusCode int
-
-	XErrorCode string
-
-	Payload *models.Error
 }
 
 // Code gets the status code for the add comment to task default response
@@ -88,37 +81,70 @@ func (o *AddCommentToTaskDefault) Code() int {
 }
 
 func (o *AddCommentToTaskDefault) Error() string {
-	return fmt.Sprintf("[POST /tasks/{id}/comments][%d] addCommentToTask default  %+v", o._statusCode, o.Payload)
+	return fmt.Sprintf("[POST /tasks/{id}/comments][%d] addCommentToTask default ", o._statusCode)
 }
 
-func (o *AddCommentToTaskDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+func (o *AddCommentToTaskDefault) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
 
-	// response header X-Error-Code
-	o.XErrorCode = response.GetHeader("X-Error-Code")
+	return nil
+}
 
-	o.Payload = new(models.Error)
+/*AddCommentToTaskBody A comment to create
 
-	// response payload
-	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+These values can have github flavored markdown.
+
+
+swagger:model AddCommentToTaskBody
+*/
+type AddCommentToTaskBody struct {
+
+	/* Content content
+
+	Required: true
+	*/
+	Content string `json:"content,omitempty"`
+
+	/* UserID user id
+
+	Required: true
+	*/
+	UserID int64 `json:"userId,omitempty"`
+}
+
+// Validate validates this add comment to task body
+func (o *AddCommentToTaskBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateContent(formats); err != nil {
+		// prop
+		res = append(res, err)
+	}
+
+	if err := o.validateUserID(formats); err != nil {
+		// prop
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *AddCommentToTaskBody) validateContent(formats strfmt.Registry) error {
+
+	if err := validate.RequiredString("body"+"."+"content", "body", string(o.Content)); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-/*AddCommentToTaskBody A comment to create
-//
-// These values can have github flavored markdown.
-//
-swagger:model AddCommentToTaskBody
-*/
-type AddCommentToTaskBody struct {
+func (o *AddCommentToTaskBody) validateUserID(formats strfmt.Registry) error {
 
-	// content
-	// Required: true
-	Content *string `json:"content"`
+	if err := validate.Required("body"+"."+"userId", "body", int64(o.UserID)); err != nil {
+		return err
+	}
 
-	// user Id
-	// Required: true
-	UserID *int64 `json:"userId"`
+	return nil
 }

@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"log"
 
-	swaggererrors "github.com/go-openapi/errors"
-	"github.com/go-openapi/loads"
-	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/validate"
+	swaggererrors "github.com/go-swagger/go-swagger/errors"
+	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-swagger/go-swagger/strfmt"
+	"github.com/go-swagger/go-swagger/validate"
 )
 
 // ValidateSpec is a command that validates a swagger document
@@ -38,7 +38,7 @@ func (c *ValidateSpec) Execute(args []string) error {
 	}
 
 	swaggerDoc := args[0]
-	specDoc, err := loads.Spec(swaggerDoc)
+	specDoc, err := spec.Load(swaggerDoc)
 	if err != nil {
 		log.Fatalln(err)
 	}

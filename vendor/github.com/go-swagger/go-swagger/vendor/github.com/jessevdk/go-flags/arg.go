@@ -12,11 +12,8 @@ type Arg struct {
 	// A description of the positional argument (used in the help)
 	Description string
 
-	// The minimal number of required positional arguments
+	// Whether a positional argument is required
 	Required int
-
-	// The maximum number of required positional arguments
-	RequiredMaximum int
 
 	value reflect.Value
 	tag   multiTag

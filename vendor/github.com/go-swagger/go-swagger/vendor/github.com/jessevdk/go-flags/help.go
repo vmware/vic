@@ -426,27 +426,15 @@ func (p *Parser) WriteHelp(writer io.Writer) {
 				fmt.Fprintf(wr, "\n[%s command arguments]\n", c.Name)
 			}
 
-			descStart := aligninfo.descriptionStart() + paddingBeforeOption
+			maxlen := aligninfo.descriptionStart()
 
 			for _, arg := range args {
-				argPrefix := strings.Repeat(" ", paddingBeforeOption)
-				argPrefix += arg.Name
+				prefix := strings.Repeat(" ", paddingBeforeOption)
+				fmt.Fprintf(wr, "%s%s", prefix, arg.Name)
 
 				if len(arg.Description) > 0 {
-					argPrefix += ":"
-					wr.WriteString(argPrefix)
-
-					// Space between "arg:" and the description start
-					descPadding := strings.Repeat(" ", descStart-len(argPrefix))
-					// How much space the description gets before wrapping
-					descWidth := aligninfo.terminalColumns - 1 - descStart
-					// Whitespace to which we can indent new description lines
-					descPrefix := strings.Repeat(" ", descStart)
-
-					wr.WriteString(descPadding)
-					wr.WriteString(wrapText(arg.Description, descWidth, descPrefix))
-				} else {
-					wr.WriteString(argPrefix)
+					align := strings.Repeat(" ", maxlen-len(arg.Name)-1)
+					fmt.Fprintf(wr, ":%s%s", align, arg.Description)
 				}
 
 				fmt.Fprintln(wr)

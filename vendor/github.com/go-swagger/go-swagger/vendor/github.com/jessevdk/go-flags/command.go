@@ -112,9 +112,9 @@ func (c *Command) Find(name string) *Command {
 	return nil
 }
 
-// FindOptionByLongName finds an option that is part of the command, or any of
-// its parent commands, by matching its long name (including the option
-// namespace).
+// Find an option that is part of the command, or any of its
+// parent commands, by matching its long name
+// (including the option namespace).
 func (c *Command) FindOptionByLongName(longName string) (option *Option) {
 	for option == nil && c != nil {
 		option = c.Group.FindOptionByLongName(longName)
@@ -125,9 +125,9 @@ func (c *Command) FindOptionByLongName(longName string) (option *Option) {
 	return option
 }
 
-// FindOptionByShortName finds an option that is part of the command, or any of
-// its parent commands, by matching its long name (including the option
-// namespace).
+// Find an option that is part of the command, or any of its
+// parent commands, by matching its long name
+// (including the option namespace).
 func (c *Command) FindOptionByShortName(shortName rune) (option *Option) {
 	for option == nil && c != nil {
 		option = c.Group.FindOptionByShortName(shortName)
@@ -181,36 +181,22 @@ func (c *Command) scanSubcommandHandler(parentg *Group) scanHandler {
 					name = field.Name
 				}
 
-				required := -1
-				requiredMaximum := -1
+				var required int
 
 				sreq := m.Get("required")
 
 				if sreq != "" {
 					required = 1
 
-					rng := strings.SplitN(sreq, "-", 2)
-
-					if len(rng) > 1 {
-						if preq, err := strconv.ParseInt(rng[0], 10, 32); err == nil {
-							required = int(preq)
-						}
-
-						if preq, err := strconv.ParseInt(rng[1], 10, 32); err == nil {
-							requiredMaximum = int(preq)
-						}
-					} else {
-						if preq, err := strconv.ParseInt(sreq, 10, 32); err == nil {
-							required = int(preq)
-						}
+					if preq, err := strconv.ParseInt(sreq, 10, 32); err == nil {
+						required = int(preq)
 					}
 				}
 
 				arg := &Arg{
-					Name:            name,
-					Description:     m.Get("description"),
-					Required:        required,
-					RequiredMaximum: requiredMaximum,
+					Name:        name,
+					Description: m.Get("description"),
+					Required:    required,
 
 					value: realval.Field(i),
 					tag:   m,

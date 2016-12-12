@@ -19,7 +19,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/go-openapi/spec"
+	"github.com/go-swagger/go-swagger/spec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,7 +51,6 @@ func TestRoutesParser(t *testing.T) {
 		"Lists pets filtered by some parameters.",
 		"This will show all available pets by default.\nYou can get the pets that are out of stock",
 		[]string{"pets", "users"},
-		[]string{"read", "write"},
 	)
 	assertOperation(t,
 		po.Post,
@@ -59,7 +58,6 @@ func TestRoutesParser(t *testing.T) {
 		"Create a pet based on the parameters.",
 		"",
 		[]string{"pets", "users"},
-		[]string{"read", "write"},
 	)
 
 	po, ok = ops.Paths["/orders"]
@@ -71,7 +69,6 @@ func TestRoutesParser(t *testing.T) {
 		"lists orders filtered by some parameters.",
 		"",
 		[]string{"orders"},
-		[]string{"orders:read", "https://www.googleapis.com/auth/userinfo.email"},
 	)
 	assertOperation(t,
 		po.Post,
@@ -79,7 +76,6 @@ func TestRoutesParser(t *testing.T) {
 		"create an order based on the parameters.",
 		"",
 		[]string{"orders"},
-		[]string{"read", "write"},
 	)
 
 	po, ok = ops.Paths["/orders/{id}"]
@@ -91,7 +87,6 @@ func TestRoutesParser(t *testing.T) {
 		"gets the details for an order.",
 		"",
 		[]string{"orders"},
-		[]string{"read", "write"},
 	)
 
 	assertOperation(t,
@@ -100,7 +95,6 @@ func TestRoutesParser(t *testing.T) {
 		"Update the details for an order.",
 		"When the order doesn't exist this will return an error.",
 		[]string{"orders"},
-		[]string{"read", "write"},
 	)
 
 	assertOperation(t,
@@ -109,96 +103,10 @@ func TestRoutesParser(t *testing.T) {
 		"delete a particular order.",
 		"",
 		nil,
-		[]string{"read", "write"},
 	)
 }
 
-func TestRoutesParserBody(t *testing.T) {
-	docFile := "../fixtures/goparsing/classification/operations_body/todo_operation_body.go"
-	fileTree, err := goparser.ParseFile(classificationProg.Fset, docFile, nil, goparser.ParseComments)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	rp := newRoutesParser(classificationProg)
-	var ops spec.Paths
-	err = rp.Parse(fileTree, &ops)
-	assert.NoError(t, err)
-
-	assert.Len(t, ops.Paths, 3)
-
-	po, ok := ops.Paths["/pets"]
-	assert.True(t, ok)
-	assert.NotNil(t, po.Get)
-	assertOperationBody(t,
-		po.Get,
-		"listPets",
-		"Lists pets filtered by some parameters.",
-		"This will show all available pets by default.\nYou can get the pets that are out of stock",
-		[]string{"pets", "users"},
-		[]string{"read", "write"},
-	)
-	assertOperationBody(t,
-		po.Post,
-		"createPet",
-		"Create a pet based on the parameters.",
-		"",
-		[]string{"pets", "users"},
-		[]string{"read", "write"},
-	)
-
-	po, ok = ops.Paths["/orders"]
-	assert.True(t, ok)
-	assert.NotNil(t, po.Get)
-	assertOperationBody(t,
-		po.Get,
-		"listOrders",
-		"lists orders filtered by some parameters.",
-		"",
-		[]string{"orders"},
-		[]string{"orders:read", "https://www.googleapis.com/auth/userinfo.email"},
-	)
-	assertOperationBody(t,
-		po.Post,
-		"createOrder",
-		"create an order based on the parameters.",
-		"",
-		[]string{"orders"},
-		[]string{"read", "write"},
-	)
-
-	po, ok = ops.Paths["/orders/{id}"]
-	assert.True(t, ok)
-	assert.NotNil(t, po.Get)
-	assertOperationBody(t,
-		po.Get,
-		"orderDetails",
-		"gets the details for an order.",
-		"",
-		[]string{"orders"},
-		[]string{"read", "write"},
-	)
-
-	assertOperationBody(t,
-		po.Put,
-		"updateOrder",
-		"Update the details for an order.",
-		"When the order doesn't exist this will return an error.",
-		[]string{"orders"},
-		[]string{"read", "write"},
-	)
-
-	assertOperationBody(t,
-		po.Delete,
-		"deleteOrder",
-		"delete a particular order.",
-		"",
-		nil,
-		[]string{"read", "write"},
-	)
-}
-
-func assertOperation(t *testing.T, op *spec.Operation, id, summary, description string, tags, scopes []string) {
+func assertOperation(t *testing.T, op *spec.Operation, id, summary, description string, tags []string) {
 	assert.NotNil(t, op)
 	assert.Equal(t, summary, op.Summary)
 	assert.Equal(t, description, op.Description)
@@ -208,15 +116,12 @@ func assertOperation(t *testing.T, op *spec.Operation, id, summary, description 
 	assert.EqualValues(t, []string{"application/json", "application/x-protobuf"}, op.Produces)
 	assert.EqualValues(t, []string{"http", "https", "ws", "wss"}, op.Schemes)
 	assert.Len(t, op.Security, 2)
-	akv, ok := op.Security[0]["api_key"]
+	_, ok := op.Security[0]["api_key"]
 	assert.True(t, ok)
-	// akv must be defined & not empty
-	assert.NotNil(t, akv)
-	assert.Empty(t, akv)
 
 	vv, ok := op.Security[1]["oauth"]
 	assert.True(t, ok)
-	assert.EqualValues(t, scopes, vv)
+	assert.EqualValues(t, []string{"read", "write"}, vv)
 
 	assert.NotNil(t, op.Responses.Default)
 	assert.Equal(t, "#/responses/genericError", op.Responses.Default.Ref.String())
@@ -227,38 +132,4 @@ func assertOperation(t *testing.T, op *spec.Operation, id, summary, description 
 	rsp, ok = op.Responses.StatusCodeResponses[422]
 	assert.True(t, ok)
 	assert.Equal(t, "#/responses/validationError", rsp.Ref.String())
-}
-
-func assertOperationBody(t *testing.T, op *spec.Operation, id, summary, description string, tags, scopes []string) {
-	assert.NotNil(t, op)
-	assert.Equal(t, summary, op.Summary)
-	assert.Equal(t, description, op.Description)
-	assert.Equal(t, id, op.ID)
-	assert.EqualValues(t, tags, op.Tags)
-	assert.EqualValues(t, []string{"application/json", "application/x-protobuf"}, op.Consumes)
-	assert.EqualValues(t, []string{"application/json", "application/x-protobuf"}, op.Produces)
-	assert.EqualValues(t, []string{"http", "https", "ws", "wss"}, op.Schemes)
-	assert.Len(t, op.Security, 2)
-	akv, ok := op.Security[0]["api_key"]
-	assert.True(t, ok)
-	// akv must be defined & not empty
-	assert.NotNil(t, akv)
-	assert.Empty(t, akv)
-
-	vv, ok := op.Security[1]["oauth"]
-	assert.True(t, ok)
-	assert.EqualValues(t, scopes, vv)
-
-	assert.NotNil(t, op.Responses.Default)
-	assert.Equal(t, "", op.Responses.Default.Ref.String())
-	assert.Equal(t, "#/definitions/genericError", op.Responses.Default.Schema.Ref.String())
-
-	rsp, ok := op.Responses.StatusCodeResponses[200]
-	assert.True(t, ok)
-	assert.Equal(t, "", rsp.Ref.String())
-	assert.Equal(t, "#/definitions/someResponse", rsp.Schema.Ref.String())
-	rsp, ok = op.Responses.StatusCodeResponses[422]
-	assert.True(t, ok)
-	assert.Equal(t, "", rsp.Ref.String())
-	assert.Equal(t, "#/definitions/validationError", rsp.Schema.Ref.String())
 }

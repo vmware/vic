@@ -6,7 +6,7 @@ package user
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 )
 
 /*LoginUserOK successful operation
@@ -15,9 +15,7 @@ swagger:response loginUserOK
 */
 type LoginUserOK struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload string `json:"body,omitempty"`
 }
 
@@ -32,17 +30,11 @@ func (o *LoginUserOK) WithPayload(payload string) *LoginUserOK {
 	return o
 }
 
-// SetPayload sets the payload to the login user o k response
-func (o *LoginUserOK) SetPayload(payload string) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *LoginUserOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *LoginUserOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
-	payload := o.Payload
-	if err := producer.Produce(rw, payload); err != nil {
+	if err := producer.Produce(rw, o.Payload); err != nil {
 		panic(err) // let the recovery middleware deal with this
 	}
 
@@ -61,7 +53,7 @@ func NewLoginUserBadRequest() *LoginUserBadRequest {
 }
 
 // WriteResponse to the client
-func (o *LoginUserBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *LoginUserBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(400)
 }

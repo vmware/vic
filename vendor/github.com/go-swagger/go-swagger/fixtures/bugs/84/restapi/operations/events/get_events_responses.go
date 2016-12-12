@@ -6,7 +6,7 @@ package events
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/fixtures/bugs/84/models"
 )
@@ -22,23 +22,12 @@ type GetEventsOK struct {
 }
 
 // NewGetEventsOK creates GetEventsOK with default headers values
-func NewGetEventsOK() *GetEventsOK {
-	return &GetEventsOK{}
-}
-
-// WithPayload adds the payload to the get events o k response
-func (o *GetEventsOK) WithPayload(payload []*models.Event) *GetEventsOK {
-	o.Payload = payload
-	return o
-}
-
-// SetPayload sets the payload to the get events o k response
-func (o *GetEventsOK) SetPayload(payload []*models.Event) {
-	o.Payload = payload
+func NewGetEventsOK() GetEventsOK {
+	return GetEventsOK{}
 }
 
 // WriteResponse to the client
-func (o *GetEventsOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *GetEventsOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
 	if err := producer.Produce(rw, o.Payload); err != nil {
@@ -52,33 +41,15 @@ func (o *GetEventsOK) WriteResponse(rw http.ResponseWriter, producer runtime.Pro
 swagger:response getEventsDefault
 */
 type GetEventsDefault struct {
-	_statusCode int
 }
 
 // NewGetEventsDefault creates GetEventsDefault with default headers values
-func NewGetEventsDefault(code int) *GetEventsDefault {
-	if code <= 0 {
-		code = 500
-	}
-
-	return &GetEventsDefault{
-		_statusCode: code,
-	}
-}
-
-// WithStatusCode adds the status to the get events default response
-func (o *GetEventsDefault) WithStatusCode(code int) *GetEventsDefault {
-	o._statusCode = code
-	return o
-}
-
-// SetStatusCode sets the status to the get events default response
-func (o *GetEventsDefault) SetStatusCode(code int) {
-	o._statusCode = code
+func NewGetEventsDefault() GetEventsDefault {
+	return GetEventsDefault{}
 }
 
 // WriteResponse to the client
-func (o *GetEventsDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *GetEventsDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
-	rw.WriteHeader(o._statusCode)
+	rw.WriteHeader(500)
 }

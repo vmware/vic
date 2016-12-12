@@ -6,7 +6,7 @@ package todos
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/examples/tutorials/todo-list/server-complete/models"
 )
@@ -24,7 +24,7 @@ func NewDestroyOneNoContent() *DestroyOneNoContent {
 }
 
 // WriteResponse to the client
-func (o *DestroyOneNoContent) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *DestroyOneNoContent) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(204)
 }
@@ -36,9 +36,7 @@ swagger:response destroyOneDefault
 type DestroyOneDefault struct {
 	_statusCode int
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload *models.Error `json:"body,omitempty"`
 }
 
@@ -59,29 +57,18 @@ func (o *DestroyOneDefault) WithStatusCode(code int) *DestroyOneDefault {
 	return o
 }
 
-// SetStatusCode sets the status to the destroy one default response
-func (o *DestroyOneDefault) SetStatusCode(code int) {
-	o._statusCode = code
-}
-
 // WithPayload adds the payload to the destroy one default response
 func (o *DestroyOneDefault) WithPayload(payload *models.Error) *DestroyOneDefault {
 	o.Payload = payload
 	return o
 }
 
-// SetPayload sets the payload to the destroy one default response
-func (o *DestroyOneDefault) SetPayload(payload *models.Error) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *DestroyOneDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *DestroyOneDefault) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(o._statusCode)
 	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
+		if err := producer.Produce(rw, o.Payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}

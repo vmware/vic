@@ -6,7 +6,7 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-openapi/runtime"
+	"github.com/go-swagger/go-swagger/httpkit"
 
 	"github.com/go-swagger/go-swagger/examples/generated/models"
 )
@@ -17,9 +17,7 @@ swagger:response findPetsByTagsOK
 */
 type FindPetsByTagsOK struct {
 
-	/*
-	  In: Body
-	*/
+	// In: body
 	Payload []*models.Pet `json:"body,omitempty"`
 }
 
@@ -34,21 +32,11 @@ func (o *FindPetsByTagsOK) WithPayload(payload []*models.Pet) *FindPetsByTagsOK 
 	return o
 }
 
-// SetPayload sets the payload to the find pets by tags o k response
-func (o *FindPetsByTagsOK) SetPayload(payload []*models.Pet) {
-	o.Payload = payload
-}
-
 // WriteResponse to the client
-func (o *FindPetsByTagsOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *FindPetsByTagsOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(200)
-	payload := o.Payload
-	if payload == nil {
-		payload = make([]*models.Pet, 0, 50)
-	}
-
-	if err := producer.Produce(rw, payload); err != nil {
+	if err := producer.Produce(rw, o.Payload); err != nil {
 		panic(err) // let the recovery middleware deal with this
 	}
 
@@ -67,7 +55,7 @@ func NewFindPetsByTagsBadRequest() *FindPetsByTagsBadRequest {
 }
 
 // WriteResponse to the client
-func (o *FindPetsByTagsBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *FindPetsByTagsBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 
 	rw.WriteHeader(400)
 }
