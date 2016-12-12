@@ -30,12 +30,17 @@ const sTaskSuffix = "Task"  // simulator suffix (avoiding golint warning)
 type Task struct {
 	mo.Task
 
-	runner TaskRunner
+	Execute func(*Task) (types.AnyType, types.BaseMethodFault)
 }
 
 func NewTask(runner TaskRunner) *Task {
 	ref := runner.Reference()
 	name := reflect.TypeOf(runner).Elem().Name()
+	return CreateTask(ref, name, runner.Run)
+}
+
+func CreateTask(e mo.Reference, name string, run func(*Task) (types.AnyType, types.BaseMethodFault)) *Task {
+	ref := e.Reference()
 	id := name
 
 	if strings.HasSuffix(id, sTaskSuffix) {
@@ -44,7 +49,7 @@ func NewTask(runner TaskRunner) *Task {
 	}
 
 	task := &Task{
-		runner: runner,
+		Execute: run,
 	}
 
 	Map.Put(task)
@@ -74,7 +79,7 @@ func (t *Task) Run() {
 
 	t.Info.State = types.TaskInfoStateRunning
 
-	res, err := t.runner.Run(t)
+	res, err := t.Execute(t)
 
 	now = time.Now()
 	t.Info.CompleteTime = &now

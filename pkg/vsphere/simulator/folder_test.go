@@ -345,3 +345,169 @@ func TestRegisterVm(t *testing.T) {
 		}
 	}
 }
+
+func TestFolderMoveInto(t *testing.T) {
+	content := vc.ServiceContent
+	s := New(NewServiceInstance(content, vc.RootFolder))
+
+	ts := s.NewServer()
+	defer ts.Close()
+
+	model := VPX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	c, err := govmomi.NewClient(ctx, ts.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	finder := find.NewFinder(c.Client, false)
+
+	dc, err := finder.DefaultDatacenter(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	finder.SetDatacenter(dc)
+
+	folders, err := dc.Folders(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ds, err := finder.DefaultDatastore(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Move Datastore into a vm folder should fail
+	task, err := folders.VmFolder.MoveInto(ctx, []types.ManagedObjectReference{ds.Reference()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = task.Wait(ctx)
+	if err == nil {
+		t.Errorf("expected error")
+	}
+
+	// Move Datacenter into a sub folder should pass
+	f, err := object.NewRootFolder(c.Client).CreateFolder(ctx, "foo")
+	if err != nil {
+		t.Error(err)
+	}
+
+	task, err = f.MoveInto(ctx, []types.ManagedObjectReference{dc.Reference()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = task.Wait(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFolderCreateDVS(t *testing.T) {
+	content := vc.ServiceContent
+	s := New(NewServiceInstance(content, vc.RootFolder))
+
+	ts := s.NewServer()
+	defer ts.Close()
+
+	model := VPX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	c, err := govmomi.NewClient(ctx, ts.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	finder := find.NewFinder(c.Client, false)
+
+	dc, err := finder.DefaultDatacenter(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	finder.SetDatacenter(dc)
+
+	folders, err := dc.Folders(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var spec types.DVSCreateSpec
+	spec.ConfigSpec = &types.VMwareDVSConfigSpec{}
+	spec.ConfigSpec.GetDVSConfigSpec().Name = "foo"
+
+	task, err := folders.NetworkFolder.CreateDVS(ctx, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = task.Wait(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	net, err := finder.Network(ctx, "foo")
+	if err != nil {
+		t.Error(err)
+	}
+
+	dvs, ok := net.(*object.DistributedVirtualSwitch)
+	if !ok {
+		t.Fatalf("%T is not of type %T", net, dvs)
+	}
+
+	task, err = folders.NetworkFolder.CreateDVS(ctx, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = task.Wait(ctx)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	pspec := types.DVPortgroupConfigSpec{Name: "xnet"}
+	task, err = dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{pspec})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = task.Wait(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	net, err = finder.Network(ctx, "xnet")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if pg, ok := net.(*object.DistributedVirtualPortgroup); !ok {
+		t.Fatalf("%T is not of type %T", net, pg)
+	}
+
+	task, err = dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{pspec})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = task.Wait(ctx)
+	if err == nil {
+		t.Error("expected error")
+	}
+}
