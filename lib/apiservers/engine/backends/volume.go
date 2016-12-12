@@ -89,6 +89,7 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 			return nil, nil, fmt.Errorf("error unmarshalling docker metadata: %s", err)
 		}
 		volume := NewVolumeModel(vol, volumeMetadata.Labels)
+		volume.Name = fmt.Sprintf("[%s]:%s", vol.Store, vol.Name)
 		volumes = append(volumes, volume)
 	}
 	return volumes, nil, nil
