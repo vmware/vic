@@ -91,8 +91,7 @@ func main() {
 		<-sig
 
 		dnsserver.Stop()
-
-		server.Shutdown()
+		restapi.StopAPIServers()
 	}()
 
 	go func() {

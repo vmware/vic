@@ -18,11 +18,13 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/swag"
+	"github.com/tylerb/graceful"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -52,6 +54,10 @@ var portlayerhandlers = []handler{
 	&handlers.LoggingHandlersImpl{},
 	&handlers.KvHandlersImpl{},
 }
+
+var apiServers []*graceful.Server
+
+const stopTimeout = time.Second * 3
 
 func configureFlags(api *operations.PortLayerAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
@@ -125,6 +131,22 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 // The TLS configuration before HTTPS server starts.
 func configureTLS(tlsConfig *tls.Config) {
 	// Make all necessary changes to the TLS configuration here.
+}
+
+func StopAPIServers() {
+	for _, s := range apiServers {
+		s.Stop(stopTimeout)
+	}
+}
+
+// As soon as server is initialized but not run yet, this function will be called.
+// If you need to modify a config, store server instance to stop it individually later, this is the place.
+// This function can be called multiple times, depending on the number of serving schemes.
+// scheme value will be set accordingly: "http", "https" or "unix"
+func configureServer(s *graceful.Server, scheme string) {
+	s.NoSignalHandling = true
+	s.Timeout = stopTimeout
+	apiServers = append(apiServers, s)
 }
 
 // The middleware configuration is for the handler executors. These do not apply to the swagger.json document.
