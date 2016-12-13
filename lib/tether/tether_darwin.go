@@ -41,6 +41,10 @@ func (t *tether) stopReaper() {
 	defer trace.End(trace.Begin("Shutting down child reaping"))
 }
 
+func (t *tether) triggerReaper() error {
+	return errors.New("Child reaping unimplemented on OSX")
+}
+
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
 func (t *tether) processEnvOS(env []string) []string {
 	// TODO: figure out how we're going to specify user and pass all the settings along

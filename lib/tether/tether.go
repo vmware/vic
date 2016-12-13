@@ -157,6 +157,9 @@ func (t *tether) setup() error {
 		log.Errorf("Unable to open PID file for %s : %s", os.Args[0], err)
 	}
 
+	// seed the incoming channel once to trigger child reaper. This is required to collect the zombies created by switch-root
+	t.triggerReaper()
+
 	return nil
 }
 
