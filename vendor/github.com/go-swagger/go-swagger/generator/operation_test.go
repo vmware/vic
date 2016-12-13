@@ -24,21 +24,24 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-openapi/analysis"
+	"github.com/go-openapi/loads"
+	"github.com/go-openapi/spec"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUniqueOperationNames(t *testing.T) {
-	doc, err := spec.Load("../fixtures/codegen/todolist.simple.yml")
+	doc, err := loads.Spec("../fixtures/codegen/todolist.simple.yml")
 	if assert.NoError(t, err) {
 		sp := doc.Spec()
 		sp.Paths.Paths["/tasks"].Post.ID = "saveTask"
 		sp.Paths.Paths["/tasks"].Post.AddExtension("origName", "createTask")
 		sp.Paths.Paths["/tasks/{id}"].Put.ID = "saveTask"
 		sp.Paths.Paths["/tasks/{id}"].Put.AddExtension("origName", "updateTask")
+		analyzed := analysis.New(sp)
 
-		ops := gatherOperations(doc, nil)
-		assert.Len(t, ops, 4)
+		ops := gatherOperations(analyzed, nil)
+		assert.Len(t, ops, 6)
 		_, exists := ops["saveTask"]
 		assert.True(t, exists)
 		_, exists = ops["PutTasksID"]
@@ -47,16 +50,17 @@ func TestUniqueOperationNames(t *testing.T) {
 }
 
 func TestEmptyOperationNames(t *testing.T) {
-	doc, err := spec.Load("../fixtures/codegen/todolist.simple.yml")
+	doc, err := loads.Spec("../fixtures/codegen/todolist.simple.yml")
 	if assert.NoError(t, err) {
 		sp := doc.Spec()
 		sp.Paths.Paths["/tasks"].Post.ID = ""
 		sp.Paths.Paths["/tasks"].Post.AddExtension("origName", "createTask")
 		sp.Paths.Paths["/tasks/{id}"].Put.ID = ""
 		sp.Paths.Paths["/tasks/{id}"].Put.AddExtension("origName", "updateTask")
+		analyzed := analysis.New(sp)
 
-		ops := gatherOperations(doc, nil)
-		assert.Len(t, ops, 4)
+		ops := gatherOperations(analyzed, nil)
+		assert.Len(t, ops, 6)
 		_, exists := ops["PostTasks"]
 		assert.True(t, exists)
 		_, exists = ops["PutTasksID"]
@@ -68,10 +72,12 @@ func TestMakeResponseHeader(t *testing.T) {
 	b, err := opBuilder("getTasks", "")
 	if assert.NoError(t, err) {
 		hdr := findResponseHeader(&b.Operation, 200, "X-Rate-Limit")
-		gh := b.MakeHeader("a", "X-Rate-Limit", *hdr)
-		assert.True(t, gh.IsPrimitive)
-		assert.Equal(t, "int32", gh.GoType)
-		assert.Equal(t, "X-Rate-Limit", gh.Name)
+		gh, er := b.MakeHeader("a", "X-Rate-Limit", *hdr)
+		if assert.NoError(t, er) {
+			assert.True(t, gh.IsPrimitive)
+			assert.Equal(t, "int32", gh.GoType)
+			assert.Equal(t, "X-Rate-Limit", gh.Name)
+		}
 	}
 }
 
@@ -95,11 +101,13 @@ func TestMakeResponseHeaderDefaultValues(t *testing.T) {
 			// t.Logf("tc: %+v", tc)
 			hdr := findResponseHeader(&b.Operation, 200, tc.name)
 			assert.NotNil(t, hdr)
-			gh := b.MakeHeader("a", tc.name, *hdr)
-			assert.True(t, gh.IsPrimitive)
-			assert.Equal(t, tc.typeStr, gh.GoType)
-			assert.Equal(t, tc.name, gh.Name)
-			assert.Exactly(t, tc.defaultValue, gh.Default)
+			gh, er := b.MakeHeader("a", tc.name, *hdr)
+			if assert.NoError(t, er) {
+				assert.True(t, gh.IsPrimitive)
+				assert.Equal(t, tc.typeStr, gh.GoType)
+				assert.Equal(t, tc.name, gh.Name)
+				assert.Exactly(t, tc.defaultValue, gh.Default)
+			}
 		}
 	}
 }
@@ -135,10 +143,10 @@ func TestMakeResponse_WithAllOfSchema(t *testing.T) {
 		gO, err := b.MakeResponse("a", "get /media/search", true, resolver, 200, b.Operation.Responses.StatusCodeResponses[200])
 		if assert.NoError(t, err) {
 			if assert.NotNil(t, gO.Schema) {
-				assert.Equal(t, "GetMediaSearchBodyBody", gO.Schema.GoType)
+				assert.Equal(t, "GetMediaSearchBody", gO.Schema.GoType)
 			}
 			if assert.NotEmpty(t, b.ExtraSchemas) {
-				body := b.ExtraSchemas["GetMediaSearchBodyBody"]
+				body := b.ExtraSchemas["GetMediaSearchBody"]
 				if assert.NotEmpty(t, body.Properties) {
 					prop := body.Properties[0]
 					assert.Equal(t, "data", prop.Name)
@@ -158,7 +166,7 @@ func TestMakeOperationParam(t *testing.T) {
 	b, err := opBuilder("getTasks", "")
 	if assert.NoError(t, err) {
 		resolver := &typeResolver{ModelsPackage: b.ModelsPackage, Doc: b.Doc}
-		gO, err := b.MakeParameter("a", resolver, b.Operation.Parameters[0])
+		gO, err := b.MakeParameter("a", resolver, b.Operation.Parameters[0], nil)
 		if assert.NoError(t, err) {
 			assert.Equal(t, "size", gO.Name)
 			assert.True(t, gO.IsPrimitive)
@@ -170,7 +178,7 @@ func TestMakeOperationParamItem(t *testing.T) {
 	b, err := opBuilder("arrayQueryParams", "../fixtures/codegen/todolist.arrayquery.yml")
 	if assert.NoError(t, err) {
 		resolver := &typeResolver{ModelsPackage: b.ModelsPackage, Doc: b.Doc}
-		gO, err := b.MakeParameterItem("a", "siString", "i", "siString", "a.SiString", "query", resolver, b.Operation.Parameters[1].Items, nil)
+		gO, err := b.MakeParameterItem("a", "siString", "ii", "siString", "a.SiString", "query", resolver, b.Operation.Parameters[1].Items, nil)
 		if assert.NoError(t, err) {
 			assert.Nil(t, gO.Parent)
 			assert.True(t, gO.IsPrimitive)
@@ -203,14 +211,17 @@ func TestRenderOperation_InstagramSearch(t *testing.T) {
 		gO, err := b.MakeOperation()
 		if assert.NoError(t, err) {
 			buf := bytes.NewBuffer(nil)
-			err := operationTemplate.Execute(buf, gO)
+			opts := opts()
+			err := templates.MustGet("serverOperation").Execute(buf, gO)
 			if assert.NoError(t, err) {
-				ff, err := formatGoFile("operation.go", buf.Bytes())
+				ff, err := opts.LanguageOpts.FormatContent("operation.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(ff)
-					//fmt.Println(res)
+					// fmt.Println(res)
 					assertInCode(t, "Data []*DataItems0 `json:\"data\"`", res)
 					assertInCode(t, "models.Media", res)
+				} else {
+					fmt.Println(buf.String())
 				}
 			}
 		}
@@ -222,12 +233,13 @@ func methodPathOpBuilder(method, path, fname string) (codeGenOpBuilder, error) {
 		fname = "../fixtures/codegen/todolist.simple.yml"
 	}
 
-	specDoc, err := spec.Load(fname)
+	specDoc, err := loads.Spec(fname)
 	if err != nil {
 		return codeGenOpBuilder{}, err
 	}
 
-	op, ok := specDoc.OperationFor(method, path)
+	analyzed := analysis.New(specDoc.Spec())
+	op, ok := analyzed.OperationFor(method, path)
 	if !ok {
 		return codeGenOpBuilder{}, errors.New("No operation could be found for " + method + " " + path)
 	}
@@ -242,6 +254,7 @@ func methodPathOpBuilder(method, path, fname string) (codeGenOpBuilder, error) {
 		Target:        ".",
 		Operation:     *op,
 		Doc:           specDoc,
+		Analyzed:      analyzed,
 		Authed:        false,
 		ExtraSchemas:  make(map[string]GenSchema),
 	}, nil
@@ -252,12 +265,13 @@ func opBuilder(name, fname string) (codeGenOpBuilder, error) {
 		fname = "../fixtures/codegen/todolist.simple.yml"
 	}
 
-	specDoc, err := spec.Load(fname)
+	specDoc, err := loads.Spec(fname)
 	if err != nil {
 		return codeGenOpBuilder{}, err
 	}
+	analyzed := analysis.New(specDoc.Spec())
 
-	method, path, op, ok := specDoc.OperationForName(name)
+	method, path, op, ok := analyzed.OperationForName(name)
 	if !ok {
 		return codeGenOpBuilder{}, errors.New("No operation could be found for " + name)
 	}
@@ -266,12 +280,14 @@ func opBuilder(name, fname string) (codeGenOpBuilder, error) {
 		Name:          name,
 		Method:        method,
 		Path:          path,
+		BasePath:      specDoc.BasePath(),
 		APIPackage:    "restapi",
 		ModelsPackage: "models",
 		Principal:     "models.User",
 		Target:        ".",
 		Operation:     *op,
 		Doc:           specDoc,
+		Analyzed:      analyzed,
 		Authed:        false,
 		ExtraSchemas:  make(map[string]GenSchema),
 	}, nil
@@ -304,9 +320,12 @@ func TestDateFormat_Spec1(t *testing.T) {
 		op, err := b.MakeOperation()
 		if assert.NoError(t, err) {
 			buf := bytes.NewBuffer(nil)
-			err := clientParamTemplate.Execute(buf, op)
+			opts := opts()
+			opts.defaultsEnsured = false
+			opts.EnsureDefaults(true)
+			err := templates.MustGet("clientParameter").Execute(buf, op)
 			if assert.NoError(t, err) {
-				ff, err := formatGoFile("put_testing.go", buf.Bytes())
+				ff, err := opts.LanguageOpts.FormatContent("put_testing.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(ff)
 					assertInCode(t, "frTestingThis.String()", res)
@@ -324,9 +343,12 @@ func TestDateFormat_Spec2(t *testing.T) {
 		op, err := b.MakeOperation()
 		if assert.NoError(t, err) {
 			buf := bytes.NewBuffer(nil)
-			err := clientParamTemplate.Execute(buf, op)
+			opts := opts()
+			opts.defaultsEnsured = false
+			opts.EnsureDefaults(true)
+			err := templates.MustGet("clientParameter").Execute(buf, op)
 			if assert.NoError(t, err) {
-				ff, err := formatGoFile("put_testing.go", buf.Bytes())
+				ff, err := opts.LanguageOpts.FormatContent("put_testing.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(ff)
 					assertInCode(t, "valuesTestingThis = append(valuesTestingThis, v.String())", res)
@@ -342,7 +364,8 @@ func TestBuilder_Issue287(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 	defer log.SetOutput(os.Stderr)
 	dr, _ := os.Getwd()
-	appGen, err := newAppGenerator("plainTexter", nil, nil, &GenOpts{
+
+	opts := &GenOpts{
 		Spec:              filepath.FromSlash("../fixtures/bugs/287/swagger.yml"),
 		IncludeModel:      true,
 		IncludeValidator:  true,
@@ -355,14 +378,16 @@ func TestBuilder_Issue287(t *testing.T) {
 		ServerPackage:     "server",
 		ClientPackage:     "client",
 		Target:            dr,
-	})
+	}
+	opts.EnsureDefaults(false)
+	appGen, err := newAppGenerator("plainTexter", nil, nil, opts)
 	if assert.NoError(t, err) {
 		op, err := appGen.makeCodegenApp()
 		if assert.NoError(t, err) {
 			buf := bytes.NewBuffer(nil)
-			err := builderTemplate.Execute(buf, op)
+			err := templates.MustGet("serverBuilder").Execute(buf, op)
 			if assert.NoError(t, err) {
-				ff, err := formatGoFile("put_testing.go", buf.Bytes())
+				ff, err := appGen.GenOpts.LanguageOpts.FormatContent("put_testing.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(ff)
 					assertInCode(t, "case \"text/plain\":", res)
@@ -370,6 +395,59 @@ func TestBuilder_Issue287(t *testing.T) {
 					fmt.Println(buf.String())
 				}
 			}
+		}
+	}
+}
+
+func TestBuilder_Issue465(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	defer log.SetOutput(os.Stderr)
+	dr, _ := os.Getwd()
+	opts := &GenOpts{
+		Spec:              filepath.FromSlash("../fixtures/bugs/465/swagger.yml"),
+		IncludeModel:      true,
+		IncludeValidator:  true,
+		IncludeHandler:    true,
+		IncludeParameters: true,
+		IncludeResponses:  true,
+		IncludeMain:       true,
+		APIPackage:        "restapi",
+		ModelPackage:      "model",
+		ServerPackage:     "server",
+		ClientPackage:     "client",
+		Target:            dr,
+	}
+	opts.EnsureDefaults(true)
+	appGen, err := newAppGenerator("plainTexter", nil, nil, opts)
+	if assert.NoError(t, err) {
+		op, err := appGen.makeCodegenApp()
+		if assert.NoError(t, err) {
+			buf := bytes.NewBuffer(nil)
+			err := templates.MustGet("clientFacade").Execute(buf, op)
+			if assert.NoError(t, err) {
+				ff, err := appGen.GenOpts.LanguageOpts.FormatContent("put_testing.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					res := string(ff)
+					assertInCode(t, "/v1/fancyAPI", res)
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+		}
+	}
+}
+
+func TestGenClient_IllegalBOM(t *testing.T) {
+	b, err := methodPathOpBuilder("get", "/v3/attachments/{attachmentId}", "../fixtures/bugs/727/swagger.json")
+	if assert.NoError(t, err) {
+		op, err := b.MakeOperation()
+		if assert.NoError(t, err) {
+			buf := bytes.NewBuffer(nil)
+			opts := opts()
+			opts.defaultsEnsured = false
+			opts.EnsureDefaults(true)
+			err := templates.MustGet("clientResponse").Execute(buf, op)
+			assert.NoError(t, err)
 		}
 	}
 }

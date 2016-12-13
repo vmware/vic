@@ -6,11 +6,11 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewFindPetsByTagsParams creates a new FindPetsByTagsParams object
@@ -25,6 +25,10 @@ func NewFindPetsByTagsParams() FindPetsByTagsParams {
 //
 // swagger:parameters findPetsByTags
 type FindPetsByTagsParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*Tags to filter by
 	  In: query
 	  Collection Format: multi
@@ -36,7 +40,9 @@ type FindPetsByTagsParams struct {
 // for simple values it will use straight method calls
 func (o *FindPetsByTagsParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
-	qs := httpkit.Values(r.URL.Query())
+	o.HTTPRequest = r
+
+	qs := runtime.Values(r.URL.Query())
 
 	qTags, qhkTags, _ := qs.GetOK("tags")
 	if err := o.bindTags(qTags, qhkTags, route.Formats); err != nil {
@@ -51,30 +57,20 @@ func (o *FindPetsByTagsParams) BindRequest(r *http.Request, route *middleware.Ma
 
 func (o *FindPetsByTagsParams) bindTags(rawData []string, hasKey bool, formats strfmt.Registry) error {
 
-	raw := rawData
-	size := len(raw)
+	tagsIC := rawData
 
-	if size == 0 {
+	if len(tagsIC) == 0 {
 		return nil
 	}
 
-	ic := raw
-	isz := size
-	var ir []string
-	iValidateElement := func(i int, tagsI string) *errors.Validation {
+	var tagsIR []string
+	for _, tagsIV := range tagsIC {
+		tagsI := tagsIV
 
-		return nil
+		tagsIR = append(tagsIR, tagsI)
 	}
 
-	for i := 0; i < isz; i++ {
-
-		if err := iValidateElement(i, ic[i]); err != nil {
-			return err
-		}
-		ir = append(ir, ic[i])
-	}
-
-	o.Tags = ir
+	o.Tags = tagsIR
 
 	return nil
 }

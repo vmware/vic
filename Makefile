@@ -294,11 +294,11 @@ PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
-	@$(SWAGGER) generate client -A PortLayer --template-dir lib/apiservers/templates  -t $(realpath $(dir $<)) -f $<
+	@$(SWAGGER) generate client -A PortLayer --target lib/apiservers/portlayer -f lib/apiservers/portlayer/swagger.json
 
 $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
-	@$(SWAGGER) generate server --exclude-main -A PortLayer --template-dir lib/apiservers/templates -t $(realpath $(dir $<)) -f $<
+	@$(SWAGGER) generate server --exclude-main -A PortLayer --target lib/apiservers/portlayer -f lib/apiservers/portlayer/swagger.json
 
 $(portlayerapi): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...

@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/go-swagger/go-swagger/client"
-	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-openapi/runtime"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 
 	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
 )
@@ -20,8 +19,8 @@ type UpdateTaskReader struct {
 	formats strfmt.Registry
 }
 
-// ReadResponse reads a server response into the recieved o.
-func (o *UpdateTaskReader) ReadResponse(response client.Response, consumer httpkit.Consumer) (interface{}, error) {
+// ReadResponse reads a server response into the received o.
+func (o *UpdateTaskReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
 	switch response.Code() {
 
 	case 200:
@@ -42,6 +41,9 @@ func (o *UpdateTaskReader) ReadResponse(response client.Response, consumer httpk
 		result := NewUpdateTaskDefault(response.Code())
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
+		}
+		if response.Code()/100 == 2 {
+			return result, nil
 		}
 		return nil, result
 	}
@@ -64,7 +66,7 @@ func (o *UpdateTaskOK) Error() string {
 	return fmt.Sprintf("[PUT /tasks/{id}][%d] updateTaskOK  %+v", 200, o.Payload)
 }
 
-func (o *UpdateTaskOK) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
+func (o *UpdateTaskOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.Task)
 
@@ -93,7 +95,7 @@ func (o *UpdateTaskUnprocessableEntity) Error() string {
 	return fmt.Sprintf("[PUT /tasks/{id}][%d] updateTaskUnprocessableEntity  %+v", 422, o.Payload)
 }
 
-func (o *UpdateTaskUnprocessableEntity) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
+func (o *UpdateTaskUnprocessableEntity) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.ValidationError)
 
@@ -114,10 +116,14 @@ func NewUpdateTaskDefault(code int) *UpdateTaskDefault {
 
 /*UpdateTaskDefault handles this case with default header values.
 
-UpdateTaskDefault update task default
+Error response
 */
 type UpdateTaskDefault struct {
 	_statusCode int
+
+	XErrorCode string
+
+	Payload *models.Error
 }
 
 // Code gets the status code for the update task default response
@@ -126,10 +132,20 @@ func (o *UpdateTaskDefault) Code() int {
 }
 
 func (o *UpdateTaskDefault) Error() string {
-	return fmt.Sprintf("[PUT /tasks/{id}][%d] updateTask default ", o._statusCode)
+	return fmt.Sprintf("[PUT /tasks/{id}][%d] updateTask default  %+v", o._statusCode, o.Payload)
 }
 
-func (o *UpdateTaskDefault) readResponse(response client.Response, consumer httpkit.Consumer, formats strfmt.Registry) error {
+func (o *UpdateTaskDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	// response header X-Error-Code
+	o.XErrorCode = response.GetHeader("X-Error-Code")
+
+	o.Payload = new(models.Error)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
 
 	return nil
 }

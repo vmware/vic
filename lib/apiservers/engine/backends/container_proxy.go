@@ -44,12 +44,10 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/go-openapi/runtime"
+	rc "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-
-	"github.com/go-swagger/go-swagger/httpkit"
-	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
-	"github.com/go-swagger/go-swagger/swag"
 	httpclient "github.com/mreiferson/go-httpclient"
 
 	"github.com/docker/docker/api/types/backend"
@@ -111,18 +109,14 @@ type volumeFields struct {
 }
 
 const (
-	attachConnectTimeout   time.Duration = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout   time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
-	attachPLAttemptDiff    time.Duration = 10 * time.Second
-	attachPLAttemptTimeout time.Duration = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
-	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
-	attachStdinInitString                = "v1c#>"
-	swaggerSubstringEOF                  = "EOF"
-	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
-	annotationKeyLabels                  = "docker.labels"
-	killWaitForExit        time.Duration = 2 * time.Second
-	killWaitBeforeForce    time.Duration = 10 * time.Second //Time to wait for signal to take effect before attempting force using Stop()
-	ShortIDLen                           = 12
+	attachConnectTimeout  time.Duration = 15 * time.Second //timeout for the connection
+	attachAttemptTimeout  time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
+	attachPLAttemptDiff   time.Duration = 10 * time.Second
+	attachStdinInitString               = "v1c#>"
+	swaggerSubstringEOF                 = "EOF"
+	forceLogType                        = "json-file" //Use in inspect to allow docker logs to work
+	annotationKeyLabels                 = "docker.labels"
+	ShortIDLen                          = 12
 
 	DriverArgFlagKey      = "flags"
 	DriverArgContainerKey = "Container"
@@ -570,7 +564,9 @@ func (c *ContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) 
 	return inspectJSON.State.Running, nil
 }
 
-func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
+func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (
+	exitCode int32, processStatus string, containerState string, reterr error) {
+
 	defer trace.End(trace.Begin(vc.ContainerID))
 
 	if vc == nil {
@@ -610,9 +606,9 @@ func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Durati
 		reterr = InternalServerError("Unexpected swagger error")
 	}
 
-	containerInfo := results.Payload
+	ci := results.Payload
 
-	return *containerInfo.ProcessConfig.ExitCode, *containerInfo.ProcessConfig.Status, *containerInfo.ContainerConfig.State, nil
+	return ci.ProcessConfig.ExitCode, ci.ProcessConfig.Status, ci.ContainerConfig.State, nil
 }
 
 func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
@@ -656,17 +652,19 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 }
 
 func (c *ContainerProxy) createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
-	runtime := httptransport.New(c.portlayerAddr, "/", []string{"http"})
+
+	r := rc.New(c.portlayerAddr, "/", []string{"http"})
 	transport := &httpclient.Transport{
 		ConnectTimeout:        connectTimeout,
 		ResponseHeaderTimeout: responseHeaderTimeout,
 		RequestTimeout:        responseTimeout,
 	}
-	runtime.Transport = transport
 
-	plClient := client.New(runtime, nil)
-	runtime.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-	runtime.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
+	r.Transport = transport
+
+	plClient := client.New(r, nil)
+	r.Consumers["application/octet-stream"] = runtime.ByteStreamConsumer()
+	r.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
 
 	return plClient, transport
 }
@@ -819,14 +817,14 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
 	config := &models.ContainerCreateConfig{}
 
-	config.NumCpus = &cc.HostConfig.CPUCount
-	config.MemoryMB = &cc.HostConfig.Memory
+	config.NumCpus = cc.HostConfig.CPUCount
+	config.MemoryMB = cc.HostConfig.Memory
 
 	// Image
-	config.Image = swag.String(layerID)
+	config.Image = layerID
 
 	// Repo Requested
-	config.RepoName = swag.String(cc.Config.Image)
+	config.RepoName = cc.Config.Image
 
 	var path string
 	var args []string
@@ -840,10 +838,10 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	}
 
 	//copy friendly name
-	config.Name = swag.String(cc.Name)
+	config.Name = cc.Name
 
 	// copy the path
-	config.Path = swag.String(path)
+	config.Path = path
 
 	// copy the args
 	config.Args = make([]string, len(args))
@@ -857,22 +855,22 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	config.ImageStore = &models.ImageStore{Name: imageStore}
 
 	// network
-	config.NetworkDisabled = swag.Bool(cc.Config.NetworkDisabled)
+	config.NetworkDisabled = cc.Config.NetworkDisabled
 
 	// working dir
-	config.WorkingDir = swag.String(cc.Config.WorkingDir)
+	config.WorkingDir = cc.Config.WorkingDir
 
 	// attach
-	config.Attach = swag.Bool(cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr)
+	config.Attach = cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr
 
 	// openstdin
-	config.OpenStdin = swag.Bool(cc.Config.OpenStdin)
+	config.OpenStdin = cc.Config.OpenStdin
 
 	// tty
-	config.Tty = swag.Bool(cc.Config.Tty)
+	config.Tty = cc.Config.Tty
 
 	// container stop signal
-	config.StopSignal = swag.String(cc.Config.StopSignal)
+	config.StopSignal = cc.Config.StopSignal
 
 	// Stuff the Docker labels into VIC container annotations
 	annotationsFromLabels(config, cc.Config.Labels)
@@ -896,7 +894,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		es, ok := cc.NetworkingConfig.EndpointsConfig[nc.NetworkName]
 		if ok {
 			if es.IPAMConfig != nil {
-				nc.Address = &es.IPAMConfig.IPv4Address
+				nc.Address = es.IPAMConfig.IPv4Address
 			}
 
 			// Docker copies Links to NetworkConfig only if it is a UserDefined network, handle that
@@ -1037,21 +1035,15 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 	containerState := &types.ContainerState{}
 
 	if info.ProcessConfig != nil {
-		if info.ProcessConfig.Pid != nil {
-			containerState.Pid = int(*info.ProcessConfig.Pid)
-		}
-		if info.ProcessConfig.ExitCode != nil {
-			containerState.ExitCode = int(*info.ProcessConfig.ExitCode)
-		}
-		if info.ProcessConfig.ErrorMsg != nil {
-			containerState.Error = *info.ProcessConfig.ErrorMsg
-		}
-		if info.ProcessConfig.StartTime != nil && *info.ProcessConfig.StartTime != 0 {
-			containerState.StartedAt = time.Unix(*info.ProcessConfig.StartTime, 0).Format(time.RFC3339Nano)
+		containerState.Pid = int(info.ProcessConfig.Pid)
+		containerState.ExitCode = int(info.ProcessConfig.ExitCode)
+		containerState.Error = info.ProcessConfig.ErrorMsg
+		if info.ProcessConfig.StartTime > 0 {
+			containerState.StartedAt = time.Unix(info.ProcessConfig.StartTime, 0).Format(time.RFC3339Nano)
 		}
 
-		if info.ProcessConfig.StopTime != nil && *info.ProcessConfig.StopTime != 0 {
-			containerState.FinishedAt = time.Unix(*info.ProcessConfig.StopTime, 0).Format(time.RFC3339Nano)
+		if info.ProcessConfig.StopTime > 0 {
+			containerState.FinishedAt = time.Unix(info.ProcessConfig.StopTime, 0).Format(time.RFC3339Nano)
 		}
 	}
 
@@ -1083,42 +1075,29 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 	}
 
 	if info.ProcessConfig != nil {
-		if info.ProcessConfig.ExecPath != nil {
-			inspectJSON.Path = *info.ProcessConfig.ExecPath
-		}
-		if info.ProcessConfig.ExecArgs != nil {
+		inspectJSON.Path = info.ProcessConfig.ExecPath
+		if len(info.ProcessConfig.ExecArgs) > 0 {
 			// args[0] is the command and should not appear in the args list here
 			inspectJSON.Args = info.ProcessConfig.ExecArgs[1:]
 		}
 	}
 
 	if info.ContainerConfig != nil {
-		if info.ContainerConfig.State != nil {
-			containerState.Status = strings.ToLower(*info.ContainerConfig.State)
+		containerState.Status = strings.ToLower(info.ContainerConfig.State)
 
-			// https://github.com/docker/docker/blob/master/container/state.go#L77
-			if containerState.Status == "stopped" {
-				containerState.Status = "exited"
-			}
-			if containerState.Status == "running" {
-				containerState.Running = true
-			}
+		// https://github.com/docker/docker/blob/master/container/state.go#L77
+		if containerState.Status == "stopped" {
+			containerState.Status = "exited"
 		}
-		if info.ContainerConfig.LayerID != nil {
-			inspectJSON.Image = *info.ContainerConfig.LayerID
+		if containerState.Status == "running" {
+			containerState.Running = true
 		}
-		if info.ContainerConfig.LogPath != nil {
-			inspectJSON.LogPath = *info.ContainerConfig.LogPath
-		}
-		if info.ContainerConfig.RestartCount != nil {
-			inspectJSON.RestartCount = int(*info.ContainerConfig.RestartCount)
-		}
-		if info.ContainerConfig.ContainerID != nil {
-			inspectJSON.ID = *info.ContainerConfig.ContainerID
-		}
-		if info.ContainerConfig.CreateTime != nil {
-			inspectJSON.Created = time.Unix(*info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
-		}
+
+		inspectJSON.Image = info.ContainerConfig.LayerID
+		inspectJSON.LogPath = info.ContainerConfig.LogPath
+		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
+		inspectJSON.ID = info.ContainerConfig.ContainerID
+		inspectJSON.Created = time.Unix(info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
 		if len(info.ContainerConfig.Names) > 0 {
 			inspectJSON.Name = fmt.Sprintf("/%s", info.ContainerConfig.Names[0])
 		}
@@ -1200,15 +1179,9 @@ func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contain
 		}
 
 		// Fill with info from portlayer
-		if vConfig.MountPoint != nil {
-			mountConfig.Name = *vConfig.MountPoint
-		}
-		if vConfig.MountPoint != nil {
-			mountConfig.Source = *vConfig.MountPoint
-		}
-		if vConfig.ReadWrite != nil {
-			mountConfig.RW = *vConfig.ReadWrite
-		}
+		mountConfig.Name = vConfig.MountPoint
+		mountConfig.Source = vConfig.MountPoint
+		mountConfig.RW = vConfig.ReadWrite
 
 		mounts = append(mounts, mountConfig)
 	}
@@ -1229,8 +1202,8 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	// Copy the working copy of our container's config
 	container := *vc.Config
 
-	if info.ContainerConfig.ContainerID != nil {
-		container.Hostname = stringid.TruncateID(*info.ContainerConfig.ContainerID) // Hostname
+	if info.ContainerConfig.ContainerID != "" {
+		container.Hostname = stringid.TruncateID(info.ContainerConfig.ContainerID) // Hostname
 	}
 	if info.ContainerConfig.AttachStdin != nil {
 		container.AttachStdin = *info.ContainerConfig.AttachStdin // Attach the standard input, makes possible user interaction
@@ -1276,8 +1249,8 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	// Get the original container config from the image's metadata in our image cache.
 	var imageConfig *metadata.ImageConfig
 
-	if info.ContainerConfig.LayerID != nil {
-		imageConfig, _ = cache.ImageCache().Get(*info.ContainerConfig.LayerID)
+	if info.ContainerConfig.LayerID != "" {
+		imageConfig, _ = cache.ImageCache().Get(info.ContainerConfig.LayerID)
 	}
 
 	// Fill in the values with defaults from the original image's container config
@@ -1428,12 +1401,12 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	}
 	log.Debugf("Container %q", name)
 
-	if info.ContainerConfig.LayerID != nil {
-		vc.ImageID = *info.ContainerConfig.LayerID
+	if info.ContainerConfig.LayerID != "" {
+		vc.ImageID = info.ContainerConfig.LayerID
 	}
 
-	if info.ContainerConfig.ContainerID != nil {
-		vc.ContainerID = *info.ContainerConfig.ContainerID
+	if info.ContainerConfig.ContainerID != "" {
+		vc.ContainerID = info.ContainerConfig.ContainerID
 	}
 
 	tempVC := viccontainer.NewVicContainer()

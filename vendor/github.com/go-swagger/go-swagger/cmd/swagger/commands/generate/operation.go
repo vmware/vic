@@ -16,6 +16,9 @@ package generate
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/go-swagger/go-swagger/generator"
 )
@@ -30,6 +33,8 @@ type Operation struct {
 	NoHandler     bool     `long:"skip-handler" description:"when present will not generate an operation handler"`
 	NoStruct      bool     `long:"skip-parameters" description:"when present will not generate the parameter model struct"`
 	NoResponses   bool     `long:"skip-responses" description:"when present will not generate the response model struct"`
+	NoValidator   bool     `long:"skip-validator" description:"when present will not generate a model validator"`
+	NoURLBuilder  bool     `long:"skip-url-builder" description:"when present will not generate a URL builder"`
 	DumpData      bool     `long:"dump-data" description:"when present dumps the json for the template generator instead of generating files"`
 }
 
@@ -38,22 +43,58 @@ func (o *Operation) Execute(args []string) error {
 	if o.DumpData && len(o.Name) > 1 {
 		return errors.New("only 1 operation at a time is supported for dumping data")
 	}
-	return generator.GenerateServerOperation(
-		o.Name,
-		o.Tags,
-		!o.NoHandler,
-		!o.NoStruct,
-		!o.NoResponses,
-		generator.GenOpts{
-			Spec:          string(o.Spec),
-			Target:        string(o.Target),
-			APIPackage:    o.APIPackage,
-			ModelPackage:  o.ModelPackage,
-			ServerPackage: o.ServerPackage,
-			ClientPackage: o.ClientPackage,
-			Principal:     o.Principal,
-			DumpData:      o.DumpData,
-			DefaultScheme: o.DefaultScheme,
-			TemplateDir:   string(o.TemplateDir),
-		})
+
+	cfg, err := readConfig(string(o.ConfigFile))
+	if err != nil {
+		return err
+	}
+	setDebug(cfg)
+
+	opts := &generator.GenOpts{
+		Spec:              string(o.Spec),
+		Target:            string(o.Target),
+		APIPackage:        o.APIPackage,
+		ModelPackage:      o.ModelPackage,
+		ServerPackage:     o.ServerPackage,
+		ClientPackage:     o.ClientPackage,
+		Principal:         o.Principal,
+		DumpData:          o.DumpData,
+		DefaultScheme:     o.DefaultScheme,
+		TemplateDir:       string(o.TemplateDir),
+		IncludeHandler:    !o.NoHandler,
+		IncludeResponses:  !o.NoResponses,
+		IncludeParameters: !o.NoStruct,
+		IncludeValidator:  !o.NoValidator,
+		IncludeURLBuilder: !o.NoURLBuilder,
+		Tags:              o.Tags,
+	}
+
+	if err := opts.EnsureDefaults(false); err != nil {
+		return err
+	}
+
+	if err := configureOptsFromConfig(cfg, opts); err != nil {
+		return err
+	}
+
+	if err := generator.GenerateServerOperation(o.Name, opts); err != nil {
+		return err
+	}
+
+	rp, err := filepath.Rel(".", opts.Target)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stderr, `Generation completed!
+
+For this generation to compile you need to have some packages in your GOPATH:
+
+  * github.com/go-openapi/runtime
+  * golang.org/x/net/context
+
+You can get these now with: go get -u -f %s/...
+`, rp)
+
+	return nil
 }

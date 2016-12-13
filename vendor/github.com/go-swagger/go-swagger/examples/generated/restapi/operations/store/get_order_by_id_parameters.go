@@ -6,10 +6,10 @@ package store
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime/middleware"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewGetOrderByIDParams creates a new GetOrderByIDParams object
@@ -19,11 +19,15 @@ func NewGetOrderByIDParams() GetOrderByIDParams {
 	return GetOrderByIDParams{}
 }
 
-// GetOrderByIDParams contains all the bound params for the get order by id operation
+// GetOrderByIDParams contains all the bound params for the get order by Id operation
 // typically these are obtained from a http.Request
 //
 // swagger:parameters getOrderById
 type GetOrderByIDParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*ID of pet that needs to be fetched
 	  Required: true
 	  In: path
@@ -35,6 +39,7 @@ type GetOrderByIDParams struct {
 // for simple values it will use straight method calls
 func (o *GetOrderByIDParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
 
 	rOrderID, rhkOrderID, _ := route.Params.GetOK("orderId")
 	if err := o.bindOrderID(rOrderID, rhkOrderID, route.Formats); err != nil {

@@ -13,7 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opennota/urlesc"
+	"github.com/PuerkitoBio/urlesc"
+	"golang.org/x/net/idna"
+	"golang.org/x/text/unicode/norm"
+	"golang.org/x/text/width"
 )
 
 // A set of normalization flags determines how a URL will
@@ -137,23 +140,36 @@ var flags = map[NormalizationFlags]func(*url.URL){
 // MustNormalizeURLString returns the normalized string, and panics if an error occurs.
 // It takes an URL string as input, as well as the normalization flags.
 func MustNormalizeURLString(u string, f NormalizationFlags) string {
-	if parsed, e := url.Parse(u); e != nil {
+	result, e := NormalizeURLString(u, f)
+	if e != nil {
 		panic(e)
-	} else {
-		return NormalizeURL(parsed, f)
 	}
-	panic("Unreachable code.")
+	return result
 }
 
 // NormalizeURLString returns the normalized string, or an error if it can't be parsed into an URL object.
 // It takes an URL string as input, as well as the normalization flags.
 func NormalizeURLString(u string, f NormalizationFlags) (string, error) {
-	if parsed, e := url.Parse(u); e != nil {
-		return "", e
-	} else {
-		return NormalizeURL(parsed, f), nil
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return "", err
 	}
-	panic("Unreachable code.")
+
+	if f&FlagLowercaseHost == FlagLowercaseHost {
+		parsed.Host = strings.ToLower(parsed.Host)
+	}
+
+	// The idna package doesn't fully conform to RFC 5895
+	// (https://tools.ietf.org/html/rfc5895), so we do it here.
+	// Taken from Go 1.8 cycle source, courtesy of bradfitz.
+	// TODO: Remove when (if?) idna package conforms to RFC 5895.
+	parsed.Host = width.Fold.String(parsed.Host)
+	parsed.Host = norm.NFC.String(parsed.Host)
+	if parsed.Host, err = idna.ToASCII(parsed.Host); err != nil {
+		return "", err
+	}
+
+	return NormalizeURL(parsed, f), nil
 }
 
 // NormalizeURL returns the normalized string.

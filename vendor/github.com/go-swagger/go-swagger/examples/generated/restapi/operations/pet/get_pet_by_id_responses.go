@@ -6,7 +6,7 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-openapi/runtime"
 
 	"github.com/go-swagger/go-swagger/examples/generated/models"
 )
@@ -17,7 +17,9 @@ swagger:response getPetByIdOK
 */
 type GetPetByIDOK struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.Pet `json:"body,omitempty"`
 }
 
@@ -26,18 +28,24 @@ func NewGetPetByIDOK() *GetPetByIDOK {
 	return &GetPetByIDOK{}
 }
 
-// WithPayload adds the payload to the get pet by id o k response
+// WithPayload adds the payload to the get pet by Id o k response
 func (o *GetPetByIDOK) WithPayload(payload *models.Pet) *GetPetByIDOK {
 	o.Payload = payload
 	return o
 }
 
+// SetPayload sets the payload to the get pet by Id o k response
+func (o *GetPetByIDOK) SetPayload(payload *models.Pet) {
+	o.Payload = payload
+}
+
 // WriteResponse to the client
-func (o *GetPetByIDOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *GetPetByIDOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -56,7 +64,7 @@ func NewGetPetByIDBadRequest() *GetPetByIDBadRequest {
 }
 
 // WriteResponse to the client
-func (o *GetPetByIDBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *GetPetByIDBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(400)
 }
@@ -74,7 +82,7 @@ func NewGetPetByIDNotFound() *GetPetByIDNotFound {
 }
 
 // WriteResponse to the client
-func (o *GetPetByIDNotFound) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *GetPetByIDNotFound) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(404)
 }

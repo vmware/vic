@@ -15,63 +15,79 @@
 package generator
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
 
-	"github.com/go-swagger/go-swagger/swag"
+	"github.com/go-openapi/analysis"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/swag"
 )
 
 // GenerateClient generates a client library for a swagger spec document.
-func GenerateClient(name string, modelNames, operationIDs []string, opts GenOpts) error {
+func GenerateClient(name string, modelNames, operationIDs []string, opts *GenOpts) error {
+	if opts == nil {
+		return errors.New("gen opts are required")
+	}
+	if err := opts.EnsureDefaults(true); err != nil {
+		return err
+	}
+
 	if opts.TemplateDir != "" {
 		if err := templates.LoadDir(opts.TemplateDir); err != nil {
 			return err
 		}
 	}
 
-	compileTemplates()
-
 	// Load the spec
 	_, specDoc, err := loadSpec(opts.Spec)
 	if err != nil {
 		return err
 	}
+	analyzed := analysis.New(specDoc.Spec())
 
 	models, err := gatherModels(specDoc, modelNames)
 	if err != nil {
 		return err
 	}
-	operations := gatherOperations(specDoc, operationIDs)
+	operations := gatherOperations(analyzed, operationIDs)
 
 	defaultScheme := opts.DefaultScheme
 	if defaultScheme == "" {
-		defaultScheme = "http"
+		defaultScheme = sHTTP
 	}
+
+	defaultConsumes := opts.DefaultConsumes
+	if defaultConsumes == "" {
+		defaultConsumes = runtime.JSONMime
+	}
+
 	defaultProduces := opts.DefaultProduces
 	if defaultProduces == "" {
-		defaultProduces = "application/json"
+		defaultProduces = runtime.JSONMime
 	}
 
 	generator := appGenerator{
 		Name:            appNameOrDefault(specDoc, name, "rest"),
 		SpecDoc:         specDoc,
+		Analyzed:        analyzed,
 		Models:          models,
 		Operations:      operations,
 		Target:          opts.Target,
 		DumpData:        opts.DumpData,
-		Package:         mangleName(swag.ToFileName(opts.ClientPackage), "client"),
-		APIPackage:      mangleName(swag.ToFileName(opts.APIPackage), "api"),
-		ModelsPackage:   mangleName(swag.ToFileName(opts.ModelPackage), "definitions"),
-		ServerPackage:   mangleName(swag.ToFileName(opts.ServerPackage), "server"),
-		ClientPackage:   mangleName(swag.ToFileName(opts.ClientPackage), "client"),
+		Package:         opts.LanguageOpts.MangleName(swag.ToFileName(opts.ClientPackage), "client"),
+		APIPackage:      opts.LanguageOpts.MangleName(swag.ToFileName(opts.APIPackage), "api"),
+		ModelsPackage:   opts.LanguageOpts.MangleName(swag.ToFileName(opts.ModelPackage), "definitions"),
+		ServerPackage:   opts.LanguageOpts.MangleName(swag.ToFileName(opts.ServerPackage), "server"),
+		ClientPackage:   opts.LanguageOpts.MangleName(swag.ToFileName(opts.ClientPackage), "client"),
 		Principal:       opts.Principal,
 		DefaultScheme:   defaultScheme,
 		DefaultProduces: defaultProduces,
+		DefaultConsumes: defaultConsumes,
+		GenOpts:         opts,
 	}
 	generator.Receiver = "o"
 
@@ -98,114 +114,74 @@ func (c *clientGenerator) Generate() error {
 		return nil
 	}
 
-	for _, mod := range app.Models {
-		mod.IncludeValidator = true // a.GenOpts.IncludeValidator
-		gen := &definitionGenerator{
-			Name:    mod.Name,
-			SpecDoc: c.SpecDoc,
-			Target:  filepath.Join(c.Target, c.ModelsPackage),
-			Data:    &mod,
-		}
-		if err := gen.generateModel(); err != nil {
-			return err
-		}
-	}
+	// errChan := make(chan error, 100)
+	// wg := nsync.NewControlWaitGroup(20)
 
-	for i := range app.OperationGroups {
-		opGroup := app.OperationGroups[i]
-		opGroup.DefaultImports = []string{filepath.ToSlash(filepath.Join(baseImport(c.Target), c.ModelsPackage))}
-		opGroup.RootPackage = c.ClientPackage
-		app.OperationGroups[i] = opGroup
-		sort.Sort(opGroup.Operations)
-		for _, op := range opGroup.Operations {
-			if op.Package == "" {
-				op.Package = c.Package
-			}
-			if err := c.generateParameters(&op); err != nil {
+	if c.GenOpts.IncludeModel {
+		for _, mod := range app.Models {
+			// if len(errChan) > 0 {
+			// 	wg.Wait()
+			// 	return <-errChan
+			// }
+			modCopy := mod
+			// wg.Do(func() {
+			modCopy.IncludeValidator = true
+			if err := c.GenOpts.renderDefinition(&modCopy); err != nil {
 				return err
 			}
+			// })
+		}
+	}
 
-			if err := c.generateResponses(&op); err != nil {
+	// wg.Wait()
+	if c.GenOpts.IncludeHandler {
+		sort.Sort(app.OperationGroups)
+		for i := range app.OperationGroups {
+			opGroup := app.OperationGroups[i]
+			opGroup.DefaultImports = []string{filepath.ToSlash(filepath.Join(baseImport(c.Target), c.ModelsPackage))}
+			opGroup.RootPackage = c.ClientPackage
+			app.OperationGroups[i] = opGroup
+			sort.Sort(opGroup.Operations)
+			for _, op := range opGroup.Operations {
+				// if len(errChan) > 0 {
+				// 	wg.Wait()
+				// 	return <-errChan
+				// }
+				opCopy := op
+				if opCopy.Package == "" {
+					opCopy.Package = c.Package
+				}
+				// wg.Do(func() {
+				if err := c.GenOpts.renderOperation(&opCopy); err != nil {
+					return err
+				}
+				// })
+			}
+			app.DefaultImports = append(app.DefaultImports, filepath.ToSlash(filepath.Join(baseImport(c.Target), c.ClientPackage, opGroup.Name)))
+
+			// wg.Do(func() {
+			if err := c.GenOpts.renderOperationGroup(&opGroup); err != nil {
+				// errChan <- err
 				return err
 			}
+			// })
 		}
-		app.DefaultImports = append(app.DefaultImports, filepath.ToSlash(filepath.Join(baseImport(c.Target), c.ClientPackage, opGroup.Name)))
-		if err := c.generateGroupClient(opGroup); err != nil {
+		// wg.Wait()
+	}
+
+	if c.GenOpts.IncludeSupport {
+		// wg.Do(func() {
+		if err := c.GenOpts.renderApplication(&app); err != nil {
 			return err
 		}
+		// })
 	}
 
-	sort.Sort(app.OperationGroups)
+	// wg.Wait()
 
-	if err := c.generateFacade(&app); err != nil {
-		return err
-	}
+	// if len(errChan) > 0 {
+	// 	return <-errChan
+	// }
 
 	return nil
-}
-
-func (c *clientGenerator) generateParameters(op *GenOperation) error {
-	buf := bytes.NewBuffer(nil)
-
-	if err := clientParamTemplate.Execute(buf, op); err != nil {
-		return err
-	}
-	log.Println("rendered client parameters template:", op.Package+"."+swag.ToGoName(op.Name)+"Parameters")
-
-	fp := filepath.Join(c.Target, c.ClientPackage)
-	if len(op.Package) > 0 {
-		fp = filepath.Join(fp, op.Package)
-	}
-	return writeToFile(fp, swag.ToGoName(op.Name)+"Parameters", buf.Bytes())
-}
-
-func (c *clientGenerator) generateResponses(op *GenOperation) error {
-	buf := bytes.NewBuffer(nil)
-
-	if err := clientResponseTemplate.Execute(buf, op); err != nil {
-		return err
-	}
-	log.Println("rendered client responses template:", op.Package+"."+swag.ToGoName(op.Name)+"Responses")
-
-	fp := filepath.Join(c.Target, c.ClientPackage)
-	if len(op.Package) > 0 {
-		fp = filepath.Join(fp, op.Package)
-	}
-	return writeToFile(fp, swag.ToGoName(op.Name)+"Responses", buf.Bytes())
-}
-
-func (c *clientGenerator) generateGroupClient(opGroup GenOperationGroup) error {
-	buf := bytes.NewBuffer(nil)
-
-	if err := clientTemplate.Execute(buf, opGroup); err != nil {
-		return err
-	}
-	log.Println("rendered operation group client template:", opGroup.Name+"."+swag.ToGoName(opGroup.Name)+"Client")
-
-	fp := filepath.Join(c.Target, c.ClientPackage, opGroup.Name)
-	return writeToFile(fp, swag.ToGoName(opGroup.Name)+"Client", buf.Bytes())
-}
-
-func (c *clientGenerator) generateFacade(app *GenApp) error {
-	buf := bytes.NewBuffer(nil)
-
-	if err := clientFacadeTemplate.Execute(buf, app); err != nil {
-		return err
-	}
-	log.Println("rendered client facade template:", c.ClientPackage+"."+swag.ToGoName(app.Name)+"Client")
-
-	fp := filepath.Join(c.Target, c.ClientPackage)
-	return writeToFile(fp, swag.ToGoName(app.Name)+"Client", buf.Bytes())
-}
-
-func (c *clientGenerator) generateEmbeddedSwaggerJSON(app *GenApp) error {
-	buf := bytes.NewBuffer(nil)
-
-	if err := embeddedSpecTemplate.Execute(buf, app); err != nil {
-		return err
-	}
-	log.Println("rendered client embedded swagger JSON template:", c.ClientPackage+"."+swag.ToGoName(app.Name)+"Client")
-
-	fp := filepath.Join(c.Target, c.ClientPackage)
-	return writeToFile(fp, swag.ToGoName(app.Name)+"EmbeddedSpec", buf.Bytes())
 }

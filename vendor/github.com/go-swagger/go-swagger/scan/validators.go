@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-openapi/spec"
 )
 
 type validationBuilder interface {
@@ -35,6 +35,8 @@ type validationBuilder interface {
 	SetPattern(string)
 
 	SetUnique(bool)
+	SetEnum(string)
+	SetDefault(string)
 }
 
 type valueParser interface {
@@ -274,6 +276,46 @@ func (su *setUnique) Parse(lines []string) error {
 	return nil
 }
 
+type setEnum struct {
+	builder validationBuilder
+	rx      *regexp.Regexp
+}
+
+func (se *setEnum) Matches(line string) bool {
+	return se.rx.MatchString(line)
+}
+
+func (se *setEnum) Parse(lines []string) error {
+	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
+		return nil
+	}
+	matches := se.rx.FindStringSubmatch(lines[0])
+	if len(matches) > 1 && len(matches[1]) > 0 {
+		se.builder.SetEnum(matches[1])
+	}
+	return nil
+}
+
+type setDefault struct {
+	builder validationBuilder
+	rx      *regexp.Regexp
+}
+
+func (sd *setDefault) Matches(line string) bool {
+	return sd.rx.MatchString(line)
+}
+
+func (sd *setDefault) Parse(lines []string) error {
+	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
+		return nil
+	}
+	matches := sd.rx.FindStringSubmatch(lines[0])
+	if len(matches) > 1 && len(matches[1]) > 0 {
+		sd.builder.SetDefault(matches[1])
+	}
+	return nil
+}
+
 type matchOnlyParam struct {
 	tgt *spec.Parameter
 	rx  *regexp.Regexp
@@ -481,15 +523,16 @@ func (ss *setSecurityDefinitions) Parse(lines []string) error {
 	var result []map[string][]string
 	for _, line := range lines {
 		kv := strings.SplitN(line, ":", 2)
-		var scopes []string
+		scopes := []string{}
 		var key string
 
 		if len(kv) > 1 {
-			scs := strings.Split(rxNotAlNumSpaceComma.ReplaceAllString(kv[1], ""), ",")
+			scs := strings.Split(kv[1], ",")
 			for _, scope := range scs {
 				tr := strings.TrimSpace(scope)
 				if tr != "" {
-					scopes = append(scopes, strings.TrimSpace(scope))
+					tr = strings.SplitAfter(tr, " ")[0]
+					scopes = append(scopes, strings.TrimSpace(tr))
 				}
 			}
 
@@ -564,21 +607,41 @@ func (ss *setOpResponses) Parse(lines []string) error {
 				value = value[2:]
 			}
 
+			valueAndDescription := strings.SplitN(value, " ", 2)
+			description := ""
+			if len(valueAndDescription) > 1 {
+				value = valueAndDescription[0]
+				description = valueAndDescription[1]
+			}
+
 			var isDefinitionRef bool
 			var ref spec.Ref
-			var err error
+			var refTarget string
 			if arrays == 0 {
-				ref, err = spec.NewRef("#/responses/" + value)
-			} else {
-				isDefinitionRef = true
-				ref, err = spec.NewRef("#/definitions/" + value)
-			}
-			if _, ok := ss.responses[value]; !ok {
-				if _, ok := ss.definitions[value]; ok {
+				if strings.HasPrefix(value, "body:") {
 					isDefinitionRef = true
-					ref, err = spec.NewRef("#/definitions/" + value)
+					refTarget = value[5:]
+				} else {
+					refTarget = value
 				}
 			} else {
+				isDefinitionRef = true
+				refTarget = value
+			}
+			if _, ok := ss.responses[refTarget]; !ok {
+				if _, ok := ss.definitions[refTarget]; ok {
+					isDefinitionRef = true
+				}
+			}
+
+			var err error
+			if isDefinitionRef {
+				if description == "" {
+					description = refTarget
+				}
+				ref, err = spec.NewRef("#/definitions/" + refTarget)
+			} else {
+				ref, err = spec.NewRef("#/responses/" + refTarget)
 			}
 			if err != nil {
 				return err
@@ -590,6 +653,7 @@ func (ss *setOpResponses) Parse(lines []string) error {
 				resp.Ref = ref
 			} else {
 				resp.Schema = new(spec.Schema)
+				resp.Description = description
 				if arrays == 0 {
 					resp.Schema.Ref = ref
 				} else {

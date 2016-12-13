@@ -4,21 +4,55 @@ package tasks
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"github.com/go-swagger/go-swagger/client"
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/swag"
+	"net/http"
+	"time"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	"golang.org/x/net/context"
+
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	cr "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/swag"
+
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewGetTaskCommentsParams creates a new GetTaskCommentsParams object
 // with the default values initialized.
 func NewGetTaskCommentsParams() *GetTaskCommentsParams {
 	var (
-		pageSizeDefault int32 = int32(20)
+		pageSizeDefault = int32(20)
 	)
 	return &GetTaskCommentsParams{
 		PageSize: &pageSizeDefault,
+
+		timeout: cr.DefaultTimeout,
+	}
+}
+
+// NewGetTaskCommentsParamsWithTimeout creates a new GetTaskCommentsParams object
+// with the default values initialized, and the ability to set a timeout on a request
+func NewGetTaskCommentsParamsWithTimeout(timeout time.Duration) *GetTaskCommentsParams {
+	var (
+		pageSizeDefault = int32(20)
+	)
+	return &GetTaskCommentsParams{
+		PageSize: &pageSizeDefault,
+
+		timeout: timeout,
+	}
+}
+
+// NewGetTaskCommentsParamsWithContext creates a new GetTaskCommentsParams object
+// with the default values initialized, and the ability to set a context for a request
+func NewGetTaskCommentsParamsWithContext(ctx context.Context) *GetTaskCommentsParams {
+	var (
+		pageSizeDefault = int32(20)
+	)
+	return &GetTaskCommentsParams{
+		PageSize: &pageSizeDefault,
+
+		Context: ctx,
 	}
 }
 
@@ -42,29 +76,71 @@ type GetTaskCommentsParams struct {
 
 	*/
 	Since *strfmt.DateTime
+
+	timeout    time.Duration
+	Context    context.Context
+	HTTPClient *http.Client
+}
+
+// WithTimeout adds the timeout to the get task comments params
+func (o *GetTaskCommentsParams) WithTimeout(timeout time.Duration) *GetTaskCommentsParams {
+	o.SetTimeout(timeout)
+	return o
+}
+
+// SetTimeout adds the timeout to the get task comments params
+func (o *GetTaskCommentsParams) SetTimeout(timeout time.Duration) {
+	o.timeout = timeout
+}
+
+// WithContext adds the context to the get task comments params
+func (o *GetTaskCommentsParams) WithContext(ctx context.Context) *GetTaskCommentsParams {
+	o.SetContext(ctx)
+	return o
+}
+
+// SetContext adds the context to the get task comments params
+func (o *GetTaskCommentsParams) SetContext(ctx context.Context) {
+	o.Context = ctx
 }
 
 // WithID adds the id to the get task comments params
 func (o *GetTaskCommentsParams) WithID(id int64) *GetTaskCommentsParams {
-	o.ID = id
+	o.SetID(id)
 	return o
+}
+
+// SetID adds the id to the get task comments params
+func (o *GetTaskCommentsParams) SetID(id int64) {
+	o.ID = id
 }
 
 // WithPageSize adds the pageSize to the get task comments params
 func (o *GetTaskCommentsParams) WithPageSize(pageSize *int32) *GetTaskCommentsParams {
-	o.PageSize = pageSize
+	o.SetPageSize(pageSize)
 	return o
+}
+
+// SetPageSize adds the pageSize to the get task comments params
+func (o *GetTaskCommentsParams) SetPageSize(pageSize *int32) {
+	o.PageSize = pageSize
 }
 
 // WithSince adds the since to the get task comments params
 func (o *GetTaskCommentsParams) WithSince(since *strfmt.DateTime) *GetTaskCommentsParams {
-	o.Since = since
+	o.SetSince(since)
 	return o
 }
 
-// WriteToRequest writes these params to a swagger request
-func (o *GetTaskCommentsParams) WriteToRequest(r client.Request, reg strfmt.Registry) error {
+// SetSince adds the since to the get task comments params
+func (o *GetTaskCommentsParams) SetSince(since *strfmt.DateTime) {
+	o.Since = since
+}
 
+// WriteToRequest writes these params to a swagger request
+func (o *GetTaskCommentsParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
+
+	r.SetTimeout(o.timeout)
 	var res []error
 
 	// path param id

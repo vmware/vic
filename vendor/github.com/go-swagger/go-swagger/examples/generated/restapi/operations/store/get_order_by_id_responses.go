@@ -6,7 +6,7 @@ package store
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-openapi/runtime"
 
 	"github.com/go-swagger/go-swagger/examples/generated/models"
 )
@@ -17,7 +17,9 @@ swagger:response getOrderByIdOK
 */
 type GetOrderByIDOK struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.Order `json:"body,omitempty"`
 }
 
@@ -26,18 +28,24 @@ func NewGetOrderByIDOK() *GetOrderByIDOK {
 	return &GetOrderByIDOK{}
 }
 
-// WithPayload adds the payload to the get order by id o k response
+// WithPayload adds the payload to the get order by Id o k response
 func (o *GetOrderByIDOK) WithPayload(payload *models.Order) *GetOrderByIDOK {
 	o.Payload = payload
 	return o
 }
 
+// SetPayload sets the payload to the get order by Id o k response
+func (o *GetOrderByIDOK) SetPayload(payload *models.Order) {
+	o.Payload = payload
+}
+
 // WriteResponse to the client
-func (o *GetOrderByIDOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *GetOrderByIDOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -56,7 +64,7 @@ func NewGetOrderByIDBadRequest() *GetOrderByIDBadRequest {
 }
 
 // WriteResponse to the client
-func (o *GetOrderByIDBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *GetOrderByIDBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(400)
 }
@@ -74,7 +82,7 @@ func NewGetOrderByIDNotFound() *GetOrderByIDNotFound {
 }
 
 // WriteResponse to the client
-func (o *GetOrderByIDNotFound) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *GetOrderByIDNotFound) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(404)
 }

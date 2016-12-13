@@ -6,10 +6,11 @@ package user
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 
 	"github.com/go-swagger/go-swagger/examples/generated/models"
 )
@@ -26,6 +27,10 @@ func NewUpdateUserParams() UpdateUserParams {
 //
 // swagger:parameters updateUser
 type UpdateUserParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*Updated user object
 	  In: body
 	*/
@@ -41,18 +46,23 @@ type UpdateUserParams struct {
 // for simple values it will use straight method calls
 func (o *UpdateUserParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
 
-	var body models.User
-	if err := route.Consumer.Consume(r.Body, &body); err != nil {
-		res = append(res, errors.NewParseError("body", "body", "", err))
-	} else {
-		if err := body.Validate(route.Formats); err != nil {
-			res = append(res, err)
+	if runtime.HasBody(r) {
+		defer r.Body.Close()
+		var body models.User
+		if err := route.Consumer.Consume(r.Body, &body); err != nil {
+			res = append(res, errors.NewParseError("body", "body", "", err))
+		} else {
+			if err := body.Validate(route.Formats); err != nil {
+				res = append(res, err)
+			}
+
+			if len(res) == 0 {
+				o.Body = &body
+			}
 		}
 
-		if len(res) == 0 {
-			o.Body = &body
-		}
 	}
 
 	rUsername, rhkUsername, _ := route.Params.GetOK("username")

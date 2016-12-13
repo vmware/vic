@@ -17,8 +17,7 @@ package handlers
 import (
 	"context"
 
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
-
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/misc"
@@ -29,28 +28,28 @@ import (
 type MiscHandlersImpl struct{}
 
 // Configure assigns functions to all the miscellaneous api handlers
-func (handler *MiscHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
-	api.MiscPingHandler = misc.PingHandlerFunc(handler.Ping)
-	api.MiscGetVCHInfoHandler = misc.GetVCHInfoHandlerFunc(handler.GetVCHInfo)
+func (h *MiscHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
+	api.MiscPingHandler = misc.PingHandlerFunc(h.Ping)
+	api.MiscGetVCHInfoHandler = misc.GetVCHInfoHandlerFunc(h.GetVCHInfo)
 }
 
 // Ping sends an OK response to let the client know the server is up
-func (handler *MiscHandlersImpl) Ping() middleware.Responder {
+func (h *MiscHandlersImpl) Ping(param misc.PingParams) middleware.Responder {
 	return misc.NewPingOK().WithPayload("OK")
 }
 
 // GetVCHInfo returns VCH-related info for a `docker info` call
-func (handler *MiscHandlersImpl) GetVCHInfo() middleware.Responder {
+func (h *MiscHandlersImpl) GetVCHInfo(params misc.GetVCHInfoParams) middleware.Responder {
 	ctx := context.Background()
 	vchCPUMhz := exec.NCPU(ctx)
 	vchMemLimit := exec.MemTotal(ctx)
 
 	vchInfo := &models.VCHInfo{
-		CPUMhz:          &vchCPUMhz,
-		Memory:          &vchMemLimit,
-		HostOS:          &exec.Config.HostOS,
-		HostOSVersion:   &exec.Config.HostOSVersion,
-		HostProductName: &exec.Config.HostProductName,
+		CPUMhz:          vchCPUMhz,
+		Memory:          vchMemLimit,
+		HostOS:          exec.Config.HostOS,
+		HostOSVersion:   exec.Config.HostOSVersion,
+		HostProductName: exec.Config.HostProductName,
 	}
 
 	return misc.NewGetVCHInfoOK().WithPayload(vchInfo)

@@ -66,7 +66,7 @@ type Context struct {
 
 type AddContainerOptions struct {
 	Scope   string
-	IP      *net.IP
+	IP      net.IP
 	Aliases []string
 	Ports   []string
 }
@@ -1048,10 +1048,10 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	}
 
 	ne.Static = false
-	if options.IP != nil && !ip.IsUnspecifiedIP(*options.IP) {
+	if len(options.IP) > 0 && !ip.IsUnspecifiedIP(options.IP) {
 		ne.Static = true
 		ne.IP = &net.IPNet{
-			IP:   *options.IP,
+			IP:   options.IP,
 			Mask: s.Subnet().Mask,
 		}
 	}

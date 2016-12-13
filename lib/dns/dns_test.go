@@ -128,7 +128,7 @@ func TestVIC(t *testing.T) {
 
 	ctxOptions := &network.AddContainerOptions{
 		Scope: "bridge",
-		IP:    &ip,
+		IP:    ip,
 	}
 	// add it
 	err = ctx.AddContainer(con, ctxOptions)
