@@ -4,17 +4,6 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-*** Keywords ***
-Pull image
-    [Arguments]  ${image}
-    Log To Console  \nRunning docker pull ${image}...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${image}
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Digest:
-    Should Contain  ${output}  Status:
-    Should Not Contain  ${output}  No such image:
-
 *** Test Cases ***
 Pull nginx
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx

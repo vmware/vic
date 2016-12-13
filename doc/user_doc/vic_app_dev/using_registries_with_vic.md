@@ -6,7 +6,7 @@ You can use vSphere Integrated Containers Engine with either secure or insecure 
 
 ## Secure Private Registry Servers ##
 
-If the private registry server is secured by a Certificate Authority (CA) certificate and private key, you or the vSphere Administrator must have deployed the VCH with the appropriate certificates. You deploy a VCH with private registry server CA certificates by specifying the `--registry-ca` option when you deploy the VCH. 
+If the private registry server is configured with TLS, the VCH must be able to validate the registry's certificate. If the registry's server certificate was signed by a custom CA, you must provide that CA to the VCH by using the `--registry-ca` option. If the registry server has a certificate signed by a public CA then it should function without any additional configuration.
 
 For information about how to configure a VCH to use private registry server CA certificates, see the section on `--registry-ca` in [VCH Deployment Options](../vic_installation/vch_installer_options.html#registry-ca) in *vSphere Integrated Containers Engine Installation*. 
 

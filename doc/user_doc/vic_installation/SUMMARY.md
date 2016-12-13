@@ -12,6 +12,7 @@
   * [Verify the Deployment of a VCH](verify_vch_deployment.md)
   * [VCH Deployment Options](vch_installer_options.md)
   * [Advanced Examples of Deploying a VCH](vch_installer_examples.md)
+  * [Deploy a VCH with vSphere Integrated Containers Registry (Harbor)](deploy_vch_harbor.md)
 * [Installing the vSphere Web Client Plug-in](install_vic_plugin.md)
   * [vCenter Server For Windows with a Web Server](plugin_vc_web.md)
   * [vCenter Server for Windows without a Web Server](plugin_vc_no_web.md)

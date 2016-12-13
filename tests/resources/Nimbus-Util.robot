@@ -1,3 +1,6 @@
+*** Settings ***
+Documentation  This resource contains any keywords related to using the Nimbus cluster
+
 *** Variables ***
 ${ESX_VERSION}  4564106  #6.5 RTM
 ${VC_VERSION}  4602587   #6.5 RTM
@@ -38,14 +41,17 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     ${name1}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     ${name2}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     ${name3}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus ESXi server: ${name1}
-    Log To Console  \nDeploying Nimbus ESXi server: ${name2}
-    Log To Console  \nDeploying Nimbus ESXi server: ${name3}
 
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-esxdeploy ${name1} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name2} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name3} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
+    ${out1}=  Deploy Nimbus ESXi Server Async  ${name1}
+    ${out2}=  Deploy Nimbus ESXi Server Async  ${name2}
+    ${out3}=  Deploy Nimbus ESXi Server Async  ${name3}
+
+    Wait For Process  ${out1}
+    Wait For Process  ${out2}
+    Wait For Process  ${out3}
 
     ${out}=  Execute Command  nimbus-ctl ip ${user}-${name1}
 
@@ -105,7 +111,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Should Be Empty  ${out}
     Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name3}
-    Log To Console  \nNimbus VC server IP: ${ip3}
+    Log To Console  \nNimbus ESXi server IP: ${ip3}
 
     Close connection
     [Return]  ${user}-${name1}  ${ip1}  ${user}-${name2}  ${ip2}  ${user}-${name3}  ${ip3}
@@ -134,6 +140,29 @@ Deploy Nimbus vCenter Server
     Log To Console  Successfully deployed new vCenter server - ${user}-${name}
     Close connection
     [Return]  ${user}-${name}  ${ip}
+
+Deploy Nimbus ESXi Server Async
+    [Tags]  secret
+    [Arguments]  ${name}  ${version}=${ESX_VERSION}
+    Log To Console  \nDeploying Nimbus ESXi server: ${name}
+    
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ${version}'
+    [Return]  ${out}
+
+Run Secret SSHPASS command
+    [Tags]  secret
+    [Arguments]  ${user}  ${password}  ${cmd}
+
+    ${out}=  Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no ${user}@%{NIMBUS_GW} ${cmd}  shell=True
+    [Return]  ${out}
+
+Deploy Nimbus vCenter Server Async
+    [Tags]  secret
+    [Arguments]  ${name}  ${version}=${VC_VERSION}
+    Log To Console  \nDeploying Nimbus VC server: ${name}
+
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  'nimbus-vcvadeploy --vcvaBuild ${version} ${name}'
+    [Return]  ${out}
 
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${testbed}

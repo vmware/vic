@@ -140,9 +140,10 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	log.Info(strings.Join(dEnv, " "))
 
 	if envfile != "" {
-		log.Infof("")
-		log.Infof("Environment saved in %s", envfile)
-		ioutil.WriteFile(envfile, []byte(strings.Join(dEnv, " ")), 0644)
+		if err := ioutil.WriteFile(envfile, []byte(strings.Join(dEnv, " ")), 0644); err == nil {
+			log.Infof("")
+			log.Infof("Environment saved in %s", envfile)
+		}
 	}
 
 	log.Infof("")
