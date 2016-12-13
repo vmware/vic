@@ -15,13 +15,16 @@
 package restapi
 
 import (
+	"context"
+	"crypto/tls"
 	"net/http"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
-
-	errors "github.com/go-swagger/go-swagger/errors"
-	httpkit "github.com/go-swagger/go-swagger/httpkit"
-	"github.com/go-swagger/go-swagger/swag"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/swag"
+	"github.com/tylerb/graceful"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -30,8 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	"context"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
@@ -53,6 +54,10 @@ var portlayerhandlers = []handler{
 	&handlers.LoggingHandlersImpl{},
 	&handlers.KvHandlersImpl{},
 }
+
+var apiServers []*graceful.Server
+
+const stopTimeout = time.Second * 3
 
 func configureFlags(api *operations.PortLayerAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
@@ -105,13 +110,13 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
 
-	api.BinConsumer = httpkit.ByteStreamConsumer()
+	api.BinConsumer = runtime.ByteStreamConsumer()
 
-	api.JSONConsumer = httpkit.JSONConsumer()
+	api.JSONConsumer = runtime.JSONConsumer()
 
-	api.JSONProducer = httpkit.JSONProducer()
+	api.JSONProducer = runtime.JSONProducer()
 
-	api.TxtProducer = httpkit.TextProducer()
+	api.TxtProducer = runtime.TextProducer()
 
 	handlerCtx := &handlers.HandlerContext{
 		Session: sess,
@@ -121,6 +126,27 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	}
 
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
+}
+
+// The TLS configuration before HTTPS server starts.
+func configureTLS(tlsConfig *tls.Config) {
+	// Make all necessary changes to the TLS configuration here.
+}
+
+func StopAPIServers() {
+	for _, s := range apiServers {
+		s.Stop(stopTimeout)
+	}
+}
+
+// As soon as server is initialized but not run yet, this function will be called.
+// If you need to modify a config, store server instance to stop it individually later, this is the place.
+// This function can be called multiple times, depending on the number of serving schemes.
+// scheme value will be set accordingly: "http", "https" or "unix"
+func configureServer(s *graceful.Server, scheme string) {
+	s.NoSignalHandling = true
+	s.Timeout = stopTimeout
+	apiServers = append(apiServers, s)
 }
 
 // The middleware configuration is for the handler executors. These do not apply to the swagger.json document.

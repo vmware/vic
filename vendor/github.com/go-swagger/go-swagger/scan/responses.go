@@ -17,13 +17,11 @@ package scan
 import (
 	"fmt"
 	"go/ast"
-	"reflect"
-	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
 
-	"github.com/go-swagger/go-swagger/spec"
+	"github.com/go-openapi/spec"
 )
 
 type responseTypable struct {
@@ -109,6 +107,15 @@ func (sv headerValidations) SetMaxLength(val int64)         { sv.current.MaxLeng
 func (sv headerValidations) SetPattern(val string)          { sv.current.Pattern = val }
 func (sv headerValidations) SetUnique(val bool)             { sv.current.UniqueItems = val }
 func (sv headerValidations) SetCollectionFormat(val string) { sv.current.CollectionFormat = val }
+func (sv headerValidations) SetEnum(val string) {
+    list := strings.Split(val, ",")
+    interfaceSlice := make([]interface{}, len(list))
+    for i, d := range list {
+        interfaceSlice[i] = d
+    }
+    sv.current.Enum = interfaceSlice
+}
+func (sv headerValidations) SetDefault(val string)          { sv.current.Default = val }
 
 func newResponseDecl(file *ast.File, decl *ast.GenDecl, ts *ast.TypeSpec) responseDecl {
 	var rd responseDecl
@@ -228,7 +235,7 @@ func (rp *responseParser) parseEmbeddedStruct(gofile *ast.File, response *spec.R
 	case *ast.Ident:
 		// do lookup of type
 		// take primitives into account, they should result in an error for swagger
-		pkg, err := rp.scp.packageForFile(gofile)
+		pkg, err := rp.scp.packageForFile(gofile, tpe)
 		if err != nil {
 			return fmt.Errorf("embedded struct: %v", err)
 		}
@@ -272,21 +279,13 @@ func (rp *responseParser) parseStructType(gofile *ast.File, response *spec.Respo
 		}
 
 		for _, fld := range tpe.Fields.List {
-			var nm string
 			if len(fld.Names) > 0 && fld.Names[0] != nil && fld.Names[0].IsExported() {
-				nm = fld.Names[0].Name
-				if fld.Tag != nil && len(strings.TrimSpace(fld.Tag.Value)) > 0 {
-					tv, err := strconv.Unquote(fld.Tag.Value)
-					if err != nil {
-						return err
-					}
-
-					if strings.TrimSpace(tv) != "" {
-						st := reflect.StructTag(tv)
-						if st.Get("json") != "" {
-							nm = strings.Split(st.Get("json"), ",")[0]
-						}
-					}
+				nm, ignore, err := parseJSONTag(fld)
+				if err != nil {
+					return err
+				}
+				if ignore {
+					continue
 				}
 
 				var in string
@@ -303,8 +302,12 @@ func (rp *responseParser) parseStructType(gofile *ast.File, response *spec.Respo
 				}
 
 				ps := response.Headers[nm]
-				if err := parseProperty(rp.scp, gofile, fld.Type, responseTypable{in, &ps, response}); err != nil {
+				if err := rp.scp.parseNamedType(gofile, fld.Type, responseTypable{in, &ps, response}); err != nil {
 					return err
+				}
+
+				if strfmtName, ok := strfmtName(fld.Doc); ok {
+					ps.Typed("string", strfmtName)
 				}
 
 				sp := new(sectionedParser)
@@ -320,6 +323,8 @@ func (rp *responseParser) parseStructType(gofile *ast.File, response *spec.Respo
 					newSingleLineTagParser("minItems", &setMinItems{headerValidations{&ps}, rxf(rxMinItemsFmt, "")}),
 					newSingleLineTagParser("maxItems", &setMaxItems{headerValidations{&ps}, rxf(rxMaxItemsFmt, "")}),
 					newSingleLineTagParser("unique", &setUnique{headerValidations{&ps}, rxf(rxUniqueFmt, "")}),
+                    newSingleLineTagParser("enum", &setEnum{headerValidations{&ps}, rxf(rxEnumFmt, "")}),
+                    newSingleLineTagParser("default", &setDefault{headerValidations{&ps}, rxf(rxDefaultFmt, "")}),
 				}
 				itemsTaggers := func(items *spec.Items, level int) []tagParser {
 					// the expression is 1-index based not 0-index
@@ -336,31 +341,53 @@ func (rp *responseParser) parseStructType(gofile *ast.File, response *spec.Respo
 						newSingleLineTagParser(fmt.Sprintf("items%dMinItems", level), &setMinItems{itemsValidations{items}, rxf(rxMinItemsFmt, itemsPrefix)}),
 						newSingleLineTagParser(fmt.Sprintf("items%dMaxItems", level), &setMaxItems{itemsValidations{items}, rxf(rxMaxItemsFmt, itemsPrefix)}),
 						newSingleLineTagParser(fmt.Sprintf("items%dUnique", level), &setUnique{itemsValidations{items}, rxf(rxUniqueFmt, itemsPrefix)}),
+                        newSingleLineTagParser(fmt.Sprintf("items%dEnum", level), &setEnum{itemsValidations{items}, rxf(rxEnumFmt, itemsPrefix)}),
+                        newSingleLineTagParser(fmt.Sprintf("items%dDefault", level), &setDefault{itemsValidations{items}, rxf(rxDefaultFmt, itemsPrefix)}),
 					}
 				}
 
+				var parseArrayTypes func(expr ast.Expr, items *spec.Items, level int) ([]tagParser, error)
+				parseArrayTypes = func(expr ast.Expr, items *spec.Items, level int) ([]tagParser, error) {
+					if items == nil {
+						return []tagParser{}, nil
+					}
+					switch iftpe := expr.(type) {
+					case *ast.ArrayType:
+						eleTaggers := itemsTaggers(items, level)
+						sp.taggers = append(eleTaggers, sp.taggers...)
+						otherTaggers, err := parseArrayTypes(iftpe.Elt, items.Items, level+1)
+						if err != nil {
+							return nil, err
+						}
+						return otherTaggers, nil
+					case *ast.Ident:
+						taggers := []tagParser{}
+						if iftpe.Obj == nil {
+							taggers = itemsTaggers(items, level)
+						}
+						otherTaggers, err := parseArrayTypes(expr, items.Items, level+1)
+						if err != nil {
+							return nil, err
+						}
+						return append(taggers, otherTaggers...), nil
+					case *ast.StarExpr:
+						otherTaggers, err := parseArrayTypes(iftpe.X, items, level)
+						if err != nil {
+							return nil, err
+						}
+						return otherTaggers, nil
+					default:
+						return nil, fmt.Errorf("unknown field type ele for %q", nm)
+					}
+				}
 				// check if this is a primitive, if so parse the validations from the
 				// doc comments of the slice declaration.
 				if ftped, ok := fld.Type.(*ast.ArrayType); ok {
-					ftpe := ftped
-					items, level := ps.Items, 0
-					for items != nil {
-						switch iftpe := ftpe.Elt.(type) {
-						case *ast.ArrayType:
-							eleTaggers := itemsTaggers(items, level)
-							sp.taggers = append(eleTaggers, sp.taggers...)
-							ftpe = iftpe
-						case *ast.Ident:
-							if iftpe.Obj == nil {
-								sp.taggers = append(itemsTaggers(items, level), sp.taggers...)
-							}
-							break
-						default:
-							return fmt.Errorf("unknown field type ele for %q", nm)
-						}
-						items = items.Items
-						level = level + 1
+					taggers, err := parseArrayTypes(ftped.Elt, ps.Items, 0)
+					if err != nil {
+						return err
 					}
+					sp.taggers = append(taggers, sp.taggers...)
 				}
 
 				if err := sp.Parse(fld.Doc); err != nil {

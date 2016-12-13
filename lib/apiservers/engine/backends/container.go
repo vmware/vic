@@ -15,6 +15,7 @@
 package backends
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -24,8 +25,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
@@ -934,22 +933,25 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 	}
 	var started time.Time
 	var stopped time.Time
-	if results.Payload.ProcessConfig.StartTime != nil && *results.Payload.ProcessConfig.StartTime > 0 {
-		started = time.Unix(*results.Payload.ProcessConfig.StartTime, 0)
+
+	if results.Payload.ProcessConfig.StartTime > 0 {
+		started = time.Unix(results.Payload.ProcessConfig.StartTime, 0)
 	}
-	if results.Payload.ProcessConfig.StopTime != nil && *results.Payload.ProcessConfig.StopTime > 0 {
-		stopped = time.Unix(*results.Payload.ProcessConfig.StopTime, 0)
+	if results.Payload.ProcessConfig.StopTime > 0 {
+		stopped = time.Unix(results.Payload.ProcessConfig.StopTime, 0)
 	}
+
 	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	exitCode, status := dockerStatus(int(*results.Payload.ProcessConfig.ExitCode),
-		*results.Payload.ProcessConfig.Status,
-		*results.Payload.ContainerConfig.State,
+	exitCode, status := dockerStatus(
+		int(results.Payload.ProcessConfig.ExitCode),
+		results.Payload.ProcessConfig.Status,
+		results.Payload.ContainerConfig.State,
 		started, stopped)
 
 	// set the payload values
 	exit := int32(exitCode)
-	results.Payload.ProcessConfig.ExitCode = &exit
-	results.Payload.ProcessConfig.Status = &status
+	results.Payload.ProcessConfig.ExitCode = exit
+	results.Payload.ProcessConfig.Status = status
 
 	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, PortLayerName())
 	if err != nil {
@@ -1047,14 +1049,22 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		}
 		var started time.Time
 		var stopped time.Time
-		if t.ProcessConfig.StartTime != nil && *t.ProcessConfig.StartTime > 0 {
-			started = time.Unix(*t.ProcessConfig.StartTime, 0)
+
+		if t.ProcessConfig.StartTime > 0 {
+			started = time.Unix(t.ProcessConfig.StartTime, 0)
 		}
-		if t.ProcessConfig.StopTime != nil && *t.ProcessConfig.StopTime > 0 {
-			stopped = time.Unix(*t.ProcessConfig.StopTime, 0)
+
+		if t.ProcessConfig.StopTime > 0 {
+			stopped = time.Unix(t.ProcessConfig.StopTime, 0)
 		}
+
 		// get the docker friendly status
-		_, status := dockerStatus(int(*t.ProcessConfig.ExitCode), *t.ProcessConfig.Status, *t.ContainerConfig.State, started, stopped)
+		_, status := dockerStatus(
+			int(t.ProcessConfig.ExitCode),
+			t.ProcessConfig.Status,
+			t.ContainerConfig.State,
+			started,
+			stopped)
 
 		ips, err := publicIPv4Addrs()
 		var ports []types.Port
@@ -1072,7 +1082,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			imageID, err := cache.RepositoryCache().Get(ref)
 			if err != nil && err == cache.ErrDoesNotExist {
 				// the tag has been removed, so we need to show the truncated imageID
-				imageID = cache.RepositoryCache().GetImageID(*t.ContainerConfig.LayerID)
+				imageID = cache.RepositoryCache().GetImageID(t.ContainerConfig.LayerID)
 				if imageID != "" {
 					id := uid.Parse(imageID)
 					repo = id.Truncate().String()
@@ -1081,13 +1091,13 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		}
 
 		c := &types.Container{
-			ID:      *t.ContainerConfig.ContainerID,
+			ID:      t.ContainerConfig.ContainerID,
 			Image:   repo,
-			Created: *t.ContainerConfig.CreateTime,
+			Created: t.ContainerConfig.CreateTime,
 			Status:  status,
 			Names:   names,
 			Command: cmd,
-			SizeRw:  *t.ContainerConfig.StorageSize,
+			SizeRw:  t.ContainerConfig.StorageSize,
 			Ports:   ports,
 		}
 		containers = append(containers, c)
@@ -1470,9 +1480,11 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 	// (works with both IPv4 and IPv6 addresses)
 	var ports []types.Port
 
-	container := cache.ContainerCache().GetContainer(*t.ContainerConfig.ContainerID)
-	if container == nil {
-		log.Errorf("Could not find container with ID %s", *t.ContainerConfig.ContainerID)
+	cid := t.ContainerConfig.ContainerID
+	c := cache.ContainerCache().GetContainer(cid)
+
+	if c == nil {
+		log.Errorf("Could not find container with ID %s", cid)
 		return ports
 	}
 
@@ -1480,7 +1492,7 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 		ports = append(ports, types.Port{IP: ip.IP.String()})
 	}
 
-	portBindings := container.HostConfig.PortBindings
+	portBindings := c.HostConfig.PortBindings
 	var resultPorts []types.Port
 	var err error
 

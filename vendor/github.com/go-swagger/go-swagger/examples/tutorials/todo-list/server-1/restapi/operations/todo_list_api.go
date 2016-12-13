@@ -8,42 +8,42 @@ import (
 	"net/http"
 	"strings"
 
-	httpkit "github.com/go-swagger/go-swagger/httpkit"
-	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
-	spec "github.com/go-swagger/go-swagger/spec"
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
-	"github.com/go-swagger/go-swagger/swag"
+	loads "github.com/go-openapi/loads"
+	runtime "github.com/go-openapi/runtime"
+	middleware "github.com/go-openapi/runtime/middleware"
+	spec "github.com/go-openapi/spec"
+	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/go-swagger/go-swagger/examples/tutorials/todo-list/server-1/restapi/operations/todos"
 )
 
 // NewTodoListAPI creates a new TodoList instance
-func NewTodoListAPI(spec *spec.Document) *TodoListAPI {
-	o := &TodoListAPI{
-		spec:            spec,
+func NewTodoListAPI(spec *loads.Document) *TodoListAPI {
+	return &TodoListAPI{
 		handlers:        make(map[string]map[string]http.Handler),
 		formats:         strfmt.Default,
-		defaultConsumes: "application/io.goswagger.examples.todo-list.v1+json",
-		defaultProduces: "application/io.goswagger.examples.todo-list.v1+json",
+		defaultConsumes: "application/json",
+		defaultProduces: "application/json",
 		ServerShutdown:  func() {},
+		spec:            spec,
 	}
-
-	return o
 }
 
 /*TodoListAPI The product of a tutorial on goswagger.io */
 type TodoListAPI struct {
-	spec            *spec.Document
+	spec            *loads.Document
 	context         *middleware.Context
 	handlers        map[string]map[string]http.Handler
 	formats         strfmt.Registry
 	defaultConsumes string
 	defaultProduces string
+	Middleware      func(middleware.Builder) http.Handler
 	// JSONConsumer registers a consumer for a "application/io.goswagger.examples.todo-list.v1+json" mime type
-	JSONConsumer httpkit.Consumer
+	JSONConsumer runtime.Consumer
 
 	// JSONProducer registers a producer for a "application/io.goswagger.examples.todo-list.v1+json" mime type
-	JSONProducer httpkit.Producer
+	JSONProducer runtime.Producer
 
 	// TodosFindTodosHandler sets the operation handler for the find todos operation
 	TodosFindTodosHandler todos.FindTodosHandler
@@ -58,6 +58,9 @@ type TodoListAPI struct {
 
 	// Custom command line argument groups with their descriptions
 	CommandLineOptionsGroups []swag.CommandLineOptionsGroup
+
+	// User defined logger function.
+	Logger func(string, ...interface{})
 }
 
 // SetDefaultProduces sets the default produces media type
@@ -68,6 +71,11 @@ func (o *TodoListAPI) SetDefaultProduces(mediaType string) {
 // SetDefaultConsumes returns the default consumes media type
 func (o *TodoListAPI) SetDefaultConsumes(mediaType string) {
 	o.defaultConsumes = mediaType
+}
+
+// SetSpec sets a spec that will be served for the clients.
+func (o *TodoListAPI) SetSpec(spec *loads.Document) {
+	o.spec = spec
 }
 
 // DefaultProduces returns the default produces media type
@@ -119,16 +127,16 @@ func (o *TodoListAPI) ServeErrorFor(operationID string) func(http.ResponseWriter
 }
 
 // AuthenticatorsFor gets the authenticators for the specified security schemes
-func (o *TodoListAPI) AuthenticatorsFor(schemes map[string]spec.SecurityScheme) map[string]httpkit.Authenticator {
+func (o *TodoListAPI) AuthenticatorsFor(schemes map[string]spec.SecurityScheme) map[string]runtime.Authenticator {
 
 	return nil
 
 }
 
 // ConsumersFor gets the consumers for the specified media types
-func (o *TodoListAPI) ConsumersFor(mediaTypes []string) map[string]httpkit.Consumer {
+func (o *TodoListAPI) ConsumersFor(mediaTypes []string) map[string]runtime.Consumer {
 
-	result := make(map[string]httpkit.Consumer)
+	result := make(map[string]runtime.Consumer)
 	for _, mt := range mediaTypes {
 		switch mt {
 
@@ -142,9 +150,9 @@ func (o *TodoListAPI) ConsumersFor(mediaTypes []string) map[string]httpkit.Consu
 }
 
 // ProducersFor gets the producers for the specified media types
-func (o *TodoListAPI) ProducersFor(mediaTypes []string) map[string]httpkit.Producer {
+func (o *TodoListAPI) ProducersFor(mediaTypes []string) map[string]runtime.Producer {
 
-	result := make(map[string]httpkit.Producer)
+	result := make(map[string]runtime.Producer)
 	for _, mt := range mediaTypes {
 		switch mt {
 
@@ -170,10 +178,17 @@ func (o *TodoListAPI) HandlerFor(method, path string) (http.Handler, bool) {
 	return h, ok
 }
 
-func (o *TodoListAPI) initHandlerCache() {
+// Context returns the middleware context for the todo list API
+func (o *TodoListAPI) Context() *middleware.Context {
 	if o.context == nil {
 		o.context = middleware.NewRoutableContext(o.spec, o, nil)
 	}
+
+	return o.context
+}
+
+func (o *TodoListAPI) initHandlerCache() {
+	o.Context() // don't care about the result, just that the initialization happened
 
 	if o.handlers == nil {
 		o.handlers = make(map[string]map[string]http.Handler)
@@ -189,9 +204,17 @@ func (o *TodoListAPI) initHandlerCache() {
 // Serve creates a http handler to serve the API over HTTP
 // can be used directly in http.ListenAndServe(":8000", api.Serve(nil))
 func (o *TodoListAPI) Serve(builder middleware.Builder) http.Handler {
+	o.Init()
+
+	if o.Middleware != nil {
+		return o.Middleware(builder)
+	}
+	return o.context.APIHandler(builder)
+}
+
+// Init allows you to just initialize the handler cache, you can then recompose the middelware as you see fit
+func (o *TodoListAPI) Init() {
 	if len(o.handlers) == 0 {
 		o.initHandlerCache()
 	}
-
-	return o.context.APIHandler(builder)
 }

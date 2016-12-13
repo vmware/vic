@@ -6,12 +6,12 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
-	"github.com/go-swagger/go-swagger/httpkit/validate"
-	"github.com/go-swagger/go-swagger/swag"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewDeletePetParams creates a new DeletePetParams object
@@ -26,6 +26,10 @@ func NewDeletePetParams() DeletePetParams {
 //
 // swagger:parameters deletePet
 type DeletePetParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*
 	  Required: true
 	  In: header
@@ -42,8 +46,9 @@ type DeletePetParams struct {
 // for simple values it will use straight method calls
 func (o *DeletePetParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
 
-	if err := o.bindAPIKey(r.Header["api_key"], true, route.Formats); err != nil {
+	if err := o.bindAPIKey(r.Header[http.CanonicalHeaderKey("api_key")], true, route.Formats); err != nil {
 		res = append(res, err)
 	}
 

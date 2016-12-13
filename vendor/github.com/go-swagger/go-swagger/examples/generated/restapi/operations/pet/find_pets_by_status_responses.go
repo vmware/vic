@@ -6,7 +6,7 @@ package pet
 import (
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-openapi/runtime"
 
 	"github.com/go-swagger/go-swagger/examples/generated/models"
 )
@@ -17,7 +17,9 @@ swagger:response findPetsByStatusOK
 */
 type FindPetsByStatusOK struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload []*models.Pet `json:"body,omitempty"`
 }
 
@@ -32,11 +34,21 @@ func (o *FindPetsByStatusOK) WithPayload(payload []*models.Pet) *FindPetsByStatu
 	return o
 }
 
+// SetPayload sets the payload to the find pets by status o k response
+func (o *FindPetsByStatusOK) SetPayload(payload []*models.Pet) {
+	o.Payload = payload
+}
+
 // WriteResponse to the client
-func (o *FindPetsByStatusOK) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *FindPetsByStatusOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
-	if err := producer.Produce(rw, o.Payload); err != nil {
+	payload := o.Payload
+	if payload == nil {
+		payload = make([]*models.Pet, 0, 50)
+	}
+
+	if err := producer.Produce(rw, payload); err != nil {
 		panic(err) // let the recovery middleware deal with this
 	}
 
@@ -55,7 +67,7 @@ func NewFindPetsByStatusBadRequest() *FindPetsByStatusBadRequest {
 }
 
 // WriteResponse to the client
-func (o *FindPetsByStatusBadRequest) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (o *FindPetsByStatusBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(400)
 }

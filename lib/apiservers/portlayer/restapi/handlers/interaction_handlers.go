@@ -16,17 +16,15 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"context"
-
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/go-swagger/go-swagger/httpkit"
-	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -487,7 +485,7 @@ func (c *ContainerOutputHandler) WithPayload(payload *FlushingReader, id string)
 }
 
 // WriteResponse to the client
-func (c *ContainerOutputHandler) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
+func (c *ContainerOutputHandler) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 	rw.WriteHeader(http.StatusOK)
 	if f, ok := rw.(http.Flusher); ok {
 		f.Flush()

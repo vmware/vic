@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"strings"
 
-	httpkit "github.com/go-swagger/go-swagger/httpkit"
-	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
-	security "github.com/go-swagger/go-swagger/httpkit/security"
-	spec "github.com/go-swagger/go-swagger/spec"
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
-	"github.com/go-swagger/go-swagger/swag"
+	loads "github.com/go-openapi/loads"
+	runtime "github.com/go-openapi/runtime"
+	middleware "github.com/go-openapi/runtime/middleware"
+	security "github.com/go-openapi/runtime/security"
+	spec "github.com/go-openapi/spec"
+	strfmt "github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/go-swagger/go-swagger/examples/generated/restapi/operations/pet"
 	"github.com/go-swagger/go-swagger/examples/generated/restapi/operations/store"
@@ -21,17 +22,15 @@ import (
 )
 
 // NewPetstoreAPI creates a new Petstore instance
-func NewPetstoreAPI(spec *spec.Document) *PetstoreAPI {
-	o := &PetstoreAPI{
-		spec:            spec,
+func NewPetstoreAPI(spec *loads.Document) *PetstoreAPI {
+	return &PetstoreAPI{
 		handlers:        make(map[string]map[string]http.Handler),
 		formats:         strfmt.Default,
-		defaultConsumes: "application/x-www-form-urlencoded",
+		defaultConsumes: "application/json",
 		defaultProduces: "application/json",
 		ServerShutdown:  func() {},
+		spec:            spec,
 	}
-
-	return o
 }
 
 /*PetstoreAPI This is a sample server Petstore server.
@@ -41,21 +40,28 @@ func NewPetstoreAPI(spec *spec.Document) *PetstoreAPI {
 For this sample, you can use the api key 'special-key' to test the authorization filters
 */
 type PetstoreAPI struct {
-	spec            *spec.Document
+	spec            *loads.Document
 	context         *middleware.Context
 	handlers        map[string]map[string]http.Handler
 	formats         strfmt.Registry
 	defaultConsumes string
 	defaultProduces string
+	Middleware      func(middleware.Builder) http.Handler
 	// JSONConsumer registers a consumer for a "application/json" mime type
-	JSONConsumer httpkit.Consumer
+	JSONConsumer runtime.Consumer
+	// UrlformConsumer registers a consumer for a "application/x-www-form-urlencoded" mime type
+	UrlformConsumer runtime.Consumer
 	// XMLConsumer registers a consumer for a "application/xml" mime type
-	XMLConsumer httpkit.Consumer
+	XMLConsumer runtime.Consumer
 
 	// JSONProducer registers a producer for a "application/json" mime type
-	JSONProducer httpkit.Producer
+	JSONProducer runtime.Producer
 	// XMLProducer registers a producer for a "application/xml" mime type
-	XMLProducer httpkit.Producer
+	XMLProducer runtime.Producer
+
+	// PetstoreAuthAuth registers a functin that takes an access token and a collection of required scopes and returns a principal
+	// it performs authentication based on an oauth2 bearer token provided in the request
+	PetstoreAuthAuth func(string, []string) (interface{}, error)
 
 	// APIKeyAuth registers a function that takes a token and returns a principal
 	// it performs authentication based on an api key api_key provided in the header
@@ -79,9 +85,9 @@ type PetstoreAPI struct {
 	PetFindPetsByStatusHandler pet.FindPetsByStatusHandler
 	// PetFindPetsByTagsHandler sets the operation handler for the find pets by tags operation
 	PetFindPetsByTagsHandler pet.FindPetsByTagsHandler
-	// StoreGetOrderByIDHandler sets the operation handler for the get order by id operation
+	// StoreGetOrderByIDHandler sets the operation handler for the get order by Id operation
 	StoreGetOrderByIDHandler store.GetOrderByIDHandler
-	// PetGetPetByIDHandler sets the operation handler for the get pet by id operation
+	// PetGetPetByIDHandler sets the operation handler for the get pet by Id operation
 	PetGetPetByIDHandler pet.GetPetByIDHandler
 	// UserGetUserByNameHandler sets the operation handler for the get user by name operation
 	UserGetUserByNameHandler user.GetUserByNameHandler
@@ -108,6 +114,9 @@ type PetstoreAPI struct {
 
 	// Custom command line argument groups with their descriptions
 	CommandLineOptionsGroups []swag.CommandLineOptionsGroup
+
+	// User defined logger function.
+	Logger func(string, ...interface{})
 }
 
 // SetDefaultProduces sets the default produces media type
@@ -118,6 +127,11 @@ func (o *PetstoreAPI) SetDefaultProduces(mediaType string) {
 // SetDefaultConsumes returns the default consumes media type
 func (o *PetstoreAPI) SetDefaultConsumes(mediaType string) {
 	o.defaultConsumes = mediaType
+}
+
+// SetSpec sets a spec that will be served for the clients.
+func (o *PetstoreAPI) SetSpec(spec *loads.Document) {
+	o.spec = spec
 }
 
 // DefaultProduces returns the default produces media type
@@ -148,6 +162,10 @@ func (o *PetstoreAPI) Validate() error {
 		unregistered = append(unregistered, "JSONConsumer")
 	}
 
+	if o.UrlformConsumer == nil {
+		unregistered = append(unregistered, "UrlformConsumer")
+	}
+
 	if o.XMLConsumer == nil {
 		unregistered = append(unregistered, "XMLConsumer")
 	}
@@ -158,6 +176,10 @@ func (o *PetstoreAPI) Validate() error {
 
 	if o.XMLProducer == nil {
 		unregistered = append(unregistered, "XMLProducer")
+	}
+
+	if o.PetstoreAuthAuth == nil {
+		unregistered = append(unregistered, "PetstoreAuthAuth")
 	}
 
 	if o.APIKeyAuth == nil {
@@ -249,15 +271,19 @@ func (o *PetstoreAPI) ServeErrorFor(operationID string) func(http.ResponseWriter
 }
 
 // AuthenticatorsFor gets the authenticators for the specified security schemes
-func (o *PetstoreAPI) AuthenticatorsFor(schemes map[string]spec.SecurityScheme) map[string]httpkit.Authenticator {
+func (o *PetstoreAPI) AuthenticatorsFor(schemes map[string]spec.SecurityScheme) map[string]runtime.Authenticator {
 
-	result := make(map[string]httpkit.Authenticator)
+	result := make(map[string]runtime.Authenticator)
 	for name, scheme := range schemes {
 		switch name {
 
+		case "petstore_auth":
+
+			result[name] = security.BearerAuth(scheme.Name, o.PetstoreAuthAuth)
+
 		case "api_key":
 
-			result[name] = security.APIKeyAuth(scheme.Name, scheme.In, func(tok string) (interface{}, error) { return o.APIKeyAuth(tok) })
+			result[name] = security.APIKeyAuth(scheme.Name, scheme.In, o.APIKeyAuth)
 
 		}
 	}
@@ -266,14 +292,17 @@ func (o *PetstoreAPI) AuthenticatorsFor(schemes map[string]spec.SecurityScheme) 
 }
 
 // ConsumersFor gets the consumers for the specified media types
-func (o *PetstoreAPI) ConsumersFor(mediaTypes []string) map[string]httpkit.Consumer {
+func (o *PetstoreAPI) ConsumersFor(mediaTypes []string) map[string]runtime.Consumer {
 
-	result := make(map[string]httpkit.Consumer)
+	result := make(map[string]runtime.Consumer)
 	for _, mt := range mediaTypes {
 		switch mt {
 
 		case "application/json":
 			result["application/json"] = o.JSONConsumer
+
+		case "application/x-www-form-urlencoded":
+			result["application/x-www-form-urlencoded"] = o.UrlformConsumer
 
 		case "application/xml":
 			result["application/xml"] = o.XMLConsumer
@@ -285,9 +314,9 @@ func (o *PetstoreAPI) ConsumersFor(mediaTypes []string) map[string]httpkit.Consu
 }
 
 // ProducersFor gets the producers for the specified media types
-func (o *PetstoreAPI) ProducersFor(mediaTypes []string) map[string]httpkit.Producer {
+func (o *PetstoreAPI) ProducersFor(mediaTypes []string) map[string]runtime.Producer {
 
-	result := make(map[string]httpkit.Producer)
+	result := make(map[string]runtime.Producer)
 	for _, mt := range mediaTypes {
 		switch mt {
 
@@ -316,10 +345,17 @@ func (o *PetstoreAPI) HandlerFor(method, path string) (http.Handler, bool) {
 	return h, ok
 }
 
-func (o *PetstoreAPI) initHandlerCache() {
+// Context returns the middleware context for the petstore API
+func (o *PetstoreAPI) Context() *middleware.Context {
 	if o.context == nil {
 		o.context = middleware.NewRoutableContext(o.spec, o, nil)
 	}
+
+	return o.context
+}
+
+func (o *PetstoreAPI) initHandlerCache() {
+	o.Context() // don't care about the result, just that the initialization happened
 
 	if o.handlers == nil {
 		o.handlers = make(map[string]map[string]http.Handler)
@@ -420,9 +456,17 @@ func (o *PetstoreAPI) initHandlerCache() {
 // Serve creates a http handler to serve the API over HTTP
 // can be used directly in http.ListenAndServe(":8000", api.Serve(nil))
 func (o *PetstoreAPI) Serve(builder middleware.Builder) http.Handler {
+	o.Init()
+
+	if o.Middleware != nil {
+		return o.Middleware(builder)
+	}
+	return o.context.APIHandler(builder)
+}
+
+// Init allows you to just initialize the handler cache, you can then recompose the middelware as you see fit
+func (o *PetstoreAPI) Init() {
 	if len(o.handlers) == 0 {
 		o.initHandlerCache()
 	}
-
-	return o.context.APIHandler(builder)
 }

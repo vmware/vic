@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/httpkit"
-	"github.com/go-swagger/go-swagger/httpkit/middleware"
-	"github.com/go-swagger/go-swagger/httpkit/validate"
-	"github.com/go-swagger/go-swagger/swag"
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewFindParams creates a new FindParams object
@@ -28,6 +28,10 @@ func NewFindParams() FindParams {
 //
 // swagger:parameters find
 type FindParams struct {
+
+	// HTTP Request Object
+	HTTPRequest *http.Request
+
 	/*
 	  Required: true
 	  In: header
@@ -50,6 +54,8 @@ type FindParams struct {
 // for simple values it will use straight method calls
 func (o *FindParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
+	o.HTTPRequest = r
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		if err != http.ErrNotMultipart {
 			return err
@@ -57,9 +63,9 @@ func (o *FindParams) BindRequest(r *http.Request, route *middleware.MatchedRoute
 			return err
 		}
 	}
-	fds := httpkit.Values(r.Form)
+	fds := runtime.Values(r.Form)
 
-	if err := o.bindXRateLimit(r.Header["X-Rate-Limit"], true, route.Formats); err != nil {
+	if err := o.bindXRateLimit(r.Header[http.CanonicalHeaderKey("X-Rate-Limit")], true, route.Formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -126,35 +132,19 @@ func (o *FindParams) bindTags(rawData []string, hasKey bool, formats strfmt.Regi
 		return errors.Required("tags", "formData")
 	}
 
-	raw := rawData
-	size := len(raw)
+	tagsIC := rawData
 
-	if size == 0 {
-		return nil
-	}
-
-	ic := raw
-	isz := size
-	var ir []int32
-	iValidateElement := func(i int, tagsI int32) *errors.Validation {
-
-		return nil
-	}
-
-	for i := 0; i < isz; i++ {
-		value, err := swag.ConvertInt32(ic[i])
+	var tagsIR []int32
+	for i, tagsIV := range tagsIC {
+		tagsI, err := swag.ConvertInt32(tagsIV)
 		if err != nil {
-			return errors.InvalidType(fmt.Sprintf("%s.%v", "tags", i), "formData", "int32", ic[i])
+			return errors.InvalidType(fmt.Sprintf("%s.%v", "tags", i), "formData", "int32", tagsI)
 		}
 
-		if err := iValidateElement(i, o.Tags[i]); err != nil {
-			return err
-		}
-		ir = append(ir, value)
-
+		tagsIR = append(tagsIR, tagsI)
 	}
 
-	o.Tags = ir
+	o.Tags = tagsIR
 
 	return nil
 }

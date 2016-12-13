@@ -269,10 +269,90 @@
 			"branch": "v1"
 		},
 		{
+			"importpath": "github.com/go-openapi/analysis",
+			"repository": "https://github.com/go-openapi/analysis",
+			"vcs": "git",
+			"revision": "7222828b8ce19afee3c595aef6643b9e42150120",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/errors",
+			"repository": "https://github.com/go-openapi/errors",
+			"vcs": "git",
+			"revision": "49fe8b3a0e0d32a617d8d50c67f856ad6e45b28b",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/jsonpointer",
+			"repository": "https://github.com/go-openapi/jsonpointer",
+			"vcs": "git",
+			"revision": "8d96a2dc61536b690bd36b2e9df0b3c0b62825b2",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/jsonreference",
+			"repository": "https://github.com/go-openapi/jsonreference",
+			"vcs": "git",
+			"revision": "36d33bfe519efae5632669801b180bf1a245da3b",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/loads",
+			"repository": "https://github.com/go-openapi/loads",
+			"vcs": "git",
+			"revision": "315567415dfd74b651f7a62cabfc82a57ed7b9ad",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/runtime",
+			"repository": "https://github.com/go-openapi/runtime",
+			"vcs": "git",
+			"revision": "14b161b40ece9dac8e244ab2fde2d209e108c6f5",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/spec",
+			"repository": "https://github.com/go-openapi/spec",
+			"vcs": "git",
+			"revision": "f7ae86df5bc115a2744343016c789a89f065a4bd",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/strfmt",
+			"repository": "https://github.com/go-openapi/strfmt",
+			"vcs": "git",
+			"revision": "34fc3ba7c0f5fb615fda47a2b4fbd4c641b215f2",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/swag",
+			"repository": "https://github.com/go-openapi/swag",
+			"vcs": "git",
+			"revision": "3b6d86cd965820f968760d5d419cb4add096bdd7",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-openapi/validate",
+			"repository": "https://github.com/go-openapi/validate",
+			"vcs": "git",
+			"revision": "027696d4b54399770f1cdcc6c6daa56975f9e14e",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/go-swagger/go-swagger",
 			"repository": "https://github.com/go-swagger/go-swagger",
-			"vcs": "",
-			"revision": "c58f48e81158a4394adffc43b59c07fce1993f19",
+			"vcs": "git",
+			"revision": "52c95c3d30d54dad6d1248f1f490c2de0bfbf492",
 			"branch": "master"
 		},
 		{
@@ -426,11 +506,46 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/mailru/easyjson/buffer",
+			"repository": "https://github.com/mailru/easyjson",
+			"vcs": "git",
+			"revision": "304d3dc6fae850e62b7db2aee661d9d7b628cef0",
+			"branch": "master",
+			"path": "buffer",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mailru/easyjson/jlexer",
+			"repository": "https://github.com/mailru/easyjson",
+			"vcs": "git",
+			"revision": "304d3dc6fae850e62b7db2aee661d9d7b628cef0",
+			"branch": "master",
+			"path": "jlexer",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mailru/easyjson/jwriter",
+			"repository": "https://github.com/mailru/easyjson",
+			"vcs": "git",
+			"revision": "304d3dc6fae850e62b7db2aee661d9d7b628cef0",
+			"branch": "master",
+			"path": "/jwriter",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/miekg/dns",
 			"repository": "https://github.com/miekg/dns",
 			"vcs": "",
 			"revision": "b9171237b0642de1d8e8004f16869970e065f46b",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/mitchellh/mapstructure",
+			"repository": "https://github.com/mitchellh/mapstructure",
+			"vcs": "git",
+			"revision": "5a0325d7fafaac12dda6e7fb8bd222ec1b69875e",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/mreiferson/go-httpclient",
@@ -837,7 +952,7 @@
 			"importpath": "golang.org/x/tools/cmd/goimports",
 			"repository": "https://go.googlesource.com/tools",
 			"vcs": "git",
-			"revision": "b5358b5feea9734b97ff1e792ca6bc55170bc92a",
+			"revision": "99be5a0b85664c12d36a536b14d0d0b85c74da45",
 			"branch": "master",
 			"path": "/cmd/goimports"
 		},

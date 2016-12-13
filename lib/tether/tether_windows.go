@@ -33,6 +33,10 @@ func (t *tether) stopReaper() {
 	defer trace.End(trace.Begin("Shutting down child reaping"))
 }
 
+func (t *tether) triggerReaper() error {
+	return errors.New("Child reaping unimplemented on windows")
+}
+
 func lookPath(file string, env []string, dir string) (string, error) {
 	return "", errors.New("unimplemented on windows")
 }

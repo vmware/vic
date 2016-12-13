@@ -4,18 +4,47 @@ package tasks
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"github.com/go-swagger/go-swagger/client"
-	"github.com/go-swagger/go-swagger/errors"
-	"github.com/go-swagger/go-swagger/swag"
+	"net/http"
+	"time"
 
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	"golang.org/x/net/context"
+
+	"github.com/go-openapi/errors"
+	"github.com/go-openapi/runtime"
+	cr "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/swag"
+
+	strfmt "github.com/go-openapi/strfmt"
 )
 
 // NewGetTaskDetailsParams creates a new GetTaskDetailsParams object
 // with the default values initialized.
 func NewGetTaskDetailsParams() *GetTaskDetailsParams {
 	var ()
-	return &GetTaskDetailsParams{}
+	return &GetTaskDetailsParams{
+
+		timeout: cr.DefaultTimeout,
+	}
+}
+
+// NewGetTaskDetailsParamsWithTimeout creates a new GetTaskDetailsParams object
+// with the default values initialized, and the ability to set a timeout on a request
+func NewGetTaskDetailsParamsWithTimeout(timeout time.Duration) *GetTaskDetailsParams {
+	var ()
+	return &GetTaskDetailsParams{
+
+		timeout: timeout,
+	}
+}
+
+// NewGetTaskDetailsParamsWithContext creates a new GetTaskDetailsParams object
+// with the default values initialized, and the ability to set a context for a request
+func NewGetTaskDetailsParamsWithContext(ctx context.Context) *GetTaskDetailsParams {
+	var ()
+	return &GetTaskDetailsParams{
+
+		Context: ctx,
+	}
 }
 
 /*GetTaskDetailsParams contains all the parameters to send to the API endpoint
@@ -28,17 +57,49 @@ type GetTaskDetailsParams struct {
 
 	*/
 	ID int64
+
+	timeout    time.Duration
+	Context    context.Context
+	HTTPClient *http.Client
+}
+
+// WithTimeout adds the timeout to the get task details params
+func (o *GetTaskDetailsParams) WithTimeout(timeout time.Duration) *GetTaskDetailsParams {
+	o.SetTimeout(timeout)
+	return o
+}
+
+// SetTimeout adds the timeout to the get task details params
+func (o *GetTaskDetailsParams) SetTimeout(timeout time.Duration) {
+	o.timeout = timeout
+}
+
+// WithContext adds the context to the get task details params
+func (o *GetTaskDetailsParams) WithContext(ctx context.Context) *GetTaskDetailsParams {
+	o.SetContext(ctx)
+	return o
+}
+
+// SetContext adds the context to the get task details params
+func (o *GetTaskDetailsParams) SetContext(ctx context.Context) {
+	o.Context = ctx
 }
 
 // WithID adds the id to the get task details params
 func (o *GetTaskDetailsParams) WithID(id int64) *GetTaskDetailsParams {
-	o.ID = id
+	o.SetID(id)
 	return o
 }
 
-// WriteToRequest writes these params to a swagger request
-func (o *GetTaskDetailsParams) WriteToRequest(r client.Request, reg strfmt.Registry) error {
+// SetID adds the id to the get task details params
+func (o *GetTaskDetailsParams) SetID(id int64) {
+	o.ID = id
+}
 
+// WriteToRequest writes these params to a swagger request
+func (o *GetTaskDetailsParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
+
+	r.SetTimeout(o.timeout)
 	var res []error
 
 	// path param id

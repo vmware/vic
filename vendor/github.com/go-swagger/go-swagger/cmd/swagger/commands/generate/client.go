@@ -14,7 +14,13 @@
 
 package generate
 
-import "github.com/go-swagger/go-swagger/generator"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/go-swagger/go-swagger/generator"
+)
 
 // Client the command to generate a swagger client
 type Client struct {
@@ -33,7 +39,13 @@ type Client struct {
 
 // Execute runs this command
 func (c *Client) Execute(args []string) error {
-	opts := generator.GenOpts{
+	cfg, err := readConfig(string(c.ConfigFile))
+	if err != nil {
+		return err
+	}
+	setDebug(cfg)
+
+	opts := &generator.GenOpts{
 		Spec:              string(c.Spec),
 		Target:            string(c.Target),
 		APIPackage:        c.APIPackage,
@@ -48,12 +60,38 @@ func (c *Client) Execute(args []string) error {
 		IncludeHandler:    !c.SkipOperations,
 		IncludeParameters: !c.SkipOperations,
 		IncludeResponses:  !c.SkipOperations,
+		IncludeSupport:    true,
 		TemplateDir:       string(c.TemplateDir),
 		DumpData:          c.DumpData,
 	}
+
+	if err := opts.EnsureDefaults(true); err != nil {
+		return err
+	}
+
+	if err := configureOptsFromConfig(cfg, opts); err != nil {
+		return err
+	}
+
 	if err := generator.GenerateClient(c.Name, c.Models, c.Operations, opts); err != nil {
 		return err
 	}
+
+	rp, err := filepath.Rel(".", opts.Target)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stderr, `Generation completed!
+
+For this generation to compile you need to have some packages in your GOPATH:
+
+  * github.com/go-openapi/runtime
+  * golang.org/x/net/context
+  * golang.org/x/net/context/ctxhttp
+
+You can get these now with: go get -u -f %s/...
+`, rp)
 
 	return nil
 }

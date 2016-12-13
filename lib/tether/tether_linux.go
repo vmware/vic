@@ -151,6 +151,12 @@ func (t *tether) stopReaper() {
 	close(t.incoming)
 }
 
+func (t *tether) triggerReaper() {
+	defer trace.End(trace.Begin("Triggering child reaping"))
+
+	t.incoming <- syscall.SIGCHLD
+}
+
 func findExecutable(file string) error {
 	d, err := os.Stat(file)
 	if err != nil {
