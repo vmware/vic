@@ -23,28 +23,29 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 var testMap map[int]bool
 
 type TestPlugin struct {
-	ID int
+	Version int
 }
 
-func NewTestPlugin(id int) *TestPlugin {
-	return &TestPlugin{id}
+func NewTestPlugin(version int) *TestPlugin {
+	return &TestPlugin{version}
 }
 
 func (p *TestPlugin) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
-	testMap[p.ID] = true
+	testMap[p.Version] = true
 	return true, nil
 }
 
 func setUp() {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
-	MaxPluginID = 100
+	version.MaxPluginVersion = 100
 	testMap = make(map[int]bool)
 }
 
@@ -52,30 +53,30 @@ func TestInsertID(t *testing.T) {
 	setUp()
 
 	tester := &DataMigrator{
-		targetIDs: make(map[string][]int),
-		idPlugins: make(map[int]Plugin),
+		targetVers: make(map[string][]int),
+		verPlugins: make(map[int]Plugin),
 	}
 
-	tester.insertID(1, ApplianceConfigure)
-	tester.insertID(11, ApplianceConfigure)
-	tester.insertID(9, ApplianceConfigure)
-	assert.Equal(t, []int{1, 9, 11}, tester.targetIDs[ApplianceConfigure], "Should have expected array")
-	tester.insertID(5, ApplianceConfigure)
-	tester.insertID(8, ApplianceConfigure)
-	tester.insertID(2, ApplianceConfigure)
-	tester.insertID(4, ApplianceConfigure)
-	assert.Equal(t, []int{1, 2, 4, 5, 8, 9, 11}, tester.targetIDs[ApplianceConfigure], "Should have expected array")
-	tester.insertID(20, ApplianceConfigure)
-	tester.insertID(15, ApplianceConfigure)
-	assert.Equal(t, []int{1, 2, 4, 5, 8, 9, 11, 15, 20}, tester.targetIDs[ApplianceConfigure], "Should have expected array")
+	tester.insertVersion(1, ApplianceConfigure)
+	tester.insertVersion(11, ApplianceConfigure)
+	tester.insertVersion(9, ApplianceConfigure)
+	assert.Equal(t, []int{1, 9, 11}, tester.targetVers[ApplianceConfigure], "Should have expected array")
+	tester.insertVersion(5, ApplianceConfigure)
+	tester.insertVersion(8, ApplianceConfigure)
+	tester.insertVersion(2, ApplianceConfigure)
+	tester.insertVersion(4, ApplianceConfigure)
+	assert.Equal(t, []int{1, 2, 4, 5, 8, 9, 11}, tester.targetVers[ApplianceConfigure], "Should have expected array")
+	tester.insertVersion(20, ApplianceConfigure)
+	tester.insertVersion(15, ApplianceConfigure)
+	assert.Equal(t, []int{1, 2, 4, 5, 8, 9, 11, 15, 20}, tester.targetVers[ApplianceConfigure], "Should have expected array")
 }
 
 func TestMigratePluginExecution(t *testing.T) {
 	setUp()
 
 	tester := &DataMigrator{
-		targetIDs: make(map[string][]int),
-		idPlugins: make(map[int]Plugin),
+		targetVers: make(map[string][]int),
+		verPlugins: make(map[int]Plugin),
 	}
 
 	ids := []int{1, 2, 4, 5, 8, 9, 11, 20, 15}

@@ -30,17 +30,17 @@ import (
 // If there is error returned, returned map might have half-migrated value, this is why we don't persist any data in plugin.
 //func MigrateApplianceConfigure(data map[string]string) (map[string]string, bool, error) {
 func MigrateApplianceConfigure(ctx context.Context, s *session.Session, conf map[string]string) (map[string]string, bool, error) {
-	return migrateConfigure(ctx, s, conf, manager.ApplianceConfigure)
+	return migrateConfigure(ctx, s, conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
 
 // MigrateContainerConfigure migrate container configuration
 // Migrated data will be returned in map, and input object is not changed.
 // If there is error returned, returned map might have half-migrated value.
 func MigrateContainerConfigure(conf map[string]string) (map[string]string, bool, error) {
-	return migrateConfigure(nil, nil, conf, manager.ContainerConfigure)
+	return migrateConfigure(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
-func migrateConfigure(ctx context.Context, s *session.Session, data map[string]string, target string) (map[string]string, bool, error) {
+func migrateConfigure(ctx context.Context, s *session.Session, data map[string]string, target string, verKey string) (map[string]string, bool, error) {
 	dst := make(map[string]string)
 	if len(data) == 0 {
 		return dst, false, nil
@@ -48,15 +48,15 @@ func migrateConfigure(ctx context.Context, s *session.Session, data map[string]s
 
 	var currentID int
 	var err error
-	strID := data[manager.ConfigureVersionKey]
+	strID := data[verKey]
 
 	if strID == "" {
 		currentID = 0
 	} else {
 		if currentID, err = strconv.Atoi(strID); err != nil {
-			return dst, false, &errors.InvalidMigrationID{
-				ID:  strID,
-				Err: err,
+			return dst, false, &errors.InvalidMigrationVersion{
+				Version: strID,
+				Err:     err,
 			}
 		}
 	}
@@ -69,6 +69,6 @@ func migrateConfigure(ctx context.Context, s *session.Session, data map[string]s
 	if latestID == currentID {
 		return dst, false, err
 	}
-	dst[manager.ConfigureVersionKey] = strconv.Itoa(latestID)
+	dst[verKey] = strconv.Itoa(latestID)
 	return dst, true, err
 }

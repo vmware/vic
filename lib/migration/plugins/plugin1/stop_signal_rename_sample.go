@@ -17,7 +17,6 @@ package plugin1
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -32,14 +31,14 @@ import (
 // If only a couple of items changed in the configuration, you don't have to copy all VirtualContainerHost. Only define the few items used by
 // this upgrade plugin will simplify the extraconfig encoding/decoding process
 const (
-	id     = 1
-	target = manager.ApplianceConfigure
+	version = 1
+	target  = manager.ApplianceConfigure
 )
 
 func init() {
-	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, id)))
-	if err := manager.Migrator.Register(id, target, &ApplianceStopSignalRename{}); err != nil {
-		log.Errorf("Failed to register plugin %s:%d", target, id, err)
+	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, version)))
+	if err := manager.Migrator.Register(version, target, &ApplianceStopSignalRename{}); err != nil {
+		log.Errorf("Failed to register plugin %s:%d", target, version, err)
 	}
 }
 
@@ -72,7 +71,7 @@ type NewSessionConfig struct {
 }
 
 func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("%d", id)))
+	defer trace.End(trace.Begin(fmt.Sprintf("%d", version)))
 	if data == nil {
 		return false, nil
 	}
@@ -109,13 +108,4 @@ func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Sess
 		mapData[k] = v
 	}
 	return true, nil
-}
-
-func getKeyIncludesID(keys []string, id string) string {
-	for _, key := range keys {
-		if strings.Contains(key, id) {
-			return key
-		}
-	}
-	return ""
 }

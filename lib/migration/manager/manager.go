@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -30,13 +31,11 @@ const (
 	ApplianceConfigure = "ApplianceConfigure"
 	ContainerConfigure = "ContainerConfigure"
 
-	ConfigureVersionKey = "guestinfo.vice.migration.version"
+	ApplianceVersionKey = "guestinfo.vice./init/version/PluginVersion"
+	ContainerVersionKey = "guestinfo.vice./version/PluginVersion"
 )
 
 var (
-	// MaxPluginID must be increased to add new plugin and make sure the new plugin id is same to this value
-	MaxPluginID = 2
-
 	Migrator = NewDataMigrator()
 )
 
@@ -46,91 +45,91 @@ type Plugin interface {
 
 type DataMigration interface {
 	// Register plugin to data migration system
-	Register(id int, target string, plugin Plugin) error
+	Register(version int, target string, plugin Plugin) error
 	// Migrate data with current version ID, return true if has any plugin executed
-	Migrate(ctx context.Context, s *session.Session, target string, currentID int, data interface{}) (int, error)
+	Migrate(ctx context.Context, s *session.Session, target string, currentVersion int, data interface{}) (int, error)
 }
 
 type DataMigrator struct {
-	targetIDs map[string][]int
-	idPlugins map[int]Plugin
+	targetVers map[string][]int
+	verPlugins map[int]Plugin
 }
 
 func NewDataMigrator() DataMigration {
 	return &DataMigrator{
-		targetIDs: make(map[string][]int),
-		idPlugins: make(map[int]Plugin),
+		targetVers: make(map[string][]int),
+		verPlugins: make(map[int]Plugin),
 	}
 }
 
-func (m *DataMigrator) Register(id int, target string, plugin Plugin) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("plugin %s:%d", target, id)))
-	// assert if plugin id less than mast plugin id, which is forcing deveoper to change MaxPluginID variable everytime new plugin is added
+func (m *DataMigrator) Register(ver int, target string, plugin Plugin) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("plugin %s:%d", target, ver)))
+	// assert if plugin version less than max plugin version, which is forcing deveoper to change MaxPluginVersion variable everytime new plugin is added
 	if plugin == nil {
 		return &errors.InternalError{
 			fmt.Sprintf("Empty Plugin object is not allowed"),
 		}
 	}
-	if id > MaxPluginID {
+	if ver > version.MaxPluginVersion {
 		return &errors.InternalError{
-			fmt.Sprintf("Plugin %d is bigger than Max Plugin ID %d", id, MaxPluginID),
+			fmt.Sprintf("Plugin %d is bigger than Max Plugin Version %d", ver, version.MaxPluginVersion),
 		}
 	}
 
-	if m.idPlugins[id] != nil {
+	if m.verPlugins[ver] != nil {
 		return &errors.InternalError{
-			fmt.Sprintf("Plugin %d is conflict with another plugin, please make sure the plugin ID is unique and ascending", id),
+			fmt.Sprintf("Plugin %d is conflict with another plugin, please make sure the plugin Version is unique and ascending", ver),
 		}
 	}
 
-	m.insertID(id, target)
-	m.idPlugins[id] = plugin
+	m.insertVersion(ver, target)
+	m.verPlugins[ver] = plugin
 	return nil
 }
 
-func (m *DataMigrator) insertID(id int, target string) {
-	defer trace.End(trace.Begin(fmt.Sprintf("id array: %s, insert %s:%d", m.targetIDs[target], target, id)))
+func (m *DataMigrator) insertVersion(version int, target string) {
+	defer trace.End(trace.Begin(fmt.Sprintf("version array: %s, insert %s:%d", m.targetVers[target], target, version)))
 
-	s := m.targetIDs[target]
+	s := m.targetVers[target]
 	if len(s) == 0 {
-		m.targetIDs[target] = append(s, id)
+		m.targetVers[target] = append(s, version)
 		return
 	}
-	i := sort.SearchInts(s, id)
-	m.targetIDs[target] = append(s[:i], append([]int{id}, s[i:]...)...)
-	log.Debugf("id array: %d", m.targetIDs[target])
+	i := sort.SearchInts(s, version)
+	m.targetVers[target] = append(s[:i], append([]int{version}, s[i:]...)...)
+	log.Debugf("version array: %d", m.targetVers[target])
 }
 
-func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target string, currentID int, data interface{}) (int, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("migrate %s from %d", target, currentID)))
+func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target string, currentVersion int, data interface{}) (int, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("migrate %s from %d", target, currentVersion)))
 
-	pluginIDs := m.targetIDs[target]
-	if len(pluginIDs) == 0 {
+	pluginVers := m.targetVers[target]
+	if len(pluginVers) == 0 {
 		log.Debugf("No plugin registered for %s", target)
-		return currentID, nil
+		return currentVersion, nil
 	}
 
-	i := sort.SearchInts(pluginIDs, currentID)
-	if i >= len(pluginIDs) {
-		log.Debugf("No plugin bigger than %d", currentID)
-		return currentID, nil
+	i := sort.SearchInts(pluginVers, currentVersion)
+	if i >= len(pluginVers) {
+		log.Debugf("No plugin bigger than %d", currentVersion)
+		return currentVersion, nil
 	}
 
-	latestID := currentID
+	latestVer := currentVersion
 	j := i
-	if pluginIDs[i] == currentID {
+	if pluginVers[i] == currentVersion {
 		j = i + 1
 	}
-	for ; j < len(pluginIDs); j++ {
-		id := pluginIDs[j]
-		p := m.idPlugins[id]
+	for ; j < len(pluginVers); j++ {
+		ver := pluginVers[j]
+		p := m.verPlugins[ver]
 		c, err := p.Migrate(ctx, s, data)
 		if err != nil {
-			return latestID, err
+			return latestVer, err
 		}
 		if c {
-			latestID = id
+			latestVer = ver
 		}
 	}
-	return latestID, nil
+	return latestVer, nil
 }

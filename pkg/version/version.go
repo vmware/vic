@@ -30,15 +30,19 @@ var (
 	BuildNumber string
 	State       string
 
+	// MaxPluginVersion must be increased to add new plugin and make sure the new plugin version is same to this value
+	MaxPluginVersion = 2
+
 	v bool
 )
 
 type Build struct {
-	Version     string
-	GitCommit   string
-	BuildDate   string
-	BuildNumber string
-	State       string
+	Version       string
+	GitCommit     string
+	BuildDate     string
+	BuildNumber   string
+	State         string
+	PluginVersion int
 }
 
 func init() {
@@ -69,11 +73,12 @@ func GetBuild() *Build {
 		BuildNumber = "0"
 	}
 	return &Build{
-		Version:     Version,
-		GitCommit:   GitCommit,
-		BuildDate:   BuildDate,
-		BuildNumber: BuildNumber,
-		State:       State,
+		Version:       Version,
+		GitCommit:     GitCommit,
+		BuildDate:     BuildDate,
+		BuildNumber:   BuildNumber,
+		State:         State,
+		PluginVersion: MaxPluginVersion,
 	}
 }
 

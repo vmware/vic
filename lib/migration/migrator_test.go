@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration/manager"
+	//	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -42,6 +43,9 @@ func TestMigrateConfigure(t *testing.T) {
 					StopSignal: "10",
 				},
 			},
+			//			Version: &version.Build{
+			//				PluginVersion: 0,
+			//			},
 		},
 		Network: config.Network{
 			BridgeNetwork: "VM Network",
@@ -57,8 +61,8 @@ func TestMigrateConfigure(t *testing.T) {
 	}
 	assert.True(t, migrated, "should be migrated")
 
-	latestID := newData[manager.ConfigureVersionKey]
-	assert.Equal(t, "1", latestID, "upgrade version mismatch")
+	latestVer := newData[manager.ApplianceVersionKey]
+	assert.Equal(t, "1", latestVer, "upgrade version mismatch")
 
 	// check new data
 	var found bool
@@ -85,4 +89,9 @@ func TestMigrateConfigure(t *testing.T) {
 	assert.True(t, found, "Should found old data")
 
 	t.Logf("New data: %#v", newData)
+	newConf := &config.VirtualContainerHostConfigSpec{}
+	extraconfig.Decode(extraconfig.MapSource(newData), newConf)
+
+	assert.Equal(t, 1, newConf.Version.PluginVersion, "should not be migrated")
+	t.Logf("other version fields: %s", newConf.Version.String())
 }

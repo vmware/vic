@@ -35,13 +35,22 @@ func (e DataTypeError) Error() string {
 	return fmt.Sprintf("Data type is not %s", e.ExpectedType)
 }
 
-type InvalidMigrationID struct {
-	ID  string
-	Err error
+type KeyNotFound struct {
+	Key     string
+	Message string
 }
 
-func (e InvalidMigrationID) Error() string {
-	return fmt.Sprintf("Data migration id is invalid %s: %s", e.ID, e.Err)
+func (e KeyNotFound) Error() string {
+	return fmt.Sprintf("key %s is not found: %s", e.Key, e.Message)
+}
+
+type InvalidMigrationVersion struct {
+	Version string
+	Err     error
+}
+
+func (e InvalidMigrationVersion) Error() string {
+	return fmt.Sprintf("Data migration version is invalid %s: %s", e.Version, e.Err)
 }
 
 type DecodeError struct {

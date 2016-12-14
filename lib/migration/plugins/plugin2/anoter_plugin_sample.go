@@ -21,6 +21,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/migration/config/v2"
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/manager"
 	"github.com/vmware/vic/pkg/kvstore"
@@ -37,8 +38,8 @@ import (
 // VCH upgrade failed, no datastore file revert available in current migration framework, so this limitation can make sure old binary still works well with half migrated keyvalue store.
 // While there is rollback plugin and framework support, this limitation could be removed.
 const (
-	id     = 2
-	target = manager.ApplianceConfigure
+	version = 2
+	target  = manager.ApplianceConfigure
 
 	KVStoreFolder = "kvStores"
 	APIKV         = "apiKV"
@@ -48,9 +49,9 @@ const (
 )
 
 func init() {
-	log.Debugf("Registering plugin %s:%d", target, id)
-	if err := manager.Migrator.Register(id, target, &NewImageMeta{}); err != nil {
-		log.Errorf("Failed to register plugin %s:%d", target, id, err)
+	log.Debugf("Registering plugin %s:%d", target, version)
+	if err := manager.Migrator.Register(version, target, &NewImageMeta{}); err != nil {
+		log.Errorf("Failed to register plugin %s:%d", target, version, err)
 	}
 }
 
@@ -59,14 +60,14 @@ type NewImageMeta struct {
 }
 
 func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("%d", id)))
+	defer trace.End(trace.Begin(fmt.Sprintf("%d", version)))
 	if data == nil {
 		return false, nil
 	}
 	vchConfMap := data.(map[string]string)
 	// No plugin query keyvalue store yet, load from datastore file
 	// get a ds helper for this ds url
-	vchConf := &VirtualContainerHostConfigSpec{}
+	vchConf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.Decode(extraconfig.MapSource(vchConfMap), vchConf)
 
 	imageURL := vchConf.ImageStores[0]
