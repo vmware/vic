@@ -21,9 +21,11 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi"
@@ -38,6 +40,35 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
 )
+
+var once sync.Once
+
+type TestVMFixer struct{}
+
+func (h *TestVMFixer) Handle(ctx context.Context, err error) (bool, error) {
+	o := ctx.Value(tasks.VMContextObjectKey)
+	if o == nil {
+		log.Debugf("No vm object set, not vm operations.")
+		return false, nil
+	}
+
+	vm, ok := o.(*VirtualMachine)
+	if !ok {
+		log.Debugf("Not vm object, do not fix failure")
+		return false, nil
+	}
+	if !vm.IsInvalidState(ctx) {
+		log.Debugf("VM is not in invalid state, do not fix failure")
+		return false, nil
+	}
+	if nerr := vm.FixVM(ctx); nerr != nil {
+		log.Errorf("Failed to fix task failure: %s", nerr)
+		return true, nerr
+	}
+	log.Debugf("Fixed")
+
+	return true, nil
+}
 
 func CreateVM(ctx context.Context, session *session.Session, host *object.HostSystem, name string) (*types.ManagedObjectReference, error) {
 	// Create the spec config
@@ -447,8 +478,16 @@ func TestBfsSnapshotTree(t *testing.T) {
 	}
 }
 
+func initErrorHandler() {
+	once.Do(func() {
+		tasks.RegisterErrorHandler(&TestVMFixer{})
+	})
+}
+
 // TestProperties test vm.properties happy path and fix vm path
 func TestProperties(t *testing.T) {
+	initErrorHandler()
+
 	ctx := context.Background()
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
@@ -510,6 +549,8 @@ func TestProperties(t *testing.T) {
 
 // TestWaitForResult covers the success path and invalid vm fix path
 func TestWaitForResult(t *testing.T) {
+	initErrorHandler()
+
 	ctx := context.Background()
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
