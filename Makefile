@@ -371,7 +371,12 @@ $(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-clean: distclean
+clean:
+	@echo removing binaries
+	@rm -fr $(BIN)
+	@echo removing Go object files
+	@$(GO) clean
+
 	@echo removing swagger generated files...
 	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
 	@rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
@@ -389,5 +394,3 @@ clean: distclean
 distclean:
 	@echo removing binaries
 	@rm -fr $(BIN)
-	@echo removing Go object files
-	@$(GO) clean
