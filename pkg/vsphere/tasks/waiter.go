@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	m             *sync.RWMutex
+	m             sync.RWMutex
 	errorHandlers []ErrorHandler
 )
 
