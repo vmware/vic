@@ -184,7 +184,7 @@ func TestVM(t *testing.T) {
 	}
 	t.Logf("Got UUID: %s", ruuid)
 
-	err = vm.fixVM(ctx)
+	err = vm.FixVM(ctx)
 	if err != nil {
 		t.Errorf("Failed to fix vm: %s", err)
 	}

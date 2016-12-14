@@ -52,8 +52,6 @@ type VirtualMachine struct {
 	*object.VirtualMachine
 
 	*session.Session
-
-	Fixing bool
 }
 
 // NewVirtualMachine returns a NewVirtualMachine object
@@ -468,7 +466,7 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 }
 
 // FixInvalidState fix vm invalid state issue through unregister & register
-func (vm *VirtualMachine) fixVM(ctx context.Context) error {
+func (vm *VirtualMachine) FixVM(ctx context.Context) error {
 	log.Debugf("Fix invalid state VM: %s", vm.Reference())
 	folders, err := vm.Session.Datacenter.Folders(ctx)
 	if err != nil {
@@ -486,7 +484,6 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 
 	name := mvm.Summary.Config.Name
 	log.Debugf("Unregister VM %s", name)
-	vm.Fixing = true
 	if err := vm.Unregister(ctx); err != nil {
 		log.Errorf("Unable to unregister vm %q: %s", name, err)
 		return err
@@ -541,17 +538,7 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 // WaitForResult is designed to handle VM invalid state error for any VM operations.
 // It will call tasks.WaitForResult to retry if there is task in progress error.
 func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Context) (tasks.Task, error)) (*types.TaskInfo, error) {
-	info, err := tasks.WaitForResult(ctx, f)
-	if err == nil || !vm.needsFix(ctx, err) {
-		return info, err
-	}
-
-	log.Debugf("Try to fix task failure %s", err)
-	if nerr := vm.fixVM(ctx); nerr != nil {
-		log.Errorf("Failed to fix task failure: %s", nerr)
-		return info, err
-	}
-	log.Debugf("Fixed")
+	ctx = context.WithValue(ctx, tasks.VMContextObjectKey, vm)
 	return tasks.WaitForResult(ctx, f)
 }
 
@@ -578,9 +565,17 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 		return nil
 	}
 	log.Infof("vm %s is in invalid state", r)
-	if err := vm.fixVM(ctx); err != nil {
-		log.Errorf("Failed to fix vm %s: %s", vm.Reference(), err)
-		return &InvalidState{r: vm.Reference()}
+	err := &InvalidState{r: vm.Reference()}
+	ctx = context.WithValue(ctx, tasks.VMContextObjectKey, vm)
+
+	handled, herr := tasks.HandleError(ctx, err)
+	if herr != nil {
+		log.Errorf("Failed to fix vm %s: %s", vm.Reference(), herr)
+		return err
+	}
+	if !handled {
+		log.Debugf("No vm fixer found")
+		return err
 	}
 	log.Debugf("Retry properties query %s of vm %s", ps, vm.Reference())
 	return vm.VirtualMachine.Properties(ctx, vm.Reference(), ps, o)

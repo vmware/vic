@@ -52,6 +52,7 @@ const (
 	StateCreating
 	StateRemoving
 	StateRemoved
+	StateFixing
 
 	propertyCollectorTimeout = 3 * time.Minute
 	containerLogName         = "output.log"
@@ -75,6 +76,8 @@ func (s State) String() string {
 		return "Stopping"
 	case StateStopped:
 		return "Stopped"
+	case StateFixing:
+		return "Fixing"
 	case StateUnknown:
 		return "Unknown"
 	}

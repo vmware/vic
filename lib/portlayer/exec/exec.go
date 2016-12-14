@@ -161,12 +161,6 @@ func eventCallback(ie events.Event) {
 				}()
 			case StateRemoved:
 				log.Debugf("Container(%s) %s via event activity", container, newState)
-				if container.vm != nil && container.vm.Fixing {
-					// is fixing vm, do not remove from containers
-					log.Debugf("Container(%s) %s is being fixed", container.ExecConfig.ID)
-					container.vm.Fixing = false
-					break
-				}
 				Containers.Remove(container.ExecConfig.ID)
 				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
 			}
@@ -300,7 +294,7 @@ func eventedState(e string, current State) State {
 			return StateSuspended
 		}
 	case events.ContainerRemoved:
-		if current != StateRemoving {
+		if current != StateRemoving && current != StateFixing {
 			return StateRemoved
 		}
 	}
