@@ -25,7 +25,9 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-const OpTraceKey = "traceKey"
+type OperationKey string
+
+const OpTraceKey OperationKey = "traceKey"
 
 var opIDPrefix = os.Getpid()
 

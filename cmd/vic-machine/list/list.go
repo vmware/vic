@@ -15,6 +15,7 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"text/tabwriter"
@@ -32,8 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"context"
 )
 
 type items struct {
@@ -97,7 +96,7 @@ func (l *List) processParams() error {
 	return nil
 }
 
-func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.VirtualMachine, executor *management.Dispatcher) {
+func (l *List) prettyPrint(ctx context.Context, cli *cli.Context, vchs []*vm.VirtualMachine, executor *management.Dispatcher) {
 	data := []items{
 		{"ID", "PATH", "NAME", "VERSION", "UPGRADE STATUS"},
 	}
@@ -186,7 +185,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.ResourcePoolPath, err)
 	}
-	l.prettyPrint(clic, ctx, vchs, executor)
+	l.prettyPrint(ctx, clic, vchs, executor)
 	return nil
 }
 
