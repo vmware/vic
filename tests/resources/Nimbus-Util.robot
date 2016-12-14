@@ -192,14 +192,8 @@ Gather Host IPs
     \   Set Suite Variable  ${esx${idx}-ip}  ${ip}
     \   ${idx}=  Evaluate  ${idx}+1
 
-vMotion A VM
-    [Arguments]  ${vm}
-    ${host}=  Get VM Host Name  ${vm}
-    ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
-    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
-    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
-
 Create a VSAN Cluster
+    Log To Console  \nStarting basic VSAN cluster deploy...
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}

@@ -85,9 +85,7 @@ Get VM Name
 
 Get VM Host Name
     [Arguments]  ${vm}
-    ${vm}=  Get VM Name  ${vm}
-    ${ret}=  Run  govc vm.info ${vm}/${vm}
-    Set Test Variable  ${out}  ${ret}
+    ${out}=  Run  govc vm.info ${vm}
     ${out}=  Split To Lines  ${out}
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE}
     [Return]  ${host}
@@ -97,6 +95,13 @@ Get VM Info
     ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info -r ${vm}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
+
+vMotion A VM
+    [Arguments]  ${vm}
+    ${host}=  Get VM Host Name  ${vm}
+    ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
+    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vm}
+    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
 
 Create Test Server Snapshot
     [Arguments]  ${vm}  ${snapshot}
