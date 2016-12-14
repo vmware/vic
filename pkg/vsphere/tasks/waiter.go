@@ -43,7 +43,7 @@ var (
 )
 
 type ErrorHandler interface {
-	// Handle returns true if the error is expected. Otherwise, return false. If any error happens during error handling, return (true, error).
+	// Handle returns true if the error is expected. Otherwise, returns false. If any error happens during error handling, returns (true, error).
 	Handle(ctx context.Context, err error) (bool, error)
 }
 

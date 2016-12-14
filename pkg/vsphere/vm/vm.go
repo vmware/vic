@@ -465,7 +465,7 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 	return object.NewTask(vm.Vim25(), res.Returnval), nil
 }
 
-// FixInvalidState fix vm invalid state issue through unregister & register
+// FixVM fix vm invalid state issue through unregister & register
 func (vm *VirtualMachine) FixVM(ctx context.Context) error {
 	log.Debugf("Fix invalid state VM: %s", vm.Reference())
 	folders, err := vm.Session.Datacenter.Folders(ctx)

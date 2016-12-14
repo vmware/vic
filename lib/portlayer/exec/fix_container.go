@@ -28,6 +28,8 @@ import (
 type ContainerFixer struct {
 }
 
+// InitErrorHandler register ContainerFixer to tasks error handler. So if any container vm operations fail for invalid state issue, this handler will be executed to fix the error.
+// The benefit to register handler in portlayer is that it can set container state during vm fixing.
 func InitErrorHandler() {
 	tasks.RegisterErrorHandler(&ContainerFixer{})
 }

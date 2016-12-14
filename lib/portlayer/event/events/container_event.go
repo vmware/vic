@@ -25,7 +25,6 @@ const (
 	ContainerReconfigured  = "Reconfigured"
 	ContainerStarted       = "Started"
 	ContainerStopped       = "Stopped"
-	ContainerRegistered    = "Registered"
 	ContainerMigrated      = "Migrated"
 	ContainerMigratedByDrs = "MigratedByDrs"
 	ContainerRelocated     = "Relocated"
