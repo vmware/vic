@@ -185,7 +185,7 @@ whitespace:
 	@infra/scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
-golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'"
+golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'" | sh -c "! grep -v 'error strings should not be capitalized'"
 
 golint: $(GOLINT)
 	@echo checking go lint...
@@ -371,9 +371,7 @@ $(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-clean:
-	@rm -rf $(BIN)/*
-
+clean: distclean
 	@echo removing swagger generated files...
 	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
 	@rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
@@ -389,4 +387,7 @@ clean:
 
 # removes the yum cache as well as the generated binaries
 distclean:
+	@echo removing binaries
 	@rm -fr $(BIN)
+	@echo removing Go object files
+	@$(GO) clean
