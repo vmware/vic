@@ -33,7 +33,7 @@ VIC version includes three parts, "release tag"-"build id"-"github commit hash".
 
 User need to provide newer binary with bigger build id, to upgrade existing VCH. This also requires our build system to keep increase build id number no matter any kind of system change. 
 
-Note: as introduced data migration between versions, the upgrade can only happens between different tagged versions, instead of different builds, even we rely on build id to detect version difference. The reason is tightly coupled with our data migration design, which will be described in data migration section.
+Note: after introduced data migration between builds, we introduced one more internal used data migration version. That version is related to data migration plugin only, so will not be shown in vic-machine version. This will be described in data migration section.
 
 ### Impact
 
@@ -201,12 +201,17 @@ If container data migration happens, some of docker functions, e.g. start/attach
 During appliance upgrade, vic-machine should have clear information to mention the container functional limitation after upgrade, and the solution for it.
 
 ### KeyValue Store Migration
+Different to guestinfo object, VIC will not change configuration from guestinfo to anywhere else anytime soon. But from start, keyvalue store persistent position is in argument. Right now, vic has a few datastore files for keyvalue store, but those information is not configurable, which means hardcoded in portlayer.
 
-Different to guestinfo object, KeyValue store does not have data structure to define the key value types and usage. It's used directly from persona and portlayer for image metadata and network cache persistent. But similar to guestinfo configuration migration, if the key is changed or repurposed, data migration is also needed.
+In the future, if there is any change on assumption no matter for what reason, performance, easy to management, data migration will be hard to do.
 
-Same to guestinfo migration, for keyvalue store changes, add correponding data migration plugin and register to upgrade framework.
+So the idea is that, data migration framework does not assume where to load keyvalue store. If there is keyvalue store changes, plugin is the owner to read old version, update to new version and then write back to datastore files, or to anywhere defined in new version, suppose the configuration can be retrieved from guestinfo. So the input of keyvalue store plugin will be same to other appliance configuration update plugin.
 
-But if there is new key added, caller should handle the logic while that key is absent. Cause vic-machine should not be the place to go though all containers, images to figure out what's missing.
+The problem of this solution is that each single plugin will persist its own change, not like the guestinfo update, which is migrated in memory and persisted by migration framework. So the rollback for guestinfo is easy, but not possible for keyvalue store plugin, unless we have data roll back plugin mechanism.
+
+The workaround for this idea is to restrict keyvalue store migration functions, e.g. only new key is supported. In the plugin, do not remove old keyvalues, so in the above failure case, old binary can still work with old keyvalues.
+
+We have lots of other options to better support keyvalue store upgrade, but at this time, I don't want to predicate our changes in the future, that's easy to be over-engineering. While that happens, we could think about to support plugin roll back, or upgrade from portlayer, etc.
 
 ### Appliance log files
 
@@ -218,17 +223,19 @@ There will have new vSphere API come up, so the logic to manage vsphere objects 
 
 vic-machine is not supposed to migrate old image data or volume data to new vmdk files, so portlayer will need to be backward compatible. (Suppose vSphere will be backward compatibile, there should be nothing to do in vic, but need to do some research on it)
 
-### Why Not Support Upgrade Between Builds
+### How to Support Upgrade Between Builds
 
-We need to keep old version's guestinfo structure definition, to make sure we can read back old configuration, and need plugin to migrate data from old structure to new structure. If we support upgrade per build, we cannot pre-estimate the build number from when the old configuration is dropped and new configuration starts to work.
+We need to keep old version's guestinfo structure definition, to make sure we can read back old configuration, and need plugin to migrate data from old structure to new structure. With current version mechanism, developer do not know which build version will be generated for his change, so we introduced another version, data migration version.
 
-We might be able to check in configuration change first, and then update upgrade related code, but that means upgrade between builds is broken for few specific builds.
+If the value is not set, by default it is 0.
 
-Another thing is that data migration introduced lot of effort to maintain upgrade correctness, accumualte changes in one version, add one data migration plugin for each object per one version, will reduce development and maintenance effort.
+Data migration framework will detect version difference between old version and latest and then run corresponding data migration plugins sequentially to migrate data.
 
-So this proposal is to upgrade between releases only. 
-
-As we're relying on build number to get migration chain, if there is requirement to add more upgrade hook, it's still doable, just we cannot support upgrade between any builds.
+Notes:
+- Developers who change guestinfo, keyvalue store will be the owner to develop migration plugin, and be responsible to increase data migration version. 
+- Each migration version should have one and only one corresponding plugin.
+- If appliance configuration and container configuration are changed at the same time, two different plugins should be added, and registered to different plugin category.
+- If both appliance configuration and keyvalue store are changed, two plugins are recommended as well.
 
 ### Limitation
 This document does not include approach for tether communication change, that means from serial port to VMCI or something else. Need to think about how to support old version's container while that change is made.
@@ -238,4 +245,4 @@ This document does not include approach for tether communication change, that me
 User cannot run two upgrades for same VCH at the same time. 
 
 vic-machine will check if there is already another upgrade snapshot is created before it starts to create snapshot. But as create vsphere snapshot will take some time, e.g. one minute, if at this time, another upgrade process is started, it will start upgrade again cause the snapshot of previous task is not finished yet.
- 
+
