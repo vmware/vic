@@ -372,7 +372,10 @@ $(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 clean:
-	@rm -rf $(BIN)/*
+	@echo removing binaries
+	@rm -fr $(BIN)
+	@echo removing Go object files
+	@$(GO) clean
 
 	@echo removing swagger generated files...
 	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
@@ -389,4 +392,5 @@ clean:
 
 # removes the yum cache as well as the generated binaries
 distclean:
+	@echo removing binaries
 	@rm -fr $(BIN)
