@@ -707,6 +707,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 
 		// container specific aliases
 		for _, a := range ne.Network.Aliases {
+			log.Debugf("parsing alias %s", a)
 			l := strings.Split(a, ":")
 			if len(l) != 2 {
 				err = fmt.Errorf("Parsing network alias %s failed", a)
@@ -730,6 +731,8 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				// fixed up when "who" is bound
 				if whoc != nil {
 					aliases[a.scopedName()] = whoc
+				} else {
+					log.Debugf("skipping alias %s since %s is not bound yet", a, who)
 				}
 			}
 		}
@@ -741,6 +744,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				continue
 			}
 
+			log.Debugf("getting aliases for %s from %s", con.name, e.Container().Name())
 			for _, a := range e.getAliases(con.name) {
 				aliases[a.scopedName()] = con
 			}

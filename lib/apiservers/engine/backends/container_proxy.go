@@ -888,6 +888,13 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 	nc := &models.NetworkConfig{
 		NetworkName: cc.HostConfig.NetworkMode.NetworkName(),
 	}
+
+	// Docker copies Links to NetworkConfig only if it is a UserDefined network, handle that
+	// https://github.com/docker/docker/blame/master/runconfig/opts/parse.go#L598
+	if !cc.HostConfig.NetworkMode.IsUserDefined() && len(cc.HostConfig.Links) > 0 {
+		nc.Aliases = append(nc.Aliases, cc.HostConfig.Links...)
+	}
+
 	if cc.NetworkingConfig != nil {
 		log.Debugf("EndpointsConfig: %#v", cc.NetworkingConfig)
 
@@ -897,15 +904,8 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 				nc.Address = es.IPAMConfig.IPv4Address
 			}
 
-			// Docker copies Links to NetworkConfig only if it is a UserDefined network, handle that
-			// https://github.com/docker/docker/blame/master/runconfig/opts/parse.go#L598
-			if !cc.HostConfig.NetworkMode.IsUserDefined() && len(cc.HostConfig.Links) > 0 {
-				es.Links = make([]string, len(cc.HostConfig.Links))
-				copy(es.Links, cc.HostConfig.Links)
-			}
 			// Pass Links and Aliases to PL
-			nc.Aliases = epoint.Alias(es)
-
+			nc.Aliases = append(nc.Aliases, epoint.Alias(es)...)
 		}
 	}
 
