@@ -1,8 +1,35 @@
 *** Settings ***
 Documentation  Test 15-1 - Drone Continuous Integration
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Install VIC Appliance To Test Server Without TLS
 Suite Teardown  Cleanup VIC Appliance On Test Server
+
+*** Keywords ***
+Install VIC Appliance To Test Server Without TLS
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${vol}=default
+    Set Test Environment Variables
+    # disable firewall
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
+
+    # Install the VCH now
+    Log To Console  \nInstalling VCH to test server...
+    ${output}=  No TLS VIC Install  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${vol}
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${false}
+    Log To Console  Installer completed successfully: %{VCH-NAME}...
+
+No TLS VIC Install
+    [Tags]  secret
+    [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${vol}
+    ${output}=  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tls
+    Should Contain  ${output}  Installer completed successfully
+    [Return]  ${output}
 
 *** Test Cases ***
 Drone CI
