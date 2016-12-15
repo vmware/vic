@@ -47,6 +47,7 @@ While Logged Out Fail To Get Container Logs
     Should not Contain  ${output}  ${container}/vmware.log
     Should not Contain  ${output}  ${container}/tether.debug
 
+
 While Logged Out Fail To Get VICAdmin Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log
     Log  ${output}
