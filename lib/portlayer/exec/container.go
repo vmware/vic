@@ -108,6 +108,11 @@ func (r ConcurrentAccessError) Error() string {
 	return r.err.Error()
 }
 
+func IsConcurrentAccessError(err error) bool {
+	_, ok := err.(ConcurrentAccessError)
+	return ok
+}
+
 // Container is used to return data about a container during inspection calls
 // It is a copy rather than a live reflection and does not require locking
 type ContainerInfo struct {
@@ -271,6 +276,11 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 func (c *Container) Refresh(ctx context.Context) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
+	// c.Config is nil if this is a create operation
+	if c.Config != nil {
+		log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
+	}
+
 	base, err := c.updates(ctx)
 	if err != nil {
 		log.Errorf("Unable to update container %s", c.ExecConfig.ID)
@@ -282,6 +292,8 @@ func (c *Container) Refresh(ctx context.Context) error {
 
 	// copy over the new state
 	c.containerBase = *base
+	log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
+
 	return nil
 }
 
@@ -300,7 +312,7 @@ func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
 
 	// copy over the new state
 	c.containerBase = h.containerBase
-	log.Debugf("container refreshed - ChangeVersion: %s", c.Config.ChangeVersion)
+	log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
 }
 
 // Start starts a container vm with the given params
