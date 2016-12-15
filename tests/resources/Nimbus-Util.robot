@@ -179,8 +179,10 @@ Kill Nimbus Server
     Close connection
 
 Nimbus Cleanup
+    [Arguments]  ${vm_list}
     Run Keyword And Continue On Failure  Gather Logs From Test Server
-    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+    :FOR  ${item}  IN  @{vm_list}
+    \   Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${item}
 
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
