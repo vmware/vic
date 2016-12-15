@@ -6,6 +6,15 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Link and alias
+    # link support for container on bridge network only
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name foo busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link foo:bar busybox ping -c1 bar
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create jedi
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
