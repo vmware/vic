@@ -212,14 +212,14 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "client-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the client network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1/24",
+			Usage:       "Gateway for the VCH on the client network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1",
 			Destination: &c.clientNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "client-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the client network, e.g. 10.0.0.2",
+			Usage:       "IP address with a network mask for the VCH on the client network, e.g. 10.0.0.2/24",
 			Destination: &c.clientNetworkIP,
 			Hidden:      true,
 		},
@@ -234,14 +234,14 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "public-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the public network, e.g. 10.0.0.1/24",
+			Usage:       "Gateway for the VCH on the public network, e.g. 10.0.0.1",
 			Destination: &c.publicNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "public-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the public network, e.g. 10.0.1.2",
+			Usage:       "IP address with a network mask for the VCH on the public network, e.g. 10.0.1.2/24",
 			Destination: &c.publicNetworkIP,
 			Hidden:      true,
 		},
@@ -256,14 +256,14 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "management-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the management network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1/24",
+			Usage:       "Gateway for the VCH on the management network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1",
 			Destination: &c.managementNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "management-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the management network, e.g. 10.0.2.2",
+			Usage:       "IP address with a network mask for the VCH on the management network, e.g. 10.0.2.2/24",
 			Destination: &c.managementNetworkIP,
 			Hidden:      true,
 		},
@@ -622,6 +622,13 @@ func (c *Create) processCertificates() error {
 			c.cname = c.managementNetworkIP
 			log.Infof("Using management-network-ip as cname where needed - use --tls-cname to override: %s", c.cname)
 		}
+
+		if c.cname != "" {
+			// Strip network mask from IP address if set
+			if cnameIP, _, _ := net.ParseCIDR(c.cname); cnameIP != nil {
+				c.cname = cnameIP.String()
+			}
+		}
 	}
 
 	// load what certificates we can
@@ -768,7 +775,10 @@ func parseGatewaySpec(gw string) (cidrs []net.IPNet, gwIP net.IPNet, err error) 
 		cidrsStr = ss[0]
 	}
 
-	gwIP, err = ip.ParseIPandMask(gwStr)
+	if gwIP.IP = net.ParseIP(gwStr); gwIP.IP == nil {
+		err = fmt.Errorf("Provided gateway IP address is not valid: %s", gwStr)
+	}
+
 	if err != nil {
 		return
 	}
@@ -790,22 +800,21 @@ func parseGatewaySpec(gw string) (cidrs []net.IPNet, gwIP net.IPNet, err error) 
 
 // processNetwork parses network args if present
 func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
-	network.Name = pgName
-
 	var err error
 
-	i := staticIP != ""
-	g := gateway != ""
-	if !i && !g {
+	network.Name = pgName
+
+	if staticIP == "" && gateway == "" {
 		return nil
 	}
-	if i != g {
+
+	if staticIP == "" || gateway == "" {
 		return fmt.Errorf("%s network IP and gateway must both be specified", netName)
 	}
 
 	defer func(net *data.NetworkConfig) {
 		if err == nil {
-			log.Debugf("%s network: IP %q gateway %q dest: %q", netName, net.IP, net.Gateway, net.Destinations)
+			log.Debugf("%s network: IP %s gateway %s dest: %s", netName, net.IP, net.Gateway.IP, net.Destinations)
 		}
 	}(network)
 
@@ -813,37 +822,25 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 	if err != nil {
 		return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
 	}
-
-	network.IP, err = ip.ParseIPandMask(staticIP)
-	if err == nil {
-		return nil
-	}
-
-	// try treating it as a name, using the mask from the gateway
-	ips, err := net.LookupIP(staticIP)
+	ipAddr, ipNet, err := net.ParseCIDR(staticIP)
 	if err != nil {
-		return fmt.Errorf("Invalid %s network address - neither IP nor resolvable hostname", netName)
+		return fmt.Errorf("Provided %s network IP address %s has a wrong format", netName, staticIP)
 	}
 
-	for _, ip := range ips {
-		if !network.Gateway.Contains(ip) {
-			log.Debugf("Skipping %s as value for %s because it's not in the network specified by gateway", ip.String(), staticIP)
-			continue
-		}
+	network.IP.IP = ipAddr
+	network.IP.Mask = ipNet.Mask
 
-		if ip.String() != staticIP {
-			log.Infof("Assigning %s based on %s", ip.String(), staticIP)
-		}
-
-		network.IP = net.IPNet{
-			IP:   ip,
-			Mask: network.Gateway.Mask,
-		}
-
-		return nil
+	if !network.IP.Contains(network.Gateway.IP) {
+		return fmt.Errorf("%s gateway with IP %s is not reachable from %s", netName, network.Gateway.IP, ipNet.String())
 	}
 
-	return fmt.Errorf("Invalid %s network address: %s does not resolve to a gateway compatible IP", netName, staticIP)
+	// TODO(vburenin): this seems ugly, and it actually is. The reason is that a gateway required to specify
+	// a network mask for it, which is just not how network configuration should be done. Network mask has to
+	// be provided separately or with the IP address. It is hard to change all dependencies to keep mask
+	// with IP address, so it will be stored with network gateway as it was previously.
+
+	network.Gateway.Mask = network.IP.Mask
+	return nil
 }
 
 // processDNSServers parses DNS servers used for client, public, mgmt networks

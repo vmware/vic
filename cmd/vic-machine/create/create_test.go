@@ -220,18 +220,18 @@ func TestParseGatewaySpec(t *testing.T) {
 		err  error
 	}{
 		{
-			in: "10.10.10.10/24",
-			gw: "10.10.10.10/24",
+			in: "10.10.10.10",
+			gw: "10.10.10.10",
 		},
 		{
-			in:   "10.12.0.0/16:10.10.10.10/16",
+			in:   "10.12.0.0/16:10.10.10.10",
 			dest: []string{"10.12.0.0/16"},
-			gw:   "10.10.10.10/16",
+			gw:   "10.10.10.10",
 		},
 		{
-			in:   "10.13.0.0/16,10.12.0.0/16:10.10.10.10/16",
+			in:   "10.13.0.0/16,10.12.0.0/16:10.10.10.10",
 			dest: []string{"10.13.0.0/16", "10.12.0.0/16"},
-			gw:   "10.10.10.10/16",
+			gw:   "10.10.10.10",
 		},
 	}
 
@@ -244,7 +244,7 @@ func TestParseGatewaySpec(t *testing.T) {
 		}
 
 		assert.NotNil(t, gw)
-		assert.Equal(t, te.gw, gw.String())
+		assert.Equal(t, te.gw, gw.IP.String())
 
 		assert.Equal(t, len(te.dest), len(dest))
 		for _, d := range te.dest {
