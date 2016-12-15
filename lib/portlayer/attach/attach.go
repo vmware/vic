@@ -52,7 +52,7 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	// select the virtual serial ports
 	serials := devices.SelectByBackingInfo((*types.VirtualSerialPortURIBackingInfo)(nil))
 	if len(serials) == 0 {
-		return nil, fmt.Errorf("Unable to bind a device with desired backing")
+		return nil, fmt.Errorf("Unable to find a device with desired backing")
 	}
 	if len(serials) > 1 {
 		return nil, fmt.Errorf("Multiple matches found with desired backing")

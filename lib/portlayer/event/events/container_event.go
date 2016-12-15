@@ -15,17 +15,19 @@
 package events
 
 const (
-	ContainerCreated      = "Created"
-	ContainerShutdown     = "Shutdown"
-	ContainerPoweredOn    = "PoweredOn"
-	ContainerPoweredOff   = "PoweredOff"
-	ContainerSuspended    = "Suspended"
-	ContainerResumed      = "Resumed"
-	ContainerRemoved      = "Removed"
-	ContainerReconfigured = "Reconfigured"
-	ContainerStarted      = "Started"
-	ContainerStopped      = "Stopped"
-	ContainerRegistered   = "Registered"
+	ContainerCreated       = "Created"
+	ContainerShutdown      = "Shutdown"
+	ContainerPoweredOn     = "PoweredOn"
+	ContainerPoweredOff    = "PoweredOff"
+	ContainerSuspended     = "Suspended"
+	ContainerResumed       = "Resumed"
+	ContainerRemoved       = "Removed"
+	ContainerReconfigured  = "Reconfigured"
+	ContainerStarted       = "Started"
+	ContainerStopped       = "Stopped"
+	ContainerRegistered    = "Registered"
+	ContainerMigrated      = "Migrated"
+	ContainerMigratedByDrs = "MigratedByDrs"
 )
 
 type ContainerEvent struct {

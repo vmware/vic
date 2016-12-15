@@ -213,7 +213,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		c := websession.Values[sessionCreationTimeKey]
 		if c == nil { // no cookie, so redirect to login
 			log.Infof("No authentication token: %+v", websession.Values)
-			http.Redirect(w, r, loginPagePath, http.StatusTemporaryRedirect)
+			http.Redirect(w, r, loginPagePath, http.StatusSeeOther)
 			return
 		}
 
