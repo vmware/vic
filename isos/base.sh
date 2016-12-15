@@ -73,7 +73,7 @@ yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils linux-esx --nogp
 yum_cached -c $cache -p $PKGDIR clean all
 
 # move kernel into bootfs /boot directory so that syslinux could load it
-mv $(rootfs_dir $PKGDIR)/boot/vmlinuz-esx-* $(bootfs_dir $PKGDIR)/boot/vmlinuz64
+mv $(rootfs_dir $PKGDIR)/boot/vmlinuz-* $(bootfs_dir $PKGDIR)/boot/vmlinuz64
 
 # package up the result
 pack $PKGDIR $PACKAGE
