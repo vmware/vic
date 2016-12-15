@@ -1,17 +1,20 @@
 *** Settings ***
 Documentation  Test 5-6-2 - VSAN-Complex
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
+Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 Complex VSAN
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-complex-pxeBoot-vcva --runName vic-vsan-complex
+    ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-complex-pxeBoot-vcva --runName ${name}
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${vc-ip}  ${ip}
     \   Exit For Loop If  ${status}
+
+    Set Global Variable  @{list}  ${user}-${name}.vcva-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.esx.4  ${user}-${name}.esx.5  ${user}-${name}.esx.6  ${user}-${name}.esx.7  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}

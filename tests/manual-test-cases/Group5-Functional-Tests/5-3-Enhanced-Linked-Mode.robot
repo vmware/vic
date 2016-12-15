@@ -1,31 +1,33 @@
 *** Settings ***
 Documentation  Test 5-3 - Enhanced Linked Mode
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 Test
-    ${output}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName els
+    ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
+    ${output}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}
 
     ${output}=  Split To Lines  ${output}
     :FOR  ${line}  IN  @{output}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  els.vc.0' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.0' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${vc1-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  els.vc.1' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.1' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${vc2-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  els.esx.0' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.0' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${esx1-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  els.esx.1' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.1' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${esx2-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  els.esx.2' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.2' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${esx3-ip}  ${ip}
 
     ${esx1}  ${esx4-ip}  ${esx2}  ${esx5-ip}  ${esx3}  ${esx6-ip}=  Deploy Multiple Nimbus ESXi Servers in Parallel  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${user}-${name}.vc.0  ${user}-${name}.vc.1  ${user}-${name}.vc.2  ${user}-${name}.vc.3  ${user}-${name}.nfs.0  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2
 
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
