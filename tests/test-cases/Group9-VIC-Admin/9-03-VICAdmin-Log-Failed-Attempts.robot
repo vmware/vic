@@ -13,7 +13,7 @@ Verify Unable To Verify
     
 Verify Temporary Redirect
     ${out}=  Run  wget --tries=3 --connect-timeout=10 --no-check-certificate %{VIC-ADMIN}/logs/vicadmin.log -O failure.log
-    Should Contain  ${out}  HTTP request sent, awaiting response... 307 Temporary Redirect
+    Should Contain  ${out}  HTTP request sent, awaiting response... 303 See Other
 
 Verify Failed Log Attempts
     #Save the first appliance certs and cleanup the first appliance
