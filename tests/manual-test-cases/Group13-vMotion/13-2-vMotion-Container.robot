@@ -6,7 +6,7 @@ Suite Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}
 
 *** Test Cases ***
 Test
-    Install VIC Appliance To Test Server  ${false}  default
+    Install VIC Appliance To Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
@@ -22,9 +22,9 @@ Test
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container3}
     Should Be Equal As Integers  ${rc}  0
 
-    vMotion A VM  ${vch-name}/*-${container1}
-    vMotion A VM  ${vch-name}/*-${container2}
-    vMotion A VM  ${vch-name}/*-${container3}
+    vMotion A VM  %{VCH-NAME}/*-${container1}
+    vMotion A VM  %{VCH-NAME}/*-${container2}
+    vMotion A VM  %{VCH-NAME}/*-${container3}
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0

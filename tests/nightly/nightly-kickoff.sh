@@ -26,7 +26,9 @@ nightly_list_var="5-1-Distributed-Switch \
 5-11-Multiple-Cluster \
 5-12-Multiple-VLAN \
 5-13-Invalid-ESXi-Install \
-5-14-Remove-Container-OOB"
+5-14-Remove-Container-OOB \
+13-1-vMotion-VCH-Appliance \
+13-2-vMotion-Container"
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
@@ -58,7 +60,7 @@ count=0
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i"
-    drone exec --trusted -e test="pybot -d $i tests/manual-test-cases/Group5-Functional-Tests/$i.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot -d $i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then
@@ -427,6 +429,22 @@ Content-Type: text/html
                         ${nightlystatus[12]}
                       </td>
                     </tr>
+                    <tr>
+                      <td>
+                        vMotion VCH Appliance:
+                      </td>
+                      <td>
+                        ${nightlystatus[13]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        vMotion Containers:
+                      </td>
+                      <td>
+                        ${nightlystatus[14]}
+                      </td>
+                    </tr>
                   </table>
                   <hr>
                   <table width="100%" cellpadding="0" cellspacing="0">
@@ -776,6 +794,22 @@ Content-Type: text/html
                       </td>
                       <td>
                         ${nightlystatus[12]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        vMotion VCH Appliance:
+                      </td>
+                      <td>
+                        ${nightlystatus[13]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        vMotion Containers:
+                      </td>
+                      <td>
+                        ${nightlystatus[14]}
                       </td>
                     </tr>
                   </table>
