@@ -13,22 +13,22 @@ Get Login Page
 While Logged Out Fail To Display HTML
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}
     Should not contain  ${output}  <title>VIC: %{VCH-NAME}</title>
-    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
+    Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
 While Logged Out Fail To Get Portlayer Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log
     Should Not Contain  ${output}  Launching portlayer server
-    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
+    Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
 While Logged Out Fail To Get VCH-Init Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log
     Should not contain  ${output}  reaping child processes
-    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
+    Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
 While Logged Out Fail To Get Docker Personality Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log
     Should not contain  ${output}  docker personality
-    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
+    Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
 While Logged Out Fail To Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull busybox
@@ -51,7 +51,7 @@ While Logged Out Fail To Get VICAdmin Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log
     Log  ${output}
     Should not contain  ${output}  Launching vicadmin pprof server
-    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
+    Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
 Login
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{GOVC_USERNAME} -F password=%{GOVC_PASSWORD} -D /tmp/cookies-%{VCH-NAME}

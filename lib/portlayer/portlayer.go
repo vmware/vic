@@ -15,14 +15,17 @@
 package portlayer
 
 import (
+	"fmt"
 	"path"
 
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/logging"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -86,17 +89,21 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
+	if err = logging.Init(ctx); err != nil {
+		return err
+	}
+
 	// Unbind containerVM serial ports configured with the old VCH IP.
 	// Useful when the appliance restarts and the VCH has a different IP.
-	unbindSerialPorts(sess)
+	TakeCareOfSerialPorts(sess)
 
 	return nil
 }
 
-// unbindSerialPorts disconnects serial ports backed by network on the VCH's old IP
-// for running containers. This is useful when the appliance or the portlayer restarts
-// and the VCH has a new IP. Any errors are logged and portlayer init proceeds as usual.
-func unbindSerialPorts(sess *session.Session) {
+// TakeCareOfSerialPorts disconnects serial ports backed by network on the VCH's old IP and connects serial ports backed by file.
+// This is useful when the appliance or the portlayer restarts and the VCH has a new IP or container vms gets migrated
+// Any errors are logged and portlayer init proceeds as usual.
+func TakeCareOfSerialPorts(sess *session.Session) {
 	defer trace.End(trace.Begin(""))
 
 	ctx := context.Background()
@@ -108,34 +115,66 @@ func unbindSerialPorts(sess *session.Session) {
 
 	for i := range containers {
 		var containerID string
+
 		if containers[i].ExecConfig != nil {
 			containerID = containers[i].ExecConfig.ID
 		}
 		log.Infof("unbinding serial port for running container %s", containerID)
 
-		// Obtain a container handle
-		handle := containers[i].NewHandle(ctx)
-		if handle == nil {
-			log.Errorf("unable to obtain a handle for container %s", containerID)
-			continue
+		operation := func() error {
+			// Obtain a container handle
+			handle := containers[i].NewHandle(ctx)
+			if handle == nil {
+				err := fmt.Errorf("unable to obtain a handle for container %s", containerID)
+				log.Error(err)
+
+				return err
+			}
+
+			// Unbind the network backed VirtualSerialPort
+			unbindHandle, err := attach.Unbind(handle)
+			if err != nil {
+				err := fmt.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
+				log.Error(err)
+
+				return err
+			}
+
+			execHandle, ok := unbindHandle.(*exec.Handle)
+			if !ok {
+				err := fmt.Errorf("handle type assertion failed for container %s", containerID)
+				log.Error(err)
+
+				return err
+			}
+
+			// Bind the file backed VirtualSerialPort
+			bindHandle, err := logging.Bind(execHandle)
+			if err != nil {
+				err := fmt.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
+				log.Error(err)
+
+				return err
+			}
+
+			execHandle, ok = bindHandle.(*exec.Handle)
+			if !ok {
+				err := fmt.Errorf("handle type assertion failed for container %s", containerID)
+				log.Error(err)
+
+				return err
+			}
+
+			// Commit the handle
+			if err := execHandle.Commit(ctx, sess, nil); err != nil {
+				log.Errorf("unable to commit handle for container %s: %s", containerID, err)
+				return err
+			}
+			return nil
 		}
 
-		// Unbind the VirtualSerialPort
-		newHandle, err := attach.Unbind(handle)
-		if err != nil {
-			log.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
-			continue
-		}
-
-		execHandle, ok := newHandle.(*exec.Handle)
-		if !ok {
-			log.Errorf("handle type assertion failed for container %s", containerID)
-			continue
-		}
-
-		// Commit the handle
-		if err := execHandle.Commit(ctx, sess, nil); err != nil {
-			log.Errorf("unable to commit handle for container %s: %s", containerID, err)
+		if err := retry.Do(operation, exec.IsConcurrentAccessError); err != nil {
+			log.Errorf("Multiple attempts failed for committing the handle with %s", err)
 		}
 	}
 }
