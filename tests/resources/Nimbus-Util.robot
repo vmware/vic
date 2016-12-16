@@ -338,3 +338,25 @@ Get Vsphere Version
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Version:
     \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
+
+Deploy Nimbus NFS Datastore
+    [Arguments]  ${user}  ${password}
+    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  \nDeploying Nimbus NFS server: ${name}
+    Open Connection  %{NIMBUS_GW}
+    Login  ${user}  ${password}
+
+    ${out}=  Execute Command  nimbus-nfsdeploy ${name}
+    # Make sure the deploy actually worked
+    Should Contain  ${out}  To manage this VM use
+    # Now grab the IP address and return the name and ip for later use
+    @{out}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{out}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    @{gotIP}=  Split String  ${line}  ${SPACE}
+    ${ip}=  Remove String  @{gotIP}[5]  ,
+
+    Log To Console  Successfully deployed new NFS server - ${user}-${name}
+    Close connection
+    [Return]  ${user}-${name}  ${ip}
