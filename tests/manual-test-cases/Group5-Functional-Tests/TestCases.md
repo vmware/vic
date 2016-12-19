@@ -32,3 +32,5 @@ Group 5 - Functional Tests
 -
 [Test 5-15 - NFS Datastore](5-15-NFS-Datastore.md)
 -
+[Test 5-16 - iSCSI Datastore](5-16-iSCSI-Datastore.md)
+-
