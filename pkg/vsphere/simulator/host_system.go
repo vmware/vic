@@ -43,6 +43,7 @@ func NewHostSystem(host mo.HostSystem) *HostSystem {
 		obj mo.Reference
 	}{
 		{&hs.ConfigManager.DatastoreSystem, &HostDatastoreSystem{Host: &hs.HostSystem}},
+		{&hs.ConfigManager.NetworkSystem, NewHostNetworkSystem(&hs.HostSystem)},
 	}
 
 	for _, c := range config {
@@ -67,6 +68,7 @@ func CreateDefaultESX(f *Folder) {
 		network := &mo.Network{}
 		network.Self = ref
 		network.Name = strings.Split(ref.Value, "-")[1]
+		network.Entity().Name = network.Name
 		Map.Get(dc.NetworkFolder).(*Folder).putChild(network)
 	}
 

@@ -305,3 +305,54 @@ func (f *Folder) RegisterVMTask(c *types.RegisterVM_Task) soap.HasFault {
 
 	return r
 }
+
+func (f *Folder) MoveIntoFolderTask(c *types.MoveIntoFolder_Task) soap.HasFault {
+	task := CreateTask(f, "moveIntoFolder", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		for _, ref := range c.List {
+			obj := Map.Get(ref).(mo.Entity)
+
+			parent, ok := Map.Get(*(obj.Entity()).Parent).(*Folder)
+
+			if !ok || !f.hasChildType(ref.Type) {
+				return nil, &types.NotSupported{}
+			}
+
+			parent.removeChild(ref)
+			f.putChild(obj)
+		}
+
+		return nil, nil
+	})
+
+	task.Run()
+
+	return &methods.MoveIntoFolder_TaskBody{
+		Res: &types.MoveIntoFolder_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
+}
+
+func (f *Folder) CreateDVSTask(c *types.CreateDVS_Task) soap.HasFault {
+	task := CreateTask(f, "createDVS", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		dvs := &VmwareDistributedVirtualSwitch{}
+		dvs.Name = c.Spec.ConfigSpec.GetDVSConfigSpec().Name
+		dvs.Entity().Name = dvs.Name
+
+		if Map.FindByName(dvs.Name, f.ChildEntity) != nil {
+			return nil, &types.InvalidArgument{InvalidProperty: "name"}
+		}
+
+		f.putChild(dvs)
+
+		return nil, nil
+	})
+
+	task.Run()
+
+	return &methods.CreateDVS_TaskBody{
+		Res: &types.CreateDVS_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
+}
