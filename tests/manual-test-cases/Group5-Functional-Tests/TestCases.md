@@ -26,3 +26,9 @@ Group 5 - Functional Tests
 -
 [Test 5-12 - Multiple VLAN](5-12-Multiple-VLAN.md)
 -
+[Test 5-13 - Invalid ESXi Install](5-13-Invalid-ESXi-Install.md)
+-
+[Test 5-14 - Remove Container OOB](5-14-Remove-Container-OOB.md)
+-
+[Test 5-15 - NFS Datastore](5-15-NFS-Datastore.md)
+-
