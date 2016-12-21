@@ -1,12 +1,12 @@
 # vSphere Integrated Containers Engine for vSphere Administrators
 
-*vSphere Integrated Containers Engine for vSphere Administrators* provides information about how to use VMware vSphere&reg; Integrated Containers&trade; Engine as a vSphere Administrator.
+*vSphere Integrated Containers Engine for vSphere Administrators* provides information about how to use VMware vSphere&reg; Integrated Containers&trade; Engine as a vSphere administrator.
 
 **Product version: 0.8**
 
 ## Intended Audience
 
-This information is intended for vSphere&reg; Administrators who manage a vSphere Integrated Containers Engine implementation in their vSphere environment. The information is written for experienced vSphere  administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is useful.
+This information is intended for vSphere&reg; administrators who manage a vSphere Integrated Containers Engine implementation in their vSphere environment. The information is written for experienced vSphere  administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is useful.
 
 For an introduction to vSphere Integrated Containers Engine and descriptions of its main components, see [Overview of vSphere Integrated Containers Engine for vSphere Administrators](../vic_installation/introduction.html) in *vSphere Integrated Containers Engine Installation*.
 

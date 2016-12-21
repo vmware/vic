@@ -1,6 +1,6 @@
 # Using Private Registry Servers with vSphere Integrated Containers Engine #
 
-If your development environment includes private registry servers for container images, you or the vSphere Administrator must correctly configure virtual container hosts (VCHs) to allow them to connect to the private registry servers.
+If your development environment includes private registry servers for container images, you or the vSphere administrator must correctly configure virtual container hosts (VCHs) to allow them to connect to the private registry servers.
 
 You can use vSphere Integrated Containers Engine with either secure or insecure private registry servers.
 
@@ -32,7 +32,7 @@ pull <i>registry_server_address</i>:<i>port_number</i>/path/to/image/<i>image_na
 
 These commands will only work in the following circumstances:
 
-- The private registry server at <i>registry_server_address</i> is secured by CA certificates, and you or the vSphere Administrator passed the appropriate certificates to the VCH during deployment by using the `--registry-ca` option.
-- The private registry server at <i>registry_server_address</i> is not secured by certificates, and you or the vSphere Administrator authorized access to this registry server by using the `--insecure-registry` option during VCH deployment.
+- The private registry server at <i>registry_server_address</i> is secured by CA certificates, and you or the vSphere administrator passed the appropriate certificates to the VCH during deployment by using the `--registry-ca` option.
+- The private registry server at <i>registry_server_address</i> is not secured by certificates, and you or the vSphere administrator authorized access to this registry server by using the `--insecure-registry` option during VCH deployment.
 
 **NOTE**: In the examples, the Docker commands specify `--tls`. This is to specify that the connection between the Docker client and the VCH is secured by TLS. The level of security of the connection between the Docker client and the VCH is completely independent from the level of security of the connection between the VCH and the private registry server. The connection to the private registry server can be insecure when the connection between the client and the VCH is secure, and the reverse.

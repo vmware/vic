@@ -2,7 +2,7 @@
 
 vSphere Integrated Containers Engine supports the use of container volumes. 
 
-**IMPORTANT**: To use container volume capabilities with vSphere Integrated Containers Engine, you or the vSphere Administrator must configure the virtual container host (VCH) appropriately at the moment of deployment of the VCH. When you create or the vSphere Administrator creates a VCH, you or the Administrator must specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. You cannot currently add volume stores, and therefore volume capabilities, to a VCH after its initial deployment. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [VCH Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Engine Installation*.  
+**IMPORTANT**: To use container volume capabilities with vSphere Integrated Containers Engine, you or the vSphere administrator must configure the virtual container host (VCH) appropriately at the moment of deployment of the VCH. When you create or the vSphere administrator creates a VCH, you or the administrator must specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. You cannot currently add volume stores, and therefore volume capabilities, to a VCH after its initial deployment. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [VCH Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Engine Installation*.  
 
 - [Obtain the List of Available Volume Stores](#list_vs) 
 - [Obtain the List of Available Volumes](#list_vols)
@@ -48,13 +48,13 @@ vsphere        <i>volume_n</i></pre>
 
 When you use the `docker volume create` command to create a volume, you can optionally provide a name for the volume by specifying the `--name` option. If you do not specify `--name`, `docker volume create` assigns a random UUID to the volume.
 
-- If you or the vSphere Administrator created the VCH with one or more volume stores, but none of the volume stores are named `default`, you must specify the name of an existing volume store in the `--opt VolumeStore` option. If you do not specify `--opt VolumeStore`, `docker volume create` searches for a volume store named `default`, and returns an error if no such volume store exists. 
+- If you or the vSphere administrator created the VCH with one or more volume stores, but none of the volume stores are named `default`, you must specify the name of an existing volume store in the `--opt VolumeStore` option. If you do not specify `--opt VolumeStore`, `docker volume create` searches for a volume store named `default`, and returns an error if no such volume store exists. 
 
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
   --opt VolumeStore=<i>volume_store_label</i> 
   --name <i>volume_name</i></pre>
 
-- If you or the vSphere Administrator created the VCH with a volume store named `default`, you do not need to specify `--opt VolumeStore` in the `docker volume create` command. If you do not specify a volume store name, the `docker volume create` command automatically uses the `default` volume store if it exists.
+- If you or the vSphere administrator created the VCH with a volume store named `default`, you do not need to specify `--opt VolumeStore` in the `docker volume create` command. If you do not specify a volume store name, the `docker volume create` command automatically uses the `default` volume store if it exists.
 
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
   --name <i>volume_name</i></pre>

@@ -1,5 +1,5 @@
 # Interoperability of vSphere Integrated Containers Engine with Other VMware Software
-vSphere Administrators can use vSphere to view and manage virtual container hosts (VCHs) and container VMs. vSphere Integrated Containers Engine works with the following vSphere features and VMware products. 
+vSphere administrators can use vSphere to view and manage virtual container hosts (VCHs) and container VMs. vSphere Integrated Containers Engine works with the following vSphere features and VMware products. 
 
 ## Performing Operations on VCHs and Container VMs in vSphere ##
 
