@@ -4,7 +4,7 @@ You can download different versions of vSphere Integrated Containers, that have 
 
 ## Official Releases ##
 
-To obtain the latest official release of vSphere Integrated Containers, go to http://www.vmware.com/go/download-vic. This page includes the donwloads for both vSphere Integrated Containers Engine and vSphere Integrated Containers Registry.
+To obtain the latest official release of vSphere Integrated Containers, go to http://www.vmware.com/go/download-vic. This page includes the downloads for both vSphere Integrated Containers Engine and vSphere Integrated Containers Registry.
 
 Full support of vSphere Integrated Containers requires the vSphere Enterprise Plus license. To make a support request, contact [VMware Global Support](https://www.vmware.com/support/product-support-centers.html). 
 
