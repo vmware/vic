@@ -5,7 +5,7 @@ This section presents some examples of how to perform container networking opera
 - For information about the default Docker networks, see https://docs.docker.com/engine/userguide/networking/.
 
 - For an overview of the networks that vSphere Integrated Containers Engine uses, see [Networks Used by vSphere Integrated Containers Engine](../vic_installation/networks.html) in *vSphere Integrated Containers Engine Installation*.
-- 
+
 ## Publish a Container Port
 
 Connect a container to an external mapped port on the public network of the virtual container host (VCH):
