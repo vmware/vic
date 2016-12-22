@@ -16,7 +16,7 @@ You can use VMware vRealize Automation to provide a self-provisioning service fo
 
 You can use vMotion to move VCHs without needing to take the container VMs offline. The VCH endpoint VM does not need to be running for vMotion to occur on the container VMs. Clusters with a mix of container VMs and non-container VMs can use vMotion with fully automated DRS. 
 
-However, when you have a container VM with an open session, you have an open serial port, and vMotion fails to move the container VM.
+However, if you have a container VM with an open session, the container has an open serial port, which causes vMotion to fail to move the container VM.
 
 ## Maintenance Mode ##
 Hosts with container VMs can enter maintenance mode without manual intervention, with these exceptions:

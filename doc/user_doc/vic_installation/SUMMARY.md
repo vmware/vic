@@ -26,6 +26,4 @@
   * [Certificate cname Mismatch](ts_cname_mismatch.md)
   * [Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md)
   * [Docker API Version Error](ts_docker_version_error.md)
-  * [Default Volume Store Error](ts_volume_store_error.md)
-  * [Bridge Pool Mask Error](ts_bridge_pool_mask_error.md)
 * [Send Documentation Feedback](feedback.md)
