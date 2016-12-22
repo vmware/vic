@@ -255,9 +255,16 @@ func (lm *LogManager) rotateLogs() {
 		lm.op.Debugf("logrotate is not defined. Skipping.")
 		return
 	}
-	if err := exec.Command(LogRotateBinary, configFile).Run(); err == nil {
+	output, err := exec.Command(LogRotateBinary, configFile).CombinedOutput()
+	if err == nil {
+		if len(output) > 0 {
+			lm.op.Debugf("Logrotate output: %s", output)
+		}
 		lm.op.Debugf("logrotate finished succesfully")
 	} else {
-		lm.op.Errorf("Failed to run logrotate: %v", err)
+		lm.op.Errorf("logrotate exited with non 0 status: %v", err)
+		if len(output) > 0 {
+			lm.op.Errorf("Logrotate output: %s", output)
+		}
 	}
 }
