@@ -69,7 +69,7 @@ func TestFinder(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		validator, err := validate.CreateNoDCCheck(ctx, input)
+		validator, err := validate.NewValidatorAllowEmptyDC(ctx, input, true)
 		if err != nil {
 			t.Errorf("Failed to create validator: %s", err)
 		}

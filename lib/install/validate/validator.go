@@ -74,15 +74,10 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
-	v, err := CreateNoDCCheck(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-
-	return v, v.datacenter()
+	return NewValidatorAllowEmptyDC(ctx, input, false)
 }
 
-func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) {
+func NewValidatorAllowEmptyDC(ctx context.Context, input *data.Data, allowEmptyDC bool) (*Validator, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
 
@@ -161,18 +156,27 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 		return nil, errors.New(detail)
 	}
 
-	return v, nil
+	return v, v.datacenter(allowEmptyDC)
 }
 
-func (v *Validator) datacenter() error {
-	if v.Session.Datacenter == nil {
-		detail := "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
-		log.Error(detail)
-		v.suggestDatacenter()
-		return errors.New(detail)
+func (v *Validator) datacenter(allowEmpty bool) error {
+	if allowEmpty && v.DatacenterPath == "" {
+		return nil
 	}
-	v.DatacenterPath = v.Session.Datacenter.InventoryPath
-	return nil
+	if v.Session.Datacenter != nil {
+		v.DatacenterPath = v.Session.Datacenter.InventoryPath
+		return nil
+	}
+	var detail string
+	if v.DatacenterPath != "" {
+		detail = fmt.Sprintf("Datacenter %q in --target is not found", strings.TrimPrefix(v.DatacenterPath, "/"))
+	} else {
+		// this means multiple datacenter exists, but user did not specify it in --target
+		detail = "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
+	}
+	log.Error(detail)
+	v.suggestDatacenter()
+	return errors.New(detail)
 }
 
 // suggestDatacenter suggests all datacenters on the target

@@ -161,7 +161,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 
 	var validator *validate.Validator
 	if l.Data.ComputeResourcePath == "" {
-		validator, err = validate.CreateNoDCCheck(ctx, l.Data)
+		validator, err = validate.NewValidatorAllowEmptyDC(ctx, l.Data, true)
 	} else {
 		validator, err = validate.NewValidator(ctx, l.Data)
 	}
