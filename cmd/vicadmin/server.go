@@ -287,7 +287,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		vs, err := vSphereSessionGet(&userconfig)
 		if err != nil || vs == nil {
 			// something went wrong or we could not authenticate
-			log.Warnf("%s failed to authenticate at %s", req.RemoteAddr, time.Now())
+			log.Warnf("%s failed to authenticate ", req.RemoteAddr)
 			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusUnauthorized)
 			return
 		}
