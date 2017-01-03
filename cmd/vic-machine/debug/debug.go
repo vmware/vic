@@ -138,6 +138,13 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 		log.Errorf("Debug cannot continue - failed to create validator: %s", err)
 		return errors.New("Debug failed")
 	}
+
+	_, err = validator.ValidateTarget(ctx, d.Data)
+	if err != nil {
+		log.Errorf("Debug cannot continue - target validation failed: %s", err)
+		return errors.New("Debug failed")
+	}
+
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
 	var vch *vm.VirtualMachine
@@ -189,7 +196,7 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	if err = executor.InspectVCH(vch, vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
-		return errors.New("inspect failed")
+		return errors.New("Debug failed")
 	}
 
 	log.Infof("Completed successfully")

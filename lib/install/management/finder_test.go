@@ -69,11 +69,17 @@ func TestFinder(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		validator, err := validate.NewValidatorAllowEmptyDC(ctx, input, true)
+		validator, err := validate.NewValidator(ctx, input)
 		if err != nil {
 			t.Errorf("Failed to create validator: %s", err)
 		}
-
+		if _, err = validator.ValidateTarget(ctx, input); err != nil {
+			t.Logf("Got expected error to validate target: %s", err)
+		}
+		validator.AllowEmptyDC()
+		if _, err = validator.ValidateTarget(ctx, input); err != nil {
+			t.Errorf("Failed to valiate target: %s", err)
+		}
 		prefix := fmt.Sprintf("p%d-", i)
 		if err = createTestData(ctx, validator.Session, prefix); err != nil {
 			t.Errorf("Failed to create test data: %s", err)

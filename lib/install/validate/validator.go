@@ -60,6 +60,7 @@ type Validator struct {
 
 	DisableFirewallCheck bool
 	DisableDRSCheck      bool
+	allowEmptyDC         bool
 }
 
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
@@ -74,10 +75,6 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
-	return NewValidatorAllowEmptyDC(ctx, input, false)
-}
-
-func NewValidatorAllowEmptyDC(ctx context.Context, input *data.Data, allowEmptyDC bool) (*Validator, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
 
@@ -156,11 +153,15 @@ func NewValidatorAllowEmptyDC(ctx context.Context, input *data.Data, allowEmptyD
 		return nil, errors.New(detail)
 	}
 
-	return v, v.datacenter(allowEmptyDC)
+	return v, nil
 }
 
-func (v *Validator) datacenter(allowEmpty bool) error {
-	if allowEmpty && v.DatacenterPath == "" {
+func (v *Validator) AllowEmptyDC() {
+	v.allowEmptyDC = true
+}
+
+func (v *Validator) datacenter() error {
+	if v.allowEmptyDC && v.DatacenterPath == "" {
 		return nil
 	}
 	if v.Session.Datacenter != nil {
@@ -247,6 +248,10 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
+	if err := v.datacenter(); err != nil {
+		return conf, err
+	}
+
 	v.basics(ctx, input, conf)
 
 	v.target(ctx, input, conf)
@@ -275,6 +280,9 @@ func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data) (*conf
 	conf := &config.VirtualContainerHostConfigSpec{}
 
 	log.Infof("Validating target")
+	if err := v.datacenter(); err != nil {
+		return conf, err
+	}
 	v.target(ctx, input, conf)
 	return conf, v.ListIssues()
 }
