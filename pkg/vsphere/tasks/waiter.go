@@ -39,17 +39,10 @@ const (
 
 var (
 	m             sync.RWMutex
-	errorHandlers []ErrorHandler
+	errorHandlers []func(ctx context.Context, err error) (bool, error)
 )
 
-type ErrorHandler interface {
-	// Handle returns true if the error is expected. Otherwise, returns false. If any error happens during error handling, returns (true, error).
-	Handle(ctx context.Context, err error) (bool, error)
-}
-
-type TaskInProgressHandler struct{}
-
-func (h *TaskInProgressHandler) Handle(ctx context.Context, err error) (bool, error) {
+func TaskInProgressHandler(ctx context.Context, err error) (bool, error) {
 	if isTaskInProgress(err) {
 		// TaskInProgress error, no need to fail here
 		log.Debugf("TaskInProgress error, continue")
@@ -59,10 +52,10 @@ func (h *TaskInProgressHandler) Handle(ctx context.Context, err error) (bool, er
 }
 
 func init() {
-	RegisterErrorHandler(&TaskInProgressHandler{})
+	RegisterErrorHandler(TaskInProgressHandler)
 }
 
-func RegisterErrorHandler(handler ErrorHandler) {
+func RegisterErrorHandler(handler func(ctx context.Context, err error) (bool, error)) {
 	defer trace.End(trace.Begin(""))
 	m.Lock()
 	defer m.Unlock()
@@ -136,7 +129,7 @@ func HandleError(ctx context.Context, err error) (bool, error) {
 
 	handled := false
 	for i := range errorHandlers {
-		expected, herr := errorHandlers[i].Handle(ctx, err)
+		expected, herr := errorHandlers[i](ctx, err)
 		if !expected {
 			continue
 		}

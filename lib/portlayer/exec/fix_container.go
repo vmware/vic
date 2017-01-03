@@ -25,16 +25,13 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-type ContainerFixer struct {
-}
-
 // InitErrorHandler register ContainerFixer to tasks error handler. So if any container vm operations fail for invalid state issue, this handler will be executed to fix the error.
 // The benefit to register handler in portlayer is that it can set container state during vm fixing.
 func InitErrorHandler() {
-	tasks.RegisterErrorHandler(&ContainerFixer{})
+	tasks.RegisterErrorHandler(FixContainerHandler)
 }
 
-func (h *ContainerFixer) Handle(ctx context.Context, err error) (bool, error) {
+func FixContainerHandler(ctx context.Context, err error) (bool, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("error: %s", err)))
 	o := ctx.Value(tasks.VMContextObjectKey)
 	if o == nil {

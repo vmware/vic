@@ -43,9 +43,7 @@ import (
 
 var once sync.Once
 
-type TestVMFixer struct{}
-
-func (h *TestVMFixer) Handle(ctx context.Context, err error) (bool, error) {
+func VMFixTestHandler(ctx context.Context, err error) (bool, error) {
 	o := ctx.Value(tasks.VMContextObjectKey)
 	if o == nil {
 		log.Debugf("No vm object set, not vm operations.")
@@ -480,7 +478,7 @@ func TestBfsSnapshotTree(t *testing.T) {
 
 func initErrorHandler() {
 	once.Do(func() {
-		tasks.RegisterErrorHandler(&TestVMFixer{})
+		tasks.RegisterErrorHandler(VMFixTestHandler)
 	})
 }
 
