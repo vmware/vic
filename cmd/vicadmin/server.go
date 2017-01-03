@@ -292,8 +292,8 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// successful login above; user is authenticated, reported for audit purposed
-		log.Infof("User %s from %s was successfully to authenticated at %s", userconfig.User, req.RemoteAddr, time.Now())
+		// successful login above; user is authenticated, reported for audit purposes
+		log.Debugf("User %s from %s was successfully authenticated", userconfig.User.Username(), req.RemoteAddr)
 
 		// create a token to save as an encrypted & signed cookie
 		websession, err := s.uss.cookies.Get(req, sessionCookieKey)
