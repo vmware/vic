@@ -14,9 +14,10 @@
 # limitations under the License.
 #
 
-echo "-ldflags \"-X github.com/vmware/vic/pkg/version.Version=`git describe --abbrev=0 --tags`
-    -X github.com/vmware/vic/pkg/version.BuildNumber=\"${BUILD_NUMBER}\"
-    -X github.com/vmware/vic/pkg/version.BuildDate=`date -u +%Y/%m/%d@%H:%M:%S`
-    -X github.com/vmware/vic/pkg/version.GitCommit=`git rev-parse --short HEAD`
-    -X github.com/vmware/vic/pkg/version.State=`if [[ -n $(git status --porcelain)  ]]; then echo 'dirty'; fi`\""
+echo "-s -w \
+    -X github.com/vmware/vic/pkg/version.Version=`git describe --abbrev=0 --tags` \
+    -X github.com/vmware/vic/pkg/version.BuildNumber=\"${BUILD_NUMBER}\" \
+    -X github.com/vmware/vic/pkg/version.BuildDate=`date -u +%Y/%m/%d@%H:%M:%S` \
+    -X github.com/vmware/vic/pkg/version.GitCommit=`git rev-parse --short HEAD` \
+    -X github.com/vmware/vic/pkg/version.State=`if [[ -n $(git status --porcelain) ]]; then echo 'dirty'; fi`"
 
