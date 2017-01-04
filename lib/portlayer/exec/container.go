@@ -188,6 +188,10 @@ func GetContainer(ctx context.Context, id uid.UID) *Handle {
 	return nil
 }
 
+func (c *ContainerInfo) String() string {
+	return c.ExecConfig.ID
+}
+
 // State returns the state at the time the ContainerInfo object was created
 func (c *ContainerInfo) State() State {
 	return c.state

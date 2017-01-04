@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,52 +20,39 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-type VMEvent struct {
+type HostEvent struct {
 	*events.BaseEvent
 }
 
-func NewVMEvent(be types.BaseEvent) *VMEvent {
+func NewHostEvent(be types.BaseEvent) *HostEvent {
 	var ee string
-	// vm events that we care about
+	// host events that we care about
 	switch be.(type) {
-	case *types.VmPoweredOnEvent,
-		*types.DrsVmPoweredOnEvent:
-		ee = events.ContainerPoweredOn
-	case *types.VmPoweredOffEvent:
-		ee = events.ContainerPoweredOff
-	case *types.VmSuspendedEvent:
-		ee = events.ContainerSuspended
-	case *types.VmRemovedEvent:
-		ee = events.ContainerRemoved
-	case *types.VmGuestShutdownEvent:
-		ee = events.ContainerShutdown
-	case *types.VmRegisteredEvent:
-		ee = events.ContainerRegistered
-	case *types.VmMigratedEvent:
-		ee = events.ContainerMigrated
-	case *types.DrsVmMigratedEvent:
-		ee = events.ContainerMigratedByDrs
-	case *types.VmRelocatedEvent:
-		ee = events.ContainerRelocated
+	case *types.EnteringMaintenanceModeEvent:
+		ee = events.HostEnteringMaintenanceMode
+	case *types.EnteredMaintenanceModeEvent:
+		ee = events.HostEnteredMaintenanceMode
+	case *types.ExitMaintenanceModeEvent:
+		ee = events.HostExitMaintenanceMode
 	default:
 		panic("Unknown event")
 	}
 	e := be.GetEvent()
-	return &VMEvent{
+	return &HostEvent{
 		&events.BaseEvent{
 			Event:       ee,
 			ID:          int(e.Key),
 			Detail:      e.FullFormattedMessage,
-			Ref:         e.Vm.Vm.String(),
+			Ref:         e.Host.Host.String(),
 			CreatedTime: e.CreatedTime,
 		},
 	}
 
 }
 
-func (vme *VMEvent) Topic() string {
-	if vme.Type == "" {
-		vme.Type = events.NewEventType(vme)
+func (he *HostEvent) Topic() string {
+	if he.Type == "" {
+		he.Type = events.NewEventType(he)
 	}
-	return vme.Type.Topic()
+	return he.Type.Topic()
 }

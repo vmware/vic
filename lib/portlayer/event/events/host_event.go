@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,27 +15,16 @@
 package events
 
 const (
-	ContainerCreated       = "Created"
-	ContainerShutdown      = "Shutdown"
-	ContainerPoweredOn     = "PoweredOn"
-	ContainerPoweredOff    = "PoweredOff"
-	ContainerSuspended     = "Suspended"
-	ContainerResumed       = "Resumed"
-	ContainerRemoved       = "Removed"
-	ContainerReconfigured  = "Reconfigured"
-	ContainerStarted       = "Started"
-	ContainerStopped       = "Stopped"
-	ContainerRegistered    = "Registered"
-	ContainerMigrated      = "Migrated"
-	ContainerMigratedByDrs = "MigratedByDrs"
-	ContainerRelocated     = "Relocated"
+	HostEnteringMaintenanceMode = "EnteringMaintenance"
+	HostEnteredMaintenanceMode  = "EnteredMaintenance"
+	HostExitMaintenanceMode     = "ExitMaintenance"
 )
 
-type ContainerEvent struct {
+type HostEvent struct {
 	*BaseEvent
 }
 
-func (ce *ContainerEvent) Topic() string {
+func (ce *HostEvent) Topic() string {
 	if ce.Type == "" {
 		ce.Type = NewEventType(ce)
 	}

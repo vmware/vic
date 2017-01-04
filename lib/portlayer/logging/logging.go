@@ -49,8 +49,6 @@ func Init(ctx context.Context) error {
 func eventCallback(ctx context.Context, ie events.Event) {
 	defer trace.End(trace.Begin(""))
 
-	var err error
-
 	switch ie.String() {
 	case events.ContainerMigrated,
 		events.ContainerMigratedByDrs:
@@ -64,9 +62,12 @@ func eventCallback(ctx context.Context, ie events.Event) {
 		}
 
 		operation := func() error {
+			var err error
+
 			handle := container.NewHandle(ctx)
 			if handle == nil {
-				log.Errorf("Handle for %s cannot be created", ie.Reference())
+				err = fmt.Errorf("Handle for %s cannot be created", ie.Reference())
+				log.Error(err)
 				return err
 			}
 			defer handle.Close()
@@ -77,7 +78,7 @@ func eventCallback(ctx context.Context, ie events.Event) {
 				return err
 			}
 
-			if err := handle.Commit(ctx, nil, nil); err != nil {
+			if err = handle.Commit(ctx, nil, nil); err != nil {
 				log.Errorf("Failed to commit handle after getting %s event for container %s: %s", ie, ie.Reference(), err)
 				return err
 			}
