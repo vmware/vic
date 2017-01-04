@@ -266,8 +266,8 @@ func hostEventCallback(ctx context.Context, ie events.Event) {
 
 				handle.SetTargetState(StateStopped)
 
-				// call EmergencyCommit which nillify spec on behalf of caller
-				if err = handle.EmergencyCommit(ctx, nil, nil); err != nil {
+				// call CommitWithoutSpec which sets spec to nil
+				if err = handle.CommitWithoutSpec(ctx, nil, nil); err != nil {
 					log.Errorf("Failed to commit handle after getting %s event for container %s: %s", ie, v, err)
 					return err
 				}

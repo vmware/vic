@@ -164,13 +164,6 @@ func ReferenceFromHandle(handle interface{}) interface{} {
 	return nil
 }
 
-func removeHandle(key string) {
-	handlesLock.Lock()
-	defer handlesLock.Unlock()
-
-	handles.Remove(key)
-}
-
 func (h *Handle) String() string {
 	return h.key
 }
@@ -200,23 +193,26 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 		return err
 	}
 
-	removeHandle(h.key)
+	h.Close()
 	return nil
 }
 
-// EmergencyCommit sets the handle's spec to nil so that Commit operation only does a state change and won't touch the extraconfig
-func (h *Handle) EmergencyCommit(ctx context.Context, sess *session.Session, waitTime *int32) error {
+// CommitWithoutSpec sets the handle's spec to nil so that Commit operation only does a state change and won't touch the extraconfig
+func (h *Handle) CommitWithoutSpec(ctx context.Context, sess *session.Session, waitTime *int32) error {
 	h.Spec = nil
 
 	if err := Commit(ctx, sess, h, waitTime); err != nil {
 		return err
 	}
 
-	removeHandle(h.key)
+	h.Close()
 	return nil
 }
 func (h *Handle) Close() {
-	removeHandle(h.key)
+	handlesLock.Lock()
+	defer handlesLock.Unlock()
+
+	handles.Remove(h.key)
 }
 
 // Create returns a new handle that can be Committed to create a new container.
