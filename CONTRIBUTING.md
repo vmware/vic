@@ -39,7 +39,7 @@ This is a rough outline of what a contributor's workflow looks like:
 - Push your changes to a topic branch in your fork of the repository.
 - Test your changes as detailed in the [Automated Testing](#automated-testing) section.
 - Submit a pull request to vmware/vic.
-- Your PR must receive at least two LGTMs from maintainers before merging.
+- Your PR must receive at least two approved reviews from maintainers before merging.
 
 Example:
 
