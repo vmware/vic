@@ -136,13 +136,13 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	validator, err := validate.NewValidator(ctx, d.Data)
 	if err != nil {
 		log.Errorf("Debug cannot continue - failed to create validator: %s", err)
-		return errors.New("Debug failed")
+		return errors.New("debug failed")
 	}
 
 	_, err = validator.ValidateTarget(ctx, d.Data)
 	if err != nil {
 		log.Errorf("Debug cannot continue - target validation failed: %s", err)
-		return errors.New("Debug failed")
+		return errors.New("debug failed")
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
@@ -156,7 +156,7 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		log.Error(err)
-		return errors.New("Debug failed")
+		return errors.New("debug failed")
 	}
 
 	log.Infof("")
@@ -166,7 +166,7 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
-		return errors.New("Debug failed")
+		return errors.New("debug failed")
 	}
 	executor.InitDiagnosticLogs(vchConfig)
 
@@ -189,14 +189,14 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	if err = executor.DebugVCH(vch, vchConfig, d.password, string(key)); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
-		return errors.New("Debug failed")
+		return errors.New("debug failed")
 	}
 
 	// display the VCH endpoints again for convenience
 	if err = executor.InspectVCH(vch, vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
-		return errors.New("Debug failed")
+		return errors.New("debug failed")
 	}
 
 	log.Infof("Completed successfully")

@@ -119,12 +119,12 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	validator, err := validate.NewValidator(ctx, d.Data)
 	if err != nil {
 		log.Errorf("Delete cannot continue - failed to create validator: %s", err)
-		return errors.New("Delete failed")
+		return errors.New("delete failed")
 	}
 	_, err = validator.ValidateTarget(ctx, d.Data)
 	if err != nil {
 		log.Errorf("Delete cannot continue - target validation failed: %s", err)
-		return errors.New("Delete failed")
+		return errors.New("delete failed")
 	}
 
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
@@ -138,7 +138,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		log.Error(err)
-		return errors.New("Delete failed")
+		return errors.New("delete failed")
 	}
 
 	log.Infof("")
@@ -148,7 +148,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
-		return errors.New("Delete failed")
+		return errors.New("delete failed")
 	}
 
 	// compare vch version and vic-machine version
@@ -156,7 +156,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
 		if !d.Data.Force {
 			log.Errorf("VCH version %q is different than installer version %s. Specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
-			return errors.New("Delete failed")
+			return errors.New("delete failed")
 		}
 
 		log.Warnf("VCH version %q is different than installer version %s. Force delete will attempt to remove everything related to the installed VCH", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
@@ -166,7 +166,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	if err = executor.DeleteVCH(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
-		return errors.New("Delete failed")
+		return errors.New("delete failed")
 	}
 
 	log.Infof("Completed successfully")
