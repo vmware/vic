@@ -34,12 +34,7 @@ echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
 
 rm -rf *.zip *.log
-rm -rf bin
-
-for i in $nightly_list_var; do
-    echo "Removing folder $i"
-    rm -rf $i
-done
+rm -rf bin 60 65
 
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
 buildNumber=${input:4}
@@ -59,20 +54,39 @@ nightlystatus=()
 count=0
 
 for i in $nightly_list_var; do
-    echo "Executing nightly test $i"
-    drone exec --trusted -e test="pybot -d $i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    echo "Executing nightly test $i vSphere 6.5"
+    drone exec --trusted -e test="pybot -d 65/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then
     echo "Passed"
-    nightlystatus[$count]="PASS"
+    nightlystatus[$count]="Pass"
     else
     echo "Failed"
-    nightlystatus[$count]="FAIL!"
+    nightlystatus[$count]="FAIL"
     fi
 
-    mv *.log $i
-    mv *.zip $i
+    mv *.log 65/$i
+    mv *.zip 65/$i
+    ((count++))
+    echo $count
+done
+
+for i in $nightly_list_var; do
+    echo "Executing nightly test $i on vSphere 6.0"
+    drone exec --trusted -e test="pybot --variable ESX_VERSION:3620759 --variable VC_VERSION:3634791 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+
+    if [ $? -eq 0 ]
+    then
+    echo "Passed"
+    nightlystatus[$count]="Pass"
+    else
+    echo "Failed"
+    nightlystatus[$count]="FAIL"
+    fi
+
+    mv *.log 60/$i
+    mv *.zip 60/$i
     ((count++))
     echo $count
 done
@@ -80,30 +94,27 @@ done
 for i in "${nightlystatus[@]}" 
 do
     echo $i
-    if [ $i = "PASS" ]
+    if [ $i = "Pass" ]
     then
-    buildStatus=0
+    buildStatus="Passed"
     echo "Test Passed!"
     else
-    buildStatus=1
+    buildStatus="Failed!"
     echo "Test failed, setting global test status to Failed!"
     break
     fi	
 done
 
-echo "Global Nightly Test Status $buildStatus"
+echo "Global Nightly Test Status-$buildStatus"
 
 drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $input" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
 rm nightly_mail.html
 
-if [ $buildStatus -eq 0 ]
-then
-echo "Success"
 cat <<EOT >> nightly_mail.html
 To: mwilliamson-staff-adl@vmware.com
 To: rashok@vmware.com
-Subject: VIC Nightly Run #$buildNumber
+Subject: VIC Engine Nightly Build $buildNumber - $buildStatus
 From: VIC Nightly
 MIME-Version: 1.0
 Content-Type: text/html
@@ -112,201 +123,20 @@ Content-Type: text/html
   <head>
     <meta name="viewport" content="width=device-width" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        font-family: "Helvetica Neue", "Helvetica", Helvetica, Arial, sans-serif;
-        box-sizing: border-box;
-        font-size: 14px;
-      }
-
-      body {
-        -webkit-font-smoothing: antialiased;
-        -webkit-text-size-adjust: none;
-        width: 100% !important;
-        height: 100%;
-        line-height: 1.6;
-        background-color: #f6f6f6;
-      }
-
-      table td {
-        vertical-align: top;
-      }
-
-      .body-wrap {
-        background-color: #f6f6f6;
-        width: 100%;
-      }
-
-      .container {
-        display: block !important;
-        max-width: 600px !important;
-        margin: 0 auto !important;
-        /* makes it centered */
-        clear: both !important;
-      }
-
-      .content {
-        max-width: 600px;
-        margin: 0 auto;
-        display: block;
-        padding: 20px;
-      }
-
-      .main {
-        background: #fff;
-        border: 1px solid #e9e9e9;
-        border-radius: 3px;
-      }
-
-      .content-wrap {
-        padding: 20px;
-      }
-
-      .content-block {
-        padding: 0 0 20px;
-      }
-
-      .header {
-        width: 100%;
-        margin-bottom: 20px;
-      }
-
-      h1, h2, h3 {
-        font-family: "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
-        color: #000;
-        margin: 40px 0 0;
-        line-height: 1.2;
-        font-weight: 400;
-      }
-
-      h1 {
-        font-size: 32px;
-        font-weight: 500;
-      }
-
-      h2 {
-        font-size: 24px;
-      }
-
-      h3 {
-        font-size: 18px;
-      }
-
-      hr {
-        border: 1px solid #e9e9e9;
-        margin: 20px 0;
-        height: 1px;
-        padding: 0;
-      }
-
-      p,
-      ul,
-      ol {
-        margin-bottom: 10px;
-        font-weight: normal;
-      }
-
-      p li,
-      ul li,
-      ol li {
-        margin-left: 5px;
-        list-style-position: inside;
-      }
-
-      a {
-        color: #348eda;
-        text-decoration: underline;
-      }
-
-      .last {
-        margin-bottom: 0;
-      }
-
-      .first {
-        margin-top: 0;
-      }
-
-      .padding {
-        padding: 10px 0;
-      }
-
-      .aligncenter {
-        text-align: center;
-      }
-
-      .alignright {
-        text-align: right;
-      }
-
-      .alignleft {
-        text-align: left;
-      }
-
-      .clear {
-        clear: both;
-      }
-
-      .alert {
-        font-size: 16px;
-        color: #fff;
-        font-weight: 500;
-        padding: 20px;
-        text-align: center;
-        border-radius: 3px 3px 0 0;
-      }
-
-      .alert a {
-        color: #fff;
-        text-decoration: none;
-        font-weight: 500;
-        font-size: 16px;
-      }
-
-      .alert.alert-warning {
-        background: #ff9f00;
-      }
-
-      .alert.alert-bad {
-        background: #d0021b;
-      }
-
-      .alert.alert-good {
-        background: #68b90f;
-      }
-
-      @media only screen and (max-width: 640px) {
-        h1,
-        h2,
-        h3 {
-          font-weight: 600 !important;
-          margin: 20px 0 5px !important;
-        }
-
-        h1 {
-          font-size: 22px !important;
-        }
-
-        h2 {
-          font-size: 18px !important;
-        }
-
-        h3 {
-          font-size: 16px !important;
-        }
-
-        .container {
-          width: 100% !important;
-        }
-
-        .content,
-        .content-wrapper {
-          padding: 10px !important;
-        }
-      }
-    </style>
+	    tr.d0 td {
+	  background-color:#E0E0E0;
+	  color: black;
+	}
+	tr.d1 td {
+	  background-color:#FFFFFF;
+	  color: black;
+	}
+        tr.d2 td {
+	  background-color:#66c2ff;
+	  color: black;
+	}
+     </style>
   </head>
   <body>
     <table class="body-wrap">
@@ -316,16 +146,16 @@ Content-Type: text/html
           <div class="content">
             <table class="main" width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                  <td class="alert alert-good">
-                    <a href="{{ system.link_url }}/{{ repo.owner }}/{{ repo.name }}/{{ build.number }}">
-                      Successful build #$buildNumber
-                    </a>
-                  </td>
-              </tr>
-              <tr>
                 <td class="content-wrap">
                   <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
+                    <tr class="d2">
+                      <td>
+                      vSphere v6.5 - VIC Bintray Build $buildNumber
+                      </td>
+                      <td>
+                      </td>
+                    </tr>
+                    <tr class="d0">
                       <td>
                         Distributed Switch:
                       </td>
@@ -333,7 +163,7 @@ Content-Type: text/html
                         ${nightlystatus[0]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d1">
                       <td>
                         Cluster:
                       </td>
@@ -341,7 +171,7 @@ Content-Type: text/html
                         ${nightlystatus[1]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d0">
                       <td>
                         Enhanced Linked Mode:
                       </td>
@@ -349,7 +179,7 @@ Content-Type: text/html
                         ${nightlystatus[2]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d1">
                       <td>
                         Heterogenous:
                       </td>
@@ -357,7 +187,7 @@ Content-Type: text/html
                         ${nightlystatus[3]}
                       </td>
                     </tr>
-		    <tr>
+		    <tr class="d0">
                       <td>
                         VSAN Simple:
                       </td>
@@ -365,7 +195,7 @@ Content-Type: text/html
                         ${nightlystatus[4]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d1">
                       <td>
                         VSAN Complex:
                       </td>
@@ -373,7 +203,7 @@ Content-Type: text/html
                         ${nightlystatus[5]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d0">
                       <td>
                         NSX:
                       </td>
@@ -381,7 +211,7 @@ Content-Type: text/html
                         ${nightlystatus[6]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d1">
                       <td>
                         DRS:
                       </td>
@@ -389,7 +219,7 @@ Content-Type: text/html
                         ${nightlystatus[7]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d0">
                       <td>
                         Multiple Datacenter:
                       </td>
@@ -397,7 +227,7 @@ Content-Type: text/html
                         ${nightlystatus[8]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d1">
                       <td>
                         Multiple Cluster:
                       </td>
@@ -405,7 +235,7 @@ Content-Type: text/html
                         ${nightlystatus[9]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d0">
                       <td>
                         Multiple VLAN:
                       </td>
@@ -413,7 +243,7 @@ Content-Type: text/html
                         ${nightlystatus[10]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d1">
                       <td>
                         Invalid ESXi Install:
                       </td>
@@ -421,7 +251,7 @@ Content-Type: text/html
                         ${nightlystatus[11]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d0">
                       <td>
                         Remove Container OOB:
                       </td>
@@ -429,7 +259,7 @@ Content-Type: text/html
                         ${nightlystatus[12]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d1">
                       <td>
                         vMotion VCH Appliance:
                       </td>
@@ -437,7 +267,7 @@ Content-Type: text/html
                         ${nightlystatus[13]}
                       </td>
                     </tr>
-                    <tr>
+                    <tr class="d0">
                       <td>
                         vMotion Containers:
                       </td>
@@ -446,7 +276,6 @@ Content-Type: text/html
                       </td>
                     </tr>
                   </table>
-                  <hr>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
@@ -454,6 +283,160 @@ Content-Type: text/html
                       </td>
                     </tr>
                   </table>
+                  <hr>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </td>
+        <td></td>
+      </tr>
+    </table>
+  <table class="body-wrap">
+      <tr>
+        <td></td>
+        <td class="container" width="600">
+          <div class="content">
+            <table class="main" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td class="content-wrap">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr class="d2">
+                      <td>
+                      vSphere v6.0 - VIC Bintray Build $buildNumber
+                      </td>
+                      <td>
+                      </td>
+                    </tr>
+                    <tr class="d0">
+                      <td>
+                        Distributed Switch:
+                      </td>
+                      <td>
+                        ${nightlystatus[15]}
+                      </td>
+                    </tr>
+                    <tr class="d1">
+                      <td>
+                        Cluster:
+                      </td>
+                      <td>
+                        ${nightlystatus[16]}
+                      </td>
+                    </tr>
+                    <tr class="d0">
+                      <td>
+                        Enhanced Linked Mode:
+                      </td>
+                      <td>
+                        ${nightlystatus[17]}
+                      </td>
+                    </tr>
+                    <tr class="d1">
+                      <td>
+                        Heterogenous:
+                      </td>
+                      <td>
+                        ${nightlystatus[18]}
+                      </td>
+                    </tr>
+		    <tr class="d0">
+                      <td>
+                        VSAN Simple:
+                      </td>
+                      <td>
+                        ${nightlystatus[19]}
+                      </td>
+                    </tr>
+                    <tr class="d1">
+                      <td>
+                        VSAN Complex:
+                      </td>
+                      <td>
+                        ${nightlystatus[20]}
+                      </td>
+                    </tr>
+                    <tr class="d0">
+                      <td>
+                        NSX:
+                      </td>
+                      <td>
+                        ${nightlystatus[21]}
+                      </td>
+                    </tr>
+                    <tr class="d1">
+                      <td>
+                        DRS:
+                      </td>
+                      <td>
+                        ${nightlystatus[22]}
+                      </td>
+                    </tr>
+                    <tr class="d0">
+                      <td>
+                        Multiple Datacenter:
+                      </td>
+                      <td>
+                        ${nightlystatus[23]}
+                      </td>
+                    </tr>
+                    <tr class="d1">
+                      <td>
+                        Multiple Cluster:
+                      </td>
+                      <td>
+                        ${nightlystatus[24]}
+                      </td>
+                    </tr>
+                    <tr class="d0">
+                      <td>
+                        Multiple VLAN:
+                      </td>
+                      <td>
+                        ${nightlystatus[25]}
+                      </td>
+                    </tr>
+                    <tr class="d1">
+                      <td>
+                        Invalid ESXi Install:
+                      </td>
+                      <td>
+                        ${nightlystatus[26]}
+                      </td>
+                    </tr>
+                    <tr class="d0">
+                      <td>
+                        Remove Container OOB:
+                      </td>
+                      <td>
+                        ${nightlystatus[27]}
+                      </td>
+                    </tr>
+                    <tr class="d1">
+                      <td>
+                        vMotion VCH Appliance:
+                      </td>
+                      <td>
+                        ${nightlystatus[28]}
+                      </td>
+                    </tr>
+                    <tr class="d0">
+                      <td>
+                        vMotion Containers:
+                      </td>
+                      <td>
+                        ${nightlystatus[29]}
+                      </td>
+                    </tr>
+                  </table> 
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1</a>
+                      </td>
+                    </tr>
+                  </table>
+                  <hr>
                 </td>
               </tr>
             </table>
@@ -465,374 +448,6 @@ Content-Type: text/html
   </body>
 </html>
 EOT
-else
-echo "Failure"
-cat <<EOT >> nightly_mail.html
-To: mwilliamson-staff-adl@vmware.com
-To: rashok@vmware.com
-Subject: VIC Nightly Run #$buildNumber
-From: VIC Nightly
-MIME-Version: 1.0
-Content-Type: text/html
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-  <head>
-    <meta name="viewport" content="width=device-width" />
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        font-family: "Helvetica Neue", "Helvetica", Helvetica, Arial, sans-serif;
-        box-sizing: border-box;
-        font-size: 14px;
-      }
-
-      body {
-        -webkit-font-smoothing: antialiased;
-        -webkit-text-size-adjust: none;
-        width: 100% !important;
-        height: 100%;
-        line-height: 1.6;
-        background-color: #f6f6f6;
-      }
-
-      table td {
-        vertical-align: top;
-      }
-
-      .body-wrap {
-        background-color: #f6f6f6;
-        width: 100%;
-      }
-
-      .container {
-        display: block !important;
-        max-width: 600px !important;
-        margin: 0 auto !important;
-        /* makes it centered */
-        clear: both !important;
-      }
-
-      .content {
-        max-width: 600px;
-        margin: 0 auto;
-        display: block;
-        padding: 20px;
-      }
-
-      .main {
-        background: #fff;
-        border: 1px solid #e9e9e9;
-        border-radius: 3px;
-      }
-
-      .content-wrap {
-        padding: 20px;
-      }
-
-      .content-block {
-        padding: 0 0 20px;
-      }
-
-      .header {
-        width: 100%;
-        margin-bottom: 20px;
-      }
-
-      h1, h2, h3 {
-        font-family: "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
-        color: #000;
-        margin: 40px 0 0;
-        line-height: 1.2;
-        font-weight: 400;
-      }
-
-      h1 {
-        font-size: 32px;
-        font-weight: 500;
-      }
-
-      h2 {
-        font-size: 24px;
-      }
-
-      h3 {
-        font-size: 18px;
-      }
-
-      hr {
-        border: 1px solid #e9e9e9;
-        margin: 20px 0;
-        height: 1px;
-        padding: 0;
-      }
-
-      p,
-      ul,
-      ol {
-        margin-bottom: 10px;
-        font-weight: normal;
-      }
-
-      p li,
-      ul li,
-      ol li {
-        margin-left: 5px;
-        list-style-position: inside;
-      }
-
-      a {
-        color: #348eda;
-        text-decoration: underline;
-      }
-
-      .last {
-        margin-bottom: 0;
-      }
-
-      .first {
-        margin-top: 0;
-      }
-
-      .padding {
-        padding: 10px 0;
-      }
-
-      .aligncenter {
-        text-align: center;
-      }
-
-      .alignright {
-        text-align: right;
-      }
-
-      .alignleft {
-        text-align: left;
-      }
-
-      .clear {
-        clear: both;
-      }
-
-      .alert {
-        font-size: 16px;
-        color: #fff;
-        font-weight: 500;
-        padding: 20px;
-        text-align: center;
-        border-radius: 3px 3px 0 0;
-      }
-
-      .alert a {
-        color: #fff;
-        text-decoration: none;
-        font-weight: 500;
-        font-size: 16px;
-      }
-
-      .alert.alert-warning {
-        background: #ff9f00;
-      }
-
-      .alert.alert-bad {
-        background: #d0021b;
-      }
-
-      .alert.alert-good {
-        background: #68b90f;
-      }
-
-      @media only screen and (max-width: 640px) {
-        h1,
-        h2,
-        h3 {
-          font-weight: 600 !important;
-          margin: 20px 0 5px !important;
-        }
-
-        h1 {
-          font-size: 22px !important;
-        }
-
-        h2 {
-          font-size: 18px !important;
-        }
-
-        h3 {
-          font-size: 16px !important;
-        }
-
-        .container {
-          width: 100% !important;
-        }
-
-        .content,
-        .content-wrapper {
-          padding: 10px !important;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <table class="body-wrap">
-      <tr>
-        <td></td>
-        <td class="container" width="600">
-          <div class="content">
-            <table class="main" width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                  <td class="alert alert-bad">
-                    <a href="{{ system.link_url }}/{{ repo.owner }}/{{ repo.name }}/{{ build.number }}">
-                      Failed build #$buildNumber
-                    </a>
-                  </td>
-              </tr>
-              <tr>
-                <td class="content-wrap">
-                  <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td>
-                        Distributed Switch:
-                      </td>
-                      <td>
-                        ${nightlystatus[0]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Cluster:
-                      </td>
-                      <td>
-                        ${nightlystatus[1]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Enhanced Linked Mode:
-                      </td>
-                      <td>
-                        ${nightlystatus[2]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Heterogenous:
-                      </td>
-                      <td>
-                        ${nightlystatus[3]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        VSAN Simple:
-                      </td>
-                      <td>
-                        ${nightlystatus[4]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        VSAN Complex:
-                      </td>
-                      <td>
-                        ${nightlystatus[5]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        NSX:
-                      </td>
-                      <td>
-                        ${nightlystatus[6]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        DRS:
-                      </td>
-                      <td>
-                        ${nightlystatus[7]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Multiple Datacenter:
-                      </td>
-                      <td>
-                        ${nightlystatus[8]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Multiple Cluster:
-                      </td>
-                      <td>
-                        ${nightlystatus[9]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Multiple VLAN:
-                      </td>
-                      <td>
-                        ${nightlystatus[10]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Invalid ESXi Install:
-                      </td>
-                      <td>
-                        ${nightlystatus[11]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Remove Container OOB:
-                      </td>
-                      <td>
-                        ${nightlystatus[12]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        vMotion VCH Appliance:
-                      </td>
-                      <td>
-                        ${nightlystatus[13]}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        vMotion Containers:
-                      </td>
-                      <td>
-                        ${nightlystatus[14]}
-                      </td>
-                    </tr>
-                  </table>
-                  <hr>
-                  <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1</a>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </div>
-        </td>
-        <td></td>
-      </tr>
-    </table>
-  </body>
-</html>
-EOT
-fi
 
 # Emails an HTML report of the test run results using SendMail.
 sendmail -t < nightly_mail.html
