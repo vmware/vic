@@ -99,15 +99,20 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		// create the event manager &  register the existing collector
 		Config.EventManager = event.NewEventManager(ec)
 
-		Config.EventManager.Subscribe(events.NewEventType(vsphere.HostEvent{}).Topic(), "host", func(ie events.Event) {
-			hostEventCallback(ctx, ie)
-		})
+		// subscribe to host events
+		Config.EventManager.Subscribe(events.NewEventType(vsphere.HostEvent{}).Topic(), "host",
+			func(ie events.Event) {
+				hostEventCallback(ctx, ie)
+			},
+		)
 		// subscribe the exec layer to the event stream for Vm events
 		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", eventCallback)
 		// subscribe callback to handle vm registered event
-		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "registeredVMEvent", func(ie events.Event) {
-			registeredVMCallback(sess, ie)
-		})
+		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "registeredVMEvent",
+			func(ie events.Event) {
+				registeredVMCallback(sess, ie)
+			},
+		)
 
 		// instantiate the container cache now
 		NewContainerCache()
@@ -158,22 +163,19 @@ func eventCallback(ie events.Event) {
 					if newState == StateStopped {
 						container.onStop()
 					}
-					log.Debugf("Container(%s) state set to %s via event activity",
-						container, newState.String())
+					log.Debugf("Container(%s) state set to %s via event activity", container, newState)
 					// regardless of update success failure publish the container event
 					publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
 				}()
 			case StateRemoved:
-				log.Debugf("Container(%s) %s via event activity", container, newState.String())
+				log.Debugf("Container(%s) %s via event activity", container, newState)
 				Containers.Remove(container.ExecConfig.ID)
 				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
 			}
 		} else {
 			switch ie.String() {
 			case events.ContainerRelocated:
-				log.Debugf("Container %s received ContainerRelocated", container)
-
-				// container state has changed so we need to update the container attributes
+				// container relocated so we need to update the container attributes
 				// we'll do this in a go routine to avoid blocking
 				go func() {
 					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
@@ -246,13 +248,15 @@ func hostEventCallback(ctx context.Context, ie events.Event) {
 
 				// select the virtual serial ports
 				serials := devices.SelectByBackingInfo((*types.VirtualSerialPortURIBackingInfo)(nil))
-				log.Debugf("Found %d devices withe the desired backing", len(serials))
+				log.Debugf("Found %d devices with the desired backing", len(serials))
 
 				// iterate over them and set needsToBePoweredOff if neccesary
 				for _, serial := range serials {
-					log.Debugf("Connected: %t", serial.GetVirtualDevice().Connectable.Connected)
-					if serial.GetVirtualDevice().Connectable.Connected {
-						needsToBePoweredOff = true
+					needsToBePoweredOff = serial.GetVirtualDevice().Connectable.Connected
+
+					log.Debug("Connected: %t", needsToBePoweredOff)
+					if needsToBePoweredOff {
+						break
 					}
 				}
 				if !needsToBePoweredOff {

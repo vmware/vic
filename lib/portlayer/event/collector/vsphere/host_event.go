@@ -34,6 +34,8 @@ func NewHostEvent(be types.BaseEvent) *HostEvent {
 		ee = events.HostEnteredMaintenanceMode
 	case *types.ExitMaintenanceModeEvent:
 		ee = events.HostExitMaintenanceMode
+	default:
+		panic("Unknown event")
 	}
 	e := be.GetEvent()
 	return &HostEvent{
