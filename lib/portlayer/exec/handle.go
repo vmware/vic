@@ -204,6 +204,17 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	return nil
 }
 
+// EmergencyCommit sets the handle's spec to nil so that Commit operation only does a state change and won't touch the extraconfig
+func (h *Handle) EmergencyCommit(ctx context.Context, sess *session.Session, waitTime *int32) error {
+	h.Spec = nil
+
+	if err := Commit(ctx, sess, h, waitTime); err != nil {
+		return err
+	}
+
+	removeHandle(h.key)
+	return nil
+}
 func (h *Handle) Close() {
 	removeHandle(h.key)
 }
