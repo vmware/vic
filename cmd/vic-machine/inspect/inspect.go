@@ -110,6 +110,12 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		log.Errorf("Inspect cannot continue - failed to create validator: %s", err)
 		return errors.New("inspect failed")
 	}
+	_, err = validator.ValidateTarget(ctx, i.Data)
+	if err != nil {
+		log.Errorf("Inspect cannot continue - target validation failed: %s", err)
+		return errors.New("inspect failed")
+	}
+
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, i.Force)
 
 	var vch *vm.VirtualMachine

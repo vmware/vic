@@ -60,6 +60,7 @@ type Validator struct {
 
 	DisableFirewallCheck bool
 	DisableDRSCheck      bool
+	allowEmptyDC         bool
 }
 
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
@@ -74,15 +75,6 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
-	v, err := CreateNoDCCheck(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-
-	return v, v.datacenter()
-}
-
-func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
 
@@ -164,15 +156,28 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 	return v, nil
 }
 
+func (v *Validator) AllowEmptyDC() {
+	v.allowEmptyDC = true
+}
+
 func (v *Validator) datacenter() error {
-	if v.Session.Datacenter == nil {
-		detail := "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
-		log.Error(detail)
-		v.suggestDatacenter()
-		return errors.New(detail)
+	if v.allowEmptyDC && v.DatacenterPath == "" {
+		return nil
 	}
-	v.DatacenterPath = v.Session.Datacenter.InventoryPath
-	return nil
+	if v.Session.Datacenter != nil {
+		v.DatacenterPath = v.Session.Datacenter.InventoryPath
+		return nil
+	}
+	var detail string
+	if v.DatacenterPath != "" {
+		detail = fmt.Sprintf("Datacenter %q in --target is not found", strings.TrimPrefix(v.DatacenterPath, "/"))
+	} else {
+		// this means multiple datacenter exists, but user did not specify it in --target
+		detail = "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
+	}
+	log.Error(detail)
+	v.suggestDatacenter()
+	return errors.New(detail)
 }
 
 // suggestDatacenter suggests all datacenters on the target
@@ -243,6 +248,10 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 
 	conf := &config.VirtualContainerHostConfigSpec{}
 
+	if err := v.datacenter(); err != nil {
+		return conf, err
+	}
+
 	v.basics(ctx, input, conf)
 
 	v.target(ctx, input, conf)
@@ -271,6 +280,9 @@ func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data) (*conf
 	conf := &config.VirtualContainerHostConfigSpec{}
 
 	log.Infof("Validating target")
+	if err := v.datacenter(); err != nil {
+		return conf, err
+	}
 	v.target(ctx, input, conf)
 	return conf, v.ListIssues()
 }

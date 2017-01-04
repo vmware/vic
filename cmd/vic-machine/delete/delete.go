@@ -119,8 +119,14 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	validator, err := validate.NewValidator(ctx, d.Data)
 	if err != nil {
 		log.Errorf("Delete cannot continue - failed to create validator: %s", err)
-		return err
+		return errors.New("delete failed")
 	}
+	_, err = validator.ValidateTarget(ctx, d.Data)
+	if err != nil {
+		log.Errorf("Delete cannot continue - target validation failed: %s", err)
+		return errors.New("delete failed")
+	}
+
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
 	var vch *vm.VirtualMachine
@@ -132,7 +138,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		log.Error(err)
-		return err
+		return errors.New("delete failed")
 	}
 
 	log.Infof("")
@@ -142,7 +148,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
-		return err
+		return errors.New("delete failed")
 	}
 
 	// compare vch version and vic-machine version
@@ -160,7 +166,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	if err = executor.DeleteVCH(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
-		return err
+		return errors.New("delete failed")
 	}
 
 	log.Infof("Completed successfully")

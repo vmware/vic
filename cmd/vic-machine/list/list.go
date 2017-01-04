@@ -160,25 +160,22 @@ func (l *List) Run(clic *cli.Context) (err error) {
 	}()
 
 	var validator *validate.Validator
-	if l.Data.ComputeResourcePath == "" {
-		validator, err = validate.CreateNoDCCheck(ctx, l.Data)
-	} else {
-		validator, err = validate.NewValidator(ctx, l.Data)
-	}
-	if err != nil {
+	if validator, err = validate.NewValidator(ctx, l.Data); err != nil {
 		log.Errorf("List cannot continue - failed to create validator: %s", err)
 		return errors.New("list failed")
 	}
+	// If dc is not set, and multiple datacenter is available, vic-machine ls will list VCHs under all datacenters.
+	validator.AllowEmptyDC()
 
 	_, err = validator.ValidateTarget(ctx, l.Data)
 	if err != nil {
 		log.Errorf("List cannot continue - target validation failed: %s", err)
-		return err
+		return errors.New("list failed")
 	}
 	_, err = validator.ValidateCompute(ctx, l.Data)
 	if err != nil {
 		log.Errorf("List cannot continue - compute resource validation failed: %s", err)
-		return err
+		return errors.New("list failed")
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 	vchs, err := executor.SearchVCHs(validator.ResourcePoolPath)
