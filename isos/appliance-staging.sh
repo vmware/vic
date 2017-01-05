@@ -105,6 +105,9 @@ yum_cached -c $cache -u -p $PKGDIR install \
 # https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/
 touch $(rootfs_dir $PKGDIR)/etc/initrd-release
 
+# Give a permission to vicadmin to run iptables.
+echo "vicadmin ALL=NOPASSWD: /sbin/iptables --list" >> $(rootfs_dir $PKGDIR)/etc/sudoers
+
 # ensure we're not including a cache in the staging bundle
 # but don't update the cache bundle we're using to install
 yum_cached -p $PKGDIR clean all
