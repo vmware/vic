@@ -34,15 +34,17 @@ import (
 const (
 	maxBackoffFactor = int64(16)
 
-	VMContextObjectKey = "VMContextObject"
+	VMObjectKey = "VMObject"
 )
 
 var (
 	m             sync.RWMutex
-	errorHandlers []func(ctx context.Context, err error) (bool, error)
+	errorHandlers []ErrorHandler
 )
 
-func TaskInProgressHandler(ctx context.Context, err error) (bool, error) {
+type ErrorHandler func(ctx context.Context, err error) (bool, error)
+
+func taskInProgressHandler(ctx context.Context, err error) (bool, error) {
 	if isTaskInProgress(err) {
 		// TaskInProgress error, no need to fail here
 		log.Debugf("TaskInProgress error, continue")
@@ -52,10 +54,10 @@ func TaskInProgressHandler(ctx context.Context, err error) (bool, error) {
 }
 
 func init() {
-	RegisterErrorHandler(TaskInProgressHandler)
+	RegisterErrorHandler(taskInProgressHandler)
 }
 
-func RegisterErrorHandler(handler func(ctx context.Context, err error) (bool, error)) {
+func RegisterErrorHandler(handler ErrorHandler) {
 	defer trace.End(trace.Begin(""))
 	m.Lock()
 	defer m.Unlock()

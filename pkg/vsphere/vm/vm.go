@@ -538,7 +538,7 @@ func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 // WaitForResult is designed to handle VM invalid state error for any VM operations.
 // It will call tasks.WaitForResult to retry if there is task in progress error.
 func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Context) (tasks.Task, error)) (*types.TaskInfo, error) {
-	ctx = context.WithValue(ctx, tasks.VMContextObjectKey, vm)
+	ctx = context.WithValue(ctx, tasks.VMObjectKey, vm)
 	return tasks.WaitForResult(ctx, f)
 }
 
@@ -566,7 +566,7 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 	}
 	log.Infof("vm %s is in invalid state", r)
 	err := &InvalidState{r: vm.Reference()}
-	ctx = context.WithValue(ctx, tasks.VMContextObjectKey, vm)
+	ctx = context.WithValue(ctx, tasks.VMObjectKey, vm)
 
 	handled, herr := tasks.HandleError(ctx, err)
 	if herr != nil {

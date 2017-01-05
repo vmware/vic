@@ -66,7 +66,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 
 	// initialize error handler in tasks package, before actually query containers from vsphere
-	exec.InitErrorHandler()
+	exec.InitTasksErrorHandler()
 
 	vchvm := vm.NewVirtualMachineFromVM(ctx, sess, vch)
 	vmPath, err := vchvm.VMPathName(ctx)

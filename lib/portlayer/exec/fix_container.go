@@ -27,13 +27,13 @@ import (
 
 // InitErrorHandler register ContainerFixer to tasks error handler. So if any container vm operations fail for invalid state issue, this handler will be executed to fix the error.
 // The benefit to register handler in portlayer is that it can set container state during vm fixing.
-func InitErrorHandler() {
-	tasks.RegisterErrorHandler(FixContainerHandler)
+func InitTasksErrorHandler() {
+	tasks.RegisterErrorHandler(fixContainerHandler)
 }
 
-func FixContainerHandler(ctx context.Context, err error) (bool, error) {
+func fixContainerHandler(ctx context.Context, err error) (bool, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("error: %s", err)))
-	o := ctx.Value(tasks.VMContextObjectKey)
+	o := ctx.Value(tasks.VMObjectKey)
 	if o == nil {
 		log.Debugf("No vm object set, not vm operations.")
 		return false, nil

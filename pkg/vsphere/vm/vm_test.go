@@ -43,8 +43,8 @@ import (
 
 var once sync.Once
 
-func VMFixTestHandler(ctx context.Context, err error) (bool, error) {
-	o := ctx.Value(tasks.VMContextObjectKey)
+func vmFixTestHandler(ctx context.Context, err error) (bool, error) {
+	o := ctx.Value(tasks.VMObjectKey)
 	if o == nil {
 		log.Debugf("No vm object set, not vm operations.")
 		return false, nil
@@ -63,7 +63,7 @@ func VMFixTestHandler(ctx context.Context, err error) (bool, error) {
 		log.Errorf("Failed to fix task failure: %s", nerr)
 		return true, nerr
 	}
-	log.Debugf("Fixed")
+	log.Infof("Fixed")
 
 	return true, nil
 }
@@ -478,7 +478,7 @@ func TestBfsSnapshotTree(t *testing.T) {
 
 func initErrorHandler() {
 	once.Do(func() {
-		tasks.RegisterErrorHandler(VMFixTestHandler)
+		tasks.RegisterErrorHandler(vmFixTestHandler)
 	})
 }
 
