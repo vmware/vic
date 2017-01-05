@@ -753,7 +753,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 				if clientCert == nil {
 					// we know this will fail, but we can try to distinguish the expected error vs
-					// unresponse endpoint
+					// unresponsive endpoint
 					tlsErrExpected = true
 					log.Debugf("CA configured on appliance but no client certificate available")
 					return
@@ -814,7 +814,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 			log.Debugf("Received HTTP status %d: %s", res.StatusCode, res.Status)
 		} else {
-			// DEBU[2016-10-11T22:22:38Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
+			// DEBU[2016-10-11T22:22:38Z] Error received from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
 			// DEBU[2016-10-11T22:22:39Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
 			//     Op:  "Get",
@@ -834,7 +834,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 			//         },
 			//     },
 			// }
-			// DEBU[2016-10-11T22:22:41Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: remote error: tls: bad certificate &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{remote error  <nil> <nil> 42})}
+			// DEBU[2016-10-11T22:22:41Z] Error received from endpoint: Get https://192.168.78.127:2376/info: remote error: tls: bad certificate &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{remote error  <nil> <nil> 42})}
 			// DEBU[2016-10-11T22:22:42Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
 			//     Op:  "Get",

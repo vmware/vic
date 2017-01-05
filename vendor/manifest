@@ -83,6 +83,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/client9/misspell",
+			"repository": "https://github.com/client9/misspell",
+			"vcs": "git",
+			"revision": "9a1fc2456ac9e8c9b4cbe9d005b6e7adac0d357f",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/codegangsta/negroni",
 			"repository": "https://github.com/codegangsta/negroni",
 			"vcs": "",

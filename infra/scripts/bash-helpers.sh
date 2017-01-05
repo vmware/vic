@@ -95,7 +95,7 @@ addr-from-dockerhost () {
 
 # import the custom sites
 # example entry, actived by typing "example"
-# those variales that hold mulitple arguements which may contain spaces are arrays to allow for proper quoting
+# those variales that hold multiple arguments which may contain spaces are arrays to allow for proper quoting
 #example () {
 #    target='https://user:password@host.domain.com/datacenter'
 #    unset-vic

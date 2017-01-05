@@ -354,7 +354,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 }
 
 // addApplianceLogs whitelists the logs to include for the appliance.
-// TODO: once we've started encrypting all potentially senstive data and filtering out guestinfo.ovfEnv
+// TODO: once we've started encrypting all potentially sensitive data and filtering out guestinfo.ovfEnv
 // we can resume collection of vmware.log and drop the appliance specific handling
 func addApplianceLogs(ctx context.Context, s *session.Session, readers map[string]entryReader) error {
 	self, err := guest.GetSelf(ctx, s)

@@ -218,7 +218,7 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 				if err = session.CloseStdin(); err != nil {
 					log.Errorf("CloseStdin@ContainerSetStdinHandler failed with %s", err.Error())
 				} else {
-					log.Infof("CloseStdin@ContainerSetStdinHandler succeded")
+					log.Infof("CloseStdin@ContainerSetStdinHandler succeeded")
 				}
 			}
 		*/

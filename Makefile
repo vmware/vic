@@ -35,9 +35,10 @@ GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
+MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion goimports gopath govet gas golint \
+	goversion goimports gopath govet gofmt misspell gas golint \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -135,11 +136,12 @@ vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
 swagger: $(SWAGGER)
 goimports: $(GOIMPORTS)
 gas: $(GAS)
+misspell: $(MISSPELL)
 
 # convenience targets
 all: components tethers isos vic-machine vic-ui
-tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) goversion
-check: goversion goimports govet golint copyright whitespace gas
+tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
+check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -176,6 +178,10 @@ $(GAS): vendor/manifest
 	@echo building $(GAS)...
 	@$(GO) build $(RACE) -o $(GAS) ./vendor/github.com/HewlettPackard/gas
 
+$(MISSPELL): vendor/manifest
+	@echo building $(MISSPELL)...
+	@$(GO) build $(RACE) -o $(MISSPELL) ./vendor/github.com/client9/misspell/cmd/misspell
+
 copyright:
 	@echo "checking copyright in header..."
 	@infra/scripts/header-check.sh
@@ -206,11 +212,19 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 	@! $(GOIMPORTS) -local github.com/vmware -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
 
+gofmt:
+	@echo checking gofmt...
+	@gofmt -l -s $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+
+misspell: $(MISSPELL)
+	@echo checking misspell...
+	@$(MISSPELL) -error $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
-gas:
+gas: $(GAS)
 	@echo checking security problems
 	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -exclude=*_test.go -exclude=*/*_test.go -exclude=*/*/*_test.go ./... > ../$$i.gas; popd > /dev/null; done
 

@@ -879,7 +879,7 @@ func (c *Create) processVolumeStores() error {
 }
 
 func (c *Create) processRegistries() error {
-	// load addtional certificate authorities for use with registries
+	// load additional certificate authorities for use with registries
 	if len(c.registryCAs) > 0 {
 		registryCAs, err := c.loadRegistryCAs()
 		if err != nil {
@@ -1197,7 +1197,7 @@ func logArguments(cliContext *cli.Context) {
 			continue
 		}
 
-		// avoid logging senstive data
+		// avoid logging sensitive data
 		if f == "user" || f == "password" || f == "ops-user" || f == "ops-password" {
 			log.Debugf("--%s=<censored>", f)
 			continue

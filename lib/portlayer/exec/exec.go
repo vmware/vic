@@ -250,7 +250,7 @@ func hostEventCallback(ctx context.Context, ie events.Event) {
 				serials := devices.SelectByBackingInfo((*types.VirtualSerialPortURIBackingInfo)(nil))
 				log.Debugf("Found %d devices with the desired backing", len(serials))
 
-				// iterate over them and set needsToBePoweredOff if neccesary
+				// iterate over them and set needsToBePoweredOff if necessary
 				for _, serial := range serials {
 					needsToBePoweredOff = serial.GetVirtualDevice().Connectable.Connected
 

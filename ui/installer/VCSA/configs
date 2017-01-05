@@ -1,7 +1,7 @@
 # Enter the IP of the server running VCSA
 VCENTER_IP=""
 
-# Update the following lines if you have a local web server that is accessable from your VCSA and VIC UI zip files are uploaded to it
+# Update the following lines if you have a local web server that is accessible from your VCSA and VIC UI zip files are uploaded to it
 
 # Change the following line to the full URL of the path where the zip files are located
 # For example, if vic-ui.zip is available at https://192.168.1.5/vic-ui-plugins/vic-ui.zip, type in: https://192.168.1.5/vic-ui-plugins/
