@@ -36,7 +36,7 @@ Run Ngc Tests Project
     # given the information in vicui-common.robot edit the above properties files
     Set Up Testbed Config Files
 
-    # start runing ngc tests and expect the output does not include words 'BUILD FAILURE'
+    # start running ngc tests and expect the output does not include words 'BUILD FAILURE'
     Run Keyword If  '${TEST_VC_VERSION}'=='5.5'  Skip Ngc Tests  ELSE  Start Ngc Tests
 
 

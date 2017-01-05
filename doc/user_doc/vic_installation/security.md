@@ -26,7 +26,7 @@ Docker allows for two-way TLS certificate authentication between the Docker clie
 
 With vSphere Integrated Containers Engine, you can use auto-generated trusted certificates that the VCH deployment utility, `vic-machine`, creates for you. You can also use custom trusted certificates that you create yourself.
 
-If you implement two-way authenticaton with trusted certificates, container developers must have copies of the certificate and key files and must use the `--tlsverify --tlscacert --tlscert --tlskey` options when running Docker commands against the VCH. 
+If you implement two-way authentication with trusted certificates, container developers must have copies of the certificate and key files and must use the `--tlsverify --tlscacert --tlscert --tlskey` options when running Docker commands against the VCH. 
 
 **Auto-Generated Trusted Certificates**
 
