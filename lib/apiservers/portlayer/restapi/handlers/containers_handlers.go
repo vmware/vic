@@ -245,15 +245,9 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	defer trace.End(trace.Begin(params.ID))
 
 	// get the indicated container for removal
-	cID := uid.Parse(params.ID)
-	h := exec.GetContainer(context.Background(), cID)
-	if h == nil || h.ExecConfig == nil {
-		return containers.NewContainerRemoveNotFound()
-	}
-
-	container := exec.Containers.Container(h.ExecConfig.ID)
+	container := exec.Containers.Container(params.ID)
 	if container == nil {
-		return containers.NewGetStateNotFound()
+		return containers.NewContainerRemoveNotFound()
 	}
 
 	// NOTE: this should allowing batching of operations, as with Create, Start, Stop, et al

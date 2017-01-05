@@ -804,12 +804,8 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 
 	network.Name = pgName
 
-	if staticIP == "" && gateway == "" {
-		return nil
-	}
-
-	if staticIP == "" || gateway == "" {
-		return fmt.Errorf("%s network IP and gateway must both be specified", netName)
+	if gateway != "" && staticIP == "" {
+		return fmt.Errorf("Gateway provided without static IP for %s network", netName)
 	}
 
 	defer func(net *data.NetworkConfig) {
@@ -818,28 +814,35 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		}
 	}(network)
 
-	network.Destinations, network.Gateway, err = parseGatewaySpec(gateway)
-	if err != nil {
-		return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
-	}
-	ipAddr, ipNet, err := net.ParseCIDR(staticIP)
-	if err != nil {
-		return fmt.Errorf("Provided %s network IP address %s has a wrong format", netName, staticIP)
-	}
+	var ipNet *net.IPNet
+	if staticIP != "" {
+		var ipAddr net.IP
+		ipAddr, ipNet, err = net.ParseCIDR(staticIP)
+		if err != nil {
+			return fmt.Errorf("Provided %s network IP address %s has a wrong format", netName, staticIP)
+		}
 
-	network.IP.IP = ipAddr
-	network.IP.Mask = ipNet.Mask
-
-	if !network.IP.Contains(network.Gateway.IP) {
-		return fmt.Errorf("%s gateway with IP %s is not reachable from %s", netName, network.Gateway.IP, ipNet.String())
+		network.IP.IP = ipAddr
+		network.IP.Mask = ipNet.Mask
 	}
 
-	// TODO(vburenin): this seems ugly, and it actually is. The reason is that a gateway required to specify
-	// a network mask for it, which is just not how network configuration should be done. Network mask has to
-	// be provided separately or with the IP address. It is hard to change all dependencies to keep mask
-	// with IP address, so it will be stored with network gateway as it was previously.
+	if gateway != "" {
+		network.Destinations, network.Gateway, err = parseGatewaySpec(gateway)
+		if err != nil {
+			return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
+		}
 
-	network.Gateway.Mask = network.IP.Mask
+		if !network.IP.Contains(network.Gateway.IP) {
+			return fmt.Errorf("%s gateway with IP %s is not reachable from %s", netName, network.Gateway.IP, ipNet.String())
+		}
+
+		// TODO(vburenin): this seems ugly, and it actually is. The reason is that a gateway required to specify
+		// a network mask for it, which is just not how network configuration should be done. Network mask has to
+		// be provided separately or with the IP address. It is hard to change all dependencies to keep mask
+		// with IP address, so it will be stored with network gateway as it was previously.
+		network.Gateway.Mask = network.IP.Mask
+	}
+
 	return nil
 }
 

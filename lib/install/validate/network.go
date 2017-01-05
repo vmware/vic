@@ -85,23 +85,20 @@ func (v *Validator) checkNetworkConflict(bridgeNetName, otherNetName, otherNetTy
 
 // portGroupConfig gets the input config for all networks
 // for use in checking that the config is valid
-func (v *Validator) portGroupConfig(input *data.Data, counts map[string]int, ips map[string][]data.NetworkConfig) {
+func (v *Validator) portGroupConfig(input *data.Data, ips map[string][]data.NetworkConfig) {
 	defer trace.End(trace.Begin(""))
 
 	if input.ManagementNetwork.Name != "" {
-		counts[input.ManagementNetwork.Name]++
 		if !input.ManagementNetwork.Empty() {
 			ips[input.ManagementNetwork.Name] = append(ips[input.ManagementNetwork.Name], input.ManagementNetwork)
 		}
 	}
 	if input.ClientNetwork.Name != "" {
-		counts[input.ClientNetwork.Name]++
 		if !input.ClientNetwork.Empty() {
 			ips[input.ClientNetwork.Name] = append(ips[input.ClientNetwork.Name], input.ClientNetwork)
 		}
 	}
 	if input.PublicNetwork.Name != "" {
-		counts[input.PublicNetwork.Name]++
 		if !input.PublicNetwork.Empty() {
 			ips[input.PublicNetwork.Name] = append(ips[input.PublicNetwork.Name], input.PublicNetwork)
 		}
@@ -112,7 +109,7 @@ func (v *Validator) portGroupConfig(input *data.Data, counts map[string]int, ips
 // enforce that networks that share a port group with public are configured via the pubic args
 // prevent assigning > 1 static IP to the same port group
 // warn if assigning addresses in the same subnet to > 1 port group
-func (v *Validator) checkPortGroups(input *data.Data, counts map[string]int, ips map[string][]data.NetworkConfig) error {
+func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.NetworkConfig) error {
 	defer trace.End(trace.Begin(""))
 
 	networks := make(map[string]string)
@@ -136,9 +133,9 @@ func (v *Validator) checkPortGroups(input *data.Data, counts map[string]int, ips
 	}
 
 	for pg, config := range ips {
-		if len(ips[pg]) > 1 {
+		if len(config) > 1 {
 			var msgIPs []string
-			for _, v := range ips[pg] {
+			for _, v := range config {
 				msgIPs = append(msgIPs, v.IP.IP.String())
 			}
 			log.Errorf("Port group %q is configured for networks with more than one static IP: %s", pg, msgIPs)
@@ -163,7 +160,7 @@ func (v *Validator) checkPortGroups(input *data.Data, counts map[string]int, ips
 
 // configureSharedPortGroups sets VCH static IP for networks that share a
 // portgroup with another network that has a configured static IP
-func (v *Validator) configureSharedPortGroups(input *data.Data, counts map[string]int, ips map[string][]data.NetworkConfig) error {
+func (v *Validator) configureSharedPortGroups(input *data.Data, ips map[string][]data.NetworkConfig) error {
 	defer trace.End(trace.Begin(""))
 
 	// find other networks using same portgroup and copy the NetworkConfig to them
@@ -200,14 +197,13 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		input.ManagementNetwork.Name = input.ClientNetwork.Name
 	}
 
-	c := make(map[string]int)                  // number of VCH networks using portgroup
 	i := make(map[string][]data.NetworkConfig) // user configured IPs for portgroup
-	v.portGroupConfig(input, c, i)
+	v.portGroupConfig(input, i)
 
-	err = v.checkPortGroups(input, c, i)
+	err = v.checkPortGroups(input, i)
 	v.NoteIssue(err)
 
-	err = v.configureSharedPortGroups(input, c, i)
+	err = v.configureSharedPortGroups(input, i)
 	v.NoteIssue(err)
 
 	// client and management networks need to have at least one
@@ -223,6 +219,11 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		if !ip.IsUnspecifiedIP(n.Gateway.IP) && len(n.Destinations) == 0 {
 			v.NoteIssue(fmt.Errorf("%s network gateway specified without at least one routing destination", nn))
 		}
+	}
+
+	// if static ip is specified for public network, gateway must be specified
+	if !ip.IsUnspecifiedIP(input.PublicNetwork.IP.IP) && ip.IsUnspecifiedIP(input.PublicNetwork.Gateway.IP) {
+		v.NoteIssue(errors.New("public network must have both static IP and gateway specified"))
 	}
 
 	// public network should not have any routing destinations specified
