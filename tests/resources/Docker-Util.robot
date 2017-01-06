@@ -81,3 +81,5 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
+
+    Scrape Logs For The Password

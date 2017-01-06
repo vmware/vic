@@ -101,3 +101,6 @@ Get VICAdmin Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b /tmp/cookies-%{VCH-NAME}
     Log  ${output}
     Should contain  ${output}  Launching vicadmin pprof server
+
+Check that VIC logs do not contain sensitive data
+    Scrape Logs For The Password

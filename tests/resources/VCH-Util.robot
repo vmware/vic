@@ -159,6 +159,22 @@ Check For The Proper Log Files
     Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
 
+Scrape Logs For the Password
+    [Tags]  secret
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/init.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+
+    Remove File  /tmp/cookies-%{VCH-NAME}
+
 Cleanup VIC Appliance On Test Server
     Log To Console  Gathering logs from the test server %{VCH-NAME}
     Gather Logs From Test Server

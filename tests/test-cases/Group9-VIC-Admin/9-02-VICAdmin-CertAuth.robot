@@ -58,3 +58,6 @@ Fail to get VCH init logs without cert
     ${output}=  Run  curl -sk %{VIC-ADMIN}/logs/init.log
     Log  ${output}
     Should Not contain  ${output}  reaping child processes
+
+Check that VIC logs do not contain sensitive data
+    Scrape Logs For The Password
