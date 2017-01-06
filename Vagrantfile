@@ -5,7 +5,7 @@ Vagrant.configure(2) do |config|
   gdir = nil
   config.ssh.forward_agent = true
   config.vm.define "vic_dev" do | vic_dev |
-    vic_dev.vm.box = 'bento/ubuntu-16.04'
+    vic_dev.vm.box = 'cbednarski/ubuntu-1604'
     vic_dev.vm.network 'forwarded_port', guest: 2375, host: 12375
     vic_dev.vm.host_name = 'devbox'
     vic_dev.vm.synced_folder '.', '/vagrant', disabled: true
