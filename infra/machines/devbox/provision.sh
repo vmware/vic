@@ -18,7 +18,8 @@ apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E8
 # add docker apt sources
 echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" > /etc/apt/sources.list.d/docker.list
 
-apt-get update && apt-get -y dist-upgrade
+# https://github.com/mitchellh/vagrant/issues/289
+apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
 
 # set GOPATH based on shared folder of vagrant
 pro="/home/${BASH_ARGV[0]}/.profile"
