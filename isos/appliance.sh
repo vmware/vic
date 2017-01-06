@@ -63,6 +63,9 @@ unpack $PACKAGE $PKGDIR
 # Below: the image authoring
 #################################################################
 
+# sysctl
+cp $DIR/appliance/sysctl.conf $(rootfs_dir $PKGDIR)/etc/
+
 ## systemd configuration
 # create systemd vic target
 cp ${DIR}/appliance/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/
@@ -73,7 +76,7 @@ mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
 ln -s /etc/systemd/system/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 ln -s /etc/systemd/system/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 ln -s /etc/systemd/system/permissions.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
-ln -s /etc/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+ln -s /lib/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 
 # disable networkd given we manage the link state directly
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service

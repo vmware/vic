@@ -2,6 +2,9 @@
 
 set -x
 
+echo 1 > /proc/sys/net/ipv4/conf/all/arp_notify
+echo 1 > /proc/sys/net/ipv4/conf/default/arp_notify
+
 echo "Loading drivers"
 /usr/sbin/modprobe vmxnet3
 
