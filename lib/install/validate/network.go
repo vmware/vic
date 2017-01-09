@@ -270,11 +270,6 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetwork.Name, "management")
 	conf.AddNetwork(e)
 
-	log.Debug("Network configuration:")
-	for net, val := range conf.ExecutorConfig.Networks {
-		log.Debugf("\tNetwork: %s NetworkEndpoint: %v", net, val)
-	}
-
 	// Bridge net -
 	//   vCenter: must exist and must be a DPG
 	//   ESX: doesn't need to exist - we will create with default value
@@ -327,6 +322,11 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	// port forwarding
 	conf.AddNetwork(bridgeNet)
 	conf.BridgeIPRange = input.BridgeIPRange
+
+	log.Debug("Network configuration:")
+	for net, val := range conf.ExecutorConfig.Networks {
+		log.Debugf("\tNetwork: %s NetworkEndpoint: %v", net, val)
+	}
 
 	err = v.checkVDSMembership(ctx, endpointMoref, input.BridgeNetworkName)
 	if err != nil && checkBridgeVDS {

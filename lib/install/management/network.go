@@ -15,9 +15,12 @@
 package management
 
 import (
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -80,6 +83,7 @@ func (d *Dispatcher) createBridgeNetwork(conf *config.VirtualContainerHostConfig
 	bnet.ID = net.Reference().String()
 	bnet.Network.ID = net.Reference().String()
 	conf.CreateBridgeNetwork = true
+	log.Debugf("Created portgroup %q: %s", name, net)
 	return nil
 }
 
@@ -95,26 +99,45 @@ func (d *Dispatcher) removeNetwork(conf *config.VirtualContainerHostConfigSpec) 
 		return nil
 	}
 
-	name := conf.Name
-	if network, err := d.session.Finder.Network(d.ctx, name); err != nil || network == nil {
-		log.Infof("Didn't find network %q", name)
-		log.Debugf("Didn't find network for %s", err)
-		return nil
+	br := conf.ExecutorConfig.Networks["bridge"]
+	if br == nil {
+		return fmt.Errorf("Bridge Network ID is unknown")
+	}
+	name := br.Network.ID
+	log.Debugf("Remove bridge network based on %s", name)
+
+	moref := types.ManagedObjectReference{}
+	ok := moref.FromString(name)
+	if !ok {
+		return fmt.Errorf("Unable to delete port group - failed to get moref from: %q", name)
 	}
 
-	log.Infof("Removing Portgroup %q", name)
+	net, err := d.session.Finder.ObjectReference(d.ctx, moref)
+	if err != nil {
+		return fmt.Errorf("Unable to delete port group - failed to find network from: %q", name)
+	}
+	log.Debugf("Delete bridge network: %s", net)
+
+	netw, ok := net.(*object.Network)
+	if !ok {
+		log.Errorf("Expected Network Type, got %#v", net)
+		return fmt.Errorf("Failed to get network for %q", moref)
+	}
+	pgName := netw.Name()
+
 	hostNetSystem, err := d.session.Host.ConfigManager().NetworkSystem(d.ctx)
 	if err != nil {
 		return err
 	}
 
-	err = hostNetSystem.RemovePortGroup(d.ctx, name)
+	log.Infof("Removing Portgroup %q", pgName)
+	err = hostNetSystem.RemovePortGroup(d.ctx, pgName)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Removing VirtualSwitch %q", name)
-	err = hostNetSystem.RemoveVirtualSwitch(d.ctx, name)
+	log.Infof("Removing VirtualSwitch %q", pgName)
+	err = hostNetSystem.RemoveVirtualSwitch(d.ctx, pgName)
 	if err != nil {
 		return err
 	}
