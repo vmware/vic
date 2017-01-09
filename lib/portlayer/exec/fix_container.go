@@ -51,9 +51,8 @@ func fixContainerHandler(ctx context.Context, err error) (bool, error) {
 	log.Debugf("Try to fix failure %s", err)
 	container := Containers.Container(vm.Reference().String())
 	if container != nil {
-		oldState := container.CurrentState()
+		oldState := container.SetState(StateFixing)
 		defer container.SetState(oldState)
-		container.SetState(StateFixing)
 	}
 	if nerr := vm.FixVM(ctx); nerr != nil {
 		log.Errorf("Failed to fix task failure: %s", nerr)
