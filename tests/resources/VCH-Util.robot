@@ -105,6 +105,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -242,3 +243,33 @@ Cleanup Dangling vSwitches On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc host.vswitch.remove ${net}
+
+Get Scratch Disk From VM Info
+    [Arguments]  ${vm}
+    ${disks}=  Run  govc vm.info -json ${vm} | jq -r '.VirtualMachines[].Layout.Disk[].DiskFile[]'
+    ${disks}=  Split To Lines  ${disks}
+    :FOR  ${disk}  IN  @{disks}
+    \   ${disk}=  Fetch From Right  ${disk}  ${SPACE}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${disk}  scratch.vmdk
+    \   Return From Keyword If  ${status}  ${disk}
+
+Cleanup Dangling Containers On Test Server
+    ${vms}=  Run  govc ls vm
+    ${vms}=  Split To Lines  ${vms}
+    :FOR  ${vm}  IN  @{vms}
+    \   # Ignore VCH's, we only care about containers at this point
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${vm}  VCH
+    \   Continue For Loop If  ${status}
+    \   ${disk}=  Get Scratch Disk From VM Info  ${vm}
+    \   ${vch}=  Fetch From Left  ${disk}  /
+    \   ${vch}=  Split String  ${vch}  -
+    \   # Skip any VM that is not associated with integration tests
+    \   Continue For Loop If  '@{vch}[0]' != 'VCH'
+    \   ${state}=  Get State Of Drone Build  @{vch}[1]
+    \   # Skip any VM that is still running
+    \   Continue For Loop If  '${state}' == 'running'
+    \   # Destroy the VM and remove it from datastore because it is a dangling container
+    \   Log To Console  Cleaning up dangling container: ${vm}
+    \   ${out}=  Run  govc vm.destroy ${vm}
+    \   ${name}=  Fetch From Right  ${vm}  /
+    \   ${out}=  Run  govc datastore.rm ${name}
