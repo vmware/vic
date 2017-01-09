@@ -85,3 +85,11 @@ Docker run ps password check
     \   Continue For Loop If  ${len} <= 4
     \   Should Not Contain  @{command}[4]  %{TEST_USERNAME}
     \   Should Not Contain  @{command}[4]  %{TEST_PASSWORD}
+
+Docker run immediate exit
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Empty  ${output}
