@@ -156,7 +156,7 @@ Content-Type: text/html
                       <td>
                       </td>
                     </tr>
-                    `for ((i=0; i < ${#nightly_list_var[@]}; ++i)); do echo "<tr class='d0'><td>${nightly_list_var[$i]}: </td><td>${nightlystatus[$i]}</td></tr>"; done`
+                    `for ((i=0; i < ${#nightly_list_var[@]}; ++i)); do echo "<tr class=\"d$(($i%2))\"><td>${nightly_list_var[$i]}: </td><td>${nightlystatus[$i]}</td></tr>"; done`
                   </table>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
@@ -190,7 +190,7 @@ Content-Type: text/html
                       <td>
                       </td>
                     </tr>
-                    `for ((i=0; i < ${#nightly_list_var[@]}; ++i)); do echo "<tr class='d0'><td>${nightly_list_var[$i]}: </td><td>${nightlystatus[$i]}</td></tr>"; done`
+                    `for ((i=0; i < ${#nightly_list_var[@]}; ++i)); do echo "<tr class=\"d$(($i%2))\"><td>${nightly_list_var[$i]}: </td><td>${nightlystatus[$i]}</td></tr>"; done`
                   </table> 
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
