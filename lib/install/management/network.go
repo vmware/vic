@@ -119,26 +119,18 @@ func (d *Dispatcher) removeNetwork(conf *config.VirtualContainerHostConfigSpec) 
 	log.Debugf("Delete bridge network: %s", net)
 
 	netw, ok := net.(*object.Network)
-	log.Infof("Delete bridge network: %s", net)
-	log.Infof("Delete bridge network: %s", netw)
 	if !ok {
 		log.Errorf("Failed to find network %q: %s", moref, err)
 		return err
 	}
-
-	if network, err := d.session.Finder.Network(d.ctx, netw.InventoryPath); err != nil || network == nil {
-		log.Infof("Unable to delete network - failed to find %q", netw.InventoryPath)
-		log.Debugf("Failed to find network to delete: %s", err)
-		return nil
-	}
-
 	pgName := netw.Name()
-	log.Infof("Removing Portgroup %q", pgName)
+
 	hostNetSystem, err := d.session.Host.ConfigManager().NetworkSystem(d.ctx)
 	if err != nil {
 		return err
 	}
 
+	log.Infof("Removing Portgroup %q", pgName)
 	err = hostNetSystem.RemovePortGroup(d.ctx, pgName)
 	if err != nil {
 		return err
