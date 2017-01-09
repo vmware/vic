@@ -120,8 +120,7 @@ func (d *Dispatcher) removeNetwork(conf *config.VirtualContainerHostConfigSpec) 
 
 	netw, ok := net.(*object.Network)
 	if !ok {
-		log.Errorf("Failed to find network %q: %s", moref, err)
-		return err
+		return fmt.Errorf("Failed to get network for %q", moref)
 	}
 	pgName := netw.Name()
 
