@@ -101,18 +101,18 @@ func (d *Dispatcher) removeNetwork(conf *config.VirtualContainerHostConfigSpec) 
 
 	br := conf.ExecutorConfig.Networks["bridge"]
 	if br == nil {
-		return fmt.Errorf("Bridge Network ID unknown")
+		return fmt.Errorf("Bridge Network ID is unknown")
 	}
 	name := br.Network.ID
 	log.Debugf("Remove bridge network based on %s", name)
 
-	moref := new(types.ManagedObjectReference)
+	moref := types.ManagedObjectReference{}
 	ok := moref.FromString(name)
 	if !ok {
 		return fmt.Errorf("Unable to delete port group - failed to get moref from: %q", name)
 	}
 
-	net, err := d.session.Finder.ObjectReference(d.ctx, *moref)
+	net, err := d.session.Finder.ObjectReference(d.ctx, moref)
 	if err != nil {
 		return fmt.Errorf("Unable to delete port group - failed to find network from: %q", name)
 	}
