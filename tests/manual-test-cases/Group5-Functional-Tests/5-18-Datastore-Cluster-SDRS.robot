@@ -38,10 +38,7 @@ SDRS Datastore
     Add Host To Distributed Switch  /vcqaDC/host/cls
 
     ${out}=  Run  govc folder.create -pod=true /vcqaDC/datastore/sdrs
-    ${out}=  Run  govc object.mv /vcqaDC/datastore/sharedVmfs-0 /vcqaDC/datastore/sdrs
-    ${out}=  Run  govc object.mv /vcqaDC/datastore/sharedVmfs-1 /vcqaDC/datastore/sdrs
-    ${out}=  Run  govc object.mv /vcqaDC/datastore/sharedVmfs-2 /vcqaDC/datastore/sdrs
-    ${out}=  Run  govc object.mv /vcqaDC/datastore/sharedVmfs-3 /vcqaDC/datastore/sdrs
+    ${out}=  Run  govc object.mv /vcqaDC/datastore/sharedVmfs-* /vcqaDC/datastore/sdrs
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cls
