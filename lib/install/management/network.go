@@ -99,9 +99,13 @@ func (d *Dispatcher) removeNetwork(conf *config.VirtualContainerHostConfigSpec) 
 		return nil
 	}
 
-	log.Debugf("Remove bridge network based on %s", conf.ExecutorConfig.Networks["bridge"].Network.ID)
+	br := conf.ExecutorConfig.Networks["bridge"]
+	if br == nil {
+		return fmt.Errorf("Bridge Network ID unknown")
+	}
+	name := br.Network.ID
+	log.Debugf("Remove bridge network based on %s", name)
 
-	name := conf.ExecutorConfig.Networks["bridge"].Network.ID
 	moref := new(types.ManagedObjectReference)
 	ok := moref.FromString(name)
 	if !ok {
@@ -115,6 +119,8 @@ func (d *Dispatcher) removeNetwork(conf *config.VirtualContainerHostConfigSpec) 
 	log.Debugf("Delete bridge network: %s", net)
 
 	netw, ok := net.(*object.Network)
+	log.Infof("Delete bridge network: %s", net)
+	log.Infof("Delete bridge network: %s", netw)
 	if !ok {
 		log.Errorf("Failed to find network %q: %s", moref, err)
 		return err
