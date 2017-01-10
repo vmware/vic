@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vmcheck
+package message
 
-import (
-	"github.com/sigma/bdoor"
-)
+import "github.com/vmware/vmw-guestinfo/bdoor"
 
-// IsVirtualWorld returns whether the code is running in a VMware virtual machine or no
-func IsVirtualWorld() bool {
-	return bdoor.HypervisorPortCheck()
+func HypervisorPortCheck() bool {
+	p := &bdoor.BackdoorProto{}
+
+	p.CX.Low.SetWord(bdoor.CommandGetVersion)
+
+	out := p.InOut()
+
+	Infof("version %d", out.AX.Low.Word())
+	return 0 != out.AX.Low.Word()
 }

@@ -12,13 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vmcheck
+package bdoor
 
 import (
-	"github.com/sigma/bdoor"
+	"testing"
+
+	"github.com/vmware/vmw-guestinfo/util"
 )
 
-// IsVirtualWorld returns whether the code is running in a VMware virtual machine or no
-func IsVirtualWorld() bool {
-	return bdoor.HypervisorPortCheck()
+func TestBdoorArgAlignment(t *testing.T) {
+	a := uint64(0xFFFFFFFF0000022)
+	b := uint64(33)
+	c := uint64(44)
+	d := uint64(55)
+	si := uint64(0xFFFFFFFF0000066)
+	di := uint64(0xFFFAAFFF0000077)
+	bp := uint64(0xFFFFFFFFAAAAAAA)
+
+	oa, ob, oc, od, osi, odi, obp := bdoor_inout_test(a, b, c, d, si, di, bp)
+
+	if !util.AssertEqual(t, a, oa) ||
+		!util.AssertEqual(t, b, ob) ||
+		!util.AssertEqual(t, c, oc) ||
+		!util.AssertEqual(t, d, od) ||
+		!util.AssertEqual(t, si, osi) ||
+		!util.AssertEqual(t, di, odi) ||
+		!util.AssertEqual(t, bp, obp) {
+		return
+	}
 }
