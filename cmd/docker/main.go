@@ -128,7 +128,7 @@ func loadCAPool() *x509.CertPool {
 	pool := x509.NewCertPool()
 
 	pem := vchConfig.CertificateAuthorities
-	if pem == nil || len(pem) == 0 {
+	if len(pem) == 0 {
 		return nil
 	}
 
