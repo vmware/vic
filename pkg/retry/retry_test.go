@@ -26,7 +26,7 @@ func TestRetry(t *testing.T) {
 	i := 0
 	operation := func() error {
 		i++
-		t.Logf("Retry called: %t", time.Now().UTC())
+		t.Logf("Retry called: %s", time.Now().UTC())
 		return fmt.Errorf("designed error")
 	}
 	retryOnError := func(err error) bool {
