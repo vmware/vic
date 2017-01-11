@@ -307,25 +307,27 @@ type GenOpts struct {
 	WithContext       bool
 	defaultsEnsured   bool
 
-	Spec            string
-	APIPackage      string
-	ModelPackage    string
-	ServerPackage   string
-	ClientPackage   string
-	Principal       string
-	Target          string
-	Sections        SectionOpts
-	LanguageOpts    *LanguageOpts
-	TypeMapping     map[string]string
-	Imports         map[string]string
-	DefaultScheme   string
-	DefaultProduces string
-	DefaultConsumes string
-	TemplateDir     string
-	Operations      []string
-	Models          []string
-	Tags            []string
-	Name            string
+	Spec              string
+	APIPackage        string
+	ModelPackage      string
+	ServerPackage     string
+	ClientPackage     string
+	Principal         string
+	Target            string
+	Sections          SectionOpts
+	LanguageOpts      *LanguageOpts
+	TypeMapping       map[string]string
+	Imports           map[string]string
+	DefaultScheme     string
+	DefaultProduces   string
+	DefaultConsumes   string
+	TemplateDir       string
+	Operations        []string
+	Models            []string
+	Tags              []string
+	Name              string
+	FlagStrategy      string
+	CompatibilityMode string
 }
 
 // TargetPath returns the target path relative to the server package
@@ -715,6 +717,12 @@ func gatherOperations(specDoc *analysis.Spec, operationIDs []string) map[string]
 func pascalize(arg string) string {
 	if len(arg) == 0 || arg[0] > '9' {
 		return swag.ToGoName(arg)
+	}
+	if arg[0] == '+' {
+		return swag.ToGoName("Plus " + arg[1:])
+	}
+	if arg[0] == '-' {
+		return swag.ToGoName("Minus " + arg[1:])
 	}
 
 	return swag.ToGoName("Nr " + arg)

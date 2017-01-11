@@ -2,6 +2,10 @@ package restapi
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -12,7 +16,7 @@ import (
 
 	"github.com/go-openapi/runtime/flagext"
 	"github.com/go-openapi/swag"
-	flags "github.com/jessevdk/go-flags"
+	flag "github.com/spf13/pflag"
 	graceful "github.com/tylerb/graceful"
 
 	"github.com/go-swagger/go-swagger/examples/todo-list/restapi/operations"
@@ -34,14 +38,115 @@ func init() {
 	}
 }
 
+var (
+	enabledListeners []string
+	cleanupTimout    time.Duration
+	maxHeaderSize    flagext.ByteSize
+
+	socketPath string
+
+	host         string
+	port         int
+	listenLimit  int
+	keepAlive    time.Duration
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+
+	tlsHost           string
+	tlsPort           int
+	tlsListenLimit    int
+	tlsKeepAlive      time.Duration
+	tlsReadTimeout    time.Duration
+	tlsWriteTimeout   time.Duration
+	tlsCertificate    string
+	tlsCertificateKey string
+	tlsCACertificate  string
+)
+
+func init() {
+	maxHeaderSize = flagext.ByteSize(1000000)
+
+	flag.StringSliceVar(&enabledListeners, "scheme", defaultSchemes, "the listeners to enable, this can be repeated and defaults to the schemes in the swagger spec")
+	flag.DurationVar(&cleanupTimout, "cleanup-timeout", 10*time.Second, "grace period for which to wait before shutting down the server")
+	flag.Var(&maxHeaderSize, "max-header-size", "controls the maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body")
+
+	flag.StringVar(&socketPath, "socket-path", "/var/run/todo-list.sock", "the unix socket to listen on")
+
+	flag.StringVar(&host, "host", "localhost", "the IP to listen on")
+	flag.IntVar(&port, "port", 0, "the port to listen on for insecure connections, defaults to a random value")
+	flag.IntVar(&listenLimit, "listen-limit", 0, "limit the number of outstanding requests")
+	flag.DurationVar(&keepAlive, "keep-alive", 3*time.Minute, "sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download)")
+	flag.DurationVar(&readTimeout, "read-timeout", 30*time.Second, "maximum duration before timing out read of the request")
+	flag.DurationVar(&writeTimeout, "write-timeout", 30*time.Second, "maximum duration before timing out write of the response")
+
+	flag.StringVar(&tlsHost, "tls-host", "localhost", "the IP to listen on")
+	flag.IntVar(&tlsPort, "tls-port", 0, "the port to listen on for insecure connections, defaults to a random value")
+	flag.StringVar(&tlsCertificate, "tls-certificate", "", "the certificate to use for secure connections")
+	flag.StringVar(&tlsCertificateKey, "tls-certificate-key", "", "the private key to use for secure conections")
+	flag.StringVar(&tlsCACertificate, "tls-ca", "", "the certificate authority file to be used with mutual tls auth")
+	flag.IntVar(&tlsListenLimit, "tls-listen-limit", 0, "limit the number of outstanding requests")
+	flag.DurationVar(&tlsKeepAlive, "tls-keep-alive", 3*time.Minute, "sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download)")
+	flag.DurationVar(&tlsReadTimeout, "tls-read-timeout", 30*time.Second, "maximum duration before timing out read of the request")
+	flag.DurationVar(&tlsWriteTimeout, "tls-write-timeout", 30*time.Second, "maximum duration before timing out write of the response")
+}
+
+func stringEnvOverride(orig string, def string, keys ...string) string {
+	for _, k := range keys {
+		if os.Getenv(k) != "" {
+			return os.Getenv(k)
+		}
+	}
+	if def != "" && orig == "" {
+		return def
+	}
+	return orig
+}
+
+func intEnvOverride(orig int, def int, keys ...string) int {
+	for _, k := range keys {
+		if os.Getenv(k) != "" {
+			v, err := strconv.Atoi(os.Getenv(k))
+			if err != nil {
+				fmt.Fprintln(os.Stderr, k, "is not a valid number")
+				os.Exit(1)
+			}
+			return v
+		}
+	}
+	if def != 0 && orig == 0 {
+		return def
+	}
+	return orig
+}
+
 // NewServer creates a new api todo list server but does not configure it
 func NewServer(api *operations.TodoListAPI) *Server {
 	s := new(Server)
+
+	s.EnabledListeners = enabledListeners
+	s.CleanupTimeout = cleanupTimout
+	s.MaxHeaderSize = maxHeaderSize
+	s.SocketPath = socketPath
+	s.Host = stringEnvOverride(host, "", "HOST")
+	s.Port = intEnvOverride(port, 0, "PORT")
+	s.ListenLimit = listenLimit
+	s.KeepAlive = keepAlive
+	s.ReadTimeout = readTimeout
+	s.WriteTimeout = writeTimeout
+	s.TLSHost = stringEnvOverride(tlsHost, s.Host, "TLS_HOST", "HOST")
+	s.TLSPort = intEnvOverride(tlsPort, 0, "TLS_PORT")
+	s.TLSCertificate = stringEnvOverride(tlsCertificate, "", "TLS_CERTIFICATE")
+	s.TLSCertificateKey = stringEnvOverride(tlsCertificateKey, "", "TLS_PRIVATE_KEY")
+	s.TLSCACertificate = stringEnvOverride(tlsCACertificate, "", "TLS_CA_CERTIFICATE")
+	s.TLSListenLimit = tlsListenLimit
+	s.TLSKeepAlive = tlsKeepAlive
+	s.TLSReadTimeout = tlsReadTimeout
+	s.TLSWriteTimeout = tlsWriteTimeout
 	s.api = api
 	return s
 }
 
-// ConfigureAPI configures the API and handlers. Needs to be called before Serve
+// ConfigureAPI configures the API and handlers.
 func (s *Server) ConfigureAPI() {
 	if s.api != nil {
 		s.handler = configureAPI(s.api)
@@ -57,29 +162,30 @@ func (s *Server) ConfigureFlags() {
 
 // Server for the todo list API
 type Server struct {
-	EnabledListeners []string         `long:"scheme" description:"the listeners to enable, this can be repeated and defaults to the schemes in the swagger spec"`
-	CleanupTimeout   time.Duration    `long:"cleanup-timeout" description:"grace period for which to wait before shutting down the server" default:"10s"`
-	MaxHeaderSize    flagext.ByteSize `long:"max-header-size" description:"controls the maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body." default:"1MiB"`
+	EnabledListeners []string
+	CleanupTimeout   time.Duration
+	MaxHeaderSize    flagext.ByteSize
 
-	SocketPath    flags.Filename `long:"socket-path" description:"the unix socket to listen on" default:"/var/run/todo-list.sock"`
+	SocketPath    string
 	domainSocketL net.Listener
 
-	Host         string        `long:"host" description:"the IP to listen on" default:"localhost" env:"HOST"`
-	Port         int           `long:"port" description:"the port to listen on for insecure connections, defaults to a random value" env:"PORT"`
-	ListenLimit  int           `long:"listen-limit" description:"limit the number of outstanding requests"`
-	KeepAlive    time.Duration `long:"keep-alive" description:"sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download)" default:"3m"`
-	ReadTimeout  time.Duration `long:"read-timeout" description:"maximum duration before timing out read of the request" default:"30s"`
-	WriteTimeout time.Duration `long:"write-timeout" description:"maximum duration before timing out write of the response" default:"60s"`
+	Host         string
+	Port         int
+	ListenLimit  int
+	KeepAlive    time.Duration
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
 	httpServerL  net.Listener
 
-	TLSHost           string         `long:"tls-host" description:"the IP to listen on for tls, when not specified it's the same as --host" env:"TLS_HOST"`
-	TLSPort           int            `long:"tls-port" description:"the port to listen on for secure connections, defaults to a random value" env:"TLS_PORT"`
-	TLSCertificate    flags.Filename `long:"tls-certificate" description:"the certificate to use for secure connections" env:"TLS_CERTIFICATE"`
-	TLSCertificateKey flags.Filename `long:"tls-key" description:"the private key to use for secure conections" env:"TLS_PRIVATE_KEY"`
-	TLSListenLimit    int            `long:"tls-listen-limit" description:"limit the number of outstanding requests"`
-	TLSKeepAlive      time.Duration  `long:"tls-keep-alive" description:"sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download)"`
-	TLSReadTimeout    time.Duration  `long:"tls-read-timeout" description:"maximum duration before timing out read of the request"`
-	TLSWriteTimeout   time.Duration  `long:"tls-write-timeout" description:"maximum duration before timing out write of the response"`
+	TLSHost           string
+	TLSPort           int
+	TLSCertificate    string
+	TLSCertificateKey string
+	TLSCACertificate  string
+	TLSListenLimit    int
+	TLSKeepAlive      time.Duration
+	TLSReadTimeout    time.Duration
+	TLSWriteTimeout   time.Duration
 	httpsServerL      net.Listener
 
 	api          *operations.TodoListAPI
@@ -142,6 +248,15 @@ func (s *Server) Serve() (err error) {
 		}
 	}
 
+	// set default handler, if none is set
+	if s.handler == nil {
+		if s.api == nil {
+			return errors.New("can't create the default handler, as no api is set")
+		}
+
+		s.SetHandler(s.api.Serve(nil))
+	}
+
 	var wg sync.WaitGroup
 
 	if s.hasScheme(schemeUnix) {
@@ -152,6 +267,8 @@ func (s *Server) Serve() (err error) {
 		if int64(s.CleanupTimeout) > 0 {
 			domainSocket.Timeout = s.CleanupTimeout
 		}
+
+		configureServer(domainSocket, "unix")
 
 		wg.Add(1)
 		s.Logf("Serving todo list at unix://%s", s.SocketPath)
@@ -172,11 +289,15 @@ func (s *Server) Serve() (err error) {
 		if s.ListenLimit > 0 {
 			httpServer.ListenLimit = s.ListenLimit
 		}
+
 		if int64(s.CleanupTimeout) > 0 {
 			httpServer.Timeout = s.CleanupTimeout
 		}
+
 		httpServer.Handler = s.handler
 		httpServer.LogFunc = s.Logf
+
+		configureServer(httpServer, "http")
 
 		wg.Add(1)
 		s.Logf("Serving todo list at http://%s", s.httpServerL.Addr())
@@ -205,16 +326,46 @@ func (s *Server) Serve() (err error) {
 		httpsServer.Handler = s.handler
 		httpsServer.LogFunc = s.Logf
 
-		httpsServer.TLSConfig = new(tls.Config)
-		httpsServer.TLSConfig.NextProtos = []string{"http/1.1", "h2"}
-		// https://www.owasp.org/index.php/Transport_Layer_Protection_Cheat_Sheet#Rule_-_Only_Support_Strong_Protocols
-		httpsServer.TLSConfig.MinVersion = tls.VersionTLS12
+		// Inspired by https://blog.bracebin.com/achieving-perfect-ssl-labs-score-with-go
+		httpsServer.TLSConfig = &tls.Config{
+			// Causes servers to use Go's default ciphersuite preferences,
+			// which are tuned to avoid attacks. Does nothing on clients.
+			PreferServerCipherSuites: true,
+			// Only use curves which have assembly implementations
+			// https://github.com/golang/go/tree/master/src/crypto/elliptic
+			CurvePreferences: []tls.CurveID{tls.CurveP256},
+			// Use modern tls mode https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility
+			NextProtos: []string{"http/1.1", "h2"},
+			// https://www.owasp.org/index.php/Transport_Layer_Protection_Cheat_Sheet#Rule_-_Only_Support_Strong_Protocols
+			MinVersion: tls.VersionTLS12,
+			// These ciphersuites support Forward Secrecy: https://en.wikipedia.org/wiki/Forward_secrecy
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			},
+		}
+
 		if s.TLSCertificate != "" && s.TLSCertificateKey != "" {
 			httpsServer.TLSConfig.Certificates = make([]tls.Certificate, 1)
-			httpsServer.TLSConfig.Certificates[0], err = tls.LoadX509KeyPair(string(s.TLSCertificate), string(s.TLSCertificateKey))
+			httpsServer.TLSConfig.Certificates[0], err = tls.LoadX509KeyPair(s.TLSCertificate, s.TLSCertificateKey)
+		}
+
+		if s.TLSCACertificate != "" {
+			caCert, err := ioutil.ReadFile(s.TLSCACertificate)
+			if err != nil {
+				log.Fatal(err)
+			}
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+			httpsServer.TLSConfig.ClientCAs = caCertPool
+			httpsServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 
 		configureTLS(httpsServer.TLSConfig)
+		httpsServer.TLSConfig.BuildNameToCertificate()
+
 		if err != nil {
 			return err
 		}
@@ -230,6 +381,8 @@ func (s *Server) Serve() (err error) {
 				s.Fatalf("the required flag `--tls-key` was not specified")
 			}
 		}
+
+		configureServer(httpsServer, "https")
 
 		wg.Add(1)
 		s.Logf("Serving todo list at https://%s", s.httpsServerL.Addr())
@@ -331,4 +484,34 @@ func (s *Server) GetHandler() http.Handler {
 // SetHandler allows for setting a http handler on this server
 func (s *Server) SetHandler(handler http.Handler) {
 	s.handler = handler
+}
+
+// UnixListener returns the domain socket listener
+func (s *Server) UnixListener() (net.Listener, error) {
+	if !s.hasListeners {
+		if err := s.Listen(); err != nil {
+			return nil, err
+		}
+	}
+	return s.domainSocketL, nil
+}
+
+// HTTPListener returns the http listener
+func (s *Server) HTTPListener() (net.Listener, error) {
+	if !s.hasListeners {
+		if err := s.Listen(); err != nil {
+			return nil, err
+		}
+	}
+	return s.httpServerL, nil
+}
+
+// TLSListener returns the https listener
+func (s *Server) TLSListener() (net.Listener, error) {
+	if !s.hasListeners {
+		if err := s.Listen(); err != nil {
+			return nil, err
+		}
+	}
+	return s.httpsServerL, nil
 }
