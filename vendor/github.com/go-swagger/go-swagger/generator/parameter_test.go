@@ -678,8 +678,8 @@ func TestGenParameter_Issue628_Collection(t *testing.T) {
 				ff, err := opts.LanguageOpts.FormatContent("post_models.go", buf.Bytes())
 				if assert.NoError(err) {
 					res := string(ff)
-					assertInCode(t, `workspace_idI, err := formats.Parse(workspace_idIV)`, res)
-					assertInCode(t, `workspace_idIR = append(workspace_idIR, workspace_idI)`, res)
+					assertInCode(t, `workspaceIDI, err := formats.Parse(workspaceIDIV)`, res)
+					assertInCode(t, `workspaceIDIR = append(workspaceIDIR, workspaceIDI)`, res)
 				} else {
 					fmt.Println(buf.String())
 				}
@@ -808,6 +808,52 @@ func TestGenParameter_Issue731_Details(t *testing.T) {
 	}
 }
 
+func TestGenParameter_Issue809_Client(t *testing.T) {
+	assert := assert.New(t)
+
+	gen, err := methodPathOpBuilder("get", "/foo", "../fixtures/bugs/809/swagger.yml")
+	if assert.NoError(err) {
+		op, err := gen.MakeOperation()
+		if assert.NoError(err) {
+			buf := bytes.NewBuffer(nil)
+			opts := opts()
+			err := templates.MustGet("clientParameter").Execute(buf, op)
+			if assert.NoError(err) {
+				ff, err := opts.LanguageOpts.FormatContent("post_models.go", buf.Bytes())
+				if assert.NoError(err) {
+					res := string(ff)
+					assertInCode(t, "valuesGroups", res)
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+		}
+	}
+}
+
+func TestGenParameter_Issue809_Server(t *testing.T) {
+	assert := assert.New(t)
+
+	gen, err := methodPathOpBuilder("get", "/foo", "../fixtures/bugs/809/swagger.yml")
+	if assert.NoError(err) {
+		op, err := gen.MakeOperation()
+		if assert.NoError(err) {
+			buf := bytes.NewBuffer(nil)
+			opts := opts()
+			err := templates.MustGet("serverParameter").Execute(buf, op)
+			if assert.NoError(err) {
+				ff, err := opts.LanguageOpts.FormatContent("post_models.go", buf.Bytes())
+				if assert.NoError(err) {
+					res := string(ff)
+					assertInCode(t, "groupsIC := rawData", res)
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+		}
+	}
+}
+
 func TestGenParameter_Issue710(t *testing.T) {
 	assert := assert.New(t)
 
@@ -829,6 +875,36 @@ func TestGenParameter_Issue710(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestGenParameter_Issue776_LocalFileRef(t *testing.T) {
+	b, err := opBuilder("GetItem", "../fixtures/bugs/776/param.yaml")
+	if assert.NoError(t, err) {
+		op, err := b.MakeOperation()
+		if assert.NoError(t, err) {
+			var buf bytes.Buffer
+			opts := opts()
+			if assert.NoError(t, templates.MustGet("serverParameter").Execute(&buf, op)) {
+				ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					assertInCode(t, "Body *GetItemParamsBody", string(ff))
+					assertNotInCode(t, "type GetItemParamsBody struct", string(ff))
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+			var buf2 bytes.Buffer
+			if assert.NoError(t, templates.MustGet("serverOperation").Execute(&buf2, op)) {
+				ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf2.Bytes())
+				if assert.NoError(t, err) {
+					assertInCode(t, "type GetItemParamsBody struct", string(ff))
+				} else {
+					fmt.Println(buf2.String())
+				}
+			}
+		}
+	}
+
 }
 
 func TestGenParameter_ArrayQueryParameters(t *testing.T) {
