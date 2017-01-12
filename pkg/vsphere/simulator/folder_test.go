@@ -497,8 +497,23 @@ func TestFolderCreateDVS(t *testing.T) {
 		t.Error(err)
 	}
 
-	if pg, ok := net.(*object.DistributedVirtualPortgroup); !ok {
+	pg, ok := net.(*object.DistributedVirtualPortgroup)
+	if !ok {
 		t.Fatalf("%T is not of type %T", net, pg)
+	}
+
+	backing, err := net.EthernetCardBackingInfo(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info, ok := backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo)
+	if ok {
+		if info.Port.SwitchUuid == "" || info.Port.PortgroupKey == "" {
+			t.Errorf("invalid port: %#v", info.Port)
+		}
+	} else {
+		t.Fatalf("%T is not of type %T", net, info)
 	}
 
 	task, err = dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{pspec})

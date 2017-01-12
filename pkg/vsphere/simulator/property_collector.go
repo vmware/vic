@@ -189,11 +189,11 @@ func (rr *retrieveResult) collectAll(rval reflect.Value, rtype reflect.Type, con
 	for i := 0; i < rval.NumField(); i++ {
 		val := rval.Field(i)
 
-		if isEmpty(val) {
+		f := rtype.Field(i)
+
+		if isEmpty(val) || f.Name == "Self" {
 			continue
 		}
-
-		f := rtype.Field(i)
 
 		if f.Anonymous {
 			// recurse into embedded field

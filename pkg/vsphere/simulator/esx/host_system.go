@@ -1799,12 +1799,10 @@ var HostSystem = mo.HostSystem{
 		VsanInternalSystem:        &types.ManagedObjectReference{Type: "HostVsanInternalSystem", Value: "ha-vsan-internal-system"},
 		CertificateManager:        &types.ManagedObjectReference{Type: "HostCertificateManager", Value: "ha-certificate-manager"},
 	},
-	Config:    (*types.HostConfigInfo)(nil),
-	Vm:        nil,
-	Datastore: nil,
-	Network: []types.ManagedObjectReference{
-		{Type: "Network", Value: "HaNetwork-VM Network"},
-	},
+	Config:           (*types.HostConfigInfo)(nil),
+	Vm:               nil,
+	Datastore:        nil,
+	Network:          nil,
 	DatastoreBrowser: types.ManagedObjectReference{Type: "HostDatastoreBrowser", Value: "ha-host-datastorebrowser"},
 	SystemResources:  (*types.HostSystemResourceInfo)(nil),
 }

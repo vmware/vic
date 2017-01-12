@@ -166,6 +166,19 @@ func (r *Registry) FindByName(name string, refs []types.ManagedObjectReference) 
 	return nil
 }
 
+// FindReference returns the 1st match found in refs, or nil if not found.
+func FindReference(refs []types.ManagedObjectReference, match ...types.ManagedObjectReference) *types.ManagedObjectReference {
+	for _, ref := range refs {
+		for _, m := range match {
+			if ref == m {
+				return &ref
+			}
+		}
+	}
+
+	return nil
+}
+
 // RemoveReference returns a slice with ref removed from refs
 func RemoveReference(ref types.ManagedObjectReference, refs []types.ManagedObjectReference) []types.ManagedObjectReference {
 	var result []types.ManagedObjectReference

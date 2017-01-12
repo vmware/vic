@@ -81,6 +81,7 @@ func VPX() *Model {
 		ServiceContent: vc.ServiceContent,
 		RootFolder:     vc.RootFolder,
 		Datacenter:     1,
+		Portgroup:      1,
 		Host:           1,
 		Cluster:        1,
 		ClusterHost:    3,
@@ -105,6 +106,10 @@ func (m *Model) Create() error {
 	var hosts []*object.HostSystem
 	// We need to defer VM creation until after the datastores are created.
 	var vms []func() error
+	// 1 DVS per DC, added to all hosts
+	var dvs *object.DistributedVirtualSwitch
+	// 1 NIC per VM, backed by a DVPG if Model.Portgroup > 0
+	vmnet := esx.EthernetCard.Backing
 
 	// addHost adds a cluster host or a stanalone host.
 	addHost := func(name string, f func(types.HostConnectSpec) (*object.Task, error)) (*object.HostSystem, error) {
@@ -125,11 +130,25 @@ func (m *Model) Create() error {
 		host := object.NewHostSystem(client, info.Result.(types.ManagedObjectReference))
 		hosts = append(hosts, host)
 
+		if dvs != nil {
+			config := &types.DVSConfigSpec{
+				Host: []types.DistributedVirtualSwitchHostMemberConfigSpec{{
+					Operation: string(types.ConfigSpecOperationAdd),
+					Host:      host.Reference(),
+				}},
+			}
+
+			_, _ = dvs.Reconfigure(ctx, config)
+		}
+
 		return host, nil
 	}
 
 	// addMachine returns a func to create a VM.
 	addMachine := func(prefix string, host *object.HostSystem, pool *object.ResourcePool, folders *object.DatacenterFolders) {
+		nic := esx.EthernetCard
+		nic.Backing = vmnet
+
 		f := func() error {
 			for i := 0; i < m.Machine; i++ {
 				name := m.fmtName(prefix+"_VM", i)
@@ -138,13 +157,17 @@ func (m *Model) Create() error {
 					Name:    name,
 					GuestId: string(types.VirtualMachineGuestOsIdentifierOtherGuest),
 					Files: &types.VirtualMachineFileInfo{
-						VmPathName: fmt.Sprintf("[LocalDS_0] %s", name),
+						VmPathName: "[LocalDS_0]",
 					},
 				}
 
 				if pool == nil {
 					pool, _ = host.ResourcePool(ctx)
 				}
+
+				devices := []types.BaseVirtualDevice{&nic}
+
+				config.DeviceChange, _ = object.VirtualDeviceList(devices).ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 
 				task, err := folders.VmFolder.CreateVM(ctx, config, pool, host)
 				if err != nil {
@@ -176,6 +199,47 @@ func (m *Model) Create() error {
 			return err
 		}
 
+		if m.Portgroup > 0 {
+			var spec types.DVSCreateSpec
+			spec.ConfigSpec = &types.VMwareDVSConfigSpec{}
+			spec.ConfigSpec.GetDVSConfigSpec().Name = m.fmtName("DVS", 0)
+
+			task, err := folders.NetworkFolder.CreateDVS(ctx, spec)
+			if err != nil {
+				return err
+			}
+
+			info, err := task.WaitForResult(ctx, nil)
+			if err != nil {
+				return err
+			}
+
+			dvs = object.NewDistributedVirtualSwitch(client, info.Result.(types.ManagedObjectReference))
+
+			for npg := 0; npg < m.Portgroup; npg++ {
+				name := m.fmtName(dcName+"_DVPG", npg)
+
+				task, err = dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{{Name: name}})
+				if err != nil {
+					return err
+				}
+
+				err = task.Wait(ctx)
+				if err != nil {
+					return err
+				}
+
+				// Use the 1st DVPG for the VMs eth0 backing
+				if npg == 0 {
+					// AddPortgroup_Task does not return the moid, so we look it up by name
+					net := Map.Get(folders.NetworkFolder.Reference()).(*Folder)
+					pg := Map.FindByName(name, net.ChildEntity)
+
+					vmnet, _ = object.NewDistributedVirtualPortgroup(client, pg.Reference()).EthernetCardBackingInfo(ctx)
+				}
+			}
+		}
+
 		for nhost := 0; nhost < m.Host; nhost++ {
 			name := m.fmtName(dcName+"_H", nhost)
 
@@ -197,12 +261,10 @@ func (m *Model) Create() error {
 				return err
 			}
 
-			// TODO: create DistributedVirtualPortgroup for npg := 0; npg < m.Portgroup; npg++
-
 			for nhost := 0; nhost < m.ClusterHost; nhost++ {
 				name := m.fmtName(clusterName+"_H", nhost)
 
-				_, err := addHost(name, func(spec types.HostConnectSpec) (*object.Task, error) {
+				_, err = addHost(name, func(spec types.HostConnectSpec) (*object.Task, error) {
 					return cluster.AddHost(ctx, spec, true, nil, nil)
 				})
 				if err != nil {
