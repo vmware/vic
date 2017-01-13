@@ -105,7 +105,7 @@ and commits.
 [dronevic]:https://ci.vmware.run/vmware/vic
 [e2edronevic]:https://e2e.ci.vmware.run/vmware/vic
 [dronesrc]:https://github.com/drone/drone
-[dronecli]:http://readme.drone.io/devs/cli/
+[dronecli]:http://readme.drone.io/usage/getting-started-cli/
 
 ## Automated Testing
 
