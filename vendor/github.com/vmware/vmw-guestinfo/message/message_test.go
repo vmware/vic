@@ -22,6 +22,7 @@ import (
 )
 
 const rpciProtocolNum uint32 = 0x49435052
+const tcloProtocol uint32 = 0x4f4c4354
 
 func TestOpenClose(t *testing.T) {
 	l := DefaultLogger.(*logger)
@@ -78,6 +79,45 @@ func TestOpenClose(t *testing.T) {
 	}
 
 	if !util.AssertNoError(t, ch.Close()) {
+		return
+	}
+}
+
+// Test we can reply to the rpcin
+func TestReset(t *testing.T) {
+	l := DefaultLogger.(*logger)
+	l.DebugLevel = true
+
+	if !vmcheck.IsVirtualWorld() {
+		t.Skip("Not in a virtual world")
+		return
+	}
+
+	ch, err := NewChannel(tcloProtocol)
+	if !util.AssertNotNil(t, ch) || !util.AssertNoError(t, err) {
+		return
+	}
+	defer ch.Close()
+
+	var buf []byte
+
+	for {
+		_ = ch.Send(buf)
+		request, _ := ch.Receive()
+		t.Logf("req = %s", string(request))
+
+		if len(request) == 0 {
+			continue
+		}
+
+		if string(request) == "reset" {
+			break
+		}
+	}
+
+	reply := "OK ATR toolbox"
+	err = ch.Send([]byte(reply))
+	if !util.AssertNoError(t, err) {
 		return
 	}
 }

@@ -82,7 +82,6 @@ func (p *BackdoorProto) InOut() *BackdoorProto {
 }
 
 func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
-
 	p.DX.Low.Low = BackdoorHighBWPort
 	p.AX.SetQuad(BackdoorMagic)
 
@@ -109,7 +108,6 @@ func (p *BackdoorProto) HighBandwidthOut() *BackdoorProto {
 }
 
 func (p *BackdoorProto) HighBandwidthIn() *BackdoorProto {
-
 	p.DX.Low.Low = BackdoorHighBWPort
 	p.AX.SetQuad(BackdoorMagic)
 
