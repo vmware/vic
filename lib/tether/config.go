@@ -140,7 +140,7 @@ type NetworkEndpoint struct {
 	DHCP *DHCPInfo `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// whether the network config was successfully applied
-	applied bool `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	configured bool `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }
 
 func (e *NetworkEndpoint) IsDynamic() bool {

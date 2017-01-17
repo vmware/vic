@@ -452,7 +452,7 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 }
 
 func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
-	if endpoint.applied {
+	if endpoint.configured {
 		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
 		return nil // already applied
 	}
@@ -466,7 +466,7 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 	defer func() {
 		if err == nil {
 			log.Infof("successfully applied config for network %s", endpoint.Network.Name)
-			endpoint.applied = true
+			endpoint.configured = true
 		}
 	}()
 
@@ -605,6 +605,7 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 				Nameservers: ack.DNS(),
 			}
 
+			e.configured = false
 			t.Apply(e)
 			if err = t.config.UpdateNetworkEndpoint(e); err != nil {
 				log.Error(err)
@@ -612,10 +613,12 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 			// update any endpoints that share this NIC
 			for _, d := range t.dynEndpoints[e.ID] {
 				if e == d {
+					// already applied above
 					continue
 				}
 
 				d.DHCP = e.DHCP
+				d.configured = false
 				t.Apply(d)
 				if err = t.config.UpdateNetworkEndpoint(d); err != nil {
 					log.Error(err)
