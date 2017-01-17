@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exec
+package validate
 
 import (
 	"context"
@@ -25,13 +25,12 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// InitErrorHandler register ContainerFixer to tasks error handler. So if any container vm operations fail for invalid state issue, this handler will be executed to fix the error.
-// The benefit to register handler in portlayer is that it can set container state during vm fixing.
-func InitTasksErrorHandler() {
-	tasks.RegisterErrorHandler(fixContainerHandler)
+// init register fixVMInvalidStateHandler to tasks error handler. So if any container vm operations fail for invalid state issue, this handler will be executed to fix the error.
+func init() {
+	tasks.RegisterErrorHandler(fixVMInvalidStateHandler)
 }
 
-func fixContainerHandler(ctx context.Context, err error) (bool, error) {
+func fixVMInvalidStateHandler(ctx context.Context, err error) (bool, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("error: %s", err)))
 	o := ctx.Value(tasks.VMObjectKey)
 	if o == nil {
@@ -49,11 +48,6 @@ func fixContainerHandler(ctx context.Context, err error) (bool, error) {
 		return false, nil
 	}
 	log.Debugf("Try to fix failure %s", err)
-	container := Containers.Container(vm.Reference().String())
-	if container != nil {
-		oldState := container.SetState(StateFixing)
-		defer container.SetState(oldState)
-	}
 	if nerr := vm.FixVM(ctx); nerr != nil {
 		log.Errorf("Failed to fix task failure: %s", nerr)
 		return true, nerr
