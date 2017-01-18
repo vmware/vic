@@ -6,9 +6,9 @@ Thank you for contributing to VIC Engine! Please review this checklist before su
 [ ] Questions are best asked and answered on Slack
     https://vmwarecode.slack.com/messages/vic-engine (see https://github.com/vmware/vic/blob/master/CONTRIBUTING.md#community for details)
 -->
-<!--
-For stories, please include the information below:
--->
+
+#For stories, please include the information below:
+
 **User Statement:**
 
 A brief statement describe who, what and why of the story for example - As a job seeker, I want to search for a job, so I can advance my career.
@@ -19,9 +19,9 @@ Any details of what you want that might clarify for the developer how to approac
 **Acceptance Criteria:**
 Specific deliverable and actionable items that the story needs to deliver in order to be considered complete, the more detail here the more accurate the implementation will be.
 
-<!--
-For bug reports, please include the information below.
--->
+
+#For bug reports, please include the information below:
+
 **VIC version:**
 
 x.y.z / master / commit ID
