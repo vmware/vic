@@ -16,7 +16,10 @@ package runtime
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
+	"reflect"
 	"unsafe"
 
 	"github.com/go-openapi/swag"
@@ -45,6 +48,22 @@ func TextProducer() Producer {
 			buf = bytes.NewBufferString(swag.StringValue(tped))
 		case string:
 			buf = bytes.NewBufferString(tped)
+		default:
+			if data == nil {
+				return errors.New("no data given to produce text from")
+			}
+
+			t, v := reflect.TypeOf(data), reflect.ValueOf(data)
+			if t.Kind() == reflect.Ptr {
+				v = v.Elem()
+				t = t.Elem()
+			}
+
+			if t.Kind() != reflect.String {
+				return fmt.Errorf("%T is not supported by the TextProducer", data)
+			}
+
+			buf = bytes.NewBufferString(v.String())
 		}
 		_, err := buf.WriteTo(writer)
 		return err
