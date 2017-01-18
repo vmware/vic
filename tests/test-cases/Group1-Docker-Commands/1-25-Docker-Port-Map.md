@@ -69,8 +69,7 @@ This test requires that a vSphere server is running and available
 5. Issue `q` to the container
 
 ### Expected Outcome:
-* All steps should return without without error
-
+* All steps should return without error
 
 ## Remap mapped ports after OOB Stop
 1. Deploy VIC appliance to vSphere server
@@ -81,7 +80,19 @@ This test requires that a vSphere server is running and available
 6. Issue `docker start <containerID>` to the VIC appliance
 
 ### Expected Outcome:
-* All steps should return without without error
+* All steps should return without error
+
+
+## Remap mapped ports after OOB Stop and Remove
+1. Issue `docker run -itd -p 5001:80 --name nginx1 nginx`
+2. Hit Nginx Endpoint at VCH-IP:5001
+3. Power off the container with govc
+4. Issue `docker rm nginx1`
+5. Issue `docker run -itd -p 5001:80 --name nginx2 nginx`
+6. Hit Nginx Endpoint at VCH-IP:5001
+
+### Expected Outcome:
+* All steps should return without error
 
 
 ## Container to container traffic via VCH public interface
@@ -94,4 +105,4 @@ This test requires that a vSphere server is running and available
 8. Verify the contents of `index.html`
 
 ### Expected Outcome:
-* All steps should return without without error
+* All steps should return without error

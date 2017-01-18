@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -439,6 +439,15 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 			return InternalServerError(err.Error())
 		}
 	}
+
+	// Unmap ports if the container was stopped out-of-band and then removed,
+	// in which case ports have been left mapped because the container is dropped
+	// from the persona cache before the mappings could be removed.
+	// If there's an error during unmap, don't fail the remove op.
+	if err = UnmapPorts(vc.HostConfig); err != nil {
+		log.Warn(err)
+	}
+
 	// delete container from the cache
 	cache.ContainerCache().DeleteContainer(id)
 	return nil
@@ -462,7 +471,9 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			// check state of the previously bound container with PL
 			cc := cache.ContainerCache().GetContainer(mappedCtr)
 			if cc == nil {
-				return fmt.Errorf("Unable to find container %q in the cache, unable to get power state", mappedCtr)
+				// The container was removed from the cache and
+				// port bindings were cleaned up by another operation.
+				return nil
 			}
 			running, err := c.containerProxy.IsRunning(cc)
 			if err != nil {
