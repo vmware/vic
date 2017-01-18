@@ -176,7 +176,7 @@ $(GOVC): vendor/manifest
 
 $(GAS): vendor/manifest
 	@echo building $(GAS)...
-	@$(GO) build $(RACE) -o $(GAS) ./vendor/github.com/HewlettPackard/gas
+	@$(GO) build $(RACE) -o $(GAS) ./vendor/github.com/GoASTScanner/gas
 
 $(MISSPELL): vendor/manifest
 	@echo building $(MISSPELL)...
@@ -226,7 +226,7 @@ govet:
 
 gas: $(GAS)
 	@echo checking security problems
-	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -exclude=*_test.go -exclude=*/*_test.go -exclude=*/*/*_test.go ./... > ../$$i.gas; popd > /dev/null; done
+	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) ./... > ../$$i.gas 2> /dev/null; popd > /dev/null; done
 
 vendor: $(GVT)
 	@echo restoring vendor
