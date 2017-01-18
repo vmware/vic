@@ -90,38 +90,34 @@ Connect containers to multiple networks non-overlapping
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  2 packets transmitted, 2 packets received
 
-Connect containers to multiple networks non-overlapping with a bridge container
-    ${status}=  Get State Of Github Issue  2721
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-17-Docker-Network-Connect.robot needs to be updated now that Issue #2721 has been resolved
-    Log  Issue \#2721 is blocking implementation  WARN
+    # Connect containers to multiple networks non-overlapping with a bridge container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create cross3-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create cross3-network2
+    Should Be Equal As Integers  ${rc}  0
 
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create cross3-network
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create cross3-network2
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull debian
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net cross3-network --name cross3-container busybox /bin/top
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net cross3-network2 --name cross3-container2 busybox /bin/top
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net cross3-network --name cross3-container3 debian /bin/sh -c "ping -c2 cross3-container && ping -c2 cross3-container2"
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect cross3-network2 ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    Wait Until Container Stops  ${containerID}
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross3-container3
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Contain X Times  ${output}  2 packets transmitted, 2 packets received  2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull debian
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net cross3-network --name cross3-container busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net cross3-network2 --name cross3-container2 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net cross3-network --name cross3-container3 debian /bin/sh -c "ping -c2 cross3-container && ping -c2 cross3-container2"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect cross3-network2 ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Container Stops  ${containerID}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross3-container3
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain X Times  ${output}  2 packets transmitted, 2 packets received  2
