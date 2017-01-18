@@ -45,8 +45,8 @@ No-trunc images
     Length Should Be  @{line}[2]  64
 
 Specific images
-    ${status}=  Get State Of Github Issue  1035
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-3-Docker-Images.robot needs to be updated now that Issue #1035 has been resolved
+    ${status}=  Get State Of Github Issue  2248
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-3-Docker-Images.robot needs to be updated now that Issue #2248 has been resolved
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine:3.1
 #    Should Be Equal As Integers  ${rc}  0
 #    Should Not Contain  ${output}  Error
