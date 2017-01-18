@@ -52,3 +52,18 @@ Specific images
 #    Should Not Contain  ${output}  Error
 #    Should Contain  ${output}  3.1
 #    Should Contain X Times  ${output}  alpine  1
+
+VIC/docker Image ID consistency
+    @{tags}=  Create List  uclibc  glibc  musl
+
+    :FOR  ${tag}  IN  @{tags}
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:${tag}
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Not Contain  ${output}  Error
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker --tls pull busybox:${tag}
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Not Contain  ${output}  Error
+    \   ${rc}  ${vic_id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images | grep -E busybox.*.${tag} |awk '{print $3}'
+    \   Should Be Equal As Integers  ${rc}  0
+    \   ${rc}  ${docker_id}=  Run And Return Rc And Output  docker --tls images | grep -E busybox.*.${tag} |awk '{print $3}'
+    \   Should Be Equal  ${vic_id}  ${docker_id}
