@@ -765,14 +765,6 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/urfave/cli",
-			"repository": "https://github.com/urfave/cli",
-			"vcs": "git",
-			"revision": "d86a009f5e13f83df65d0d6cee9a2e3f1445f0da",
-			"branch": "master",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/vbatts/tar-split/archive/tar",
 			"repository": "https://github.com/vbatts/tar-split",
 			"vcs": "",
@@ -1038,7 +1030,7 @@
 			"importpath": "gopkg.in/urfave/cli.v1",
 			"repository": "https://gopkg.in/urfave/cli.v1",
 			"vcs": "git",
-			"revision": "a14d7d367bc02b1f57d88de97926727f2d936387",
+			"revision": "0bdeddeeb0f650497d603c4ad7b20cfe685682f6",
 			"branch": "master",
 			"notests": true
 		},
