@@ -12,365 +12,278 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package io adds dynamic behaviour to the standard io package mutliX types
 package dio
 
 import (
 	"bytes"
 	"io"
-	"sync"
+	"strings"
 	"testing"
-
-	log "github.com/Sirupsen/logrus"
 )
 
-func init() {
-	// enable verbose logging during tests
-	log.SetLevel(log.DebugLevel)
-	verbose = true
+const (
+	count = 32
+
+	base    = "base functionality"
+	dynamic = "dynamic add/remove functionality"
+)
+
+func write(t *testing.T, mwriter DynamicMultiWriter, p []byte) {
+	n, err := mwriter.Write(p)
+	if err != nil {
+		t.Errorf("write: %v", err)
+	}
+	if n != len(p) {
+		t.Errorf("short write: %d != %d", n, len(p))
+	}
 }
 
+func read(t *testing.T, mreader DynamicMultiReader, limit int) []byte {
+	total := 0
+
+	var buf = make([]byte, 32*1024)
+	for {
+		n, err := mreader.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Errorf("read: %v", err)
+		}
+
+		total += n
+		if total >= limit {
+			break
+		}
+	}
+
+	return buf[:limit]
+}
+
+func control(t *testing.T, buffers []*bytes.Buffer, p []byte) {
+	for i := range buffers {
+		buffer := buffers[i]
+		if buffer.String() != string(p) {
+			t.Errorf("Expected: %q, actual: %q", string(p), buffer.String())
+		}
+	}
+}
+
+func equal(t *testing.T, mreader DynamicMultiReader, str string, count int) {
+	expected := strings.Repeat(str, count)
+	// read from multi reader
+	buffer := string(read(t, mreader, len(expected)))
+	// compare the data
+	if buffer != expected {
+		t.Errorf("Expected: %q, actual: %q", expected, buffer)
+	}
+}
+
+// TestMultiWrite creates multi writers and writes to them, then removes some of them and writes again
 func TestMultiWrite(t *testing.T) {
-	pipeAR, pipeAW := io.Pipe()
-	pipeBR, pipeBW := io.Pipe()
+	var writers []io.Writer
+	var buffers []*bytes.Buffer
 
-	mwriter := MultiWriter(pipeAW, pipeBW)
+	// create & initialize writers and buffers
+	for i := 0; i < count; i++ {
+		var buffer bytes.Buffer
 
-	var bufA bytes.Buffer
-	var bufB bytes.Buffer
+		reader, writer := io.Pipe()
 
-	// set up a copy so we don't block writes
-	go io.Copy(&bufA, pipeAR)
-	go io.Copy(&bufB, pipeBR)
+		writers = append(writers, writer)
+		buffers = append(buffers, &buffer)
 
-	// send the test string
-	data := "verify base multiwriter function"
-	_, err := mwriter.Write([]byte(data))
-	if err != nil {
-		t.Error(err)
-		return
+		// set up a goroutine so we don't block writes
+		go io.Copy(&buffer, reader)
 	}
 
-	// compare the data
-	if bufA.String() != data {
-		t.Errorf("A: expected: %s, actual: %s", data, bufA.String())
-		return
-	}
+	// create the multi writer
+	mwriter := MultiWriter(writers...)
 
-	if bufB.String() != data {
-		t.Errorf("B: expected: %s, actual: %s", data, bufB.String())
-		return
-	}
+	write(t, mwriter, []byte(base))
+	control(t, buffers, []byte(base))
 }
 
+// TestMultiWrite creates bunch of multi writers and writes to them, then adds more and writes again
 func TestWriteAdd(t *testing.T) {
-	pipeAR, pipeAW := io.Pipe()
-	pipeBR, pipeBW := io.Pipe()
+	var writers []io.Writer
+	var buffers []*bytes.Buffer
 
-	mwriter := MultiWriter(pipeAW)
+	var writersAdded []io.Writer
+	var buffersAdded []*bytes.Buffer
 
-	var bufA bytes.Buffer
-	var bufB bytes.Buffer
+	// create & initialize writers and buffers into two categories
+	// *Added ones will be added to multi writer later
+	for i := 0; i < count; i++ {
+		var buffer bytes.Buffer
 
-	// set up a copy so we don't block writes
-	go io.Copy(&bufA, pipeAR)
-	go io.Copy(&bufB, pipeBR)
+		reader, writer := io.Pipe()
 
-	// send the test string
-	data := "verify base multiwriter function"
-	_, err := mwriter.Write([]byte(data))
-	if err != nil {
-		t.Error(err)
-		return
+		// add the writer & buffer to skip list if i divisible by three
+		if i%3 == 0 {
+			writersAdded = append(writersAdded, writer)
+			buffersAdded = append(buffersAdded, &buffer)
+		} else {
+			writers = append(writers, writer)
+			buffers = append(buffers, &buffer)
+		}
+
+		// set up a goroutine so we don't block writes
+		go io.Copy(&buffer, reader)
 	}
 
-	// compare the data - shouldn't be present
-	if bufA.String() != data {
-		t.Errorf("A: expected: %s, actual: %s", data, bufA.String())
-		return
-	}
+	// create the multi writer
+	mwriter := MultiWriter(writers...)
 
-	if bufB.String() != "" {
-		t.Errorf("B: expected: %s, actual: %s", "", bufB.String())
-		return
-	}
+	write(t, mwriter, []byte(base))
+	control(t, buffers, []byte(base))
 
-	// Add writer to existing MultiWriter
-	mwriter.Add(pipeBW)
+	// add skipped writers to the writer
+	mwriter.Add(writersAdded...)
 
-	data2 := "verify dynamic add"
-	_, err = mwriter.Write([]byte(data2))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	// compare the data - shouldn't be present
-	if bufA.String() != data+data2 {
-		t.Errorf("A: expected: %s, actual: %s", data+data2, bufA.String())
-		return
-	}
-
-	if bufB.String() != data2 {
-		t.Errorf("B: expected: %s, actual: %s", data2, bufB.String())
-		return
-	}
-
+	write(t, mwriter, []byte(dynamic))
+	control(t, buffers, []byte(base+dynamic))
+	control(t, buffersAdded, []byte(dynamic))
 }
 
+// TestMultiWrite creates multi writers and writes to them, then removes some of them and writes again
 func TestWriteRemove(t *testing.T) {
-	pipeAR, pipeAW := io.Pipe()
-	pipeBR, pipeBW := io.Pipe()
+	var writers []io.Writer
+	var buffers []*bytes.Buffer
 
-	mwriter := MultiWriter(pipeAW, pipeBW)
+	var buffersLeft []*bytes.Buffer
+	var buffersRemoved []*bytes.Buffer
 
-	var bufA bytes.Buffer
-	var bufB bytes.Buffer
+	// create & initialize writers and buffers into two categories
+	// *Removed ones will be filtered out from multi writer later
+	for i := 0; i < count; i++ {
+		var buffer bytes.Buffer
 
-	// set up a copy so we don't block writes
-	go io.Copy(&bufA, pipeAR)
-	go io.Copy(&bufB, pipeBR)
+		reader, writer := io.Pipe()
 
-	// send the test string
-	data := "verify base multiwriter function"
-	_, err := mwriter.Write([]byte(data))
-	if err != nil {
-		t.Error(err)
-		return
+		writers = append(writers, writer)
+		buffers = append(buffers, &buffer)
+
+		// set up a goroutine so we don't block writes
+		go io.Copy(&buffer, reader)
 	}
 
-	// compare the data
-	if bufA.String() != data {
-		t.Errorf("A: expected: %s, actual: %s", data, bufA.String())
-		return
+	// create the multi writer
+	mwriter := MultiWriter(writers...)
+
+	write(t, mwriter, []byte(base))
+	control(t, buffers, []byte(base))
+
+	// add the writer & buffer to skip list if i divisible by three
+	for i := 0; i < count; i++ {
+		if i%3 == 0 {
+			mwriter.Remove(writers[i])
+
+			buffersRemoved = append(buffersRemoved, buffers[i])
+		} else {
+			buffersLeft = append(buffersLeft, buffers[i])
+		}
 	}
 
-	if bufB.String() != data {
-		t.Errorf("B: expected: %s, actual: %s", data, bufB.String())
-		return
-	}
-
-	// Remove the writer from the MultiWriter
-	mwriter.Remove(pipeBW)
-
-	data2 := "verify dynamic remove"
-	_, err = mwriter.Write([]byte(data2))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	// compare the data - shouldn't be present
-	if bufA.String() != data+data2 {
-		t.Errorf("A: expected: %s, actual: %s", data+data2, bufA.String())
-		return
-	}
-
-	if bufB.String() != data {
-		t.Errorf("B: expected: %s, actual: %s", data, bufB.String())
-		return
-	}
+	write(t, mwriter, []byte(dynamic))
+	control(t, buffersLeft, []byte(base+dynamic))
+	control(t, buffersRemoved, []byte(base))
 }
 
-func TestWriteConcurrentRemove(t *testing.T) {
-	t.Skip("not sure how to test concurrency in this case")
-}
-
+// TestMultiRead creates multi readers and reads from them
 func TestMultiRead(t *testing.T) {
-	var wg sync.WaitGroup
+	var readers []io.Reader
 
-	dataA := "verify base multireader functionA"
-	dataB := "verify base multireader functionB"
+	// create & initialize writers and buffers
+	for i := 0; i < count; i++ {
+		reader, writer := io.Pipe()
 
-	readerA := bytes.NewReader([]byte(dataA))
-	readerB := bytes.NewReader([]byte(dataB))
+		readers = append(readers, reader)
 
-	mreader := MultiReader(readerA, readerB)
-
-	var buf bytes.Buffer
-
-	// do the read
-	_, err := io.CopyN(&buf, mreader, int64(len(dataA)+len(dataB)))
-	if err != nil {
-		t.Error(err)
+		// set up a  goroutine so we don't block reads
+		go io.Copy(writer, bytes.NewReader([]byte(base)))
 	}
 
-	// compare the data
-	if buf.String() != dataA+dataB {
-		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
-		return
-	}
+	// create the multi writer
+	mreader := MultiReader(readers...)
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_, err := mreader.Read(buf.Bytes())
-		if err != io.EOF {
-			t.Error(err)
-		}
-	}()
-
-	mreader.Close()
-	wg.Wait()
+	equal(t, mreader, base, count)
 }
 
+// TestMultiRead creates multi readers and reads from them, then adds mores and reads again
 func TestReadAdd(t *testing.T) {
-	var wg sync.WaitGroup
+	var readers []io.Reader
+	var pipereaders []io.PipeReader
 
-	done := make(chan struct{}, 1)
-	defer close(done)
+	var readersAdded []io.Reader
 
-	dataA := "verify base multireader functionA"
-	dataB := "verify base multireader functionB"
+	skipped := 0
+	// create & initialize writers and buffers
+	for i := 0; i < count; i++ {
+		reader, writer := io.Pipe()
 
-	readerA := bytes.NewReader([]byte(dataA))
-	readerB := bytes.NewReader([]byte(dataB))
+		if i%3 == 0 {
+			skipped++
 
-	mreader := MultiReader(readerA)
+			readersAdded = append(readersAdded, reader)
+			// set up a  goroutine so we don't block reads
+			go io.Copy(writer, bytes.NewReader([]byte(dynamic)))
+		} else {
+			pipereaders = append(pipereaders, *reader)
+			readers = append(readers, reader)
 
-	var bufA bytes.Buffer
-	var bufB bytes.Buffer
-
-	// do the read - bytes.NewReader does not return data and EOF
-	// from the same call, so this should have err==nil
-	_, err := io.CopyN(&bufA, mreader, int64(len(dataA)))
-	if err != nil {
-		t.Error(err)
-	}
-
-	// compare the data
-	if bufA.String() != dataA {
-		t.Errorf("A: expected: %s, actual: %s", dataA, bufA.String())
-		return
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		<-done
-
-		_, err := mreader.Read(bufA.Bytes())
-		if err != io.EOF {
-			t.Error(err)
+			// set up a  goroutine so we don't block reads
+			go io.Copy(writer, bytes.NewReader([]byte(base)))
 		}
-	}()
-
-	// Add reader to existing MultiReader
-	// this should furnish new data to the copy without further action being
-	// taken
-	mreader.Add(readerB)
-
-	// do the read - we expect mreader to now switch to the new source, which
-	// has the standard bytes.NewReader behaviour
-	_, err = io.CopyN(&bufB, mreader, int64(len(dataB)))
-	if err != nil {
-		t.Error(err)
-	}
-	done <- struct{}{}
-
-	// compare the data
-	if bufB.String() != dataB {
-		t.Errorf("A: expected: %s, actual: %s", dataB, bufB.String())
-		return
 	}
 
-	mreader.Close()
-	wg.Wait()
+	// create the multi writer
+	mreader := MultiReader(readers...)
+
+	equal(t, mreader, base, count-skipped)
+
+	// add the rest of the readers
+	mreader.Add(readersAdded...)
+
+	// close the initial set otherwise they will block
+	for i := range pipereaders {
+		pipereaders[i].Close()
+	}
+
+	equal(t, mreader, dynamic, skipped)
 }
 
+// TestReadRemove creates multi readers and reads from them, then removes some and reads again
 func TestReadRemove(t *testing.T) {
-	var wg sync.WaitGroup
+	var readers []io.Reader
+	var writers []io.Writer
 
-	done := make(chan struct{}, 1)
-	defer close(done)
+	// create & initialize writers and buffers
+	for i := 0; i < count; i++ {
+		reader, writer := io.Pipe()
 
-	pipeAR, pipeAW := io.Pipe()
-	pipeBR, pipeBW := io.Pipe()
+		readers = append(readers, reader)
+		writers = append(writers, writer)
 
-	mreader := MultiReader(pipeAR, pipeBR)
-
-	var bufA bytes.Buffer
-	var bufB bytes.Buffer
-
-	// send the test string
-	data := "verify base multiwriter function"
-
-	go func() {
-		defer pipeAW.Close()
-		_, err := pipeAW.Write([]byte(data))
-		if err != nil {
-			t.Error(err)
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		<-done
-
-		_, err := mreader.Read(bufA.Bytes())
-		if err != nil && err != io.EOF && err != io.ErrClosedPipe {
-			t.Error(err)
-		}
-	}()
-
-	// do the read
-	_, err := io.CopyN(&bufA, mreader, int64(len(data)))
-	if err != nil {
-		t.Error(err)
+		// set up a goroutine so we don't block reads
+		go io.Copy(writer, bytes.NewReader([]byte(base)))
 	}
 
-	done <- struct{}{}
+	// create the multi writer
+	mreader := MultiReader(readers...)
 
-	// compare the data
-	if bufA.String() != data {
-		t.Errorf("A: expected: %s, actual: %s", data, bufA.String())
-	}
+	equal(t, mreader, base, count)
 
-	// Remove the writer from existing MultiWriter
-	mreader.Remove(pipeAR)
+	removed := 0
+	for i := 0; i < count; i++ {
+		if i%3 == 0 {
+			removed++
 
-	data = "verify dynamic remove"
-
-	go func() {
-		defer pipeBW.Close()
-		_, err = pipeBW.Write([]byte(data))
-		if err != nil {
-			t.Error(err)
+			mreader.Remove(readers[i])
+		} else {
+			// set up another goroutine so we don't block reads
+			go io.Copy(writers[i], bytes.NewReader([]byte(dynamic)))
 		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		<-done
-
-		_, err := mreader.Read(bufB.Bytes())
-		if err != nil && err != io.EOF && err != io.ErrClosedPipe {
-			t.Error(err)
-		}
-
-	}()
-
-	// do the read
-	_, err = io.CopyN(&bufB, mreader, int64(len(data)))
-	if err != nil {
-		t.Error(err)
 	}
-	done <- struct{}{}
-
-	// compare the data - shouldn't be present
-	if bufB.String() != data {
-		t.Errorf("B: expected: %s, actual: %s", data, bufB.String())
-	}
-
-	mreader.Close()
-	wg.Wait()
-}
-
-func TestReadConcurrentRemove(t *testing.T) {
-	t.Skip("not sure how to test concurrency in this case")
+	equal(t, mreader, dynamic, count-removed)
 }
