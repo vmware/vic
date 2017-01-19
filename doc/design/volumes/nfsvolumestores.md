@@ -22,7 +22,7 @@ Allow the container user to
 
 Adding shared storage to our model fits with the `VolumeStore` interface.  At install, a VI admin can specify an NFS target as a `VolumeStore` (potentially) using a `nfs://host/<path>` URI with a volume store name.  The container user only needs to pass the volume store name as one of the `volume create` driver opts to create a volume which will be backed by this shared storage target.  Then many containers can be created with the specified volume attached.
 
-_VolumeStore_
+#### VolumeStore
 The `VolumeStore` interface is used by the storage layer to implement the volume storage layer on different backend implementations.  The currenty (and only) implementation used by VIC is to manimpulate vsphere `.vmdk` backed block devices on the Datastore.  We intend to create a similar implementation for NFSv3.
 
 https://github.com/vmware/vic/blob/master/lib/portlayer/storage/volume.go#L36
@@ -50,7 +50,7 @@ type NFSv3VolumeStore struct {
 }
 ```
 
-_VolumeCreate_
+#### VolumeCreate
 In the vsphere model, a volume is a `.vmdk` backed block device.  Creation of a volume entails attaching a new disk to the VCH, preparing it with a filesystem, and detaching it.  The resulting `.vmdk` lives in its own folder in the volume store directory (specified during install w/ `vic-machine`).  We're going to follow the same model except there is nothing to prepare.  Each volume will be a directory (which the container client will mount directly) and live at the top of the volume store directory (which we will prepare during install).
 
 Some psuedo code.
