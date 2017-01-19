@@ -43,9 +43,6 @@ func TestMigrateConfigure(t *testing.T) {
 					StopSignal: "10",
 				},
 			},
-			//			Version: &version.Build{
-			//				PluginVersion: 0,
-			//			},
 		},
 		Network: config.Network{
 			BridgeNetwork: "VM Network",
@@ -94,4 +91,40 @@ func TestMigrateConfigure(t *testing.T) {
 
 	assert.Equal(t, 1, newConf.Version.PluginVersion, "should not be migrated")
 	t.Logf("other version fields: %s", newConf.Version.String())
+}
+
+func TestIsDataOlder(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	conf := &config.VirtualContainerHostConfigSpec{
+		ExecutorConfig: executor.ExecutorConfig{
+			Sessions: map[string]*executor.SessionConfig{
+				"abc": &executor.SessionConfig{
+					Attach:     true,
+					StopSignal: "2",
+				},
+				"def": &executor.SessionConfig{
+					Attach:     false,
+					StopSignal: "10",
+				},
+			},
+		},
+		Network: config.Network{
+			BridgeNetwork: "VM Network",
+		},
+	}
+	mapData := make(map[string]string)
+	extraconfig.Encode(extraconfig.MapSink(mapData), conf)
+	t.Logf("Old appliance data: %#v", mapData)
+	older, err := IsApplianceDataOlder(mapData)
+	assert.Equal(t, nil, err, "should not have error")
+	assert.True(t, older, "Test data should be older than latest")
+
+	mapData = make(map[string]string)
+	extraconfig.Encode(extraconfig.MapSink(mapData), conf.ExecutorConfig)
+	t.Logf("Old container data: %#v", mapData)
+
+	older, err = IsContainerDataOlder(mapData)
+	assert.Equal(t, nil, err, "should not have error")
+	assert.False(t, older, "Test data should not be older than latest, no container update plugin registered yet")
 }

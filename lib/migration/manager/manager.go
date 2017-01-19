@@ -40,7 +40,7 @@ var (
 )
 
 type Plugin interface {
-	Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error)
+	Migrate(ctx context.Context, s *session.Session, data interface{}) error
 }
 
 type DataMigration interface {
@@ -48,6 +48,8 @@ type DataMigration interface {
 	Register(version int, target string, plugin Plugin) error
 	// Migrate data with current version ID, return true if has any plugin executed
 	Migrate(ctx context.Context, s *session.Session, target string, currentVersion int, data interface{}) (int, error)
+	// GetLatestVersion return the latest plugin id for specified target
+	GetLatestVersion(target string) int
 }
 
 type DataMigrator struct {
@@ -123,13 +125,21 @@ func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target s
 	for ; j < len(pluginVers); j++ {
 		ver := pluginVers[j]
 		p := m.verPlugins[ver]
-		c, err := p.Migrate(ctx, s, data)
+		err := p.Migrate(ctx, s, data)
 		if err != nil {
 			return latestVer, err
 		}
-		if c {
-			latestVer = ver
-		}
+		latestVer = ver
 	}
 	return latestVer, nil
+}
+
+func (m *DataMigrator) GetLatestVersion(target string) int {
+	pluginVers := m.targetVers[target]
+	l := len(pluginVers)
+	if l == 0 {
+		log.Debugf("No plugin registered for %s", target)
+		return 0
+	}
+	return pluginVers[l-1]
 }

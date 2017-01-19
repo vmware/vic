@@ -70,16 +70,16 @@ type NewSessionConfig struct {
 	StopSignal string `vic:"0.1" scope:"read-only" key:"forceStopSignal"`
 }
 
-func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
+func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%d", version)))
 	if data == nil {
-		return false, nil
+		return nil
 	}
 	mapData := data.(map[string]string)
 	oldStruct := &OldStopSignal{}
 	result := extraconfig.Decode(extraconfig.MapSource(mapData), oldStruct)
 	if result == nil {
-		return false, &errors.DecodeError{}
+		return &errors.DecodeError{}
 	}
 	keys := extraconfig.CalculateKeys(oldStruct, "ExecutorConfig.Sessions.*.StopSignal", "")
 	for _, key := range keys {
@@ -88,7 +88,7 @@ func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Sess
 
 	newStruct := &NewStopSignal{}
 	if len(oldStruct.ExecutorConfig.Sessions) == 0 {
-		return false, nil
+		return nil
 	}
 	newStruct.Sessions = make(map[string]*NewSessionConfig)
 	for id, sess := range oldStruct.ExecutorConfig.Sessions {
@@ -107,5 +107,5 @@ func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Sess
 		log.Debugf("New data: %s:%s", k, v)
 		mapData[k] = v
 	}
-	return true, nil
+	return nil
 }

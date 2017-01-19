@@ -32,11 +32,11 @@ import (
 )
 
 // Sample plugin to migrate data in keyvalue store
-// Migrate keyvalue plugin should read configuration from input VirtualContainerHost configuration, and then read from keyvalue store file directly
-// After migration, write back to datastore file
-// Note: Currently allowed change in keyvalue store is only "ADD". Old value could be migrated to new key, but old key could not be removed. This is to make sure if eventually
-// VCH upgrade failed, no datastore file revert available in current migration framework, so this limitation can make sure old binary still works well with half migrated keyvalue store.
-// While there is rollback plugin and framework support, this limitation could be removed.
+// If there is any key/value change, should create a new keyvalue store file with version appendix, like .v2, to differentiate with old keyvalue store file
+// Migrate keyvalue plugin should read configuration from input VirtualContainerHost configuration, and then read from old keyvalue store file directly
+// After migration, write back to new datastore file with version appendix
+// Data migration framework is not responsible for data roll back. With versioned datastore file, even roll back happens, old version's datastore file is still useable by old binary
+// Make sure to delete existing new version datastore file, which might be a left over of last failed data migration attempt.
 const (
 	version = 2
 	target  = manager.ApplianceConfigure
@@ -59,15 +59,15 @@ func init() {
 type NewImageMeta struct {
 }
 
-func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
+func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%d", version)))
 	if data == nil {
-		return false, nil
+		return nil
 	}
 	vchConfMap := data.(map[string]string)
 	// No plugin query keyvalue store yet, load from datastore file
 	// get a ds helper for this ds url
-	vchConf := &config.VirtualContainerHostConfigSpec{}
+	vchConf := &v2.VirtualContainerHostConfigSpec{}
 	extraconfig.Decode(extraconfig.MapSource(vchConfMap), vchConf)
 
 	imageURL := vchConf.ImageStores[0]
@@ -75,31 +75,49 @@ func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data int
 	dsHelper, err := datastore.NewHelper(trace.NewOperation(ctx, "datastore helper creation"), s,
 		s.Datastore, fmt.Sprintf("%s/%s", imageURL.Path, KVStoreFolder))
 	if err != nil {
-		return false, &errors.InternalError{
+		return &errors.InternalError{
 			fmt.Sprintf("unable to get datastore helper for %s store creation: %s", APIKV, err.Error()),
 		}
 	}
-
 	// restore the modified K/V store
-	keyValStore, err := kvstore.NewKeyValueStore(ctx, kvstore.NewDatastoreBackend(dsHelper), APIKV)
+	oldKeyValStore, err := kvstore.NewKeyValueStore(ctx, kvstore.NewDatastoreBackend(dsHelper), APIKV)
 	if err != nil && !os.IsExist(err) {
-		return false, &errors.InternalError{
+		return &errors.InternalError{
 			fmt.Sprintf("unable to create %s datastore backed store: %s", APIKV, err.Error()),
 		}
 	}
-	val, err := keyValStore.Get(oldKey)
+
+	// create new k/v store with version appendix v2
+	newDsFile := fmt.Sprintf("%s.v%d", APIKV, version)
+	// try to remove new k/v store file in case it's created already
+	dsHelper.Rm(ctx, newDsFile)
+	newKeyValueStore, err := kvstore.NewKeyValueStore(ctx, kvstore.NewDatastoreBackend(dsHelper), newDsFile)
+	if err != nil && !os.IsExist(err) {
+		return &errors.InternalError{
+			fmt.Sprintf("unable to create %s datastore backed store: %s", newDsFile, err.Error()),
+		}
+	}
+
+	// copy all key/value from old k/v store
+	allKeyVals, err := oldKeyValStore.List(".*")
 	if err != nil {
-		return false, &errors.InternalError{
+		return &errors.InternalError{
+			fmt.Sprintf("unable to list key/value store %s: %s", APIKV, err.Error()),
+		}
+	}
+
+	for key, val := range allKeyVals {
+		newKeyValueStore.Put(ctx, key, val)
+	}
+	val, err := newKeyValueStore.Get(oldKey)
+	if err != nil && err != kvstore.ErrKeyNotFound {
+		return &errors.InternalError{
 			fmt.Sprintf("failed to get %s from store %s: %s", oldKey, APIKV, err.Error()),
 		}
 	}
-	if val == nil {
-		log.Debugf("Nothing to migrate")
-		return false, nil
-	}
 	// put the new key/value to store, and leave the old key/value there, in case upgrade failed, old binary still works well with half-changed store
-	keyValStore.Put(ctx, newKey, []byte(fmt.Sprintf("%s:%s", val, "latest")))
+	newKeyValueStore.Put(ctx, newKey, []byte(fmt.Sprintf("%s:%s", val, "latest")))
 	// persist new data back to vsphere, framework does not take of it
-	keyValStore.Save(ctx)
-	return false, nil
+	newKeyValueStore.Save(ctx)
+	return nil
 }

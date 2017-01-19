@@ -40,6 +40,25 @@ func MigrateContainerConfigure(conf map[string]string) (map[string]string, bool,
 	return migrateConfigure(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
+func IsContainerDataOlder(conf map[string]string) (bool, error) {
+	return isDataOlder(conf, manager.ContainerConfigure, manager.ContainerVersionKey)
+}
+
+func IsApplianceDataOlder(conf map[string]string) (bool, error) {
+	return isDataOlder(conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
+}
+
+func isDataOlder(data map[string]string, target string, verKey string) (bool, error) {
+	var currentID int
+	var err error
+
+	if currentID, err = getCurrentID(data, verKey); err != nil {
+		return false, err
+	}
+	latestVer := manager.Migrator.GetLatestVersion(target)
+	return latestVer > currentID, nil
+}
+
 func migrateConfigure(ctx context.Context, s *session.Session, data map[string]string, target string, verKey string) (map[string]string, bool, error) {
 	dst := make(map[string]string)
 	if len(data) == 0 {
@@ -48,17 +67,9 @@ func migrateConfigure(ctx context.Context, s *session.Session, data map[string]s
 
 	var currentID int
 	var err error
-	strID := data[verKey]
 
-	if strID == "" {
-		currentID = 0
-	} else {
-		if currentID, err = strconv.Atoi(strID); err != nil {
-			return dst, false, &errors.InvalidMigrationVersion{
-				Version: strID,
-				Err:     err,
-			}
-		}
+	if currentID, err = getCurrentID(data, verKey); err != nil {
+		return dst, false, err
 	}
 
 	for k, v := range data {
@@ -71,4 +82,21 @@ func migrateConfigure(ctx context.Context, s *session.Session, data map[string]s
 	}
 	dst[verKey] = strconv.Itoa(latestID)
 	return dst, true, err
+}
+
+func getCurrentID(data map[string]string, verKey string) (int, error) {
+	var currentID int
+	var err error
+	strID := data[verKey]
+
+	if strID == "" {
+		return 0, nil
+	}
+	if currentID, err = strconv.Atoi(strID); err != nil {
+		return 0, &errors.InvalidMigrationVersion{
+			Version: strID,
+			Err:     err,
+		}
+	}
+	return currentID, nil
 }

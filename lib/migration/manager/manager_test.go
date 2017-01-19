@@ -37,9 +37,9 @@ func NewTestPlugin(version int) *TestPlugin {
 	return &TestPlugin{version}
 }
 
-func (p *TestPlugin) Migrate(ctx context.Context, s *session.Session, data interface{}) (bool, error) {
+func (p *TestPlugin) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
 	testMap[p.Version] = true
-	return true, nil
+	return nil
 }
 
 func setUp() {
