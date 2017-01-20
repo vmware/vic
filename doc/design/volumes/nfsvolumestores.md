@@ -25,7 +25,9 @@ Adding shared storage to our model fits with the `VolumeStore` interface.  At in
 #### VolumeStore
 The `VolumeStore` interface is used by the storage layer to implement the volume storage layer on different backend implementations.  The currenty (and only) implementation used by VIC is to manimpulate vsphere `.vmdk` backed block devices on the Datastore.  We intend to create a similar implementation for NFSv3.
 
-https://github.com/vmware/vic/blob/master/lib/portlayer/storage/volume.go#L36
+The advantage to using the interface is the storage layer maintains consistency of the volumes regardless of the storage backend used.  For instance it checks all containers during `volume destroy` to see if the named volume is still referenced by another container (whether the container is powered `on` or `off`).
+
+[For reference](https://github.com/vmware/vic/blob/master/lib/portlayer/storage/volume.go#L36)
 ```
  35 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
  36 type VolumeStorer interface {
@@ -37,18 +39,19 @@ https://github.com/vmware/vic/blob/master/lib/portlayer/storage/volume.go#L36
  42
  43 »···// Lists all volumes 
  44 »···VolumesList(op trace.Operation) ([]*Volume, error)
- 45 
- 46 »···// List the configured volume stores 
- 47 »···VolumeStoresList(op trace.Operation) (map[string]url.URL, error) 
+  ...
  48 }   
 ```
 
 When we create the NFS `VolumeStore`, we'll store the NFS target parameters (`host` + `path`) in the implementation's struct.  This is the only information we'll need to mount the NFS target on the container.
+
 ```
 type NFSv3VolumeStore struct {
  target *url.URL
 }
 ```
+
+_The implementation is still being worked on.  The open question is whether the VCH appliance will mount the target to manipulate the NFS target, or use an NFS client implementation in userspace instead.  I'd much (*MUCH*) rather do the latter.  The `linux` VFS implementation throws `sync` errors when mounts are unavailable.  And we don't want to bring down the appliance because of a network hiccup.  NFS is a simple protocol and there is a public pkg which implements most of it.  Adding the few primitives we need shouldn't be that difficult, but more evaluation of the work required is needed_
 
 #### VolumeCreate
 In the vsphere model, a volume is a `.vmdk` backed block device.  Creation of a volume entails attaching a new disk to the VCH, preparing it with a filesystem, and detaching it.  The resulting `.vmdk` lives in its own folder in the volume store directory (specified during install w/ `vic-machine`).  We're going to follow the same model except there is nothing to prepare.  Each volume will be a directory (which the container client will mount directly) and live at the top of the volume store directory (which we will prepare during install).
@@ -61,4 +64,31 @@ func VolumeCreate() {
 // return volPath
 }
 ```
-_The implementation is still being worked on.  The open question is whether the VCH appliance will mount the target to manipulate the NFS target, or use an NFS client implementation in userspace instead.  I'd much (*MUCH*) rather do the latter.  The `linux` VFS implementation throws `sync` errors when mounts are unavailable.  And we don't want to bring down the appliance because of a network hiccup.  NFS is a simple protocol and there is a public pkg which implements most of it.  Adding the few primitives we need shouldn't be that difficult, but more evaluation of the work required is needed_
+#### VolumeDestroy
+Likewise destroying the volume is simply removing the volume's top level directory.
+```
+func VolumeDestroy() {
+// volPath := vicVolumePath(nameOfVolume)
+// rm -rf volPath
+// return $?
+}
+```
+
+#### VolumeList
+Listing the volumes is just listing the diretories at the top of the volume store location
+```
+func VolumesList() {
+// return ls -l vicVolumePath(.)
+}
+```
+
+### Validation
+
+#### Functional
+
+ 1. Create a VCH with an NFS backed `VolumeStore`, create a volume on the `VolumeStore`, create 2 containers with the volume attached, touch a file from the first container, verify it exists on the 2nd.  Destroy the 2nd container, attempt to destroy the volume and expect a failure.  Poweroff the first container, reattempt destroy of the volume, it should fail.  Then destroy the container and destroy the volume. 
+ 2. Create a VCH with a nonreachable NFS backed `VolumeStore`.  Creation of the volume should return an error.
+ 
+#### Unit
+
+Whether the `VolumeStore` implementation uses the local VCH to mount the NFS or uses a client library to manipulate the target, the Storer implementation should sit in front of an interface which can be mocked.  The mock should write to the local filesystem so the storer interface can be tested end to end without requiring an NFS server.
