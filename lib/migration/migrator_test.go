@@ -24,12 +24,25 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration/manager"
-	//	"github.com/vmware/vic/pkg/version"
+	"github.com/vmware/vic/lib/migration/samples/plugins/plugin1"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-func TestMigrateConfigure(t *testing.T) {
+func setUp() {
+	// register sample plugin into test
 	log.SetLevel(log.DebugLevel)
+	trace.Logger.Level = log.DebugLevel
+	version.MaxPluginVersion = 1
+
+	if err := manager.Migrator.Register(1, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
+		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, 1, err)
+	}
+}
+
+func TestMigrateConfigure(t *testing.T) {
+	setUp()
 
 	conf := &config.VirtualContainerHostConfigSpec{
 		ExecutorConfig: executor.ExecutorConfig{
@@ -94,7 +107,7 @@ func TestMigrateConfigure(t *testing.T) {
 }
 
 func TestIsDataOlder(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	setUp()
 
 	conf := &config.VirtualContainerHostConfigSpec{
 		ExecutorConfig: executor.ExecutorConfig{
