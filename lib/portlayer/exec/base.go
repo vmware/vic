@@ -149,6 +149,8 @@ func (c *containerBase) startGuestProgram(ctx context.Context, name string, args
 }
 
 func (c *containerBase) start(ctx context.Context) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}

@@ -343,9 +343,17 @@ func (c *Container) start(ctx context.Context) error {
 		return err
 	}
 
-	finalState = StateRunning
+	// Obtain the current state and set the final state to Running only if it's Starting.
+	// The current state is already Stopped if the container's process has exited or
+	// a poweredoff event has been processed.
+	finalState = c.CurrentState()
+	if finalState == StateStarting {
+		finalState = StateRunning
+	} else {
+		log.Infof("current state of container %s is %v", c.ExecConfig.ID, finalState)
+	}
 
-	return err
+	return nil
 }
 
 func (c *Container) stop(ctx context.Context, waitTime *int32) error {
