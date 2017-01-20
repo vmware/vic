@@ -95,10 +95,10 @@ Whether the `VolumeStore` implementation uses the local VCH to mount the NFS or 
 
 ### Open questions
  1. Should we allow the default volumestore to be NFS backed?
-    Answer:  I don't see a reason why we can't support this.
+    * Answer:  I don't see a reason why we can't support this.
  1. Is there any mechanism by which we can indicate available space in the volumestore? Is this necessary data for functional usage.
-    Answer: See Non-requirement 3
+    * Answer: See Non-requirement 3
  1. Should we allow for read-only volume store? - e.g. publishing datasets for consumption
-    Answer: Needs investigation.  What is RO here (the target or the directory) and what would the container user want to see or expect when such a target was used?
+    * Answer: Needs investigation.  What is RO here (the target or the directory) and what would the container user want to see or expect when such a target was used?
  1. Failure handling;  what do we do if a mount is unavailable, does the container go down?
-    Answer:  Needs investigation.  We're relying on the kernel nfs client in the container to handle failures to the target.  There is little we can do during run-time, but we can check availability during container create at a minimum.
+    * Answer:  Needs investigation.  We're relying on the kernel nfs client in the container to handle failures to the target.  There is little we can do during run-time, but we can check availability during container create at a minimum.
