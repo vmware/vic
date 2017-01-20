@@ -69,18 +69,18 @@ func (m *DataMigrator) Register(ver int, target string, plugin Plugin) error {
 	// assert if plugin version less than max plugin version, which is forcing deveoper to change MaxPluginVersion variable everytime new plugin is added
 	if plugin == nil {
 		return &errors.InternalError{
-			fmt.Sprintf("Empty Plugin object is not allowed"),
+			Message: "Empty Plugin object is not allowed",
 		}
 	}
 	if ver > version.MaxPluginVersion {
 		return &errors.InternalError{
-			fmt.Sprintf("Plugin %d is bigger than Max Plugin Version %d", ver, version.MaxPluginVersion),
+			Message: fmt.Sprintf("Plugin %d is bigger than Max Plugin Version %d", ver, version.MaxPluginVersion),
 		}
 	}
 
 	if m.verPlugins[ver] != nil {
 		return &errors.InternalError{
-			fmt.Sprintf("Plugin %d is conflict with another plugin, please make sure the plugin Version is unique and ascending", ver),
+			Message: fmt.Sprintf("Plugin %d is conflict with another plugin, please make sure the plugin Version is unique and ascending", ver),
 		}
 	}
 
@@ -90,7 +90,7 @@ func (m *DataMigrator) Register(ver int, target string, plugin Plugin) error {
 }
 
 func (m *DataMigrator) insertVersion(version int, target string) {
-	defer trace.End(trace.Begin(fmt.Sprintf("version array: %s, insert %s:%d", m.targetVers[target], target, version)))
+	defer trace.End(trace.Begin(fmt.Sprintf("insert %s:%d", target, version)))
 
 	s := m.targetVers[target]
 	if len(s) == 0 {

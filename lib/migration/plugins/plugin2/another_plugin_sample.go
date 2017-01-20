@@ -51,7 +51,7 @@ const (
 func init() {
 	log.Debugf("Registering plugin %s:%d", target, version)
 	if err := manager.Migrator.Register(version, target, &NewImageMeta{}); err != nil {
-		log.Errorf("Failed to register plugin %s:%d", target, version, err)
+		log.Errorf("Failed to register plugin %s:%d, %s", target, version, err)
 	}
 }
 
@@ -76,14 +76,14 @@ func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data int
 		s.Datastore, fmt.Sprintf("%s/%s", imageURL.Path, KVStoreFolder))
 	if err != nil {
 		return &errors.InternalError{
-			fmt.Sprintf("unable to get datastore helper for %s store creation: %s", APIKV, err.Error()),
+			Message: fmt.Sprintf("unable to get datastore helper for %s store creation: %s", APIKV, err.Error()),
 		}
 	}
 	// restore the modified K/V store
 	oldKeyValStore, err := kvstore.NewKeyValueStore(ctx, kvstore.NewDatastoreBackend(dsHelper), APIKV)
 	if err != nil && !os.IsExist(err) {
 		return &errors.InternalError{
-			fmt.Sprintf("unable to create %s datastore backed store: %s", APIKV, err.Error()),
+			Message: fmt.Sprintf("unable to create %s datastore backed store: %s", APIKV, err.Error()),
 		}
 	}
 
@@ -94,7 +94,7 @@ func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data int
 	newKeyValueStore, err := kvstore.NewKeyValueStore(ctx, kvstore.NewDatastoreBackend(dsHelper), newDsFile)
 	if err != nil && !os.IsExist(err) {
 		return &errors.InternalError{
-			fmt.Sprintf("unable to create %s datastore backed store: %s", newDsFile, err.Error()),
+			Message: fmt.Sprintf("unable to create %s datastore backed store: %s", newDsFile, err.Error()),
 		}
 	}
 
@@ -102,7 +102,7 @@ func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data int
 	allKeyVals, err := oldKeyValStore.List(".*")
 	if err != nil {
 		return &errors.InternalError{
-			fmt.Sprintf("unable to list key/value store %s: %s", APIKV, err.Error()),
+			Message: fmt.Sprintf("unable to list key/value store %s: %s", APIKV, err.Error()),
 		}
 	}
 
@@ -112,7 +112,7 @@ func (p *NewImageMeta) Migrate(ctx context.Context, s *session.Session, data int
 	val, err := newKeyValueStore.Get(oldKey)
 	if err != nil && err != kvstore.ErrKeyNotFound {
 		return &errors.InternalError{
-			fmt.Sprintf("failed to get %s from store %s: %s", oldKey, APIKV, err.Error()),
+			Message: fmt.Sprintf("failed to get %s from store %s: %s", oldKey, APIKV, err.Error()),
 		}
 	}
 	// put the new key/value to store, and leave the old key/value there, in case upgrade failed, old binary still works well with half-changed store
