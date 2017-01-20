@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -320,14 +320,58 @@ Redo:
 	return true, nil
 }
 
+// lookupByAlias looks up a container by alias, given the requesting container
+// and the network of the incoming request. It first does a container-scoped
+// alias search, followed by a network-scoped aliased search for alias. The
+// result is a collection of endpoints for the matching container that are
+// only on the same network as the requesting container.
+func lookupByAlias(netCtx *network.Context, scope *network.Scope, reqc *network.Container, alias string) []*network.Endpoint {
+	// container specific alias search
+	cons := netCtx.ContainersByAlias(network.ScopedAliasName(scope.Name(), reqc.Name(), alias))
+	if len(cons) == 0 {
+		// scope-wide alias search
+		cons = netCtx.ContainersByAlias(network.ScopedAliasName(scope.Name(), "", alias))
+	}
+
+	if len(cons) == 0 {
+		return nil
+	}
+
+	var eps []*network.Endpoint
+	for _, c := range cons {
+		if e := c.Endpoint(scope); e != nil {
+			eps = append(eps, e)
+		}
+	}
+
+	return eps
+}
+
+// lookupByName looks up a container by name given the requesting container. It returns a collection
+// of endpoints on networks that both the requesting and matching container share.
+func lookupByName(netCtx *network.Context, reqc *network.Container, name string) []*network.Endpoint {
+	var eps []*network.Endpoint
+	if m := netCtx.Container(name); m != nil {
+		// look if networks overlap for the requesting container and the
+		// matched container
+		for _, ec := range reqc.Endpoints() {
+			if em := m.Endpoint(ec.Scope()); em != nil {
+				eps = append(eps, em)
+			}
+		}
+	}
+
+	return eps
+}
+
 // HandleVIC returns a response to a container name/id request
 func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 	defer trace.End(trace.Begin(r.String()))
 
 	question := r.Question[0]
 
-	ctx := network.DefaultContext
-	if ctx == nil {
+	netCtx := network.DefaultContext
+	if netCtx == nil {
 		log.Errorf("DefaultContext is not initialized")
 		return false, fmt.Errorf("DefaultContext is not initialized")
 	}
@@ -352,38 +396,35 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 	}
 
 	// get the requesting container's endpoint
-	e := ctx.ContainerByAddr(ip)
+	e := netCtx.ContainerByAddr(ip)
 	if e == nil {
 		return false, fmt.Errorf("Could not find requesting container with ip %s", ip)
 	}
-	scope := e.Scope()
 
-	if domain != "" && scope.Name() != domain {
-		return false, fmt.Errorf("Inter-scope request for container %s in %s from %s", name, domain, scope.Name())
+	if domain != "" && e.Scope().Name() != domain {
+		return false, fmt.Errorf("Intra-scope request for container %s in %s from %s", name, domain, e.Scope().Name())
 	}
 
-	// container specific alias search
-	cons := ctx.ContainersByAlias(fmt.Sprintf("%s:%s:%s", scope.Name(), e.Container().Name(), name))
-	if len(cons) == 0 {
-		// scope-wide search
-		cons = ctx.ContainersByAlias(fmt.Sprintf("%s:%s", scope.Name(), name))
+	eps := lookupByAlias(netCtx, e.Scope(), e.Container(), name)
+	if len(eps) == 0 {
+		// lookup container by name
+		eps = lookupByName(netCtx, e.Container(), name)
 	}
 
-	if len(cons) == 0 {
+	if len(eps) == 0 {
 		log.Debugf("Can't find the container: %q", name)
 		return false, fmt.Errorf("Can't find the container: %q", name)
 	}
 
 	// FIXME: Add AAAA when we support it
-	answer := make([]mdns.RR, len(cons))
-	// shuffle cons
-	for i := 0; i < len(cons); i++ {
-		j := random.Intn(len(cons))
-		cons[i], cons[j] = cons[j], cons[i]
+	answer := make([]mdns.RR, len(eps))
+	// shuffle eps (Fisher–Yates shuffle)
+	for i := len(eps) - 1; i > 0; i-- {
+		j := random.Intn(i + 1)
+		eps[i], eps[j] = eps[j], eps[i]
 	}
 
-	for i := range cons {
-		e := cons[i].Endpoint(scope)
+	for i, e := range eps {
 		if e.IP().IsUnspecified() {
 			return false, fmt.Errorf("No ip for container %q", name)
 		}
