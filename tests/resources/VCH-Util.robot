@@ -150,7 +150,6 @@ Gather Logs From Test Server
     ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware.log
     Should Contain  ${out}  OK
     ${out}=  Run  sshpass -p %{TEST_PASSWORD} scp %{TEST_USERNAME}@%{TEST_URL}:/var/log/vmkernel.log ./vmkernel.log
-    Should Be Empty  ${out}
 
 Check For The Proper Log Files
     [Arguments]  ${container}
