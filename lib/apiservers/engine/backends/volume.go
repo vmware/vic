@@ -24,6 +24,7 @@ import (
 
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-units"
@@ -36,8 +37,8 @@ import (
 
 // NOTE: FIXME: These might be moved to a utility package once there are multiple personalities
 const (
-	OptsVolumeStoreKey     string = "VolumeStore"
-	OptsCapacityKey        string = "Capacity"
+	OptsVolumeStoreKey     string = "volumestore"
+	OptsCapacityKey        string = "capacity"
 	dockerMetadataModelKey string = "DockerMetaData"
 )
 
@@ -263,6 +264,14 @@ func newVolumeCreateReq(name, driverName string, volumeData, labels map[string]s
 		return nil, fmt.Errorf("volume name %q includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
 	}
 
+	for k, val := range volumeData {
+		lowercase := strings.ToLower(k)
+		if strings.Compare(val, k) != 0 {
+			delete(volumeData, k)
+			volumeData[lowercase] = val
+		}
+
+	}
 	req := &models.VolumeRequest{
 		Driver:     driverName,
 		DriverArgs: volumeData,
