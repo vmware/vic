@@ -15,12 +15,14 @@
 package storage
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -81,6 +83,11 @@ func (v *VolumeLookupCache) VolumeDestroy(op trace.Operation, ID string) error {
 		return os.ErrNotExist
 	}
 
+	if err := volumeInUse(vol.ID); err != nil {
+		op.Errorf("VolumeStore: delete error: %s", err.Error())
+		return err
+	}
+
 	// remove it from the volumestore
 	if err := v.volumeStore.VolumeDestroy(op, &vol); err != nil {
 		return err
@@ -137,6 +144,28 @@ func (v *VolumeLookupCache) rebuildCache(op trace.Operation) error {
 		log.Infof("Volumestore: Found vol %s on store %s.", vol.ID, vol.Store)
 		// Add it to the cache.
 		v.vlc[vol.ID] = *vol
+	}
+
+	return nil
+}
+
+func volumeInUse(ID string) error {
+	conts := exec.Containers.Containers(nil)
+	if len(conts) == 0 {
+		return nil
+	}
+
+	for _, cont := range conts {
+
+		if cont.ExecConfig.Mounts == nil {
+			continue
+		}
+
+		if _, mounted := cont.ExecConfig.Mounts[ID]; mounted {
+			return &ErrVolumeInUse{
+				Msg: fmt.Sprintf("volume %s in use by %s", ID, cont.ExecConfig.ID),
+			}
+		}
 	}
 
 	return nil
