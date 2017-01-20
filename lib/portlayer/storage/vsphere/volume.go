@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -202,11 +201,6 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 }
 
 func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
-	if err := volumeInUse(vol.ID); err != nil {
-		op.Errorf("VolumeStore: delete error: %s", err.Error())
-		return err
-	}
-
 	volDir := v.volDirPath(vol.ID)
 
 	dstore, err := v.getDatastore(vol.Store)
@@ -279,26 +273,4 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	}
 
 	return volumes, nil
-}
-
-func volumeInUse(ID string) error {
-	conts := exec.Containers.Containers(nil)
-	if len(conts) == 0 {
-		return nil
-	}
-
-	for _, cont := range conts {
-
-		if cont.ExecConfig.Mounts == nil {
-			continue
-		}
-
-		if _, mounted := cont.ExecConfig.Mounts[ID]; mounted {
-			return &storage.ErrVolumeInUse{
-				Msg: fmt.Sprintf("volume %s in use by %s", ID, cont.ExecConfig.ID),
-			}
-		}
-	}
-
-	return nil
 }

@@ -25,6 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -105,6 +106,9 @@ func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
 
 func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "test")
+
+	exec.NewContainerCache()
+
 	mvs := NewMockVolumeStore()
 	v, err := NewVolumeLookupCache(op, mvs)
 	if !assert.NoError(t, err) {
