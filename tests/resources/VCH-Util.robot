@@ -202,6 +202,7 @@ Cleanup Datastore On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   Log To Console  Removing the following item from datastore: ${item}
     \   ${out}=  Run  govc datastore.rm ${item}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${item}
 
 Cleanup Dangling VMs On Test Server
     ${out}=  Run  govc ls vm
@@ -217,6 +218,7 @@ Cleanup Dangling VMs On Test Server
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
@@ -273,3 +275,4 @@ Cleanup Dangling Containers On Test Server
     \   ${out}=  Run  govc vm.destroy ${vm}
     \   ${name}=  Fetch From Right  ${vm}  /
     \   ${out}=  Run  govc datastore.rm ${name}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${name}
