@@ -16,7 +16,7 @@ Allow the container user to
 
  1. Instantiation or provisioning of shared storage
  2. Exposing shared storage configuration via VIC (e.g. IOPS per client, storage policy, etc.)
- 3. Management of shared storage via VIC (e.g. container quiesce for storage maintanence, etc.)
+ 3. Management of shared storage via VIC (e.g. container quiesce for storage maintanence, quota manipulation of the target, etc.)
 
 ### Implementation
 
@@ -82,7 +82,7 @@ func VolumesList() {
 }
 ```
 
-### Validation
+### Testing
 
 #### Functional
 
@@ -92,3 +92,13 @@ func VolumesList() {
 #### Unit
 
 Whether the `VolumeStore` implementation uses the local VCH to mount the NFS or uses a client library to manipulate the target, the Storer implementation should sit in front of an interface which can be mocked.  The mock should write to the local filesystem so the storer interface can be tested end to end without requiring an NFS server.
+
+### Open questions
+ 1. Should we allow the default volumestore to be NFS backed?
+    Answer:  I don't see a reason why we can't support this.
+ 1. Is there any mechanism by which we can indicate available space in the volumestore? Is this necessary data for functional usage.
+    Answer: See Non-requirement 3
+ 1. Should we allow for read-only volume store? - e.g. publishing datasets for consumption
+    Answer: Needs investigation.  What is RO here (the target or the directory) and what would the container user want to see or expect when such a target was used?
+ 1. Failure handling;  what do we do if a mount is unavailable, does the container go down?
+    Answer:  Needs investigation.  We're relying on the kernel nfs client in the container to handle failures to the target.  There is little we can do during run-time, but we can check availability during container create at a minimum.
