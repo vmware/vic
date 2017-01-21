@@ -110,13 +110,9 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	exec.NewContainerCache()
 
 	mvs := NewMockVolumeStore()
-	v, err := NewVolumeLookupCache(op, mvs)
+	v := NewVolumeLookupCache(op)
+	storeURL, err := v.AddStore(op, "testStore", mvs)
 	if !assert.NoError(t, err) {
-		return
-	}
-
-	storeURL, err := util.VolumeStoreNameToURL("testStore")
-	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
 	}
 
@@ -196,12 +192,9 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 func TestVolumeCacheRestart(t *testing.T) {
 	mvs := NewMockVolumeStore()
 	op := trace.NewOperation(context.Background(), "test")
-	firstCache, err := NewVolumeLookupCache(op, mvs)
-	if !assert.NoError(t, err) || !assert.NotNil(t, firstCache) {
-		return
-	}
 
-	storeURL, err := util.VolumeStoreNameToURL("testStore")
+	firstCache := NewVolumeLookupCache(op)
+	storeURL, err := firstCache.AddStore(op, "testStore", mvs)
 	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
 	}
@@ -220,8 +213,13 @@ func TestVolumeCacheRestart(t *testing.T) {
 		inVols[id] = vol
 	}
 
-	secondCache, err := NewVolumeLookupCache(op, mvs)
-	if !assert.NoError(t, err) || !assert.NotNil(t, secondCache) {
+	secondCache := NewVolumeLookupCache(op)
+	if !assert.NotNil(t, secondCache) {
+		return
+	}
+
+	_, err = secondCache.AddStore(op, "testStore", mvs)
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
 	}
 

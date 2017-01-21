@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -35,22 +36,68 @@ type VolumeLookupCache struct {
 	vlc     map[string]Volume
 	vlcLock sync.RWMutex
 
-	// The underlying data storage implementation
-	volumeStore VolumeStorer
+	// Maps the service url of the volume store to the underlying data storage implementation
+	volumeStores map[url.URL]VolumeStorer
 }
 
-func NewVolumeLookupCache(op trace.Operation, vs VolumeStorer) (*VolumeLookupCache, error) {
+func NewVolumeLookupCache(op trace.Operation) *VolumeLookupCache {
 	v := &VolumeLookupCache{
-		vlc:         make(map[string]Volume),
-		volumeStore: vs,
+		vlc:          make(map[string]Volume),
+		volumeStores: make(map[url.URL]VolumeStorer),
 	}
 
-	return v, v.rebuildCache(op)
+	return v
 }
 
-// List the configured volume stores
-func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) (map[string]url.URL, error) {
-	return v.volumeStore.VolumeStoresList(op)
+// AddStore adds a volumestore by name.  The url returned is the service url to the volume store.
+func (v *VolumeLookupCache) AddStore(op trace.Operation, storeName string, vs VolumeStorer) (*url.URL, error) {
+	v.vlcLock.Lock()
+	defer v.vlcLock.Unlock()
+
+	// get the service url
+	u, err := util.VolumeStoreNameToURL(storeName)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := v.volumeStores[*u]; ok {
+		return nil, fmt.Errorf("volumestore (%s) already added", u.String())
+	}
+
+	v.volumeStores[*u] = vs
+	return u, v.rebuildCache(op)
+}
+
+func (v *VolumeLookupCache) volumeStore(store *url.URL) (VolumeStorer, error) {
+
+	// find the datastore
+	vs, ok := v.volumeStores[*store]
+	if !ok {
+		return nil, VolumeStoreNotFoundError{Msg: fmt.Sprintf("volume store (%s) not found", store.String())}
+	}
+
+	return vs, nil
+}
+
+// VolumeStoresList returns a list of volume store names
+func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) ([]string, error) {
+
+	v.vlcLock.RLock()
+	defer v.vlcLock.RUnlock()
+
+	stores := make([]string, len(v.volumeStores))
+	for u, _ := range v.volumeStores {
+
+		// from the storage url, get the store name
+		storeName, err := util.VolumeStoreName(&u)
+		if err != nil {
+			return nil, err
+		}
+
+		stores = append(stores, storeName)
+	}
+
+	return stores, nil
 }
 
 func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
@@ -63,7 +110,12 @@ func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *u
 		return nil, os.ErrExist
 	}
 
-	vol, err := v.volumeStore.VolumeCreate(op, ID, store, capacityKB, info)
+	vs, err := v.volumeStore(store)
+	if err != nil {
+		return nil, err
+	}
+
+	vol, err := vs.VolumeCreate(op, ID, store, capacityKB, info)
 	if err != nil {
 		return nil, err
 	}
@@ -88,8 +140,13 @@ func (v *VolumeLookupCache) VolumeDestroy(op trace.Operation, ID string) error {
 		return err
 	}
 
+	vs, err := v.volumeStore(vol.Store)
+	if err != nil {
+		return err
+	}
+
 	// remove it from the volumestore
-	if err := v.volumeStore.VolumeDestroy(op, &vol); err != nil {
+	if err := vs.VolumeDestroy(op, &vol); err != nil {
 		return err
 	}
 	delete(v.vlc, vol.ID)
@@ -128,22 +185,19 @@ func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
 
 // goto the volume store and repopulate the cache.
 func (v *VolumeLookupCache) rebuildCache(op trace.Operation) error {
+	op.Infof("Refreshing volume cache.")
 
-	// Lock everything because we're rewriting the whole cache
-	v.vlcLock.Lock()
-	defer v.vlcLock.Unlock()
+	for _, vs := range v.volumeStores {
+		vols, err := vs.VolumesList(op)
+		if err != nil {
+			return err
+		}
 
-	log.Info("Refreshing volume cache.")
-	// if it's not in the cache, check the volumeStore, cache the result, and return the list.
-	vols, err := v.volumeStore.VolumesList(op)
-	if err != nil {
-		return err
-	}
-
-	for _, vol := range vols {
-		log.Infof("Volumestore: Found vol %s on store %s.", vol.ID, vol.Store)
-		// Add it to the cache.
-		v.vlc[vol.ID] = *vol
+		for _, vol := range vols {
+			log.Infof("Volumestore: Found vol %s on store %s.", vol.ID, vol.Store)
+			// Add it to the cache.
+			v.vlc[vol.ID] = *vol
+		}
 	}
 
 	return nil

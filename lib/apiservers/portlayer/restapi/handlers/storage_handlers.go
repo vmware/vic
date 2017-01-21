@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
 	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
-	vsphereSpl "github.com/vmware/vic/lib/portlayer/storage/vsphere"
+	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -58,7 +58,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 		log.Warningf("Multiple image stores found. Multiple image stores are not yet supported. Using [%s] %s", imageStoreURL.Host, imageStoreURL.Path)
 	}
 
-	ds, err := vsphereSpl.NewImageStore(op, handlerCtx.Session, &imageStoreURL)
+	ds, err := vsphere.NewImageStore(op, handlerCtx.Session, &imageStoreURL)
 	if err != nil {
 		log.Panicf("Cannot instantiate storage layer: %s", err)
 	}
@@ -68,13 +68,6 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	// expensive metadata lookups.
 	h.imageCache = spl.NewLookupCache(ds)
 
-	// The same is done for volumes.  It's implemented via a cache which writes
-	// to an implementation that takes a datastore to write to.
-	vsVolumeStore, err := vsphereSpl.NewVolumeStore(op, handlerCtx.Session)
-	if err != nil {
-		log.Panicf("Cannot instantiate the volume store: %s", err)
-	}
-
 	// Get the datastores for volumes.
 	// Each volume store name maps to a datastore + path, which can be referred to by the name.
 	dstores, err := datastore.GetDatastores(op, handlerCtx.Session, spl.Config.VolumeLocations)
@@ -82,18 +75,20 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 		log.Panicf("Cannot find datastores: %s", err)
 	}
 
+	h.volumeCache = spl.NewVolumeLookupCache(op)
+
 	// Add datastores to the vsphere volume store impl
 	for volStoreName, volDatastore := range dstores {
 		log.Infof("Adding volume store %s (%s)", volStoreName, volDatastore.RootURL)
-		_, err := vsVolumeStore.AddStore(op, volDatastore, volStoreName)
-		if err != nil {
-			log.Errorf("volume addition error %s", err)
-		}
-	}
 
-	h.volumeCache, err = spl.NewVolumeLookupCache(op, vsVolumeStore)
-	if err != nil {
-		log.Panicf("Cannot instantiate the Volume Lookup cache: %s", err)
+		vs, err := vsphere.NewVolumeStore(op, volStoreName, handlerCtx.Session, volDatastore)
+		if err != nil {
+			log.Panicf("Cannot instantiate the volume store: %s", err)
+		}
+
+		if _, err = h.volumeCache.AddStore(op, volStoreName, vs); err != nil {
+			op.Errorf("volume addition error %s", err)
+		}
 	}
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(h.CreateImageStore)
@@ -302,13 +297,7 @@ func (h *StorageHandlersImpl) VolumeStoresList(params storage.VolumeStoresListPa
 			})
 	}
 
-	resp := &models.VolumeStoresListResponse{
-		Stores: make(map[string]string),
-	}
-
-	for name, ds := range stores {
-		resp.Stores[name] = ds.String()
-	}
+	resp := &models.VolumeStoresListResponse{Stores: stores}
 
 	return storage.NewVolumeStoresListOK().WithPayload(resp)
 }
@@ -473,7 +462,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		})
 	}
 
-	actualHandle, err = vsphereSpl.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
 	if err != nil {
 		log.Errorf("Volumes: StorageHandler : %#v", err)
 
