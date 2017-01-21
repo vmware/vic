@@ -86,7 +86,7 @@ func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) ([]string, erro
 	defer v.vlcLock.RUnlock()
 
 	stores := make([]string, len(v.volumeStores))
-	for u, _ := range v.volumeStores {
+	for u := range v.volumeStores {
 
 		// from the storage url, get the store name
 		storeName, err := util.VolumeStoreName(&u)
