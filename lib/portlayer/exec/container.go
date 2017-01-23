@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -329,7 +329,6 @@ func (c *Container) start(ctx context.Context) error {
 	// get existing state and set to starting
 	// if there's a failure we'll revert to existing
 	finalState := c.updateState(StateStarting)
-	defer func() { c.updateState(finalState) }()
 
 	err := c.containerBase.start(ctx)
 	if err != nil {
@@ -340,18 +339,25 @@ func (c *Container) start(ctx context.Context) error {
 
 		// TODO: mechanism to trigger reinspection of long term transitional states
 		finalState = StateStarting
+		c.updateState(finalState)
+
 		return err
 	}
+
+	c.m.Lock()
+	defer c.m.Unlock()
 
 	// Obtain the current state and set the final state to Running only if it's Starting.
 	// The current state is already Stopped if the container's process has exited or
 	// a poweredoff event has been processed.
-	finalState = c.CurrentState()
-	if finalState == StateStarting {
+	currentState := c.state
+	if currentState == StateStarting {
 		finalState = StateRunning
 	} else {
-		log.Infof("current state of container %s is %v", c.ExecConfig.ID, finalState)
+		log.Infof("current state of container %s is %v", c.ExecConfig.ID, currentState)
+		finalState = currentState
 	}
+	c.updateState(finalState)
 
 	return nil
 }
