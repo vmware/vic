@@ -119,8 +119,8 @@ const (
 	ShortIDLen                          = 12
 
 	DriverArgFlagKey      = "flags"
-	DriverArgContainerKey = "Container"
-	DriverArgImageKey     = "Image"
+	DriverArgContainerKey = "container"
+	DriverArgImageKey     = "image"
 )
 
 // NewContainerProxy creates a new ContainerProxy

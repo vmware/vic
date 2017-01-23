@@ -42,10 +42,13 @@ const (
 	dockerMetadataModelKey string = "DockerMetaData"
 )
 
-// define a set (whitelist) of valid opts keys for command line argument validation
-var ValidOptsKeys = map[string]bool{
-	OptsVolumeStoreKey: true,
-	OptsCapacityKey:    true,
+// define a set (whitelist) of valid driver opts keys for command line argument validation
+var validDriverOptsKeys = map[string]bool{
+	OptsVolumeStoreKey:    true,
+	OptsCapacityKey:       true,
+	DriverArgFlagKey:      true,
+	DriverArgContainerKey: true,
+	DriverArgImageKey:     true,
 }
 
 //Validation pattern for Volume Names
@@ -308,7 +311,7 @@ func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error
 	for k, val := range args {
 		lowercase := strings.ToLower(k)
 
-		if !ValidOptsKeys[k] {
+		if !validDriverOptsKeys[lowercase] {
 			return fmt.Errorf("%s is not a supported option", k)
 		}
 
