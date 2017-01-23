@@ -17,16 +17,20 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
+
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )
 
 // This example can be run on a VM hosted by ESX, Fusion or Workstation
 func main() {
+	log.SetFormatter(viclog.NewTextFormatter())
+
 	flag.Parse()
 
 	in := toolbox.NewBackdoorChannelIn()

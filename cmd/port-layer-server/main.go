@@ -15,11 +15,11 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/loads"
 	"github.com/jessevdk/go-flags"
 
@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/dns"
 	"github.com/vmware/vic/lib/pprof"
+	viclog "github.com/vmware/vic/pkg/log"
 )
 
 var (
@@ -34,6 +35,8 @@ var (
 )
 
 func init() {
+	log.SetFormatter(viclog.NewTextFormatter())
+
 	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 }
 

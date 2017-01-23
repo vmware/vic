@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -107,7 +108,7 @@ func main() {
 	}
 
 	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
+	log.SetFormatter(viclog.NewTextFormatter())
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
 	defer func() {

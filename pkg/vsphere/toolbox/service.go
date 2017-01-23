@@ -17,11 +17,12 @@ package toolbox
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (

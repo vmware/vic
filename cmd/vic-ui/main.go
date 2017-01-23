@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/vic/cmd/vic-ui/ui"
 	"github.com/vmware/vic/pkg/errors"
+	viclog "github.com/vmware/vic/pkg/log"
 )
 
 var (
@@ -81,7 +82,7 @@ func main() {
 	}
 
 	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
+	log.SetFormatter(viclog.NewTextFormatter())
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
 

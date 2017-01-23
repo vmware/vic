@@ -15,9 +15,10 @@
 package util
 
 import (
-	"log"
 	"net/url"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (

@@ -16,9 +16,9 @@ package scp
 
 import (
 	"io"
-	"log"
 	"os"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 

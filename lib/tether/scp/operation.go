@@ -18,11 +18,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // the following code is a modified version of https://github.com/gnicod/goscplib

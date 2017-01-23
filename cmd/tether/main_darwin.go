@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/tether"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -50,7 +51,7 @@ func main() {
 	log.SetLevel(log.DebugLevel)
 
 	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
+	log.SetFormatter(viclog.NewTextFormatter())
 
 	// TODO: hard code executor initialization status reporting via guestinfo here
 	err := createDevices()
