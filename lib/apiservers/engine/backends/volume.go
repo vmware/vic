@@ -42,6 +42,12 @@ const (
 	dockerMetadataModelKey string = "DockerMetaData"
 )
 
+// define a set (whitelist) of valid opts keys for command line argument validation
+var ValidOptsKeys = map[string]bool{
+	OptsVolumeStoreKey: true,
+	OptsCapacityKey:    true,
+}
+
 //Validation pattern for Volume Names
 var volumeNameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
 
@@ -264,14 +270,6 @@ func newVolumeCreateReq(name, driverName string, volumeData, labels map[string]s
 		return nil, fmt.Errorf("volume name %q includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
 	}
 
-	for k, val := range volumeData {
-		lowercase := strings.ToLower(k)
-		if strings.Compare(val, k) != 0 {
-			delete(volumeData, k)
-			volumeData[lowercase] = val
-		}
-
-	}
 	req := &models.VolumeRequest{
 		Driver:     driverName,
 		DriverArgs: volumeData,
@@ -305,6 +303,20 @@ func volumeStore(args map[string]string) string {
 func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error {
 	// volumestore name validation
 	req.Store = volumeStore(args)
+
+	// normalize keys to lowercase & validate them
+	for k, val := range args {
+		lowercase := strings.ToLower(k)
+
+		if !ValidOptsKeys[k] {
+			return fmt.Errorf("%s is not a supported option", k)
+		}
+
+		if strings.Compare(val, k) != 0 {
+			delete(args, k)
+			args[lowercase] = val
+		}
+	}
 
 	// capacity validation
 	capstr, ok := args[OptsCapacityKey]
