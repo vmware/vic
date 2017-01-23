@@ -37,13 +37,13 @@ type VolumeLookupCache struct {
 	vlcLock sync.RWMutex
 
 	// Maps the service url of the volume store to the underlying data storage implementation
-	volumeStores map[url.URL]VolumeStorer
+	volumeStores map[string]VolumeStorer
 }
 
 func NewVolumeLookupCache(op trace.Operation) *VolumeLookupCache {
 	v := &VolumeLookupCache{
 		vlc:          make(map[string]Volume),
-		volumeStores: make(map[url.URL]VolumeStorer),
+		volumeStores: make(map[string]VolumeStorer),
 	}
 
 	return v
@@ -60,20 +60,23 @@ func (v *VolumeLookupCache) AddStore(op trace.Operation, storeName string, vs Vo
 		return nil, err
 	}
 
-	if _, ok := v.volumeStores[*u]; ok {
+	if _, ok := v.volumeStores[u.String()]; ok {
 		return nil, fmt.Errorf("volumestore (%s) already added", u.String())
 	}
 
-	v.volumeStores[*u] = vs
+	v.volumeStores[u.String()] = vs
 	return u, v.rebuildCache(op)
 }
 
 func (v *VolumeLookupCache) volumeStore(store *url.URL) (VolumeStorer, error) {
 
 	// find the datastore
-	vs, ok := v.volumeStores[*store]
+	vs, ok := v.volumeStores[store.String()]
 	if !ok {
-		return nil, VolumeStoreNotFoundError{Msg: fmt.Sprintf("volume store (%s) not found", store.String())}
+		err := VolumeStoreNotFoundError{
+			Msg: fmt.Sprintf("volume store (%s) not found", store.String()),
+		}
+		return nil, err
 	}
 
 	return vs, nil
@@ -85,11 +88,16 @@ func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) ([]string, erro
 	v.vlcLock.RLock()
 	defer v.vlcLock.RUnlock()
 
-	stores := make([]string, len(v.volumeStores))
+	stores := make([]string, 0, len(v.volumeStores))
 	for u := range v.volumeStores {
 
 		// from the storage url, get the store name
-		storeName, err := util.VolumeStoreName(&u)
+		storeURL, err := url.Parse(u)
+		if err != nil {
+			return nil, err
+		}
+
+		storeName, err := util.VolumeStoreName(storeURL)
 		if err != nil {
 			return nil, err
 		}

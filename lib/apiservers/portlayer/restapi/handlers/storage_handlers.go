@@ -83,7 +83,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 		vs, err := vsphere.NewVolumeStore(op, volStoreName, handlerCtx.Session, volDatastore)
 		if err != nil {
-			log.Panicf("Cannot instantiate the volume store: %s", err)
+			log.Errorf("Cannot instantiate the volume store: %s", err)
 		}
 
 		if _, err = h.volumeCache.AddStore(op, volStoreName, vs); err != nil {
