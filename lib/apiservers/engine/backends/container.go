@@ -1389,7 +1389,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 			config.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)
 			break
 		}
-
 	}
 
 	// validate port bindings
