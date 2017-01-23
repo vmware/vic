@@ -26,7 +26,6 @@ package backends
 //		- It is OK to return errors returned from functions in system_portlayer.go
 
 import (
-	"bytes"
 	"fmt"
 	"net/url"
 	"runtime"
@@ -325,17 +324,11 @@ func getImageCount() int {
 }
 
 func FetchVolumeStores(client *client.PortLayer) (string, error) {
-	var volumesBuffer bytes.Buffer
 
 	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParamsWithContext(ctx))
 	if err != nil {
 		return "", err
 	}
-	VolumeStoreMap := res.Payload.Stores
 
-	for label := range VolumeStoreMap {
-		volumesBuffer.WriteString(fmt.Sprintf("%s ", label))
-	}
-
-	return volumesBuffer.String(), nil
+	return strings.Join(res.Payload.Stores, " "), nil
 }
