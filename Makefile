@@ -141,7 +141,7 @@ misspell: $(MISSPELL)
 # convenience targets
 all: components tethers isos vic-machine vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
-check: goversion goimports gofmt govet golint copyright whitespace gas
+check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -222,6 +222,7 @@ misspell: $(MISSPELL)
 
 govet:
 	@echo checking go vet...
+	@$(GO) tool vet -all -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 gas: $(GAS)
 	@echo checking security problems
