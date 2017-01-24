@@ -190,5 +190,5 @@ func TestNormalizeDriverArgs(t *testing.T) {
 	testOptMap["bogus"] = "bogus"
 
 	err := normalizeDriverArgs(testOptMap)
-	assert.NoError(t, err)
+	assert.Error(t, err, "expected: bogus is not a supported option")
 }
