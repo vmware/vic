@@ -53,16 +53,27 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 		conf.AddImageStore(imageDSpath)
 	}
 
-	if conf.VolumeLocations == nil {
-		conf.VolumeLocations = make(map[string]*url.URL)
-	}
-
-	// TODO: add volume locations
+	//volume location population
 	for label, volDSpath := range input.VolumeLocations {
-		dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
-		v.NoteIssue(err)
-		if dsURL != nil {
-			conf.VolumeLocations[label] = dsURL
+
+		switch label {
+		case "default":
+			dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--default-volume-store")
+			if err != nil {
+				v.NoteIssue(fmt.Errorf("%s : %s", err, "validation failed for --default-volume-store, please check that the supplied datastore path is properly formatted."))
+			}
+			if dsURL != nil {
+				conf.AddVolumeLocation(label, dsURL)
+			}
+
+		default:
+			dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
+			if err != nil {
+				v.NoteIssue(fmt.Errorf("%s : %s", err, "validation failed for --volume-store, please check that the supplied datastore path is properly formatted."))
+			}
+			if dsURL != nil {
+				conf.AddVolumeLocation(label, dsURL)
+			}
 		}
 	}
 }

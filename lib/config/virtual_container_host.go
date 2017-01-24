@@ -122,6 +122,7 @@ type Storage struct {
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
+
 	// Keyed by the volume store name (which is used by the docker user to
 	// refer to the datstore + path), valued by the datastores and the path.
 	VolumeLocations map[string]*url.URL `vic:"0.1" scope:"read-only"`

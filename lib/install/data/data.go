@@ -43,6 +43,7 @@ type Data struct {
 
 	ImageDatastorePath     string
 	VolumeLocations        map[string]string
+	DefaultVolumeLocation  string
 	ContainerDatastoreName string
 
 	BridgeNetworkName string

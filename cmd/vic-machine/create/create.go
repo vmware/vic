@@ -52,12 +52,13 @@ const (
 	// Max permitted length of Virtual Switch name
 	MaxDisplayNameLen = 31
 
-	clientCert = "cert.pem"
-	clientKey  = "key.pem"
-	serverCert = "server-cert.pem"
-	serverKey  = "server-key.pem"
-	caCert     = "ca.pem"
-	caKey      = "ca-key.pem"
+	clientCert         = "cert.pem"
+	clientKey          = "key.pem"
+	serverCert         = "server-cert.pem"
+	serverKey          = "server-key.pem"
+	caCert             = "ca.pem"
+	caKey              = "ca-key.pem"
+	defaultVolumeLabel = "default"
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -181,6 +182,12 @@ func (c *Create) Flags() []cli.Flag {
 		},
 
 		// volume
+		cli.StringFlag{
+			Name:        "default-volume-store, vsd",
+			Value:       "",
+			Usage:       "Specify the default volume store location, This location is used to support anonymous volumes such as image volumes. e.g. \"datastore/path\"",
+			Destination: &c.DefaultVolumeLocation,
+		},
 		cli.StringSliceFlag{
 			Name:  "volume-store, vs",
 			Value: &c.volumeStores,
@@ -543,6 +550,10 @@ func (c *Create) processParams() error {
 		return err
 	}
 
+	if err := c.processDefaultVolumeStore(); err != nil {
+		return errors.Errorf("Error occurred while processing the default volume stores: %s", err)
+	}
+
 	if err := c.processVolumeStores(); err != nil {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
@@ -864,17 +875,47 @@ func (c *Create) processDNSServers() error {
 	return nil
 }
 
+func (c *Create) processDefaultVolumeStore() error {
+	defer trace.End(trace.Begin(""))
+	//we make this map here since it is used many times after.
+	c.VolumeLocations = make(map[string]string)
+	if c.DefaultVolumeLocation != "" {
+		c.VolumeLocations[defaultVolumeLabel] = c.DefaultVolumeLocation
+	}
+	return nil
+}
+
 func (c *Create) processVolumeStores() error {
 	defer trace.End(trace.Begin(""))
-	c.VolumeLocations = make(map[string]string)
 	for _, arg := range c.volumeStores {
+
 		splitMeta := strings.SplitN(arg, ":", 2)
 		if len(splitMeta) != 2 {
 			return errors.New("Volume store input must be in format datastore/path:label")
 		}
-		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
+		label := splitMeta[1]
+		path := splitMeta[0]
+
+		switch label {
+		case defaultVolumeLabel:
+			otherPath, ok := c.VolumeLocations[label]
+			if !ok {
+				c.VolumeLocations[label] = path
+				continue
+			}
+			if path != otherPath {
+				return errors.Errorf("Multiple paths were tagged for the same label(%s), volumestore labels can only have one distinct path. The preferred method of setting the default store is the --default-volume-store flag.", label)
+			}
+		default:
+			if _, ok := c.VolumeLocations[label]; ok {
+				return errors.Errorf("Multiple paths were tagged for the same label(%s), volumestore labels can only have one distinct path.", label)
+			}
+			c.VolumeLocations[label] = path
+
+		}
 	}
 
+	log.Infof("Map (%s)", c.VolumeLocations)
 	return nil
 }
 
