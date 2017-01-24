@@ -27,8 +27,7 @@ import (
 
 // make it verbose during testing
 func init() {
-	DecodeLogLevel = log.DebugLevel
-	EncodeLogLevel = log.DebugLevel
+	log.SetLevel(log.DebugLevel)
 }
 
 func TestEmbedded(t *testing.T) {

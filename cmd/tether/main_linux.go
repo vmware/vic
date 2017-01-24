@@ -54,10 +54,6 @@ func main() {
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
 
-	if strings.HasSuffix(os.Args[0], "-debug") {
-		extraconfig.DecodeLogLevel = log.DebugLevel
-		extraconfig.EncodeLogLevel = log.DebugLevel
-	}
 	// use the same logger for trace and other logging
 	trace.Logger = log.StandardLogger()
 	log.SetLevel(log.DebugLevel)

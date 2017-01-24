@@ -85,12 +85,8 @@ type SessionConfig struct {
 	Tty bool `vic:"0.1" scope:"hidden" key:"tty"`
 }
 
-// [END] SLIMMED VERSION of github.com/vmware/vic/lib/metadata
-
-// make it verbose during testing
 func init() {
-	DecodeLogLevel = log.DebugLevel
-	EncodeLogLevel = log.DebugLevel
+	log.SetLevel(log.DebugLevel)
 }
 
 func TestBasic(t *testing.T) {

@@ -398,8 +398,5 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 //	  CalculateKeys(b, "Map.foo.str", "")
 //
 func CalculateKeys(obj interface{}, field string, prefix string) []string {
-	defer log.SetLevel(log.GetLevel())
-	log.SetLevel(EncodeLogLevel)
-
 	return calculateKeys(reflect.ValueOf(obj), field, prefix)
 }
