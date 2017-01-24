@@ -77,7 +77,7 @@ Serially start 5 long running containers
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ubuntu top
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t ubuntu top
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Not Contain  ${output}  Error:
     \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${output}
@@ -92,7 +92,7 @@ Parallel start 5 long running containers
     ${containers}=  Create List
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${output}=  Run  docker %{VCH-PARAMS} create busybox /bin/top
+    \   ${output}=  Run  docker %{VCH-PARAMS} create -t busybox /bin/top
     \   Should Not Contain  ${output}  Error
     \   Append To List  ${containers}  ${output}
 
