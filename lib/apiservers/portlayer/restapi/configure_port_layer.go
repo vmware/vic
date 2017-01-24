@@ -74,6 +74,8 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	api.Logger = log.Printf
+
 	ctx := context.Background()
 
 	sessionconfig := &session.Config{
