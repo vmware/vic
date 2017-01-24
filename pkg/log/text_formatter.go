@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,191 +15,85 @@
 package log
 
 import (
+	"bufio"
 	"bytes"
-	"fmt"
-	"runtime"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 )
 
-const (
-	nocolor = 0
-	red     = 31
-	green   = 32
-	yellow  = 33
-	blue    = 34
-	gray    = 37
-)
-
-var (
-	baseTimestamp time.Time
-	isTerminal    bool
-)
-
-func init() {
-	baseTimestamp = time.Now()
-	isTerminal = logrus.IsTerminal()
+// level strings padded to match the length of the longest level,
+// which is "UNKNOWN" currently. Indexed according to levels in
+// logrus, e.g. levelStrs[logrus.InfoLevel] == "INFO ".
+var levelStrs = []string{
+	"PANIC",
+	"FATAL",
+	"ERROR",
+	"WARN ",
+	"INFO ",
+	"DEBUG",
 }
 
-func miniTS() int {
-	return int(time.Since(baseTimestamp) / time.Second)
-}
+const unknownLevel = "UNKWN"
 
 type TextFormatter struct {
-
-	// Enable colors
-	Colors bool
-
-	// Enable timestamp logging. It's useful to disable timestamps when output
-	// is redirected to logging system that already adds timestamps.  When
-	// disabled, a delta is used for each log line from the start of the
-	// process.  Enabling will apply a timestamp derived from TimestampFormat.
-	Timestamp bool
-
 	// TimestampFormat is the format used to print the timestamp.  By default
 	// an RFC3339 timestamp is used.
 	TimestampFormat string
-
-	// The fields are sorted by default for a consistent output. For applications
-	// that log extremely frequently and don't use the JSON formatter this may not
-	// be desired.
-	DisableSorting bool
-
-	// Escape noncharacter ascii strings.
-	EscapeNonCharacters bool
 }
 
-// NewTextFormatter returns a text formatter with defaults appropriate for the
-// TTY or file being written to.
+// NewTextFormatter returns a text formatter
 func NewTextFormatter() *TextFormatter {
+	return &TextFormatter{
+		TimestampFormat: "Jan _2 2006 15:04:05.000Z07:00",
+	}
+}
 
-	isColorTerminal := isTerminal && (runtime.GOOS != "windows")
-
-	formatter := &TextFormatter{
-		Colors:          isColorTerminal,
-		Timestamp:       false,
-		TimestampFormat: time.RFC3339,
-		DisableSorting:  false,
+func levelToString(level logrus.Level) string {
+	if level <= logrus.DebugLevel {
+		return levelStrs[level]
 	}
 
-	return formatter
+	return unknownLevel
 }
 
 func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	var b *bytes.Buffer
-	keys := make([]string, 0, len(entry.Data))
-	for k := range entry.Data {
-		keys = append(keys, k)
+	t := f.timeStamp(entry)
+	l := levelToString(entry.Level)
+
+	if entry.Message == "" {
+		return []byte(t + " " + l + "\n"), nil
 	}
 
-	if !f.DisableSorting {
-		sort.Strings(keys)
+	// prefix each line of the message with timestamp
+	// level information
+	s := bufio.NewScanner(strings.NewReader(entry.Message))
+	// Define a split function that separates on newlines
+	onNewLine := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		for i := 0; i < len(data); i++ {
+			if data[i] == '\n' {
+				return i + 1, data[:i], nil
+			}
+		}
+		// There is one final token to be delivered, which may be the empty string.
+		// Returning bufio.ErrFinalToken here tells Scan there are no more tokens after this
+		// but does not trigger an error to be returned from Scan itself.
+		return 0, data, bufio.ErrFinalToken
+	}
+	s.Split(onNewLine)
+
+	var b bytes.Buffer
+	for s.Scan() {
+		b.WriteString(t + " " + l + " " + s.Text() + "\n")
 	}
 
-	b = &bytes.Buffer{}
-
-	// get the time string
-	ts := f.timeStamp(entry)
-
-	if f.Colors {
-		f.printColored(b, entry, keys, ts)
-	} else {
-		if f.Timestamp {
-			f.appendKeyValue(b, "time", ts)
-		}
-
-		f.appendKeyValue(b, "level", entry.Level.String())
-		if entry.Message != "" {
-			f.appendKeyValue(b, "msg", entry.Message)
-		}
-
-		for _, key := range keys {
-			f.appendKeyValue(b, key, entry.Data[key])
-		}
+	if s.Err() != nil {
+		return nil, s.Err()
 	}
 
-	b.WriteByte('\n')
 	return b.Bytes(), nil
 }
 
 func (f *TextFormatter) timeStamp(entry *logrus.Entry) string {
-	if !f.Timestamp {
-		return fmt.Sprintf("%04d", miniTS())
-	}
-
-	timestampFormat := f.TimestampFormat
-
-	if timestampFormat == "" {
-		timestampFormat = logrus.DefaultTimestampFormat
-	}
-
-	return entry.Time.Format(timestampFormat)
-}
-
-func (f *TextFormatter) printColored(b *bytes.Buffer, entry *logrus.Entry, keys []string, timestamp string) {
-	var levelColor int
-	switch entry.Level {
-	case logrus.DebugLevel:
-		levelColor = gray
-	case logrus.WarnLevel:
-		levelColor = yellow
-	case logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel:
-		levelColor = red
-	default:
-		levelColor = blue
-	}
-
-	levelText := strings.ToUpper(entry.Level.String())[0:4]
-
-	fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s] %-44s ", levelColor, levelText, timestamp, entry.Message)
-
-	for _, k := range keys {
-		v := entry.Data[k]
-		fmt.Fprintf(b, " \x1b[%dm%s\x1b[0m=%+v", levelColor, k, v)
-	}
-}
-
-func (f *TextFormatter) needsQuoting(text string) bool {
-	if !f.EscapeNonCharacters {
-		return false
-	}
-
-	for _, ch := range text {
-		if !((ch >= 'a' && ch <= 'z') ||
-			(ch >= 'A' && ch <= 'Z') ||
-			(ch >= '0' && ch <= '9') ||
-			ch == '-' || ch == '.') {
-			return true
-		}
-	}
-	return false
-}
-
-func (f *TextFormatter) appendKeyValue(b *bytes.Buffer, key string, value interface{}) {
-
-	b.WriteString(key)
-	b.WriteByte('=')
-
-	switch value := value.(type) {
-	case string:
-		if !f.needsQuoting(value) {
-			b.WriteString(value)
-		} else {
-			fmt.Fprintf(b, "%q", value)
-		}
-	case error:
-		errmsg := value.Error()
-		if !f.needsQuoting(errmsg) {
-			b.WriteString(errmsg)
-		} else {
-			fmt.Fprintf(b, "%q", value)
-		}
-	default:
-		fmt.Fprint(b, value)
-	}
-
-	b.WriteByte(' ')
+	return entry.Time.Format(f.TimestampFormat)
 }

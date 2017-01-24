@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/tether"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/logmgr"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -39,6 +40,7 @@ var (
 func init() {
 	// use the same logger as the log files
 	trace.Logger = log.StandardLogger()
+	log.SetFormatter(viclog.NewTextFormatter())
 }
 
 func main() {

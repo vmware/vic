@@ -64,7 +64,7 @@ Get Docker Params
     Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
 
     # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
-    ${logdeco}  ${vars}=  Split String  ${line}  ${SPACE}  1
+    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String From Right  ${line}  ${SPACE}  5
     ${vars}=  Split String  ${vars}
     :FOR  ${var}  IN  @{vars}
     \   ${varname}  ${varval}=  Split String  ${var}  =
@@ -85,11 +85,11 @@ Get Docker Params
     \   ${idx} =  Evaluate  ${index} + 1
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
 
-    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}
+    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}  ${SPACE}  1
     ${ext-ip} =  Strip String  ${ext-ip}
     Set Environment Variable  EXT-IP  ${ext-ip}
 
-    ${rest}  ${vic-admin}=  Split String From Right  ${line}
+    ${rest}  ${vic-admin}=  Split String From Right  ${line}  ${SPACE}  1
     Set Environment Variable  VIC-ADMIN  ${vic-admin}
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls

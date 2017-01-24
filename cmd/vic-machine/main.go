@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -107,7 +108,7 @@ func main() {
 	}
 
 	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
+	log.SetFormatter(viclog.NewTextFormatter())
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
 	defer func() {
