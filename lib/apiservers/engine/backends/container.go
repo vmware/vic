@@ -1384,10 +1384,12 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	if config.NetworkingConfig == nil {
 		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
 	} else {
+		if l := len(config.NetworkingConfig.EndpointsConfig); l > 1 {
+			return fmt.Errorf("Error setting NetWorkMode: Container cannot be connected to more than one network endpoints; current endpoints: %d", l)
+		}
 		// If NetworkConfig exists, set NetworkMode to the default endpoint network, assuming only one endpoint network as the default network during container create
 		for networkName := range config.NetworkingConfig.EndpointsConfig {
 			config.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)
-			break
 		}
 	}
 
