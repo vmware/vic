@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/go-openapi/spec"
 )
@@ -70,6 +71,7 @@ type GenSchema struct {
 	Parents                 []string
 	IncludeValidator        bool
 	IncludeModel            bool
+	Default                 interface{}
 }
 
 type sharedValidations struct {
@@ -385,6 +387,29 @@ type GenApp struct {
 	ExcludeSpec         bool
 	WithContext         bool
 	GenOpts             *GenOpts
+}
+
+// UseGoStructFlags returns true when no strategy is specified or it is set to "go-flags"
+func (g *GenApp) UseGoStructFlags() bool {
+	if g.GenOpts == nil {
+		return true
+	}
+	return g.GenOpts.FlagStrategy == "" || g.GenOpts.FlagStrategy == "go-flags"
+}
+
+// UsePFlags returns true when the flag strategy is set to pflag
+func (g *GenApp) UsePFlags() bool {
+	return g.GenOpts != nil && strings.HasPrefix(g.GenOpts.FlagStrategy, "pflag")
+}
+
+// UseIntermediateMode for https://wiki.mozilla.org/Security/Server_Side_TLS#Intermediate_compatibility_.28default.29
+func (g *GenApp) UseIntermediateMode() bool {
+	return g.GenOpts != nil && g.GenOpts.CompatibilityMode == "intermediate"
+}
+
+// UseModernMode for https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility
+func (g *GenApp) UseModernMode() bool {
+	return g.GenOpts == nil || g.GenOpts.CompatibilityMode == "" || g.GenOpts.CompatibilityMode == "modern"
 }
 
 // GenSerGroups sorted representation of serializer groups
