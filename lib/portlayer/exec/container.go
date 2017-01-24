@@ -234,15 +234,19 @@ func (c *Container) updateState(s State) State {
 	return prevState
 }
 
-// transitionState changes the container state to finalState if the current state is initialState.
-func (c *Container) transitionState(initialState, finalState State) {
+// transitionState changes the container state to finalState if the current state is initialState
+// and returns an error otherwise.
+func (c *Container) transitionState(initialState, finalState State) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	if c.state == initialState {
 		c.state = finalState
 		log.Debugf("Set container %s state: %s", c.ExecConfig.ID, finalState)
+		return nil
 	}
+
+	return fmt.Errorf("container state is %s and was not changed to %s", c.state, finalState)
 }
 
 var closedEventChannel = func() <-chan struct{} {
@@ -338,7 +342,7 @@ func (c *Container) start(ctx context.Context) error {
 		return fmt.Errorf("vm not set")
 	}
 	// Set state to Starting
-	c.updateState(StateStarting)
+	c.SetState(StateStarting)
 
 	err := c.containerBase.start(ctx)
 	if err != nil {
@@ -354,7 +358,9 @@ func (c *Container) start(ctx context.Context) error {
 	// Transition the state to Running only if it's Starting.
 	// The current state is already Stopped if the container's process has exited or
 	// a poweredoff event has been processed.
-	c.transitionState(StateStarting, StateRunning)
+	if err = c.transitionState(StateStarting, StateRunning); err != nil {
+		log.Debug(err)
+	}
 
 	return nil
 }
@@ -366,19 +372,24 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
-	finalState := c.updateState(StateStopping)
+	finalState := c.SetState(StateStopping)
 
 	err := c.containerBase.stop(ctx, waitTime)
 	if err != nil {
 		// we've got no idea what state the container is in at this point
 		// running is an _optimistic_ statement
 		// If the current state is Stopping, revert it to the old state.
-		c.transitionState(StateStopping, finalState)
+		if stateErr := c.transitionState(StateStopping, finalState); stateErr != nil {
+			log.Debug(stateErr)
+		}
+
 		return err
 	}
 
 	// Transition the state to Stopped only if it's Stopping.
-	c.transitionState(StateStopping, StateStopped)
+	if err = c.transitionState(StateStopping, StateStopped); err != nil {
+		log.Debug(err)
+	}
 
 	return nil
 }
