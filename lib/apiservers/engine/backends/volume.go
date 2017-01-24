@@ -303,10 +303,7 @@ func volumeStore(args map[string]string) string {
 	return storeName
 }
 
-func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error {
-	// volumestore name validation
-	req.Store = volumeStore(args)
-
+func normalizeDriverArgs(args map[string]string) error {
 	// normalize keys to lowercase & validate them
 	for k, val := range args {
 		lowercase := strings.ToLower(k)
@@ -320,6 +317,16 @@ func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error
 			args[lowercase] = val
 		}
 	}
+	return nil
+}
+
+func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error {
+	if err := normalizeDriverArgs(args); err != nil {
+		return err
+	}
+
+	// volumestore name validation
+	req.Store = volumeStore(args)
 
 	// capacity validation
 	capstr, ok := args[OptsCapacityKey]

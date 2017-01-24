@@ -176,3 +176,19 @@ func TestExtractDockerMetadata(t *testing.T) {
 	assert.Equal(t, metaDataBefore.Name, metadataAfter.Name)
 	assert.Equal(t, metaDataBefore.Driver, metadataAfter.Driver)
 }
+
+func TestNormalizeDriverArgs(t *testing.T) {
+	testOptMap := make(map[string]string)
+	testOptMap["VOLUMESTORE"] = "foo"
+	testOptMap["CAPACITY"] = "bar"
+
+	normalizeDriverArgs(testOptMap)
+
+	assert.Equal(t, testOptMap["volumestore"], "foo")
+	assert.Equal(t, testOptMap["capacity"], "bar")
+
+	testOptMap["bogus"] = "bogus"
+
+	err := normalizeDriverArgs(testOptMap)
+	assert.NoError(t, err)
+}
