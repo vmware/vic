@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,9 +21,11 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi"
@@ -38,6 +40,33 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
 )
+
+var once sync.Once
+
+func vmFixTestHandler(ctx context.Context, err error) (bool, error) {
+	o := ctx.Value(tasks.VMObjectKey)
+	if o == nil {
+		log.Debugf("No vm object set, not vm operations.")
+		return false, nil
+	}
+
+	vm, ok := o.(*VirtualMachine)
+	if !ok {
+		log.Debugf("Not vm object, do not fix failure")
+		return false, nil
+	}
+	if !vm.IsInvalidState(ctx) {
+		log.Debugf("VM is not in invalid state, do not fix failure")
+		return false, nil
+	}
+	if nerr := vm.FixVM(ctx); nerr != nil {
+		log.Errorf("Failed to fix task failure: %s", nerr)
+		return true, nerr
+	}
+	log.Infof("Fixed")
+
+	return true, nil
+}
 
 func CreateVM(ctx context.Context, session *session.Session, host *object.HostSystem, name string) (*types.ManagedObjectReference, error) {
 	// Create the spec config
@@ -184,7 +213,7 @@ func TestVM(t *testing.T) {
 	}
 	t.Logf("Got UUID: %s", ruuid)
 
-	err = vm.fixVM(ctx)
+	err = vm.FixVM(ctx)
 	if err != nil {
 		t.Errorf("Failed to fix vm: %s", err)
 	}
@@ -447,8 +476,16 @@ func TestBfsSnapshotTree(t *testing.T) {
 	}
 }
 
+func initErrorHandler() {
+	once.Do(func() {
+		tasks.RegisterErrorHandler(vmFixTestHandler)
+	})
+}
+
 // TestProperties test vm.properties happy path and fix vm path
 func TestProperties(t *testing.T) {
+	initErrorHandler()
+
 	ctx := context.Background()
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
@@ -510,6 +547,8 @@ func TestProperties(t *testing.T) {
 
 // TestWaitForResult covers the success path and invalid vm fix path
 func TestWaitForResult(t *testing.T) {
+	initErrorHandler()
+
 	ctx := context.Background()
 
 	// Nothing VC specific in this test, so we use the simpler ESX model

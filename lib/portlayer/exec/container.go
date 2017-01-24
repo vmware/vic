@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ const (
 	StateCreating
 	StateRemoving
 	StateRemoved
+	StateFixing
 
 	propertyCollectorTimeout = 3 * time.Minute
 	containerLogName         = "output.log"
@@ -75,6 +76,8 @@ func (s State) String() string {
 		return "Stopping"
 	case StateStopped:
 		return "Stopped"
+	case StateFixing:
+		return "Fixing"
 	case StateUnknown:
 		return "Unknown"
 	}

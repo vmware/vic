@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,9 @@ func Init(ctx context.Context, sess *session.Session) error {
 	if err != nil {
 		return err
 	}
+
+	// initialize error handler in tasks package, before actually query containers from vsphere
+	exec.InitTasksErrorHandler()
 
 	vchvm := vm.NewVirtualMachineFromVM(ctx, sess, vch)
 	vmPath, err := vchvm.VMPathName(ctx)

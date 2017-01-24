@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package tasks
 import (
 	"context"
 	"math/rand"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -27,11 +28,41 @@ import (
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
 	maxBackoffFactor = int64(16)
+
+	VMObjectKey = "VMObject"
 )
+
+var (
+	m             sync.RWMutex
+	errorHandlers []ErrorHandler
+)
+
+type ErrorHandler func(ctx context.Context, err error) (bool, error)
+
+func taskInProgressHandler(ctx context.Context, err error) (bool, error) {
+	if isTaskInProgress(err) {
+		// TaskInProgress error, no need to fail here
+		log.Debugf("TaskInProgress error, continue")
+		return true, nil
+	}
+	return false, nil
+}
+
+func init() {
+	RegisterErrorHandler(taskInProgressHandler)
+}
+
+func RegisterErrorHandler(handler ErrorHandler) {
+	defer trace.End(trace.Begin(""))
+	m.Lock()
+	defer m.Unlock()
+	errorHandlers = append(errorHandlers, handler)
+}
 
 //FIXME: remove this type and refactor to use object.Task from govmomi
 //       this will require a lot of code being touched in a lot of places.
@@ -70,7 +101,12 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			}
 		}
 
-		if !isTaskInProgress(err) {
+		handled, herr := HandleError(ctx, err)
+		if herr != nil {
+			log.Debugf("Handler failed: %s", herr)
+			return info, err
+		}
+		if !handled {
 			return info, err
 		}
 
@@ -87,6 +123,25 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 
 		log.Warnf("retrying task")
 	}
+}
+
+func HandleError(ctx context.Context, err error) (bool, error) {
+	m.RLock()
+	defer m.RUnlock()
+
+	handled := false
+	for i := range errorHandlers {
+		expected, herr := errorHandlers[i](ctx, err)
+		if !expected {
+			continue
+		}
+		handled = true
+		if herr != nil {
+			return handled, herr
+		}
+		break
+	}
+	return handled, nil
 }
 
 func isTaskInProgress(err error) bool {
