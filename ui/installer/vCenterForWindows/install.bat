@@ -85,11 +85,15 @@ ECHO.
 
 IF /I %vic_ui_host_url% EQU NOURL (
     ECHO =============================
+    ECHO ** NEXT STEP for vCenter 6.5 users **
+    ECHO To install plugin for vSphere Client, or HTML5 Client, copy the com.vmware.vic.* folder from \ui\plugin-packages to %VMWARE_CFG_DIR%\vsphere-ui\vc-packages\vsphere-client-serenity.
+    ECHO To install plugin for vSphere Web Client, or Flex Client, copy the com.vmware.vic* folder from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. Create any missing folders in between if necessary.
+    ECHO.
     ECHO ** NEXT STEP for vCenter 6.0 users **
-    ECHO With the current version of VIC running on vCenter for Windows, the com.vmware.vicui.* folder needs to be manually copied from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. If you have not done so, please copy it now.
+    ECHO With the current version of VIC running on vCenter for Windows, the com.vmware.vic.* folder needs to be manually copied from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. If you have not done so, please copy it now.
     ECHO.
     ECHO ** NEXT STEP for vCenter 5.5 users **
-    ECHO VIC UI may run on a vCenter 5.5 setup, but is NOT officially supported. Use it at your own risk. To proceed, copy the com.vmware.vicui.* folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead.
+    ECHO VIC UI may run on a vCenter 5.5 setup, but is NOT officially supported. Use it at your own risk. To proceed, copy the com.vmware.vic.* folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead.
     ECHO.
     ECHO Once you've copied the folder, log out of vSphere Web Client and then log back in.
     ECHO =============================

@@ -1,0 +1,7 @@
+table {
+  margin-top: 0px;
+
+  & td:last-child {
+    min-width: 230px;
+  }
+}

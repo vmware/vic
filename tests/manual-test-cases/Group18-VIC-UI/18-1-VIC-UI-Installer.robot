@@ -21,12 +21,12 @@ Attempt To Install With Configs File Missing
 Attempt To Install With Plugin Missing
     # Rename the folder containing the VIC UI binaries and run the installer script to see if it fails in an expected way
     Set Vcenter Ip
-    Move Directory  ${UI_INSTALLER_PATH}/../vsphere-client-serenity  ${UI_INSTALLER_PATH}/../vsphere-client-serenity-a
+    Move Directory  ${UI_INSTALLER_PATH}/../${plugin_folder}  ${UI_INSTALLER_PATH}/../${plugin_folder}-a
     Install Fails At Extension Reg  ${TEST_VC_USERNAME}  ${TEST_VC_PASSWORD}  ${TEST_VC_ROOT_PASSWORD}  ${TRUE}
     ${output}=  OperatingSystem.GetFile  install.log
     ${passed}=  Run Keyword And Return Status  Should Contain  ${output}  VIC UI plugin bundle was not found
     Run Keyword Unless  ${passed}  Copy File  install.log  install-fail-install-with-plugin-missing.log
-    Move Directory  ${UI_INSTALLER_PATH}/../vsphere-client-serenity-a  ${UI_INSTALLER_PATH}/../vsphere-client-serenity
+    Move Directory  ${UI_INSTALLER_PATH}/../${plugin_folder}-a  ${UI_INSTALLER_PATH}/../${plugin_folder}
     Remove File  install.log
     Should Be True  ${passed}
 
