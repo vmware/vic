@@ -15,9 +15,7 @@
 package main
 
 import (
-	"os"
 	"runtime/debug"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -39,10 +37,6 @@ func main() {
 	// where to look for the various devices and files related to tether
 	pathPrefix = "com://"
 
-	if strings.HasSuffix(os.Args[0], "-debug") {
-		extraconfig.DecodeLogLevel = log.DebugLevel
-		extraconfig.EncodeLogLevel = log.DebugLevel
-	}
 	// use the same logger for trace and other logging
 	trace.Logger = log.StandardLogger()
 	log.SetLevel(log.DebugLevel)

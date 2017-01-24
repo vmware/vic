@@ -30,8 +30,6 @@ import (
 )
 
 var (
-	// EncodeLogLevel value
-	EncodeLogLevel = log.InfoLevel
 	ErrKeyNotFound = errors.New("key not found")
 )
 
@@ -261,9 +259,6 @@ type DataSink func(string, string) error
 
 // Encode serializes the given type to the supplied data sink
 func Encode(sink DataSink, src interface{}) {
-	defer log.SetLevel(log.GetLevel())
-	log.SetLevel(EncodeLogLevel)
-
 	encode(sink, reflect.ValueOf(src), DefaultPrefix, Unbounded)
 }
 
@@ -271,9 +266,6 @@ func Encode(sink DataSink, src interface{}) {
 // the supplied prefix - this allows for serialization of subsections of a
 // struct
 func EncodeWithPrefix(sink DataSink, src interface{}, prefix string) {
-	defer log.SetLevel(log.GetLevel())
-	log.SetLevel(EncodeLogLevel)
-
 	encode(sink, reflect.ValueOf(src), prefix, Unbounded)
 }
 
