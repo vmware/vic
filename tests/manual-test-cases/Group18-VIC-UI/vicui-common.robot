@@ -63,13 +63,13 @@ Cleanup Dangling VMs On VIC UI Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
-    \   ${rc}  ${output}=  Delete VIC Machine  ${vm}  ../../../bin/%{BUILD_NUMBER}/vic-machine-linux
+    \   ${rc}  ${output}=  Delete VIC Machine  ${vm}  ../../../ui-nightly-run-bin/vic-machine-linux
 
 Check Config And Install VCH
     Run Keyword  Set Absolute Script Paths
     Load Nimbus Testbed Env
     Set Environment Variable  DOMAIN  ${EMPTY}
-    Install VIC Appliance For VIC UI  ../../../bin/%{BUILD_NUMBER}/vic-machine-linux  ../../../bin/%{BUILD_NUMBER}/appliance.iso  ../../../bin/%{BUILD_NUMBER}/bootstrap.iso
+    Install VIC Appliance For VIC UI  ../../../ui-nightly-run-bin/vic-machine-linux  ../../../ui-nightly-run-bin/appliance.iso  ../../../ui-nightly-run-bin/bootstrap.iso
     Set Environment Variable  VCH_VM_NAME  %{VCH-NAME}
 
 Set Absolute Script Paths
@@ -136,7 +136,7 @@ Uninstall VCH
     Log To Console  Gathering logs from the test server...
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
-    ${rc}  ${output}=  Delete VIC Machine  %{VCH-NAME}  ../../../bin/%{BUILD_NUMBER}/vic-machine-linux
+    ${rc}  ${output}=  Delete VIC Machine  %{VCH-NAME}  ../../../ui-nightly-run-bin/vic-machine-linux
     Check Delete Success  %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
