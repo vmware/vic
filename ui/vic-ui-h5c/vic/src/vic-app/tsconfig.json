@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "removeComments": false,
+    "noImplicitAny": false,
+    "suppressImplicitAnyIndexErrors": true,
+    "outDir": "./tsc-results"
+  },
+  "awesomeTypescriptLoaderOptions": {
+    "useWebpackText": true
+  },
+  "filesGlob": [
+    "./src/**/*.ts",
+    "!./src/**/*.spec.ts",
+    "!./node_modules/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+  "atom": {
+    "rewriteTsconfig": true
+  },
+  "files": [
+    "./src/app/app-routing.module.ts",
+    "./src/app/app.component.ts",
+    "./src/app/app.module.ts",
+    "./src/app/data-property-service/data-property.service.ts",
+    "./src/app/environment.ts",
+    "./src/app/summary-portlet/container-portlet/container-portlet.component.ts",
+    "./src/app/summary-portlet/summary-portlet.component.ts",
+    "./src/app/summary-portlet/vch-portlet/vch-portlet.component.ts",
+    "./src/app/vm.interface.ts",
+    "./src/custom-typings.d.ts",
+    "./src/main.ts",
+    "./src/vendor.ts"
+  ]
+}

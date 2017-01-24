@@ -1,0 +1,19 @@
+<!doctype>
+<html>
+<head>
+    <title><%=webpackConfig.metadata.title%></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Relative paths are required to keep plugin compatible with Flex and HTML clients -->
+    <link rel="stylesheet" href="../../assets/css/default.css" media="screen" />
+
+    <!-- ** web-platform.js must be included before any other view code ** -->
+    <script src="../js/web-platform.js"></script>
+
+    <base href="<%= webpackConfig.metadata.baseUrl %>">
+</head>
+<body>
+
+<vic-app>Loading...</vic-app>
+
+</body>
+</html>
