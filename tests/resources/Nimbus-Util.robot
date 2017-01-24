@@ -306,7 +306,7 @@ Create a Simple VC Cluster
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  ${cluster}
     Set Environment Variable  TEST_TIMEOUT  30m
-    [Return]  ${vc-ip}
+    [Return]  ${esx1}  ${esx2}  ${esx3}  ${vc}  ${vc-ip}
 
 Create A Distributed Switch
     [Arguments]  ${datacenter}  ${dvs}=test-ds
