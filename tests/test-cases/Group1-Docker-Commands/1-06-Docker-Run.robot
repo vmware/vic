@@ -95,18 +95,21 @@ Docker run immediate exit
     Should Be Empty  ${output}
 
 Docker run verify container start and stop time
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${cmdStart}=  Run  date +%s
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Empty  ${output}
-    ${rc}  ${containerStart}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.State.StartedAt}}' startStop | xargs date +%s -d
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${containerStop}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.State.FinishedAt}}' startStop | xargs date +%s -d
-    Should Be Equal As Integers  ${rc}  0
-    ${startStatus}=  Run Keyword And Return Status  Should Be True  ${cmdStart} <= ${containerStart}
-    Run Keyword Unless  ${startStatus}  Fail  container start time before command start
-    ${stopStatus}=  Run Keyword And Return Status  Should Be True  ${cmdStart} < ${containerStop}
-    Run Keyword Unless  ${stopStatus}  Fail  container stop time before command start
+    ${status}=  Get State Of Github Issue  3714
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-06-Docker-Run.robot needs to be updated now that Issue #3714 has been resolved
+    Log  Issue \#3714 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${cmdStart}=  Run  date +%s
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Be Empty  ${output}
+    #${rc}  ${containerStart}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.State.StartedAt}}' startStop | xargs date +%s -d
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${containerStop}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.State.FinishedAt}}' startStop | xargs date +%s -d
+    #Should Be Equal As Integers  ${rc}  0
+    #${startStatus}=  Run Keyword And Return Status  Should Be True  ${cmdStart} <= ${containerStart}
+    #Run Keyword Unless  ${startStatus}  Fail  container start time before command start
+    #${stopStatus}=  Run Keyword And Return Status  Should Be True  ${cmdStart} < ${containerStop}
+    #Run Keyword Unless  ${stopStatus}  Fail  container stop time before command start
