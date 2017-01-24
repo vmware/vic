@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/vmware/govmomi/find"
@@ -64,116 +65,65 @@ func TestDVS(t *testing.T) {
 
 	for _, host := range hosts {
 		config.Host = append(config.Host, types.DistributedVirtualSwitchHostMemberConfigSpec{
-			Operation: string(types.ConfigSpecOperationAdd),
-			Host:      host.Reference(),
+			Host: host.Reference(),
 		})
 	}
 
-	// Add == OK
-	dtask, err = dvs.Reconfigure(ctx, config)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		op  types.ConfigSpecOperation
+		pg  string
+		err types.BaseMethodFault
+	}{
+		{types.ConfigSpecOperationAdd, "", nil},                               // Add == OK
+		{types.ConfigSpecOperationAdd, "", &types.AlreadyExists{}},            // Add == fail (AlreadyExists)
+		{types.ConfigSpecOperationEdit, "", &types.NotSupported{}},            // Edit == fail (NotSupported)
+		{types.ConfigSpecOperationRemove, "", nil},                            // Remove == OK
+		{types.ConfigSpecOperationAdd, "", nil},                               // Add == OK
+		{types.ConfigSpecOperationAdd, "DVPG0", nil},                          // Add PG == OK
+		{types.ConfigSpecOperationRemove, "", &types.ResourceInUse{}},         // Remove == fail (ResourceInUse)
+		{types.ConfigSpecOperationRemove, "", &types.ManagedObjectNotFound{}}, // Remove == fail (ManagedObjectNotFound)
 	}
 
-	err = dtask.Wait(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for x, test := range tests {
+		switch test.err.(type) {
+		case *types.ManagedObjectNotFound:
+			for i := range config.Host {
+				config.Host[i].Host.Value = "enoent"
+			}
+		}
 
-	// Add == fail (AlreadyExists)
-	dtask, err = dvs.Reconfigure(ctx, config)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if test.pg == "" {
+			for i := range config.Host {
+				config.Host[i].Operation = string(test.op)
+			}
 
-	err = dtask.Wait(ctx)
-	if _, ok := err.(task.Error).Fault().(*types.AlreadyExists); !ok {
-		t.Fatalf("err=%v", err)
-	}
+			dtask, err = dvs.Reconfigure(ctx, config)
+		} else {
+			switch test.op {
+			case types.ConfigSpecOperationAdd:
+				dtask, err = dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{{Name: test.pg}})
+			}
+		}
 
-	// Edit == fail (NotSupported)
-	for i := range config.Host {
-		config.Host[i].Operation = string(types.ConfigSpecOperationEdit)
-	}
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	dtask, err = dvs.Reconfigure(ctx, config)
-	if err != nil {
-		t.Fatal(err)
-	}
+		err = dtask.Wait(ctx)
 
-	err = dtask.Wait(ctx)
-	if _, ok := err.(task.Error).Fault().(*types.NotSupported); !ok {
-		t.Fatalf("err=%v", err)
-	}
+		if test.err == nil {
+			if err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
 
-	// Remove == OK
-	for i := range config.Host {
-		config.Host[i].Operation = string(types.ConfigSpecOperationRemove)
-	}
+		if err == nil {
+			t.Errorf("expected error in test %d", x)
+		}
 
-	dtask, err = dvs.Reconfigure(ctx, config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = dtask.Wait(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add == OK
-	for i := range config.Host {
-		config.Host[i].Operation = string(types.ConfigSpecOperationAdd)
-	}
-
-	dtask, err = dvs.Reconfigure(ctx, config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = dtask.Wait(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add (PG) == OK
-	dtask, err = dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{{Name: "DVPG0"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = dtask.Wait(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Remove == fail (ResourceInUse)
-	for i := range config.Host {
-		config.Host[i].Operation = string(types.ConfigSpecOperationRemove)
-	}
-
-	dtask, err = dvs.Reconfigure(ctx, config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = dtask.Wait(ctx)
-	if _, ok := err.(task.Error).Fault().(*types.ResourceInUse); !ok {
-		t.Fatalf("err=%v", err)
-	}
-
-	// Remove == fail (ManagedObjectNotFound)
-	for i := range config.Host {
-		config.Host[i].Host.Value = "enoent"
-	}
-
-	dtask, err = dvs.Reconfigure(ctx, config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = dtask.Wait(ctx)
-	if _, ok := err.(task.Error).Fault().(*types.ManagedObjectNotFound); !ok {
-		t.Fatalf("err=%v", err)
+		if reflect.TypeOf(test.err) != reflect.TypeOf(err.(task.Error).Fault()) {
+			t.Errorf("expected %T fault in test %d", test.err, x)
+		}
 	}
 }
