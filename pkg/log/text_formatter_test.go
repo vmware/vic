@@ -14,21 +14,123 @@
 
 package log
 
-import "testing"
-import "github.com/Sirupsen/logrus"
+import (
+	"bufio"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+)
 
 func BenchmarkFormatNonEmpty(b *testing.B) {
-	logrus.SetFormatter(NewTextFormatter())
+	f := NewTextFormatter()
+	e := &logrus.Entry{
+		Time:    time.Now(),
+		Level:   logrus.InfoLevel,
+		Message: "the quick brown fox jumps over the lazy dog",
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logrus.Info("the quick brown fox jumps over the lazy dog")
+		f.Format(e)
 	}
 }
 
 func BenchmarkFormatEmpty(b *testing.B) {
-	logrus.SetFormatter(NewTextFormatter())
+	f := NewTextFormatter()
+	e := &logrus.Entry{
+		Time:  time.Now(),
+		Level: logrus.InfoLevel,
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		logrus.Info("")
+		f.Format(e)
+	}
+}
+
+func TestFormatEmpty(t *testing.T) {
+	ti := time.Now()
+	e := &logrus.Entry{Time: ti, Level: logrus.InfoLevel}
+	f := NewTextFormatter()
+
+	b, err := f.Format(e)
+	assert.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("%s %s\n", ti.Format(f.TimestampFormat), levelToString(e.Level)), string(b))
+}
+
+func TestFormatNonEmpty(t *testing.T) {
+	ti := time.Now()
+	m := "foo bar baz"
+	e := &logrus.Entry{Time: ti, Level: logrus.InfoLevel, Message: m}
+	f := NewTextFormatter()
+
+	b, err := f.Format(e)
+	assert.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("%s %s %s\n", ti.Format(f.TimestampFormat), levelToString(e.Level), m), string(b))
+
+	// test with multiple lines
+	pre := fmt.Sprintf("%s %s ", ti.Format(f.TimestampFormat), levelToString(e.Level))
+	var tests = []struct {
+		in  string
+		out []string
+	}{
+		{
+			"foo",
+			[]string{
+				pre + "foo",
+			},
+		},
+		{
+			"\n",
+			[]string{
+				pre,
+				pre,
+			},
+		},
+		{
+			"foo\n",
+			[]string{
+				pre + "foo",
+				pre,
+			},
+		},
+		{
+			"\nfoo\n",
+			[]string{
+				pre,
+				pre + "foo",
+				pre,
+			},
+		},
+		{
+			"foo\n",
+			[]string{
+				pre + "foo",
+				pre,
+			},
+		},
+		{
+			"foo \nbar\n baz ",
+			[]string{
+				pre + "foo ",
+				pre + "bar",
+				pre + " baz ",
+			},
+		},
+	}
+
+	for _, te := range tests {
+		e.Message = te.in
+		b, err = f.Format(e)
+		assert.NoError(t, err)
+		s := bufio.NewScanner(strings.NewReader(string(b)))
+		i := 0
+		for s.Scan() {
+			assert.True(t, i < len(te.out))
+			assert.Equal(t, te.out[i], s.Text())
+			i++
+		}
 	}
 }

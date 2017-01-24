@@ -22,6 +22,20 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// level strings padded to match the length of the longest level,
+// which is "UNKNOWN" currently. Indexed according to levels in
+// logrus, e.g. levelStrs[logrus.InfoLevel] == "INFO ".
+var levelStrs = []string{
+	"PANIC",
+	"FATAL",
+	"ERROR",
+	"WARN ",
+	"INFO ",
+	"DEBUG",
+}
+
+const unknownLevel = "UNKWN"
+
 type TextFormatter struct {
 	// TimestampFormat is the format used to print the timestamp.  By default
 	// an RFC3339 timestamp is used.
@@ -35,38 +49,43 @@ func NewTextFormatter() *TextFormatter {
 	}
 }
 
-func trimOrPadToSize(s string, size int) string {
-	if len(s) > size {
-		return s[:size]
+func levelToString(level logrus.Level) string {
+	if level <= logrus.DebugLevel {
+		return levelStrs[level]
 	}
 
-	return s + strings.Repeat(" ", size-len(s))
+	return unknownLevel
 }
 
 func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	t := f.timeStamp(entry)
-	l := strings.ToUpper(trimOrPadToSize(entry.Level.String(), 5))
+	l := levelToString(entry.Level)
+
+	if entry.Message == "" {
+		return []byte(t + " " + l + "\n"), nil
+	}
 
 	var b bytes.Buffer
 
-	if entry.Message == "" {
-		b.Grow(len(t) + len(" ") + len(l) + len("\n"))
-		b.WriteString(t)
-		b.WriteString(" ")
-		b.WriteString(l)
-		b.WriteString("\n")
-		return b.Bytes(), nil
-	}
-
+	// prefix each line of the message with timestamp
+	// level information
 	s := bufio.NewScanner(strings.NewReader(entry.Message))
+	// Define a split function that separates on newlines
+	onNewLine := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		for i := 0; i < len(data); i++ {
+			if data[i] == '\n' {
+				return i + 1, data[:i], nil
+			}
+		}
+		// There is one final token to be delivered, which may be the empty string.
+		// Returning bufio.ErrFinalToken here tells Scan there are no more tokens after this
+		// but does not trigger an error to be returned from Scan itself.
+		return 0, data, bufio.ErrFinalToken
+	}
+	s.Split(onNewLine)
+
 	for s.Scan() {
-		b.Grow(len(t) + len(" ") + len(l) + len(" ") + len(s.Text()) + len("\n"))
-		b.WriteString(t)
-		b.WriteString(" ")
-		b.WriteString(l)
-		b.WriteString(" ")
-		b.WriteString(s.Text())
-		b.WriteString("\n")
+		b.WriteString(t + " " + l + " " + s.Text() + "\n")
 	}
 
 	if s.Err() != nil {
