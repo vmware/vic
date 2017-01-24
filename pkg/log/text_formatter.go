@@ -65,8 +65,6 @@ func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		return []byte(t + " " + l + "\n"), nil
 	}
 
-	var b bytes.Buffer
-
 	// prefix each line of the message with timestamp
 	// level information
 	s := bufio.NewScanner(strings.NewReader(entry.Message))
@@ -84,6 +82,7 @@ func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	s.Split(onNewLine)
 
+	var b bytes.Buffer
 	for s.Scan() {
 		b.WriteString(t + " " + l + " " + s.Text() + "\n")
 	}
