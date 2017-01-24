@@ -234,6 +234,17 @@ func (c *Container) updateState(s State) State {
 	return prevState
 }
 
+// transitionState changes the container state to finalState if the current state is initialState.
+func (c *Container) transitionState(initialState, finalState State) {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	if c.state == initialState {
+		c.state = finalState
+		log.Debugf("Set container %s state: %s", c.ExecConfig.ID, finalState)
+	}
+}
+
 var closedEventChannel = func() <-chan struct{} {
 	a := make(chan struct{})
 	close(a)
@@ -326,9 +337,8 @@ func (c *Container) start(ctx context.Context) error {
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
 	}
-	// get existing state and set to starting
-	// if there's a failure we'll revert to existing
-	finalState := c.updateState(StateStarting)
+	// Set state to Starting
+	c.updateState(StateStarting)
 
 	err := c.containerBase.start(ctx)
 	if err != nil {
@@ -338,26 +348,13 @@ func (c *Container) start(ctx context.Context) error {
 		// become responsive.
 
 		// TODO: mechanism to trigger reinspection of long term transitional states
-		finalState = StateStarting
-		c.updateState(finalState)
-
 		return err
 	}
 
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	// Obtain the current state and set the final state to Running only if it's Starting.
+	// Transition the state to Running only if it's Starting.
 	// The current state is already Stopped if the container's process has exited or
 	// a poweredoff event has been processed.
-	currentState := c.state
-	if currentState == StateStarting {
-		finalState = StateRunning
-	} else {
-		log.Infof("current state of container %s is %v", c.ExecConfig.ID, currentState)
-		finalState = currentState
-	}
-	c.updateState(finalState)
+	c.transitionState(StateStarting, StateRunning)
 
 	return nil
 }
@@ -370,17 +367,19 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
 	finalState := c.updateState(StateStopping)
-	defer func() { c.updateState(finalState) }()
 
 	err := c.containerBase.stop(ctx, waitTime)
-
 	if err != nil {
 		// we've got no idea what state the container is in at this point
 		// running is an _optimistic_ statement
+		// If the current state is Stopping, revert it to the old state.
+		c.transitionState(StateStopping, finalState)
 		return err
 	}
 
-	finalState = StateStopped
+	// Transition the state to Stopped only if it's Stopping.
+	c.transitionState(StateStopping, StateStopped)
+
 	return nil
 }
 
