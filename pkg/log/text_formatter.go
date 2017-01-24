@@ -17,7 +17,6 @@ package log
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -45,22 +44,33 @@ func trimOrPadToSize(s string, size int) string {
 }
 
 func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	t := f.timeStamp(entry)
+	l := strings.ToUpper(trimOrPadToSize(entry.Level.String(), 5))
+
 	var b bytes.Buffer
 
-	t := f.timeStamp(entry)
-	l := strings.ToUpper(trimOrPadToSize(entry.Level.String(), 4))
-
 	if entry.Message == "" {
-		b.WriteString(fmt.Sprintf("%s %s\n", t, l))
-	} else {
-		s := bufio.NewScanner(strings.NewReader(entry.Message))
-		for s.Scan() {
-			b.WriteString(fmt.Sprintf("%s %s %s\n", t, l, s.Text()))
-		}
+		b.Grow(len(t) + len(" ") + len(l) + len("\n"))
+		b.WriteString(t)
+		b.WriteString(" ")
+		b.WriteString(l)
+		b.WriteString("\n")
+		return b.Bytes(), nil
+	}
 
-		if s.Err() != nil {
-			return nil, s.Err()
-		}
+	s := bufio.NewScanner(strings.NewReader(entry.Message))
+	for s.Scan() {
+		b.Grow(len(t) + len(" ") + len(l) + len(" ") + len(s.Text()) + len("\n"))
+		b.WriteString(t)
+		b.WriteString(" ")
+		b.WriteString(l)
+		b.WriteString(" ")
+		b.WriteString(s.Text())
+		b.WriteString("\n")
+	}
+
+	if s.Err() != nil {
+		return nil, s.Err()
 	}
 
 	return b.Bytes(), nil
