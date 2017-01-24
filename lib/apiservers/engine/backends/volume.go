@@ -310,6 +310,7 @@ func normalizeDriverArgs(args map[string]string) error {
 
 		if !validDriverOptsKeys[lowercase] {
 			return fmt.Errorf("%s is not a supported option", k)
+
 		}
 
 		if strings.Compare(val, k) != 0 {
