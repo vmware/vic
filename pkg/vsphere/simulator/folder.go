@@ -20,6 +20,7 @@ import (
 	"path"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -198,7 +199,9 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 		vm.Runtime.Host = c.req.Host
 	}
 
+	vm.Summary.Config.VmPathName = vm.Config.Files.VmPathName
 	vm.Summary.Runtime.Host = vm.Runtime.Host
+	vm.Parent = &c.Folder.Self
 
 	err = vm.create(&c.req.Config, c.register)
 	if err != nil {
@@ -343,9 +346,15 @@ func (f *Folder) CreateDVSTask(c *types.CreateDVS_Task) soap.HasFault {
 			return nil, &types.InvalidArgument{InvalidProperty: "name"}
 		}
 
+		dvs.Uuid = uuid.New().String()
+
 		f.putChild(dvs)
 
-		return nil, nil
+		dc := Map.getEntityDatacenter(f)
+
+		dc.Network = append(dc.Network, dvs.Reference())
+
+		return dvs.Reference(), nil
 	})
 
 	task.Run()
