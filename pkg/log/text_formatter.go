@@ -14,13 +14,7 @@
 
 package log
 
-import (
-	"bufio"
-	"bytes"
-	"strings"
-
-	"github.com/Sirupsen/logrus"
-)
+import "github.com/Sirupsen/logrus"
 
 // level strings padded to match the length of the longest level,
 // which is "UNKNOWN" currently. Indexed according to levels in
@@ -61,37 +55,7 @@ func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	t := f.timeStamp(entry)
 	l := levelToString(entry.Level)
 
-	if entry.Message == "" {
-		return []byte(t + " " + l + "\n"), nil
-	}
-
-	// prefix each line of the message with timestamp
-	// level information
-	s := bufio.NewScanner(strings.NewReader(entry.Message))
-	// Define a split function that separates on newlines
-	onNewLine := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-		for i := 0; i < len(data); i++ {
-			if data[i] == '\n' {
-				return i + 1, data[:i], nil
-			}
-		}
-		// There is one final token to be delivered, which may be the empty string.
-		// Returning bufio.ErrFinalToken here tells Scan there are no more tokens after this
-		// but does not trigger an error to be returned from Scan itself.
-		return 0, data, bufio.ErrFinalToken
-	}
-	s.Split(onNewLine)
-
-	var b bytes.Buffer
-	for s.Scan() {
-		b.WriteString(t + " " + l + " " + s.Text() + "\n")
-	}
-
-	if s.Err() != nil {
-		return nil, s.Err()
-	}
-
-	return b.Bytes(), nil
+	return []byte(t + " " + l + " " + entry.Message + "\n"), nil
 }
 
 func (f *TextFormatter) timeStamp(entry *logrus.Entry) string {

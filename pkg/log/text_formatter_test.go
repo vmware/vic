@@ -57,7 +57,7 @@ func TestFormatEmpty(t *testing.T) {
 
 	b, err := f.Format(e)
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("%s %s\n", ti.Format(f.TimestampFormat), levelToString(e.Level)), string(b))
+	assert.Equal(t, fmt.Sprintf("%s %s \n", ti.Format(f.TimestampFormat), levelToString(e.Level)), string(b))
 }
 
 func TestFormatNonEmpty(t *testing.T) {
@@ -86,50 +86,50 @@ func TestFormatNonEmpty(t *testing.T) {
 			"\n",
 			[]string{
 				pre,
-				pre,
+				"",
 			},
 		},
 		{
 			"foo\n",
 			[]string{
 				pre + "foo",
-				pre,
+				"",
 			},
 		},
 		{
 			"\nfoo\n",
 			[]string{
-				pre,
-				pre + "foo",
-				pre,
+				pre + "",
+				"foo",
+				"",
 			},
 		},
 		{
 			"foo\n",
 			[]string{
 				pre + "foo",
-				pre,
+				"",
 			},
 		},
 		{
 			"foo \nbar\n baz ",
 			[]string{
 				pre + "foo ",
-				pre + "bar",
-				pre + " baz ",
+				"bar",
+				" baz ",
 			},
 		},
 	}
 
-	for _, te := range tests {
+	for idx, te := range tests {
 		e.Message = te.in
 		b, err = f.Format(e)
 		assert.NoError(t, err)
 		s := bufio.NewScanner(strings.NewReader(string(b)))
 		i := 0
 		for s.Scan() {
-			assert.True(t, i < len(te.out))
-			assert.Equal(t, te.out[i], s.Text())
+			assert.True(t, i < len(te.out), "case %d", idx)
+			assert.Equal(t, te.out[i], s.Text(), "case %d", idx)
 			i++
 		}
 	}
