@@ -52,7 +52,9 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 		return nil, &types.InvalidVmConfig{Property: "configSpec.files.vmPathName"}
 	}
 
-	vm.Config = &types.VirtualMachineConfigInfo{}
+	vm.Config = &types.VirtualMachineConfigInfo{
+		ExtraConfig: []types.BaseOptionValue{&types.OptionValue{Key: "govcsim", Value: "TRUE"}},
+	}
 	vm.Summary.Guest = &types.VirtualMachineGuestSummary{}
 	vm.Summary.Storage = &types.VirtualMachineStorageSummary{}
 
@@ -101,6 +103,10 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 		return err
 	}
 
+	if spec.Files == nil {
+		spec.Files = new(types.VirtualMachineFileInfo)
+	}
+
 	apply := []struct {
 		src string
 		dst *string
@@ -121,7 +127,7 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 	}
 
 	for _, f := range apply {
-		if *f.dst == "" {
+		if f.src != "" {
 			*f.dst = f.src
 		}
 	}
@@ -136,7 +142,11 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 		vm.Summary.Config.NumCpu = vm.Config.Hardware.NumCPU
 	}
 
+	vm.Config.ExtraConfig = append(vm.Config.ExtraConfig, spec.ExtraConfig...)
+
 	vm.Config.Modified = time.Now()
+
+	vm.Summary.Config.Uuid = vm.Config.Uuid
 
 	return nil
 }
@@ -299,6 +309,10 @@ func (vm *VirtualMachine) configureDevice(devices object.VirtualDeviceList, devi
 		devices.AssignController(device, controller)
 	}
 
+	if d.Key == -1 {
+		d.Key = devices.NewKey()
+	}
+
 	if d.DeviceInfo == nil {
 		d.DeviceInfo = &types.Description{
 			Label:   label,
@@ -437,7 +451,7 @@ func (c *destroyVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 func (vm *VirtualMachine) ReconfigVMTask(req *types.ReconfigVM_Task) soap.HasFault {
 	task := CreateTask(vm, "reconfigVMTask", func(t *Task) (types.AnyType, types.BaseMethodFault) {
-		err := vm.configureDevices(&req.Spec)
+		err := vm.configure(&req.Spec)
 		if err != nil {
 			return nil, err
 		}

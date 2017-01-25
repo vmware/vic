@@ -81,6 +81,11 @@ func CreateClusterComputeResource(f *Folder, name string, spec types.ClusterConf
 	cluster := &ClusterComputeResource{}
 	cluster.Name = name
 
+	config := &types.ClusterConfigInfoEx{}
+	cluster.ConfigurationEx = config
+
+	config.DrsConfig.Enabled = types.NewBool(true)
+
 	pool := NewResourcePool()
 	Map.PutEntity(cluster, Map.NewEntity(pool))
 	cluster.ResourcePool = &pool.Self

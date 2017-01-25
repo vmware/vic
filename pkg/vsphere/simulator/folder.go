@@ -33,6 +33,24 @@ type Folder struct {
 	m sync.Mutex
 }
 
+// update references when objects are added/removed from a Folder
+func (f *Folder) update(o mo.Reference, u func(types.ManagedObjectReference, []types.ManagedObjectReference) []types.ManagedObjectReference) {
+	ref := o.Reference()
+
+	if f.Parent == nil || ref.Type == "Datacenter" {
+		return // don't bother with Datacenter or the root folder
+	}
+
+	dc := Map.getEntityDatacenter(f)
+
+	switch ref.Type {
+	case "Network", "DistributedVirtualSwitch", "DistributedVirtualPortgroup":
+		dc.Network = u(ref, dc.Network)
+	case "Datastore":
+		dc.Datastore = u(ref, dc.Datastore)
+	}
+}
+
 func (f *Folder) putChild(o mo.Entity) {
 	Map.PutEntity(f, o)
 
@@ -40,6 +58,8 @@ func (f *Folder) putChild(o mo.Entity) {
 	defer f.m.Unlock()
 
 	f.ChildEntity = append(f.ChildEntity, o.Reference())
+
+	f.update(o, AddReference)
 }
 
 func (f *Folder) removeChild(o mo.Reference) {
@@ -49,6 +69,8 @@ func (f *Folder) removeChild(o mo.Reference) {
 	defer f.m.Unlock()
 
 	f.ChildEntity = RemoveReference(o.Reference(), f.ChildEntity)
+
+	f.update(o, RemoveReference)
 }
 
 func (f *Folder) hasChildType(kind string) bool {
@@ -349,10 +371,6 @@ func (f *Folder) CreateDVSTask(c *types.CreateDVS_Task) soap.HasFault {
 		dvs.Uuid = uuid.New().String()
 
 		f.putChild(dvs)
-
-		dc := Map.getEntityDatacenter(f)
-
-		dc.Network = append(dc.Network, dvs.Reference())
 
 		return dvs.Reference(), nil
 	})

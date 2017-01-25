@@ -49,3 +49,43 @@ func (s *SearchIndex) FindByDatastorePath(r *types.FindByDatastorePath) soap.Has
 
 	return res
 }
+
+func (s *SearchIndex) FindChild(req *types.FindChild) soap.HasFault {
+	body := &methods.FindChildBody{}
+
+	obj := Map.Get(req.Entity)
+
+	if obj == nil {
+		body.Fault_ = Fault("", &types.ManagedObjectNotFound{Obj: req.Entity})
+		return body
+	}
+
+	body.Res = new(types.FindChildResponse)
+
+	var children []types.ManagedObjectReference
+
+	switch e := obj.(type) {
+	case *mo.Datacenter:
+		children = []types.ManagedObjectReference{e.VmFolder, e.HostFolder, e.DatastoreFolder, e.NetworkFolder}
+	case *Folder:
+		children = e.ChildEntity
+	case *mo.ComputeResource:
+		children = e.Host
+		children = append(children, *e.ResourcePool)
+	case *ClusterComputeResource:
+		children = e.Host
+		children = append(children, *e.ResourcePool)
+	case *ResourcePool:
+		children = e.ResourcePool.ResourcePool
+		children = append(children, e.Vm...)
+	}
+
+	match := Map.FindByName(req.Name, children)
+
+	if match != nil {
+		ref := match.Reference()
+		body.Res.Returnval = &ref
+	}
+
+	return body
+}

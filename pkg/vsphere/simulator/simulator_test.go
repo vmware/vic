@@ -379,6 +379,13 @@ func TestServeHTTPErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// test response to unimplemented method
+	req := &types.QueryMemoryOverhead{This: esx.HostSystem.Reference()}
+	_, err = methods.QueryMemoryOverhead(ctx, client.Client, req)
+	if _, ok := soap.ToSoapFault(err).VimFault().(types.MethodNotFound); !ok {
+		t.Error("expected MethodNotFound fault")
+	}
+
 	// unregister type, covering the ServeHTTP UnmarshalBody error path
 	typeFunc = func(name string) (reflect.Type, bool) {
 		return nil, false

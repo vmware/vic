@@ -28,7 +28,6 @@ type VmwareDistributedVirtualSwitch struct {
 func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgroup_Task) soap.HasFault {
 	task := CreateTask(s, "addDVPortgroupTask", func(t *Task) (types.AnyType, types.BaseMethodFault) {
 		f := Map.getEntityParent(s, "Folder").(*Folder)
-		dc := Map.getEntityDatacenter(f)
 
 		for _, spec := range c.Spec {
 			pg := &mo.DistributedVirtualPortgroup{}
@@ -51,11 +50,10 @@ func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgr
 			s.Summary.PortgroupName = append(s.Summary.PortgroupName, pg.Name)
 
 			for _, h := range s.Summary.HostMember {
+				pg.Host = AddReference(h, pg.Host)
 				host := Map.Get(h).(*HostSystem)
 				host.Network = append(host.Network, pg.Reference())
 			}
-
-			dc.Network = append(dc.Network, pg.Reference())
 		}
 
 		return nil, nil
@@ -91,6 +89,11 @@ func (s *VmwareDistributedVirtualSwitch) ReconfigureDvsTask(req *types.Reconfigu
 				host.Network = append(host.Network, s.Self)
 				host.Network = append(host.Network, s.Portgroup...)
 				s.Summary.HostMember = append(s.Summary.HostMember, member.Host)
+
+				for _, ref := range s.Portgroup {
+					pg := Map.Get(ref).(*mo.DistributedVirtualPortgroup)
+					pg.Host = AddReference(member.Host, pg.Host)
+				}
 			case types.ConfigSpecOperationRemove:
 				if pg := FindReference(host.Network, s.Portgroup...); pg != nil {
 					return nil, &types.ResourceInUse{
