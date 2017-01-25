@@ -55,7 +55,7 @@ type VirtualMachine struct {
 	*session.Session
 
 	// Fixing is true means the VM will be unregistered and registered back.
-	Fixing atomic.Value
+	Fixing *atomic.Value
 }
 
 // NewVirtualMachine returns a NewVirtualMachine object
@@ -67,6 +67,7 @@ func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *
 	return &VirtualMachine{
 		VirtualMachine: vm,
 		Session:        session,
+		Fixing:         &atomic.Value{},
 	}
 }
 
