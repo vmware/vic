@@ -63,9 +63,16 @@ a successful vic-machine create should occur and there should be volumestores ta
 
 ## Create with overlapping paths to single label
 
-Tests the situation where a label has be targeted with two separate paths using the -vs flag. 
+Tests the situation where a label has been targeted with two separate paths using the -vs flag. The two paths are not the same in this test case.
 
 ### Expected Outcome:
 
 vic-machine create should fail and report that there was a label with two distinct paths
 
+## Create with overlapping paths to single label same paths
+
+Tests the situation where a label has been targeted with two separate paths using the -vs flag. The two paths are the same in this test case.
+
+### Expected Outcome:
+
+a successful vic-machine create should occur and there should be volumestores tagged as "testStore"
