@@ -52,6 +52,25 @@ Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Environment Variable  VCH-NAME  ${name}
 
+Set List Of Env Variables
+    [Arguments]  ${vars}
+    @{vars}=  Split String  ${vars}
+    :FOR  ${var}  IN  @{vars}
+    \   ${varname}  ${varval}=  Split String  ${var}  =
+    \   Set Environment Variable  ${varname}  ${varval}
+
+Parse Environment Variables
+    [Arguments]  ${line}
+    #  If using the old logging format
+    ${status}=  Run Keyword And Return Status  Should Contain  ${line}  mINFO
+    ${logdeco}  ${vars}=  Run Keyword If  ${status}  Split String  ${line}  ${SPACE}  1
+    Run Keyword If  ${status}  Set List Of Env Variables  ${vars}
+    Return From Keyword If  ${status}
+    
+    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
+    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  ${SPACE}  5
+    Set List Of Env Variables  ${vars}
+
 Get Docker Params
     # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
     [Arguments]  ${output}  ${certs}
@@ -63,12 +82,7 @@ Get Docker Params
     # Ensure we start from a clean slate with docker env vars
     Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
 
-    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
-    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  ${SPACE}  5
-    ${vars}=  Split String  ${vars}
-    :FOR  ${var}  IN  @{vars}
-    \   ${varname}  ${varval}=  Split String  ${var}  =
-    \   Set Environment Variable  ${varname}  ${varval}
+    Parse Environment Variables  ${line}
 
     ${dockerHost}=  Get Environment Variable  DOCKER_HOST
 
