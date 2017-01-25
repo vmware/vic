@@ -167,7 +167,6 @@ func eventCallback(ie events.Event) {
 					if isFixing != nil && isFixing.(bool) {
 						// is fixing vm, which will be registered back soon, so do not remove from containers cache
 						log.Debugf("Container(%s) %s is being fixed", container.ExecConfig.ID)
-						container.vm.Fixing.Store(false)
 						break
 					}
 				}
