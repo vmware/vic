@@ -68,7 +68,7 @@ Parse Environment Variables
     Return From Keyword If  ${status}
     
     # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
-    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String From  ${line}  ${SPACE}  5
+    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  ${SPACE}  5
     Set List Of Env Variables  ${vars}
 
 Get Docker Params
