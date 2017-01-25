@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync/atomic"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -52,6 +53,9 @@ type VirtualMachine struct {
 	*object.VirtualMachine
 
 	*session.Session
+
+	// Fixing is true means the VM will be unregistered and registered back.
+	Fixing atomic.Value
 }
 
 // NewVirtualMachine returns a NewVirtualMachine object
@@ -484,6 +488,7 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 
 	name := mvm.Summary.Config.Name
 	log.Debugf("Unregister VM %s", name)
+	vm.Fixing.Store(true)
 	if err := vm.Unregister(ctx); err != nil {
 		log.Errorf("Unable to unregister vm %q: %s", name, err)
 		return err
