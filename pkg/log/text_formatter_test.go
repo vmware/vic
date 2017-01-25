@@ -99,24 +99,21 @@ func TestFormatNonEmpty(t *testing.T) {
 		{
 			"\nfoo\n",
 			[]string{
-				pre,
 				pre + "foo",
-				pre,
 			},
 		},
 		{
 			"foo\n",
 			[]string{
 				pre + "foo",
-				pre,
 			},
 		},
 		{
 			"foo \nbar\n baz ",
 			[]string{
 				pre + "foo ",
-				pre + "bar",
-				pre + " baz ",
+				"bar",
+				" baz ",
 			},
 		},
 	}
