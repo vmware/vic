@@ -43,12 +43,12 @@ const (
 )
 
 // define a set (whitelist) of valid driver opts keys for command line argument validation
-var validDriverOptsKeys = map[string]bool{
-	OptsVolumeStoreKey:    true,
-	OptsCapacityKey:       true,
-	DriverArgFlagKey:      true,
-	DriverArgContainerKey: true,
-	DriverArgImageKey:     true,
+var validDriverOptsKeys = map[string]struct{}{
+	OptsVolumeStoreKey:    {},
+	OptsCapacityKey:       {},
+	DriverArgFlagKey:      {},
+	DriverArgContainerKey: {},
+	DriverArgImageKey:     {},
 }
 
 //Validation pattern for Volume Names
@@ -308,11 +308,11 @@ func normalizeDriverArgs(args map[string]string) error {
 	for k, val := range args {
 		lowercase := strings.ToLower(k)
 
-		if !validDriverOptsKeys[lowercase] {
+		if _, ok := validDriverOptsKeys[lowercase]; !ok {
 			return fmt.Errorf("%s is not a supported option", k)
 		}
 
-		if strings.Compare(val, k) != 0 {
+		if strings.Compare(lowercase, k) != 0 {
 			delete(args, k)
 			args[lowercase] = val
 		}
