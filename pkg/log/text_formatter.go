@@ -55,22 +55,7 @@ func (f *TextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	t := f.timeStamp(entry)
 	l := levelToString(entry.Level)
 
-	var buf []byte
-	switch {
-	case entry.Message == "":
-		buf = []byte(t + " " + l + "\n")
-
-	case entry.Message[0] == '\n':
-		buf = []byte(t + " " + l + " " + entry.Message[1:])
-
-	case entry.Message[len(entry.Message)-1] == '\n':
-		buf = []byte(t + " " + l + " " + entry.Message)
-
-	default:
-		buf = []byte(t + " " + l + " " + entry.Message + "\n")
-	}
-
-	return buf, nil
+	return []byte(t + " " + l + " " + entry.Message + "\n"), nil
 }
 
 func (f *TextFormatter) timeStamp(entry *logrus.Entry) string {
