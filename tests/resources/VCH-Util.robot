@@ -63,12 +63,9 @@ Get Docker Params
     # Ensure we start from a clean slate with docker env vars
     Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
 
-    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
-    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String From Right  ${line}  ${SPACE}  5
-    ${vars}=  Split String  ${vars}
-    :FOR  ${var}  IN  @{vars}
-    \   ${varname}  ${varval}=  Split String  ${var}  =
-    \   Set Environment Variable  ${varname}  ${varval}
+    ${var}=  Fetch From Right  ${line}  ${SPACE}
+    ${varname}  ${varval}=  Split String  ${var}  =
+    Set Environment Variable  ${varname}  ${varval}
 
     ${dockerHost}=  Get Environment Variable  DOCKER_HOST
 
