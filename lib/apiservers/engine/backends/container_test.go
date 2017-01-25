@@ -670,14 +670,17 @@ func TestPortInformation(t *testing.T) {
 func TestCreateConfigNetworkMode(t *testing.T) {
 
 	// mock a container create config
-	var mockConfig types.ContainerCreateConfig
-
-	mockConfig.HostConfig = &container.HostConfig{}
-	mockConfig.Config = &container.Config{}
-	mockConfig.NetworkingConfig = &dnetwork.NetworkingConfig{}
-	mockConfig.Config.Image = "busybox"
-	mockConfig.NetworkingConfig.EndpointsConfig = make(map[string]*dnetwork.EndpointSettings)
-	mockConfig.NetworkingConfig.EndpointsConfig["net1"] = &dnetwork.EndpointSettings{}
+	mockConfig := types.ContainerCreateConfig{
+		HostConfig: &container.HostConfig{},
+		Config: &container.Config{
+			Image: "busybox",
+		},
+		NetworkingConfig: &dnetwork.NetworkingConfig{
+			EndpointsConfig: map[string]*dnetwork.EndpointSettings{
+				"net1": {},
+			},
+		},
+	}
 
 	validateCreateConfig(&mockConfig)
 
