@@ -62,7 +62,7 @@ Set List Of Env Variables
 Parse Environment Variables
     [Arguments]  ${line}
     #  If using the old logging format
-    ${status}=  Run Keyword And Return Status  Should Contain  ${line}  mINFO[
+    ${status}=  Run Keyword And Return Status  Should Contain  ${line}  mINFO
     ${logdeco}  ${vars}=  Run Keyword If  ${status}  Split String  ${line}  ${SPACE}  1
     Run Keyword If  ${status}  Set List Of Env Variables  ${vars}
     Return From Keyword If  ${status}
