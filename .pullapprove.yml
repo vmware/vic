@@ -1,0 +1,11 @@
+version: 2
+
+groups:
+  build-ci-infra:
+    conditions:
+      files:
+        - "tests/*"
+      required: 1
+      users:
+        - mhagen
+        - gigawhitlocks
