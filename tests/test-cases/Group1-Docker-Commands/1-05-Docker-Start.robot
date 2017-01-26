@@ -63,7 +63,7 @@ Serially start 5 long running containers
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t busybox /bin/top
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Not Contain  ${output}  Error:
     \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${output}
@@ -72,7 +72,7 @@ Serially start 5 long running containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs -n1 docker %{VCH-PARAMS} rm -f
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ubuntu
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error

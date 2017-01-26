@@ -302,9 +302,12 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 			case *types.GenericVmConfigFault:
 
 				// Check if the poweroff task was canceled due to a concurrent guest shutdown
-				if len(terr.FaultMessage) > 0 && terr.FaultMessage[0].Key == vmNotSuspendedKey {
-					log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
-					return nil
+				if len(terr.FaultMessage) > 0 {
+					k := terr.FaultMessage[0].Key
+					if k == vmNotSuspendedKey || k == vmPoweringOffKey {
+						log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
+						return nil
+					}
 				}
 				log.Warnf("generic vm config fault during power off: %#v", terr)
 
