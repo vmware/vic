@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ func (t *multiReader) Read(p []byte) (int, error) {
 	t.mutex.Unlock()
 
 	// Close sets this
-	if err == io.EOF {
+	if err == io.EOF || err == io.ErrClosedPipe {
 		if verbose {
 			log.Debugf("[%p] read from closed multi-reader, returning EOF", t)
 		}
@@ -95,7 +95,7 @@ func (t *multiReader) Read(p []byte) (int, error) {
 		x, err := r.Read(slice)
 		n += x
 		if err != nil {
-			if err != io.EOF {
+			if err != io.EOF && err != io.ErrClosedPipe {
 				t.mutex.Lock()
 				// if there was an actual error, return that
 				t.err = err
