@@ -105,11 +105,11 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 func (d *Dispatcher) uploadImages(files map[string]string) error {
 	defer trace.End(trace.Begin(""))
 
-	var err error
 	var wg sync.WaitGroup
 
 	// upload the images
 	log.Infof("Uploading images for container")
+
 	wg.Add(len(files))
 	results := make(chan error, len(files))
 	for key, image := range files {
@@ -117,28 +117,23 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 			defer wg.Done()
 
 			log.Infof("\t%q", image)
-			err = d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
+			err := d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 			if err != nil {
 				log.Errorf("\t\tUpload failed for %q: %s", image, err)
 				if d.force {
 					log.Warnf("\t\tContinuing despite failures (due to --force option)")
 					log.Warnf("\t\tNote: The VCH will not function without %q...", image)
-					results <- nil
 				} else {
 					results <- err
 				}
-				return
 			}
-			results <- nil
 		}(key, image)
 	}
 	wg.Wait()
 	close(results)
 
 	for err := range results {
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	return nil
 }
