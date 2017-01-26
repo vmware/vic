@@ -1377,12 +1377,20 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	config.HostConfig.Memory = memoryMB
 	log.Infof("Container memory: %d MB", config.HostConfig.Memory)
 
-	if config.NetworkingConfig == nil {
-		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
-	}
-
 	if config.HostConfig == nil || config.Config == nil {
 		return BadRequestError("invalid config")
+	}
+
+	if config.NetworkingConfig == nil {
+		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
+	} else {
+		if l := len(config.NetworkingConfig.EndpointsConfig); l > 1 {
+			return fmt.Errorf("NetworkMode error: Container can be connected to one network endpoint only")
+		}
+		// If NetworkConfig exists, set NetworkMode to the default endpoint network, assuming only one endpoint network as the default network during container create
+		for networkName := range config.NetworkingConfig.EndpointsConfig {
+			config.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)
+		}
 	}
 
 	// validate port bindings

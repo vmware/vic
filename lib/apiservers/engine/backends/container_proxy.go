@@ -890,7 +890,6 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 	}
 
 	// Docker copies Links to NetworkConfig only if it is a UserDefined network, handle that
-	// https://github.com/docker/docker/blame/master/runconfig/opts/parse.go#L598
 	if !cc.HostConfig.NetworkMode.IsUserDefined() && len(cc.HostConfig.Links) > 0 {
 		nc.Aliases = append(nc.Aliases, cc.HostConfig.Links...)
 	}
