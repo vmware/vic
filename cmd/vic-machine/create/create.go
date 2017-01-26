@@ -185,7 +185,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "default-volume-store, vsd",
 			Value:       "",
-			Usage:       "Specify the default volume store location, This location is used to support anonymous volumes such as image volumes. e.g.  \"datastore/path\" or \"datastore\".",
+			Usage:       "Specify the default volume store location, which is used to support anonymous volumes such as image volumes. e.g.  \"datastore/path\" or \"datastore\".",
 			Destination: &c.DefaultVolumeLocation,
 		},
 		cli.StringSliceFlag{
@@ -551,11 +551,11 @@ func (c *Create) processParams() error {
 	}
 
 	if err := c.processDefaultVolumeStore(); err != nil {
-		return errors.Errorf("Error occurred while processing the default volume stores: %s", err)
+		return errors.Errorf("error occurred while processing the default volume stores: %s", err)
 	}
 
 	if err := c.processVolumeStores(); err != nil {
-		return errors.Errorf("Error occurred while processing volume stores: %s", err)
+		return errors.Errorf("error occurred while processing volume stores: %s", err)
 	}
 
 	if err := c.processRegistries(); err != nil {
@@ -887,43 +887,33 @@ func (c *Create) processDefaultVolumeStore() error {
 
 func (c *Create) processVolumeStores() error {
 	defer trace.End(trace.Begin(""))
-	for _, arg := range c.volumeStores {
 
-		splitMeta := strings.SplitN(arg, ":", 2)
-		if len(splitMeta) != 2 {
-			return errors.New("Volume store input must be in format datastore:label or datastore/path/to/volumestore:label")
-		}
-		label := splitMeta[1]
-		path := splitMeta[0]
+	for _, arg := range c.volumeStores {
 		var err error
+
+		splitDriverArgs := strings.SplitN(arg, ":", 2)
+		if len(splitDriverArgs) != 2 {
+			return errors.New("volume store input must be in format datastore:label or datastore/path/to/volumestore:label")
+		}
+		label := splitDriverArgs[1]
+		path := splitDriverArgs[0]
 
 		switch label {
 		case defaultVolumeLabel:
-			customErr := errors.Errorf("multiple paths were tagged for the same label(%s), volumestore labels can only have one distinct path. The preferred method of setting the default store is the --default-volume-store flag.", label)
-			err = checkVolumeStoreArgument(c, label, path, customErr)
+			err = errors.Errorf("multiple paths were tagged for the same label(%s), volumestore labels can only have one distinct path. The preferred method of setting the default store is the --default-volume-store flag.", label)
 		default:
-			customErr := errors.Errorf("multiple paths were tagged for the same label(%s), volumestore labels can only have one distinct path.", label)
-			err = checkVolumeStoreArgument(c, label, path, customErr)
+			err = errors.Errorf("multiple paths were tagged for the same label(%s), volumestore labels can only have one distinct path.", label)
 		}
-		if err != nil {
+
+		otherPath, ok := c.VolumeLocations[label]
+		if !ok {
+			c.VolumeLocations[label] = path
+		}
+		if path != otherPath {
 			return err
 		}
 	}
 
-	log.Infof("Map (%s)", c.VolumeLocations)
-	return nil
-}
-
-// checkVolumeStoreArgument is a helper for doing basic sanity checking on volume store inputs, used in processVolumeStores
-func checkVolumeStoreArgument(c *Create, label string, path string, customErr error) error {
-	otherPath, ok := c.VolumeLocations[label]
-	if !ok {
-		c.VolumeLocations[label] = path
-		return nil
-	}
-	if path != otherPath {
-		return customErr
-	}
 	return nil
 }
 
