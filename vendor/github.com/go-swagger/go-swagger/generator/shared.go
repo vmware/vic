@@ -38,7 +38,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-//go:generate go-bindata -pkg=generator -ignore=.*\.sw? ./templates/...
+//go:generate go-bindata -mode 420 -modtime 1482416923 -pkg=generator -ignore=.*\.sw? ./templates/...
 
 // LanguageOpts to describe a language to the code generator
 type LanguageOpts struct {
@@ -286,6 +286,7 @@ type TemplateOpts struct {
 	Target     string `mapstructure:"target"`
 	FileName   string `mapstructure:"file_name"`
 	SkipExists bool   `mapstructure:"skip_exists"`
+	SkipFormat bool   `mapstructure:"skip_format"`
 }
 
 // SectionOpts allows for specifying options to customize the templates used for generation
@@ -504,10 +505,13 @@ func (g *GenOpts) write(t *TemplateOpts, data interface{}) error {
 		}
 	}
 
-	formatted, err := g.LanguageOpts.FormatContent(fname, content)
-	if err != nil {
-		formatted = content
-		err = fmt.Errorf("format %q failed: %v", t.Name, err)
+	// Conditionally format the code, unless the user wants to skip
+	formatted := content
+	if t.SkipFormat == false {
+		formatted, err = g.LanguageOpts.FormatContent(fname, content)
+		if err != nil {
+			err = fmt.Errorf("format %q failed: %v", t.Name, err)
+		}
 	}
 
 	writeerr := ioutil.WriteFile(filepath.Join(dir, fname), formatted, 0644)

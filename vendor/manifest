@@ -272,8 +272,8 @@
 		{
 			"importpath": "github.com/go-check/check",
 			"repository": "https://github.com/go-check/check",
-			"vcs": "",
-			"revision": "4f90aeace3a26ad7021961c297b22c42160c7b25",
+			"vcs": "git",
+			"revision": "20d25e2804050c1cd24a7eea1e7a6447dd0e74ec",
 			"branch": "v1"
 		},
 		{
@@ -320,7 +320,7 @@
 			"importpath": "github.com/go-openapi/runtime",
 			"repository": "https://github.com/go-openapi/runtime",
 			"vcs": "git",
-			"revision": "1d8c6bfb558482451650ea00b40dfa1129e76872",
+			"revision": "3b13ebb46790d871d74a6c2450fa4b1280f90854",
 			"branch": "master",
 			"notests": true
 		},
@@ -328,7 +328,7 @@
 			"importpath": "github.com/go-openapi/spec",
 			"repository": "https://github.com/go-openapi/spec",
 			"vcs": "git",
-			"revision": "593aa4cf7a6f59a451c8f0d8af08a57328e6da54",
+			"revision": "e072eb2390d3a03736a6eb617d30f48369160447",
 			"branch": "master",
 			"notests": true
 		},
@@ -360,13 +360,13 @@
 			"importpath": "github.com/go-swagger/go-swagger",
 			"repository": "https://github.com/go-swagger/go-swagger",
 			"vcs": "git",
-			"revision": "b8dc87200fd903a521863748b305c723951b70aa",
+			"revision": "04e27555375e7d9a3251bfb35fcb9ae13cec99a1",
 			"branch": "master"
 		},
 		{
 			"importpath": "github.com/go-swagger/scan-repo-boundary/makeplans",
 			"repository": "https://github.com/go-swagger/scan-repo-boundary",
-			"vcs": "",
+			"vcs": "git",
 			"revision": "196ec52cfa1c96b45dd793dfa0fa3f8877b299da",
 			"branch": "master",
 			"path": "/makeplans"
