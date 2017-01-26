@@ -36,7 +36,7 @@ func GuestInfoSink() (DataSink, error) {
 func GuestInfoSinkWithPrefix(prefix string) (DataSink, error) {
 	guestinfo := rpcvmx.NewConfig()
 
-	if !vmcheck.IsVirtualWorld() {
+	if isVM, err := vmcheck.IsVirtualWorld(); !isVM || err != nil {
 		return nil, errors.New("not in a virtual world")
 	}
 
