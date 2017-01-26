@@ -908,6 +908,7 @@ func (c *Create) processVolumeStores() error {
 		otherPath, ok := c.VolumeLocations[label]
 		if !ok {
 			c.VolumeLocations[label] = path
+			continue
 		}
 		if path != otherPath {
 			return err
