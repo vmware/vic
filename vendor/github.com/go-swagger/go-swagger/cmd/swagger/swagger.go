@@ -36,7 +36,7 @@ func main() {
 	parser := flags.NewParser(&opts, flags.Default)
 	parser.ShortDescription = "helps you keep your API well described"
 	parser.LongDescription = `
-Swagger tries to support you as best as possible when building API's.
+Swagger tries to support you as best as possible when building APIs.
 
 It aims to represent the contract of your API with a language agnostic description of your application in json or yaml.
 `
@@ -56,6 +56,16 @@ It aims to represent the contract of your API with a language agnostic descripti
 	}
 
 	_, err = parser.AddCommand("serve", "serve spec and docs", "serve a spec and swagger or redoc documentation ui", &commands.ServeCmd{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = parser.AddCommand("expand", "expand $ref fields in a swagger spec", "expands the $refs in a swagger document to inline schemas", &commands.ExpandSpec{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = parser.AddCommand("flatten", "flattens a swagger document", "expand the remote references in a spec and move inline schemas to definitions, after flattening there are no complex inlined anymore", &commands.FlattenSpec{})
 	if err != nil {
 		log.Fatal(err)
 	}
