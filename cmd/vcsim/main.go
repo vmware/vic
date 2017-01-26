@@ -19,7 +19,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
@@ -35,6 +38,7 @@ func main() {
 	flag.IntVar(&model.Datastore, "ds", model.Datastore, "Number of local datastores")
 	flag.IntVar(&model.Machine, "vm", model.Machine, "Number of virtual machines per resource pool")
 	flag.IntVar(&model.Pool, "pool", model.Pool, "Number of resource pools per compute resource")
+	flag.IntVar(&model.Portgroup, "pg", model.Portgroup, "Number of port groups")
 
 	isESX := flag.Bool("esx", false, "Simulate standalone ESX")
 	isTLS := flag.Bool("tls", false, "Enable TLS")
@@ -62,8 +66,6 @@ func main() {
 
 	esx.HostSystem.Summary.Hardware.Vendor += tag
 
-	defer model.Remove()
-
 	err := model.Create()
 	if err != nil {
 		log.Fatal(err)
@@ -83,7 +85,12 @@ func main() {
 
 	s := model.Service.NewServer()
 
-	fmt.Printf("GOVC_URL=%s", s.URL)
+	fmt.Printf("GOVC_URL=%s\n", s.URL)
 
-	select {}
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+	<-sig
+
+	model.Remove()
 }

@@ -26,6 +26,7 @@ Test
     Should Contain  ${out}  OK
 
     Set Environment Variable  TEST_DATACENTER  /datacenter1
+    Set Environment Variable  GOVC_DATACENTER  /datacenter1
     Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Regression Tests

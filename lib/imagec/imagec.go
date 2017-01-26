@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -365,9 +365,15 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 			CreatedBy: strings.Join(image.ContainerConfig.Cmd, " "),
 			Comment:   image.Comment,
 		}
+
+		// is this an empty layer?
+		if layer.DiffID == dockerLayer.DigestSHA256EmptyTar.String() {
+			h.EmptyLayer = true
+		} else {
+			// if not empty, add diffID to rootFS
+			rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.DiffID))
+		}
 		history = append(history, h)
-		rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.DiffID))
-		diffIDs[layer.DiffID] = layer.ID
 		size += layer.Size
 	}
 
@@ -388,13 +394,13 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 		History: history,
 	}
 
-	bytes, err := result.MarshalJSON()
+	imageConfigBytes, err := result.MarshalJSON()
 	if err != nil {
 		return metadata.ImageConfig{}, fmt.Errorf("Failed to marshall image metadata: %s", err)
 	}
 
 	// calculate image ID
-	sum := fmt.Sprintf("%x", sha256.Sum256(bytes))
+	sum := fmt.Sprintf("%x", sha256.Sum256(imageConfigBytes))
 	log.Infof("Image ID: sha256:%s", sum)
 
 	// prepare metadata

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"path"
 	"strings"
@@ -58,6 +59,11 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 	// Add the default devices
 	devices, _ := object.VirtualDeviceList(esx.VirtualDevice).ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 
+	// Append VM Name as the directory name if not specified
+	if strings.HasSuffix(spec.Files.VmPathName, "]") { // e.g. "[datastore1]"
+		spec.Files.VmPathName += " " + spec.Name
+	}
+
 	if !strings.HasSuffix(spec.Files.VmPathName, ".vmx") {
 		spec.Files.VmPathName = path.Join(spec.Files.VmPathName, spec.Name+".vmx")
 	}
@@ -85,11 +91,6 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 
 	vm.Runtime.PowerState = types.VirtualMachinePowerStatePoweredOff
 	vm.Summary.Runtime = vm.Runtime
-
-	err = vm.configure(spec)
-	if err != nil {
-		return nil, err
-	}
 
 	return vm, nil
 }
@@ -213,6 +214,11 @@ func (vm *VirtualMachine) createFile(spec string, name string, register bool) (*
 }
 
 func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec, register bool) types.BaseMethodFault {
+	err := vm.configure(spec)
+	if err != nil {
+		return err
+	}
+
 	files := []struct {
 		spec string
 		name string
@@ -241,6 +247,82 @@ func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec, register 
 	return nil
 }
 
+var vmwOUI = net.HardwareAddr([]byte{0x0, 0xc, 0x29})
+
+// From http://pubs.vmware.com/vsphere-60/index.jsp?topic=%2Fcom.vmware.vsphere.networking.doc%2FGUID-DC7478FF-DC44-4625-9AD7-38208C56A552.html
+// "The host generates generateMAC addresses that consists of the VMware OUI 00:0C:29 and the last three octets in hexadecimal
+//  format of the virtual machine UUID.  The virtual machine UUID is based on a hash calculated by using the UUID of the
+//  ESXi physical machine and the path to the configuration file (.vmx) of the virtual machine."
+func (vm *VirtualMachine) generateMAC() string {
+	id := uuid.New() // Random is fine for now.
+
+	offset := len(id) - len(vmwOUI)
+
+	mac := append(vmwOUI, id[offset:]...)
+
+	return mac.String()
+}
+
+func (vm *VirtualMachine) configureDevice(devices object.VirtualDeviceList, device types.BaseVirtualDevice) {
+	d := device.GetVirtualDevice()
+	var controller types.BaseVirtualController
+
+	label := devices.Name(device)
+	summary := label
+
+	switch x := device.(type) {
+	case types.BaseVirtualEthernetCard:
+		controller = devices.PickController((*types.VirtualPCIController)(nil))
+		var net types.ManagedObjectReference
+
+		switch b := d.Backing.(type) {
+		case *types.VirtualEthernetCardNetworkBackingInfo:
+			summary = b.DeviceName
+			dc := Map.getEntityDatacenter(vm)
+			net = Map.FindByName(b.DeviceName, dc.Network).Reference()
+			b.Network = &net
+		case *types.VirtualEthernetCardDistributedVirtualPortBackingInfo:
+			summary = fmt.Sprintf("DVSwitch: %s", b.Port.SwitchUuid)
+			net.Type = "DistributedVirtualPortgroup"
+			net.Value = b.Port.PortgroupKey
+		}
+
+		vm.Network = append(vm.Network, net)
+
+		c := x.GetVirtualEthernetCard()
+		if c.MacAddress == "" {
+			c.MacAddress = vm.generateMAC()
+		}
+	}
+
+	if d.UnitNumber == nil && controller != nil {
+		devices.AssignController(device, controller)
+	}
+
+	if d.DeviceInfo == nil {
+		d.DeviceInfo = &types.Description{
+			Label:   label,
+			Summary: summary,
+		}
+	}
+}
+
+func removeDevice(devices object.VirtualDeviceList, device types.BaseVirtualDevice) object.VirtualDeviceList {
+	var result object.VirtualDeviceList
+	name := devices.Name(device)
+
+	for i, d := range devices {
+		if devices.Name(d) == name {
+			result = append(result, devices[i+1:]...)
+			break
+		}
+
+		result = append(result, d)
+	}
+
+	return result
+}
+
 func (vm *VirtualMachine) configureDevices(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
 	devices := object.VirtualDeviceList(vm.Config.Hardware.Device)
 
@@ -254,7 +336,12 @@ func (vm *VirtualMachine) configureDevices(spec *types.VirtualMachineConfigSpec)
 			if devices.FindByKey(device.Key) != nil {
 				return invalid
 			}
-			devices = append(devices, device)
+
+			vm.configureDevice(devices, dspec.Device)
+
+			devices = append(devices, dspec.Device)
+		case types.VirtualDeviceConfigSpecOperationRemove:
+			devices = removeDevice(devices, dspec.Device)
 		}
 	}
 
@@ -346,6 +433,25 @@ func (c *destroyVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	})
 
 	return nil, nil
+}
+
+func (vm *VirtualMachine) ReconfigVMTask(req *types.ReconfigVM_Task) soap.HasFault {
+	task := CreateTask(vm, "reconfigVMTask", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		err := vm.configureDevices(&req.Spec)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+	})
+
+	task.Run()
+
+	return &methods.ReconfigVM_TaskBody{
+		Res: &types.ReconfigVM_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
 }
 
 func (vm *VirtualMachine) DestroyTask(c *types.Destroy_Task) soap.HasFault {

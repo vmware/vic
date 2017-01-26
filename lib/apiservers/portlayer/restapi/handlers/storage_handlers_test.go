@@ -489,9 +489,11 @@ func TestWriteImage(t *testing.T) {
 
 func TestVolumeCreate(t *testing.T) {
 
-	testStore := NewMockVolumeStore()
 	op := trace.NewOperation(context.Background(), "test")
-	volCache, err := spl.NewVolumeLookupCache(op, testStore)
+	volCache := spl.NewVolumeLookupCache(op)
+
+	testStore := NewMockVolumeStore()
+	_, err := volCache.AddStore(op, "testStore", testStore)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -501,7 +503,7 @@ func TestVolumeCreate(t *testing.T) {
 	}
 
 	model := models.VolumeRequest{}
-	model.Store = "blah"
+	model.Store = "testStore"
 	model.Name = "testVolume"
 	model.Capacity = 1
 	model.Driver = "vsphere"
@@ -524,7 +526,7 @@ func TestVolumeCreate(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	if !assert.Equal(t, "blah", testVolumeStoreName) {
+	if !assert.Equal(t, "testStore", testVolumeStoreName) {
 		return
 	}
 	if !assert.Equal(t, "testVolume", testVolume.ID) {

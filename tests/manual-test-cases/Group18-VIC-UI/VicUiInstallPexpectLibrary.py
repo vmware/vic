@@ -5,8 +5,12 @@ import time
 class VicUiInstallPexpectLibrary(object):
     TIMEOUT_LIMIT = 180
     NGC_TESTS_TIMEOUT_LIMIT = 1800
-    INSTALLER_PATH = os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'installer', 'VCSA')
-    NGC_TESTS_PATH = os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'vic-uia/vic-uia')
+    with open('testbed-information', 'r') as f:
+        testbed_information = f.read().splitlines()
+
+    IS_TESTING_VSPHERE65 = 'TEST_VSPHERE_VER=65' in testbed_information[0]
+    INSTALLER_PATH = os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'installer', 'HTML5Client') if IS_TESTING_VSPHERE65 else os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'installer', 'VCSA')
+    NGC_TESTS_PATH = os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'vic-ui-h5c/uia/h5-plugin-tests/ui-automation/vic-uia') if IS_TESTING_VSPHERE65 else os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'vic-uia/uia/vic-uia')
 
     def _prepare_and_spawn(self, operation, callback, force=False):
         try:
@@ -24,10 +28,10 @@ class VicUiInstallPexpectLibrary(object):
             return 'Error: ' + e.value
 
     def _common_prompts(self, vcenter_user, vcenter_password, root_password):
-	self._pchild.expect('Enter your vCenter Administrator Username: ')
-	self._pchild.sendline(vcenter_user)
-	self._pchild.expect('Enter your vCenter Administrator Password: ')
-	self._pchild.sendline(vcenter_password)
+        self._pchild.expect('Enter your vCenter Administrator Username: ')
+        self._pchild.sendline(vcenter_user)
+        self._pchild.expect('Enter your vCenter Administrator Password: ')
+        self._pchild.sendline(vcenter_password)
 
     def install_vicui_without_webserver(self, vcenter_user, vcenter_password, root_password, force=False):
         def commands():
@@ -79,11 +83,9 @@ class VicUiInstallPexpectLibrary(object):
                 if match_index == 1:
                     self._pchild.sendline('yes')
                     self._pchild.expect('root@.*')
-
-		self._pchild.sendline(root_password)
+                self._pchild.sendline(root_password)
 
             self._pchild.expect('.*Error.*')
-            #self._pchild.interact()
             self._pchild.expect(pexpect.EOF)
 
         self._prepare_and_spawn('install', commands)
@@ -110,6 +112,17 @@ class VicUiInstallPexpectLibrary(object):
         try:
             self._f = open('ngc_tests.log', 'wb')
             self._pchild = pexpect.spawn('mvn test -Denv.VC_ADMIN_USERNAME=' + vcenter_user + ' -Denv.VC_ADMIN_PASSWORD=' + vcenter_password, cwd = VicUiInstallPexpectLibrary.NGC_TESTS_PATH, timeout = VicUiInstallPexpectLibrary.NGC_TESTS_TIMEOUT_LIMIT)
+            self._pchild.logfile = self._f
+            self._pchild.expect(pexpect.EOF)
+            self._f.close()
+
+        except IOError as e:
+            return 'Error: ' + e.value
+
+    def run_hsuia_tests(self):
+        try:
+            self._f = open('ngc_tests.log', 'wb')
+            self._pchild = pexpect.spawn('mvn clean compile exec:exec -e -Dhsuia.runlist=work/runlists/default.runlist', cwd = VicUiInstallPexpectLibrary.NGC_TESTS_PATH, timeout = VicUiInstallPexpectLibrary.NGC_TESTS_TIMEOUT_LIMIT)
             self._pchild.logfile = self._f
             self._pchild.expect(pexpect.EOF)
             self._f.close()

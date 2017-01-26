@@ -15,7 +15,6 @@
 package simulator
 
 import (
-	"strings"
 	"time"
 
 	"github.com/vmware/govmomi/vim25/mo"
@@ -63,14 +62,6 @@ func CreateDefaultESX(f *Folder) {
 	f.putChild(dc)
 
 	host := NewHostSystem(esx.HostSystem)
-
-	for _, ref := range host.Network {
-		network := &mo.Network{}
-		network.Self = ref
-		network.Name = strings.Split(ref.Value, "-")[1]
-		network.Entity().Name = network.Name
-		Map.Get(dc.NetworkFolder).(*Folder).putChild(network)
-	}
 
 	cr := &mo.ComputeResource{}
 	cr.Self = *host.Parent

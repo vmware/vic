@@ -26,12 +26,12 @@ Attempt To Uninstall With Configs File Missing
 Attempt To Uninstall With Plugin Missing
     # Rename the folder containing the VIC UI binaries and run the uninstaller script to see if it fails in an expected way
     Set Vcenter Ip
-    Move Directory  ${UI_INSTALLER_PATH}/../vsphere-client-serenity  ${UI_INSTALLER_PATH}/../vsphere-client-serenity-a
+    Move Directory  ${UI_INSTALLER_PATH}/../${plugin_folder}  ${UI_INSTALLER_PATH}/../${plugin_folder}-a
     Uninstall Fails  ${TEST_VC_USERNAME}  ${TEST_VC_PASSWORD}
     ${output}=  OperatingSystem.GetFile  uninstall.log
     ${passed}=  Run Keyword And Return Status  Should Contain  ${output}  VIC UI plugin bundle was not found
     Run Keyword Unless  ${passed}  Copy File  uninstall.log  uninstall-fail-attempt-to-uninstall-with-plugin-missing.log
-    Move Directory  ${UI_INSTALLER_PATH}/../vsphere-client-serenity-a  ${UI_INSTALLER_PATH}/../vsphere-client-serenity
+    Move Directory  ${UI_INSTALLER_PATH}/../${plugin_folder}-a  ${UI_INSTALLER_PATH}/../${plugin_folder}
     Remove File  uninstall.log
     Should Be True  ${passed}
 

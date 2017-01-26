@@ -46,11 +46,21 @@ func (a alias) scopedName() string {
 	// an alias for the container itself is network scoped
 	for _, al := range a.ep.getAliases("") {
 		if a.Name == al.Name {
-			return fmt.Sprintf("%s:%s", a.ep.Scope().Name(), a.Name)
+			return ScopedAliasName(a.ep.Scope().Name(), "", a.Name)
 		}
 	}
 
-	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.Name)
+	return ScopedAliasName(a.ep.Scope().Name(), a.ep.Container().Name(), a.Name)
+}
+
+// ScopedAliasName returns the fully qualified name of an alias, scoped to
+// the scope and optionally a container
+func ScopedAliasName(scope string, container string, alias string) string {
+	if container != "" {
+		return fmt.Sprintf("%s:%s:%s", scope, container, alias)
+	}
+
+	return fmt.Sprintf("%s:%s", scope, alias)
 }
 
 func newEndpoint(container *Container, scope *Scope, eip *net.IP, pciSlot *int32) *Endpoint {
