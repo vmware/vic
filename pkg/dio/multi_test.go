@@ -132,6 +132,7 @@ func TestMultiWrite(t *testing.T) {
 	// create the multi writer
 	mwriter := MultiWriter(writers...)
 
+	// write and ensure io.Copy returns
 	write(t, mwriter, []byte(base))
 	wg.Wait()
 
@@ -180,6 +181,7 @@ func TestWriteAdd(t *testing.T) {
 	// create the multi writer
 	mwriter := MultiWriter(writersLeft...)
 
+	// write and ensure io.Copy returns
 	write(t, mwriter, []byte(base))
 	wg.Wait()
 
@@ -188,8 +190,8 @@ func TestWriteAdd(t *testing.T) {
 	// add skipped writers to the writer
 	mwriter.Add(writersAdded...)
 
+	// write and ensure io.Copy returns
 	write(t, mwriter, []byte(dynamic))
-
 	wgAdded.Wait()
 
 	each(t, buffersLeft, base+dynamic)
@@ -237,6 +239,7 @@ func TestWriteRemove(t *testing.T) {
 	// create the multi writer
 	mwriter := MultiWriter(writers...)
 
+	// write and ensure io.Copy returns
 	write(t, mwriter, []byte(base))
 	wg.Wait()
 
@@ -249,6 +252,7 @@ func TestWriteRemove(t *testing.T) {
 		}
 	}
 
+	// write and ensure io.Copy returns
 	write(t, mwriter, []byte(dynamic))
 	wgRemoved.Wait()
 
@@ -285,8 +289,8 @@ func TestMultiRead(t *testing.T) {
 	mreader := MultiReader(readers...)
 
 	expected := strings.Repeat(base, count)
+	// read and ensure io.Copy returns
 	buffer := read(t, mreader, len(expected))
-
 	wg.Wait()
 
 	assert.Equal(t, expected, string(buffer))
@@ -330,6 +334,7 @@ func TestReadAdd(t *testing.T) {
 	mreader := MultiReader(readersLeft...)
 
 	expected := strings.Repeat(base, len(readersLeft))
+	// read and ensure io.Copy returns
 	buffer := read(t, mreader, len(expected))
 	wg.Wait()
 
@@ -344,8 +349,8 @@ func TestReadAdd(t *testing.T) {
 	}
 
 	expected = strings.Repeat(dynamic, len(readersAdded))
+	// read and ensure io.Copy returns
 	buffer = read(t, mreader, len(expected))
-
 	wgAdded.Wait()
 
 	assert.Equal(t, expected, string(buffer))
@@ -392,6 +397,7 @@ func TestReadRemove(t *testing.T) {
 	mreader := MultiReader(readers...)
 
 	expected := strings.Repeat(base, count)
+	// read and ensure io.Copy returns
 	buffer := read(t, mreader, len(expected))
 	wg.Wait()
 
@@ -405,8 +411,8 @@ func TestReadRemove(t *testing.T) {
 	}
 
 	expected = strings.Repeat(dynamic, len(readersLeft))
+	// read and ensure io.Copy returns
 	buffer = read(t, mreader, len(expected))
-
 	wgRemoved.Wait()
 
 	assert.Equal(t, expected, string(buffer))
