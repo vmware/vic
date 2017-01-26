@@ -1037,8 +1037,8 @@
 		{
 			"importpath": "gopkg.in/yaml.v2",
 			"repository": "https://gopkg.in/yaml.v2",
-			"vcs": "",
-			"revision": "f7716cbe52baa25d2e9b0d0da546fcf909fc16b4",
+			"vcs": "git",
+			"revision": "4c78c975fe7c825c6d1466c42be594d1d6f3aba6",
 			"branch": "v2"
 		}
 	]
