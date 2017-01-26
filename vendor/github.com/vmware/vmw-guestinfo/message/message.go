@@ -24,19 +24,19 @@ import (
 )
 
 const (
-	MessageTypeOpen = iota
-	MessageTypeSendSize
-	MessageTypeSendPayload
-	MessageTypeReceiveSize
-	MessageTypeReceivePayload
-	MessageTypeReceiveStatus
-	MessageTypeClose
+	messageTypeOpen = iota
+	messageTypeSendSize
+	messageTypeSendPayload
+	messageTypeReceiveSize
+	messageTypeReceivePayload
+	messageTypeReceiveStatus
+	messageTypeClose
 
-	MessageStatusFail      = uint16(0x0000)
-	MessageStatusSuccess   = uint16(0x0001)
-	MessageSatusDoReceive  = uint16(0x0002)
-	MessageSatusCheckPoint = uint16(0x0010)
-	MessageSatusHighBW     = uint16(0x0080)
+	messageStatusFail       = uint16(0x0000)
+	messageStatusSuccess    = uint16(0x0001)
+	messageStatusDoRecieve  = uint16(0x0002)
+	messageStatusCheckPoint = uint16(0x0010)
+	messageStatusHighBW     = uint16(0x0080)
 )
 
 var (
@@ -67,11 +67,11 @@ retry:
 	bp := &bdoor.BackdoorProto{}
 
 	bp.BX.Low.SetWord(proto | flags)
-	bp.CX.Low.High = MessageTypeOpen
+	bp.CX.Low.High = messageTypeOpen
 	bp.CX.Low.Low = bdoor.CommandMessage
 
 	out := bp.InOut()
-	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
+	if (out.CX.Low.High & messageStatusSuccess) == 0 {
 		if flags != 0 {
 			flags = 0
 			goto retry
@@ -93,7 +93,7 @@ retry:
 func (c *Channel) Close() error {
 	bp := &bdoor.BackdoorProto{}
 
-	bp.CX.Low.High = MessageTypeClose
+	bp.CX.Low.High = messageTypeClose
 	bp.CX.Low.Low = bdoor.CommandMessage
 
 	bp.DX.Low.High = c.id
@@ -101,7 +101,7 @@ func (c *Channel) Close() error {
 	bp.DI.Low.SetWord(c.cookie.Low.Word())
 
 	out := bp.InOut()
-	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
+	if (out.CX.Low.High & messageStatusSuccess) == 0 {
 		Errorf("Message: Unable to close communication channel %d", c.id)
 		return ErrChannelClose
 	}
@@ -113,7 +113,7 @@ func (c *Channel) Close() error {
 func (c *Channel) Send(buf []byte) error {
 retry:
 	bp := &bdoor.BackdoorProto{}
-	bp.CX.Low.High = MessageTypeSendSize
+	bp.CX.Low.High = messageTypeSendSize
 	bp.CX.Low.Low = bdoor.CommandMessage
 
 	bp.DX.Low.High = c.id
@@ -124,20 +124,21 @@ retry:
 
 	// send the size
 	out := bp.InOut()
-	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
+	if (out.CX.Low.High & messageStatusSuccess) == 0 {
 		Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 		return ErrRpciSend
 	}
 
+	// size of buf 0 is fine, just return
 	if len(buf) == 0 {
 		return nil
 	}
 
-	if !c.forceLowBW && (out.CX.Low.High&MessageSatusHighBW) == MessageSatusHighBW {
+	if !c.forceLowBW && (out.CX.Low.High&messageStatusHighBW) == messageStatusHighBW {
 		hbbp := &bdoor.BackdoorProto{}
 
 		hbbp.BX.Low.Low = bdoor.CommandHighBWMessage
-		hbbp.BX.Low.High = MessageStatusSuccess
+		hbbp.BX.Low.High = messageStatusSuccess
 		hbbp.DX.Low.High = c.id
 		hbbp.BP.Low.SetWord(c.cookie.High.Word())
 		hbbp.DI.Low.SetWord(c.cookie.Low.Word())
@@ -145,8 +146,8 @@ retry:
 		hbbp.SI.SetQuad(uint64(uintptr(unsafe.Pointer(&buf[0]))))
 
 		out := hbbp.HighBandwidthOut()
-		if (out.BX.Low.High & MessageStatusSuccess) == 0 {
-			if (out.BX.Low.High & MessageSatusCheckPoint) != 0 {
+		if (out.BX.Low.High & messageStatusSuccess) == 0 {
+			if (out.BX.Low.High & messageStatusCheckPoint) != 0 {
 				Debugf("A checkpoint occurred. Retrying the operation")
 				goto retry
 			}
@@ -155,7 +156,7 @@ retry:
 			return ErrRpciSend
 		}
 	} else {
-		bp.CX.Low.High = MessageTypeSendPayload
+		bp.CX.Low.High = messageTypeSendPayload
 
 		bbuf := bytes.NewBuffer(buf)
 		for {
@@ -178,7 +179,7 @@ retry:
 			}
 
 			out = bp.InOut()
-			if (out.CX.Low.High & MessageStatusSuccess) == 0 {
+			if (out.CX.Low.High & messageStatusSuccess) == 0 {
 				Errorf("Message: Unable to send a message over the communication channel %d", c.id)
 				return ErrRpciSend
 			}
@@ -192,7 +193,7 @@ func (c *Channel) Receive() ([]byte, error) {
 retry:
 	var err error
 	bp := &bdoor.BackdoorProto{}
-	bp.CX.Low.High = MessageTypeReceiveSize
+	bp.CX.Low.High = messageTypeReceiveSize
 	bp.CX.Low.Low = bdoor.CommandMessage
 
 	bp.DX.Low.High = c.id
@@ -200,18 +201,18 @@ retry:
 	bp.DI.Low.SetWord(c.cookie.Low.Word())
 
 	out := bp.InOut()
-	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
+	if (out.CX.Low.High & messageStatusSuccess) == 0 {
 		Errorf("Message: Unable to poll for messages over the communication channel %d", c.id)
 		return nil, ErrRpciReceive
 	}
 
-	if (out.CX.Low.High & MessageSatusDoReceive) == 0 {
+	if (out.CX.Low.High & messageStatusDoRecieve) == 0 {
 		Debugf("No message to retrieve")
 		return nil, nil
 	}
 
 	// Receive the size.
-	if out.DX.Low.High != MessageTypeSendSize {
+	if out.DX.Low.High != messageTypeSendSize {
 		Errorf("Message: Protocol error. Expected a MESSAGE_TYPE_SENDSIZE request from vmware")
 		return nil, ErrRpciReceive
 	}
@@ -221,13 +222,13 @@ retry:
 	var buf []byte
 
 	if size != 0 {
-		if !c.forceLowBW && (out.CX.Low.High&MessageSatusHighBW) == MessageSatusHighBW {
+		if !c.forceLowBW && (out.CX.Low.High&messageStatusHighBW == messageStatusHighBW) {
 			buf = make([]byte, size)
 
 			hbbp := &bdoor.BackdoorProto{}
 
 			hbbp.BX.Low.Low = bdoor.CommandHighBWMessage
-			hbbp.BX.Low.High = MessageStatusSuccess
+			hbbp.BX.Low.High = messageStatusSuccess
 			hbbp.DX.Low.High = c.id
 			hbbp.SI.Low.SetWord(c.cookie.High.Word())
 			hbbp.BP.Low.SetWord(c.cookie.Low.Word())
@@ -235,9 +236,9 @@ retry:
 			hbbp.DI.SetQuad(uint64(uintptr(unsafe.Pointer(&buf[0]))))
 
 			out := hbbp.HighBandwidthIn()
-			if (out.BX.Low.High & MessageStatusSuccess) == 0 {
+			if (out.BX.Low.High & messageStatusSuccess) == 0 {
 				Errorf("Message: Unable to send a message over the communication channel %d", c.id)
-				c.reply(MessageTypeReceivePayload, MessageStatusFail)
+				c.reply(messageTypeReceivePayload, messageStatusFail)
 				return nil, ErrRpciReceive
 			}
 		} else {
@@ -248,24 +249,24 @@ retry:
 					break
 				}
 
-				bp.CX.Low.High = MessageTypeReceivePayload
-				bp.BX.Low.Low = MessageStatusSuccess
+				bp.CX.Low.High = messageTypeReceivePayload
+				bp.BX.Low.Low = messageStatusSuccess
 
 				out = bp.InOut()
-				if (out.CX.Low.High & MessageStatusSuccess) == 0 {
-					if (out.CX.Low.High & MessageSatusCheckPoint) != 0 {
+				if (out.CX.Low.High & messageStatusSuccess) == 0 {
+					if (out.CX.Low.High & messageStatusCheckPoint) != 0 {
 						Debugf("A checkpoint occurred. Retrying the operation")
 						goto retry
 					}
 
 					Errorf("Message: Unable to receive a message over the communication channel %d", c.id)
-					c.reply(MessageTypeReceivePayload, MessageStatusFail)
+					c.reply(messageTypeReceivePayload, messageStatusFail)
 					return nil, ErrRpciReceive
 				}
 
-				if out.DX.Low.High != MessageTypeSendPayload {
+				if out.DX.Low.High != messageTypeSendPayload {
 					Errorf("Message: Protocol error. Expected a MESSAGE_TYPE_SENDPAYLOAD from vmware")
-					c.reply(MessageTypeReceivePayload, MessageStatusFail)
+					c.reply(messageTypeReceivePayload, messageStatusFail)
 					return nil, ErrRpciReceive
 				}
 
@@ -283,7 +284,7 @@ retry:
 				case 3:
 					err = binary.Write(b, binary.LittleEndian, uint16(out.BX.Low.Low))
 					if err != nil {
-						c.reply(MessageTypeReceivePayload, MessageStatusFail)
+						c.reply(messageTypeReceivePayload, messageStatusFail)
 						return nil, ErrRpciReceive
 					}
 					err = binary.Write(b, binary.LittleEndian, uint8(out.BX.Low.High))
@@ -296,7 +297,7 @@ retry:
 
 				if err != nil {
 					Errorf(err.Error())
-					c.reply(MessageTypeReceivePayload, MessageStatusFail)
+					c.reply(messageTypeReceivePayload, messageStatusFail)
 					return nil, ErrRpciReceive
 				}
 			}
@@ -305,15 +306,15 @@ retry:
 		}
 	}
 
-	c.reply(MessageTypeReceiveStatus, MessageStatusSuccess)
+	c.reply(messageTypeReceiveStatus, messageStatusSuccess)
 
 	return buf, nil
 }
 
-func (c *Channel) reply(messageType, status uint16) {
+func (c *Channel) reply(messageType, messageStatus uint16) {
 	bp := &bdoor.BackdoorProto{}
 
-	bp.BX.Low.Low = status
+	bp.BX.Low.Low = messageStatus
 	bp.CX.Low.High = messageType
 	bp.CX.Low.Low = bdoor.CommandMessage
 	bp.DX.Low.High = c.id
@@ -323,9 +324,8 @@ func (c *Channel) reply(messageType, status uint16) {
 	out := bp.InOut()
 
 	/* OUT: Status */
-	if (out.CX.Low.High & MessageStatusSuccess) == 0 {
-		Errorf("type = 0x%x status = 0x%x", messageType, status)
-		if status == MessageStatusSuccess {
+	if (out.CX.Low.High & messageStatusSuccess) == 0 {
+		if messageStatus == messageStatusSuccess {
 			Errorf("reply Message: Unable to send a message over the communication channel %d", c.id)
 		} else {
 			Errorf("reply Message: Unable to signal an error of reception over the communication channel %d", c.id)

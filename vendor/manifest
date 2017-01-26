@@ -942,7 +942,7 @@
 			"importpath": "github.com/vmware/vmw-guestinfo",
 			"repository": "https://github.com/vmware/vmw-guestinfo",
 			"vcs": "git",
-			"revision": "da7f9779feb40940688bc7ce9ebfd2c0a6ddc045",
+			"revision": "35d6119c017600b823981ff79645b025ea256a71",
 			"branch": "master"
 		},
 		{

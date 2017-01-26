@@ -15,6 +15,7 @@
 package message
 
 import (
+	"os"
 	"testing"
 
 	"github.com/vmware/vmw-guestinfo/util"
@@ -28,7 +29,8 @@ func TestOpenClose(t *testing.T) {
 	l := DefaultLogger.(*logger)
 	l.DebugLevel = true
 
-	if !vmcheck.IsVirtualWorld() {
+	isVm, err := vmcheck.IsVirtualWorld()
+	if err != nil || !isVm {
 		t.Skip("Not in a virtual world")
 		return
 	}
@@ -88,8 +90,14 @@ func TestReset(t *testing.T) {
 	l := DefaultLogger.(*logger)
 	l.DebugLevel = true
 
-	if !vmcheck.IsVirtualWorld() {
+	isVm, err := vmcheck.IsVirtualWorld()
+	if err != nil || !isVm {
 		t.Skip("Not in a virtual world")
+		return
+	}
+
+	if os.Getenv("TEST_TOOLBOX") == "" {
+		t.Skip("Skipping toolbox test")
 		return
 	}
 
@@ -104,7 +112,6 @@ func TestReset(t *testing.T) {
 	for {
 		_ = ch.Send(buf)
 		request, _ := ch.Receive()
-		t.Logf("req = %s", string(request))
 
 		if len(request) == 0 {
 			continue
