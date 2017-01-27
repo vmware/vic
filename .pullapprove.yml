@@ -10,18 +10,9 @@ group_defaults:
     enabled: false
 
 groups:
-  george:
-    users:
-      - hickeng
-    conditions:
-      files:
-        includes:
-          - "cmd/vic-init/*"
-
   tether:
     users:
-      - caglar
-      - hasan
+      - caglar10ur
     conditions:
       files:
         includes:
@@ -30,7 +21,7 @@ groups:
 
   build-ci-infra:
     users:
-      - mhagen
+      - mhagen-vmware
     conditions:
       files:
         includes:
@@ -39,7 +30,7 @@ groups:
 
   design-docs:
     users:
-      - george
+      - hickeng
     conditions:
       files:
         includes:
@@ -47,7 +38,7 @@ groups:
 
   docs:
     users:
-      - stuart
+      - stuclem
     conditions:
       files:
         includes:
@@ -57,7 +48,11 @@ groups:
 
   nightlies:
     users:
-      - ashok
+      - rajanashok
+    conditions:
+      files:
+        includes:
+          - "tests/nightly/*"
 
   vcsim:
     users:
@@ -70,7 +65,7 @@ groups:
 
   docker-persona:
     users:
-      - loc
+      - sflxn
     conditions:
       files:
         includes:
@@ -80,7 +75,7 @@ groups:
 
   install:
     users:
-      - emma
+      - emlin
     conditions:
       files:
         includes:
@@ -89,7 +84,7 @@ groups:
 
   vicadmin:
     users:
-      - zach
+      - jzt
     conditions:
       files:
         includes:
@@ -99,7 +94,7 @@ groups:
 
   port-layer-exec-interaction:
     users:
-      - caglar
+      - caglar10ur
     conditions:
       files:
         includes:
@@ -109,7 +104,7 @@ groups:
 
   port-layer-storage:
     users:
-      - faiyaz
+      - fdawg4l
     conditions:
       files:
         includes:
@@ -117,7 +112,7 @@ groups:
 
   port-layer-store:
     users:
-      - clint
+      - cgtexmex
     conditions:
       files:
         includes:
@@ -126,7 +121,7 @@ groups:
 
   port-layer-network:
     users:
-      - hasan
+      - hmahmood
     conditions:
       files:
         includes:
@@ -137,7 +132,7 @@ groups:
 
   events:
     users:
-      - clint
+      - cgtexmex
     conditions:
       files:
         includes:
@@ -145,7 +140,7 @@ groups:
 
   imagec:
     users:
-      - zach
+      - jzt
     conditions:
       files:
         includes:
