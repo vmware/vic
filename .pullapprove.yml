@@ -153,3 +153,10 @@ groups:
       files:
         includes:
           - "vendor/*"
+  ui:
+    users:
+      - jooskim
+    conditions:
+      files:
+        includes:
+          - "ui/*"
