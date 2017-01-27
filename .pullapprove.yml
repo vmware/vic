@@ -1,12 +1,21 @@
 version: 2
 group_defaults:
+  required: 1
+  author_approval:
+    ignored: true
   approve_by_comment:
     enabled: true
     approve_regex: '^(Approved|:shipit:|:sheep::it:|:\+1:|LGTM)'
   reset_on_push:
     enabled: false
 groups:
-  test:
-    required: 1
+  general:
     users:
       - anchal-agrawal
+  tests:
+    users:
+      - anchal-agrawal
+    conditions:
+      files:
+        include:
+          - "^tests/*"
