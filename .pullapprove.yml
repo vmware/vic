@@ -145,3 +145,11 @@ groups:
       files:
         includes:
           - "lib/imagec/*"
+
+  vendor:
+    users:
+      - mwilliamson
+    conditions:
+      files:
+        includes:
+          - "vendor/*"
