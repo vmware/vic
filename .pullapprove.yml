@@ -160,3 +160,11 @@ groups:
       files:
         includes:
           - "ui/*"
+
+  ui-cmd:
+    users:
+      - andrewtchin
+    conditions:
+      files:
+        includes:
+          - "cmd/vic-ui/*"
