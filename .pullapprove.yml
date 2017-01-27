@@ -1,16 +1,17 @@
 version: 2
-
 group_defaults:
-  approve_by_comment: true
-  approve_regex: '^(Approved|:shipit:|:sheep::it:|:\+1:|LGTM)'
+  approve_by_comment:
+    enabled: true
+    approve_regex: '^(Approved|:shipit:|:sheep::it:|:\+1:|LGTM)'
   reset_on_push:
     enabled: false
-
 groups:
-  build-ci-infra:
+  test:
+    required: 1
+    users:
+      - anchal-agrawal
     conditions:
-      files:
-        - "tests/*"
-      required: 1
-      users:
-        - gigawhitlocks
+           files:
+             include:
+               - '*.*'
+        
