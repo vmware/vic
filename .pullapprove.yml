@@ -56,7 +56,7 @@ groups:
 
   vcsim:
     users:
-      - doug
+      - dougm
     conditions:
       files:
         includes:
