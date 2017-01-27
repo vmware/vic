@@ -473,7 +473,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			if cc == nil {
 				// The container was removed from the cache and
 				// port bindings were cleaned up by another operation.
-				return nil
+				continue
 			}
 			running, err := c.containerProxy.IsRunning(cc)
 			if err != nil {
