@@ -43,10 +43,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/platform"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/go-units"
 )
 
@@ -96,7 +96,6 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		Debug:              VchConfig().Diagnostics.DebugLevel > 0,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
-		ExecutionDriver:    PortLayerName(),
 		LoggingDriver:      "",
 		CgroupDriver:       "",
 		DockerRootDir:      "",
@@ -244,7 +243,11 @@ func (s *System) SystemVersion() types.Version {
 	return version
 }
 
-func (s *System) SubscribeToEvents(since, sinceNano int64, ef filters.Args) ([]events.Message, chan interface{}) {
+func (s *System) SystemDiskUsage() (*types.DiskUsage, error) {
+	return nil, fmt.Errorf("%s does not yet implement SystemDiskUsage", ProductName())
+}
+
+func (s *System) SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{}) {
 	return make([]events.Message, 0, 0), make(chan interface{})
 }
 

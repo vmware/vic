@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -49,14 +49,14 @@ type ContainerListContext struct {
 func IncludeContainer(listContext *ContainerListContext, container *models.ContainerInfo) FilterAction {
 
 	// if we need to filter on name add to the listContext
-	if listContext.Filter.Include("name") {
+	if listContext.Filters.Include("name") {
 		// containerConfig allows for multiple names, but only 1 ever
 		// assigned
 		listContext.Name = container.ContainerConfig.Names[0]
 	}
 
 	// filter common requirements
-	act := filterCommon(&listContext.FilterContext, listContext.Filter)
+	act := filterCommon(&listContext.FilterContext, listContext.Filters)
 	if act != IncludeAction {
 		return act
 	}
@@ -82,15 +82,15 @@ func IncludeContainer(listContext *ContainerListContext, container *models.Conta
 
 	state := DockerState(container.ContainerConfig.State)
 	// Do not include container if its status doesn't match the filter
-	if !listContext.Filter.Match("status", state) {
+	if !listContext.Filters.Match("status", state) {
 		return ExcludeAction
 	}
 
 	// filter on network name
 	for n := range container.Endpoints {
 		name := container.Endpoints[n].Scope
-		if listContext.Filter.Include("network") {
-			err := listContext.Filter.WalkValues("network", func(value string) error {
+		if listContext.Filters.Include("network") {
+			err := listContext.Filters.WalkValues("network", func(value string) error {
 				if name == value {
 					return nil
 				}
@@ -113,7 +113,7 @@ func IncludeContainer(listContext *ContainerListContext, container *models.Conta
 *
  */
 func ValidateContainerFilters(options *types.ContainerListOptions, acceptedFilters map[string]bool, unSupportedFilters map[string]bool) (*ContainerListContext, error) {
-	containerFilters := options.Filter
+	containerFilters := options.Filters
 
 	// ensure filter options are valid and supported by vic
 	if err := ValidateFilters(containerFilters, acceptedFilters, unSupportedFilters); err != nil {

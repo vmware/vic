@@ -52,3 +52,19 @@ Group 1 - Docker Commands
 -
 [Test 1-27 - Docker Login](1-27-Docker-Login.md)
 -
+[Test 1-28 - Docker Secret](1-28-Docker-Secret.md)
+-
+[Test 1-29 - Docker Service](1-29-Docker-Service.md)
+-
+[Test 1-30 - Docker Deploy](1-30-Docker-Deploy.md)
+-
+[Test 1-31 - Docker Node](1-31-Docker-Node.md)
+-
+[Test 1-32 - Docker Plugin](1-32-Docker-Plugin.md)
+-
+[Test 1-33 - Docker Service](1-33-Docker-Service.md)
+-
+[Test 1-34 - Docker Stack](1-34-Docker-Stack.md)
+-
+[Test 1-35 - Docker Swarm](1-35-Docker-Swarm.md)
+-

@@ -17,7 +17,7 @@ package filter
 import (
 	"testing"
 
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -31,7 +31,7 @@ import (
 	"context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/google/uuid"
 	gorillacontext "github.com/gorilla/context"
 
@@ -133,7 +133,7 @@ func (s *server) listen() error {
 			MaxVersion:               c.MaxVersion,
 			CurvePreferences:         c.CurvePreferences,
 		}
-	}(&tlsconfig.ServerDefault)
+	}(tlsconfig.ServerDefault())
 
 	tlsconfig.Certificates = []tls.Certificate{*certificate}
 

@@ -33,7 +33,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/opts"
-	dockertypes "github.com/docker/engine-api/types"
+	dockertypes "github.com/docker/docker/api/types"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"

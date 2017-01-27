@@ -26,7 +26,7 @@ Connect container to a new network
 Connect to non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect test-network fakeContainer
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: container fakeContainer not found
+    Should Contain  ${output}  not found
 
 Connect to non-existent network
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -36,7 +36,7 @@ Connect to non-existent network
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect fakeNetwork connectTest3
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: network fakeNetwork not found
+    Should Contain  ${output}  not found
 
 Connect containers to multiple networks overlapping
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create cross1-network

@@ -15,7 +15,7 @@
 package filter
 
 import (
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types/filters"
 )
 
 // FilterAction represents possible results during filtering

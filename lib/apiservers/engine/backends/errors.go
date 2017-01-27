@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net/http"
 
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 )
 
 // Used to check status code of derr, which is not a public type
