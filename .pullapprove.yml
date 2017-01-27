@@ -1,7 +1,5 @@
 version: 2
 
-requirements:
-
 group_defaults:
   approved_by_comment: true
   approve_regex: '^(Approved|:shipit:|:sheep::it:|:\+1:|LGTM)'
@@ -16,7 +14,6 @@ groups:
       required: 1
       users:
         - gigawhitlocks
-
   docker-personality:
     conditions:
       files:
