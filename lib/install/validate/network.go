@@ -445,6 +445,9 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *config.Virtu
 // checkBridgeIPRange verifies that the bridge network pool is large enough
 // port layer currently defaults to /16 for bridge network so pool must be >= /16
 func (v *Validator) checkBridgeIPRange(bridgeIPRange *net.IPNet) error {
+	if bridgeIPRange == nil {
+		return nil
+	}
 	ones, _ := bridgeIPRange.Mask.Size()
 	if ones > 16 {
 		return fmt.Errorf("Specified bridge network range is not large enough for the default bridge network size. --bridge-network-range must be /16 or larger network.")
