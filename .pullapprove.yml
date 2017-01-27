@@ -1,20 +1,13 @@
 version: 2
 
 group_defaults:
-  approved_by_comment: true
+  approve_by_comment: true
   approve_regex: '^(Approved|:shipit:|:sheep::it:|:\+1:|LGTM)'
   reset_on_push:
     enabled: false
 
 groups:
   build-ci-infra:
-    conditions:
-      files:
-        - "tests/*"
-      required: 1
-      users:
-        - gigawhitlocks
-  docker-personality:
     conditions:
       files:
         - "tests/*"
