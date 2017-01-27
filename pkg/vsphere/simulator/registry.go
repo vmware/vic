@@ -195,6 +195,15 @@ func RemoveReference(ref types.ManagedObjectReference, refs []types.ManagedObjec
 	return result
 }
 
+// AddReference returns a slice with ref appended if not already in refs.
+func AddReference(ref types.ManagedObjectReference, refs []types.ManagedObjectReference) []types.ManagedObjectReference {
+	if FindReference(refs, ref) == nil {
+		return append(refs, ref)
+	}
+
+	return refs
+}
+
 func (r *Registry) content() types.ServiceContent {
 	return r.Get(serviceInstance).(*ServiceInstance).Content
 }

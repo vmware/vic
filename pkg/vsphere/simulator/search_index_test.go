@@ -21,6 +21,8 @@ import (
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/soap"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 func TestSearchIndex(t *testing.T) {
@@ -75,5 +77,79 @@ func TestSearchIndex(t *testing.T) {
 		if ref != nil {
 			t.Errorf("ref=%s", ref)
 		}
+	}
+}
+
+func TestSearchIndexFindChild(t *testing.T) {
+	ctx := context.Background()
+
+	model := VPX()
+	model.Pool = 3
+
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := model.Service.NewServer()
+	defer s.Close()
+
+	c, err := govmomi.NewClient(ctx, s.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	si := object.NewSearchIndex(c.Client)
+
+	tests := [][]string{
+		// Datacenter -> host Folder -> Cluster -> HostSystem
+		{"DC0", "host", "DC0_C0", "DC0_C0_H0"},
+		// Datacenter -> host Folder -> ComputeResource -> HostSystem
+		{"DC0", "host", "DC0_H0", "DC0_H0"},
+		// Datacenter -> host Folder -> Cluster -> ResourcePool -> ResourcePool
+		{"DC0", "host", "DC0_C0", "Resources", "DC0_C0_RP1"},
+		// Datacenter -> host Folder -> Cluster -> ResourcePool -> VirtualMachine
+		{"DC0", "host", "DC0_C0", "Resources", "DC0_C0_RP0_VM0"},
+		// Datacenter -> vm Folder -> VirtualMachine
+		{"DC0", "vm", "DC0_C0_RP0_VM0"},
+	}
+
+	root := c.ServiceContent.RootFolder
+
+	for _, path := range tests {
+		parent := root
+
+		for _, name := range path {
+			ref, err := si.FindChild(ctx, parent, name)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if ref == nil {
+				t.Fatalf("failed to match %s using %s", name, parent)
+			}
+
+			parent = ref.Reference()
+		}
+	}
+
+	ref, err := si.FindChild(ctx, root, "enoent")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ref != nil {
+		t.Error("unexpected match")
+	}
+
+	root.Value = "enoent"
+	_, err = si.FindChild(ctx, root, "enoent")
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound); !ok {
+		t.Error("expected ManagedObjectNotFound fault")
 	}
 }

@@ -70,6 +70,5 @@ func createDatacenterFolders(dc *mo.Datacenter, isVC bool) {
 		}
 
 		net.putChild(network)
-		dc.Network = append(dc.Network, network.Reference())
 	}
 }

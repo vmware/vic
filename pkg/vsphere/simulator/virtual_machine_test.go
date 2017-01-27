@@ -305,6 +305,8 @@ func TestReconfigVm(t *testing.T) {
 
 	// cover the path where the simulator assigns a UnitNumber
 	d.GetVirtualDevice().UnitNumber = nil
+	// cover the path where the simulator assigns a Key
+	d.GetVirtualDevice().Key = -1
 
 	err = vm.AddDevice(ctx, d)
 	if err != nil {
