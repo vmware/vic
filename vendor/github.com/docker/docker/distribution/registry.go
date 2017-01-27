@@ -4,36 +4,50 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/schema2"
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/go-connections/sockets"
 	"golang.org/x/net/context"
 )
 
-type dumbCredentialStore struct {
-	auth *types.AuthConfig
+// ImageTypes represents the schema2 config types for images
+var ImageTypes = []string{
+	schema2.MediaTypeImageConfig,
+	// Handle unexpected values from https://github.com/docker/distribution/issues/1621
+	"application/octet-stream",
+	// Treat defaulted values as images, newer types cannot be implied
+	"",
 }
 
-func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
-	return dcs.auth.Username, dcs.auth.Password
+// PluginTypes represents the schema2 config types for plugins
+var PluginTypes = []string{
+	schema2.MediaTypePluginConfig,
 }
 
-func (dcs dumbCredentialStore) RefreshToken(*url.URL, string) string {
-	return dcs.auth.IdentityToken
+var mediaTypeClasses map[string]string
+
+func init() {
+	// initialize media type classes with all know types for
+	// plugin
+	mediaTypeClasses = map[string]string{}
+	for _, t := range ImageTypes {
+		mediaTypeClasses[t] = "image"
+	}
+	for _, t := range PluginTypes {
+		mediaTypeClasses[t] = "plugin"
+	}
 }
 
-func (dcs dumbCredentialStore) SetRefreshToken(*url.URL, string, string) {
-}
-
-// NewV2Repository returns a repository (v2 only). It creates a HTTP transport
+// NewV2Repository returns a repository (v2 only). It creates an HTTP transport
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
 func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string) (repo distribution.Repository, foundVersion bool, err error) {
@@ -43,24 +57,31 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		repoName = repoInfo.RemoteName()
 	}
 
+	direct := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		DualStack: true,
+	}
+
 	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
 	base := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).Dial,
+		Proxy:               http.ProxyFromEnvironment,
+		Dial:                direct.Dial,
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     endpoint.TLSConfig,
 		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
 		DisableKeepAlives: true,
 	}
 
+	proxyDialer, err := sockets.DialerFromEnvironment(direct)
+	if err == nil {
+		base.Dial = proxyDialer.Dial
+	}
+
 	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
-	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint, authTransport)
+	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint.URL, authTransport)
 	if err != nil {
 		transportOK := false
 		if responseErr, ok := err.(registry.PingResponseError); ok {
@@ -78,17 +99,18 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
 	} else {
-		creds := dumbCredentialStore{auth: authConfig}
+		scope := auth.RepositoryScope{
+			Repository: repoName,
+			Actions:    actions,
+			Class:      repoInfo.Class,
+		}
+
+		creds := registry.NewStaticCredentialStore(authConfig)
 		tokenHandlerOptions := auth.TokenHandlerOptions{
 			Transport:   authTransport,
 			Credentials: creds,
-			Scopes: []auth.Scope{
-				auth.RepositoryScope{
-					Repository: repoName,
-					Actions:    actions,
-				},
-			},
-			ClientID: registry.AuthClientID,
+			Scopes:      []auth.Scope{scope},
+			ClientID:    registry.AuthClientID,
 		}
 		tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
 		basicHandler := auth.NewBasicHandler(creds)

@@ -8,10 +8,11 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -43,16 +44,19 @@ type StoreOptions struct {
 	GraphDriverOptions        []string
 	UIDMaps                   []idtools.IDMap
 	GIDMaps                   []idtools.IDMap
+	PluginGetter              plugingetter.PluginGetter
+	ExperimentalEnabled       bool
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
-	driver, err := graphdriver.New(
-		options.StorePath,
-		options.GraphDriver,
-		options.GraphDriverOptions,
-		options.UIDMaps,
-		options.GIDMaps)
+	driver, err := graphdriver.New(options.GraphDriver, options.PluginGetter, graphdriver.Options{
+		Root:                options.StorePath,
+		DriverOptions:       options.GraphDriverOptions,
+		UIDMaps:             options.UIDMaps,
+		GIDMaps:             options.GIDMaps,
+		ExperimentalEnabled: options.ExperimentalEnabled,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
@@ -128,6 +132,11 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		return nil, fmt.Errorf("failed to get parent for %s: %s", layer, err)
 	}
 
+	descriptor, err := ls.store.GetDescriptor(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get descriptor for %s: %s", layer, err)
+	}
+
 	cl = &roLayer{
 		chainID:    layer,
 		diffID:     diff,
@@ -135,6 +144,7 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		cacheID:    cacheID,
 		layerStore: ls,
 		references: map[Layer]struct{}{},
+		descriptor: descriptor,
 	}
 
 	if parent != "" {
@@ -211,7 +221,7 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 		return err
 	}
 
-	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, archive.Reader(rdr))
+	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, rdr)
 	if err != nil {
 		return err
 	}
@@ -228,6 +238,10 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 }
 
 func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
+	return ls.registerWithDescriptor(ts, parent, distribution.Descriptor{})
+}
+
+func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -261,9 +275,10 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 		referenceCount: 1,
 		layerStore:     ls,
 		references:     map[Layer]struct{}{},
+		descriptor:     descriptor,
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, ""); err != nil {
+	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
 		return nil, err
 	}
 
@@ -345,6 +360,19 @@ func (ls *layerStore) Get(l ChainID) (Layer, error) {
 	return layer.getReference(), nil
 }
 
+func (ls *layerStore) Map() map[ChainID]Layer {
+	ls.layerL.Lock()
+	defer ls.layerL.Unlock()
+
+	layers := map[ChainID]Layer{}
+
+	for k, v := range ls.layerMap {
+		layers[k] = v
+	}
+
+	return layers
+}
+
 func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	err := ls.driver.Remove(layer.cacheID)
 	if err != nil {
@@ -417,7 +445,7 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
-func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel string, initFunc MountInit) (RWLayer, error) {
+func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel string, initFunc MountInit, storageOpt map[string]string) (RWLayer, error) {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[name]
@@ -454,14 +482,18 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel stri
 	}
 
 	if initFunc != nil {
-		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc)
+		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc, storageOpt)
 		if err != nil {
 			return nil, err
 		}
 		m.initID = pid
 	}
 
-	if err = ls.driver.Create(m.mountID, pid, ""); err != nil {
+	createOpts := &graphdriver.CreateOpts{
+		StorageOpt: storageOpt,
+	}
+
+	if err = ls.driver.CreateReadWrite(m.mountID, pid, createOpts); err != nil {
 		return nil, err
 	}
 
@@ -493,25 +525,6 @@ func (ls *layerStore) GetMountID(id string) (string, error) {
 	logrus.Debugf("GetMountID id: %s -> mountID: %s", id, mount.mountID)
 
 	return mount.mountID, nil
-}
-
-// ReinitRWLayer reinitializes a given mount to the layerstore, specifically
-// initializing the usage count. It should strictly only be used in the
-// daemon's restore path to restore state of live containers.
-func (ls *layerStore) ReinitRWLayer(l RWLayer) error {
-	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-
-	m, ok := ls.mounts[l.Name()]
-	if !ok {
-		return ErrMountDoesNotExist
-	}
-
-	if err := m.incActivityCount(l); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
@@ -583,14 +596,19 @@ func (ls *layerStore) saveMount(mount *mountedLayer) error {
 	return nil
 }
 
-func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc MountInit) (string, error) {
+func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc MountInit, storageOpt map[string]string) (string, error) {
 	// Use "<graph-id>-init" to maintain compatibility with graph drivers
 	// which are expecting this layer with this special name. If all
 	// graph drivers can be updated to not rely on knowing about this layer
 	// then the initID should be randomly generated.
 	initID := fmt.Sprintf("%s-init", graphID)
 
-	if err := ls.driver.Create(initID, parent, mountLabel); err != nil {
+	createOpts := &graphdriver.CreateOpts{
+		MountLabel: mountLabel,
+		StorageOpt: storageOpt,
+	}
+
+	if err := ls.driver.CreateReadWrite(initID, parent, createOpts); err != nil {
 		return "", err
 	}
 	p, err := ls.driver.Get(initID, "")

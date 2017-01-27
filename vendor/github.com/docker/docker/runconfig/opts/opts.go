@@ -2,10 +2,12 @@ package opts
 
 import (
 	"fmt"
-	fopts "github.com/docker/docker/opts"
 	"net"
 	"os"
+	"runtime"
 	"strings"
+
+	fopts "github.com/docker/docker/opts"
 )
 
 // ValidateAttach validates that the specified string is a valid attach option.
@@ -25,8 +27,13 @@ func ValidateAttach(val string) (string, error) {
 // As on ParseEnvFile and related to #16585, environment variable names
 // are not validate what so ever, it's up to application inside docker
 // to validate them or not.
+//
+// The only validation here is to check if name is empty, per #25099
 func ValidateEnv(val string) (string, error) {
 	arr := strings.Split(val, "=")
+	if arr[0] == "" {
+		return "", fmt.Errorf("invalid environment variable: %s", val)
+	}
 	if len(arr) > 1 {
 		return val, nil
 	}
@@ -39,6 +46,12 @@ func ValidateEnv(val string) (string, error) {
 func doesEnvExist(name string) bool {
 	for _, entry := range os.Environ() {
 		parts := strings.SplitN(entry, "=", 2)
+		if runtime.GOOS == "windows" {
+			// Environment variable are case-insensitive on Windows. PaTh, path and PATH are equivalent.
+			if strings.EqualFold(parts[0], name) {
+				return true
+			}
+		}
 		if parts[0] == name {
 			return true
 		}
@@ -47,7 +60,7 @@ func doesEnvExist(name string) bool {
 }
 
 // ValidateExtraHost validates that the specified string is a valid extrahost and returns it.
-// ExtraHost are in the form of name:ip where the ip has to be a valid ip (ipv4 or ipv6).
+// ExtraHost is in the form of name:ip where the ip has to be a valid ip (IPv4 or IPv6).
 func ValidateExtraHost(val string) (string, error) {
 	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
 	arr := strings.SplitN(val, ":", 2)

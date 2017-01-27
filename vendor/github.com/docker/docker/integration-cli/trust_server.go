@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
 )
 
@@ -61,10 +61,10 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	}
 	confPath := filepath.Join(tmp, "config.json")
 	config, err := os.Create(confPath)
-	defer config.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer config.Close()
 
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -78,10 +78,11 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	// generate client config
 	clientConfPath := filepath.Join(tmp, "client-config.json")
 	clientConfig, err := os.Create(clientConfPath)
-	defer clientConfig.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer clientConfig.Close()
+
 	template = `{
 	"trust_dir" : "%s",
 	"remote_server": {
@@ -135,7 +136,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 }
 
 func (t *testNotary) Ping() error {
-	tlsConfig := tlsconfig.ClientDefault
+	tlsConfig := tlsconfig.ClientDefault()
 	tlsConfig.InsecureSkipVerify = true
 	client := http.Client{
 		Transport: &http.Transport{
@@ -145,14 +146,14 @@ func (t *testNotary) Ping() error {
 				KeepAlive: 30 * time.Second,
 			}).Dial,
 			TLSHandshakeTimeout: 10 * time.Second,
-			TLSClientConfig:     &tlsConfig,
+			TLSClientConfig:     tlsConfig,
 		},
 	}
 	resp, err := client.Get(fmt.Sprintf("%s/v2/", notaryURL))
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("notary ping replied with an unexpected status code %d", resp.StatusCode)
 	}
 	return nil
@@ -177,28 +178,12 @@ func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, rep
 	trustCmdEnv(cmd, notaryURL, rootPwd, repositoryPwd)
 }
 
-func (s *DockerTrustSuite) trustedCmdWithDeprecatedEnvPassphrases(cmd *exec.Cmd, offlinePwd, taggingPwd string) {
-	trustCmdDeprecatedEnv(cmd, notaryURL, offlinePwd, taggingPwd)
-}
-
 func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, repositoryPwd string) {
 	env := []string{
 		"DOCKER_CONTENT_TRUST=1",
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=%s", rootPwd),
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=%s", repositoryPwd),
-	}
-	cmd.Env = append(os.Environ(), env...)
-}
-
-// Helper method to test the old env variables OFFLINE and TAGGING that will
-// be deprecated by 1.10
-func trustCmdDeprecatedEnv(cmd *exec.Cmd, server, offlinePwd, taggingPwd string) {
-	env := []string{
-		"DOCKER_CONTENT_TRUST=1",
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE=%s", offlinePwd),
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE=%s", taggingPwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
 }
@@ -221,6 +206,29 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 
 	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
 		c.Fatalf("Error removing image %q\n%s", repoName, out)
+	}
+
+	return repoName
+}
+
+func (s *DockerTrustSuite) setupTrustedplugin(c *check.C, source, name string) string {
+	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--alias", repoName, source)
+
+	pushCmd := exec.Command(dockerBinary, "plugin", "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+
+	if err != nil {
+		c.Fatalf("Error running trusted plugin push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	if out, status := dockerCmd(c, "plugin", "rm", "-f", repoName); status != 0 {
+		c.Fatalf("Error removing plugin %q\n%s", repoName, out)
 	}
 
 	return repoName

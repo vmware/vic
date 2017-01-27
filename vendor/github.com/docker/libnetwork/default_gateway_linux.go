@@ -7,6 +7,12 @@ import (
 	"github.com/docker/libnetwork/drivers/bridge"
 )
 
+const libnGWNetwork = "docker_gwbridge"
+
+func getPlatformOption() EndpointOption {
+	return nil
+}
+
 func (c *controller) createGWNetwork() (Network, error) {
 	netOption := map[string]string{
 		bridge.BridgeName:         libnGWNetwork,
@@ -14,7 +20,7 @@ func (c *controller) createGWNetwork() (Network, error) {
 		bridge.EnableIPMasquerade: strconv.FormatBool(true),
 	}
 
-	n, err := c.NewNetwork("bridge", libnGWNetwork,
+	n, err := c.NewNetwork("bridge", libnGWNetwork, "",
 		NetworkOptionDriverOpts(netOption),
 		NetworkOptionEnableIPv6(false),
 	)

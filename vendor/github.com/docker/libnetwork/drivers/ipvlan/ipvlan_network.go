@@ -8,13 +8,14 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
 
 // CreateNetwork the network for the specified driver type
-func (d *driver) CreateNetwork(nid string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	defer osl.InitOSContext()()
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
@@ -145,6 +146,15 @@ func (d *driver) DeleteNetwork(nid string) error {
 						n.config.Parent, err)
 				}
 			}
+		}
+	}
+	for _, ep := range n.endpoints {
+		if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
+			ns.NlHandle().LinkDel(link)
+		}
+
+		if err := d.storeDelete(ep); err != nil {
+			logrus.Warnf("Failed to remove ipvlan endpoint %s from store: %v", ep.id[0:7], err)
 		}
 	}
 	// delete the *network

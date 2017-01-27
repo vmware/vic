@@ -31,12 +31,20 @@ type SandboxResource struct {
 /***********
   Body types
   ************/
+type ipamConf struct {
+	PreferredPool string
+	SubPool       string
+	Gateway       string
+	AuxAddresses  map[string]string
+}
 
 // networkCreate is the expected body of the "create network" http request message
 type networkCreate struct {
 	Name        string            `json:"name"`
+	ID          string            `json:"id"`
 	NetworkType string            `json:"network_type"`
-	DriverOpts  []string          `json:"driver_opts"`
+	IPv4Conf    []ipamConf        `json:"ipv4_configuration"`
+	DriverOpts  map[string]string `json:"driver_opts"`
 	NetworkOpts map[string]string `json:"network_opts"`
 }
 
@@ -80,7 +88,7 @@ type extraHost struct {
 }
 
 // sandboxParentUpdate is the object carrying the information about the
-// sanbox parent that needs to be updated
+// sandbox parent that needs to be updated.
 type sandboxParentUpdate struct {
 	ContainerID string `json:"container_id"`
 	Name        string `json:"name"`
