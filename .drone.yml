@@ -49,7 +49,7 @@ build:
       - ls vendor/github.com/vmware/govmomi/vim25/methods
       - ls vendor/github.com/vmware/govmomi/vim25/types
       - export VIC_ESX_URL_ARRAY=`tests/get_test_url.sh`
-      - sudo make -j3 test
+      - make -j3 test
       - make sincemark
 
   integration-test-on-pr:
