@@ -10,8 +10,3 @@ groups:
     required: 1
     users:
       - anchal-agrawal
-    conditions:
-           files:
-             include:
-               - '*.*'
-        
