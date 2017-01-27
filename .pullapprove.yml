@@ -8,14 +8,145 @@ group_defaults:
     approve_regex: '^(Approved|:shipit:|:sheep::it:|:\+1:|LGTM)'
   reset_on_push:
     enabled: false
+
 groups:
-  general:
+  george:
     users:
-      - anchal-agrawal
-  tests:
-    users:
-      - anchal-agrawal
+      - hickeng
     conditions:
       files:
-        include:
-          - "^tests/*"
+        includes:
+          - "cmd/vic-init/*"
+
+  tether:
+    users:
+      - caglar
+      - hasan
+    conditions:
+      files:
+        includes:
+          - "cmd/tether/*"
+          - "lib/tether/*"
+
+  build-ci-infra:
+    users:
+      - mhagen
+    conditions:
+      files:
+        includes:
+          - "demos/*"
+          - "infra/*"
+
+  design-docs:
+    users:
+      - george
+    conditions:
+      files:
+        includes:
+          - "doc/design/*"
+
+  docs:
+    users:
+      - stuart
+    conditions:
+      files:
+        includes:
+          - "doc/*"
+        excludes:
+          - "doc/design/*"
+
+  nightlies:
+    users:
+      - ashok
+
+  vcsim:
+    users:
+      - doug
+    conditions:
+      files:
+        includes:
+          - "cmd/toolbox/*"
+          - "cmd/vcsim/*"
+
+  docker-persona:
+    users:
+      - loc
+    conditions:
+      files:
+        includes:
+          - "lib/apiservers/engine/*"
+        excludes:
+          - "lib/apiservers/portlayer/*"
+
+  install:
+    users:
+      - emma
+    conditions:
+      files:
+        includes:
+          - "cmd/vic-machine/*"
+          - "lib/install/*"
+
+  vicadmin:
+    users:
+      - zach
+    conditions:
+      files:
+        includes:
+          - "cmd/vicadmin/*"
+          - "lib/vicadmin/*"
+          - "isos/vicadmin/*"
+
+  port-layer-exec-interaction:
+    users:
+      - caglar
+    conditions:
+      files:
+        includes:
+          - "lib/portlayer/attach/*"
+          - "lib/portlayer/exec/*"
+          - "lib/portlayer/exec2/*"
+
+  port-layer-storage:
+    users:
+      - faiyaz
+    conditions:
+      files:
+        includes:
+          - "lib/portlayer/storage/*"
+
+  port-layer-store:
+    users:
+      - clint
+    conditions:
+      files:
+        includes:
+          - "lib/portlayer/store/*"
+
+
+  port-layer-network:
+    users:
+      - hasan
+    conditions:
+      files:
+        includes:
+          - "cmd/vic-dns/*"
+          - "lib/dns/*"
+          - "lib/dhcp/*"
+          - "lib/portalyer/network/*"
+
+  events:
+    users:
+      - clint
+    conditions:
+      files:
+        includes:
+          - "lib/portlayer/event/*"
+
+  imagec:
+    users:
+      - zach
+    conditions:
+      files:
+        includes:
+          - "lib/imagec/*"
