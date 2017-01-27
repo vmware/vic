@@ -162,13 +162,10 @@ func eventCallback(ie events.Event) {
 				}()
 			case StateRemoved:
 				log.Debugf("Container(%s) %s via event activity", container, newState)
-				if container.vm != nil {
-					isFixing := container.vm.Fixing.Load()
-					if isFixing != nil && isFixing.(bool) {
-						// is fixing vm, which will be registered back soon, so do not remove from containers cache
-						log.Debugf("Container(%s) %s is being fixed", container.ExecConfig.ID)
-						break
-					}
+				if container.vm != nil && container.vm.IsFixing() {
+					// is fixing vm, which will be registered back soon, so do not remove from containers cache
+					log.Debugf("Container(%s) %s is being fixed", container.ExecConfig.ID)
+					break
 				}
 				Containers.Remove(container.ExecConfig.ID)
 				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())

@@ -54,8 +54,8 @@ type VirtualMachine struct {
 
 	*session.Session
 
-	// Fixing is true means the VM will be unregistered and registered back.
-	Fixing *atomic.Value
+	// fxing is 1 means this vm is fixing for it's in invalid status. 0 means not in fixing status
+	fixing int32
 }
 
 // NewVirtualMachine returns a NewVirtualMachine object
@@ -67,7 +67,6 @@ func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *
 	return &VirtualMachine{
 		VirtualMachine: vm,
 		Session:        session,
-		Fixing:         &atomic.Value{},
 	}
 }
 
@@ -470,6 +469,18 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 	return object.NewTask(vm.Vim25(), res.Returnval), nil
 }
 
+func (vm *VirtualMachine) IsFixing() bool {
+	return vm.fixing > 0
+}
+
+func (vm *VirtualMachine) EnterFixingState() {
+	atomic.AddInt32(&vm.fixing, 1)
+}
+
+func (vm *VirtualMachine) LeaveFixingState() {
+	atomic.StoreInt32(&vm.fixing, 0)
+}
+
 // FixInvalidState fix vm invalid state issue through unregister & register
 func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 	log.Debugf("Fix invalid state VM: %s", vm.Reference())
@@ -489,9 +500,8 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 
 	name := mvm.Summary.Config.Name
 	log.Debugf("Unregister VM %s", name)
-	vm.Fixing.Store(true)
-	defer vm.Fixing.Store(false)
-
+	vm.EnterFixingState()
+	defer vm.LeaveFixingState()
 	if err := vm.Unregister(ctx); err != nil {
 		log.Errorf("Unable to unregister vm %q: %s", name, err)
 		return err

@@ -448,6 +448,20 @@ func TestBfsSnapshotTree(t *testing.T) {
 }
 
 // TestProperties test vm.properties happy path and fix vm path
+func TestIsFixing(t *testing.T) {
+	mo := types.ManagedObjectReference{Type: "vm", Value: "12"}
+	v := object.NewVirtualMachine(nil, mo)
+	vm := NewVirtualMachineFromVM(nil, nil, v)
+	assert.False(t, vm.IsFixing(), "new vm should not in fixing status")
+	vm.EnterFixingState()
+	assert.True(t, vm.IsFixing(), "vm should be in fixing status")
+	vm.EnterFixingState()
+	assert.True(t, vm.IsFixing(), "vm should be in fixing status")
+	vm.LeaveFixingState()
+	assert.False(t, vm.IsFixing(), "vm should not be in fixing status")
+}
+
+// TestProperties test vm.properties happy path and fix vm path
 func TestProperties(t *testing.T) {
 	ctx := context.Background()
 
