@@ -148,7 +148,7 @@ groups:
 
   vendor:
     users:
-      - mwilliamson
+      - mdubya66
     conditions:
       files:
         includes:
