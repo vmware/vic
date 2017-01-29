@@ -220,11 +220,8 @@ func verifyParavirtualScsiController(op trace.Operation, vm *vm.VirtualMachine) 
 	return controller, formatString, nil
 }
 
-// Find the disk by name attached to the given vm.
-func findDisk(op trace.Operation, vm *vm.VirtualMachine, name string) (*types.VirtualDisk, error) {
+func findDisk(op trace.Operation, vm *vm.VirtualMachine, filter func(diskName string) bool) ([]*types.VirtualDisk, error) {
 	defer trace.End(trace.Begin(vm.String()))
-
-	op.Debugf("Looking for attached disk matching filename %s", name)
 
 	devices, err := vm.Device(op)
 	if err != nil {
@@ -242,14 +239,48 @@ func findDisk(op trace.Operation, vm *vm.VirtualMachine, name string) (*types.Vi
 			return false
 		}
 
-		op.Debugf("backing file name %s", backing.VirtualDeviceFileBackingInfo.FileName)
-		match := strings.HasSuffix(backing.VirtualDeviceFileBackingInfo.FileName, name)
-		if match {
-			op.Debugf("Found candidate disk for %s at %s", name, backing.VirtualDeviceFileBackingInfo.FileName)
+		backingFileName := backing.VirtualDeviceFileBackingInfo.FileName
+		op.Debugf("backing file name %s", backingFileName)
+
+		return filter(backingFileName)
+	})
+
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	disks := make([]*types.VirtualDisk, len(candidates))
+	for idx, disk := range candidates {
+		d, ok := disk.(*types.VirtualDisk)
+		if !ok {
+			// will never happen
+			return nil, fmt.Errorf("can't assert disk")
 		}
 
+		disks[idx] = d
+	}
+
+	return disks, nil
+}
+
+// Find the disk by name attached to the given vm.
+func findDiskByFilename(op trace.Operation, vm *vm.VirtualMachine, name string) (*types.VirtualDisk, error) {
+	defer trace.End(trace.Begin(vm.String()))
+
+	op.Debugf("Looking for attached disk matching filename %s", name)
+
+	candidates, err := findDisk(op, vm, func(diskName string) bool {
+		match := strings.HasSuffix(diskName, name)
+		if match {
+			op.Debugf("Found candidate disk for %s at %s", name, diskName)
+		}
 		return match
 	})
+
+	if err != nil {
+		op.Errorf("error finding disk: %s", err.Error())
+		return nil, err
+	}
 
 	if len(candidates) == 0 {
 		op.Errorf("No disks match name: %s", name)
@@ -260,5 +291,22 @@ func findDisk(op trace.Operation, vm *vm.VirtualMachine, name string) (*types.Vi
 		return nil, errors.Errorf("Too many disks match name: %s", name)
 	}
 
-	return candidates[0].(*types.VirtualDisk), nil
+	return candidates[0], nil
+}
+
+func findAllDisks(op trace.Operation, vm *vm.VirtualMachine) ([]*types.VirtualDisk, error) {
+	defer trace.End(trace.Begin(vm.String()))
+
+	op.Debugf("Looking for all attached disks")
+
+	candidates, err := findDisk(op, vm, func(diskName string) bool {
+		return true
+	})
+
+	if err != nil {
+		op.Errorf("error finding disk: %s", err.Error())
+		return nil, err
+	}
+
+	return candidates, nil
 }

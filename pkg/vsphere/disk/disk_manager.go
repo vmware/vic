@@ -72,6 +72,12 @@ func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, err
 		controller:   controller,
 		byPathFormat: byPathFormat,
 	}
+
+	// Remove any attached disks
+	if err = d.detachAll(op); err != nil {
+		return nil, err
+	}
+
 	return d, nil
 }
 
@@ -275,35 +281,12 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 		return errors.Trace(err)
 	}
 
-	spec := types.VirtualMachineConfigSpec{}
-
-	disk, err := findDisk(op, m.vm, d.DatastoreURI)
+	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI)
 	if err != nil {
 		return errors.Trace(err)
 	}
 
-	config := []types.BaseVirtualDeviceConfigSpec{
-		&types.VirtualDeviceConfigSpec{
-			Device:    disk,
-			Operation: types.VirtualDeviceConfigSpecOperationRemove,
-		},
-	}
-
-	spec.DeviceChange = config
-
-	m.reconfig.Lock()
-	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		t, er := m.vm.Reconfigure(ctx, spec)
-
-		if t != nil {
-			op.Debugf("Detach reconfigure task=%s", t.Reference())
-		}
-
-		return t, er
-	})
-	m.reconfig.Unlock()
-
-	if err != nil {
+	if err = m.detach(op, disk); err != nil {
 		op.Errorf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
@@ -318,8 +301,52 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	return d.setDetached()
 }
 
+func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
+
+	config := []types.BaseVirtualDeviceConfigSpec{
+		&types.VirtualDeviceConfigSpec{
+			Device:    disk,
+			Operation: types.VirtualDeviceConfigSpecOperationRemove,
+		},
+	}
+
+	spec := types.VirtualMachineConfigSpec{}
+	spec.DeviceChange = config
+
+	m.reconfig.Lock()
+	_, err := m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+		t, er := m.vm.Reconfigure(ctx, spec)
+
+		if t != nil {
+			op.Debugf("Detach reconfigure task=%s", t.Reference())
+		}
+
+		return t, er
+	})
+	m.reconfig.Unlock()
+
+	return err
+}
+
+// detachAll detaches all disks from this vm
+func (m *Manager) detachAll(op trace.Operation) error {
+	disks, err := findAllDisks(op, m.vm)
+	if err != nil {
+		return err
+	}
+
+	for _, disk := range disks {
+		if err = m.detach(op, disk); err != nil {
+			op.Errorf("error detaching disk: %s", err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI string) (string, error) {
-	disk, err := findDisk(op, m.vm, datastoreURI)
+	disk, err := findDiskByFilename(op, m.vm, datastoreURI)
 	if err != nil {
 		op.Errorf("findDisk failed for %s with %s", datastoreURI, errors.ErrorStack(err))
 		return "", errors.Trace(err)
