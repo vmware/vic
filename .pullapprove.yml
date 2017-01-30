@@ -129,7 +129,7 @@ groups:
           - "cmd/vic-dns/*"
           - "lib/dns/*"
           - "lib/dhcp/*"
-          - "lib/portalyer/network/*"
+          - "lib/portlayer/network/*"
 
   events:
     users:
