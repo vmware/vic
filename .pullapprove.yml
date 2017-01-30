@@ -63,6 +63,8 @@ groups:
         includes:
           - "cmd/toolbox/*"
           - "cmd/vcsim/*"
+          - "pkg/vsphere/simulator/*"
+          - "pkg/vsphere/toolbox/*"
 
   docker-persona:
     users:
@@ -71,6 +73,7 @@ groups:
       files:
         includes:
           - "lib/apiservers/engine/*"
+          - "cmd/docker/*"
         excludes:
           - "lib/apiservers/portlayer/*"
 
