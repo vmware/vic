@@ -1,8 +1,8 @@
 version: 2
 group_defaults:
-  required: 1
+  required: 2
   author_approval:
-    ignored: true
+    auto: true
   approve_by_comment:
     enabled: true
     approve_regex: 'Approved|:shipit:|:sheep::it:|:\+1:|LGTM|lgtm'
