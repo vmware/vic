@@ -291,12 +291,10 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 		return errors.Trace(err)
 	}
 
-	func() {
-		select {
-		case <-m.maxAttached:
-		default:
-		}
-	}()
+	select {
+	case <-m.maxAttached:
+	default:
+	}
 
 	return d.setDetached()
 }
@@ -336,13 +334,14 @@ func (m *Manager) detachAll(op trace.Operation) error {
 	}
 
 	for _, disk := range disks {
-		if err = m.detach(op, disk); err != nil {
-			op.Errorf("error detaching disk: %s", err.Error())
-			return err
+		if er := m.detach(op, disk); err != nil {
+			// late exit on error
+			op.Errorf("error detaching disk: %s", er.Error())
+			err = er
 		}
 	}
 
-	return nil
+	return err
 }
 
 func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI string) (string, error) {

@@ -251,13 +251,7 @@ func findDisk(op trace.Operation, vm *vm.VirtualMachine, filter func(diskName st
 
 	disks := make([]*types.VirtualDisk, len(candidates))
 	for idx, disk := range candidates {
-		d, ok := disk.(*types.VirtualDisk)
-		if !ok {
-			// will never happen
-			return nil, fmt.Errorf("can't assert disk")
-		}
-
-		disks[idx] = d
+		disks[idx] = disk.(*types.VirtualDisk)
 	}
 
 	return disks, nil
@@ -299,7 +293,7 @@ func findAllDisks(op trace.Operation, vm *vm.VirtualMachine) ([]*types.VirtualDi
 
 	op.Debugf("Looking for all attached disks")
 
-	candidates, err := findDisk(op, vm, func(diskName string) bool {
+	disks, err := findDisk(op, vm, func(diskName string) bool {
 		return true
 	})
 
@@ -308,5 +302,5 @@ func findAllDisks(op trace.Operation, vm *vm.VirtualMachine) ([]*types.VirtualDi
 		return nil, err
 	}
 
-	return candidates, nil
+	return disks, nil
 }
