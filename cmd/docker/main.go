@@ -49,9 +49,12 @@ import (
 )
 
 type CliOptions struct {
-	serverPort    uint
-	portLayerAddr string
-	proto         string
+	serverPort    *uint
+	portLayerAddr *string
+	portLayerPort *uint
+	debug         *bool
+
+	proto string
 }
 
 const (
@@ -59,12 +62,24 @@ const (
 	clientHostName = "client.localhost"
 )
 
-var vchConfig config.VirtualContainerHostConfigSpec
+var (
+	vchConfig config.VirtualContainerHostConfigSpec
+	cli       CliOptions
+)
 
 func init() {
 	log.SetFormatter(viclog.NewTextFormatter())
 	trace.Logger.Level = log.DebugLevel
 	pprof.StartPprof("docker personality", pprof.DockerPort)
+
+	flag.Usage = Usage
+
+	_ = flag.String("serveraddr", "127.0.0.1", "Server address to listen") // ignored
+	cli.serverPort = flag.Uint("port", 9000, "Port to listen")
+	cli.portLayerAddr = flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
+	cli.portLayerPort = flag.Uint("port-layer-port", 9001, "Port Layer server port")
+
+	cli.debug = flag.Bool("debug", false, "Enable debuglevel logging")
 }
 
 func Usage() {
@@ -75,18 +90,18 @@ func Usage() {
 
 func main() {
 	// Get flags
-	cli, ok := handleFlags()
+	ok := handleFlags()
 
 	if !ok {
 		os.Exit(1)
 	}
 
-	if err := vicbackends.Init(cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
+	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
 	// Start API server wit options from command line args
-	api := startServerWithOptions(cli)
+	api := startServer()
 
 	setAPIRoutes(api)
 
@@ -100,16 +115,7 @@ func main() {
 	<-serveAPIWait
 }
 
-func handleFlags() (*CliOptions, bool) {
-	flag.Usage = Usage
-
-	_ = flag.String("serveraddr", "127.0.0.1", "Server address to listen") // ignored
-	serverPort := flag.Uint("port", 9000, "Port to listen")
-	portLayerAddr := flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
-	portLayerPort := flag.Uint("port-layer-port", 9001, "Port Layer server port")
-
-	debug := flag.Bool("debug", false, "Enable debuglevel logging")
-
+func handleFlags() bool {
 	flag.Parse()
 
 	// load the vch config
@@ -119,17 +125,14 @@ func handleFlags() (*CliOptions, bool) {
 	}
 	extraconfig.Decode(src, &vchConfig)
 
-	if *debug || vchConfig.Diagnostics.DebugLevel > 0 {
+	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	cli := &CliOptions{
-		serverPort:    *serverPort,
-		portLayerAddr: fmt.Sprintf("%s:%d", *portLayerAddr, *portLayerPort),
-		proto:         "tcp",
-	}
+	*cli.portLayerAddr = fmt.Sprintf("%s:%d", *cli.portLayerAddr, *cli.portLayerPort)
+	cli.proto = "tcp"
 
-	return cli, true
+	return true
 }
 
 func loadCAPool() *x509.CertPool {
@@ -149,7 +152,7 @@ func loadCAPool() *x509.CertPool {
 	return pool
 }
 
-func startServerWithOptions(cli *CliOptions) *apiserver.Server {
+func startServer() *apiserver.Server {
 	serverConfig := &apiserver.Config{
 		Logging: true,
 		Version: "1.22", //dockerversion.Version,
@@ -224,7 +227,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 	}
 
 	api := apiserver.New(serverConfig)
-	fullserver := fmt.Sprintf("%s:%d", addr, cli.serverPort)
+	fullserver := fmt.Sprintf("%s:%d", addr, *cli.serverPort)
 	l, err := listeners.Init(cli.proto, fullserver, "", serverConfig.TLSConfig)
 	if err != nil {
 		log.Fatal(err)

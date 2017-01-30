@@ -32,15 +32,12 @@ import (
 
 var (
 	options = dns.ServerOptions{}
+	parser  *flags.Parser
+	server  *restapi.Server
 )
 
 func init() {
 	log.SetFormatter(viclog.NewTextFormatter())
-
-	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
-}
-
-func main() {
 
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
@@ -48,10 +45,9 @@ func main() {
 	}
 
 	api := operations.NewPortLayerAPI(swaggerSpec)
-	server := restapi.NewServer(api)
-	defer server.Shutdown()
+	server = restapi.NewServer(api)
 
-	parser := flags.NewParser(server, flags.Default)
+	parser = flags.NewParser(server, flags.Default)
 	parser.ShortDescription = `Port Layer API`
 	parser.LongDescription = `Port Layer API`
 
@@ -64,15 +60,18 @@ func main() {
 		}
 	}
 
+}
+
+func main() {
 	if _, err := parser.Parse(); err != nil {
-		code := 1
-		if fe, ok := err.(*flags.Error); ok {
-			if fe.Type == flags.ErrHelp {
-				code = 0
-			}
+		if err := err.(*flags.Error); err != nil && err.Type == flags.ErrHelp {
+			os.Exit(0)
 		}
-		os.Exit(code)
+
+		os.Exit(1)
 	}
+
+	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	server.ConfigureAPI()
 
@@ -89,6 +88,8 @@ func main() {
 	// handle the signals and gracefully shutdown the server
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+	defer server.Shutdown()
 
 	go func() {
 		<-sig
