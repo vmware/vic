@@ -321,6 +321,12 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	// we also need to have the appliance attached to the bridge network to allow
 	// port forwarding
 	conf.AddNetwork(bridgeNet)
+
+	// make sure that the bridge IP pool is large enough for bridge networks
+	err = v.checkBridgeIPRange(input.BridgeIPRange)
+	if err != nil {
+		v.NoteIssue(err)
+	}
 	conf.BridgeIPRange = input.BridgeIPRange
 
 	log.Debug("Network configuration:")
@@ -434,6 +440,19 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *config.Virtu
 	defer trace.End(trace.Begin(""))
 
 	return input.DisplayName
+}
+
+// checkBridgeIPRange verifies that the bridge network pool is large enough
+// port layer currently defaults to /16 for bridge network so pool must be >= /16
+func (v *Validator) checkBridgeIPRange(bridgeIPRange *net.IPNet) error {
+	if bridgeIPRange == nil {
+		return nil
+	}
+	ones, _ := bridgeIPRange.Mask.Size()
+	if ones > 16 {
+		return fmt.Errorf("Specified bridge network range is not large enough for the default bridge network size. --bridge-network-range must be /16 or larger network.")
+	}
+	return nil
 }
 
 // getNetwork gets a moref based on the network name
