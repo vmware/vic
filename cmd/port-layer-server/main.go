@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,16 +32,14 @@ import (
 )
 
 var (
-	options = dns.ServerOptions{}
+	options    = dns.ServerOptions{}
+	parser     *flags.Parser
+	server     *restapi.Server
+	argsParsed bool
 )
 
 func init() {
 	log.SetFormatter(viclog.NewTextFormatter())
-
-	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
-}
-
-func main() {
 
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
@@ -48,10 +47,9 @@ func main() {
 	}
 
 	api := operations.NewPortLayerAPI(swaggerSpec)
-	server := restapi.NewServer(api)
-	defer server.Shutdown()
+	server = restapi.NewServer(api)
 
-	parser := flags.NewParser(server, flags.Default)
+	parser = flags.NewParser(server, flags.Default)
 	parser.ShortDescription = `Port Layer API`
 	parser.LongDescription = `Port Layer API`
 
@@ -64,6 +62,28 @@ func main() {
 		}
 	}
 
+}
+
+// parseArgs parses command line options using the go-flags package,
+// retaining options that are unknown in a format that can be
+// understood by the standard flags package
+func parseArgs(unkFlags map[string]interface{}) ([]string, error) {
+	argsParsed = true
+	var unkArgs []string
+	parser.UnknownOptionHandler = func(option string, arg flags.SplitArgument, args []string) ([]string, error) {
+		if _, ok := unkFlags[option]; ok {
+			unkArgs = append(unkArgs, "-"+option)
+			val, exists := arg.Value()
+			if exists {
+				unkArgs = append(unkArgs, val)
+			}
+
+			return args, nil
+		}
+
+		return nil, fmt.Errorf("unknown option %s", option)
+	}
+
 	if _, err := parser.Parse(); err != nil {
 		code := 1
 		if fe, ok := err.(*flags.Error); ok {
@@ -73,6 +93,19 @@ func main() {
 		}
 		os.Exit(code)
 	}
+
+	return unkArgs, nil
+}
+
+func main() {
+
+	defer server.Shutdown()
+
+	if !argsParsed {
+		parseArgs(nil)
+	}
+
+	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	server.ConfigureAPI()
 
