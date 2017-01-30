@@ -57,6 +57,7 @@ const (
 	containerLogName         = "output.log"
 
 	vmNotSuspendedKey = "msg.suspend.powerOff.notsuspended"
+	vmPoweringOffKey  = "msg.rpc.error.poweringoff"
 )
 
 func (s State) String() string {
