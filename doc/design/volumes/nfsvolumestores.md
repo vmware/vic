@@ -102,3 +102,5 @@ Whether the `VolumeStore` implementation uses the local VCH to mount the NFS or 
     * Answer: Needs investigation.  What is RO here (the target or the directory) and what would the container user want to see or expect when such a target was used?
  1. Failure handling;  what do we do if a mount is unavailable, does the container go down?
     * Answer:  Needs investigation.  We're relying on the kernel nfs client in the container to handle failures to the target.  There is little we can do during run-time, but we can check availability during container create at a minimum.
+ 1. NFS target mount options-  How do you pass a `uid`/`gid` or `nosquash` mapping?  How do you map `uid`/`gid` to the container at all?
+    * Answer:  Requirement and usage needs to be thought through at a higher level.  Mapping of users into containers and mapping of credentials into containers need to be solved in the system as a whole.
