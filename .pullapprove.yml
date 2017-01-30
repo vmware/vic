@@ -15,7 +15,7 @@ groups:
       - caglar10ur
     conditions:
       files:
-        includes:
+        include:
           - "cmd/tether/*"
           - "lib/tether/*"
 
@@ -24,7 +24,7 @@ groups:
       - mhagen-vmware
     conditions:
       files:
-        includes:
+        include:
           - "demos/*"
           - "infra/*"
           - "tests/*"
@@ -34,7 +34,7 @@ groups:
       - hickeng
     conditions:
       files:
-        includes:
+        include:
           - "doc/design/*"
 
   docs:
@@ -42,9 +42,9 @@ groups:
       - stuclem
     conditions:
       files:
-        includes:
+        include:
           - "doc/*"
-        excludes:
+        exclude:
           - "doc/design/*"
 
   nightlies:
@@ -52,7 +52,7 @@ groups:
       - rajanashok
     conditions:
       files:
-        includes:
+        include:
           - "tests/nightly/*"
 
   vcsim:
@@ -60,7 +60,7 @@ groups:
       - dougm
     conditions:
       files:
-        includes:
+        include:
           - "cmd/toolbox/*"
           - "cmd/vcsim/*"
           - "pkg/vsphere/simulator/*"
@@ -71,10 +71,10 @@ groups:
       - sflxn
     conditions:
       files:
-        includes:
+        include:
           - "lib/apiservers/engine/*"
           - "cmd/docker/*"
-        excludes:
+        exclude:
           - "lib/apiservers/portlayer/*"
 
   install:
@@ -82,7 +82,7 @@ groups:
       - emlin
     conditions:
       files:
-        includes:
+        include:
           - "cmd/vic-machine/*"
           - "lib/install/*"
 
@@ -91,7 +91,7 @@ groups:
       - jzt
     conditions:
       files:
-        includes:
+        include:
           - "cmd/vicadmin/*"
           - "lib/vicadmin/*"
           - "isos/vicadmin/*"
@@ -101,7 +101,7 @@ groups:
       - caglar10ur
     conditions:
       files:
-        includes:
+        include:
           - "lib/portlayer/attach/*"
           - "lib/portlayer/exec/*"
           - "lib/portlayer/exec2/*"
@@ -111,7 +111,7 @@ groups:
       - fdawg4l
     conditions:
       files:
-        includes:
+        include:
           - "lib/portlayer/storage/*"
 
   port-layer-store:
@@ -119,7 +119,7 @@ groups:
       - cgtexmex
     conditions:
       files:
-        includes:
+        include:
           - "lib/portlayer/store/*"
 
 
@@ -128,7 +128,7 @@ groups:
       - hmahmood
     conditions:
       files:
-        includes:
+        include:
           - "cmd/vic-dns/*"
           - "lib/dns/*"
           - "lib/dhcp/*"
@@ -139,7 +139,7 @@ groups:
       - cgtexmex
     conditions:
       files:
-        includes:
+        include:
           - "lib/portlayer/event/*"
 
   imagec:
@@ -147,7 +147,7 @@ groups:
       - jzt
     conditions:
       files:
-        includes:
+        include:
           - "lib/imagec/*"
 
   vendor:
@@ -155,14 +155,14 @@ groups:
       - mdubya66
     conditions:
       files:
-        includes:
+        include:
           - "vendor/*"
   ui:
     users:
       - jooskim
     conditions:
       files:
-        includes:
+        include:
           - "ui/*"
 
   ui-cmd:
@@ -170,5 +170,5 @@ groups:
       - andrewtchin
     conditions:
       files:
-        includes:
+        include:
           - "cmd/vic-ui/*"
