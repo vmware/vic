@@ -27,6 +27,7 @@ groups:
         includes:
           - "demos/*"
           - "infra/*"
+          - "tests/*"
 
   design-docs:
     users:
