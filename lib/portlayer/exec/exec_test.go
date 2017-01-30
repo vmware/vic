@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,4 +80,39 @@ func TestPublishContainerEvent(t *testing.T) {
 
 func containerCallback(ee events.Event) {
 	containerEvents = append(containerEvents, ee)
+}
+
+func TestVMRemovedEventCallback(t *testing.T) {
+
+	NewContainerCache()
+	containerEvents = make([]events.Event, 0)
+	Config = Configuration{}
+
+	mgr := event.NewEventManager()
+	Config.EventManager = mgr
+	// subscribe the exec layer to the event stream for Vm events
+	mgr.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "testing", eventCallback)
+
+	// create new running container and place in cache
+	id := "123439"
+	container := newTestContainer(id)
+	addTestVM(container)
+	container.SetState(StateRunning)
+	Containers.Put(container)
+
+	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
+	time.Sleep(time.Millisecond * 30)
+	assert.True(t, Containers.Container(id) == nil, "Container should be removed")
+
+	Containers.put(container)
+	container.vm.EnterFixingState()
+	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
+	time.Sleep(time.Millisecond * 30)
+	assert.True(t, Containers.Container(id) != nil, "Container should not be removed in fixing status")
+
+	container.vm.LeaveFixingState()
+	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
+	time.Sleep(time.Millisecond * 30)
+	assert.True(t, Containers.Container(id) == nil, "Container should be removed if not in fixing status")
+
 }
