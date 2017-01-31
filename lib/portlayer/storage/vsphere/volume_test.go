@@ -17,7 +17,6 @@ package vsphere
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"testing"
 
@@ -38,12 +37,6 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 
 	op := trace.NewOperation(context.Background(), "test")
 
-	// Create the backing store on vsphere
-	vsVolumeStore, err := NewVolumeStore(op, client)
-	if !assert.NoError(t, err) || !assert.NotNil(t, vsVolumeStore) {
-		return
-	}
-
 	// Root our datastore
 	testStorePath := datastore.TestName("voltest")
 	ds, err := datastore.NewHelper(op, client, client.Datastore, testStorePath)
@@ -51,21 +44,9 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		return
 	}
 
-	// Add a volume store and give it a name ("testStoreName")
-	volumeStore, err := vsVolumeStore.AddStore(op, ds, "testStoreName")
-	if !assert.NoError(t, err) || !assert.NotNil(t, volumeStore) {
-		return
-	}
-
-	// test we can list it
-	m, err := vsVolumeStore.VolumeStoresList(op)
-	if !assert.NoError(t, err) || !assert.NotNil(t, m) {
-		return
-	}
-
-	// test the returned url matches
-	s, ok := m["testStoreName"]
-	if !assert.True(t, ok) || !assert.Equal(t, testStorePath, filepath.Base(s.String())) {
+	// Create the backing store on vsphere
+	vsVolumeStore, err := NewVolumeStore(op, "testStoreName", client, ds)
+	if !assert.NoError(t, err) || !assert.NotNil(t, vsVolumeStore) {
 		return
 	}
 
@@ -78,8 +59,20 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	}()
 
 	// Create the cache
-	cache, err := portlayer.NewVolumeLookupCache(op, vsVolumeStore)
-	if !assert.NoError(t, err) || !assert.NotNil(t, cache) {
+	cache := portlayer.NewVolumeLookupCache(op)
+	if !assert.NotNil(t, cache) {
+		return
+	}
+
+	// add the vs to the cache and assert the url matches
+	storeURL, err := cache.AddStore(op, "testStoreName", vsVolumeStore)
+	if !assert.NoError(t, err) || !assert.Equal(t, vsVolumeStore.SelfLink, storeURL) {
+		return
+	}
+
+	// test we can list it
+	m, err := cache.VolumeStoresList(op)
+	if !assert.NoError(t, err) || !assert.Len(t, m, 1) || !assert.Equal(t, m[0], "testStoreName") {
 		return
 	}
 
@@ -101,7 +94,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 				info[ID] = []byte(ID)
 			}
 
-			outVol, err := cache.VolumeCreate(op, ID, volumeStore, 10240, info)
+			outVol, err := cache.VolumeCreate(op, ID, storeURL, 10240, info)
 			if !assert.NoError(t, err) || !assert.NotNil(t, outVol) {
 				return
 			}
@@ -127,17 +120,18 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	// Test restart
 
 	// Create a new vs and cache to the same datastore (simulating restart) and compare
-	secondVStore, err := NewVolumeStore(op, client)
+	secondVStore, err := NewVolumeStore(op, "testStoreName", client, ds)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vsVolumeStore) {
 		return
 	}
 
-	volumeStore, err = secondVStore.AddStore(op, ds, "testStoreName")
-	if !assert.NoError(t, err) || !assert.NotNil(t, volumeStore) {
+	secondCache := portlayer.NewVolumeLookupCache(op)
+	if !assert.NotNil(t, secondCache) {
 		return
 	}
-	secondCache, err := portlayer.NewVolumeLookupCache(op, secondVStore)
-	if !assert.NoError(t, err) || !assert.NotNil(t, cache) {
+
+	_, err = secondCache.AddStore(op, "testStore", secondVStore)
+	if !assert.NoError(t, err) {
 		return
 	}
 

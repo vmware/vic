@@ -68,7 +68,6 @@ func TestMain(t *testing.T) {
 		}
 
 		validator.DisableFirewallCheck = true
-		validator.DisableDRSCheck = true
 
 		conf, err := validator.Validate(ctx, input)
 		if err != nil {
@@ -76,8 +75,7 @@ func TestMain(t *testing.T) {
 			validator.ListIssues()
 		}
 
-		// FIXME: get host NetworkSystem failed in simulator
-		//		testCreateNetwork(ctx, validator.Session, conf, t)
+		testCreateNetwork(ctx, validator.Session, conf, t)
 
 		testCreateVolumeStores(ctx, validator.Session, conf, false, t)
 		testDeleteVolumeStores(ctx, validator.Session, conf, 1, t)
@@ -112,7 +110,7 @@ func getVPXData(url *url.URL) *data.Data {
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
 	result.PublicNetwork.Name = "VM Network"
-	result.BridgeNetworkName = "bridge"
+	result.BridgeNetworkName = "DC0_DVPG0"
 	result.VolumeLocations = make(map[string]string)
 	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
@@ -164,16 +162,20 @@ func testCreateNetwork(ctx context.Context, sess *session.Session, conf *config.
 	}
 
 	err := d.createBridgeNetwork(conf)
-	if d.isVC && err != nil {
-		t.Logf("Got exepcted err: %s", err)
-		return
-	}
-	if d.isVC {
-		t.Errorf("Should not create network in VC")
-		return
-	}
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Error(err)
+	}
+
+	if d.isVC {
+		bnet := conf.ExecutorConfig.Networks[conf.BridgeNetwork]
+		delete(conf.ExecutorConfig.Networks, conf.BridgeNetwork)
+
+		err = d.createBridgeNetwork(conf)
+		if err == nil {
+			t.Error("expected error")
+		}
+
+		conf.ExecutorConfig.Networks[conf.BridgeNetwork] = bnet
 	}
 }
 
@@ -213,7 +215,6 @@ func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *co
 
 }
 
-// FIXME: Failed to find IDE controller in simulator, so create appliance failed
 func testCreateAppliance(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
@@ -221,10 +222,10 @@ func testCreateAppliance(ctx context.Context, sess *session.Session, conf *confi
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
-	delete(conf.Networks, "bridge") // FIXME: cannot create bridge network right now
+
 	d.vchPool = d.session.Pool
 	err := d.createAppliance(conf, vConf)
 	if err != nil {
-		t.Logf("Expected error: %s", err)
+		t.Error(err)
 	}
 }

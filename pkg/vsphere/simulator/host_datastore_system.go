@@ -64,6 +64,8 @@ func (dss *HostDatastoreSystem) add(ds *Datastore) *soap.Fault {
 
 	dss.Datastore = append(dss.Datastore, ds.Self)
 	dss.Host.Datastore = dss.Datastore
+	parent := hostParent(dss.Host)
+	parent.Datastore = AddReference(ds.Self, parent.Datastore)
 
 	browser := &HostDatastoreBrowser{}
 	browser.Datastore = dss.Datastore

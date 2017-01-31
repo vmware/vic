@@ -328,3 +328,104 @@ func TestGenResponses_Issue718_Required(t *testing.T) {
 		}
 	}
 }
+
+func TestGenResponses_Issue776_Spec(t *testing.T) {
+	b, err := opBuilder("GetItem", "../fixtures/bugs/776/spec.yaml")
+	if assert.NoError(t, err) {
+		op, err := b.MakeOperation()
+		if assert.NoError(t, err) {
+			var buf bytes.Buffer
+			opts := opts()
+			if assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op)) {
+				ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					assertInCode(t, "Payload *GetItemOKBody", string(ff))
+					assertNotInCode(t, "type GetItemOKBody struct", string(ff))
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+			var buf2 bytes.Buffer
+			if assert.NoError(t, templates.MustGet("serverOperation").Execute(&buf2, op)) {
+				ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf2.Bytes())
+				if assert.NoError(t, err) {
+					assertInCode(t, "type GetItemOKBody struct", string(ff))
+				} else {
+					fmt.Println(buf2.String())
+				}
+			}
+		}
+	}
+}
+
+func TestGenResponses_Issue776_SwaggerTemplate(t *testing.T) {
+	b, err := opBuilder("getHealthy", "../fixtures/bugs/776/swagger-template.yml")
+	if assert.NoError(t, err) {
+		op, err := b.MakeOperation()
+		if assert.NoError(t, err) {
+			var buf bytes.Buffer
+			opts := opts()
+			if assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op)) {
+				ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					assertInCode(t, "Payload *models.Error", string(ff))
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+		}
+	}
+}
+
+func TestIssue846(t *testing.T) {
+	// do it 8 times, to ensure it's always in the same order
+	for i := 0 ; i < 8 ; i++ {
+		b, err := opBuilder("getFoo", "../fixtures/bugs/846/swagger.yml")
+		if assert.NoError(t, err) {
+			op, err := b.MakeOperation()
+			if assert.NoError(t, err) {
+				var buf bytes.Buffer
+				opts := opts()
+				if assert.NoError(t, templates.MustGet("clientResponse").Execute(&buf, op)) {
+					ff, err := opts.LanguageOpts.FormatContent("do_empty_responses.go", buf.Bytes())
+					if assert.NoError(t, err) {
+						// sorted by code
+						assert.Regexp(t, "(?s)" +
+							"GetFooOK struct.+" +
+							"GetFooNotFound struct.+" +
+							"GetFooInternalServerError struct", string(ff))
+						// sorted by name
+						assert.Regexp(t, "(?s)" +
+							"GetFooInternalServerErrorBody struct.+" +
+							"GetFooNotFoundBody struct.+" +
+							"GetFooOKBody struct", string(ff))
+					} else {
+						fmt.Println(buf.String())
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestIssue881(t *testing.T) {
+	b, err := opBuilder("getFoo", "../fixtures/bugs/881/swagger.yml")
+	if assert.NoError(t, err) {
+		op, err := b.MakeOperation()
+		if assert.NoError(t, err) {
+			var buf bytes.Buffer
+			assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op))
+		}
+	}
+}
+
+func TestIssue881Deep(t *testing.T) {
+	b, err := opBuilder("getFoo", "../fixtures/bugs/881/deep.yml")
+	if assert.NoError(t, err) {
+		op, err := b.MakeOperation()
+		if assert.NoError(t, err) {
+			var buf bytes.Buffer
+			assert.NoError(t, templates.MustGet("serverResponses").Execute(&buf, op))
+		}
+	}
+}

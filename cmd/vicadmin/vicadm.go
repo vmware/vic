@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import (
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/certificate"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -102,6 +103,8 @@ type logfile struct {
 }
 
 func init() {
+	log.SetFormatter(viclog.NewTextFormatter())
+
 	defer trace.End(trace.Begin(""))
 	trace.Logger.Level = log.DebugLevel
 	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)

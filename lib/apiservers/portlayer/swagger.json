@@ -1,5 +1,6 @@
 {
 	"swagger": "2.0",
+	"basePath": "/",
 	"info": {
 		"description": "Port Layer API",
 		"title": "Port Layer API",
@@ -481,7 +482,7 @@
 				}
 			}
 		},
-		"/storage/volumestores/": {
+		"/storage/volumestores": {
 			"get": {
 				"description": "Get a list of available volume store locations",
 				"operationId": "VolumeStoresList",
@@ -517,7 +518,7 @@
 				}
 			}
 		},
-		"/storage/volumes/": {
+		"/storage/volumes": {
 			"get": {
 				"description": "Get a list of available volumes",
 				"operationId": "ListVolumes",
@@ -2654,8 +2655,8 @@
 			],
 			"properties": {
 				"Stores": {
-					"type": "object",
-					"additionalProperties": {
+					"type": "array",
+					"items": {
 						"type": "string"
 					}
 				}

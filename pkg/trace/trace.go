@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,12 +40,9 @@ var Logger = &logrus.Logger{
 	Out: os.Stderr,
 	// We're using our own text formatter to skip the \n and \t escaping logrus
 	// was doing on non TTY Out (we redirect to a file) descriptors.
-	Formatter: &log.TextFormatter{
-		Timestamp:       true,
-		TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00",
-	},
-	Hooks: make(logrus.LevelHooks),
-	Level: logrus.InfoLevel,
+	Formatter: log.NewTextFormatter(),
+	Hooks:     make(logrus.LevelHooks),
+	Level:     logrus.InfoLevel,
 }
 
 // trace object used to grab run-time state

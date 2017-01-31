@@ -18,11 +18,13 @@ Vagrant.configure(2) do |config|
 
     vic_dev.vm.provider :virtualbox do |v, _override|
       v.memory = 2048
+      v.cpus = 2
     end
 
     [:vmware_fusion, :vmware_workstation].each do |visor|
       vic_dev.vm.provider visor do |v, _override|
         v.memory = 2048
+        v.cpus = 2
       end
     end
 

@@ -38,7 +38,7 @@ Complex VSAN
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    ${datastore}=  Run  govc ls -t Datastore host/cluster-vsan-1/* | grep -v local | xargs -n1 basename | sort | uniq | grep vsan
+    ${datastore}=  Run  govc ls -t Datastore host/cluster-vsan-1/* | grep -v local | cut -d '/' -f 6 | sort | uniq | grep vsan
     Set Environment Variable  TEST_DATASTORE  "${datastore}"
     Set Environment Variable  TEST_RESOURCE  cluster-vsan-1
     Set Environment Variable  TEST_TIMEOUT  30m

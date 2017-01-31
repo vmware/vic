@@ -166,6 +166,19 @@ func (r *Registry) FindByName(name string, refs []types.ManagedObjectReference) 
 	return nil
 }
 
+// FindReference returns the 1st match found in refs, or nil if not found.
+func FindReference(refs []types.ManagedObjectReference, match ...types.ManagedObjectReference) *types.ManagedObjectReference {
+	for _, ref := range refs {
+		for _, m := range match {
+			if ref == m {
+				return &ref
+			}
+		}
+	}
+
+	return nil
+}
+
 // RemoveReference returns a slice with ref removed from refs
 func RemoveReference(ref types.ManagedObjectReference, refs []types.ManagedObjectReference) []types.ManagedObjectReference {
 	var result []types.ManagedObjectReference
@@ -180,6 +193,15 @@ func RemoveReference(ref types.ManagedObjectReference, refs []types.ManagedObjec
 	}
 
 	return result
+}
+
+// AddReference returns a slice with ref appended if not already in refs.
+func AddReference(ref types.ManagedObjectReference, refs []types.ManagedObjectReference) []types.ManagedObjectReference {
+	if FindReference(refs, ref) == nil {
+		return append(refs, ref)
+	}
+
+	return refs
 }
 
 func (r *Registry) content() types.ServiceContent {

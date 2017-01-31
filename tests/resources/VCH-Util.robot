@@ -52,6 +52,25 @@ Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Environment Variable  VCH-NAME  ${name}
 
+Set List Of Env Variables
+    [Arguments]  ${vars}
+    @{vars}=  Split String  ${vars}
+    :FOR  ${var}  IN  @{vars}
+    \   ${varname}  ${varval}=  Split String  ${var}  =
+    \   Set Environment Variable  ${varname}  ${varval}
+
+Parse Environment Variables
+    [Arguments]  ${line}
+    #  If using the old logging format
+    ${status}=  Run Keyword And Return Status  Should Contain  ${line}  mINFO
+    ${logdeco}  ${vars}=  Run Keyword If  ${status}  Split String  ${line}  ${SPACE}  1
+    Run Keyword If  ${status}  Set List Of Env Variables  ${vars}
+    Return From Keyword If  ${status}
+    
+    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
+    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  ${SPACE}  5
+    Set List Of Env Variables  ${vars}
+
 Get Docker Params
     # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
     [Arguments]  ${output}  ${certs}
@@ -63,12 +82,7 @@ Get Docker Params
     # Ensure we start from a clean slate with docker env vars
     Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
 
-    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
-    ${logdeco}  ${vars}=  Split String  ${line}  ${SPACE}  1
-    ${vars}=  Split String  ${vars}
-    :FOR  ${var}  IN  @{vars}
-    \   ${varname}  ${varval}=  Split String  ${var}  =
-    \   Set Environment Variable  ${varname}  ${varval}
+    Parse Environment Variables  ${line}
 
     ${dockerHost}=  Get Environment Variable  DOCKER_HOST
 
@@ -85,11 +99,11 @@ Get Docker Params
     \   ${idx} =  Evaluate  ${index} + 1
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
 
-    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}
+    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}  ${SPACE}  1
     ${ext-ip} =  Strip String  ${ext-ip}
     Set Environment Variable  EXT-IP  ${ext-ip}
 
-    ${rest}  ${vic-admin}=  Split String From Right  ${line}
+    ${rest}  ${vic-admin}=  Split String From Right  ${line}  ${SPACE}  1
     Set Environment Variable  VIC-ADMIN  ${vic-admin}
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
@@ -147,6 +161,9 @@ Gather Logs From Test Server
     ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs.zip
     Log  ${out}
     Remove File  vic-admin-cookies
+    ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware.log
+    Should Contain  ${out}  OK
+    ${out}=  Run  sshpass -p %{TEST_PASSWORD} scp %{TEST_USERNAME}@%{TEST_URL}:/var/log/vmkernel.log ./vmkernel.log
 
 Check For The Proper Log Files
     [Arguments]  ${container}
@@ -202,6 +219,7 @@ Cleanup Datastore On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   Log To Console  Removing the following item from datastore: ${item}
     \   ${out}=  Run  govc datastore.rm ${item}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${item}
 
 Cleanup Dangling VMs On Test Server
     ${out}=  Run  govc ls vm
@@ -217,6 +235,7 @@ Cleanup Dangling VMs On Test Server
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
@@ -273,3 +292,4 @@ Cleanup Dangling Containers On Test Server
     \   ${out}=  Run  govc vm.destroy ${vm}
     \   ${name}=  Fetch From Right  ${vm}  /
     \   ${out}=  Run  govc datastore.rm ${name}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${name}

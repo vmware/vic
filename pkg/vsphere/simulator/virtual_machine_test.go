@@ -24,7 +24,9 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 )
 
 func TestCreateVm(t *testing.T) {
@@ -234,5 +236,89 @@ func TestCreateVm(t *testing.T) {
 		if err == nil {
 			t.Error("expected error")
 		}
+	}
+}
+
+func TestReconfigVm(t *testing.T) {
+	ctx := context.Background()
+
+	m := ESX()
+	defer m.Remove()
+	err := m.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	c, err := govmomi.NewClient(ctx, s.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	finder := find.NewFinder(c.Client, false)
+	finder.SetDatacenter(object.NewDatacenter(c.Client, esx.Datacenter.Reference()))
+
+	vms, err := finder.VirtualMachineList(ctx, "*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vm := vms[0]
+	device, err := vm.Device(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// verify default device list
+	_, err = device.FindIDEController("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// VM should have the default list of devices + 1 NIC created by the Model
+	if len(device) != len(esx.VirtualDevice)+1 {
+		t.Error("device list mismatch")
+	}
+
+	d := device.FindByKey(esx.EthernetCard.Key)
+
+	err = vm.AddDevice(ctx, d)
+	if _, ok := err.(task.Error).Fault().(*types.InvalidDeviceSpec); !ok {
+		t.Fatalf("err=%v", err)
+	}
+
+	err = vm.RemoveDevice(ctx, false, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	device, err = vm.Device(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(device) != len(esx.VirtualDevice) {
+		t.Error("device list mismatch")
+	}
+
+	// cover the path where the simulator assigns a UnitNumber
+	d.GetVirtualDevice().UnitNumber = nil
+	// cover the path where the simulator assigns a Key
+	d.GetVirtualDevice().Key = -1
+
+	err = vm.AddDevice(ctx, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	device, err = vm.Device(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(device) != len(esx.VirtualDevice)+1 {
+		t.Error("device list mismatch")
 	}
 }

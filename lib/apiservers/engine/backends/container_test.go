@@ -665,3 +665,31 @@ func TestPortInformation(t *testing.T) {
 	ports = portInformation(mockContainerInfo, ips)
 	assert.Equal(t, len(ports), 2, "Expected 2 port binding, found %d", len(ports))
 }
+
+// TestCreateConfigNetowrkMode() whether the HostConfig.NetworkMode is set correctly in ValidateCreateConfig()
+func TestCreateConfigNetworkMode(t *testing.T) {
+
+	// mock a container create config
+	mockConfig := types.ContainerCreateConfig{
+		HostConfig: &container.HostConfig{},
+		Config: &container.Config{
+			Image: "busybox",
+		},
+		NetworkingConfig: &dnetwork.NetworkingConfig{
+			EndpointsConfig: map[string]*dnetwork.EndpointSettings{
+				"net1": {},
+			},
+		},
+	}
+
+	validateCreateConfig(&mockConfig)
+
+	assert.Equal(t, mockConfig.HostConfig.NetworkMode.NetworkName(), "net1", "expected NetworkMode is net1, found %s", mockConfig.HostConfig.NetworkMode)
+
+	// container connects to two network endpoints; check for NetworkMode error
+	mockConfig.NetworkingConfig.EndpointsConfig["net2"] = &dnetwork.EndpointSettings{}
+
+	err := validateCreateConfig(&mockConfig)
+
+	assert.Contains(t, err.Error(), "NetworkMode error", "error (%s) should have 'NetworkMode error'", err.Error())
+}

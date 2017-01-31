@@ -49,7 +49,7 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 	}
 	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); !ok {
+		if !isManagedObjectNotFoundError(err) {
 			err = errors.Errorf("Failed to query appliance (%q): %s", moref, err)
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		return nil, err
 	}
 	if vmm == nil {
-		err = errors.Errorf("Didn't find VM %q in resource pool %q", name, rp.Name())
+		err = errors.Errorf("Didn't find VM %q in resource pool %q", name, rp.Reference())
 		log.Error(err)
 		return nil, err
 	}

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+   vic plugin metadata.
+   The <plugin> tag doesn't contain any moduleUri property because it is an HTML plugin.
+-->
+
+<plugin id="com.vmware.vic.ui"
+      defaultBundle="com_vmware_vic">
+
+   <resources>
+      <resource locale="{locale}">
+         <module uri="locales/vic-{locale}.swf"/>
+      </resource>
+   </resources>
+
+   <dependencies>
+      <!-- Allow HTML Client to display plugin icons in menus, shortcuts, object lists -->
+      <dependency type="css" uri="vic/assets/css/plugin-icons.css" />
+   </dependencies>
+
+   <extension id="com.vmware.vic.containerSummaryView">
+      <extendedPoint>vsphere.core.vm.summarySectionViews.html</extendedPoint>
+      <object>
+         <name>#{container.label}</name>
+         <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">
+            <object>
+               <root>
+                  <url>/vsphere-client/vic/resources/build-dev</url>
+               </root>
+            </object>
+         </componentClass>
+      </object>
+      <metadata>
+         <objectType>VirtualMachine</objectType>
+         <propertyConditions>
+            <com.vmware.data.query.CompositeConstraint>
+               <nestedConstraints>
+                  <com.vmware.data.query.PropertyConstraint>
+                     <propertyName>isContainer</propertyName>
+                     <comparator>EQUALS</comparator>
+                     <comparableValue>
+                        <Boolean>true</Boolean>
+                     </comparableValue>
+                  </com.vmware.data.query.PropertyConstraint>
+               </nestedConstraints>
+	       <conjoiner>AND</conjoiner>
+            </com.vmware.data.query.CompositeConstraint>
+         </propertyConditions>
+      </metadata>
+   </extension>
+
+   <extension id="com.vmware.vic.vchSummaryView">
+      <extendedPoint>vsphere.core.vm.summarySectionViews.html</extendedPoint>
+      <object>
+         <name>#{vch.label}</name>
+         <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">
+            <object>
+               <root>
+                  <url>/vsphere-client/vic/resources/build-dev</url>
+               </root>
+            </object>
+         </componentClass>
+      </object>
+      <metadata>
+         <objectType>VirtualMachine</objectType>
+         <propertyConditions>
+            <com.vmware.data.query.CompositeConstraint>
+               <nestedConstraints>
+                  <com.vmware.data.query.PropertyConstraint>
+                     <propertyName>isVCH</propertyName>
+                     <comparator>EQUALS</comparator>
+                     <comparableValue>
+                        <Boolean>true</Boolean>
+                     </comparableValue>
+                  </com.vmware.data.query.PropertyConstraint>
+               </nestedConstraints>
+               <conjoiner>AND</conjoiner>
+            </com.vmware.data.query.CompositeConstraint>
+         </propertyConditions>
+      </metadata>
+   </extension>
+
+</plugin>

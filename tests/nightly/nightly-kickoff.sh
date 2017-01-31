@@ -105,7 +105,7 @@ do
     fi	
 done
 
-echo "Global Nightly Test Status-$buildStatus"
+echo "Global Nightly Test Status $buildStatus"
 
 drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $input" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 

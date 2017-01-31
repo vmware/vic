@@ -45,17 +45,23 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 	testLabels["TestMeta"] = "custom info about my volume"
 
 	testDriverArgs := make(map[string]string)
-	testDriverArgs["testArg"] = "important driver stuff"
+	testDriverArgs["testarg"] = "important driver stuff"
 	testDriverArgs[OptsVolumeStoreKey] = "testStore"
 	testDriverArgs[OptsCapacityKey] = "12MB"
 
 	testRequest, err := newVolumeCreateReq("testName", "vsphere", testDriverArgs, testLabels)
+	if !assert.Error(t, err) {
+		return
+	}
+
+	delete(testDriverArgs, "testarg")
+	testRequest, err = newVolumeCreateReq("testName", "vsphere", testDriverArgs, testLabels)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	assert.Equal(t, "testName", testRequest.Name)
-	assert.Equal(t, "important driver stuff", testRequest.DriverArgs["testArg"])
+	assert.Equal(t, "", testRequest.DriverArgs["testarg"]) // unsupported keys should just be empty
 	assert.Equal(t, "testStore", testRequest.Store)
 	assert.Equal(t, "vsphere", testRequest.Driver)
 	assert.Equal(t, int64(12), testRequest.Capacity)
@@ -169,4 +175,20 @@ func TestExtractDockerMetadata(t *testing.T) {
 	assert.Equal(t, metaDataBefore.Labels["someLabel"], metadataAfter.Labels["someLabel"])
 	assert.Equal(t, metaDataBefore.Name, metadataAfter.Name)
 	assert.Equal(t, metaDataBefore.Driver, metadataAfter.Driver)
+}
+
+func TestNormalizeDriverArgs(t *testing.T) {
+	testOptMap := make(map[string]string)
+	testOptMap["VOLUMESTORE"] = "foo"
+	testOptMap["CAPACITY"] = "bar"
+
+	normalizeDriverArgs(testOptMap)
+
+	assert.Equal(t, testOptMap["volumestore"], "foo")
+	assert.Equal(t, testOptMap["capacity"], "bar")
+
+	testOptMap["bogus"] = "bogus"
+
+	err := normalizeDriverArgs(testOptMap)
+	assert.Error(t, err, "expected: bogus is not a supported option")
 }

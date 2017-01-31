@@ -157,6 +157,19 @@ type operationGenerator struct {
 	GenOpts              *GenOpts
 }
 
+func intersectTags(left, right []string) (filtered []string) {
+	if len(right) == 0 {
+		filtered = left[:]
+		return
+	}
+	for _, l := range left {
+		if containsString(right, l) {
+			filtered = append(filtered, l)
+		}
+	}
+	return
+}
+
 func (o *operationGenerator) Generate() error {
 	// Build a list of codegen operations based on the tags,
 	// the tag decides the actual package for an operation
@@ -185,38 +198,22 @@ func (o *operationGenerator) Generate() error {
 	bldr.DefaultConsumes = o.DefaultConsumes
 	bldr.IncludeValidator = o.IncludeValidator
 
-	for _, tag := range o.Operation.Tags {
-		if len(o.Tags) == 0 {
-			bldr.APIPackage = o.GenOpts.LanguageOpts.MangleName(swag.ToFileName(tag), o.APIPackage)
-			op, err := bldr.MakeOperation()
-			if err != nil {
-				return err
-			}
-
-			operations = append(operations, op)
-			continue
-		}
-		for _, ft := range o.Tags {
-			if ft == tag {
-				bldr.APIPackage = o.GenOpts.LanguageOpts.MangleName(swag.ToFileName(tag), o.APIPackage)
-				op, err := bldr.MakeOperation()
-				if err != nil {
-					return err
-				}
-				op.Tags = o.Tags
-				operations = append(operations, op)
-				break
-			}
-		}
+	bldr.APIPackage = bldr.RootAPIPackage
+	st := o.Tags
+	if o.GenOpts != nil {
+		st = o.GenOpts.Tags
 	}
-	if len(operations) == 0 {
-		bldr.APIPackage = o.APIPackage
-		op, err := bldr.MakeOperation()
-		if err != nil {
-			return err
-		}
-		operations = append(operations, op)
+	intersected := intersectTags(o.Operation.Tags, st)
+	if len(intersected) == 1 {
+		tag := intersected[0]
+		bldr.APIPackage = o.GenOpts.LanguageOpts.MangleName(swag.ToFileName(tag), o.APIPackage)
 	}
+	op, err := bldr.MakeOperation()
+	if err != nil {
+		return err
+	}
+	op.Tags = intersected
+	operations = append(operations, op)
 	sort.Sort(operations)
 
 	for _, op := range operations {
@@ -390,10 +387,11 @@ func (b *codeGenOpBuilder) MakeOperation() (GenOperation, error) {
 		prin = iface
 	}
 
-	var extra []GenSchema
+	var extra GenSchemaList
 	for _, sch := range b.ExtraSchemas {
 		extra = append(extra, sch)
 	}
+	sort.Sort(extra)
 
 	swsp := resolver.Doc.Spec()
 	var extraSchemes []string
@@ -549,19 +547,32 @@ func (b *codeGenOpBuilder) MakeResponse(receiver, name string, isSuccess bool, r
 	sort.Sort(res.Headers)
 
 	if resp.Schema != nil {
+		var named bool
+		rslv := resolver
+		sch := resp.Schema
+		if resp.Schema.Ref.String() != "" && !resp.Schema.Ref.HasFragmentOnly {
+			ss, err := spec.ResolveRefWithBase(b.Doc.Spec(), &resp.Schema.Ref, &spec.ExpandOptions{RelativeBase: b.Doc.SpecFilePath()})
+			if err != nil {
+				return GenResponse{}, err
+			}
+			sch = ss
+			named = true
+			rslv = resolver.NewWithModelName(name + "Body")
+		}
+
 		sc := schemaGenContext{
 			Path:             fmt.Sprintf("%q", name),
 			Name:             name + "Body",
 			Receiver:         receiver,
 			ValueExpr:        receiver,
 			IndexVar:         "i",
-			Schema:           *resp.Schema,
-			Required:         true,
-			TypeResolver:     resolver,
-			Named:            false,
+			Schema:           *sch,
+			Required:         !named,
+			TypeResolver:     rslv,
+			Named:            named,
 			ExtraSchemas:     make(map[string]GenSchema),
 			IncludeModel:     true,
-			IncludeValidator: b.IncludeValidator,
+			IncludeValidator: true,
 		}
 		if err := sc.makeGenSchema(); err != nil {
 			return GenResponse{}, err
@@ -575,6 +586,12 @@ func (b *codeGenOpBuilder) MakeResponse(receiver, name string, isSuccess bool, r
 		}
 
 		schema := sc.GenSchema
+		if named {
+			if b.ExtraSchemas == nil {
+				b.ExtraSchemas = make(map[string]GenSchema)
+			}
+			b.ExtraSchemas[schema.Name] = schema
+		}
 		if schema.IsAnonymous {
 
 			schema.Name = swag.ToGoName(sc.Name)
@@ -602,6 +619,7 @@ func (b *codeGenOpBuilder) MakeHeader(receiver, name string, hdr spec.Header) (G
 
 	tpe := typeForHeader(hdr) //simpleResolvedType(hdr.Type, hdr.Format, hdr.Items)
 
+	id := swag.ToGoName(name)
 	res := GenHeader{
 		sharedValidations: sharedValidations{
 			Required:            true,
@@ -623,9 +641,10 @@ func (b *codeGenOpBuilder) MakeHeader(receiver, name string, hdr spec.Header) (G
 		resolvedType:     tpe,
 		Package:          b.APIPackage,
 		ReceiverName:     receiver,
-		ID:               swag.ToGoName(name),
+		ID:               id,
 		Name:             name,
 		Path:             fmt.Sprintf("%q", name),
+		ValueExpression:  fmt.Sprintf("%s.%s", receiver, id),
 		Description:      trimBOM(hdr.Description),
 		Default:          hdr.Default,
 		HasDefault:       hdr.Default != nil,
@@ -775,16 +794,29 @@ func (b *codeGenOpBuilder) MakeParameter(receiver string, resolver *typeResolver
 	}
 
 	if param.In == "body" {
+		var named bool
+		rslv := resolver
+		sch := param.Schema
+		if sch.Ref.String() != "" && !sch.Ref.HasFragmentOnly {
+			ss, err := spec.ResolveRefWithBase(b.Doc.Spec(), &sch.Ref, &spec.ExpandOptions{RelativeBase: b.Doc.SpecFilePath()})
+			if err != nil {
+				return GenParameter{}, err
+			}
+			sch = ss
+			named = true
+			rslv = resolver.NewWithModelName(b.Operation.ID + "ParamsBody")
+		}
+
 		sc := schemaGenContext{
 			Path:             res.Path,
-			Name:             res.Name,
+			Name:             b.Operation.ID + "ParamsBody",
 			Receiver:         res.ReceiverName,
 			ValueExpr:        res.ReceiverName,
 			IndexVar:         res.IndexVar,
-			Schema:           *param.Schema,
+			Schema:           *sch,
 			Required:         param.Required,
-			TypeResolver:     resolver,
-			Named:            false,
+			TypeResolver:     rslv,
+			Named:            named,
 			IncludeModel:     true,
 			IncludeValidator: b.IncludeValidator,
 			ExtraSchemas:     make(map[string]GenSchema),
@@ -794,6 +826,12 @@ func (b *codeGenOpBuilder) MakeParameter(receiver string, resolver *typeResolver
 		}
 
 		schema := sc.GenSchema
+		if named {
+			if b.ExtraSchemas == nil {
+				b.ExtraSchemas = make(map[string]GenSchema)
+			}
+			b.ExtraSchemas[b.Operation.ID+"ParamsBody"] = schema
+		}
 		if schema.IsAnonymous {
 			schema.Name = swag.ToGoName(b.Operation.ID + " Body")
 			nm := schema.Name

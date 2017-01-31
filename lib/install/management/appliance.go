@@ -35,8 +35,8 @@ import (
 	"github.com/docker/docker/opts"
 	dockertypes "github.com/docker/engine-api/types"
 
-	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
@@ -329,6 +329,15 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	return spec.VirtualMachineConfigSpec, nil
 }
 
+func isManagedObjectNotFoundError(err error) bool {
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound)
+		return ok
+	}
+
+	return false
+}
+
 func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -343,7 +352,7 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 	}
 	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); !ok {
+		if !isManagedObjectNotFoundError(err) {
 			err = errors.Errorf("Failed to query appliance (%q): %s", moref, err)
 			return nil, err
 		}

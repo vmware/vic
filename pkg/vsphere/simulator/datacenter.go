@@ -15,8 +15,11 @@
 package simulator
 
 import (
+	"strings"
+
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 )
 
 // Create Datacenter Folders.
@@ -47,17 +50,25 @@ func createDatacenterFolders(dc *mo.Datacenter, isVC bool) {
 			ref := e.Reference()
 			f.ref.Type = ref.Type
 			f.ref.Value = ref.Value
-
-			// Add VM Network by default to each Datacenter
-			if f.ref == &dc.NetworkFolder {
-				network := &mo.Network{}
-				network.Name = "VM Network"
-				folder.putChild(network)
-			}
 		} else {
 			folder.ChildType = f.types[:1]
 			folder.Self = *f.ref
 			Map.PutEntity(dc, folder)
 		}
+	}
+
+	net := Map.Get(dc.NetworkFolder).(*Folder)
+
+	for _, ref := range esx.Datacenter.Network {
+		// Add VM Network by default to each Datacenter
+		network := &mo.Network{}
+		network.Self = ref
+		network.Name = strings.Split(ref.Value, "-")[1]
+		network.Entity().Name = network.Name
+		if isVC {
+			network.Self.Value = "" // we want a different moid per-DC
+		}
+
+		net.putChild(network)
 	}
 }

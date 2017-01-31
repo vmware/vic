@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -149,6 +149,8 @@ func (c *containerBase) startGuestProgram(ctx context.Context, name string, args
 }
 
 func (c *containerBase) start(ctx context.Context) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
@@ -300,9 +302,12 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 			case *types.GenericVmConfigFault:
 
 				// Check if the poweroff task was canceled due to a concurrent guest shutdown
-				if len(terr.FaultMessage) > 0 && terr.FaultMessage[0].Key == vmNotSuspendedKey {
-					log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
-					return nil
+				if len(terr.FaultMessage) > 0 {
+					k := terr.FaultMessage[0].Key
+					if k == vmNotSuspendedKey || k == vmPoweringOffKey {
+						log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
+						return nil
+					}
 				}
 				log.Warnf("generic vm config fault during power off: %#v", terr)
 

@@ -42,9 +42,6 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(op trace.Operation) ([]*Volume, error)
-
-	// List the configured volume stores
-	VolumeStoresList(op trace.Operation) (map[string]url.URL, error)
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI

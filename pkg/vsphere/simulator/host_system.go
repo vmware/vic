@@ -15,7 +15,6 @@
 package simulator
 
 import (
-	"strings"
 	"time"
 
 	"github.com/vmware/govmomi/vim25/mo"
@@ -55,22 +54,25 @@ func NewHostSystem(host mo.HostSystem) *HostSystem {
 	return hs
 }
 
+func hostParent(host *mo.HostSystem) *mo.ComputeResource {
+	switch parent := Map.Get(*host.Parent).(type) {
+	case *mo.ComputeResource:
+		return parent
+	case *ClusterComputeResource:
+		return &parent.ComputeResource
+	default:
+		return nil
+	}
+}
+
 // CreateDefaultESX creates a standalone ESX
 // Adds objects of type: Datacenter, Network, ComputeResource, ResourcePool and HostSystem
 func CreateDefaultESX(f *Folder) {
 	dc := &esx.Datacenter
-	createDatacenterFolders(dc, false)
 	f.putChild(dc)
+	createDatacenterFolders(dc, false)
 
 	host := NewHostSystem(esx.HostSystem)
-
-	for _, ref := range host.Network {
-		network := &mo.Network{}
-		network.Self = ref
-		network.Name = strings.Split(ref.Value, "-")[1]
-		network.Entity().Name = network.Name
-		Map.Get(dc.NetworkFolder).(*Folder).putChild(network)
-	}
 
 	cr := &mo.ComputeResource{}
 	cr.Self = *host.Parent

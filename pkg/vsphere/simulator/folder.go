@@ -20,6 +20,7 @@ import (
 	"path"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -32,6 +33,24 @@ type Folder struct {
 	m sync.Mutex
 }
 
+// update references when objects are added/removed from a Folder
+func (f *Folder) update(o mo.Reference, u func(types.ManagedObjectReference, []types.ManagedObjectReference) []types.ManagedObjectReference) {
+	ref := o.Reference()
+
+	if f.Parent == nil || ref.Type == "Datacenter" {
+		return // don't bother with Datacenter or the root folder
+	}
+
+	dc := Map.getEntityDatacenter(f)
+
+	switch ref.Type {
+	case "Network", "DistributedVirtualSwitch", "DistributedVirtualPortgroup":
+		dc.Network = u(ref, dc.Network)
+	case "Datastore":
+		dc.Datastore = u(ref, dc.Datastore)
+	}
+}
+
 func (f *Folder) putChild(o mo.Entity) {
 	Map.PutEntity(f, o)
 
@@ -39,6 +58,8 @@ func (f *Folder) putChild(o mo.Entity) {
 	defer f.m.Unlock()
 
 	f.ChildEntity = append(f.ChildEntity, o.Reference())
+
+	f.update(o, AddReference)
 }
 
 func (f *Folder) removeChild(o mo.Reference) {
@@ -48,6 +69,8 @@ func (f *Folder) removeChild(o mo.Reference) {
 	defer f.m.Unlock()
 
 	f.ChildEntity = RemoveReference(o.Reference(), f.ChildEntity)
+
+	f.update(o, RemoveReference)
 }
 
 func (f *Folder) hasChildType(kind string) bool {
@@ -198,7 +221,9 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 		vm.Runtime.Host = c.req.Host
 	}
 
+	vm.Summary.Config.VmPathName = vm.Config.Files.VmPathName
 	vm.Summary.Runtime.Host = vm.Runtime.Host
+	vm.Parent = &c.Folder.Self
 
 	err = vm.create(&c.req.Config, c.register)
 	if err != nil {
@@ -343,9 +368,11 @@ func (f *Folder) CreateDVSTask(c *types.CreateDVS_Task) soap.HasFault {
 			return nil, &types.InvalidArgument{InvalidProperty: "name"}
 		}
 
+		dvs.Uuid = uuid.New().String()
+
 		f.putChild(dvs)
 
-		return nil, nil
+		return dvs.Reference(), nil
 	})
 
 	task.Run()

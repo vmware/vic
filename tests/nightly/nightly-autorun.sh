@@ -20,6 +20,11 @@ git checkout master
 git remote update
 git rebase upstream/master
 
+# pull in ui test dependencies
+git checkout -f ui-nightlytest/ui-tests \
+                ui/vic-uia \
+                ui/vic-ui-h5c/uia
+
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
 sudo ./tests/nightly/nightly-kickoff.sh > nightly_$now.txt

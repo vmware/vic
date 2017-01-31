@@ -113,7 +113,6 @@ func TestMain(t *testing.T) {
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = `😗`
 
 		validator.DisableFirewallCheck = true
-		validator.DisableDRSCheck = true
 		t.Logf("session pool: %s", validator.Session.Pool)
 		if err = createPool(ctx, validator.Session, input.ComputeResourcePath, "validator", t); err != nil {
 			t.Errorf("Unable to create resource pool: %s", err)
@@ -122,7 +121,6 @@ func TestMain(t *testing.T) {
 		conf := testCompute(validator, input, t)
 		testTargets(validator, input, conf, t)
 		testStorage(validator, input, conf, t)
-		//		testNetwork() need dvs support
 	}
 }
 

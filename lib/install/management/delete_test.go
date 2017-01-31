@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
@@ -77,7 +78,6 @@ func TestDelete(t *testing.T) {
 		}
 
 		validator.DisableFirewallCheck = true
-		validator.DisableDRSCheck = true
 
 		conf, err := validator.Validate(ctx, input)
 		if err != nil {
@@ -85,10 +85,11 @@ func TestDelete(t *testing.T) {
 			validator.ListIssues()
 		}
 
+		testCreateNetwork(ctx, validator.Session, conf, t)
 		createAppliance(ctx, validator.Session, conf, installSettings, false, t)
-		// FIXME: cannot check if it's VCH or not
-		// testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
-		//	testDeleteVCH(validator, conf, t)
+
+		testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
+		testDeleteVCH(validator, conf, t)
 
 		testDeleteDatastoreFiles(validator, t)
 	}
@@ -103,7 +104,7 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *config.Vi
 		isVC:    sess.IsVC(),
 		force:   false,
 	}
-	delete(conf.Networks, "bridge") // FIXME: cannot create bridge network in simulator
+
 	if d.isVC {
 		if d.vchVapp, err = d.createVApp(conf, vConf); err != nil {
 			// FIXME: Got error: ServerFaultCode: ResourcePool:resourcepool-14 does not implement: CreateVApp. Simulator need to implement CreateVApp
@@ -154,9 +155,21 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *config.Vi
 		t.Errorf("Unable to create volume stores: %s", err)
 		return
 	}
+
+	spec, err = d.reconfigureApplianceSpec(vm2, conf, vConf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// reconfig
+	_, err = vm2.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		return vm2.Reconfigure(ctx, *spec)
+	})
+	if err != nil {
+		t.Error(err)
+	}
 }
 
-// FIXME: cannot fetch extra config in simulator
 func testNewVCHFromCompute(computePath string, name string, v *validate.Validator, t *testing.T) {
 	d := &Dispatcher{
 		session: v.Session,
@@ -186,13 +199,12 @@ func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfi
 	}
 	t.Logf("Successfully deleted VCH")
 	// check images directory is removed
-	_, err := d.lsFolder(v.Session.Datastore, "VIC")
+	dsPath := "[LocalDS_0] VIC"
+	_, err := d.lsFolder(v.Session.Datastore, dsPath)
 	if err != nil {
-		// FIXME: simulator didn't return FileNotFound error here
-		//		if !types.IsFileNotFound(err) {
-		//			t.Errorf("Failed to browse folder %s: %s", "VIC", errors.ErrorStack(err))
-		//			return
-		//		}
+		if !types.IsFileNotFound(err) {
+			t.Errorf("Failed to browse folder %s: %s", dsPath, errors.ErrorStack(err))
+		}
 		t.Logf("Images Folder is not found")
 	}
 
@@ -201,10 +213,10 @@ func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfi
 	if vm != nil {
 		t.Errorf("Should not found vm %s", vm.Reference())
 	}
-	// FIXME: simulator didn't return NotFoundError
-	//	if err != nil {
-	//		t.Errorf("Unexpected error to get appliance VM: %s", err)
-	//	}
+
+	if err != nil {
+		t.Errorf("Unexpected error to get appliance VM: %s", err)
+	}
 	// delete VM does not clean up resource pool after VM is removed, so resource pool could not be removed
 }
 

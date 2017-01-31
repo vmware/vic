@@ -102,10 +102,10 @@ func (s *Service) call(method *Method) soap.HasFault {
 	handler := Map.Get(method.This)
 
 	if handler == nil {
-		return &serverFaultBody{
-			Reason: Fault(fmt.Sprintf("no such object: %s", method.This),
-				&types.ManagedObjectNotFound{Obj: method.This}),
-		}
+		msg := fmt.Sprintf("managed object not found: %s", method.This)
+		log.Print(msg)
+		fault := &types.ManagedObjectNotFound{Obj: method.This}
+		return &serverFaultBody{Reason: Fault(msg, fault)}
 	}
 
 	name := method.Name
@@ -117,7 +117,10 @@ func (s *Service) call(method *Method) soap.HasFault {
 
 	m := reflect.ValueOf(handler).MethodByName(name)
 	if !m.IsValid() {
-		return serverFault(fmt.Sprintf("%s does not implement: %s", method.This, method.Name))
+		msg := fmt.Sprintf("%s does not implement: %s", method.This, method.Name)
+		log.Print(msg)
+		fault := &types.MethodNotFound{Receiver: method.This, Method: method.Name}
+		return &serverFaultBody{Reason: Fault(msg, fault)}
 	}
 
 	res := m.Call([]reflect.Value{reflect.ValueOf(method.Body)})
