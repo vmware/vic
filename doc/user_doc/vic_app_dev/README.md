@@ -2,6 +2,8 @@
 
 *Developing Container Applications with vSphere Integrated Containers Engine* provides information about how to use VMware vSphere&reg; Integrated Containers&trade; Engine as the endpoint for Docker container application development.
 
+For the full vSphere Integrated Containers Engine documentation set, go to https://vmware.github.io/vic-product/#getting-started.
+
 **Product version: 0.8**
 
 ## Intended Audience
