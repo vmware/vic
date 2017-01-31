@@ -298,7 +298,8 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
 			Name:     conf.Name,
-			GuestId:  "other3xLinux64Guest",
+			GuestId:  string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+			AlternateGuestName: constants.DefaultAltVCHGuestName(),
 			Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 			NumCPUs:  int32(vConf.ApplianceSize.CPU.Limit),
 			MemoryMB: vConf.ApplianceSize.Memory.Limit,
@@ -628,7 +629,8 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 
 	spec := &types.VirtualMachineConfigSpec{
 		Name:    conf.Name,
-		GuestId: "other3xLinux64Guest",
+		GuestId:  string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+		AlternateGuestName: constants.DefaultAltVCHGuestName(),
 		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
