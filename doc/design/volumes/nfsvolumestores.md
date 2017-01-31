@@ -34,13 +34,13 @@ The advantage to using the interface is the storage layer maintains consistency 
  37 »···// Creates a volume on the given volume store, of the given size, with the given metadata.
  38 »···VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error)
  39
- 40 »···// Destroys a volume 
+ 40 »···// Destroys a volume
  41 »···VolumeDestroy(op trace.Operation, vol *Volume) error
  42
- 43 »···// Lists all volumes 
+ 43 »···// Lists all volumes
  44 »···VolumesList(op trace.Operation) ([]*Volume, error)
   ...
- 48 }   
+ 48 }
 ```
 
 When we create the NFS `VolumeStore`, we'll store the NFS target parameters (`host` + `path`) in the implementation's struct.  This is the only information we'll need to mount the NFS target on the container.
