@@ -1,6 +1,6 @@
 # Specification to support containers with NFS based shared volumes in VIC
 
-Container users want to be able to access shared storage between their containers programatically.  Docker solves this by way of adding [NFS volumes](https://docs.docker.com/engine/reference/commandline/volume_create/#/driver-specific-options).  VIC can streamline this functionality for the user by abstracting this away from the container user and allowing the VI admin to configure the VCH with NFS based volumes access by way of our `VolumeStore`.  This way, the VI admin can add an NFS based VolumeStore to the VCH, and the VI admin need only create volumes on it without needing to know the details of the NFS target.
+Container users want to be able to access shared storage between their containers programatically.  Docker solves this by way of host specific bind mounts adding [NFS volumes](https://docs.docker.com/engine/reference/commandline/volume_create/#/driver-specific-options).  VIC can streamline this functionality for the user by abstracting this away from the container user and allowing the VI admin to configure the VCH with NFS based volumes access by way of our `VolumeStore`.  This way, the VI admin can add an NFS based VolumeStore to the VCH, and the container user need only create volumes on it without needing to know the details of the NFS target.
 
 ### Requirements
 
@@ -20,7 +20,7 @@ Allow the container user to
 
 ### Implementation
 
-Adding shared storage to our model fits with the `VolumeStore` interface.  At install, a VI admin can specify an NFS target as a `VolumeStore` (potentially) using a `nfs://host/<path>` URI with a volume store name.  The container user only needs to pass the volume store name as one of the `volume create` driver opts to create a volume which will be backed by this shared storage target.  Then many containers can be created with the specified volume attached.
+Adding shared storage to our model fits with the `VolumeStore` interface.  At install, a VI admin can specify an NFS target as a `VolumeStore` (potentially) using a `nfs://host/<path>` URI with a volume store name.  And provided the VCH has access to the network the target is on, the container user only needs to pass the volume store name as one of the `volume create` driver opts to create a volume which will be backed by this shared storage target.  Then many containers can be created with the specified volume attached.
 
 #### VolumeStore
 The `VolumeStore` interface is used by the storage layer to implement the volume storage layer on different backend implementations.  The currenty (and only) implementation used by VIC is to manimpulate vsphere `.vmdk` backed block devices on the Datastore.  We intend to create a similar implementation for NFSv3.
@@ -54,7 +54,7 @@ type NFSv3VolumeStore struct {
 _The implementation is still being worked on.  The open question is whether the VCH appliance will mount the target to manipulate the NFS target, or use an NFS client implementation in userspace instead.  I'd much (*MUCH*) rather do the latter.  The `linux` VFS implementation throws `sync` errors when mounts are unavailable.  And we don't want to bring down the appliance because of a network hiccup.  NFS is a simple protocol and there is a public pkg which implements most of it.  Adding the few primitives we need shouldn't be that difficult, but more evaluation of the work required is needed_
 
 #### VolumeCreate
-In the vsphere model, a volume is a `.vmdk` backed block device.  Creation of a volume entails attaching a new disk to the VCH, preparing it with a filesystem, and detaching it.  The resulting `.vmdk` lives in its own folder in the volume store directory (specified during install w/ `vic-machine`).  We're going to follow the same model except there is nothing to prepare.  Each volume will be a directory (which the container client will mount directly) and live at the top of the volume store directory (which we will prepare during install).
+In the vsphere model, a volume is a `.vmdk` backed block device.  Creation of a volume entails attaching a new disk to the VCH, preparing it with a filesystem, and detaching it.  The resulting `.vmdk` lives in its own folder in the volume store directory (specified during install w/ `vic-machine`).  We're going to follow the same model except there is nothing to prepare.  Each volume will be a directory (which the container client will mount directly) and live at the top of the volume store directory (which we will prepare during install).  We will create the directory using the NFS client and persist any metadata in an appropriate `<volumename>.meta` (name tbd) file in the root of the target location.
 
 Some psuedo code.
 ```
@@ -103,4 +103,4 @@ Whether the `VolumeStore` implementation uses the local VCH to mount the NFS or 
  1. Failure handling;  what do we do if a mount is unavailable, does the container go down?
     * Answer:  Needs investigation.  We're relying on the kernel nfs client in the container to handle failures to the target.  There is little we can do during run-time, but we can check availability during container create at a minimum.
  1. NFS target mount options-  How do you pass a `uid`/`gid` or `nosquash` mapping?  How do you map `uid`/`gid` to the container at all?
-    * Answer:  Requirement and usage needs to be thought through at a higher level.  Mapping of users into containers and mapping of credentials into containers need to be solved in the system as a whole.
+    * Answer:  Requirement and usage needs to be thought through at a higher level.  Mapping of users into containers and mapping of credentials into containers need to be solved in the system as a whole.  However things like `sync` and `retries` will be specified as a driver option invoked with `vic-machine`, and passed out of band to the container.  The container users will not be able to specify mount options specific to the target.
