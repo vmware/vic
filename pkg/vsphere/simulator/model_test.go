@@ -27,6 +27,8 @@ func compareModel(t *testing.T, m *Model) {
 		switch ref.Type {
 		case "Datacenter":
 			count.Datacenter++
+		case "DistributedVirtualPortgroup":
+			count.Portgroup++
 		case "ClusterComputeResource":
 			count.Cluster++
 		case "Datastore":
@@ -52,6 +54,7 @@ func compareModel(t *testing.T, m *Model) {
 	}{
 		{m.Datacenter, count.Datacenter, "Datacenter"},
 		{m.Cluster * m.Datacenter, count.Cluster, "Cluster"},
+		{m.Portgroup * m.Datacenter, count.Portgroup, "Portgroup"},
 		{m.Datastore, count.Datastore, "Datastore"},
 		{hosts, count.ClusterHost, "Host"},
 		{vms, count.Machine, "VirtualMachine"},
@@ -87,6 +90,33 @@ func TestModelESX(t *testing.T) {
 }
 
 func TestModelVPX(t *testing.T) {
+	m := VPX()
+
+	defer m.Remove()
+
+	err := m.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compareModel(t, m)
+}
+
+func TestModelNoSwitchVPX(t *testing.T) {
+	m := VPX()
+	m.Portgroup = 0 // disabled DVS creation
+
+	defer m.Remove()
+
+	err := m.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compareModel(t, m)
+}
+
+func TestModelCustomVPX(t *testing.T) {
 	m := &Model{
 		ServiceContent: vc.ServiceContent,
 		RootFolder:     vc.RootFolder,
@@ -97,6 +127,7 @@ func TestModelVPX(t *testing.T) {
 		Datastore:      1,
 		Machine:        3,
 		Pool:           2,
+		Portgroup:      2,
 	}
 
 	defer m.Remove()

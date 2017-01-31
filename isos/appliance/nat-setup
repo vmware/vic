@@ -32,10 +32,6 @@ echo 0 > /proc/sys/net/ipv4/conf/default/send_redirects
 echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
 echo 1 > /proc/sys/net/ipv4/conf/default/rp_filter
 
-# Log packets with impossible addresses.
-echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
-echo 1 > /proc/sys/net/ipv4/conf/default/log_martians
-
 # be verbose on dynamic ip-addresses  (not needed in case of static IP)
 echo 2 > /proc/sys/net/ipv4/ip_dynaddr
 

@@ -35,9 +35,10 @@ GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
+MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion goimports gopath govet gas golint \
+	goversion goimports gopath govet gofmt misspell gas golint \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -135,11 +136,12 @@ vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
 swagger: $(SWAGGER)
 goimports: $(GOIMPORTS)
 gas: $(GAS)
+misspell: $(MISSPELL)
 
 # convenience targets
 all: components tethers isos vic-machine vic-ui
-tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) goversion
-check: goversion goimports govet golint copyright whitespace gas
+tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
+check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -174,7 +176,11 @@ $(GOVC): vendor/manifest
 
 $(GAS): vendor/manifest
 	@echo building $(GAS)...
-	@$(GO) build $(RACE) -o $(GAS) ./vendor/github.com/HewlettPackard/gas
+	@$(GO) build $(RACE) -o $(GAS) ./vendor/github.com/GoASTScanner/gas
+
+$(MISSPELL): vendor/manifest
+	@echo building $(MISSPELL)...
+	@$(GO) build $(RACE) -o $(MISSPELL) ./vendor/github.com/client9/misspell/cmd/misspell
 
 copyright:
 	@echo "checking copyright in header..."
@@ -206,13 +212,21 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 	@! $(GOIMPORTS) -local github.com/vmware -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
 
+gofmt:
+	@echo checking gofmt...
+	@gofmt -l -s $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+
+misspell: $(MISSPELL)
+	@echo checking misspell...
+	@$(MISSPELL) -error $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
-gas:
+gas: $(GAS)
 	@echo checking security problems
-	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -exclude=*_test.go -exclude=*/*_test.go -exclude=*/*/*_test.go ./... > ../$$i.gas; popd > /dev/null; done
+	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) ./... > ../$$i.gas 2> /dev/null; popd > /dev/null; done
 
 vendor: $(GVT)
 	@echo restoring vendor
@@ -251,37 +265,37 @@ endif
 
 $(vic-init): $$(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -ldflags "$(ldflags)" -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
 
 $(tether-linux): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(ldflags) -extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(tether-windows): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(ldflags) -extldflags "-static"' -o ./$@ ./$(dir $<)
 
 # CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
 $(tether-darwin): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-darwin
-	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(ldflags) -extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(rpctool): $$(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
 $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
 $(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@$(TIME) $(GO) build $(RACE) $(ldflags) -o $@ ./cmd/docker
+	@$(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
@@ -302,7 +316,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 
 $(portlayerapi): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
-	@$(TIME) $(GO) build $(RACE) $(ldflags) -o $@ ./cmd/port-layer-server
+	@$(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o $@ ./cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
@@ -337,15 +351,15 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 
 $(vic-machine-linux): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
 $(vic-machine-windows): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine windows...
-	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
 $(vic-machine-darwin): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
-	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
 $(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go)
 	@echo building vic-ui linux...
@@ -361,15 +375,15 @@ $(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
 
 $(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
 $(vic-dns-windows): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns windows...
-	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
 $(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
-	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
 clean:
 	@echo removing binaries

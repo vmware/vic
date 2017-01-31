@@ -277,7 +277,7 @@ The following can be used for minimal customization of the generated certificate
 - `--certificate-key-size`
 
 If using a static IP for the API endpoint via the following option, a server certificate will be generated using that IP address as the Common Name unless certificates are provided
-or `--no-tlsverify` is specifed.
+or `--no-tlsverify` is specified.
 - `--client-network-ip` - IP or FQDN to use for the API endpoint
 
 

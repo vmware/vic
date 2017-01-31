@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import (
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -54,6 +55,7 @@ const (
 var vchConfig config.VirtualContainerHostConfigSpec
 
 func init() {
+	log.SetFormatter(viclog.NewTextFormatter())
 	trace.Logger.Level = log.DebugLevel
 	pprof.StartPprof("docker personality", pprof.DockerPort)
 }
@@ -128,7 +130,7 @@ func loadCAPool() *x509.CertPool {
 	pool := x509.NewCertPool()
 
 	pem := vchConfig.CertificateAuthorities
-	if pem == nil || len(pem) == 0 {
+	if len(pem) == 0 {
 		return nil
 	}
 

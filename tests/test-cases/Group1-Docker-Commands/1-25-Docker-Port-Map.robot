@@ -121,6 +121,24 @@ Remap mapped ports after OOB Stop
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
+Remap mapped ports after OOB Stop and Remove
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx1 nginx
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  5001
+
+    Power Off VM OOB  nginx1*
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm nginx1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx2 nginx
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  5001
+
 Container to container traffic via VCH public interface
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
 

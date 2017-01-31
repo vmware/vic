@@ -100,10 +100,14 @@ This test requires that a vSphere server is running and available
 
 ## Bridge network - invalid IP settings
 1. Create with bridge network correctly set
-2. Set bridge network ip range with wrong format
+2. Set bridge network IP range with wrong format
 3. Verify create failed with user-friendly error message
 
-## Bridge network - valid
+## Bridge network - invalid bridge network range
+1. Create with bridge network IP range smaller than /16
+2. Verify create failed with user-friendly error message
+
+## Bridge network - valid with IP range
 1. Create with bridge network correctly set
 2. Set bridge network ip range correctly
 3. Verify create passed

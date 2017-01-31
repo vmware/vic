@@ -260,7 +260,7 @@ func (lm *LogManager) rotateLogs() {
 		if len(output) > 0 {
 			lm.op.Debugf("Logrotate output: %s", output)
 		}
-		lm.op.Debugf("logrotate finished succesfully")
+		lm.op.Debugf("logrotate finished successfully")
 	} else {
 		lm.op.Errorf("logrotate exited with non 0 status: %v", err)
 		if len(output) > 0 {

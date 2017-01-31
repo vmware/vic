@@ -5,6 +5,12 @@ Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Default Tags
 
+*** Keywords ***
+Login And Save Cookies
+    [Tags]  secret
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
 *** Test Cases ***
 Get Login Page
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/authentication
@@ -53,27 +59,28 @@ While Logged Out Fail To Get VICAdmin Log
     Should not contain  ${output}  Launching vicadmin pprof server
     Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
-Login
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{GOVC_USERNAME} -F password=%{GOVC_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
-    Should Be Equal As Integers  ${rc}  0
-
 Display HTML
+    Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
 Get Portlayer Log
+    Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME}
     Should contain  ${output}  Launching portlayer server
 
 Get VCH-Init Log
+    Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/init.log -b /tmp/cookies-%{VCH-NAME}
     Should contain  ${output}  reaping child processes
 
 Get Docker Personality Log
+    Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME}
     Should contain  ${output}  docker personality
 
 Get Container Logs
+    Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -90,6 +97,10 @@ Get Container Logs
     Should Contain  ${output}  ${container}/tether.debug
 
 Get VICAdmin Log
+    Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b /tmp/cookies-%{VCH-NAME}
     Log  ${output}
     Should contain  ${output}  Launching vicadmin pprof server
+
+Check that VIC logs do not contain sensitive data
+    Scrape Logs For The Password

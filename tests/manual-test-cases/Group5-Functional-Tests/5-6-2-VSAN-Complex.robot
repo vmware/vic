@@ -6,6 +6,7 @@ Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Complex VSAN
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
+    Set Test Variable  ${user}  %{NIMBUS_USER}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-complex-pxeBoot-vcva --runName ${name}
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
@@ -37,7 +38,7 @@ Complex VSAN
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    ${datastore}=  Run  govc ls -t Datastore host/cluster-vsan-1/* | grep -v local | xargs -n1 basename | sort | uniq | grep vsan
+    ${datastore}=  Run  govc ls -t Datastore host/cluster-vsan-1/* | grep -v local | cut -d '/' -f 6 | sort | uniq | grep vsan
     Set Environment Variable  TEST_DATASTORE  "${datastore}"
     Set Environment Variable  TEST_RESOURCE  cluster-vsan-1
     Set Environment Variable  TEST_TIMEOUT  30m

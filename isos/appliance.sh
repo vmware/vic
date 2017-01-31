@@ -63,6 +63,9 @@ unpack $PACKAGE $PKGDIR
 # Below: the image authoring
 #################################################################
 
+# sysctl
+cp $DIR/appliance/sysctl.conf $(rootfs_dir $PKGDIR)/etc/
+
 ## systemd configuration
 # create systemd vic target
 cp ${DIR}/appliance/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/
@@ -73,7 +76,7 @@ mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
 ln -s /etc/systemd/system/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 ln -s /etc/systemd/system/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 ln -s /etc/systemd/system/permissions.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
-ln -s /etc/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+ln -s /lib/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 
 # disable networkd given we manage the link state directly
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
@@ -98,12 +101,23 @@ rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 
 chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
 chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -G systemd-journal -m -d /home/vicadmin -s /bin/false vicadmin
+
+# Group vic should be used to run all VIC related services.
+chroot $(rootfs_dir $PKGDIR) groupadd -g 1001 vic
+chroot $(rootfs_dir $PKGDIR) usermod -a -G vic vicadmin
+
 cp -R ${DIR}/vicadmin/* $(rootfs_dir $PKGDIR)/home/vicadmin
 chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
+
 # so vicadmin can read the system journal via journalctl
 install -m 755 -d $(rootfs_dir $PKGDIR)/etc/tmpfiles.d
 echo "m  /var/log/journal/%m/system.journal 2755 root systemd-journal - -" > $(rootfs_dir $PKGDIR)/etc/tmpfiles.d/systemd.conf
 
+chroot $(rootfs_dir $PKGDIR) mkdir -p /var/run/lock
+chroot $(rootfs_dir $PKGDIR) chmod 1777 /var/run/lock
+chroot $(rootfs_dir $PKGDIR) touch /var/run/lock/logrotate_run.lock
+chroot $(rootfs_dir $PKGDIR) chown root:vic /var/run/lock/logrotate_run.lock
+chroot $(rootfs_dir $PKGDIR) chmod 0660 /var/run/lock/logrotate_run.lock
 
 ## main VIC components
 # tether based init

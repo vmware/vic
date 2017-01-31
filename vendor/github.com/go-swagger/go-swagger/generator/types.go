@@ -24,13 +24,8 @@ import (
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
 	"github.com/go-openapi/swag"
+	"github.com/kr/pretty"
 )
-
-// var goImports = map[string]string{
-// 	"inf.Dec":   "speter.net/go/exp/math/dec/inf",
-// 	"big.Int":   "math/big",
-// 	"swagger.*": "github.com/go-openapi/runtime",
-// }
 
 const (
 	iface       = "interface{}"
@@ -244,12 +239,53 @@ func newTypeResolver(pkg string, doc *loads.Document) *typeResolver {
 	resolver := typeResolver{ModelsPackage: pkg, Doc: doc}
 	resolver.KnownDefs = make(map[string]struct{}, 64)
 	for k, sch := range doc.OrigSpec().Definitions {
-		resolver.KnownDefs[k] = struct{}{}
-		if nm, ok := sch.Extensions["x-go-name"]; ok {
-			resolver.KnownDefs[nm.(string)] = struct{}{}
-		}
+		tpe, _, _ := knownDefGoType(k, sch, nil)
+		resolver.KnownDefs[tpe] = struct{}{}
 	}
 	return &resolver
+}
+
+func debugLog(format string, args ...interface{}) {
+	if Debug {
+		_, file, pos, _ := runtime.Caller(2)
+		log.Printf("%s:%d: "+format, append([]interface{}{filepath.Base(file), pos}, args...)...)
+	}
+}
+
+// knownDefGoType returns go type, package and package alias for definition
+func knownDefGoType(def string, schema spec.Schema, clear func(string) string) (string, string, string) {
+	debugLog("known def type: %q", def)
+	ext := schema.Extensions
+	if nm, ok := ext.GetString("x-go-name"); ok {
+		if clear == nil {
+			debugLog("known def type x-go-name no clear: %q", nm)
+			return nm, "", ""
+		}
+		debugLog("known def type x-go-name clear: %q -> %q", nm, clear(nm))
+		return clear(nm), "", ""
+	}
+	v, ok := ext["x-go-type"]
+	if !ok {
+		if clear == nil {
+			debugLog("known def type no clear: %q", def)
+			return def, "", ""
+		}
+		debugLog("known def type clear: %q -> %q", def, clear(def))
+		return clear(def), "", ""
+	}
+	xt := v.(map[string]interface{})
+	t := xt["type"].(string)
+	imp := xt["import"].(map[string]interface{})
+	pkg := imp["package"].(string)
+	al, ok := imp["alias"]
+	var alias string
+	if ok {
+		alias = al.(string)
+	} else {
+		alias = filepath.Base(pkg)
+	}
+	debugLog("known def type x-go-type no clear: %q", alias+"."+t, pkg, alias)
+	return alias + "." + t, pkg, alias
 }
 
 type typeResolver struct {
@@ -257,6 +293,15 @@ type typeResolver struct {
 	ModelsPackage string
 	ModelName     string
 	KnownDefs     map[string]struct{}
+}
+
+func (t *typeResolver) NewWithModelName(name string) *typeResolver {
+	return &typeResolver{
+		Doc:           t.Doc,
+		ModelsPackage: t.ModelsPackage,
+		ModelName:     name,
+		KnownDefs:     t.KnownDefs,
+	}
 }
 
 func (t *typeResolver) IsNullable(schema *spec.Schema) bool {
@@ -271,21 +316,23 @@ func (t *typeResolver) resolveSchemaRef(schema *spec.Schema, isRequired bool) (r
 			log.Printf("%s:%d: resolving ref (anon: %t, req: %t) %s\n", filepath.Base(file), pos, false, isRequired, schema.Ref.String())
 		}
 		returns = true
-
-		ref, er := spec.ResolveRef(t.Doc.Spec(), &schema.Ref)
+		var ref *spec.Schema
+		var er error
+		if t.Doc.SpecFilePath() != "" {
+			if Debug {
+				log.Printf("loading with base: %s", t.Doc.SpecFilePath())
+			}
+			ref, er = spec.ResolveRefWithBase(t.Doc.Spec(), &schema.Ref, &spec.ExpandOptions{RelativeBase: t.Doc.SpecFilePath()})
+		} else {
+			ref, er = spec.ResolveRef(t.Doc.Spec(), &schema.Ref)
+		}
 		if er != nil {
+			if Debug {
+				log.Printf("error resolving", er)
+			}
 			err = er
 			return
 		}
-		var nm = filepath.Base(schema.Ref.GetURL().Fragment)
-		var tn string
-		if gn, ok := ref.Extensions["x-go-name"]; ok {
-			tn = gn.(string)
-			nm = tn
-		} /*else {
-			tn = swag.ToGoName(nm)
-		}*/
-
 		res, er := t.ResolveSchema(ref, false, isRequired)
 		if er != nil {
 			err = er
@@ -293,7 +340,16 @@ func (t *typeResolver) resolveSchemaRef(schema *spec.Schema, isRequired bool) (r
 		}
 		result = res
 
-		result.GoType = t.goTypeName(nm)
+		tn := filepath.Base(schema.Ref.GetURL().Fragment)
+		tpe, pkg, alias := knownDefGoType(tn, *ref, t.goTypeName)
+		if Debug {
+			log.Printf("type name %s, package %s, alias %s", tpe, pkg, alias)
+		}
+		if tpe != "" {
+			result.GoType = tpe
+			result.Pkg = pkg
+			result.PkgAlias = alias
+		}
 		result.HasDiscriminator = ref.Discriminator != ""
 		result.IsNullable = t.IsNullable(ref)
 		//result.IsAliased = true
@@ -441,7 +497,10 @@ func (t *typeResolver) resolveObject(schema *spec.Schema, isAnonymous bool) (res
 	result.IsBaseType = schema.Discriminator != ""
 	if !isAnonymous {
 		result.SwaggerType = object
-		result.GoType = t.goTypeName(t.ModelName)
+		tpe, pkg, alias := knownDefGoType(t.ModelName, *schema, t.goTypeName)
+		result.GoType = tpe
+		result.Pkg = pkg
+		result.PkgAlias = alias
 	}
 	if len(schema.AllOf) > 0 {
 		result.GoType = t.goTypeName(t.ModelName)
@@ -468,16 +527,18 @@ func (t *typeResolver) resolveObject(schema *spec.Schema, isAnonymous bool) (res
 
 	// account for additional properties
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
-		et, er := t.ResolveSchema(schema.AdditionalProperties.Schema, true, false)
+		sch := schema.AdditionalProperties.Schema
+		et, er := t.ResolveSchema(schema.AdditionalProperties.Schema, sch.Ref.String() == "", false)
 		if er != nil {
 			err = er
 			return
 		}
 		result.IsMap = !result.IsComplexObject
 		result.SwaggerType = object
-		et.IsNullable = t.IsNullable(schema.AdditionalProperties.Schema)
+
+		et.IsNullable = t.isNullable(schema.AdditionalProperties.Schema)
 		result.GoType = "map[string]" + et.GoType
-		if et.IsNullable { //&& et.IsComplexObject && !et.IsBaseType {
+		if et.IsNullable {
 			result.GoType = "map[string]*" + et.GoType
 		}
 		t.inferAliasing(&result, schema, isAnonymous, false)
@@ -490,7 +551,6 @@ func (t *typeResolver) resolveObject(schema *spec.Schema, isAnonymous bool) (res
 	}
 	result.GoType = iface
 	result.IsMap = true
-	result.IsMap = !result.IsComplexObject
 	result.SwaggerType = object
 	result.IsNullable = false
 	result.IsInterface = len(schema.Properties) == 0
@@ -569,11 +629,16 @@ func boolExtension(ext spec.Extensions, key string) *bool {
 	return nil
 }
 
-func (t *typeResolver) ResolveSchema(schema *spec.Schema, isAnonymous, isRequired bool) (result resolvedType, err error) {
+func logDebug(frmt string, args ...interface{}) {
 	if Debug {
-		_, file, pos, _ := runtime.Caller(1)
-		log.Printf("%s:%d: resolving schema (anon: %t, req: %t) %s\n", filepath.Base(file), pos, isAnonymous, isRequired, t.ModelName /*bbb*/)
+		_, file, pos, _ := runtime.Caller(2)
+		log.Printf("%s:%d: %s", filepath.Base(file), pos, fmt.Sprintf(frmt, args...))
 	}
+
+}
+
+func (t *typeResolver) ResolveSchema(schema *spec.Schema, isAnonymous, isRequired bool) (result resolvedType, err error) {
+	logDebug("resolving schema (anon: %t, req: %t) %s\n", isAnonymous, isRequired, t.ModelName /*bbb*/)
 	if schema == nil {
 		result.IsInterface = true
 		result.GoType = iface
@@ -586,12 +651,15 @@ func (t *typeResolver) ResolveSchema(schema *spec.Schema, isAnonymous, isRequire
 		if !isAnonymous {
 			result.IsMap = false
 			result.IsComplexObject = true
+			logDebug("not anonymous ref")
 		}
+		logDebug("returning after ref")
 		return
 	}
 
 	returns, result, err = t.resolveFormat(schema, isAnonymous, isRequired)
 	if returns {
+		logDebug("returning after resolve format: %s", pretty.Sprint(result))
 		return
 	}
 
@@ -636,6 +704,13 @@ func (t *typeResolver) ResolveSchema(schema *spec.Schema, isAnonymous, isRequire
 		rt.HasDiscriminator = schema.Discriminator != ""
 		return rt, nil
 
+	case "null":
+		result.GoType = iface
+		result.SwaggerType = object
+		result.IsNullable = false
+		result.IsInterface = true
+		return
+
 	default:
 		err = fmt.Errorf("unresolvable: %v (format %q)", schema.Type, schema.Format)
 		return
@@ -663,6 +738,8 @@ type resolvedType struct {
 	IsBaseType         bool
 
 	GoType        string
+	Pkg           string
+	PkgAlias      string
 	AliasedType   string
 	SwaggerType   string
 	SwaggerFormat string

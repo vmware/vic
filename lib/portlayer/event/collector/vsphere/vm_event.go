@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,12 +39,14 @@ func NewVMEvent(be types.BaseEvent) *VMEvent {
 		ee = events.ContainerRemoved
 	case *types.VmGuestShutdownEvent:
 		ee = events.ContainerShutdown
-	case *types.VmRegisteredEvent:
-		ee = events.ContainerRegistered
 	case *types.VmMigratedEvent:
 		ee = events.ContainerMigrated
 	case *types.DrsVmMigratedEvent:
 		ee = events.ContainerMigratedByDrs
+	case *types.VmRelocatedEvent:
+		ee = events.ContainerRelocated
+	default:
+		panic("Unknown event")
 	}
 	e := be.GetEvent()
 	return &VMEvent{

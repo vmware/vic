@@ -15,8 +15,8 @@
 package imagec
 
 import (
-	"io"
 	"context"
+	"io"
 
 	log "github.com/Sirupsen/logrus"
 

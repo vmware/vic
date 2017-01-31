@@ -23,7 +23,7 @@ usage() {
 export GOVC_INSECURE=1
 
 name=vcsa
-ova=VMware-vCenter-Server-Appliance-6.0.0.20000-3634791_OVF10.ova
+ova=VMware-vCenter-Server-Appliance-6.5.0.5100-4602587_OVF10.ova
 
 while getopts a:i:n: flag
 do
@@ -98,4 +98,6 @@ ovftool --acceptAllEulas --noSSLVerify --skipManifestCheck \
         "${opts[@]}" \
         --prop:guestinfo.cis.appliance.ssh.enabled=True \
         --prop:guestinfo.cis.appliance.ntp.servers="$ntp" \
+        --prop:guestinfo.cis.ceip_enabled=False \
+        --prop:guestinfo.cis.deployment.autoconfig=True \
         "$ova" "vi://${GOVC_URL}"

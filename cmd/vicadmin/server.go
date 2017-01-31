@@ -287,12 +287,13 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		vs, err := vSphereSessionGet(&userconfig)
 		if err != nil || vs == nil {
 			// something went wrong or we could not authenticate
-			log.Warnf("User %s from %s failed to authenticate at %s", userconfig.User, req.RemoteAddr, time.Now())
+			log.Warnf("%s failed to authenticate ", req.RemoteAddr)
 			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusUnauthorized)
 			return
 		}
 
-		// successful login above; user is authenticated
+		// successful login above; user is authenticated, reported for audit purposes
+		log.Debugf("User %s from %s was successfully authenticated", userconfig.User.Username(), req.RemoteAddr)
 
 		// create a token to save as an encrypted & signed cookie
 		websession, err := s.uss.cookies.Get(req, sessionCookieKey)

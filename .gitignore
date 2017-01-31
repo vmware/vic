@@ -29,3 +29,7 @@ lib/apiservers/portlayer/restapi/operations
 !lib/apiservers/portlayer/restapi/configure_port_layer.go
 
 tests/.project
+
+
+# Intellij files
+*.iml

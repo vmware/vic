@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package vsphere
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -23,8 +24,6 @@ import (
 	vmwEvents "github.com/vmware/govmomi/event"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/types"
-
-	"context"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -101,7 +100,6 @@ func (ec *EventCollector) Stop() {
 	if err != nil {
 		log.Warnf("%s failed to destroy the govmomi manager: %s", name, err.Error())
 	}
-
 }
 
 // Start the event collector
@@ -158,7 +156,7 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 	}
 
 	for i := range page {
-		var vmEvent events.Event
+		var event events.Event
 
 		// what type of event do we have
 		switch page[i].(type) {
@@ -168,14 +166,18 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 			*types.VmPoweredOffEvent,
 			*types.VmRemovedEvent,
 			*types.VmSuspendedEvent,
-			*types.VmRegisteredEvent,
 			*types.VmMigratedEvent,
-			*types.DrsVmMigratedEvent:
-			vmEvent = NewVMEvent(page[i])
+			*types.DrsVmMigratedEvent,
+			*types.VmRelocatedEvent:
+			event = NewVMEvent(page[i])
+		case *types.EnteringMaintenanceModeEvent,
+			*types.EnteredMaintenanceModeEvent,
+			*types.ExitMaintenanceModeEvent:
+			event = NewHostEvent(page[i])
 		}
 
-		if vmEvent != nil {
-			ec.callback(vmEvent)
+		if event != nil {
+			ec.callback(event)
 		}
 	}
 

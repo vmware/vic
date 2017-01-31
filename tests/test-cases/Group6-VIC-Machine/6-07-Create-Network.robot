@@ -42,7 +42,7 @@ Public network - DHCP
     Pass execution  Test not implemented
 
 Public network - valid
-    Pass execution  asdf
+    Pass execution  Test not implemented
 
 Management network - none
     Set Test Environment Variables
@@ -195,7 +195,19 @@ Bridge network - invalid IP settings
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
 
-Bridge network - valid
+Bridge network - invalid bridge network range
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --bridge-network-range 1.1.1.1/17 ${vicmachinetls}
+    Should Contain  ${output}  --bridge-network-range must be /16 or larger network
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  %{VCH-NAME}
+
+Bridge network - valid with IP range
     Pass execution  Test not implemented
 
 Container network invalid 1

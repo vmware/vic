@@ -42,6 +42,18 @@ func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgr
 			}
 
 			f.putChild(pg)
+
+			pg.Key = pg.Self.Value
+			pg.Config.DistributedVirtualSwitch = &s.Self
+
+			s.Portgroup = append(s.Portgroup, pg.Self)
+			s.Summary.PortgroupName = append(s.Summary.PortgroupName, pg.Name)
+
+			for _, h := range s.Summary.HostMember {
+				pg.Host = AddReference(h, pg.Host)
+				host := Map.Get(h).(*HostSystem)
+				host.Network = append(host.Network, pg.Reference())
+			}
 		}
 
 		return nil, nil
@@ -51,6 +63,59 @@ func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgr
 
 	return &methods.AddDVPortgroup_TaskBody{
 		Res: &types.AddDVPortgroup_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
+}
+
+func (s *VmwareDistributedVirtualSwitch) ReconfigureDvsTask(req *types.ReconfigureDvs_Task) soap.HasFault {
+	task := CreateTask(s, "reconfigureDvsTask", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		spec := req.Spec.GetDVSConfigSpec()
+
+		for _, member := range spec.Host {
+			h := Map.Get(member.Host)
+			if h == nil {
+				return nil, &types.ManagedObjectNotFound{Obj: member.Host}
+			}
+
+			host := h.(*HostSystem)
+
+			switch types.ConfigSpecOperation(member.Operation) {
+			case types.ConfigSpecOperationAdd:
+				if FindReference(host.Network, s.Self) != nil {
+					return nil, &types.AlreadyExists{Name: host.Name}
+				}
+
+				host.Network = append(host.Network, s.Self)
+				host.Network = append(host.Network, s.Portgroup...)
+				s.Summary.HostMember = append(s.Summary.HostMember, member.Host)
+
+				for _, ref := range s.Portgroup {
+					pg := Map.Get(ref).(*mo.DistributedVirtualPortgroup)
+					pg.Host = AddReference(member.Host, pg.Host)
+				}
+			case types.ConfigSpecOperationRemove:
+				if pg := FindReference(host.Network, s.Portgroup...); pg != nil {
+					return nil, &types.ResourceInUse{
+						Type: pg.Type,
+						Name: pg.Value,
+					}
+				}
+
+				host.Network = RemoveReference(s.Self, host.Network)
+				s.Summary.HostMember = RemoveReference(s.Self, s.Summary.HostMember)
+			case types.ConfigSpecOperationEdit:
+				return nil, &types.NotSupported{}
+			}
+		}
+
+		return nil, nil
+	})
+
+	task.Run()
+
+	return &methods.ReconfigureDvs_TaskBody{
+		Res: &types.ReconfigureDvs_TaskResponse{
 			Returnval: task.Self,
 		},
 	}

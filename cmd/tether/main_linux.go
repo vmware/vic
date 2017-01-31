@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,13 +24,28 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/tether"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 var tthr tether.Tether
 
+func init() {
+	// Initiliaze logger with default TextFormatter
+	log.SetFormatter(viclog.NewTextFormatter())
+
+	// use the same logger for trace and other logging
+	trace.Logger = log.StandardLogger()
+	log.SetLevel(log.DebugLevel)
+}
+
 func main() {
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		extraconfig.DecodeLogLevel = log.DebugLevel
+		extraconfig.EncodeLogLevel = log.DebugLevel
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("run time panic: %s : %s", r, debug.Stack())
@@ -53,17 +68,6 @@ func main() {
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
-
-	if strings.HasSuffix(os.Args[0], "-debug") {
-		extraconfig.DecodeLogLevel = log.DebugLevel
-		extraconfig.EncodeLogLevel = log.DebugLevel
-	}
-	// use the same logger for trace and other logging
-	trace.Logger = log.StandardLogger()
-	log.SetLevel(log.DebugLevel)
-
-	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
 
 	// TODO: hard code executor initialization status reporting via guestinfo here
 	err = createDevices()

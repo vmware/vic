@@ -52,6 +52,25 @@ Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Environment Variable  VCH-NAME  ${name}
 
+Set List Of Env Variables
+    [Arguments]  ${vars}
+    @{vars}=  Split String  ${vars}
+    :FOR  ${var}  IN  @{vars}
+    \   ${varname}  ${varval}=  Split String  ${var}  =
+    \   Set Environment Variable  ${varname}  ${varval}
+
+Parse Environment Variables
+    [Arguments]  ${line}
+    #  If using the old logging format
+    ${status}=  Run Keyword And Return Status  Should Contain  ${line}  mINFO
+    ${logdeco}  ${vars}=  Run Keyword If  ${status}  Split String  ${line}  ${SPACE}  1
+    Run Keyword If  ${status}  Set List Of Env Variables  ${vars}
+    Return From Keyword If  ${status}
+    
+    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
+    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  ${SPACE}  5
+    Set List Of Env Variables  ${vars}
+
 Get Docker Params
     # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
     [Arguments]  ${output}  ${certs}
@@ -63,12 +82,7 @@ Get Docker Params
     # Ensure we start from a clean slate with docker env vars
     Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
 
-    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
-    ${logdeco}  ${vars}=  Split String  ${line}  ${SPACE}  1
-    ${vars}=  Split String  ${vars}
-    :FOR  ${var}  IN  @{vars}
-    \   ${varname}  ${varval}=  Split String  ${var}  =
-    \   Set Environment Variable  ${varname}  ${varval}
+    Parse Environment Variables  ${line}
 
     ${dockerHost}=  Get Environment Variable  DOCKER_HOST
 
@@ -85,11 +99,11 @@ Get Docker Params
     \   ${idx} =  Evaluate  ${index} + 1
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
 
-    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}
+    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}  ${SPACE}  1
     ${ext-ip} =  Strip String  ${ext-ip}
     Set Environment Variable  EXT-IP  ${ext-ip}
 
-    ${rest}  ${vic-admin}=  Split String From Right  ${line}
+    ${rest}  ${vic-admin}=  Split String From Right  ${line}  ${SPACE}  1
     Set Environment Variable  VIC-ADMIN  ${vic-admin}
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
@@ -105,6 +119,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -146,6 +161,9 @@ Gather Logs From Test Server
     ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs.zip
     Log  ${out}
     Remove File  vic-admin-cookies
+    ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware.log
+    Should Contain  ${out}  OK
+    ${out}=  Run  sshpass -p %{TEST_PASSWORD} scp %{TEST_USERNAME}@%{TEST_URL}:/var/log/vmkernel.log ./vmkernel.log
 
 Check For The Proper Log Files
     [Arguments]  ${container}
@@ -158,6 +176,22 @@ Check For The Proper Log Files
     Should Contain  ${output}  ${container}/output.log
     Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
+
+Scrape Logs For the Password
+    [Tags]  secret
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/init.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    Should Be Equal As Integers  ${rc}  1
+
+    Remove File  /tmp/cookies-%{VCH-NAME}
 
 Cleanup VIC Appliance On Test Server
     Log To Console  Gathering logs from the test server %{VCH-NAME}
@@ -185,6 +219,7 @@ Cleanup Datastore On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   Log To Console  Removing the following item from datastore: ${item}
     \   ${out}=  Run  govc datastore.rm ${item}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${item}
 
 Cleanup Dangling VMs On Test Server
     ${out}=  Run  govc ls vm
@@ -200,6 +235,7 @@ Cleanup Dangling VMs On Test Server
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
@@ -226,3 +262,34 @@ Cleanup Dangling vSwitches On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc host.vswitch.remove ${net}
+
+Get Scratch Disk From VM Info
+    [Arguments]  ${vm}
+    ${disks}=  Run  govc vm.info -json ${vm} | jq -r '.VirtualMachines[].Layout.Disk[].DiskFile[]'
+    ${disks}=  Split To Lines  ${disks}
+    :FOR  ${disk}  IN  @{disks}
+    \   ${disk}=  Fetch From Right  ${disk}  ${SPACE}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${disk}  scratch.vmdk
+    \   Return From Keyword If  ${status}  ${disk}
+
+Cleanup Dangling Containers On Test Server
+    ${vms}=  Run  govc ls vm
+    ${vms}=  Split To Lines  ${vms}
+    :FOR  ${vm}  IN  @{vms}
+    \   # Ignore VCH's, we only care about containers at this point
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${vm}  VCH
+    \   Continue For Loop If  ${status}
+    \   ${disk}=  Get Scratch Disk From VM Info  ${vm}
+    \   ${vch}=  Fetch From Left  ${disk}  /
+    \   ${vch}=  Split String  ${vch}  -
+    \   # Skip any VM that is not associated with integration tests
+    \   Continue For Loop If  '@{vch}[0]' != 'VCH'
+    \   ${state}=  Get State Of Drone Build  @{vch}[1]
+    \   # Skip any VM that is still running
+    \   Continue For Loop If  '${state}' == 'running'
+    \   # Destroy the VM and remove it from datastore because it is a dangling container
+    \   Log To Console  Cleaning up dangling container: ${vm}
+    \   ${out}=  Run  govc vm.destroy ${vm}
+    \   ${name}=  Fetch From Right  ${vm}  /
+    \   ${out}=  Run  govc datastore.rm ${name}
+    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${name}

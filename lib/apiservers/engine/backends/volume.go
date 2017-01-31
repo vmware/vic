@@ -24,6 +24,7 @@ import (
 
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-units"
@@ -36,10 +37,19 @@ import (
 
 // NOTE: FIXME: These might be moved to a utility package once there are multiple personalities
 const (
-	OptsVolumeStoreKey     string = "VolumeStore"
-	OptsCapacityKey        string = "Capacity"
+	OptsVolumeStoreKey     string = "volumestore"
+	OptsCapacityKey        string = "capacity"
 	dockerMetadataModelKey string = "DockerMetaData"
 )
+
+// define a set (whitelist) of valid driver opts keys for command line argument validation
+var validDriverOptsKeys = map[string]struct{}{
+	OptsVolumeStoreKey:    {},
+	OptsCapacityKey:       {},
+	DriverArgFlagKey:      {},
+	DriverArgContainerKey: {},
+	DriverArgImageKey:     {},
+}
 
 //Validation pattern for Volume Names
 var volumeNameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
@@ -293,7 +303,28 @@ func volumeStore(args map[string]string) string {
 	return storeName
 }
 
+func normalizeDriverArgs(args map[string]string) error {
+	// normalize keys to lowercase & validate them
+	for k, val := range args {
+		lowercase := strings.ToLower(k)
+
+		if _, ok := validDriverOptsKeys[lowercase]; !ok {
+			return fmt.Errorf("%s is not a supported option", k)
+		}
+
+		if strings.Compare(lowercase, k) != 0 {
+			delete(args, k)
+			args[lowercase] = val
+		}
+	}
+	return nil
+}
+
 func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error {
+	if err := normalizeDriverArgs(args); err != nil {
+		return err
+	}
+
 	// volumestore name validation
 	req.Store = volumeStore(args)
 

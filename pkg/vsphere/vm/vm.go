@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync/atomic"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -52,6 +53,9 @@ type VirtualMachine struct {
 	*object.VirtualMachine
 
 	*session.Session
+
+	// fxing is 1 means this vm is fixing for it's in invalid status. 0 means not in fixing status
+	fixing int32
 }
 
 // NewVirtualMachine returns a NewVirtualMachine object
@@ -465,6 +469,18 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 	return object.NewTask(vm.Vim25(), res.Returnval), nil
 }
 
+func (vm *VirtualMachine) IsFixing() bool {
+	return vm.fixing > 0
+}
+
+func (vm *VirtualMachine) EnterFixingState() {
+	atomic.AddInt32(&vm.fixing, 1)
+}
+
+func (vm *VirtualMachine) LeaveFixingState() {
+	atomic.StoreInt32(&vm.fixing, 0)
+}
+
 // FixInvalidState fix vm invalid state issue through unregister & register
 func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 	log.Debugf("Fix invalid state VM: %s", vm.Reference())
@@ -484,6 +500,8 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 
 	name := mvm.Summary.Config.Name
 	log.Debugf("Unregister VM %s", name)
+	vm.EnterFixingState()
+	defer vm.LeaveFixingState()
 	if err := vm.Unregister(ctx); err != nil {
 		log.Errorf("Unable to unregister vm %q: %s", name, err)
 		return err

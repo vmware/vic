@@ -18,7 +18,8 @@ apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E8
 # add docker apt sources
 echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" > /etc/apt/sources.list.d/docker.list
 
-apt-get update && apt-get -y dist-upgrade
+# https://github.com/mitchellh/vagrant/issues/289
+apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
 
 # set GOPATH based on shared folder of vagrant
 pro="/home/${BASH_ARGV[0]}/.profile"
@@ -27,7 +28,7 @@ echo "export GOPATH=${BASH_ARGV[1]}" >> "$pro"
 # add GOPATH/bin to the PATH
 echo "export PATH=$PATH:${BASH_ARGV[1]}/bin" >> "$pro"
 
-apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate apt-transport-https ca-certificates nfs-common
+apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate apt-transport-https ca-certificates nfs-common sshpass
 
 function update_go {
     (cd /usr/local &&
@@ -36,7 +37,7 @@ function update_go {
 }
 
 # install / upgrade go
-go_file="https://storage.googleapis.com/golang/go1.7.3.linux-amd64.tar.gz"
+go_file="https://storage.googleapis.com/golang/go1.7.5.linux-amd64.tar.gz"
 go_version=$(basename $go_file | cut -d. -f1-3)
 
 if [[ ! -d "/usr/local/go" || $(go version | awk '{print $(3)}') != "$go_version" ]] ; then

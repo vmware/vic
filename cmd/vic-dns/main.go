@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/dns"
+	vlog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -62,7 +63,7 @@ func main() {
 	}
 
 	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{DisableColors: false, FullTimestamp: true})
+	log.SetFormatter(vlog.NewTextFormatter())
 
 	// Set the log level
 	if options.Debug {

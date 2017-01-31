@@ -27,14 +27,18 @@ import (
 	"strings"
 	"text/template"
 
+	swaggererrors "github.com/go-openapi/errors"
+
 	"github.com/go-openapi/analysis"
+	"github.com/go-openapi/validate"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
 	"github.com/go-openapi/swag"
 	"golang.org/x/tools/imports"
 )
 
-//go:generate go-bindata -pkg=generator -ignore=.*\.sw? ./templates/...
+//go:generate go-bindata -mode 420 -modtime 1482416923 -pkg=generator -ignore=.*\.sw? ./templates/...
 
 // LanguageOpts to describe a language to the code generator
 type LanguageOpts struct {
@@ -282,6 +286,7 @@ type TemplateOpts struct {
 	Target     string `mapstructure:"target"`
 	FileName   string `mapstructure:"file_name"`
 	SkipExists bool   `mapstructure:"skip_exists"`
+	SkipFormat bool   `mapstructure:"skip_format"`
 }
 
 // SectionOpts allows for specifying options to customize the templates used for generation
@@ -305,27 +310,30 @@ type GenOpts struct {
 	ExcludeSpec       bool
 	DumpData          bool
 	WithContext       bool
+	ValidateSpec      bool
 	defaultsEnsured   bool
 
-	Spec            string
-	APIPackage      string
-	ModelPackage    string
-	ServerPackage   string
-	ClientPackage   string
-	Principal       string
-	Target          string
-	Sections        SectionOpts
-	LanguageOpts    *LanguageOpts
-	TypeMapping     map[string]string
-	Imports         map[string]string
-	DefaultScheme   string
-	DefaultProduces string
-	DefaultConsumes string
-	TemplateDir     string
-	Operations      []string
-	Models          []string
-	Tags            []string
-	Name            string
+	Spec              string
+	APIPackage        string
+	ModelPackage      string
+	ServerPackage     string
+	ClientPackage     string
+	Principal         string
+	Target            string
+	Sections          SectionOpts
+	LanguageOpts      *LanguageOpts
+	TypeMapping       map[string]string
+	Imports           map[string]string
+	DefaultScheme     string
+	DefaultProduces   string
+	DefaultConsumes   string
+	TemplateDir       string
+	Operations        []string
+	Models            []string
+	Tags              []string
+	Name              string
+	FlagStrategy      string
+	CompatibilityMode string
 }
 
 // TargetPath returns the target path relative to the server package
@@ -497,10 +505,13 @@ func (g *GenOpts) write(t *TemplateOpts, data interface{}) error {
 		}
 	}
 
-	formatted, err := g.LanguageOpts.FormatContent(fname, content)
-	if err != nil {
-		formatted = content
-		err = fmt.Errorf("format %q failed: %v", t.Name, err)
+	// Conditionally format the code, unless the user wants to skip
+	formatted := content
+	if t.SkipFormat == false {
+		formatted, err = g.LanguageOpts.FormatContent(fname, content)
+		if err != nil {
+			err = fmt.Errorf("format %q failed: %v", t.Name, err)
+		}
 	}
 
 	writeerr := ioutil.WriteFile(filepath.Join(dir, fname), formatted, 0644)
@@ -583,6 +594,25 @@ func (g *GenOpts) renderDefinition(gg *GenDefinition) error {
 		}
 	}
 	return nil
+}
+
+func validateSpec(path string, doc *loads.Document) (err error) {
+	if doc == nil {
+		if path, doc, err = loadSpec(path); err != nil {
+			return err
+		}
+	}
+
+	result := validate.Spec(doc, strfmt.Default)
+	if result == nil {
+		return nil
+	}
+
+	str := fmt.Sprintf("The swagger spec at %q is invalid against swagger specification %s. see errors :\n", path, doc.Version())
+	for _, desc := range result.(*swaggererrors.CompositeError).Errors {
+		str += fmt.Sprintf("- %s\n", desc)
+	}
+	return errors.New(str)
 }
 
 func loadSpec(specFile string) (string, *loads.Document, error) {
@@ -715,6 +745,12 @@ func gatherOperations(specDoc *analysis.Spec, operationIDs []string) map[string]
 func pascalize(arg string) string {
 	if len(arg) == 0 || arg[0] > '9' {
 		return swag.ToGoName(arg)
+	}
+	if arg[0] == '+' {
+		return swag.ToGoName("Plus " + arg[1:])
+	}
+	if arg[0] == '-' {
+		return swag.ToGoName("Minus " + arg[1:])
 	}
 
 	return swag.ToGoName("Nr " + arg)

@@ -201,6 +201,41 @@ var VirtualDevice = []types.BaseVirtualDevice{
 	},
 }
 
+// EthernetCard template for types.VirtualEthernetCard
+var EthernetCard = types.VirtualE1000{
+	VirtualEthernetCard: types.VirtualEthernetCard{
+		VirtualDevice: types.VirtualDevice{
+			DynamicData: types.DynamicData{},
+			Key:         4000,
+			Backing: &types.VirtualEthernetCardNetworkBackingInfo{
+				VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
+					VirtualDeviceBackingInfo: types.VirtualDeviceBackingInfo{},
+					DeviceName:               "VM Network",
+					UseAutoDetect:            types.NewBool(false),
+				},
+				Network:           (*types.ManagedObjectReference)(nil),
+				InPassthroughMode: types.NewBool(false),
+			},
+			Connectable: &types.VirtualDeviceConnectInfo{
+				DynamicData:       types.DynamicData{},
+				StartConnected:    true,
+				AllowGuestControl: true,
+				Connected:         false,
+				Status:            "untried",
+			},
+			SlotInfo: &types.VirtualDevicePciBusSlotInfo{
+				VirtualDeviceBusSlotInfo: types.VirtualDeviceBusSlotInfo{},
+				PciSlotNumber:            32,
+			},
+			ControllerKey: 100,
+			UnitNumber:    newInt32(7),
+		},
+		AddressType:      "generated",
+		MacAddress:       "",
+		WakeOnLanEnabled: types.NewBool(true),
+	},
+}
+
 func newInt32(n int32) *int32 {
 	return &n
 }

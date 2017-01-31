@@ -35,8 +35,8 @@ import (
 	"github.com/docker/docker/opts"
 	dockertypes "github.com/docker/engine-api/types"
 
-	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
@@ -329,6 +329,15 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	return spec.VirtualMachineConfigSpec, nil
 }
 
+func isManagedObjectNotFoundError(err error) bool {
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound)
+		return ok
+	}
+
+	return false
+}
+
 func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -343,7 +352,7 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 	}
 	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); !ok {
+		if !isManagedObjectNotFoundError(err) {
 			err = errors.Errorf("Failed to query appliance (%q): %s", moref, err)
 			return nil, err
 		}
@@ -753,7 +762,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 				if clientCert == nil {
 					// we know this will fail, but we can try to distinguish the expected error vs
-					// unresponse endpoint
+					// unresponsive endpoint
 					tlsErrExpected = true
 					log.Debugf("CA configured on appliance but no client certificate available")
 					return
@@ -814,7 +823,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 			log.Debugf("Received HTTP status %d: %s", res.StatusCode, res.Status)
 		} else {
-			// DEBU[2016-10-11T22:22:38Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
+			// DEBU[2016-10-11T22:22:38Z] Error received from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
 			// DEBU[2016-10-11T22:22:39Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
 			//     Op:  "Get",
@@ -834,7 +843,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 			//         },
 			//     },
 			// }
-			// DEBU[2016-10-11T22:22:41Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: remote error: tls: bad certificate &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{remote error  <nil> <nil> 42})}
+			// DEBU[2016-10-11T22:22:41Z] Error received from endpoint: Get https://192.168.78.127:2376/info: remote error: tls: bad certificate &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{remote error  <nil> <nil> 42})}
 			// DEBU[2016-10-11T22:22:42Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
 			//     Op:  "Get",

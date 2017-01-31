@@ -15,6 +15,7 @@
 package generator
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	goruntime "runtime"
 	"sort"
 	"strings"
 
@@ -66,10 +68,20 @@ func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOp
 	}
 
 	// Load the spec
-	_, specDoc, err := loadSpec(opts.Spec)
+	var err error
+	var specDoc *loads.Document
+	opts.Spec, specDoc, err = loadSpec(opts.Spec)
 	if err != nil {
 		return nil, err
 	}
+
+	// Validate if needed
+	if opts.ValidateSpec {
+		if err = validateSpec(opts.Spec, specDoc); err != nil {
+			return nil, err
+		}
+	}
+
 	analyzed := analysis.New(specDoc.Spec())
 
 	models, err := gatherModels(specDoc, modelNames)
@@ -150,8 +162,13 @@ func baseImport(tgt string) string {
 
 	var pth string
 	for _, gp := range filepath.SplitList(os.Getenv("GOPATH")) {
-		pp := filepath.Join(gp, "src")
-		if strings.HasPrefix(p, pp) {
+		pp := filepath.Join(filepath.Clean(gp), "src")
+		var np, npp string
+		if goruntime.GOOS == "windows" {
+			np = strings.ToLower(p)
+			npp = strings.ToLower(pp)
+		}
+		if strings.HasPrefix(np, npp) {
 			pth, err = filepath.Rel(pp, p)
 			if err != nil {
 				log.Fatalln(err)
@@ -517,8 +534,10 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		if err != nil {
 			return GenApp{}, err
 		}
-		//mod.ReceiverName = receiver
-		genMods = append(genMods, *mod)
+		if mod != nil {
+			//mod.ReceiverName = receiver
+			genMods = append(genMods, *mod)
+		}
 	}
 
 	log.Println("planning operations")
@@ -547,27 +566,27 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		bldr.RootAPIPackage = swag.ToFileName(a.APIPackage)
 		bldr.WithContext = a.GenOpts != nil && a.GenOpts.WithContext
 
-		if len(o.Tags) > 0 {
-			for _, tag := range o.Tags {
-				tns[tag] = struct{}{}
-				bldr.APIPackage = a.GenOpts.LanguageOpts.MangleName(swag.ToFileName(tag), a.APIPackage)
-				op, err := bldr.MakeOperation()
-				if err != nil {
-					return GenApp{}, err
-				}
-				op.Tags = o.Tags
-				op.ReceiverName = receiver
-				genOps = append(genOps, op)
-			}
-		} else {
-			bldr.APIPackage = swag.ToFileName(a.APIPackage)
-			op, err := bldr.MakeOperation()
-			if err != nil {
-				return GenApp{}, err
-			}
-			op.ReceiverName = receiver
-			genOps = append(genOps, op)
+		bldr.APIPackage = bldr.RootAPIPackage
+		st := o.Tags
+		if a.GenOpts != nil {
+			st = a.GenOpts.Tags
 		}
+		intersected := intersectTags(o.Tags, st)
+		if len(intersected) == 1 {
+			tag := intersected[0]
+			bldr.APIPackage = a.GenOpts.LanguageOpts.MangleName(swag.ToFileName(tag), a.APIPackage)
+			for _, t := range intersected {
+				tns[t] = struct{}{}
+			}
+		}
+		op, err := bldr.MakeOperation()
+		if err != nil {
+			return GenApp{}, err
+		}
+		op.ReceiverName = receiver
+		op.Tags = intersected
+		genOps = append(genOps, op)
+
 	}
 	for k := range tns {
 		importPath := filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ServerPackage, a.APIPackage, swag.ToFileName(k)))
@@ -647,9 +666,25 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		Operations:          genOps,
 		OperationGroups:     opGroups,
 		Principal:           prin,
-		SwaggerJSON:         fmt.Sprintf("%#v", jsonb),
+		SwaggerJSON:         generateReadableSpec(jsonb),
 		ExcludeSpec:         a.GenOpts != nil && a.GenOpts.ExcludeSpec,
 		WithContext:         a.GenOpts != nil && a.GenOpts.WithContext,
 		GenOpts:             a.GenOpts,
 	}, nil
+}
+
+// generateReadableSpec makes swagger json spec as a string instead of bytes
+// the only character that needs to be escaped is '`' symbol, since it cannot be escaped in the GO string
+// that is quoted as `string data`. The function doesn't care about the beginning or the ending of the
+// string it escapes since all data that needs to be escaped is always in the middle of the swagger spec.
+func generateReadableSpec(spec []byte) string {
+	buf := &bytes.Buffer{}
+	for _, b := range string(spec) {
+		if b == '`' {
+			buf.WriteString("`+\"`\"+`")
+		} else {
+			buf.WriteRune(b)
+		}
+	}
+	return buf.String()
 }

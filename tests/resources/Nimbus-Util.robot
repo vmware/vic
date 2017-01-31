@@ -178,11 +178,19 @@ Kill Nimbus Server
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
 
+Cleanup Nimbus PXE folder
+    [Arguments]  ${user}  ${password}
+    Open Connection  %{NIMBUS_GW}
+    Login  ${user}  ${password}
+    ${out}=  Execute Command  rm -rf public_html/pxe/*
+    Close connection
+
 Nimbus Cleanup
     [Arguments]  ${vm_list}
     Run Keyword And Continue On Failure  Gather Logs From Test Server
     :FOR  ${item}  IN  @{vm_list}
     \   Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${item}
+    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
@@ -298,7 +306,7 @@ Create a Simple VC Cluster
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  ${cluster}
     Set Environment Variable  TEST_TIMEOUT  30m
-    [Return]  ${vc-ip}
+    [Return]  ${esx1}  ${esx2}  ${esx3}  ${vc}  ${vc-ip}
 
 Create A Distributed Switch
     [Arguments]  ${datacenter}  ${dvs}=test-ds

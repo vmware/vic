@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ const (
 	containerLogName         = "output.log"
 
 	vmNotSuspendedKey = "msg.suspend.powerOff.notsuspended"
+	vmPoweringOffKey  = "msg.rpc.error.poweringoff"
 )
 
 func (s State) String() string {
@@ -188,6 +189,10 @@ func GetContainer(ctx context.Context, id uid.UID) *Handle {
 	return nil
 }
 
+func (c *ContainerInfo) String() string {
+	return c.ExecConfig.ID
+}
+
 // State returns the state at the time the ContainerInfo object was created
 func (c *ContainerInfo) State() State {
 	return c.state
@@ -228,6 +233,21 @@ func (c *Container) updateState(s State) State {
 		}
 	}
 	return prevState
+}
+
+// transitionState changes the container state to finalState if the current state is initialState
+// and returns an error otherwise.
+func (c *Container) transitionState(initialState, finalState State) error {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	if c.state == initialState {
+		c.state = finalState
+		log.Debugf("Set container %s state: %s", c.ExecConfig.ID, finalState)
+		return nil
+	}
+
+	return fmt.Errorf("container state is %s and was not changed to %s", c.state, finalState)
 }
 
 var closedEventChannel = func() <-chan struct{} {
@@ -322,10 +342,8 @@ func (c *Container) start(ctx context.Context) error {
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
 	}
-	// get existing state and set to starting
-	// if there's a failure we'll revert to existing
-	finalState := c.updateState(StateStarting)
-	defer func() { c.updateState(finalState) }()
+	// Set state to Starting
+	c.SetState(StateStarting)
 
 	err := c.containerBase.start(ctx)
 	if err != nil {
@@ -335,13 +353,17 @@ func (c *Container) start(ctx context.Context) error {
 		// become responsive.
 
 		// TODO: mechanism to trigger reinspection of long term transitional states
-		finalState = StateStarting
 		return err
 	}
 
-	finalState = StateRunning
+	// Transition the state to Running only if it's Starting.
+	// The current state is already Stopped if the container's process has exited or
+	// a poweredoff event has been processed.
+	if err = c.transitionState(StateStarting, StateRunning); err != nil {
+		log.Debug(err)
+	}
 
-	return err
+	return nil
 }
 
 func (c *Container) stop(ctx context.Context, waitTime *int32) error {
@@ -351,18 +373,25 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
-	finalState := c.updateState(StateStopping)
-	defer func() { c.updateState(finalState) }()
+	finalState := c.SetState(StateStopping)
 
 	err := c.containerBase.stop(ctx, waitTime)
-
 	if err != nil {
 		// we've got no idea what state the container is in at this point
 		// running is an _optimistic_ statement
+		// If the current state is Stopping, revert it to the old state.
+		if stateErr := c.transitionState(StateStopping, finalState); stateErr != nil {
+			log.Debug(stateErr)
+		}
+
 		return err
 	}
 
-	finalState = StateStopped
+	// Transition the state to Stopped only if it's Stopping.
+	if err = c.transitionState(StateStopping, StateStopped); err != nil {
+		log.Debug(err)
+	}
+
 	return nil
 }
 

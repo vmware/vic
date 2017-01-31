@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import (
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/certificate"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -102,6 +103,8 @@ type logfile struct {
 }
 
 func init() {
+	log.SetFormatter(viclog.NewTextFormatter())
+
 	defer trace.End(trace.Begin(""))
 	trace.Logger.Level = log.DebugLevel
 	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
@@ -354,7 +357,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 }
 
 // addApplianceLogs whitelists the logs to include for the appliance.
-// TODO: once we've started encrypting all potentially senstive data and filtering out guestinfo.ovfEnv
+// TODO: once we've started encrypting all potentially sensitive data and filtering out guestinfo.ovfEnv
 // we can resume collection of vmware.log and drop the appliance specific handling
 func addApplianceLogs(ctx context.Context, s *session.Session, readers map[string]entryReader) error {
 	self, err := guest.GetSelf(ctx, s)
