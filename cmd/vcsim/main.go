@@ -39,6 +39,7 @@ func main() {
 	flag.IntVar(&model.Machine, "vm", model.Machine, "Number of virtual machines per resource pool")
 	flag.IntVar(&model.Pool, "pool", model.Pool, "Number of resource pools per compute resource")
 	flag.IntVar(&model.Portgroup, "pg", model.Portgroup, "Number of port groups")
+	flag.IntVar(&model.Folder, "folder", model.Folder, "Number of folders")
 
 	isESX := flag.Bool("esx", false, "Simulate standalone ESX")
 	isTLS := flag.Bool("tls", false, "Enable TLS")
