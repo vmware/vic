@@ -6,8 +6,11 @@ Container users want to be able to access shared storage between their container
 
 Allow the VI admin to
  1. add an NFSv3 based `VolumeStore`
+ 2. specify a container network the `VolumeStore` can be found on
 
 Allow the container user to
+ 1. specify one or many NFS based `VolumeStore`s to create the container volumes on
+ 1. have network connectivity from created containers to the NFS targets
  1. create volumes on the NFS based `VolumeStore`
  1. create 1 or greater containers with NFS based volumes at the given location in the container filesystem namespace
  1. validate the volume is no longer in use and delete it
@@ -17,6 +20,18 @@ Allow the container user to
  1. Instantiation or provisioning of shared storage
  2. Exposing shared storage configuration via VIC (e.g. IOPS per client, storage policy, etc.)
  3. Management of shared storage via VIC (e.g. container quiesce for storage maintenance, quota manipulation of the target, etc.)
+
+### Networking
+
+Containers will need to be on an appropriate network for the NFS volume store to be accessible.
+
+There are ways this could be done:
+ - allow association of volume-store with container-network to allow direct coupling
+ - note in the volume store list what network is required
+
+In our current networking model, this can potentially result in the container using the endpoint vm to NAT NFS traffic to/from the NFS target.  This is a potential bottleneck and single point of failure.  The other mode we support is adding an NFS container network, and then adding containers requiring the target to the same network.  This removes the point of failure but has other issues (*).
+
+_(*) Note: Without microsegmentation support, the services run in the container can potentially be exposed to the network the NFS target is on.  This means containers connecting to a specific NFS target all have direct connectivity to eachothers ports._
 
 ### Implementation
 
