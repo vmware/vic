@@ -113,3 +113,14 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     # if this fails, very likely the default gateway on the VCH is not set
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine
     Should Be Equal As Integers  ${rc}  0
+
+Create VCH attach disk and reboot
+    ${rc}=  Run And Return Rc  govc vm.disk.create -vm=%{VCH-NAME} -name=%{VCH-NAME}/deleteme -size "16M"
+    Should Be Equal As Integers  ${rc}  0
+
+    Reboot VCH
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    ${rc}=  Run And Return Rc  govc device.ls -vm=%{VCH-NAME} | grep disk
+    Should Be Equal As Integers  ${rc}  1
