@@ -160,6 +160,15 @@ The New Issues are triaged by the team at least once a week.  We try to keep iss
 too long.  After triaging and issue, it will likely be moved to the backlog or stay under New Issues for deferred
 discussion.
 
+For VIC engineers, you should set the priority based on the below guidelines.  Everyone else, do not set the priority of a new issue.
+
+#### Priorities
+Label: priority/high - critical customer issues, critical bugs that are blocking CI or development. Be careful with this label, as it will block sprint planning. We want to limit the number of priority/high issues as much as possible.
+
+Label: priority/medium - features that we have committed to deliver in the current release cycle, bugs/tech debt that are important to fix but are not critically blocking anything.
+
+Label: priotiy/low - everything else that is not blocking anything or critical, anything that has a fairly easy workaround, we will work on this as time permits but do not expect anything in this category to be fixed soon.
+
 ### Backlog
 
 Issues in Backlog are not a current focus. For example, they may be feature requests or ideas for a future version of
@@ -204,10 +213,9 @@ Story Points | Story Size
 
 Note: Epics should never be In Progress
 
-### Done
+### Verify
 
-A "Done" issue normally means the feature or fix is in code review and/or awaiting further testing.  We review these
-issues as a team before closing them.
+A "Verify" issue normally means the feature or fix is in code review and/or awaiting further testing.  These issues require one final QE sign off or at the end of a sprint another dev that didn't work on the issue can verify the issue.
 
 ### Closed
 
