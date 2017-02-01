@@ -64,6 +64,7 @@ func NewDataMigrator() DataMigration {
 	}
 }
 
+// Register plugin to data migration system
 func (m *DataMigrator) Register(ver int, target string, plugin Plugin) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("plugin %s:%d", target, ver)))
 	// assert if plugin version less than max plugin version, which is forcing deveoper to change MaxPluginVersion variable everytime new plugin is added
@@ -102,18 +103,19 @@ func (m *DataMigrator) insertVersion(version int, target string) {
 	log.Debugf("version array: %d", m.targetVers[target])
 }
 
+// Migrate data with current version ID, return true if has any plugin executed
 func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target string, currentVersion int, data interface{}) (int, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("migrate %s from %d", target, currentVersion)))
 
 	pluginVers := m.targetVers[target]
 	if len(pluginVers) == 0 {
-		log.Debugf("No plugin registered for %s", target)
+		log.Debugf("No plugins registered for %s", target)
 		return currentVersion, nil
 	}
 
 	i := sort.SearchInts(pluginVers, currentVersion)
 	if i >= len(pluginVers) {
-		log.Debugf("No plugin bigger than %d", currentVersion)
+		log.Debugf("No plugins bigger than %d", currentVersion)
 		return currentVersion, nil
 	}
 
@@ -134,6 +136,7 @@ func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target s
 	return latestVer, nil
 }
 
+// GetLatestVersion return the latest plugin id for specified target
 func (m *DataMigrator) GetLatestVersion(target string) int {
 	pluginVers := m.targetVers[target]
 	l := len(pluginVers)
