@@ -62,6 +62,13 @@ var unSupportedPsFilters = map[string]bool{
 	"is-task":   false,
 }
 
+// valid volume filters as per API v1.25
+var acceptedVolumeFilterTags = map[string]bool{
+	"dangling": true,
+	"name":     true,
+	"driver":   true,
+}
+
 func TestValidateFilters(t *testing.T) {
 	args := filters.NewArgs()
 	args.Add("id", "12345")
@@ -91,4 +98,13 @@ func TestValidateFilters(t *testing.T) {
 	args = filters.NewArgs()
 	args.Add("label", "124")
 	assert.NoError(t, ValidateFilters(args, acceptedImageFilterTags, unSupportedImageFilters))
+
+	// valid volume filter
+	args = filters.NewArgs()
+	args.Add("name", "vol")
+	assert.NoError(t, ValidateFilters(args, acceptedVolumeFilterTags, nil))
+
+	// invalid volume filter
+	args.Add("mountpoint", "/volumes")
+	assert.Error(t, ValidateFilters(args, acceptedVolumeFilterTags, nil))
 }
