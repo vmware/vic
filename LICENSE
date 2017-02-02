@@ -1,12 +1,11 @@
-LICENSE
+ï»¿LICENSE
 
-vSphere Integrated Containers Engine 0.8.0 GA
+vSphere Integrated Containers Engine 0.9.0 Tech Preview
 
-Copyright © 2016 VMware, Inc.  All rights reserved.
+Copyright 2016 VMware, Inc.  All rights reserved.
 
 This product is licensed to you under the Apache License version 2.0 (the
-“License”).  You may not use this product except in compliance with the
-License.
+License). You may not use this product except in compliance with the License.
 
 			   Apache License Version 2.0, January 2004
 http://www.apache.org/licenses/
@@ -195,9 +194,9 @@ the License.
 
 ======================================================================
 
-vSphere Integrated Containers Engine 0.8.0 GA
+vSphere Integrated Containers Engine 0.9.0 GA
 
-vSphere Integrated Containers Engine 0.8.0 GA includes a number of components
+vSphere Integrated Containers Engine 0.9.0 GA includes a number of components
 with separate copyright notices and license terms.  This product does not
 necessarily use all the open source components referred to below. Your use of
 the source code for these components is subject to the terms and conditions of
@@ -227,7 +226,6 @@ document. This list is provided for your convenience; please read further if
 you wish to review the copyright notice(s) and the full text of the license
 associated with each component.
 
-
 SECTION 1: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
 
    >>> airbrake gobrake.v2-c9d51adc624b5cc4c1bf8de730a09af4878ffe2d
@@ -235,7 +233,8 @@ SECTION 1: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
    >>> backoff-b02f2bbce11d7ea6b97f282ef1771b0fe2f65ef3
    >>> context-07b51741c1d6423d4a6abab1c49940ec09cb1aaf denco
    >>> -9af2ba0e24214bac003821f4a501b131b2e04c75
-   >>> dhcp4-f0e4d29ff0231dce36e250b2ed9ff08412584bca gemnasium
+   >>> dhcp4-f0e4d29ff0231dce36e250b2ed9ff08412584bca
+   >>> easyjson-304d3dc6fae850e62b7db2aee661d9d7b628cef0 gemnasium
    >>> logrus-airbrake-hook.v2-31e6fd4bd5a98d8ee7673d24bc54ec73c31810dd gls
    >>> -8ddce2a84170772b95dd5d576c48d517b22cac63 go-1.7.0
    >>> go-ansiterm-70b2c90b260171e829f1ebd7c17f600c11858dbe
@@ -245,11 +244,12 @@ SECTION 1: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
    >>> go-httpclient-31f0106b4474f14bc441575c19d3a5fa21aa1f6c
    >>> go-patricia-d87fea6fbcb44d59ff7dacbbcc347c66fca67724 go-spew
    >>> -5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
-   >>> golang/lint-c7bacac2b21ca01afa1dee0acf64df3ce047c28f govalidator
+   >>> goimports-99be5a0b85664c12d36a536b14d0d0b85c74da45 govalidator
    >>> -9699ab6b38bee2e02cd3fe8b99ecf67665395c96
    >>> graceful-d7d7a205e779a4738d38eda0671fff8bfc965f14
    >>> gvt-02e2422ab1f16e3872045e4117af370c5c10b24c inflect -8961c3750a47
    >>> logrus-4b6ea7319e214d98c938f12692336f7ca9348d6b
+   >>> mitchellh/mapstructure-5a0325d7fafaac12dda6e7fb8bd222ec1b69875e
    >>> mux-acf3be1b335c8ce30b2c8d51300984666f0ceefa negroni
    >>> -c7477ad8e330bef55bf1ebe300cf8aa67c492d1b
    >>> profile-8a808a6967b79da66deacfe508b26d398a69518f
@@ -264,10 +264,12 @@ SECTION 1: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
    >>> testify-9f9027faeb0dad515336ed2f28317f9f8f527ab4
    >>> tail-a30252cb686a21eb2d0b98132633053ec2f7f1e5
    >>> tomb.v1-dd632973f1e7218eb1089048e0798ec9ae7dceb8
-   >>> urfave/cli-fa949b48f384d8916e1ca94880d665deaa1105c2 urlesc
+   >>> urfave/cli-d86a009f5e13f83df65d0d6cee9a2e3f1445f0da
+   >>> urfave/cli.v1-a14d7d367bc02b1f57d88de97926727f2d936387 urlesc
    >>> -5fa9ff0392746aeae1c4b37fcc42c65afa7a9587
    >>> uuid-f3f4b54b2fabcf1f11dcc939025bb0c109b00ed8
    >>> vburenin/nsync-9a75d1c80410815ac45d65fc01ccabac9c98dd4a
+
 
 
 SECTION 2: Apache License, V2.0
@@ -275,9 +277,21 @@ SECTION 2: Apache License, V2.0
    >>> coreos/etcd-a4624666fec6b9f82400ea873d5c3d2f968fb737 docker
    >>> distribution-2.5.1 docker-1.11.0
    >>> gas-37205e9afa56150a634a1d0d19347446e9b27f17
-   >>> go-swagger-c58f48e81158a4394adffc43b59c07fce1993f19
-   >>> go-systemd-7b2428fec40033549c68f54e26e89e7ca9a9ce31 govmomi-0.12.0
-   >>> govmomi-v0.9.0 groupcache/lru-4eab30f13db9d8b25c752e99d1583628ac2fa422
+   >>> go-openapi/analysis-7222828b8ce19afee3c595aef6643b9e42150120
+   >>> go-openapi/errors-49fe8b3a0e0d32a617d8d50c67f856ad6e45b28b
+   >>> go-openapi/jsonpointer-8d96a2dc61536b690bd36b2e9df0b3c0b62825b2
+   >>> go-openapi/jsonreference-36d33bfe519efae5632669801b180bf1a245da3b
+   >>> go-openapi/loads-315567415dfd74b651f7a62cabfc82a57ed7b9ad
+   >>> go-openapi/runtime-14b161b40ece9dac8e244ab2fde2d209e108c6f5
+   >>> go-openapi/spec-f7ae86df5bc115a2744343016c789a89f065a4bd
+   >>> go-openapi/strfmt-34fc3ba7c0f5fb615fda47a2b4fbd4c641b215f2
+   >>> go-openapi/swag-3b6d86cd965820f968760d5d419cb4add096bdd7
+   >>> go-openapi/validate-027696d4b54399770f1cdcc6c6daa56975f9e14e
+   >>> go-swagger-52c95c3d30d54dad6d1248f1f490c2de0bfbf492
+   >>> go-systemd-7b2428fec40033549c68f54e26e89e7ca9a9ce31
+   >>> golang/lint-206c0f020eba0f7fbcfbc467a5eb808037df2ed6
+   >>> govmomi-ab40ac7324b5d45b8f1677d87ec0d26349448d41
+   >>> groupcache/lru-4eab30f13db9d8b25c752e99d1583628ac2fa422
    >>> netlink-e73bad418fd727ed3a02830b1af1ad0283a1de6c
    >>> shakers-24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
    >>> sigma/bdoor-b9c82b7b3c0b1e57ec2f8809b6219fbe6a58d92a
@@ -295,12 +309,14 @@ APPENDIX. Standard License Files
    >>> Apache License, V2.0
 
    >>> Common Development and Distribution License, V1.0
-   
+
    >>> Creative Commons Attribution License, V3.0
-   
+
    >>> Creative Commons Attribution-ShareAlike, V4.0
-   
+
    >>> Mozilla Public License, V2.0
+
+   >>> Creative Commons Attribution 4.0 International
 
 
 --------------- SECTION 1:  BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
@@ -515,6 +531,29 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+>>> easyjson-304d3dc6fae850e62b7db2aee661d9d7b628cef0
+
+Copyright (c) 2016 Mail.Ru Group
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 
 >>> gemnasium logrus-airbrake-hook.v2-31e6fd4bd5a98d8ee7673d24bc54ec73c31810dd
@@ -795,7 +834,7 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
 
->>> golang/lint-c7bacac2b21ca01afa1dee0acf64df3ce047c28f
+>>> goimports-99be5a0b85664c12d36a536b14d0d0b85c74da45
 
 Copyright (c) 2013 The Go Authors. All rights reserved.
 
@@ -935,6 +974,31 @@ SOFTWARE.
 The MIT License (MIT)
 
 Copyright (c) 2014 Simon Eskildsen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+>>> mitchellh/mapstructure-5a0325d7fafaac12dda6e7fb8bd222ec1b69875e
+
+The MIT License (MIT)
+
+Copyright (c) 2013 Mitchell Hashimoto
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1519,11 +1583,36 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
->>> urfave/cli-fa949b48f384d8916e1ca94880d665deaa1105c2
+>>> urfave/cli-d86a009f5e13f83df65d0d6cee9a2e3f1445f0da
 
-Copyright (C) 2013 Jeremy Saenz All Rights Reserved.
+MIT License
 
-MIT LICENSE
+Copyright (c) 2016 Jeremy Saenz & Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+>>> urfave/cli.v1-a14d7d367bc02b1f57d88de97926727f2d936387
+
+MIT License
+
+Copyright (c) 2016 Jeremy Saenz & Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -2183,7 +2272,75 @@ the License.
 LICENSE: Apache 2.0
 
 
->>> go-swagger-c58f48e81158a4394adffc43b59c07fce1993f19
+>>> go-openapi/analysis-7222828b8ce19afee3c595aef6643b9e42150120
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+>>> go-openapi/errors-49fe8b3a0e0d32a617d8d50c67f856ad6e45b28b
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+>>> go-openapi/jsonpointer-8d96a2dc61536b690bd36b2e9df0b3c0b62825b2
+
+Copyright 2013 sigu-399 ( https:github.com/sigu-399 )
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+>>> go-openapi/jsonreference-36d33bfe519efae5632669801b180bf1a245da3b
+
+Copyright 2013 sigu-399 ( https:github.comsigu-399 )
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.orglicensesLICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+>>> go-openapi/loads-315567415dfd74b651f7a62cabfc82a57ed7b9ad
 
 Copyright 2015 go-swagger maintainers
 
@@ -2201,7 +2358,164 @@ the License.
 
 ADDITIONAL LICENSE INFORMATION:
 
->MIT Style
+>Creative Commons 4.0 International
+
+loads-master.zip\loads-master\fixtures\json\resources\resourceWithRelativeHost.json
+
+License: Creative Commons 4.0 International
+
+
+>>> go-openapi/runtime-14b161b40ece9dac8e244ab2fde2d209e108c6f5
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> MIT
+
+runtime-master.zip\runtime-master\middleware\denco\LICENSE
+
+Copyright (c) 2014 Naoya Inada <naoina@kuune.org>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+> BSD-3
+
+runtime-master.zip\runtime-master\middleware\header\header.go
+
+Copyright 2013 The Go Authors. All rights reserved.  Use of this source code
+is governed by a BSD-style license that can be found in the LICENSE file or at
+https://developers.google.com/open-source/licenses/bsd.  this file was taken
+from the github.com/golang/gddo repository
+
+Package header provides functions for parsing HTTP headers.
+
+
+>>> go-openapi/spec-f7ae86df5bc115a2744343016c789a89f065a4bd
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+ADDITIONAL LICENSE INFORMATION:
+
+> Creative Commons 4.0 International
+
+spec-master.zip\spec-master\fixtures\expansion\invalid-refs.json
+
+license: { name:Creative Commons 4.0 International, url:
+http:creativecommons.org/licenses/by/4.0/
+
+
+>>> go-openapi/strfmt-34fc3ba7c0f5fb615fda47a2b4fbd4c641b215f2
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.orglicensesLICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+>>> go-openapi/swag-3b6d86cd965820f968760d5d419cb4add096bdd7
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.orglicensesLICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+>>> go-openapi/validate-027696d4b54399770f1cdcc6c6daa56975f9e14e
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+>>> go-swagger-52c95c3d30d54dad6d1248f1f490c2de0bfbf492
+
+Copyright 2015 go-swagger maintainers
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License.  You may obtain a copy of
+the License at
+
+http:www.apache.orglicensesLICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+License for the specific language governing permissions and limitations under
+the License.
+
+
+ADDITIONAL LICENSE INFORMATION:
+
+> MIT Style
 
 go-swagger-master.zip\go-swagger-master\DCO
 
@@ -2237,37 +2551,44 @@ submit with it, including my sign-off) is maintained indefinitely and may be
 redistributed consistent with this project or the open source license(s)
 involved.
 
->LGPL 3.0
+> CC Attribution 4.0
 
-******[Vmware doesnot distribute sub-component"yaml.v2"]******
+go-swagger-master.zip\go-swagger-master\fixtures\petstores\petstore.json
 
-go-swagger-master.zip\go-swagger-master\vendor\gopkg.in\yaml.v2\LICENSE
+License: CC- Attribution 4.0
 
-Copyright (c) 2011-2014 - Canonical Inc.
+> MIT
 
-This software is licensed under the LGPLv3, included below.
+go-swagger-master.zip\go-swagger-master\vendor\github.com\asaskevich\govalidator\LICENSE
 
-As a special exception to the GNU Lesser General Public License version 3
-("LGPL3"), the copyright holders of this Library give you permission to convey
-to a third party a Combined Work that links statically or dynamically to this
-Library without providing any Minimal Corresponding Source or Minimal
-Application Code as set out in 4d or providing the installation information
-set out in section 4e, provided that you comply with the other provisions of
-LGPL3 and provided that you meet, for the Application the terms and conditions
-of the license(s) which apply to the Application.
+The MIT License (MIT)
 
-Except as stated in this special exception, the provisions of LGPL3 will
-continue to comply in full to this Library. If you modify this Library, you
-may apply this exception to your version of this Library, but you are not
-obliged to do so. If you do not wish to do so, delete this exception statement
-from your version. This exception does not (and cannot) modify any license
-terms which apply to the Application, with which you must still comply.
+Copyright (c) 2014 Alex Saskevich
 
->BSD
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, andor sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-master\vendor\golang.org\x\tools\imports\LICENSE
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Copyright (c) 2009 The Go Authors. All rights reserved.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+> BSD 3
+
+go-swagger-master.zip\go-swagger-master\vendor\github.com\fsnotify\fsnotify\LICENSE
+
+Copyright (c) 2012 The Go Authors. All rights reserved.  Copyright (c) 2012
+fsnotify Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -2276,7 +2597,7 @@ modification, are permitted provided that the following conditions are met:
 notice, this list of conditions and the following disclaimer.
 * Redistributions in binary form must reproduce the above
 copyright notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
+documentation andor other materials provided with the distribution.
 * Neither the name of Google Inc. nor the names of its
 contributors may be used to endorse or promote products derived from this
 software without specific prior written permission.
@@ -2292,51 +2613,21 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
->MIT
+> BSD2
 
-go-swagger-master.zip\go-swagger-master\vendor\github.com\vburenin\nsync\LICENSE
+go-swagger-master.zip\go-swagger-master\vendor\github.com\gorilla\handlers\LICENSE
 
-The MIT License (MIT)
-
-Copyright (c) 2016 Volodymyr Burenin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
->BSD
-
-go-swagger-master.zip\go-swagger-master\vendor\github.com\PuerkitoBio\purell\LICENSE
-
-Copyright (c) 2012, Martin Angers All rights reserved.
+Copyright (c) 2013 The Gorilla Handlers Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright notice, this
-* list of conditions and the following disclaimer.
+Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
 
-* Redistributions in binary form must reproduce the above copyright notice,
-* this list of conditions and the following disclaimer in the documentation
-* and/or other materials provided with the distribution.
-
-* Neither the name of the author nor the names of its contributors may be used
-* to endorse or promote products derived from this software without specific
-* prior written permission.
+Redistributions in binary form must reproduce the above copyright notice, this
+list of conditions and the following disclaimer in the documentation andor
+other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -2348,6 +2639,12 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+> Mozilla Public License, version 2.0
+
+go-swagger-master.zip\go-swagger-master\vendor\github.com\hashicorp\hcl\LICENSE
+
+License: Mozilla Public License, version 2.0
 
 
 >>> go-systemd-7b2428fec40033549c68f54e26e89e7ca9a9ce31
@@ -2410,65 +2707,19 @@ redistributed consistent with this project or the open source license(s)
 involved.
 
 
->>> govmomi-0.12.0
+>>> golang/lint-206c0f020eba0f7fbcfbc467a5eb808037df2ed6
 
-Copyright (c) 2014-2016 VMware, Inc. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not
-use this file except in compliance with the License.  You may obtain a copy of
-the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
-License for the specific language governing permissions and limitations under
-the License.
-
-ADDITIONAL LICENSE INFORMATION:
-
-> GPL 3.0
-
-***** [VMWARE DOES NOT DISTRIBUTE THE SUBCOMPONENT "GOVC.EL".] *****
-
-govmomi-master.zip\govmomi-master\govc\emacs\govc.el
-
-Author: The govc developers URL:
-https://github.com/vmware/govmomi/tree/master/govc/emacs Keywords: convenience
-Version: 0.1.0 Package-Requires: ((emacs "24.3") (dash "1.5.0") (s "1.9.0")
-(magit-popup "2.0.50") (json-mode "1.6.0"))
-
-This file is NOT part of GNU Emacs.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; either version 3, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-details.
-
-You should have received a copy of the GNU General Public License along with
-GNU Emacs; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
-
-
-> BSD- Style
-
-govmomi-master.zip\govmomi-master\vim25\xml\LICENSE
-
-Copyright (c) 2012 The Go Authors. All rights reserved.
+Copyright (c) 2013 The Go Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.  Redistributions in binary
-form must reproduce the above copyright notice, this list of conditions and
-the following disclaimer in the documentation and/or other materials provided
-with the distribution.  Neither the name of Google Inc. nor the names of its
+* Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+* Neither the name of Google Inc. nor the names of its
 contributors may be used to endorse or promote products derived from this
 software without specific prior written permission.
 
@@ -2484,9 +2735,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
->>> govmomi-v0.9.0
+>>> govmomi-ab40ac7324b5d45b8f1677d87ec0d26349448d41
 
-Copyright (c) 2015 VMware, Inc. All Rights Reserved.
+Copyright (c) 2014-2015 VMware, Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use this file except in compliance with the License.  You may obtain a copy of
@@ -2502,28 +2753,11 @@ the License.
 
 ADDITIONAL LICENSE INFORMATION:
 
->GPL 3.0
-
-[VMWare does not distribute the subpackage "govc\emacs\govc.el"]
- 
-govmomi-0.9.0.tar.gz\govmomi-0.9.0.tar\govmomi-0.9.0\govc\emacs\govc.el
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; either version 3, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-details.
-
-You should have received a copy of the GNU General Public License along with
-GNU Emacs; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 >MIT
 
-govmomi-0.9.0.tar.gz\govmomi-0.9.0.tar\govmomi-0.9.0\vendor\github.com\davecgh\go-spew\spew\spew.go
+
+govmomi-master.zip\govmomi-master\vendor\github.com\davecgh\go-spew\spew\format.go
 
 Copyright (c) 2013 Dave Collins <dave@davec.name>
 
@@ -2541,19 +2775,18 @@ PERFORMANCE OF THIS SOFTWARE.
 
 >BSD  3Clause
 
-govmomi-0.9.0.tar.gz\govmomi-0.9.0.tar\govmomi-0.9.0\vim25\xml\LICENSE
+govmomi-master.zip\govmomi-master\vim25\xml\ LICENSE
 
 Copyright (c) 2012 The Go Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above
-copyright notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-* Neither the name of Google Inc. nor the names of its
+Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.  Redistributions in binary
+form must reproduce the above copyright notice, this list of conditions and
+the following disclaimer in the documentation and/or other materials provided
+with the distribution.  Neither the name of Google Inc. nor the names of its
 contributors may be used to endorse or promote products derived from this
 software without specific prior written permission.
 
@@ -2714,6 +2947,7 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 
 
 =============== APPENDIX. Standard License Files ============== 
@@ -3206,9 +3440,11 @@ herein is intended or shall be deemed to constitute any admission of
 liability.
 
 
+
 --------------- SECTION 3: Creative Commons Attribution License, V3.0
 -----------
 
+Creative Commons Attribution 3.0 Unported
 
 CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE LEGAL
 SERVICES. DISTRIBUTION OF THIS LICENSE DOES NOT CREATE AN ATTORNEY-CLIENT
@@ -3496,20 +3732,21 @@ not granted under this License, such additional rights are deemed to be
 included in the License; this License is not intended to restrict the license
 of any rights under applicable law.
 
-   
+
+
 --------------- SECTION 4: Creative Commons Attribution-ShareAlike, V4.0
 -----------
 
 Creative Commons Attribution-ShareAlike 4.0 International Public License
 
-Creative Commons Corporation (“Creative Commons”) is not a law firm and
-does not provide legal services or legal advice. Distribution of Creative
-Commons public licenses does not create a lawyer-client or other relationship.
+Creative Commons Corporation (Creative Commons) is not a law firm and does not
+provide legal services or legal advice. Distribution of Creative Commons
+public licenses does not create a lawyer-client or other relationship.
 Creative Commons makes its licenses and related information available on an
-“as-is” basis. Creative Commons gives no warranties regarding its
-licenses, any material licensed under their terms and conditions, or any
-related information. Creative Commons disclaims all liability for damages
-resulting from their use to the fullest extent possible.
+as-is basis. Creative Commons gives no warranties regarding its licenses, any
+material licensed under their terms and conditions, or any related
+information. Creative Commons disclaims all liability for damages resulting
+from their use to the fullest extent possible.
 
 Using Creative Commons Public Licenses
 
@@ -3533,16 +3770,16 @@ licensors.
 
     Considerations for the public: By using one of our public licenses, a
 licensor grants the public permission to use the licensed material under
-specified terms and conditions. If the licensor’s permission is not
-necessary for any reason–for example, because of any applicable exception
-or limitation to copyright–then that use is not regulated by the license.
-Our licenses grant only permissions under copyright and certain other rights
-that a licensor has authority to grant. Use of the licensed material may still
-be restricted for other reasons, including because others have copyright or
-other rights in the material. A licensor may make special requests, such as
-asking that all changes be marked or described. Although not required by our
-licenses, you are encouraged to respect those requests where reasonable. More
-considerations for the public.
+specified terms and conditions. If the licensors permission is not necessary
+for any reason for example, because of any applicable exception or limitation
+to copyright then that use is not regulated by the license. Our licenses grant
+only permissions under copyright and certain other rights that a licensor has
+authority to grant. Use of the licensed material may still be restricted for
+other reasons, including because others have copyright or other rights in the
+material. A licensor may make special requests, such as asking that all
+changes be marked or described. Although not required by our licenses, you are
+encouraged to respect those requests where reasonable. More considerations for
+the public.
 
 Creative Commons Attribution-ShareAlike 4.0 International Public License
 
@@ -3555,7 +3792,7 @@ and conditions, and the Licensor grants You such rights in consideration of
 benefits the Licensor receives from making the Licensed Material available
 under these terms and conditions.
 
-Section 1 – Definitions.
+Section 1 Definitions.
 
     Adapted Material means material subject to Copyright and Similar Rights
 that is derived from or based upon the Licensed Material and in which the
@@ -3602,7 +3839,7 @@ as well as other essentially equivalent rights anywhere in the world.  You
 means the individual or entity exercising the Licensed Rights under this
 Public License. Your has a corresponding meaning.
 
-Section 2 – Scope.
+Section 2 Scope.
 
     License grant.  Subject to the terms and conditions of this Public
 License, the Licensor hereby grants You a worldwide, royalty-free,
@@ -3621,22 +3858,21 @@ technical modifications necessary to exercise the Licensed Rights, including
 technical modifications necessary to circumvent Effective Technological
 Measures. For purposes of this Public License, simply making modifications
 authorized by this Section 2(a)(4) never produces Adapted Material.
-Downstream recipients.  Offer from the Licensor – Licensed Material. Every
+Downstream recipients.  Offer from the Licensor  Licensed Material. Every
 recipient of the Licensed Material automatically receives an offer from the
 Licensor to exercise the Licensed Rights under the terms and conditions of
-this Public License.  Additional offer from the Licensor – Adapted
-Material. Every recipient of Adapted Material from You automatically receives
-an offer from the Licensor to exercise the Licensed Rights in the Adapted
-Material under the conditions of the Adapter’s License You apply.  No
-downstream restrictions. You may not offer or impose any additional or
-different terms or conditions on, or apply any Effective Technological
-Measures to, the Licensed Material if doing so restricts exercise of the
-Licensed Rights by any recipient of the Licensed Material.  No endorsement.
-Nothing in this Public License constitutes or may be construed as permission
-to assert or imply that You are, or that Your use of the Licensed Material is,
-connected with, or sponsored, endorsed, or granted official status by, the
-Licensor or others designated to receive attribution as provided in Section
-3(a)(1)(A)(i).
+this Public License.  Additional offer from the Licensor Adapted Material.
+Every recipient of Adapted Material from You automatically receives an offer
+from the Licensor to exercise the Licensed Rights in the Adapted Material
+under the conditions of the Adapters License You apply.  No downstream
+restrictions. You may not offer or impose any additional or different terms or
+conditions on, or apply any Effective Technological Measures to, the Licensed
+Material if doing so restricts exercise of the Licensed Rights by any
+recipient of the Licensed Material.  No endorsement. Nothing in this Public
+License constitutes or may be construed as permission to assert or imply that
+You are, or that Your use of the Licensed Material is, connected with, or
+sponsored, endorsed, or granted official status by, the Licensor or others
+designated to receive attribution as provided in Section 3(a)(1)(A)(i).
 
     Other rights.  Moral rights, such as the right of integrity, are not
 licensed under this Public License, nor are publicity, privacy, and/or other
@@ -3650,7 +3886,7 @@ or through a collecting society under any voluntary or waivable statutory or
 compulsory licensing scheme. In all other cases the Licensor expressly
 reserves any right to collect such royalties.
 
-Section 3 – License Conditions.
+Section 3 License Conditions.
 
 Your exercise of the Licensed Rights is expressly made subject to the
 following conditions.
@@ -3676,7 +3912,7 @@ Licensor, You must remove any of the information required by Section
 3(a)(1)(A) to the extent reasonably practicable.  ShareAlike.
 
     In addition to the conditions in Section 3(a), if You Share Adapted
-Material You produce, the following conditions also apply.  The Adapter’s
+Material You produce, the following conditions also apply.  The Adapters
 License You apply must be a Creative Commons license with the same License
 Elements, this version or later, or a BY-SA Compatible License.  You must
 include the text of, or the URI or hyperlink to, the Adapter's License You
@@ -3686,7 +3922,7 @@ offer or impose any additional or different terms or conditions on, or apply
 any Effective Technological Measures to, Adapted Material that restrict
 exercise of the rights granted under the Adapter's License You apply.
 
-Section 4 – Sui Generis Database Rights.
+Section 4 Sui Generis Database Rights.
 
 Where the Licensed Rights include Sui Generis Database Rights that apply to
 Your use of the Licensed Material:
@@ -3704,7 +3940,7 @@ For the avoidance of doubt, this Section 4 supplements and does not replace
 Your obligations under this Public License where the Licensed Rights include
 other Copyright and Similar Rights.
 
-Section 5 – Disclaimer of Warranties and Limitation of Liability.
+Section 5 Disclaimer of Warranties and Limitation of Liability.
 
     Unless otherwise separately undertaken by the Licensor, to the extent
 possible, the Licensor offers the Licensed Material as-is and as-available,
@@ -3727,7 +3963,7 @@ not allowed in full or in part, this limitation may not apply to You.
 shall be interpreted in a manner that, to the extent possible, most closely
 approximates an absolute disclaimer and waiver of all liability.
 
-Section 6 – Term and Termination.
+Section 6  Term and Termination.
 
     This Public License applies for the term of the Copyright and Similar
 Rights licensed here. However, if You fail to comply with this Public License,
@@ -3744,7 +3980,7 @@ conditions or stop distributing the Licensed Material at any time; however,
 doing so will not terminate this Public License.  Sections 1, 5, 6, 7, and 8
 survive termination of this Public License.
 
-Section 7 – Other Terms and Conditions.
+Section 7 Other Terms and Conditions.
 
     The Licensor shall not be bound by any additional or different terms or
 conditions communicated by You unless expressly agreed.  Any arrangements,
@@ -3752,7 +3988,7 @@ understandings, or agreements regarding the Licensed Material not stated
 herein are separate from and independent of the terms and conditions of this
 Public License.
 
-Section 8 – Interpretation.
+Section 8 Interpretation.
 
     For the avoidance of doubt, this Public License does not, and shall not be
 interpreted to, reduce, limit, restrict, or impose conditions on any use of
@@ -3770,20 +4006,21 @@ the legal processes of any jurisdiction or authority.
 
 Creative Commons is not a party to its public licenses. Notwithstanding,
 Creative Commons may elect to apply one of its public licenses to material it
-publishes and in those instances will be considered the “Licensor.” The
-text of the Creative Commons public licenses is dedicated to the public domain
-under the CC0 Public Domain Dedication. Except for the limited purpose of
-indicating that material is shared under a Creative Commons public license or
-as otherwise permitted by the Creative Commons policies published at
+publishes and in those instances will be considered the Licensor.The text of
+the Creative Commons public licenses is dedicated to the public domain under
+the CC0 Public Domain Dedication. Except for the limited purpose of indicating
+that material is shared under a Creative Commons public license or as
+otherwise permitted by the Creative Commons policies published at
 creativecommons.org/policies, Creative Commons does not authorize the use of
-the trademark “Creative Commons” or any other trademark or logo of
-Creative Commons without its prior written consent including, without
-limitation, in connection with any unauthorized modifications to any of its
-public licenses or any other arrangements, understandings, or agreements
-concerning use of licensed material. For the avoidance of doubt, this
-paragraph does not form part of the public licenses.
+the trademark Creative Commons or any other trademark or logo of Creative
+Commons without its prior written consent including, without limitation, in
+connection with any unauthorized modifications to any of its public licenses
+or any other arrangements, understandings, or agreements concerning use of
+licensed material. For the avoidance of doubt, this paragraph does not form
+part of the public licenses.
 
 Creative Commons may be contacted at creativecommons.org.
+
 
 
 --------------- SECTION 5: Mozilla Public License, V2.0 -----------
@@ -3792,21 +4029,20 @@ Mozilla Public License Version 2.0
 
 1. Definitions
 
-1.1. “Contributor” means each individual or legal entity that creates,
+1.1. Contributor means each individual or legal entity that creates,
 contributes to the creation of, or owns Covered Software.
 
-1.2. “Contributor Version” means the combination of the Contributions of
-others (if any) used by a Contributor and that particular Contributor’s
-Contribution.
+1.2. Contributor Version means the combination of the Contributions of others
+(if any) used by a Contributor and that particular Contributors Contribution.
 
-1.3. “Contribution” means Covered Software of a particular Contributor.
+1.3. Contribution means Covered Software of a particular Contributor.
 
-1.4. “Covered Software” means Source Code Form to which the initial
-Contributor has attached the notice in Exhibit A, the Executable Form of such
-Source Code Form, and Modifications of such Source Code Form, in each case
-including portions thereof.
+1.4. Covered Software means Source Code Form to which the initial Contributor
+has attached the notice in Exhibit A, the Executable Form of such Source Code
+Form, and Modifications of such Source Code Form, in each case including
+portions thereof.
 
-1.5. “Incompatible With Secondary Licenses” means
+1.5. Incompatible With Secondary Licenses means
 
 that the initial Contributor has attached the notice described in Exhibit B to
 the Covered Software; or
@@ -3814,47 +4050,44 @@ the Covered Software; or
 that the Covered Software was made available under the terms of version 1.1 or
 earlier of the License, but not also under the terms of a Secondary License.
 
-1.6. “Executable Form” means any form of the work other than Source Code
-Form.
+1.6. Executable Form means any form of the work other than Source Code Form.
 
-1.7. “Larger Work” means a work that combines Covered Software with
-other material, in a separate file or files, that is not Covered Software.
+1.7. Larger Work means a work that combines Covered Software with other
+material, in a separate file or files, that is not Covered Software.
 
-1.8. “License” means this document.
+1.8. License means this document.
 
-1.9. “Licensable” means having the right to grant, to the maximum extent
+1.9. Licensable means having the right to grant, to the maximum extent
 possible, whether at the time of the initial grant or subsequently, any and
 all of the rights conveyed by this License.
 
-1.10. “Modifications” means any of the following:
+1.10. Modifications means any of the following:
 
 any file in Source Code Form that results from an addition to, deletion from,
 or modification of the contents of Covered Software; or
 
 any new file in Source Code Form that contains any Covered Software.
 
-1.11. “Patent Claims” of a Contributor means any patent claim(s),
-including without limitation, method, process, and apparatus claims, in any
-patent Licensable by such Contributor that would be infringed, but for the
-grant of the License, by the making, using, selling, offering for sale, having
-made, import, or transfer of either its Contributions or its Contributor
-Version.
+1.11. Patent Claims of a Contributor means any patent claim(s), including
+without limitation, method, process, and apparatus claims, in any patent
+Licensable by such Contributor that would be infringed, but for the grant of
+the License, by the making, using, selling, offering for sale, having made,
+import, or transfer of either its Contributions or its Contributor Version.
 
-1.12. “Secondary License” means either the GNU General Public License,
-Version 2.0, the GNU Lesser General Public License, Version 2.1, the GNU
-Affero General Public License, Version 3.0, or any later versions of those
-licenses.
+1.12. Secondary License means either the GNU General Public License, Version
+2.0, the GNU Lesser General Public License, Version 2.1, the GNU Affero
+General Public License, Version 3.0, or any later versions of those licenses.
 
-1.13. “Source Code Form” means the form of the work preferred for making
+1.13. Source Code Form means the form of the work preferred for making
 modifications.
 
-1.14. “You” (or “Your”) means an individual or a legal entity
-exercising rights under this License. For legal entities, “You” includes
-any entity that controls, is controlled by, or is under common control with
-You. For purposes of this definition, “control” means (a) the power,
-direct or indirect, to cause the direction or management of such entity,
-whether by contract or otherwise, or (b) ownership of more than fifty percent
-(50%) of the outstanding shares or beneficial ownership of such entity.
+1.14. You(or Your) means an individual or a legal entity exercising rights
+under this License. For legal entities, You includes any entity that controls,
+is controlled by, or is under common control with You. For purposes of this
+definition, control means (a) the power, direct or indirect, to cause the
+direction or management of such entity, whether by contract or otherwise, or
+(b) ownership of more than fifty percent (50%) of the outstanding shares or
+beneficial ownership of such entity.
 
 2. License Grants and Conditions
 
@@ -3888,10 +4121,9 @@ Contributor:
 
 for any code that a Contributor has removed from Covered Software; or
 
-for infringements caused by: (i) Your and any other third party’s
-modifications of Covered Software, or (ii) the combination of its
-Contributions with other software (except as part of its Contributor Version);
-or
+for infringements caused by: (i) Your and any other third partys modifications
+of Covered Software, or (ii) the combination of its Contributions with other
+software (except as part of its Contributor Version); or
 
 under Patent Claims infringed by Covered Software in the absence of its
 Contributions.
@@ -3932,7 +4164,7 @@ Modifications that You create or to which You contribute, must be under the
 terms of this License. You must inform recipients that the Source Code Form of
 the Covered Software is governed by the terms of this License, and how they
 can obtain a copy of this License. You may not attempt to alter or restrict
-the recipients’ rights in the Source Code Form.
+the recipients rights in the Source Code Form.
 
 3.2. Distribution of Executable Form
 
@@ -3946,8 +4178,8 @@ recipient; and
 
 You may distribute such Executable Form under the terms of this License, or
 sublicense it under different terms, provided that the license for the
-Executable Form does not attempt to limit or alter the recipients’ rights
-in the Source Code Form under this License.
+Executable Form does not attempt to limit or alter the recipients rights in
+the Source Code Form under this License.
 
 3.3. Distribution of a Larger Work
 
@@ -4021,16 +4253,16 @@ termination shall survive termination.
 
 6. Disclaimer of Warranty
 
-Covered Software is provided under this License on an “as is” basis,
-without warranty of any kind, either expressed, implied, or statutory,
-including, without limitation, warranties that the Covered Software is free of
-defects, merchantable, fit for a particular purpose or non-infringing. The
-entire risk as to the quality and performance of the Covered Software is with
-You. Should any Covered Software prove defective in any respect, You (not any
-Contributor) assume the cost of any necessary servicing, repair, or
-correction. This disclaimer of warranty constitutes an essential part of this
-License. No use of any Covered Software is authorized under this License
-except under this disclaimer.
+Covered Software is provided under this License on an as is basis, without
+warranty of any kind, either expressed, implied, or statutory, including,
+without limitation, warranties that the Covered Software is free of defects,
+merchantable, fit for a particular purpose or non-infringing. The entire risk
+as to the quality and performance of the Covered Software is with You. Should
+any Covered Software prove defective in any respect, You (not any Contributor)
+assume the cost of any necessary servicing, repair, or correction. This
+disclaimer of warranty constitutes an essential part of this License. No use
+of any Covered Software is authorized under this License except under this
+disclaimer.
 
 7. Limitation of Liability
 
@@ -4042,7 +4274,7 @@ character including, without limitation, damages for lost profits, loss of
 goodwill, work stoppage, computer failure or malfunction, or any and all other
 commercial damages or losses, even if such party shall have been informed of
 the possibility of such damages. This limitation of liability shall not apply
-to liability for death or personal injury resulting from such party’s
+to liability for death or personal injury resulting from such partys
 negligence to the extent applicable law prohibits such limitation. Some
 jurisdictions do not allow the exclusion or limitation of incidental or
 consequential damages, so this exclusion and limitation may not apply to You.
@@ -4053,7 +4285,7 @@ Any litigation relating to this License may be brought only in the courts of a
 jurisdiction where the defendant maintains its principal place of business and
 such litigation shall be governed by laws of that jurisdiction, without
 reference to its conflict-of-law provisions. Nothing in this Section shall
-prevent a party’s ability to bring cross-claims or counter-claims.
+prevent a partys ability to bring cross-claims or counter-claims.
 
 9. Miscellaneous
 
@@ -4107,13 +4339,281 @@ notice.
 
 You may add additional accurate notices of copyright ownership.
 
-Exhibit B - “Incompatible With Secondary Licenses” Notice
+Exhibit B - Incompatible With Secondary Licenses Notice
 
-This Source Code Form is “Incompatible With Secondary Licenses”, as
-defined by the Mozilla Public License, v. 2.0.
+This Source Code Form is Incompatible With Secondary Licenses, as defined by
+the Mozilla Public License, v. 2.0.
 
 
-===========================================================================
+
+--------------- SECTION 6: Creative Commons Attribution 4.0 International
+-----------
+
+Creative Commons Corporation (Creative Commons) is not a law firm and does not
+provide legal services or legal advice. Distribution of Creative Commons
+public licenses does not create a lawyer-client or other relationship.
+Creative Commons makes its licenses and related information available on an
+as-is basis. Creative Commons gives no warranties regarding its licenses, any
+material licensed under their terms and conditions, or any related
+information. Creative Commons disclaims all liability for damages resulting
+from their use to the fullest extent possible.
+
+Using Creative Commons Public Licenses
+
+Creative Commons public licenses provide a standard set of terms and
+conditions that creators and other rights holders may use to share original
+works of authorship and other material subject to copyright and certain other
+rights specified in the public license below. The following considerations are
+for informational purposes only, are not exhaustive, and do not form part of
+our licenses.
+
+Considerations for licensors: Our public licenses are intended for use by
+those authorized to give the public permission to use material in ways
+otherwise restricted by copyright and certain other rights. Our licenses are
+irrevocable. Licensors should read and understand the terms and conditions of
+the license they choose before applying it. Licensors should also secure all
+rights necessary before applying our licenses so that the public can reuse the
+material as expected. Licensors should clearly mark any material not subject
+to the license. This includes other CC-licensed material, or material used
+under an exception or limitation to copyright. More considerations for
+licensors.
+
+Considerations for the public: By using one of our public licenses, a licensor
+grants the public permission to use the licensed material under specified
+terms and conditions. If the licensors permission is not necessary for any
+reason for example, because of any applicable exception or limitation to
+copyright then that use is not regulated by the license. Our licenses grant
+only permissions under copyright and certain other rights that a licensor has
+authority to grant. Use of the licensed material may still be restricted for
+other reasons, including because others have copyright or other rights in the
+material. A licensor may make special requests, such as asking that all
+changes be marked or described. Although not required by our licenses, you are
+encouraged to respect those requests where reasonable. More considerations for
+the public.
+
+Creative Commons Attribution 4.0 International Public License
+
+By exercising the Licensed Rights (defined below), You accept and agree to be
+bound by the terms and conditions of this Creative Commons Attribution 4.0
+International Public License ("Public License"). To the extent this Public
+License may be interpreted as a contract, You are granted the Licensed Rights
+in consideration of Your acceptance of these terms and conditions, and the
+Licensor grants You such rights in consideration of benefits the Licensor
+receives from making the Licensed Material available under these terms and
+conditions.
+
+Section 1  Definitions.
+
+Adapted Material means material subject to Copyright and Similar Rights that
+is derived from or based upon the Licensed Material and in which the Licensed
+Material is translated, altered, arranged, transformed, or otherwise modified
+in a manner requiring permission under the Copyright and Similar Rights held
+by the Licensor. For purposes of this Public License, where the Licensed
+Material is a musical work, performance, or sound recording, Adapted Material
+is always produced where the Licensed Material is synched in timed relation
+with a moving image.  Adapter's License means the license You apply to Your
+Copyright and Similar Rights in Your contributions to Adapted Material in
+accordance with the terms and conditions of this Public License.  Copyright
+and Similar Rights means copyright and/or similar rights closely related to
+copyright including, without limitation, performance, broadcast, sound
+recording, and Sui Generis Database Rights, without regard to how the rights
+are labeled or categorized. For purposes of this Public License, the rights
+specified in Section 2(b)(1)-(2) are not Copyright and Similar Rights.
+Effective Technological Measures means those measures that, in the absence of
+proper authority, may not be circumvented under laws fulfilling obligations
+under Article 11 of the WIPO Copyright Treaty adopted on December 20, 1996,
+and/or similar international agreements.  Exceptions and Limitations means
+fair use, fair dealing, and/or any other exception or limitation to Copyright
+and Similar Rights that applies to Your use of the Licensed Material.
+Licensed Material means the artistic or literary work, database, or other
+material to which the Licensor applied this Public License.  Licensed Rights
+means the rights granted to You subject to the terms and conditions of this
+Public License, which are limited to all Copyright and Similar Rights that
+apply to Your use of the Licensed Material and that the Licensor has authority
+to license.  Licensor means the individual(s) or entity(ies) granting rights
+under this Public License.  Share means to provide material to the public by
+any means or process that requires permission under the Licensed Rights, such
+as reproduction, public display, public performance, distribution,
+dissemination, communication, or importation, and to make material available
+to the public including in ways that members of the public may access the
+material from a place and at a time individually chosen by them.  Sui Generis
+Database Rights means rights other than copyright resulting from Directive
+96/9/EC of the European Parliament and of the Council of 11 March 1996 on the
+legal protection of databases, as amended and/or succeeded, as well as other
+essentially equivalent rights anywhere in the world.  You means the individual
+or entity exercising the Licensed Rights under this Public License. Your has a
+corresponding meaning.
+
+Section 2 Scope.
+
+License grant.  Subject to the terms and conditions of this Public License,
+the Licensor hereby grants You a worldwide, royalty-free, non-sublicensable,
+non-exclusive, irrevocable license to exercise the Licensed Rights in the
+Licensed Material to: reproduce and Share the Licensed Material, in whole or
+in part; and produce, reproduce, and Share Adapted Material.  Exceptions and
+Limitations. For the avoidance of doubt, where Exceptions and Limitations
+apply to Your use, this Public License does not apply, and You do not need to
+comply with its terms and conditions.  Term. The term of this Public License
+is specified in Section 6(a).  Media and formats; technical modifications
+allowed. The Licensor authorizes You to exercise the Licensed Rights in all
+media and formats whether now known or hereafter created, and to make
+technical modifications necessary to do so. The Licensor waives and/or agrees
+not to assert any right or authority to forbid You from making technical
+modifications necessary to exercise the Licensed Rights, including technical
+modifications necessary to circumvent Effective Technological Measures. For
+purposes of this Public License, simply making modifications authorized by
+this Section 2(a)(4) never produces Adapted Material.  Downstream recipients.
+Offer from the Licensor Licensed Material. Every recipient of the Licensed
+Material automatically receives an offer from the Licensor to exercise the
+Licensed Rights under the terms and conditions of this Public License.  No
+downstream restrictions. You may not offer or impose any additional or
+different terms or conditions on, or apply any Effective Technological
+Measures to, the Licensed Material if doing so restricts exercise of the
+Licensed Rights by any recipient of the Licensed Material.  No endorsement.
+Nothing in this Public License constitutes or may be construed as permission
+to assert or imply that You are, or that Your use of the Licensed Material is,
+connected with, or sponsored, endorsed, or granted official status by, the
+Licensor or others designated to receive attribution as provided in Section
+3(a)(1)(A)(i).
+
+Other rights.  Moral rights, such as the right of integrity, are not licensed
+under this Public License, nor are publicity, privacy, and/or other similar
+personality rights; however, to the extent possible, the Licensor waives
+and/or agrees not to assert any such rights held by the Licensor to the
+limited extent necessary to allow You to exercise the Licensed Rights, but not
+otherwise.  Patent and trademark rights are not licensed under this Public
+License.  To the extent possible, the Licensor waives any right to collect
+royalties from You for the exercise of the Licensed Rights, whether directly
+or through a collecting society under any voluntary or waivable statutory or
+compulsory licensing scheme. In all other cases the Licensor expressly
+reserves any right to collect such royalties.
+
+Section 3 License Conditions.
+
+Your exercise of the Licensed Rights is expressly made subject to the
+following conditions.
+
+Attribution.
+
+If You Share the Licensed Material (including in modified form), You must:
+retain the following if it is supplied by the Licensor with the Licensed
+Material: identification of the creator(s) of the Licensed Material and any
+others designated to receive attribution, in any reasonable manner requested
+by the Licensor (including by pseudonym if designated); a copyright notice; a
+notice that refers to this Public License; a notice that refers to the
+disclaimer of warranties; a URI or hyperlink to the Licensed Material to the
+extent reasonably practicable; indicate if You modified the Licensed Material
+and retain an indication of any previous modifications; and indicate the
+Licensed Material is licensed under this Public License, and include the text
+of, or the URI or hyperlink to, this Public License.  You may satisfy the
+conditions in Section 3(a)(1) in any reasonable manner based on the medium,
+means, and context in which You Share the Licensed Material. For example, it
+may be reasonable to satisfy the conditions by providing a URI or hyperlink to
+a resource that includes the required information.  If requested by the
+Licensor, You must remove any of the information required by Section
+3(a)(1)(A) to the extent reasonably practicable.  If You Share Adapted
+Material You produce, the Adapter's License You apply must not prevent
+recipients of the Adapted Material from complying with this Public License.
+
+Section 4  Sui Generis Database Rights.
+
+Where the Licensed Rights include Sui Generis Database Rights that apply to
+Your use of the Licensed Material:
+
+for the avoidance of doubt, Section 2(a)(1) grants You the right to extract,
+reuse, reproduce, and Share all or a substantial portion of the contents of
+the database; if You include all or a substantial portion of the database
+contents in a database in which You have Sui Generis Database Rights, then the
+database in which You have Sui Generis Database Rights (but not its individual
+contents) is Adapted Material; and You must comply with the conditions in
+Section 3(a) if You Share all or a substantial portion of the contents of the
+database.
+
+For the avoidance of doubt, this Section 4 supplements and does not replace
+Your obligations under this Public License where the Licensed Rights include
+other Copyright and Similar Rights.
+
+Section 5  Disclaimer of Warranties and Limitation of Liability.
+
+Unless otherwise separately undertaken by the Licensor, to the extent
+possible, the Licensor offers the Licensed Material as-is and as-available,
+and makes no representations or warranties of any kind concerning the Licensed
+Material, whether express, implied, statutory, or other. This includes,
+without limitation, warranties of title, merchantability, fitness for a
+particular purpose, non-infringement, absence of latent or other defects,
+accuracy, or the presence or absence of errors, whether or not known or
+discoverable. Where disclaimers of warranties are not allowed in full or in
+part, this disclaimer may not apply to You.  To the extent possible, in no
+event will the Licensor be liable to You on any legal theory (including,
+without limitation, negligence) or otherwise for any direct, special,
+indirect, incidental, consequential, punitive, exemplary, or other losses,
+costs, expenses, or damages arising out of this Public License or use of the
+Licensed Material, even if the Licensor has been advised of the possibility of
+such losses, costs, expenses, or damages. Where a limitation of liability is
+not allowed in full or in part, this limitation may not apply to You.
+
+The disclaimer of warranties and limitation of liability provided above shall
+be interpreted in a manner that, to the extent possible, most closely
+approximates an absolute disclaimer and waiver of all liability.
+
+Section 6  Term and Termination.
+
+This Public License applies for the term of the Copyright and Similar Rights
+licensed here. However, if You fail to comply with this Public License, then
+Your rights under this Public License terminate automatically.
+
+Where Your right to use the Licensed Material has terminated under Section
+6(a), it reinstates: automatically as of the date the violation is cured,
+provided it is cured within 30 days of Your discovery of the violation; or
+upon express reinstatement by the Licensor.  For the avoidance of doubt, this
+Section 6(b) does not affect any right the Licensor may have to seek remedies
+for Your violations of this Public License.  For the avoidance of doubt, the
+Licensor may also offer the Licensed Material under separate terms or
+conditions or stop distributing the Licensed Material at any time; however,
+doing so will not terminate this Public License.  Sections 1, 5, 6, 7, and 8
+survive termination of this Public License.
+
+Section 7 Other Terms and Conditions.
+
+The Licensor shall not be bound by any additional or different terms or
+conditions communicated by You unless expressly agreed.  Any arrangements,
+understandings, or agreements regarding the Licensed Material not stated
+herein are separate from and independent of the terms and conditions of this
+Public License.
+
+Section 8 Interpretation.
+
+For the avoidance of doubt, this Public License does not, and shall not be
+interpreted to, reduce, limit, restrict, or impose conditions on any use of
+the Licensed Material that could lawfully be made without permission under
+this Public License.  To the extent possible, if any provision of this Public
+License is deemed unenforceable, it shall be automatically reformed to the
+minimum extent necessary to make it enforceable. If the provision cannot be
+reformed, it shall be severed from this Public License without affecting the
+enforceability of the remaining terms and conditions.  No term or condition of
+this Public License will be waived and no failure to comply consented to
+unless expressly agreed to by the Licensor.  Nothing in this Public License
+constitutes or may be interpreted as a limitation upon, or waiver of, any
+privileges and immunities that apply to the Licensor or You, including from
+the legal processes of any jurisdiction or authority.
+
+Creative Commons is not a party to its public licenses. Notwithstanding,
+Creative Commons may elect to apply one of its public licenses to material it
+publishes and in those instances will be considered the Licensor. Except for
+the limited purpose of indicating that material is shared under a Creative
+Commons public license or as otherwise permitted by the Creative Commons
+policies published at creativecommons.org/policies, Creative Commons does not
+authorize the use of the trademark Creative Commons or any other trademark or
+logo of Creative Commons without its prior written consent including, without
+limitation, in connection with any unauthorized modifications to any of its
+public licenses or any other arrangements, understandings, or agreements
+concerning use of licensed material. For the avoidance of doubt, this
+paragraph does not form part of the public licenses.
+
+Creative Commons may be contacted at creativecommons.org.
+
+
+=========================================================
 
 To the extent any open source components are licensed under the GPL and/or
 LGPL, or other similar licenses that require the source code and/or
@@ -4130,4 +4630,4 @@ to obtain a copy of the Source Files is valid for three years from the date
 you acquired this Software product. Alternatively, the Source Files may
 accompany the VMware product.
 
-[VIC080GAAH111416]
+[VIC090TPAK020217]
