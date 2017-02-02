@@ -6,11 +6,10 @@ Container users want to be able to access shared storage between their container
 
 Allow the VI admin to
  1. add an NFSv3 based `VolumeStore`
- 2. specify a container network the `VolumeStore` can be found on
 
 Allow the container user to
  1. specify one or many NFS based `VolumeStore`s to create the container volumes on
- 1. have network connectivity from created containers to the NFS targets
+ 1. verify network connectivity from created containers to the NFS targets
  1. create volumes on the NFS based `VolumeStore`
  1. create 1 or greater containers with NFS based volumes at the given location in the container filesystem namespace
  1. validate the volume is no longer in use and delete it
@@ -40,19 +39,18 @@ Ultimately, (once we have microsegmentation support), we'd like to add the conta
 Adding shared storage to our model fits with the `VolumeStore` interface.  At install, a VI admin can specify an NFS target as a `VolumeStore` (potentially) using a `nfs://host/<path>` URI with a volume store name.  And provided the VCH has access to the network the target is on, the container user only needs to pass the volume store name as one of the `volume create` driver opts to create a volume which will be backed by this shared storage target.  Then many containers can be created with the specified volume attached.
 
 #### Runtime network connectivity validation
-We need to inform the user when a container is being created without the appropriate network required to get connectivity to the NFS target.  We're planning to make changes to the personality such that when the container is created, it check if the specified container network matches the container network specified when the `VolumeStore` is created.
+We need to inform the user when a container is being created without the appropriate network required to get connectivity to the NFS target. The container will attempt to mount the `Target` on `start` and fail early if the volume cannot be mounted.  It will be up to the user to communicate with the VI admin and create the container on the appropriate network (*).  If the container _is_ on the appropriate network _OR_ the `Target` can be reached via the NAT, the container should mount the volume successfully and move on with `start`.
 
-This is just an example, but we could do the following:
-```
-$ vic-machine-linux create --volume-store volumeStoreName/nfs://host/path?<nfs container network name>
+(*) Note:  This requires a doc change.
 
-...
-%  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v volumeStoreName:/mydata -net <the wrong container network>
- ERROR:  volumeStoreName is on the <fs container network name> network.
-```
+We want to fail early in the case of issues mounting the volume.  Possible errors are
+ * network connectivity releated
+ * `Target` permission related
+ 
+The expectation is the error will be actionable by the user such that if it is a configuration issue related to networking or access, the user can either try the operation again with the right container network configuration, or contact the admin with the action item to allow access to the storage device.
 
 #### VolumeStore
-The `VolumeStore` interface is used by the storage layer to implement the volume storage layer on different backend implementations.  The currently (and only) implementation used by VIC is to manimpulate vsphere `.vmdk` backed block devices on the Datastore.  We intend to create a similar implementation for NFSv3.
+The `VolumeStore` interface is used by the storage layer to implement the volume storage layer on different backend implementations.  The currently (and only) implementation used by VIC is to manipulate vsphere `.vmdk` backed block devices on the Datastore.  We intend to create a similar implementation for NFSv3.
 
 The advantage to using the interface is the storage layer maintains consistency of the volumes regardless of the storage backend used.  For instance it checks all containers during `volume destroy` to see if the named volume is still referenced by another container (whether the container is powered `on` or `off`).
 
