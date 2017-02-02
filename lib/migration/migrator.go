@@ -24,30 +24,33 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-// MigrateApplianceConfigure migrate VCH appliance configuration, including guestinfo, keyvaluestore, or any other kinds of change
-// InIt accept VCH appliance guestinfo map, and return all configurations need to be made in guestinfo, keyvaluestore, and can have
-// more kinds of change in the future. Each kind is one map key/value pair.
-// If there is error returned, returned map might have half-migrated value, this is why we don't persist any data in plugin.
-//func MigrateApplianceConfigure(data map[string]string) (map[string]string, bool, error) {
-func MigrateApplianceConfigure(ctx context.Context, s *session.Session, conf map[string]string) (map[string]string, bool, error) {
-	return migrateConfigure(ctx, s, conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
+// MigrateApplianceConfigure migrate VCH appliance configuration, including guestinfo, keyvaluestore, or any other configuration related change.
+//
+// Note: Input map conf is VCH appliance guestinfo map, and returned map is the new guestinfo. Any other changes should be made in plugin.
+// If there is error returned, returned map might have half-migrated value
+func MigrateApplianceConfig(ctx context.Context, s *session.Session, conf map[string]string) (map[string]string, bool, error) {
+	return migrateConfig(ctx, s, conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
 
 // MigrateContainerConfigure migrate container configuration
-// Migrated data will be returned in map, and input object is not changed.
+//
+// Note: Migrated data will be returned in map, and input object is not changed.
 // If there is error returned, returned map might have half-migrated value.
-func MigrateContainerConfigure(conf map[string]string) (map[string]string, bool, error) {
-	return migrateConfigure(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
+func MigrateContainerConfig(conf map[string]string) (map[string]string, bool, error) {
+	return migrateConfig(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
+// IsContainerDataOlder returns true if input container config is older than latest version. If error happens, always returns false
 func IsContainerDataOlder(conf map[string]string) (bool, error) {
 	return isDataOlder(conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
+// IsApplianceDataOlder returns true if input appliance config is older than latest version. If error happens, always returns false
 func IsApplianceDataOlder(conf map[string]string) (bool, error) {
 	return isDataOlder(conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
 
+// isDataOlder returns true if data is older than latest. If error happens, always returns false
 func isDataOlder(data map[string]string, target string, verKey string) (bool, error) {
 	var currentID int
 	var err error
@@ -55,11 +58,11 @@ func isDataOlder(data map[string]string, target string, verKey string) (bool, er
 	if currentID, err = getCurrentID(data, verKey); err != nil {
 		return false, err
 	}
-	latestVer := manager.Migrator.GetLatestVersion(target)
+	latestVer := manager.Migrator.LatestVersion(target)
 	return latestVer > currentID, nil
 }
 
-func migrateConfigure(ctx context.Context, s *session.Session, data map[string]string, target string, verKey string) (map[string]string, bool, error) {
+func migrateConfig(ctx context.Context, s *session.Session, data map[string]string, target string, verKey string) (map[string]string, bool, error) {
 	dst := make(map[string]string)
 	if len(data) == 0 {
 		return dst, false, nil

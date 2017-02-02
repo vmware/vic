@@ -64,7 +64,7 @@ func TestMigrateConfigure(t *testing.T) {
 	mapData := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(mapData), conf)
 	t.Logf("Old data: %#v", mapData)
-	newData, migrated, err := MigrateApplianceConfigure(nil, nil, mapData)
+	newData, migrated, err := MigrateApplianceConfig(nil, nil, mapData)
 	if err != nil {
 		t.Errorf("migration failed: %s", err)
 		assert.Fail(t, "migration failed")

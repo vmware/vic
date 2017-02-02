@@ -33,7 +33,10 @@ As [upgrade design](../../../doc/design/upgrade.md) mentioned, every developer w
   * Register key/value store data migration plugin to manager.ApplianceConfigure category
 - Add import of your package in init.go in this package, to make sure the plugin is registered dynamically.
 
-Note: if you changed both key/value store and VCH appliance configuration, please add two separate plugins for them. Eventually, data migration framework will execute both of them, but separation will make the code easy to read.
+Note: 
+- Plugin version should be greater than 0
+- If you changed both key/value store and VCH appliance configuration, please add two separate plugins for them. Eventually, data migration framework will execute both of them, but separation will make the code easy to read.
+- While copy configuration files, remove unnecessary methods from that file, to reduce binary file size
 
 ## Add integration test
 

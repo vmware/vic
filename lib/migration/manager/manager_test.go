@@ -57,18 +57,14 @@ func TestInsertID(t *testing.T) {
 		verPlugins: make(map[int]Plugin),
 	}
 
-	tester.insertVersion(1, ApplianceConfigure)
-	tester.insertVersion(11, ApplianceConfigure)
-	tester.insertVersion(9, ApplianceConfigure)
-	assert.Equal(t, []int{1, 9, 11}, tester.targetVers[ApplianceConfigure], "Should have expected array")
-	tester.insertVersion(5, ApplianceConfigure)
-	tester.insertVersion(8, ApplianceConfigure)
-	tester.insertVersion(2, ApplianceConfigure)
-	tester.insertVersion(4, ApplianceConfigure)
+	tester.targetVers[ApplianceConfigure] = []int{1, 11, 9, 5, 8, 2, 4}
+	tester.sortVersions()
 	assert.Equal(t, []int{1, 2, 4, 5, 8, 9, 11}, tester.targetVers[ApplianceConfigure], "Should have expected array")
-	tester.insertVersion(20, ApplianceConfigure)
-	tester.insertVersion(15, ApplianceConfigure)
-	assert.Equal(t, []int{1, 2, 4, 5, 8, 9, 11, 15, 20}, tester.targetVers[ApplianceConfigure], "Should have expected array")
+	tester.targetVers[ApplianceConfigure] = append(tester.targetVers[ApplianceConfigure], []int{20, 15}...)
+
+	// sort will only execute once
+	tester.sortVersions()
+	assert.NotEqual(t, []int{1, 2, 4, 5, 8, 9, 11, 15, 20}, tester.targetVers[ApplianceConfigure], "Should have expected array")
 }
 
 func TestMigratePluginExecution(t *testing.T) {

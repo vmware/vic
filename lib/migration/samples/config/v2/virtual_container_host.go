@@ -15,9 +15,6 @@
 package v2
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"net"
 	"net/mail"
 	"net/url"
@@ -25,7 +22,6 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/pkg/certificate"
 )
 
 // PatternToken is a set of tokens that can be placed into string constants
@@ -191,127 +187,4 @@ type Resources struct {
 	Storage types.ResourceAllocationInfo
 }
 
-// SetHostCertificate sets the certificate for authenticting with the appliance itself
-func (t *VirtualContainerHostConfigSpec) SetHostCertificate(key *[]byte) {
-	t.ExecutorConfig.Key = *key
-}
-
-// SetName sets the name of the VCH - this will be used as the hostname for the appliance
-func (t *VirtualContainerHostConfigSpec) SetName(name string) {
-	t.ExecutorConfig.Name = name
-}
-
-// SetDebug configures the debug logging level for the VCH
-func (t *VirtualContainerHostConfigSpec) SetDebug(level int) {
-	t.ExecutorConfig.Diagnostics.DebugLevel = level
-}
-
-// SetMoref sets the moref of the VCH - this allows components to acquire a handle to
-// the appliance VM.
-func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectReference) {
-	if moref != nil {
-		t.ExecutorConfig.ID = moref.String()
-	}
-}
-
-// AddNetwork adds a network that will be configured on the appliance VM
-func (t *VirtualContainerHostConfigSpec) AddNetwork(net *executor.NetworkEndpoint) {
-	if net != nil {
-		if t.ExecutorConfig.Networks == nil {
-			t.ExecutorConfig.Networks = make(map[string]*executor.NetworkEndpoint)
-		}
-
-		t.ExecutorConfig.Networks[net.Network.Name] = net
-	}
-}
-
-// AddContainerNetwork adds a network that will be configured on the appliance VM
-func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *executor.ContainerNetwork) {
-	if net != nil {
-		if t.ContainerNetworks == nil {
-			t.ContainerNetworks = make(map[string]*executor.ContainerNetwork)
-		}
-
-		t.ContainerNetworks[net.Name] = net
-	}
-}
-
-func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *executor.SessionConfig) {
-	if component != nil {
-		if t.ExecutorConfig.Sessions == nil {
-			t.ExecutorConfig.Sessions = make(map[string]*executor.SessionConfig)
-		}
-
-		if component.Name == "" {
-			component.Name = name
-		}
-		if component.ID == "" {
-			component.ID = name
-		}
-		t.ExecutorConfig.Sessions[name] = component
-	}
-}
-
-func (t *VirtualContainerHostConfigSpec) AddImageStore(url *url.URL) {
-	if url != nil {
-		t.ImageStores = append(t.ImageStores, *url)
-	}
-}
-
-func (t *VirtualContainerHostConfigSpec) AddVolumeLocation(name string, u *url.URL) {
-
-	if u != nil {
-		if t.VolumeLocations == nil {
-			t.VolumeLocations = make(map[string]*url.URL)
-		}
-
-		t.VolumeLocations[name] = u
-	}
-}
-
-// AddComputeResource adds a moref to the set of permitted root pools. It takes a ResourcePool rather than
-// an inventory path to encourage validation.
-func (t *VirtualContainerHostConfigSpec) AddComputeResource(pool *types.ManagedObjectReference) {
-	if pool != nil {
-		t.ComputeResources = append(t.ComputeResources, *pool)
-	}
-}
-
-func CreateSession(cmd string, args ...string) *executor.SessionConfig {
-	cfg := &executor.SessionConfig{
-		Cmd: executor.Cmd{
-			Path: cmd,
-			Args: []string{
-				cmd,
-			},
-		},
-	}
-
-	cfg.Cmd.Args = append(cfg.Cmd.Args, args...)
-
-	return cfg
-}
-
-func (t *RawCertificate) Certificate() (*tls.Certificate, error) {
-	if t.IsNil() {
-		return nil, errors.New("nil certificate")
-	}
-	cert, err := tls.X509KeyPair(t.Cert, t.Key)
-	return &cert, err
-}
-
-func (t *RawCertificate) X509Certificate() (*x509.Certificate, error) {
-	if t.IsNil() {
-		return nil, errors.New("nil certificate")
-	}
-	cert, _, err := certificate.ParseCertificate(t.Cert, t.Key)
-	return cert, err
-}
-
-func (t *RawCertificate) IsNil() bool {
-	if t == nil {
-		return true
-	}
-
-	return len(t.Cert) == 0 && len(t.Key) == 0
-}
+// Remove all methods from this file to reduce binary size

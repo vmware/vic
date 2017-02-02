@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -48,13 +49,14 @@ type DataMigration interface {
 	Register(version int, target string, plugin Plugin) error
 	// Migrate data with current version ID, return true if has any plugin executed
 	Migrate(ctx context.Context, s *session.Session, target string, currentVersion int, data interface{}) (int, error)
-	// GetLatestVersion return the latest plugin id for specified target
-	GetLatestVersion(target string) int
+	// LatestVersion return the latest plugin version for specified target
+	LatestVersion(target string) int
 }
 
 type DataMigrator struct {
 	targetVers map[string][]int
 	verPlugins map[int]Plugin
+	once       sync.Once
 }
 
 func NewDataMigrator() DataMigration {
@@ -84,28 +86,22 @@ func (m *DataMigrator) Register(ver int, target string, plugin Plugin) error {
 			Message: fmt.Sprintf("Plugin %d is conflict with another plugin, please make sure the plugin Version is unique and ascending", ver),
 		}
 	}
-
-	m.insertVersion(ver, target)
+	m.targetVers[target] = append(m.targetVers[target], ver)
 	m.verPlugins[ver] = plugin
 	return nil
 }
 
-func (m *DataMigrator) insertVersion(version int, target string) {
-	defer trace.End(trace.Begin(fmt.Sprintf("insert %s:%d", target, version)))
-
-	s := m.targetVers[target]
-	if len(s) == 0 {
-		m.targetVers[target] = append(s, version)
-		return
-	}
-	i := sort.SearchInts(s, version)
-	m.targetVers[target] = append(s[:i], append([]int{version}, s[i:]...)...)
-	log.Debugf("version array: %d", m.targetVers[target])
+func (m *DataMigrator) sortVersions() {
+	m.once.Do(func() {
+		sort.Ints(m.targetVers[ApplianceConfigure])
+		sort.Ints(m.targetVers[ContainerConfigure])
+	})
 }
 
 // Migrate data with current version ID, return true if has any plugin executed
 func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target string, currentVersion int, data interface{}) (int, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("migrate %s from %d", target, currentVersion)))
+	m.sortVersions()
 
 	pluginVers := m.targetVers[target]
 	if len(pluginVers) == 0 {
@@ -115,7 +111,7 @@ func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target s
 
 	i := sort.SearchInts(pluginVers, currentVersion)
 	if i >= len(pluginVers) {
-		log.Debugf("No plugins bigger than %d", currentVersion)
+		log.Debugf("No plugins greater than %d", currentVersion)
 		return currentVersion, nil
 	}
 
@@ -136,8 +132,8 @@ func (m *DataMigrator) Migrate(ctx context.Context, s *session.Session, target s
 	return latestVer, nil
 }
 
-// GetLatestVersion return the latest plugin id for specified target
-func (m *DataMigrator) GetLatestVersion(target string) int {
+// LatestVersion return the latest plugin version for specified target
+func (m *DataMigrator) LatestVersion(target string) int {
 	pluginVers := m.targetVers[target]
 	l := len(pluginVers)
 	if l == 0 {
