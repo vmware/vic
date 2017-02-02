@@ -253,12 +253,15 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 		e, err := r.open()
 		if err != nil {
 			log.Warningf("error reading %s(%s): %s\n", name, r, err)
-			continue
 		}
 
+		sz := int64(0)
+		if e != nil {
+			sz = e.Size()
+		}
 		header := tar.Header{
 			Name:    name,
-			Size:    e.Size(),
+			Size:    sz,
 			Mode:    0640,
 			ModTime: time.Now(),
 		}
@@ -274,7 +277,9 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 		// be explicit about the number of bytes to copy as the log files will likely
 		// be written to during this exercise
 		_, err = io.CopyN(t, e, e.Size())
-		_ = e.Close()
+		if e != nil {
+			e.Close()
+		}
 		if err != nil {
 			log.Errorf("Failed to write content for %s: %s", header.Name, err)
 			continue
@@ -334,7 +339,7 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 		// be written to during this exercise
 		_, err = io.CopyN(w, e, sz)
 		if e != nil {
-			_ = e.Close()
+			e.Close()
 		}
 
 		if err != nil {
