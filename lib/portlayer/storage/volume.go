@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,6 +93,23 @@ func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk) (
 		Info:     info,
 	}
 
+	return vol, nil
+}
+
+func NewNFSVolume(store *url.URL, ID string, info map[string][]byte, nfsPath string) (*Volume, error) {
+
+	selfLink := &url.URL{
+		Path: nfsPath,
+	}
+
+	vol := &Volume{
+		ID:       ID,
+		Label:    "", //no device label
+		Store:    store,
+		SelfLink: selfLink,
+		Device:   nil, //this it not backed by a virtual device
+		Info:     info,
+	}
 	return vol, nil
 }
 
