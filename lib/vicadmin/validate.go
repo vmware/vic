@@ -276,10 +276,10 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		log.Infof("Datastore %s Capacity: %.1fGB", ds.Name, float64(ds.Summary.Capacity)/(1<<30))
 
 		v.StorageRemaining = template.HTML(fmt.Sprintf(`%s
-			<div class="row card-text">
-			  <div class="sixty">%s:</div>
-			  <div class="forty">%.1f GB remaining</div>
-			</div>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
+			<p class="card-text">
+			 %s:
+			  %.1f GB remaining
+			</p>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
 	}
 
 	return nil
