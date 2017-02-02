@@ -46,6 +46,7 @@ groups:
           - "doc/*"
         exclude:
           - "doc/design/*"
+          - "doc/bundle/*"
 
   nightlies:
     users:
@@ -85,6 +86,15 @@ groups:
         include:
           - "cmd/vic-machine/*"
           - "lib/install/*"
+
+  config:
+    users:
+      - emlin
+    conditions:
+      files:
+        include:
+          - "lib/config/*"
+          - "lib/metadata/*"
 
   vicadmin:
     users:
