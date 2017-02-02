@@ -46,6 +46,7 @@ groups:
           - "doc/*"
         exclude:
           - "doc/design/*"
+          - "doc/bundle/*"
 
   nightlies:
     users:
