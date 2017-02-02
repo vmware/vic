@@ -1406,6 +1406,10 @@ func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
 func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	defer trace.End(trace.Begin("Container.validateCreateConfig"))
 
+	if config.HostConfig == nil {
+		config.HostConfig = &containertypes.HostConfig{}
+	}
+
 	// process cpucount here
 	var cpuCount int64 = DefaultCPUs
 
@@ -1448,9 +1452,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	config.HostConfig.Memory = memoryMB
 	log.Infof("Container memory: %d MB", config.HostConfig.Memory)
 
-	if config.HostConfig == nil || config.Config == nil {
-		return BadRequestError("invalid config")
-	}
 
 	if config.NetworkingConfig == nil {
 		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
@@ -1465,39 +1466,41 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	}
 
 	// validate port bindings
-	if config.HostConfig != nil {
-		var ips []string
-		if addrs, err := publicIPv4Addrs(); err != nil {
-			log.Warnf("could not get address for public interface: %s", err)
-		} else {
-			ips = make([]string, len(addrs))
-			for i := range addrs {
-				ips[i] = addrs[i].IP.String()
-			}
+	var ips []string
+	if addrs, err := publicIPv4Addrs(); err != nil {
+		log.Warnf("could not get address for public interface: %s", err)
+	} else {
+		ips = make([]string, len(addrs))
+		for i := range addrs {
+			ips[i] = addrs[i].IP.String()
 		}
+	}
 
-		for _, pbs := range config.HostConfig.PortBindings {
-			for _, pb := range pbs {
-				if pb.HostIP != "" && pb.HostIP != "0.0.0.0" {
-					// check if specified host ip equals any of the addresses on the "client" interface
-					found := false
-					for _, i := range ips {
-						if i == pb.HostIP {
-							found = true
-							break
-						}
-					}
-					if !found {
-						return InternalServerError("host IP for port bindings is only supported for 0.0.0.0 and the public interface IP address")
+	for _, pbs := range config.HostConfig.PortBindings {
+		for _, pb := range pbs {
+			if pb.HostIP != "" && pb.HostIP != "0.0.0.0" {
+				// check if specified host ip equals any of the addresses on the "client" interface
+				found := false
+				for _, i := range ips {
+					if i == pb.HostIP {
+						found = true
+						break
 					}
 				}
-
-				start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
-				if start != end {
-					return InternalServerError("host port ranges are not supported for port bindings")
+				if !found {
+					return InternalServerError("host IP for port bindings is only supported for 0.0.0.0 and the public interface IP address")
 				}
 			}
+
+			start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
+			if start != end {
+				return InternalServerError("host port ranges are not supported for port bindings")
+			}
 		}
+	}
+
+	if config.Config == nil {
+		return BadRequestError("invalid config")
 	}
 
 	// TODO(jzt): users other than root are not currently supported
