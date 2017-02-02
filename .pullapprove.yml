@@ -86,6 +86,15 @@ groups:
           - "cmd/vic-machine/*"
           - "lib/install/*"
 
+  config:
+    users:
+      - emlin
+    conditions:
+      files:
+        include:
+          - "lib/config/*"
+          - "lib/metadata/*"
+
   vicadmin:
     users:
       - jzt
