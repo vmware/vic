@@ -276,7 +276,7 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 
 		// be explicit about the number of bytes to copy as the log files will likely
 		// be written to during this exercise
-		_, err = io.CopyN(t, e, e.Size())
+		_, err = io.CopyN(t, e, sz)
 		if e != nil {
 			e.Close()
 		}
