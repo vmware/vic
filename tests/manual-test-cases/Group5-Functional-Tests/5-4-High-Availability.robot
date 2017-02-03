@@ -69,7 +69,7 @@ Test
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default
 
-    Run Keyword And Ignore Error  Run Regression Tests
+    Run Regression Tests
 
     ${output}=  Run  govc vm.info %{VCH-NAME}/%{VCH-NAME}
     @{output}=  Split To Lines  ${output}
@@ -81,5 +81,8 @@ Test
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
 
+    # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
+    Sleep  2 minutes
+    Run VIC Machine Inspect Command
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
     Run Regression Tests
