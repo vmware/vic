@@ -1373,9 +1373,16 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	}
 
 	// check the docker endpoint is responsive
+	log.Info("Checking Docker API endpoint")
 	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
-		return err
+		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert)
+		msg := fmt.Sprintf("Docker API endpoint check failed: %s", err)
+		log.Info(msg)
+		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
+		log.Infof("\t\tRun command: %s", cmd)
+		log.Info("\t\tIf command succeeds, VCH is started. If command fails, VCH failed to install - see documentation for troubleshooting.")
+		return fmt.Errorf(msg)
 	}
 
 	log.Infof("Initialization of appliance successful")
