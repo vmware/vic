@@ -13,9 +13,12 @@ Deploy Nimbus ESXi Server
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  To manage this VM use
+    :FOR  ${IDX}  IN RANGE  1  5
+    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
+    \   # Make sure the deploy actually worked
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
+    \   Exit For Loop If  ${status}
+
     # Now grab the IP address and return the name and ip for later use
     @{out}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{out}
@@ -123,9 +126,12 @@ Deploy Nimbus vCenter Server
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  Overall Status: Succeeded
+    :FOR  ${IDX}  IN RANGE  1  5
+    \   ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
+    \   # Make sure the deploy actually worked
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
+    \   Exit For Loop If  ${status}
+
     # Now grab the IP address and return the name and ip for later use
     @{out}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{out}
