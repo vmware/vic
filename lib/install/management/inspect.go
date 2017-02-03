@@ -109,8 +109,28 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	log.Infof("Published ports can be reached at:")
 	log.Infof("%s", publicIP.String())
 
-	tls := ""
+	cmd, env := d.GetDockerAPICommand(conf, key, cert, cacert)
+
+	log.Info("")
+	log.Infof("Docker environment variables:")
+	log.Info(env)
+
+	if envfile != "" {
+		if err := ioutil.WriteFile(envfile, []byte(env), 0644); err == nil {
+			log.Infof("")
+			log.Infof("Environment saved in %s", envfile)
+		}
+	}
+
+	log.Infof("")
+	log.Infof("Connect to docker:")
+	log.Infof(cmd)
+}
+
+// GetDockerAPICommand generates values to display for usage of a deployed VCH
+func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string) (cmd, env string) {
 	var dEnv []string
+	tls := ""
 
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
@@ -133,20 +153,10 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 			tls = " --tls"
 		}
 	}
-
 	dEnv = append(dEnv, fmt.Sprintf("DOCKER_HOST=%s:%s", d.HostIP, d.DockerPort))
-	log.Info("")
-	log.Infof("Docker environment variables:")
-	log.Info(strings.Join(dEnv, " "))
 
-	if envfile != "" {
-		if err := ioutil.WriteFile(envfile, []byte(strings.Join(dEnv, " ")), 0644); err == nil {
-			log.Infof("")
-			log.Infof("Environment saved in %s", envfile)
-		}
-	}
+	cmd = fmt.Sprintf("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
+	env = strings.Join(dEnv, " ")
 
-	log.Infof("")
-	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
+	return cmd, env
 }

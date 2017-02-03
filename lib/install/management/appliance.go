@@ -803,6 +803,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 	}
 
 	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
+	log.Debugf("Docker API endpoint: %s", dockerInfoURL)
 	req, err = http.NewRequest("GET", dockerInfoURL, nil)
 	if err != nil {
 		return errors.New("invalid HTTP request for docker info")
@@ -888,7 +889,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 							log.Errorf("Connection failed with error: %s", root)
 						}
 
-						return root
+						return fmt.Errorf("failed to connect to %s: %s", dockerInfoURL, root)
 					}
 
 				case x509.UnknownAuthorityError:
