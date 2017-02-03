@@ -20,7 +20,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,6 +45,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
@@ -56,6 +56,32 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 )
+
+// valid filters as of docker commit 49bf474
+var acceptedPsFilterTags = map[string]bool{
+	"ancestor":  true,
+	"before":    true,
+	"exited":    true,
+	"id":        true,
+	"isolation": true,
+	"label":     true,
+	"name":      true,
+	"status":    true,
+	"health":    true,
+	"since":     true,
+	"volume":    true,
+	"network":   true,
+	"is-task":   true,
+}
+
+// currently not supported by vic
+var unSupportedPsFilters = map[string]bool{
+	"ancestor":  false,
+	"health":    false,
+	"isolation": false,
+	"is-task":   false,
+	"volume":    false,
+}
 
 const (
 	bridgeIfaceName = "bridge"
@@ -971,11 +997,6 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 	}
 
 	log.Debugf("ContainerInspect json config = %+v\n", inspectJSON.Config)
-	if inspectJSON.NetworkSettings != nil {
-		log.Debugf("Docker inspect - network settings = %#v", inspectJSON.NetworkSettings)
-	} else {
-		log.Debugf("Docker inspect - network settings = null")
-	}
 
 	return inspectJSON, nil
 }
@@ -1032,11 +1053,18 @@ func (c *Container) ContainerTop(name string, psArgs string) (*types.ContainerPr
 
 // Containers returns the list of containers to show given the user's filtering.
 func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("ListOptions %#v", config)))
+
+	// validate filters for support and validity
+	listContext, err := filter.ValidateContainerFilters(config, acceptedPsFilterTags, unSupportedPsFilters)
+	if err != nil {
+		return nil, err
+	}
 
 	// Get an API client to the portlayer
 	client := c.containerProxy.Client()
 
-	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&config.All))
+	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&listContext.All))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -1050,14 +1078,8 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 	// TODO: move to conversion function
 	containers := make([]*types.Container, 0, len(containme.Payload))
 
+payloadLoop:
 	for _, t := range containme.Payload {
-		cmd := strings.Join(t.ProcessConfig.ExecArgs, " ")
-		// the docker client expects the friendly name to be prefixed
-		// with a forward slash -- create a new slice and add here
-		names := make([]string, 0, len(t.ContainerConfig.Names))
-		for i := range t.ContainerConfig.Names {
-			names = append(names, clientFriendlyContainerName(t.ContainerConfig.Names[i]))
-		}
 		var started time.Time
 		var stopped time.Time
 
@@ -1070,12 +1092,46 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		}
 
 		// get the docker friendly status
-		_, status := dockerStatus(
+		exitCode, status := dockerStatus(
 			int(t.ProcessConfig.ExitCode),
 			t.ProcessConfig.Status,
 			t.ContainerConfig.State,
 			started,
 			stopped)
+
+		// labels func requires a config be passed
+		// TODO: refactor labelsFromAnnotations func for broader use
+		tempConfig := &containertypes.Config{}
+		err = labelsFromAnnotations(tempConfig, t.ContainerConfig.Annotations)
+		if err != nil && config.Filter.Include("label") {
+			return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
+		}
+
+		listContext.Labels = tempConfig.Labels
+		listContext.ExitCode = exitCode
+		listContext.ID = t.ContainerConfig.ContainerID
+
+		// prior to further conversion lets determine if this container
+		// is needed or if the list is complete -- if the container is
+		// needed conversion will continue and the container will be added to the
+		// return array
+		action := filter.IncludeContainer(listContext, t)
+		switch action {
+		case filter.ExcludeAction:
+			// skip to next container
+			continue payloadLoop
+		case filter.StopAction:
+			// we're done
+			break payloadLoop
+		}
+
+		cmd := strings.Join(t.ProcessConfig.ExecArgs, " ")
+		// the docker client expects the friendly name to be prefixed
+		// with a forward slash -- create a new slice and add here
+		names := make([]string, 0, len(t.ContainerConfig.Names))
+		for i := range t.ContainerConfig.Names {
+			names = append(names, clientFriendlyContainerName(t.ContainerConfig.Names[i]))
+		}
 
 		ips, err := publicIPv4Addrs()
 		var ports []types.Port
@@ -1110,11 +1166,15 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Command: cmd,
 			SizeRw:  t.ContainerConfig.StorageSize,
 			Ports:   ports,
+			State:   filter.DockerState(t.ContainerConfig.State),
 		}
+
+		// The container should be included in the list
 		containers = append(containers, c)
+		listContext.Counter++
+
 	}
-	// sort on creation time
-	sort.Sort(sort.Reverse(containerByCreated(containers)))
+
 	return containers, nil
 }
 
