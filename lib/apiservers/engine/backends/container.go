@@ -1406,6 +1406,10 @@ func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
 func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	defer trace.End(trace.Begin("Container.validateCreateConfig"))
 
+	if config.Config == nil {
+		return BadRequestError("invalid config")
+	}
+
 	if config.HostConfig == nil {
 		config.HostConfig = &containertypes.HostConfig{}
 	}
@@ -1497,10 +1501,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 				return InternalServerError("host port ranges are not supported for port bindings")
 			}
 		}
-	}
-
-	if config.Config == nil {
-		return BadRequestError("invalid config")
 	}
 
 	// TODO(jzt): users other than root are not currently supported
