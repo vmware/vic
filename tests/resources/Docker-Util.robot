@@ -31,6 +31,12 @@ Hit Nginx Endpoint
     ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:${port}
     Should Be Equal As Integers  ${rc}  0
 
+Get Container IP
+    [Arguments]  ${docker-params}  ${id}  ${network}=default
+    ${rc}  ${ip}=  Run And Return Rc And Output  docker ${docker-params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address' | cut -d \\" -f 2 | cut -d \\/ -f 1
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${ip}
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0

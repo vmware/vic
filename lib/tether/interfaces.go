@@ -32,6 +32,7 @@ type Operations interface {
 	Log() (io.Writer, error)
 
 	SetHostname(hostname string, aliases ...string) error
+	SetupFirewall() error
 	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(ctx context.Context, label, target string) error
 	Fork() error

@@ -126,6 +126,10 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
+func (t *Mocker) SetupFirewall() error {
+	return nil
+}
+
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))

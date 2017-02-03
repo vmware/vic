@@ -31,6 +31,18 @@ const (
 	Unmap
 )
 
+func (o Operation) String() string {
+	switch o {
+	case Map:
+		return "Map"
+
+	case Unmap:
+		return "Unmap"
+	}
+
+	return "Unknown"
+}
+
 type PortMapper interface {
 	MapPort(ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error
 	UnmapPort(ip net.IP, port int, proto string, destPort int, srcIface, destIface string) error
@@ -93,7 +105,7 @@ func (p *portMapper) MapPort(ip net.IP, port int, proto string, destIP string, d
 		destPort = port
 	}
 
-	return p.forward(iptables.Append, ip, port, proto, destIP, destPort, srcIface, destIface)
+	return p.forward(Map, ip, port, proto, destIP, destPort, srcIface, destIface)
 }
 
 func (p *portMapper) UnmapPort(ip net.IP, port int, proto string, destPort int, srcIface, destIface string) error {
@@ -109,7 +121,7 @@ func (p *portMapper) UnmapPort(ip net.IP, port int, proto string, destPort int, 
 		destPort = port
 	}
 
-	return p.forward(iptables.Delete, ip, port, proto, "", destPort, srcIface, destIface)
+	return p.forward(Unmap, ip, port, proto, "", destPort, srcIface, destIface)
 }
 
 // iptablesRunAndCheck runs an iptables command with the provided args
@@ -139,7 +151,7 @@ func iptablesDelete(args [][]string) error {
 }
 
 // adapted from https://github.com/docker/libnetwork/blob/master/iptables/iptables.go
-func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto, destAddr string, destPort int, srcIface, destIface string) error {
+func (p *portMapper) forward(op Operation, ip net.IP, port int, proto, destAddr string, destPort int, srcIface, destIface string) error {
 	daddr := ip.String()
 	if ip == nil || ip.IsUnspecified() {
 		// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
@@ -153,8 +165,8 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 	}
 
 	key := bindKey{ip: ipStr, port: port}
-	switch action {
-	case iptables.Delete:
+	switch op {
+	case Unmap:
 		// lookup commands to reverse
 		if args, ok := p.bindings[key]; ok {
 			if err := iptablesDelete(args); err != nil {
@@ -165,7 +177,7 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 		}
 		return fmt.Errorf("Failed to find unmap data for %s:%d", ipStr, port)
 
-	case iptables.Append:
+	case Map:
 		var savedArgs [][]string
 
 		args := []string{"VIC", "-t", string(iptables.Nat),
@@ -175,7 +187,7 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 			"--dport", strconv.Itoa(port),
 			"-j", "DNAT",
 			"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))}
-		if err := iptablesRunAndCheck(action, args); err != nil {
+		if err := iptablesRunAndCheck(iptables.Append, args); err != nil {
 			return err
 		}
 		savedArgs = append(savedArgs, args)
@@ -190,12 +202,14 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 			"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort)),
 			"-m", "addrtype",
 			"--dst-type", "LOCAL"}
-		if err := iptablesRunAndCheck(action, args); err != nil {
+		if err := iptablesRunAndCheck(iptables.Append, args); err != nil {
 			return err
 		}
 		savedArgs = append(savedArgs, args)
 		p.bindings[key] = savedArgs
 
+		// rule to allow connections from the public interface for
+		// the mapped port
 		args = []string{"VIC", "-t", string(iptables.Filter),
 			"-i", srcIface,
 			"-o", destIface,
@@ -203,7 +217,7 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 			"-d", destAddr,
 			"--dport", strconv.Itoa(destPort),
 			"-j", "ACCEPT"}
-		if err := iptablesRunAndCheck(action, args); err != nil {
+		if err := iptablesRunAndCheck(iptables.Append, args); err != nil {
 			return err
 		}
 		savedArgs = append(savedArgs, args)
@@ -214,7 +228,7 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 			"-d", destAddr,
 			"--dport", strconv.Itoa(destPort),
 			"-j", "MASQUERADE"}
-		if err := iptablesRunAndCheck(action, args); err != nil {
+		if err := iptablesRunAndCheck(iptables.Append, args); err != nil {
 			return err
 		}
 		savedArgs = append(savedArgs, args)
@@ -222,7 +236,7 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 		return nil
 
 	default:
-		log.Warnf("noop for given operation: %s", action)
+		log.Warnf("noop for given operation: %s", op)
 	}
 
 	return nil

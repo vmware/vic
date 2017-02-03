@@ -169,8 +169,6 @@ func configureToolbox(t *tether.Toolbox) *tether.Toolbox {
 func externalIP() string {
 	l, err := netlink.LinkByName("client")
 	if err != nil {
-		log.Warnf("error looking up client interface by name: %s", err)
-
 		l, err = netlink.LinkByAlias("client")
 		if err != nil {
 			log.Errorf("error looking up client interface by alias: %s", err)

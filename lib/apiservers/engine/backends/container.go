@@ -20,6 +20,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,6 +41,7 @@ import (
 	timetypes "github.com/docker/engine-api/types/time"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
+	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/portallocator"
 	"github.com/vishvananda/netlink"
 
@@ -108,6 +110,11 @@ var (
 
 	portMapper portmap.PortMapper
 
+	// bridge-to-bridge rules, indexed by mapped port;
+	// this map is used to delete the rule once
+	// the container stops or is removed
+	btbRules map[string][]string
+
 	cbpLock         sync.Mutex
 	containerByPort map[string]string // port:containerID
 
@@ -116,6 +123,7 @@ var (
 
 func init() {
 	portMapper = portmap.NewPortMapper()
+	btbRules = make(map[string][]string)
 	containerByPort = make(map[string]string)
 
 	l, err := netlink.LinkByName(publicIfaceName)
@@ -736,6 +744,11 @@ func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointCo
 			return err
 		}
 
+		// bridge-to-bridge pin hole for traffic from containers for exposed port
+		if err = interBridgeTraffic(portmap.Map, p.strHostPort, p.portProto.Proto(), containerIP.String(), p.portProto.Port()); err != nil {
+			return err
+		}
+
 		// update mapped ports
 		containerByPort[p.strHostPort] = containerID
 		log.Debugf("mapped port %s for container %s", p.strHostPort, containerID)
@@ -770,10 +783,57 @@ func UnmapPorts(hostconfig *containertypes.HostConfig) error {
 			return err
 		}
 
+		// bridge-to-bridge pin hole for traffic from containers for exposed port
+		if err = interBridgeTraffic(portmap.Unmap, p.strHostPort, "", "", ""); err != nil {
+			return err
+		}
+
 		// update mapped ports
 		delete(containerByPort, p.strHostPort)
 		log.Debugf("unmapped port %s", p.strHostPort)
 	}
+	return nil
+}
+
+// interBridgeTraffic enables traffic for exposed port from one bridge network to another
+func interBridgeTraffic(op portmap.Operation, hostPort, proto, containerAddr, containerPort string) error {
+	switch op {
+	case portmap.Map:
+		switch proto {
+		case "udp", "tcp":
+		default:
+			return fmt.Errorf("unknown protocol: %s", proto)
+		}
+
+		// rule to allow connections from bridge interface for the
+		// specific mapped port. has to inserted at the top of the
+		// chain rather than appended to supersede bridge-to-bridge
+		// traffic blocking
+		args := []string{"-t", string(iptables.Filter),
+			"-i", bridgeIfaceName,
+			"-o", bridgeIfaceName,
+			"-p", proto,
+			"-d", containerAddr,
+			"--dport", containerPort,
+			"-j", "ACCEPT",
+		}
+
+		if _, err := iptables.Raw(append([]string{string(iptables.Insert), "VIC", "1"}, args...)...); err != nil && !os.IsExist(err) {
+			return err
+		}
+
+		btbRules[hostPort] = args
+	case portmap.Unmap:
+		if args, ok := btbRules[hostPort]; ok {
+			args = append([]string{string(iptables.Delete), "VIC"}, args...)
+			if _, err := iptables.Raw(args...); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+
+			delete(btbRules, hostPort)
+		}
+	}
+
 	return nil
 }
 

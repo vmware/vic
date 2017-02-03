@@ -17,18 +17,12 @@ Clean up VIC Appliance And Local Binary
     Cleanup VIC Appliance On Test Server
     Run  rm -rf vic.tar.gz vic
 
-Get Container IP
-    [Arguments]  ${id}  ${network}=default
-    ${rc}  ${ip}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address'
-    Should Be Equal As Integers  ${rc}  0
-    [Return]  ${ip}
-
 Launch Container
     [Arguments]  ${name}  ${network}=default
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} --net ${network} -itd busybox
     Should Be Equal As Integers  ${rc}  0
     ${id}=  Get Line  ${output}  -1
-    ${ip}=  Get Container IP  ${id}  ${network}
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id}  ${network}
     [Return]  ${id}  ${ip}
 
 *** Test Cases ***
@@ -73,9 +67,9 @@ Upgrade VCH with containers
     Should Contain  ${output}  bar
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect bridge
     Should Be Equal As Integers  ${rc}  0
-    ${ip}=  Get Container IP  ${id1}  bridge
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id1}  bridge
     Should Be Equal  ${ip}  ${ip1}
-    ${ip}=  Get Container IP  ${id2}  bridge
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id2}  bridge
     Should Be Equal  ${ip}  ${ip2}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect vch-restart-test1
     Should Be Equal As Integers  ${rc}  0
