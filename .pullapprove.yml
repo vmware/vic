@@ -86,6 +86,13 @@ groups:
         include:
           - "cmd/vic-machine/*"
           - "lib/install/*"
+  upgrade:
+    users:
+      - emlin
+    conditions:
+      files:
+        include:
+          - "lib/migration/*"
 
   config:
     users:
