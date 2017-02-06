@@ -27,9 +27,13 @@ import (
 )
 
 type Disk interface {
+	//Path to this disk on the VCH
 	MountPath() (string, error)
-	DiskPath() string
-	//FIXME: Add a capacity and populate it.
+
+	//Path to the disk on the datastore
+	DiskPath() url.URL
+	//STUFF THE STRING INTO THE PATH FIELD FOR VSPHERE IMPLEMENTATION
+	//NFS PUT THE STUFF IN THE HOST.  2 3
 }
 
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
@@ -93,23 +97,6 @@ func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk) (
 		Info:     info,
 	}
 
-	return vol, nil
-}
-
-func NewNFSVolume(store *url.URL, ID string, info map[string][]byte, nfsPath string) (*Volume, error) {
-
-	selfLink := &url.URL{
-		Path: nfsPath,
-	}
-
-	vol := &Volume{
-		ID:       ID,
-		Label:    "", //no device label
-		Store:    store,
-		SelfLink: selfLink,
-		Device:   nil, //this it not backed by a virtual device
-		Info:     info,
-	}
 	return vol, nil
 }
 

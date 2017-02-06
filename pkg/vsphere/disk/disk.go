@@ -16,6 +16,7 @@ package disk
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -196,8 +197,9 @@ func (d *VirtualDisk) MountPath() (string, error) {
 	return d.mountPath, nil
 }
 
-func (d *VirtualDisk) DiskPath() string {
-	return d.DatastoreURI
+func (d *VirtualDisk) DiskPath() url.URL {
+
+	return url.URL{Path: d.DatastoreURI}
 }
 
 func (d *VirtualDisk) Mounted() bool {

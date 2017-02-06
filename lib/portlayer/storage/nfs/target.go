@@ -20,14 +20,24 @@ import (
 	"net/url"
 
 	"github.com/vmware/vic/pkg/trace"
+	"os"
 )
 
 type NFSTarget interface {
+	//returns the NFSTarget Endpoint
+	EndPoint() *url.URL
+
+	//Binds the target NFS server to the VCH(Possible concurrency/performance issue?)
+	Open() (NFSTarget, error)
+
+	//Unbinds NFS server from the VCH(ditto to open)
+	Close() error
+
 	// write data to target nfs filesystem
-	Write(op trace.Operation, path string, r io.Writer) error
+	Write(op trace.Operation, path string, r io.Reader) error
 
 	// read data from target nfs filesystem
-	Read(path string) io.Reader
+	Read(path string) (io.Reader, error)
 
 	// Create directory path
 	MkDir(path string, makeParents bool) (string, error)
@@ -36,32 +46,53 @@ type NFSTarget interface {
 	RemoveAll(Path string) error
 
 	//Reads the contents of the targeted directory
-	ReadDir(path string)
+	ReadDir(path string) ([]os.FileInfo, error)
 }
 
-type NFSv3Target struct{}
+type NFSv3Target struct {
+	//nfs enpoint
+	host *url.URL
 
-func (t *NFSv3Target) Write(op trace.Operation, path string, r io.Writer) error {
+	//Path to the the volume store
+	directoryPath string
+}
+
+func (t NFSv3Target) EndPoint() *url.URL {
 	return nil
 }
 
-func (t *NFSv3Target) Read(path string) io.Reader {
+func (t NFSv3Target) Write(op trace.Operation, path string, r io.Reader) error {
 	return nil
 }
 
-func (t *NFSv3Target) MkDir(path string, makeParents bool) (string, error) {
+func (t NFSv3Target) Read(path string) (io.Reader, error) {
 	return nil, nil
 }
 
+func (t NFSv3Target) MkDir(path string, makeParents bool) (string, error) {
+	return "", nil
+}
+
+func (t NFSv3Target) RemoveAll(path string) error {
+	return nil
+}
+
+func (t NFSv3Target) ReadDir(path string) ([]os.FileInfo, error) {
+	return nil, nil
+}
+
+func (t NFSv3Target) Open() (NFSTarget, error) {
+	return nil, nil
+}
+
+func (t NFSv3Target) Close() error {
+	return nil
+}
+
 // TODO: client implementation here
-func NewNFSv3Target(op trace.Operation, fqdn *url.URL) (NFSTarget, error) {
+func NewNFSv3Target(op trace.Operation, fqdn *url.URL, volumeDirectory string) (NFSTarget, error) {
 	return NFSv3Target{}, errors.New("FUNCTION NOT IMPLEMENTED")
 }
 
-func OpenNFSv3Target(targetURL *url.URL) (*NFSv3Target, error) {
-	return nil
-}
-
-func CloseNFSv3Target(target *NFSv3Target) error {
-	return nil
-}
+//MAKE MOCK TARGET
+//USER TEMP DIR

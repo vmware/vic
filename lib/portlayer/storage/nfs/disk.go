@@ -15,30 +15,35 @@
 package nfs
 
 import (
-	"github.com/vmware/vic/lib/portlayer/storage"
+	"net/url"
 )
 
-type NFSVolumeBacking struct {
+//device information for interaction with the tether and portlayer
+type NFSVolume struct {
 
-	//This is the path where the volume directory exists on the nfs server
+	//This is the nfs host the the volume belongs to
+	Host *url.URL
+
+	//Path on the Host where the volume is located
 	NFSPath string
-
-	//This is the target filesystem path for mounting into a container
-	MountPath string
 }
 
-func NewNFSVolumeBacking(NFSPath string) NFSVolumeBacking {
-	v := NFSVolumeBacking{
-		NFSPath:   NFSPath,
-		MountPath: MountTargetPath,
+func NewNFSVolumeDevice(host *url.URL, NFSPath string) NFSVolume {
+	v := NFSVolume{
+		Host:    host,
+		NFSPath: NFSPath,
 	}
 	return v
 }
 
-func (v *NFSVolumeBacking) MountPath() (string, error) {
-	return nil
+func (v NFSVolume) MountPath() (string, error) {
+	return "", nil
 }
 
-func (v *NFSVolumeBacking) DiskPath() string {
-	return v.NFSPath
+// includes url to nfs directory for container to mount,
+func (v NFSVolume) DiskPath() url.URL {
+	if v.Host == nil {
+		return url.URL{}
+	}
+	return *v.Host
 }
