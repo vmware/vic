@@ -18,7 +18,7 @@ Deploy Nimbus ESXi Server
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
-    \   Log To Console  Loop ${IDX} failed, trying again in 5 minutes
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
     \   Sleep  5 minutes
 
     # Now grab the IP address and return the name and ip for later use
@@ -133,7 +133,7 @@ Deploy Nimbus vCenter Server
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
     \   Exit For Loop If  ${status}
-    \   Log To Console  Loop ${IDX} failed, trying again in 5 minutes
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
     \   Sleep  5 minutes
 
     # Now grab the IP address and return the name and ip for later use
@@ -184,7 +184,7 @@ Deploy Nimbus Testbed
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  is up. IP:
     \   Exit For Loop If  ${status}
-    \   Log To Console  Loop ${IDX} failed, trying again in 5 minutes
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
     \   Sleep  5 minutes
     [Return]  ${out}
 
