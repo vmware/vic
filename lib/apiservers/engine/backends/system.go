@@ -173,11 +173,11 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if vchInfo.CPUUsage > 0 {
+		if vchInfo.CPUUsage >= 0 {
 			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d Mhz", int(vchInfo.CPUUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if vchInfo.MemUsage > 0 {
+		if vchInfo.MemUsage >= 0 {
 			customInfo := [2]string{systemStatusMemUsage, units.BytesSize(float64(vchInfo.MemUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
