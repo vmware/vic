@@ -57,6 +57,8 @@ type System struct {
 const (
 	systemStatusMhz    = " VCH mhz limit"
 	systemStatusMemory = " VCH memory limit"
+	systemStatusCPUUsageMhz    = " VCH CPU usage"
+	systemStatusMemUsage = " VCH memory usage"
 	systemOS           = " VMware OS"
 	systemOSVersion    = " VMware OS version"
 	systemProductName  = " VMware Product"
@@ -158,6 +160,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	if err != nil || vchInfo == nil {
 		log.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
 	} else {
+		log.Debugf("In SystemInfo, vchInfo is: %+v", vchInfo)
 		if vchInfo.CPUMhz > 0 {
 			info.NCPU = int(vchInfo.CPUMhz)
 
@@ -168,6 +171,14 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			info.MemTotal = vchInfo.Memory * 1024 * 1024 // Get Mebibytes
 
 			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.CPUUsage > 0 {
+			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d Mhz", int(vchInfo.CPUUsage))}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.MemUsage > 0 {
+			customInfo := [2]string{systemStatusMemUsage, units.BytesSize(float64(vchInfo.MemUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if vchInfo.HostProductName != "" {

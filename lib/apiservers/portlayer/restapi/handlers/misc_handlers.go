@@ -43,10 +43,14 @@ func (h *MiscHandlersImpl) GetVCHInfo(params misc.GetVCHInfoParams) middleware.R
 	ctx := context.Background()
 	vchCPUMhz := exec.NCPU(ctx)
 	vchMemLimit := exec.MemTotal(ctx)
+	vchCPUUsage := exec.CPUUsage(ctx)
+	vchMemUsage := exec.MemUsage(ctx)
 
 	vchInfo := &models.VCHInfo{
 		CPUMhz:          vchCPUMhz,
 		Memory:          vchMemLimit,
+		CPUUsage:        vchCPUUsage,
+		MemUsage:        vchMemUsage,
 		HostOS:          exec.Config.HostOS,
 		HostOSVersion:   exec.Config.HostOSVersion,
 		HostProductName: exec.Config.HostProductName,

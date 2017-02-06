@@ -44,6 +44,8 @@ type Configuration struct {
 	// tol retrieve just once.
 	VCHMhz          int64
 	VCHMemoryLimit  int64
+	VCHCPUUsage     int64
+	VCHMemUsage     int64
 	HostOS          string
 	HostOSVersion   string
 	HostProductName string //'VMware vCenter Server' or 'VMare ESXi'

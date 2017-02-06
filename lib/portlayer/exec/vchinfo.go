@@ -19,6 +19,8 @@ import (
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/trace"
+	log "github.com/Sirupsen/logrus"
 )
 
 // NCPU returns the CPU limit (MHZ)
@@ -45,6 +47,37 @@ func NCPU(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
 	return limit
 }
 
+// CPUUsage returns the CPU usage (MHZ)
+func CPUUsage(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
+	defer trace.End(trace.Begin("CPUUsage"))
+
+	log.Debugf("Config: %+v", Config)
+
+	if Config.ResourcePool == nil {
+		return 0
+	}
+
+	var p mo.ResourcePool
+
+	r := Config.ResourcePool.Reference()
+	if len(moref) > 0 {
+		r = moref[0]
+	}
+
+	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "runtime.cpu"}, &p); err != nil {
+		log.Debugf("Config.ResourcePool.Properties, parent Runtime.Cpu error: %+v", err)
+		return 0
+	}
+
+	usage := p.Runtime.Cpu.OverallUsage
+	log.Debug("Runtime.Cpu.OverallUsage: ", usage)
+
+	if usage == -1 {
+		return CPUUsage(ctx, *p.Parent)
+	}
+	return usage
+}
+
 // MemTotal returns the memory limit (GiB)
 func MemTotal(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
 	if Config.ResourcePool == nil {
@@ -68,4 +101,29 @@ func MemTotal(ctx context.Context, moref ...types.ManagedObjectReference) int64 
 	}
 
 	return limit
+}
+
+// MemUsage returns the memory usage (GiB)
+func MemUsage(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
+	if Config.ResourcePool == nil {
+		return 0
+	}
+
+	var p mo.ResourcePool
+
+	r := Config.ResourcePool.Reference()
+	if len(moref) > 0 {
+		r = moref[0]
+	}
+
+	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "runtime.memory"}, &p); err != nil {
+		return 0
+	}
+
+	usage := p.Runtime.Memory.OverallUsage
+	if usage == -1 {
+		return MemUsage(ctx, *p.Parent)
+	}
+
+	return usage
 }
