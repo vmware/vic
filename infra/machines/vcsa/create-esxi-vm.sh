@@ -76,6 +76,8 @@ username=$GOVC_USERNAME
 password=$GOVC_PASSWORD
 unset GOVC_USERNAME GOVC_PASSWORD
 
+guest=${GUEST:-"vmkernel65Guest"}
+
 if [ -z "$password" ] ; then
     # extract password from $GOVC_URL
     password=$(govc env | grep GOVC_PASSWORD= | cut -d= -f 2-)
@@ -156,7 +158,7 @@ else
     fi
 
     echo "Creating vm ${name}..."
-    govc vm.create -on=false -net "$network" -m $((mem*1024)) -c 2 -g "vmkernel65Guest" -net.adapter=vmxnet3 -disk.controller pvscsi "$name"
+    govc vm.create -on=false -net "$network" -m $((mem*1024)) -c 2 -g "$guest" -net.adapter=vmxnet3 -disk.controller pvscsi "$name"
 
     echo "Adding a second nic for ${name}..."
     govc vm.network.add -net "$network" -net.adapter=vmxnet3 -vm "$name"
