@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -30,9 +29,11 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/registry"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/lib/metadata"
@@ -42,13 +43,19 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
-// byCreated is a temporary type used to sort a list of images by creation
-// time.
-type byCreated []*types.Image
+// valid filters as of docker commit 49bf474
+var acceptedImageFilterTags = map[string]bool{
+	"dangling":  true,
+	"label":     true,
+	"before":    true,
+	"since":     true,
+	"reference": true,
+}
 
-func (r byCreated) Len() int           { return len(r) }
-func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
+// currently not supported by vic
+var unSupportedImageFilters = map[string]bool{
+	"dangling": false,
+}
 
 type Image struct {
 }
@@ -186,18 +193,55 @@ func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
 }
 
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
-	defer trace.End(trace.Begin("Images"))
+	defer trace.End(trace.Begin(fmt.Sprintf("filterArgs: %s", filterArgs)))
 
+	// This type conversion can be removed once we move to 1.13
+	// At 1.13 the Images func will change signatures and filterArgs will be properly
+	// typed
+	imageFilters, err := filters.FromParam(filterArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	// utilize the filterArgs to incorporate the argument option
+	if filter != "" {
+		imageFilters.Add("reference", filter)
+	}
+
+	// validate filters for accuracy and support
+	filterContext, err := vicfilter.ValidateImageFilters(imageFilters, acceptedImageFilterTags, unSupportedImageFilters)
+	if err != nil {
+		return nil, err
+	}
+
+	// get all images
 	images := cache.ImageCache().GetImages()
 
 	result := make([]*types.Image, 0, len(images))
 
-	for _, image := range images {
-		result = append(result, convertV1ImageToDockerImage(image))
-	}
+imageLoop:
+	for i := range images {
 
-	// sort on creation time
-	sort.Sort(sort.Reverse(byCreated(result)))
+		// provide filter with current ImageID
+		filterContext.ID = images[i].ImageID
+
+		// provide image labels
+		if images[i].Config != nil {
+			filterContext.Labels = images[i].Config.Labels
+		}
+
+		// determine if image should be part of list
+		action := vicfilter.IncludeImage(imageFilters, filterContext)
+
+		switch action {
+		case vicfilter.ExcludeAction:
+			continue imageLoop
+		case vicfilter.StopAction:
+			break imageLoop
+		}
+		// if we are here then add image
+		result = append(result, convertV1ImageToDockerImage(images[i]))
+	}
 
 	return result, nil
 }

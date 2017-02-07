@@ -2,6 +2,8 @@
 
 *vSphere Integrated Containers Engine for vSphere Administrators* provides information about how to use VMware vSphere&reg; Integrated Containers&trade; Engine as a vSphere administrator.
 
+For the full vSphere Integrated Containers Engine documentation set, go to https://vmware.github.io/vic-product/#getting-started.
+
 **Product version: 0.8**
 
 ## Intended Audience
@@ -19,7 +21,7 @@ Help us to improve the vSphere Integrated Containers documentation.
 
 ----------
 
-Copyright &copy; 2016 VMware, Inc. All rights reserved. [Copyright and trademark information](http://pubs.vmware.com/copyright-trademark.html). Any feedback you provide to VMware is subject to the terms at [www.vmware.com/community_terms.html](http://www.vmware.com/community_terms.html).
+Copyright &copy; 2017 VMware, Inc. All rights reserved. [Copyright and trademark information](http://pubs.vmware.com/copyright-trademark.html). Any feedback you provide to VMware is subject to the terms at [www.vmware.com/community_terms.html](http://www.vmware.com/community_terms.html).
 
 **VMware, Inc.**
 3401 Hillview Ave.

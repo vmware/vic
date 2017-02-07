@@ -7,11 +7,8 @@ Suite Teardown  Nimbus Cleanup  ${list}
 Test
     Log To Console  \nStarting test...
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX1}  ${esx1}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX2}  ${esx2}
     ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX3}  ${esx3}
 
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
@@ -53,6 +50,12 @@ Test
     Log To Console  Enable HA on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled -ha-enabled /ha-datacenter/host/cls
     Should Be Empty  ${out}
+    
+    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Append To List  ${list}  ${name}
+
+    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store cls
+    Should Be Empty  ${out}
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
@@ -60,15 +63,15 @@ Test
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_DATASTORE  nfsDatastore
     Set Environment Variable  TEST_TIMEOUT  30m
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default
 
-    Run Keyword And Ignore Error  Run Regression Tests
+    Run Regression Tests
 
-    ${output}=  Run  govc vm.info ${vch-name}/${vch-name}
+    ${output}=  Run  govc vm.info %{VCH-NAME}/%{VCH-NAME}
     @{output}=  Split To Lines  ${output}
     ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
 
@@ -78,4 +81,8 @@ Test
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
 
+    # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
+    Sleep  2 minutes
+    Run VIC Machine Inspect Command
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
     Run Regression Tests

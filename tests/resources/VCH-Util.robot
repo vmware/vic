@@ -68,7 +68,7 @@ Parse Environment Variables
     Return From Keyword If  ${status}
     
     # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
-    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  ${SPACE}  5
+    ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  max_split=5
     Set List Of Env Variables  ${vars}
 
 Get Docker Params
@@ -146,6 +146,12 @@ Run Secret VIC Machine Delete Command
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     [Return]  ${rc}  ${output}
 
+Run Secret VIC Machine Inspect Command
+    [Tags]  secret
+    [Arguments]  ${name}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+    [Return]  ${rc}  ${output}
+
 Run VIC Machine Delete Command
     ${rc}  ${output}=  Run Secret VIC Machine Delete Command  %{VCH-NAME}
     Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
@@ -153,6 +159,10 @@ Run VIC Machine Delete Command
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f %{VCH-NAME}-*.pem
     [Return]  ${output}
+
+Run VIC Machine Inspect Command
+    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  %{VCH-NAME}
+    Get Docker Params  ${output}  ${true}
 
 Gather Logs From Test Server
     [Tags]  secret
