@@ -15,115 +15,75 @@
 package exec
 
 import (
+	"fmt"
 	"context"
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/trace"
-	log "github.com/Sirupsen/logrus"
 )
 
-// NCPU returns the CPU limit (MHZ)
-func NCPU(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
-	if Config.ResourcePool == nil {
-		return 0
-	}
+type StatKey int
 
-	var p mo.ResourcePool
+const (
+	StatNCPU StatKey = iota
+	StatMemTotal
+	StatCPUUsage
+	StatMemUsage
+)
 
-	r := Config.ResourcePool.Reference()
-	if len(moref) > 0 {
-		r = moref[0]
-	}
-
-	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "config.cpuAllocation"}, &p); err != nil {
-		return 0
-	}
-
-	limit := p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
-	if limit == -1 {
-		return NCPU(ctx, *p.Parent)
-	}
-	return limit
+var statKey map[StatKey][]string = map[StatKey][]string{
+	StatNCPU:     {"parent", "config.cpuAllocation"},
+	StatMemTotal: {"parent", "config.memoryAllocation"},
+	StatCPUUsage: {"parent", "runtime.cpu"},
+	StatMemUsage: {"parent", "runtime.memory"},
 }
 
-// CPUUsage returns the CPU usage (MHZ)
-func CPUUsage(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
-	defer trace.End(trace.Begin("CPUUsage"))
-
-	log.Debugf("Config: %+v", Config)
+func getVCHstats(statID StatKey, ctx context.Context, moref ...types.ManagedObjectReference) int64 {
 
 	if Config.ResourcePool == nil {
 		return 0
 	}
 
-	var p mo.ResourcePool
-
-	r := Config.ResourcePool.Reference()
-	if len(moref) > 0 {
-		r = moref[0]
-	}
-
-	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "runtime.cpu"}, &p); err != nil {
-		log.Debugf("Config.ResourcePool.Properties, parent Runtime.Cpu error: %+v", err)
+	resPool, err := getProperties(ctx, statID, moref...)
+	if err != nil {
 		return 0
 	}
 
-	usage := p.Runtime.Cpu.OverallUsage
-	log.Debug("Runtime.Cpu.OverallUsage: ", usage)
+	v := getLimit(statID, resPool)
 
-	if usage == -1 {
-		return CPUUsage(ctx, *p.Parent)
+	if v == -1 {
+		return getVCHstats(statID, ctx, *resPool.Parent)
 	}
-	return usage
+	return v
 }
 
-// MemTotal returns the memory limit (GiB)
-func MemTotal(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
-	if Config.ResourcePool == nil {
-		return 0
-	}
-
-	var p mo.ResourcePool
-
+func getProperties(ctx context.Context, statID StatKey, moref ...types.ManagedObjectReference) (*mo.ResourcePool, error) {
 	r := Config.ResourcePool.Reference()
 	if len(moref) > 0 {
 		r = moref[0]
 	}
 
-	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "config.memoryAllocation"}, &p); err != nil {
-		return 0
-	}
+	v, ok := statKey[statID]
+	p := &mo.ResourcePool{}
 
-	limit := p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
-	if limit == -1 {
-		return MemTotal(ctx, *p.Parent)
+	if !ok {
+		panic(fmt.Sprintf("Unexpected stat requested: %q", statID))
 	}
-
-	return limit
+	err := Config.ResourcePool.Properties(ctx, r, v, p)
+	return p, err
 }
 
-// MemUsage returns the memory usage (GiB)
-func MemUsage(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
-	if Config.ResourcePool == nil {
-		return 0
+func getLimit(statID StatKey, p *mo.ResourcePool) int64 {
+	switch statID {
+	case StatNCPU:
+		return p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
+	case StatMemTotal:
+		return p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
+	case StatCPUUsage:
+		return p.Runtime.Cpu.OverallUsage
+	case StatMemUsage:
+		return p.Runtime.Memory.OverallUsage
+	default:
+		panic(fmt.Sprintf("Unexpected stat requested: %q", statID))
 	}
-
-	var p mo.ResourcePool
-
-	r := Config.ResourcePool.Reference()
-	if len(moref) > 0 {
-		r = moref[0]
-	}
-
-	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "runtime.memory"}, &p); err != nil {
-		return 0
-	}
-
-	usage := p.Runtime.Memory.OverallUsage
-	if usage == -1 {
-		return MemUsage(ctx, *p.Parent)
-	}
-
-	return usage
 }

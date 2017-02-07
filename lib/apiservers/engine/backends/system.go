@@ -55,7 +55,7 @@ type System struct {
 }
 
 const (
-	systemStatusMhz    = " VCH mhz limit"
+	systemStatusMhz    = " VCH CPU limit"
 	systemStatusMemory = " VCH memory limit"
 	systemStatusCPUUsageMhz    = " VCH CPU usage"
 	systemStatusMemUsage = " VCH memory usage"
@@ -160,7 +160,6 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	if err != nil || vchInfo == nil {
 		log.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
 	} else {
-		log.Debugf("In SystemInfo, vchInfo is: %+v", vchInfo)
 		if vchInfo.CPUMhz > 0 {
 			info.NCPU = int(vchInfo.CPUMhz)
 
