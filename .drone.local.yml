@@ -33,4 +33,4 @@ build:
       DOMAIN: $$DOMAIN
     commands:
       - tests/integration-test.sh
-      #- pybot tests/test-cases/Group1-Docker-Commands/1-5-Docker-START.robot
+      #- pybot tests/test-cases/Group1-Docker-Commands/1-5-Docker-Start.robot
