@@ -322,9 +322,9 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden: true,
 		},
 		cli.IntFlag{
-			Name:        "appliance-memory",
+			Name:        "endpoint-memory",
 			Value:       2048,
-			Usage:       "Memory for the appliance VM, in MB. Does not impact resources allocated per container.",
+			Usage:       "Memory for the VCH endpoint VM, in MB. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.MemoryMB,
 		},
@@ -350,9 +350,9 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden: true,
 		},
 		cli.IntFlag{
-			Name:        "appliance-cpu",
+			Name:        "endpoint-cpu",
 			Value:       1,
-			Usage:       "vCPUs for the appliance VM",
+			Usage:       "vCPUs for the VCH endpoint VM. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.NumCPUs,
 		},
