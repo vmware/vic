@@ -17,6 +17,7 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -55,6 +56,14 @@ var (
 	imageCache *ICache
 	ctx        = context.TODO()
 )
+
+// byCreated is a temporary type used to sort a list of images by creation
+// time.
+type byCreated []*metadata.ImageConfig
+
+func (r byCreated) Len() int           { return len(r) }
+func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byCreated) Less(i, j int) bool { return r[i].Created.Unix() < r[j].Created.Unix() }
 
 func init() {
 	imageCache = &ICache{
@@ -117,6 +126,8 @@ func (ic *ICache) GetImages() []*metadata.ImageConfig {
 	for _, image := range ic.cacheByID {
 		result = append(result, copyImageConfig(image))
 	}
+
+	sort.Sort(sort.Reverse(byCreated(result)))
 	return result
 }
 
