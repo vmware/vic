@@ -63,7 +63,7 @@ func ValidateVolumeFilters(volFilters filters.Args, acceptedFilters, unSupported
 // an action to indicate whether to include the volume in the output or not.
 func IncludeVolume(volumeFilters filters.Args, volFilterContext *VolumeFilterContext) FilterAction {
 
-	// Filter by name
+	// Filter by name and label
 	action := filterCommon(&volFilterContext.FilterContext, volumeFilters)
 	if action != IncludeAction {
 		return action

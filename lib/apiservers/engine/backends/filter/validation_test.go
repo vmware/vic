@@ -62,11 +62,12 @@ var unSupportedPsFilters = map[string]bool{
 	"is-task":   false,
 }
 
-// valid volume filters as per API v1.25
+// valid volume filters as of Docker v1.13
 var acceptedVolumeFilterTags = map[string]bool{
 	"dangling": true,
 	"name":     true,
 	"driver":   true,
+	"label":    true,
 }
 
 func TestValidateFilters(t *testing.T) {

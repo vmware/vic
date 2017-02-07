@@ -69,11 +69,12 @@ func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *ty
 type Volume struct {
 }
 
-// acceptedVolumeFilters are filters that are supported by VIC
+// acceptedVolumeFilters are volume filters that are supported by VIC
 var acceptedVolumeFilters = map[string]bool{
 	"dangling": true,
 	"name":     true,
 	"driver":   true,
+	"label":    true,
 }
 
 var errPortlayerClient = fmt.Errorf("failed to get a portlayer client")
@@ -139,18 +140,20 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	for _, vol := range volumeResponses {
 		log.Infof("%s", vol.Name)
 
+		volumeMetadata, err := extractDockerMetadata(vol.Metadata)
+		if err != nil {
+			return nil, nil, VolumeInternalServerError(fmt.Errorf("error unmarshalling docker metadata: %s", err))
+		}
+
 		// Set fields needed for filtering the output
 		volFilterContext.Name = vol.Name
 		volFilterContext.Driver = vol.Driver
 		_, volFilterContext.Joined = joinedVolumes[vol.Name]
+		volFilterContext.Labels = volumeMetadata.Labels
 
 		// Include the volume in the output if it meets the filtering criteria
 		filterAction := vicfilter.IncludeVolume(volumeFilters, volFilterContext)
 		if filterAction == vicfilter.IncludeAction {
-			volumeMetadata, err := extractDockerMetadata(vol.Metadata)
-			if err != nil {
-				return nil, nil, VolumeInternalServerError(fmt.Errorf("error unmarshalling docker metadata: %s", err))
-			}
 			volume := NewVolumeModel(vol, volumeMetadata.Labels)
 			volumes = append(volumes, volume)
 		}

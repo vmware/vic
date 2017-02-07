@@ -58,7 +58,8 @@ func TestIncludeVolume(t *testing.T) {
 	volFilters.Add("dangling", "true")
 	volFilterContext := &VolumeFilterContext{
 		FilterContext: FilterContext{
-			Name: "scully",
+			Name:   "scully",
+			Labels: map[string]string{"samplelabel": ""},
 		},
 		Driver:   "science",
 		Joined:   false,
@@ -96,6 +97,18 @@ func TestIncludeVolume(t *testing.T) {
 	volFilterContext.Driver = "science"
 	volFilters.Del("driver", "science")
 	volFilters.Add("driver", "sci")
+	action = IncludeVolume(volFilters, volFilterContext)
+	assert.Equal(t, action, ExcludeAction)
+
+	// Filter by correct label
+	volFilters = filters.NewArgs()
+	volFilters.Add("label", "samplelabel")
+	action = IncludeVolume(volFilters, volFilterContext)
+	assert.Equal(t, action, IncludeAction)
+
+	// Filter by incorrect label
+	volFilters.Del("label", "samplelabel")
+	volFilters.Add("label", "wronglabel")
 	action = IncludeVolume(volFilters, volFilterContext)
 	assert.Equal(t, action, ExcludeAction)
 }

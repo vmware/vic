@@ -61,6 +61,15 @@ Volume ls filter by driver
     Should Not Contain  ${output}  danglingVol
     Should Not Contain  ${output}  testVol
 
+Volume ls filter by label
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=labelVol --label=labeled
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls -f label=labeled
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  labelVol
+    Should Not Contain  ${output}  danglingVol
+    Should Not Contain  ${output}  testVol
+
 Volume ls multiple filters
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls -f dangling=true -f name=dang
     Should Be Equal As Integers  ${rc}  0

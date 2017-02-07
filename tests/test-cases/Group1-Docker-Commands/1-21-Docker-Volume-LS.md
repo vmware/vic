@@ -23,8 +23,10 @@ This test requires that a vSphere server is running and available
 10. Issue docker volume ls -f name=dang
 11. Issue docker volume ls -f driver=vsphere
 12. Issue docker volume ls -f driver=vsph
-13. Issue docker volume ls -f dangling=true -f name=dang
-14. Issue docker volume ls -f dangling=false -f name=dang
+13. Issue docker volume create --name=labelVol --label=labeled
+14. Issue docker volume ls -f label=labeled
+15. Issue docker volume ls -f dangling=true -f name=dang
+16. Issue docker volume ls -f dangling=false -f name=dang
 
 #Expected Outcome:
 * Step 3 should result in each volume being listed with both driver and volume name
@@ -38,8 +40,9 @@ Error response from daemon: Invalid filter 'bogusfilter'
 * Step 10 should result in only danglingVol being listed
 * Step 11 should result in danglingVol and testVol being listed
 * Step 12 should result in no volumes being listed
-* Step 13 should result in only danglingVol being listed
-* Step 14 should result in no volumes being listed
+* Step 14 should result in only labelVol being listed
+* Step 15 should result in only danglingVol being listed
+* Step 16 should result in no volumes being listed
 
 #Possible Problems:
 * VIC requires you to specify storage on creation of the VCH that volumes can be created from, so when installing the VCH make sure to specify this parameter: --volume-store=
