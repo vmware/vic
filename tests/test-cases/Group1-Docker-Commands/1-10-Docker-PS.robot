@@ -138,42 +138,33 @@ Docker ps Remove container OOB
     Should Be Equal As Integers  ${rc}  0
 
 Docker ps last container
-    ${status}=  Get State Of Github Issue  1545
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
-    Log  Issue \#1545 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -l
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  ls
-    #${output}=  Split To Lines  ${output}
-    #Length Should Be  ${output}  2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -l
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  redis
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
 
 Docker ps two containers
-    ${status}=  Get State Of Github Issue  1545
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
-    Log  Issue \#1545 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -n=2
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  dmesg
-    #Should Contain  ${output}  ls
-    #${output}=  Split To Lines  ${output}
-    #Length Should Be  ${output}  3
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -n=2
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  redis
+    Should Contain  ${output}  nginx
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  3
 
 Docker ps last container with size
-    ${status}=  Get State Of Github Issue  1545
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
-    Log  Issue \#1545 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -ls
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  SIZE
-    #Should Contain  ${output}  ls
-    #${output}=  Split To Lines  ${output}
-    #Length Should Be  ${output}  2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  SIZE
+    Should Contain  ${output}  redis
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
 
 Docker ps all containers with only IDs
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
-    Create several containers 
+    Create several containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  CONTAINER ID
@@ -183,12 +174,23 @@ Docker ps all containers with only IDs
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${len+3}
 
-Docker ps with filter
-    ${status}=  Get State Of Github Issue  1676
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1676 has been resolved
-    Log  Issue \#1676 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f status=created
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  ls
-    #${output}=  Split To Lines  ${output}
-    #Length Should Be  ${output}  2
+Docker ps with status filter
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f status=created
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  nginx
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  5
+
+Docker ps with label and name filter
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name abe --label prod busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f label=prod
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  busybox
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f name=abe
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  busybox
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2

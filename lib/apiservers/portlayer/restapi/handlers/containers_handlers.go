@@ -22,6 +22,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -282,6 +283,15 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
 
+// type and funcs to provide sorting by created date
+type containerByCreated []*models.ContainerInfo
+
+func (r containerByCreated) Len() int      { return len(r) }
+func (r containerByCreated) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r containerByCreated) Less(i, j int) bool {
+	return r[i].ContainerConfig.CreateTime < r[j].ContainerConfig.CreateTime
+}
+
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 
@@ -299,6 +309,8 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		info := convertContainerToContainerInfo(container.Info())
 		containerList = append(containerList, info)
 	}
+
+	sort.Sort(sort.Reverse(containerByCreated(containerList)))
 	return containers.NewGetContainerListOK().WithPayload(containerList)
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,9 +30,11 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/registry"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/lib/metadata"
@@ -41,6 +43,24 @@ import (
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
+
+// valid filters as of docker commit 49bf474
+var acceptedImageFilterTags = map[string]bool{
+	"dangling":  true,
+	"label":     true,
+	"before":    true,
+	"since":     true,
+	"reference": true,
+}
+
+// currently not supported by vic
+var unSupportedImageFilters = map[string]bool{
+	"dangling":  false,
+	"label":     false,
+	"before":    false,
+	"since":     false,
+	"reference": false,
+}
 
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
@@ -186,7 +206,20 @@ func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
 }
 
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
-	defer trace.End(trace.Begin("Images"))
+	defer trace.End(trace.Begin(fmt.Sprintf("filterArgs: %s", filterArgs)))
+
+	// This type conversion can be removed once we move to 1.13
+	// At 1.13 the Images func will change signatures and filterArgs will be properly
+	// typed
+	imageFilters, err := filters.FromParam(filterArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	// validate filters for accuracy and support
+	if err := vicfilter.ValidateFilters(imageFilters, acceptedImageFilterTags, unSupportedImageFilters); err != nil {
+		return nil, err
+	}
 
 	images := cache.ImageCache().GetImages()
 

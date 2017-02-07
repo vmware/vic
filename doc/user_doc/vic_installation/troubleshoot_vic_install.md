@@ -8,3 +8,4 @@ This information provides solutions for common problems that you might encounter
 * [VCH Deployment Fails with Certificate cname Mismatch](ts_cname_mismatch.md)
 * [vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md)
 * [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md)
+* [VCH Deployment Fails with Docker API Endpoint Check Failed Error](ts_docker_api_check_error.md)
