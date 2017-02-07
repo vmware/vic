@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/ioutil"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -360,7 +361,10 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		return containers.NewGetContainerLogsInternalServerError()
 	}
 
-	detachableOut := NewFlushingReader(reader)
+	// wrap the reader in a LogReader to pull log messages out of JSON entries
+	lr := ioutil.NewLogReader(reader)
+
+	detachableOut := NewFlushingReader(lr)
 
 	return NewContainerOutputHandler("logs").WithPayload(detachableOut, params.ID)
 }
