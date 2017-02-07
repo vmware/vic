@@ -44,7 +44,7 @@ There will be impact on container interaction while the endpointVM is down:
 
 All of those facets should resume normal operation after upgrade is complete. 
 
-Note: Exception might happen if there is container communication changes. Addtional operations are required to fix the problem.
+Note: Exception might happen if there is container communication changes. Additional operations are required to fix the problem.
 
 ### VCH status
 
@@ -254,7 +254,7 @@ vic-machine upgrade will leave container in old version, and do not update it ev
 - Load container configuration
 - Check if data migration is required. If yes, migrate data, and conver to new version's data structure in memory
 - Read/write from/to new version's data for whatever container operations
-- While need to write container configuration back to container VM guestinfo, check if data migration is done. If yes, skip writting.
+- While need to write container configuration back to container VM guestinfo, check if data migration is done. If yes, skip writing.
 
 Risks:
 - As the new data is not written back, there will have few container information inconsistence
@@ -272,7 +272,7 @@ vic-machine upgrade --rollback --<same other upgrade options>
 ```
 Following is the workflow
 - Find existing VCH endpointVM
-- Check if upgrade snapshot avaliable, and consistent with previous iso file version, if not, stop rollback
+- Check if upgrade snapshot available, and consistent with previous iso file version, if not, stop rollback
 - Check if there is any newer version's container created already, if yes, print warning message and stop rollback
 - Check if old iso files with same snapshot version still exist, if not, cannot rollback
 
