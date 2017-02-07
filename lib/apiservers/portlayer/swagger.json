@@ -2857,6 +2857,9 @@
 						"type": "string"
 					}
 				},
+				"name": {
+					"type": "string"
+				},
 				"mountPoint": {
 					"type": "string"
 				},
