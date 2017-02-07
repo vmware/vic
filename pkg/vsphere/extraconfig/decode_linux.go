@@ -15,12 +15,9 @@
 package extraconfig
 
 import (
-	"errors"
-
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
-	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 // GuestInfoSource uses the rpcvmx mechanism to access the guestinfo key/value map as
@@ -34,10 +31,6 @@ func GuestInfoSource() (DataSource, error) {
 // (either . or /) will be replaced with the appropriate value for the key in question.
 func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 	guestinfo := rpcvmx.NewConfig()
-
-	if isVM, err := vmcheck.IsVirtualWorld(); !isVM || err != nil {
-		return nil, errors.New("not in a virtual world")
-	}
 
 	source := func(key string) (string, error) {
 		if key != guestinfoSecretKey {
