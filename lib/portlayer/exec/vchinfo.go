@@ -31,14 +31,14 @@ const (
 	StatMemUsage
 )
 
-var statKey map[StatKey][]string = map[StatKey][]string{
+var statKey = map[StatKey][]string{
 	StatNCPU:     {"parent", "config.cpuAllocation"},
 	StatMemTotal: {"parent", "config.memoryAllocation"},
 	StatCPUUsage: {"parent", "runtime.cpu"},
 	StatMemUsage: {"parent", "runtime.memory"},
 }
 
-func getVCHstats(statID StatKey, ctx context.Context, moref ...types.ManagedObjectReference) int64 {
+func GetVCHstats(ctx context.Context, statID StatKey, moref ...types.ManagedObjectReference) int64 {
 
 	if Config.ResourcePool == nil {
 		return 0
@@ -52,7 +52,7 @@ func getVCHstats(statID StatKey, ctx context.Context, moref ...types.ManagedObje
 	v := getLimit(statID, resPool)
 
 	if v == -1 {
-		return getVCHstats(statID, ctx, *resPool.Parent)
+		return GetVCHstats(ctx, statID, *resPool.Parent)
 	}
 	return v
 }
