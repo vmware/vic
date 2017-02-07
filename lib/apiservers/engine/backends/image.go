@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -55,20 +54,8 @@ var acceptedImageFilterTags = map[string]bool{
 
 // currently not supported by vic
 var unSupportedImageFilters = map[string]bool{
-	"dangling":  false,
-	"label":     false,
-	"before":    false,
-	"since":     false,
-	"reference": false,
+	"dangling": false,
 }
-
-// byCreated is a temporary type used to sort a list of images by creation
-// time.
-type byCreated []*types.Image
-
-func (r byCreated) Len() int           { return len(r) }
-func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 type Image struct {
 }
@@ -216,21 +203,45 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 		return nil, err
 	}
 
+	// utilize the filterArgs to incorporate the argument option
+	if filter != "" {
+		imageFilters.Add("reference", filter)
+	}
+
 	// validate filters for accuracy and support
-	if err := vicfilter.ValidateFilters(imageFilters, acceptedImageFilterTags, unSupportedImageFilters); err != nil {
+	filterContext, err := vicfilter.ValidateImageFilters(imageFilters, acceptedImageFilterTags, unSupportedImageFilters)
+	if err != nil {
 		return nil, err
 	}
 
+	// get all images
 	images := cache.ImageCache().GetImages()
 
 	result := make([]*types.Image, 0, len(images))
 
-	for _, image := range images {
-		result = append(result, convertV1ImageToDockerImage(image))
-	}
+imageLoop:
+	for i := range images {
 
-	// sort on creation time
-	sort.Sort(sort.Reverse(byCreated(result)))
+		// provide filter with current ImageID
+		filterContext.ID = images[i].ImageID
+
+		// provide image labels
+		if images[i].Config != nil {
+			filterContext.Labels = images[i].Config.Labels
+		}
+
+		// determine if image should be part of list
+		action := vicfilter.IncludeImage(imageFilters, filterContext)
+
+		switch action {
+		case vicfilter.ExcludeAction:
+			continue imageLoop
+		case vicfilter.StopAction:
+			break imageLoop
+		}
+		// if we are here then add image
+		result = append(result, convertV1ImageToDockerImage(images[i]))
+	}
 
 	return result, nil
 }
