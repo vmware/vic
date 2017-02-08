@@ -157,7 +157,7 @@ Run VIC Machine Delete Command
     Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
-    ${output}=  Run  rm -f %{VCH-NAME}-*.pem
+    ${output}=  Run  rm -rf %{VCH-NAME}
     [Return]  ${output}
 
 Run VIC Machine Inspect Command

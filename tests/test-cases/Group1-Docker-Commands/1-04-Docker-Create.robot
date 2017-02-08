@@ -162,3 +162,8 @@ Create a container with custom amount of memory in Bytes
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  2048MB
+
+Create a container using rest api call without HostConfig in the form data
+    ${output}=  Run  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Content-Type: application/json" -d '{"Image": "busybox", "Cmd": ["ping", "127.0.0.1"], "NetworkMode": "bridge"}' https://%{VCH-IP}:2376/containers/create
+    Log  ${output}
+    Should contain  ${output}  "Warnings":null
