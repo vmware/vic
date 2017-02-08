@@ -847,25 +847,25 @@ Set CPU shares on the VCH vApp in vCenter Server, or on the VCH resource pool on
 
 <pre>--cpu-shares low</pre>
 
-### `--endpoint-cpu ` ###
+### `--appliance-cpu ` ###
 
 Short name: none
 
 The number of virtual CPUs for the VCH endpoint VM. The default is 1. Set this option to increase the number of CPUs in the VCH endpoint VM.
 
-**NOTE** Always use the `--cpu` option instead of the `--endpoint-cpu` option to increase the overall CPU capacity of the VCH vApp, rather than increasing the number of CPUs on the VCH endpoint VM. The `--endpoint-cpu` option is mainly intended for use by VMware Support.
+**NOTE** Always use the `--cpu` option instead of the `--appliance-cpu` option to increase the overall CPU capacity of the VCH vApp, rather than increasing the number of CPUs on the VCH endpoint VM. The `--appliance-cpu` option is mainly intended for use by VMware Support.
 
-<pre>--endpoint-cpu <i>number_of_CPUs</i></pre>
+<pre>--appliance-cpu <i>number_of_CPUs</i></pre>
 
-### `--endpoint-memory ` ###
+### `--appliance-memory ` ###
 
 Short name: none
 
 The amount of memory for the VCH endpoint VM. The default is 2048MB. Set this option to increase the amount of memory in the VCH endpoint VM if the VCH will pull large container images.
 
-**NOTE** With the exception of VCHs that pull large container images, always use the `--memory` option instead of the `--endpoint-memory` option to increase the overall amount of memory for the VCH vApp, rather than on the VCH endpoint VM. Use `docker create -m` to set the memory on container VMs. The `--endpoint-memory` option is mainly intended for use by VMware Support.
+**NOTE** With the exception of VCHs that pull large container images, always use the `--memory` option instead of the `--appliance-memory` option to increase the overall amount of memory for the VCH vApp, rather than on the VCH endpoint VM. Use `docker create -m` to set the memory on container VMs. The `--appliance-memory` option is mainly intended for use by VMware Support.
 
-<pre>--endpoint-memory <i>amount_of_memory</i></pre>
+<pre>--appliance-memory <i>amount_of_memory</i></pre>
 
 <a name="adv-other"></a>
 ## Other Advanced Options ##
