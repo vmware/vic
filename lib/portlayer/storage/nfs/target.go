@@ -23,54 +23,44 @@ import (
 	"os"
 )
 
+type MountHandler interface {
+	Mount(target *url.URL) (NFSTarget, error)
+	Unmount(target NFSTarget) error
+}
+
 type NFSTarget interface {
-	//returns the NFSTarget Endpoint
-	EndPoint() *url.URL
+	//opens a target path in a READONLY context
+	Open(path string) (io.ReadCloser, error)
 
-	//Binds the target NFS server to the VCH(Possible concurrency/performance issue?)
-	Open() (NFSTarget, error)
+	//Opens targeted file with the supplied attr.
+	OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
-	//Unbinds NFS server from the VCH(ditto to open)
-	Close() error
-
-	// write data to target nfs filesystem
-	Write(op trace.Operation, path string, r io.Reader) error
-
-	// read data from target nfs filesystem
-	Read(path string) (io.Reader, error)
+	//Creates a file, errors out if file already exists. assumes write permissions.
+	Create(path string) (io.ReadWriteCloser, error)
 
 	// Create directory path
-	MkDir(path string, makeParents bool) (string, error)
+	MkDir(path string, perm os.FileMode) ([]byte, error)
 
 	// Delete Directory Path, and children
 	RemoveAll(Path string) error
 
 	//Reads the contents of the targeted directory
 	ReadDir(path string) ([]os.FileInfo, error)
+
+	//Looks up the file information for a target entry
+	Lookup(path string) (os.FileInfo, error)
 }
 
 type NFSv3Target struct {
-	//nfs enpoint
+	//nfs endpoint
 	host *url.URL
 
 	//Path to the the volume store
 	directoryPath string
 }
 
-func (t NFSv3Target) EndPoint() *url.URL {
-	return nil
-}
-
-func (t NFSv3Target) Write(op trace.Operation, path string, r io.Reader) error {
-	return nil
-}
-
-func (t NFSv3Target) Read(path string) (io.Reader, error) {
+func (t NFSv3Target) MkDir(path string, perm os.FileMode) ([]byte, error) {
 	return nil, nil
-}
-
-func (t NFSv3Target) MkDir(path string, makeParents bool) (string, error) {
-	return "", nil
 }
 
 func (t NFSv3Target) RemoveAll(path string) error {
@@ -81,11 +71,27 @@ func (t NFSv3Target) ReadDir(path string) ([]os.FileInfo, error) {
 	return nil, nil
 }
 
-func (t NFSv3Target) Open() (NFSTarget, error) {
+func (t NFSv3Target) Open(path string) (io.ReadCloser, error) {
 	return nil, nil
 }
 
-func (t NFSv3Target) Close() error {
+func (t NFSv3Target) OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
+	return nil, nil
+}
+
+func (t NFSv3Target) Create(path string) (io.ReadWriteCloser, error) {
+	return nil, nil
+}
+
+func (t NFSv3Target) Lookup(path string) (os.FileInfo, error) {
+	return nil, nil
+}
+
+func Mount(target *url.URL) (NFSTarget, error) {
+	return nil, nil
+}
+
+func Unmount(target NFSTarget) error {
 	return nil
 }
 

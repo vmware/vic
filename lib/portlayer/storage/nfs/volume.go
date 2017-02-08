@@ -15,16 +15,14 @@
 package nfs
 
 import (
-	"bytes"
-	"io"
 	"net/url"
+	"os"
 	"path"
 
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/disk"
 	"io/ioutil"
-	"os"
 )
 
 const (
@@ -33,48 +31,61 @@ const (
 
 	// path that namespaces the metadata for a specific volume
 	metadataDir = "volumedata"
+
+	//Stock file permissions that are set, In the future we may pass these in.
+	filePermissions = 0755
 )
 
 type NFSv3VolumeStore struct {
 	//volume store name
 	Name string
 
-	//volume directory path
+	//volume directory path, used to construct paths.
 	volumeStoreDir string
 
-	//nfs target for filesystem interaction
-	Target NFSTarget
+	//handler for establishing connection to a target.
+	MH MountHandler
 
-	// Service URL to this Volumestore
+	//nfs target for filesystem interaction
+	Target *url.URL
+
+	//Service selflink to volume store.
 	SelfLink *url.URL
 }
 
-func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL) (*NFSv3VolumeStore, error) {
+func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL, mount MountHandler) (*NFSv3VolumeStore, error) {
 	// XXX: Potential credential leak, maybe log less...
 	op.Infof("Creating datastore (%s) at target (%q)", storeName, nfsTargetURL.String())
 
-	// Create a target which can interact with the nfs server.
-	target, err := NewNFSv3Target(op, nfsTargetURL, path.Join(nfsTargetURL.Path, VolumesDir))
+	target, err := mount.Mount(nfsTargetURL)
 	if err != nil {
 		return nil, err
 	}
 
-	target, err = target.Open()
-	if err != nil {
+	defer mount.Unmount(target)
+
+	//we assume that nfsTargetURL.path already exists.
+	//make volumes directory
+	if _, err := target.MkDir(path.Join(nfsTargetURL.Path, VolumesDir), filePermissions); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	defer target.Close()
+	//make metadata directory
+	if _, err := target.MkDir(path.Join(nfsTargetURL.Path, metadataDir), filePermissions); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
 
-	if _, err := target.MkDir(nfsTargetURL.Path, true); !os.IsExist(err) {
+	selfLink, err := util.VolumeStoreNameToURL(storeName)
+	if err != nil {
 		return nil, err
 	}
 
 	v := &NFSv3VolumeStore{
 		Name:           storeName,
-		volumeStoreDir: path.Join(nfsTargetURL.Path),
-		SelfLink:       nfsTargetURL,
-		Target:         target,
+		volumeStoreDir: nfsTargetURL.Path,
+		MH:             mount,
+		Target:         nfsTargetURL,
+		SelfLink:       selfLink,
 	}
 
 	return v, nil
@@ -95,26 +106,22 @@ func (v *NFSv3VolumeStore) volMetadataDirPath(ID string) string {
 	return path.Join(v.volumeStoreDir, metadataDir, ID)
 }
 
-// Returns the path to the specified volumes directory on the nfs target
-func (v *NFSv3VolumeStore) volumeURL(ID string) string {
-	return path.Join(v.volumeStoreDir, v.volDirPath(ID))
-}
-
 // Creates a volume directory and volume object for NFS based volumes
 func (v *NFSv3VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
-	target, err := v.Target.Open()
+	target, err := v.MH.Mount(v.Target)
 	if err != nil {
 		return nil, err
 	}
 
-	defer target.Close()
-	if _, err := target.MkDir(v.volumeURL(ID), false); err != nil {
+	defer v.MH.Unmount(target)
+
+	if _, err := target.MkDir(v.volDirPath(ID), filePermissions); err != nil {
 		return nil, err
 	}
 
-	backing := NewNFSVolumeDevice(*v.Target.EndPoint(), v.volDirPath(ID))
+	backing := NewNFSVolumeDevice(v.Target, v.volDirPath(ID))
 
-	vol, err := storage.NewVolume(v.Target.EndPoint(), ID, info, backing)
+	vol, err := storage.NewVolume(v.SelfLink, ID, info, backing)
 	if err != nil {
 		return nil, err
 	}
@@ -129,12 +136,14 @@ func (v *NFSv3VolumeStore) VolumeCreate(op trace.Operation, ID string, store *ur
 
 // Removes a volume and all of it's contents from the nfs store. We already know via the cache if it is in use.
 func (v *NFSv3VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
-	op.Infof("Attempting to remove volume (%s) and it's metadata from volume store (%s)", vol.ID, v.Name)
-	target, err := v.Target.Open()
+	target, err := v.MH.Mount(v.Target)
 	if err != nil {
 		return err
 	}
-	defer target.Close()
+
+	defer v.MH.Unmount(target)
+
+	op.Infof("Attempting to remove volume (%s) and it's metadata from volume store (%s)", vol.ID, v.Name)
 
 	//remove volume directory and children
 	if err := target.RemoveAll(v.volDirPath(vol.ID)); err != nil {
@@ -156,11 +165,12 @@ func (v *NFSv3VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume
 func (v *NFSv3VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
 	volumes := make([]*storage.Volume, 0)
 
-	target, err := v.Target.Open()
+	target, err := v.MH.Mount(v.Target)
 	if err != nil {
 		return nil, err
 	}
-	defer target.Close()
+
+	defer v.MH.Unmount(target)
 
 	volFileInfo, err := target.ReadDir(v.volumesDir())
 	if err != nil {
@@ -174,9 +184,9 @@ func (v *NFSv3VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, e
 			return nil, err //perhaps wait until the end of the loop to report this?
 		}
 
-		volDeviceBacking := NewNFSVolumeDevice(target.EndPoint(), v.volDirPath(volFileInfo.Name()))
+		volDeviceBacking := NewNFSVolumeDevice(v.Target, v.volDirPath(volFileInfo.Name()))
 
-		vol, err := storage.NewVolume(v.Target.EndPoint(), volFileInfo.Name(), volMetadata, volDeviceBacking)
+		vol, err := storage.NewVolume(v.SelfLink, volFileInfo.Name(), volMetadata, volDeviceBacking)
 		if err != nil {
 			return nil, err
 		}
@@ -188,12 +198,22 @@ func (v *NFSv3VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, e
 }
 
 func writeMetadata(op trace.Operation, metadataPath string, info map[string][]byte, target NFSTarget) error {
+	//NOTE: right now we do not support updating metadata, thus we make the ID directory here
+	_, err := target.MkDir(metadataPath, filePermissions)
+	if err != nil {
+		return err
+	}
+
 	op.Infof("Attempting to write metadata to (%s)", metadataPath)
 	for fileName, data := range info {
 		targetPath := path.Join(metadataPath, fileName)
-		r := bytes.NewReader(data)
-		//NOTE: If we begin to allow readonly behavior then we must make sure this path is writable...
-		err := target.Write(op, targetPath, r)
+		blobFile, err := target.Create(targetPath)
+		// XXX: we might want to make sure the file we want to write does not exist...
+		if err != nil {
+			return err
+		}
+
+		_, err = blobFile.Write(data)
 		if err != nil {
 			//XXX: Should we attempt to clean up what we wrote in this case?
 			return err
@@ -213,12 +233,20 @@ func getMetadata(op trace.Operation, metadataPath string, target NFSTarget) (map
 
 	for _, metadataFile := range dataKeys {
 		targetPath := path.Join(metadataPath, metadataFile.Name())
-		byteReader, err := target.Read(targetPath)
+
+		//we need to make sure it is there since we are using open.
+		_, err := target.Lookup(targetPath)
+		if err != nil {
+			return nil, err // FIXME: refine errors later...
+		}
+
+		fileBlob, err := target.Open(targetPath)
 		if err != nil {
 			return nil, err
 		}
 
-		dataBlob, err := ioutil.ReadAll(byteReader)
+		dataBlob, err := ioutil.ReadAll(fileBlob)
+
 		if err != nil {
 			return nil, err
 		}
