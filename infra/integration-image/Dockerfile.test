@@ -15,6 +15,7 @@ RUN pip install pyasn1 gsutil --upgrade
 RUN pip install robotframework
 RUN pip install robotframework-sshlibrary
 RUN pip install robotframework-httplibrary
+RUN pip install requests
 
 RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/bin
 RUN mv /usr/bin/docker /usr/bin/docker1.11
