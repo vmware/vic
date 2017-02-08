@@ -116,6 +116,9 @@ Check updated resource pool CPU and memory usages
 
     Sleep  10s  wait for vsphere stats update
 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    Should Be Equal As Integers  ${rc}  0
+
     ${cpuval}  ${memval}=  Get resource pool CPU and mem usages  ${output}
     Should Not Be Equal As Integers  ${oldcpuval} ${cpuval}
     Should Not Be Equal As Integers  ${oldmemval} ${memval}
