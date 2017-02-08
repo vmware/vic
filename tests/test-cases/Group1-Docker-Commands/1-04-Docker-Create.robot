@@ -165,5 +165,5 @@ Create a container with custom amount of memory in Bytes
 
 Create a container using rest api call without HostConfig in the form data
     ${output}=  Run  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Content-Type: application/json" -d '{"Image": "busybox", "Cmd": ["ping", "127.0.0.1"], "NetworkMode": "bridge"}' https://%{VCH-IP}:2376/containers/create
-    Log To Console  ${output}
+    Log  ${output}
     Should contain  ${output}  "Warnings":null
