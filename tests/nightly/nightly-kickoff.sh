@@ -113,7 +113,7 @@ done
 
 echo "Global Nightly Test Status $buildStatus"
 
-drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $input" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $input_$DATE" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
 rm nightly_mail.html
 
@@ -167,7 +167,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
@@ -201,7 +201,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
