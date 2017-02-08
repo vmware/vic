@@ -50,6 +50,8 @@ tar xvzf $input.tar.gz -C bin/ --strip 1
 echo "Deleting .tar.gz vic file"
 rm $input.tar.gz
 
+DATE=`date +%m_%d_%H_%M`
+
 nightlystatus=()
 count=0
 
@@ -65,7 +67,7 @@ for i in $nightly_list_var; do
     echo "Failed"
     nightlystatus[$count]="FAIL"
     fi
-
+    
     mv *.log 65/$i
     mv *.zip 65/$i
     ((count++))
@@ -84,12 +86,16 @@ for i in $nightly_list_var; do
     echo "Failed"
     nightlystatus[$count]="FAIL"
     fi
-
+    
     mv *.log 60/$i
     mv *.zip 60/$i
     ((count++))
     echo $count
 done
+
+# Setting the NSX test status to Not Implemented.
+nightlystatus[6]="Not Implemented"
+nightlystatus[21]="Not Implemented"
 
 for i in "${nightlystatus[@]}" 
 do
@@ -115,7 +121,7 @@ nightly_list_var=($nightly_list_var)
 cat <<EOT >> nightly_mail.html
 To: mwilliamson-staff-adl@vmware.com
 To: rashok@vmware.com
-Subject: VIC Engine Nightly Build $buildNumber - $buildStatus
+Subject: VIC Engine Nightly Build $buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
 Content-Type: text/html
@@ -161,7 +167,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
@@ -195,7 +201,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
