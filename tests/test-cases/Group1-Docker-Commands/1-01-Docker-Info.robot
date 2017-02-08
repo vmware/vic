@@ -5,7 +5,7 @@ Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
-Get resource pool CPU and mem values
+Get resource pool CPU and mem limits
     [Arguments]  ${info}
 
     ${cpuline}=  Get Lines Containing String  ${info}  CPUs:
@@ -22,7 +22,24 @@ Get resource pool CPU and mem values
 
     [Return]  ${cpuval}  ${memval}
 
-Set resource pool CPU and mem values
+Get resource pool CPU and mem usages
+    [Arguments]  ${info}
+
+    ${cpuline}=  Get Lines Containing String  ${info}  CPU usage:
+    ${memline}=  Get Lines Containing String  ${info}  memory usage:
+    @{cpuline}=  Split String  ${cpuline}
+    Length Should Be  ${cpuline}  5
+    @{memline}=  Split String  ${memline}
+    Length Should Be  ${memline}  5
+    ${cpuval}=  Set Variable  @{cpuline}[3]
+    ${memunit}=  Set Variable  @{memline}[4]
+    ${memval}=  Set Variable  @{memline}[3]
+    # convert the value to MiB for comparison
+    ${memval}=  Run Keyword If  '${memunit}' == 'GiB'  Evaluate  int(round(${memval} * 1024))  ELSE  Evaluate  int(round(${memval}))
+
+    [Return]  ${cpuval}  ${memval}
+
+Set resource pool CPU and mem limits
     [Arguments]  ${cpuval}  ${memval}
 
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} %{TEST_RESOURCE}/%{VCH-NAME}
@@ -69,21 +86,36 @@ Correct container count
     Should Contain  ${output}  Containers: 1
     Should Contain  ${output}  Running: 1
 
-Check modified resource pool CPU and memory values
+Check modified resource pool CPU and memory limits
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 
-    ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem values  ${output}
+    ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem limits  ${output}
 
     ${newcpuval}=  Evaluate  ${oldcpuval} - 1
     ${newmemval}=  Evaluate  1000
-    Set resource pool CPU and mem values  ${newcpuval}  ${newmemval}
+    Set resource pool CPU and mem limits  ${newcpuval}  ${newmemval}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
 
-    ${cpuval}  ${memval}=  Get resource pool CPU and mem values  ${output}
+    ${cpuval}  ${memval}=  Get resource pool CPU and mem limits  ${output}
     Should Be Equal As Integers  ${cpuval}  ${newcpuval}
     Should Be Equal As Integers  ${memval}  ${newmemval}
 
-    Set resource pool CPU and mem values  ${oldcpuval}  ${oldmemval}
+    Set resource pool CPU and mem limits  ${oldcpuval}  ${oldmemval}
+
+Check updated resource pool CPU and memory usages
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    Should Be Equal As Integers  ${rc}  0
+
+    ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem usages  ${output}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    Sleep  10s  wait for vsphere stats update
+
+    ${cpuval}  ${memval}=  Get resource pool CPU and mem usages  ${output}
+    Should Not Be Equal As Integers  ${oldcpuval} ${cpuval}
+    Should Not Be Equal As Integers  ${oldmemval} ${memval}
