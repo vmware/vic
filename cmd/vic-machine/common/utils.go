@@ -55,10 +55,9 @@ func CheckUnsupportedCharsDatastore(s string) error {
 
 func checkUnsupportedChars(s string, re *regexp.Regexp) error {
 	st := []byte(s)
-
-	if v := re.FindIndex(st); v == nil {
+	var v []int
+	if v = re.FindIndex(st); v == nil {
 		return nil
-	} else {
-		return fmt.Errorf("unsupported character in %q: %s", s, s[v[0]:v[1]])
 	}
+	return fmt.Errorf("unsupported character in %q: %s", s, s[v[0]:v[1]])
 }
