@@ -113,7 +113,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		// Grab the AboutInfo about our host environment
 		about := sess.Vim25().ServiceContent.About
 
-		if p, err := GetVCHstats(ctx); err == nil {
+		p, err := GetVCHstats(ctx)
+		if err != nil {
+			log.Errorf("Portlayer GetVCHstats error: %s", err)
+		} else {
 			Config.VCHMhz = p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
 			Config.VCHMemoryLimit = p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
 		}

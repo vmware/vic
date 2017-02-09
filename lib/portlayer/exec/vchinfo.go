@@ -20,45 +20,46 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	log "github.com/Sirupsen/logrus"
+	"fmt"
 )
 
 func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*mo.ResourcePool, error) {
-
-	p := &mo.ResourcePool{}
+	log.Infof("In GetVCHstats")
 
 	if Config.ResourcePool == nil {
-		log.Debugf("Config.ResourcePool is nil")
-		return p, nil
+		return &mo.ResourcePool{}, fmt.Errorf("Config.ResourcePool is nil")
 	}
+
+	var p mo.ResourcePool
 
 	r := Config.ResourcePool.Reference()
 	if len(moref) > 0 {
 		r = moref[0]
 	}
 
-	ps := []string{"parent", "runtime", "config"}
+	ps := []string{"config.cpuAllocation", "config.memoryAllocation", "runtime.cpu", "runtime.memory", "parent"}
 
-	if err := Config.ResourcePool.Properties(ctx, r, ps, p); err != nil {
-		log.Errorf("Error while obtaining VCH stats: %s", err)
-		return p, err
+	if err := Config.ResourcePool.Properties(ctx, r, ps, &p); err != nil {
+		return &p, fmt.Errorf("VCH stats error: %s", err)
 	}
 	stats := []int64{p.Config.CpuAllocation.GetResourceAllocationInfo().Limit,
 		p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit,
 		p.Runtime.Cpu.OverallUsage,
 		p.Runtime.Memory.OverallUsage}
 
+	log.Debugf("The VCH stats are: %+v", stats)
+
 	// If any of the stats is -1 (s is true), we need to get the vch stats from the parent resource pool
 	s := false
-	for v := range stats {
+	for _, v := range stats {
 		if v == -1 {
 			s = true
 			break
 		}
 	}
-
 	if s {
 		return GetVCHstats(ctx, *p.Parent)
 	}
 
-	return p, nil
+	return &p, nil
 }
