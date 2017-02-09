@@ -271,13 +271,17 @@ Create a Simple VC Cluster
     Log To Console  \nStarting simple VC cluster deploy...
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  ${ESX1-IP}  ${esx1-ip}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX2}  ${esx2}
+    Set Suite Variable  ${ESX2-IP}  ${esx2-ip}
     ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX3}  ${esx3}
+    Set Suite Variable  ${ESX3-IP}  ${esx3-ip}
 
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
+    Set Suite Variable  ${VC-IP}  ${vc-ip}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ${datacenter}
