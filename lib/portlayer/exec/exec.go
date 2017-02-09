@@ -112,8 +112,11 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 
 		// Grab the AboutInfo about our host environment
 		about := sess.Vim25().ServiceContent.About
-		Config.VCHMhz = GetVCHstats(ctx, StatNCPU)
-		Config.VCHMemoryLimit = GetVCHstats(ctx, StatMemTotal)
+
+		if p, err := GetVCHstats(ctx); err == nil {
+			Config.VCHMhz = p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
+			Config.VCHMemoryLimit = p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
+		}
 		Config.HostOS = about.OsType
 		Config.HostOSVersion = about.Version
 		Config.HostProductName = about.Name

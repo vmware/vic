@@ -15,75 +15,54 @@
 package exec
 
 import (
-	"fmt"
 	"context"
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	log "github.com/Sirupsen/logrus"
 )
 
-type StatKey int
+func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*mo.ResourcePool, error) {
 
-const (
-	StatNCPU StatKey = iota
-	StatMemTotal
-	StatCPUUsage
-	StatMemUsage
-)
-
-var statKey = map[StatKey][]string{
-	StatNCPU:     {"parent", "config.cpuAllocation"},
-	StatMemTotal: {"parent", "config.memoryAllocation"},
-	StatCPUUsage: {"parent", "runtime.cpu"},
-	StatMemUsage: {"parent", "runtime.memory"},
-}
-
-func GetVCHstats(ctx context.Context, statID StatKey, moref ...types.ManagedObjectReference) int64 {
+	p := &mo.ResourcePool{}
 
 	if Config.ResourcePool == nil {
-		return 0
+		log.Debugf("Config.ResourcePool is nil")
+		return p, nil
 	}
 
-	resPool, err := getProperties(ctx, statID, moref...)
-	if err != nil {
-		return 0
-	}
-
-	v := getLimit(statID, resPool)
-
-	if v == -1 {
-		return GetVCHstats(ctx, statID, *resPool.Parent)
-	}
-	return v
-}
-
-func getProperties(ctx context.Context, statID StatKey, moref ...types.ManagedObjectReference) (*mo.ResourcePool, error) {
 	r := Config.ResourcePool.Reference()
 	if len(moref) > 0 {
 		r = moref[0]
 	}
 
-	v, ok := statKey[statID]
-	p := &mo.ResourcePool{}
+	ps := []string{"parent", "runtime", "config"}
 
-	if !ok {
-		panic(fmt.Sprintf("Unexpected stat requested: %q", statID))
-	}
-	err := Config.ResourcePool.Properties(ctx, r, v, p)
-	return p, err
-}
+	if err := Config.ResourcePool.Properties(ctx, r, ps, p); err != nil {
+		return p, err
+	} else {
+		stats := []int64{p.Config.CpuAllocation.GetResourceAllocationInfo().Limit,
+			p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit,
+			p.Runtime.Cpu.OverallUsage,
+			p.Runtime.Memory.OverallUsage}
 
-func getLimit(statID StatKey, p *mo.ResourcePool) int64 {
-	switch statID {
-	case StatNCPU:
-		return p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
-	case StatMemTotal:
-		return p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
-	case StatCPUUsage:
-		return p.Runtime.Cpu.OverallUsage
-	case StatMemUsage:
-		return p.Runtime.Memory.OverallUsage
-	default:
-		panic(fmt.Sprintf("Unexpected stat requested: %q", statID))
+		// If any of the stats is -1 (s is true), we need to get the vch stats from the parent resource pool
+		s := false
+
+		for v := range stats {
+			if v == -1 {
+				s = true
+				break
+			}
+		}
+
+		if s {
+			return GetVCHstats(ctx, *p.Parent)
+		}
+
+		return p, nil
 	}
+
+
+
 }

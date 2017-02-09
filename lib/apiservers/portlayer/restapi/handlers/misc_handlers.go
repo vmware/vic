@@ -41,11 +41,17 @@ func (h *MiscHandlersImpl) Ping(param misc.PingParams) middleware.Responder {
 // GetVCHInfo returns VCH-related info for a `docker info` call
 func (h *MiscHandlersImpl) GetVCHInfo(params misc.GetVCHInfoParams) middleware.Responder {
 	ctx := context.Background()
-	vchCPUMhz := exec.GetVCHstats(ctx, exec.StatNCPU)
-	vchMemTotal := exec.GetVCHstats(ctx, exec.StatMemTotal)
-	vchCPUUsage := exec.GetVCHstats(ctx, exec.StatCPUUsage)
-	vchMemUsage := exec.GetVCHstats(ctx, exec.StatMemUsage)
+	var vchCPUMhz int64
+	var vchMemTotal int64
+	var vchCPUUsage int64
+	var vchMemUsage int64
 
+	if p, err := exec.GetVCHstats(ctx); err == nil {
+		vchCPUMhz = p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
+		vchMemTotal = p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
+		vchCPUUsage = p.Runtime.Cpu.OverallUsage
+		vchMemUsage = p.Runtime.Memory.OverallUsage
+	}
 	vchInfo := &models.VCHInfo{
 		CPUMhz:          vchCPUMhz,
 		Memory:          vchMemTotal,
