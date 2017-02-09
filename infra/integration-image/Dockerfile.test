@@ -8,15 +8,27 @@ RUN apt-get update
 RUN apt-get install -y jq time
 RUN curl -sSL https://get.docker.com/ | sh
 
-RUN apt-get install -y gcc python-dev python-setuptools python-pip libffi-dev libssl-dev
+RUN apt-get install -y gcc python-dev libffi-dev libssl-dev
+RUN wget https://bootstrap.pypa.io/get-pip.py
+RUN python ./get-pip.py
 RUN pip install pyasn1 gsutil --upgrade
 RUN pip install robotframework
 RUN pip install robotframework-sshlibrary
 RUN pip install robotframework-httplibrary
+RUN pip install requests
 
-RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/local/bin
+RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/bin
+RUN mv /usr/bin/docker /usr/bin/docker1.11
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.11.4/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
+RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.12.6.tgz && tar --strip-components=1 -xvzf docker-1.12.6.tgz -C /usr/bin
+RUN mv /usr/bin/docker /usr/bin/docker1.12
+
+RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.13.0.tgz && tar --strip-components=1 -xvzf docker-1.13.0.tgz -C /usr/bin
+RUN mv /usr/bin/docker /usr/bin/docker1.13
+
+RUN ln -s /usr/bin/docker1.11 /usr/bin/docker
+
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.12.1/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
 RUN chmod +x /usr/local/bin/govc
 
 RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
