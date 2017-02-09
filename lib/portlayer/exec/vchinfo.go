@@ -39,30 +39,26 @@ func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*m
 	ps := []string{"parent", "runtime", "config"}
 
 	if err := Config.ResourcePool.Properties(ctx, r, ps, p); err != nil {
+		log.Errorf("Error while obtaining VCH stats: %s", err)
 		return p, err
-	} else {
-		stats := []int64{p.Config.CpuAllocation.GetResourceAllocationInfo().Limit,
-			p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit,
-			p.Runtime.Cpu.OverallUsage,
-			p.Runtime.Memory.OverallUsage}
+	}
+	stats := []int64{p.Config.CpuAllocation.GetResourceAllocationInfo().Limit,
+		p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit,
+		p.Runtime.Cpu.OverallUsage,
+		p.Runtime.Memory.OverallUsage}
 
-		// If any of the stats is -1 (s is true), we need to get the vch stats from the parent resource pool
-		s := false
-
-		for v := range stats {
-			if v == -1 {
-				s = true
-				break
-			}
+	// If any of the stats is -1 (s is true), we need to get the vch stats from the parent resource pool
+	s := false
+	for v := range stats {
+		if v == -1 {
+			s = true
+			break
 		}
-
-		if s {
-			return GetVCHstats(ctx, *p.Parent)
-		}
-
-		return p, nil
 	}
 
+	if s {
+		return GetVCHstats(ctx, *p.Parent)
+	}
 
-
+	return p, nil
 }
