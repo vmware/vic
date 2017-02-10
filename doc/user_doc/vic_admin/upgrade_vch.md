@@ -2,7 +2,7 @@
 
 You upgrade virtual container hosts (VCHs) by downloading a new version of vSphere Integrated Containers Engine and running the `vic-machine upgrade` command.
 
-**IMPORTANT**: Due to the substantial changes in vSphere Integrated Containers since version 0.6, you cannot use `vic-machine upgrade` to upgrade from version 0.6 to version 0.8. You can use `vic-machine upgrade` to upgrade from 0.7 to version 0.8.
+**IMPORTANT**: Due to the substantial changes in vSphere Integrated Containers since version 0.6, you cannot use `vic-machine upgrade` to upgrade from version 0.6 to version 2017. You can use `vic-machine upgrade` to upgrade from 0.7 to version 2017.
 
 For descriptions of the options that `vic-machine upgrade` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [VCH Upgrade Options](upgrade_vch_options.md).
 
