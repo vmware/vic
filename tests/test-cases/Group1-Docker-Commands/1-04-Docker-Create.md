@@ -39,6 +39,7 @@ This test requires that a vSphere server is running and available
 26. Create a container with a custom amount of Memory in MB
 27. Create a container with a custom amount of Memory in KB
 28. Create a container with a custom amount of Memory in Bytes
+29. Create a container using a rest api call without HostConfig in the form data
 
 #Expected Outcome:
 * Steps 3-7 should all return without error and printing the container ID on return
@@ -53,6 +54,7 @@ This test requires that a vSphere server is running and available
 * Step 22 should return without error
 * Step 23 should return with the following error message - Error response from daemon: No command specified
 * Steps 24-28 should return without error.
+* Step 29 should return without error.
 
 #Possible Problems:
 None
