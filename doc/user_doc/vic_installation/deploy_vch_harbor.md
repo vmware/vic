@@ -1,6 +1,6 @@
 # Deploy a VCH with vSphere Integrated Containers Registry (Harbor)
 
-This example uses vSphere Integrated Containers Engine 2017.0, Harbor 0.5.0, and Ubuntu on the user machine. Harbor requires 60GB or more free space on your datastore.
+This example uses vSphere Integrated Containers Engine 0.9.0, Harbor 0.5.0, and Ubuntu on the user machine. Harbor requires 60GB or more free space on your datastore.
 
 If no server certificate and private key are provided during installation, Harbor will create a self-generated CA (certificate authority) certificate, a server certificate, and a server private key.  The self-generated CA certificate will be available for download from the Harbor web client.
 

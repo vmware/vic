@@ -4,7 +4,7 @@
 
 For the full vSphere Integrated Containers Engine documentation set, go to https://vmware.github.io/vic-product/#getting-started.
 
-**Product version: 2017**
+**Product version: 0.9**
 
 ## Intended Audience
 

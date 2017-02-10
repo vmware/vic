@@ -2,8 +2,6 @@
 
 The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides an `upgrade` command that allows you to upgrade virtual container hosts (VCHs) to a newer version. 
 
-**IMPORTANT**: Due to the substantial changes in vSphere Integrated Containers since version 0.6, you cannot use `vic-machine upgrade` to upgrade from version 0.6 to version 2017. You can use `vic-machine upgrade` to upgrade from 0.7 to version 2017.
-
 The `vic-machine upgrade` command includes the following options in addition to the common options described in [Common `vic-machine` Options](common_vic_options.md).
 
 ### `--appliance-iso` ###
