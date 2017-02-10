@@ -1,10 +1,9 @@
 # VCH Deployment Fails with Docker API Endpoint Check Failed Error #
-When you use `vic-machine create` to deploy a virtual container host (VCH), deployment fails because
-vic-machine cannot contact the Docker API endpoint.
+When you use `vic-machine create` to deploy a virtual container host (VCH), deployment fails because `vic-machine` cannot contact the Docker API endpoint.
 
 ## Problem ##
 
-Deployment fails with Docker API endpoint check failed:
+Deployment fails with  with the error:
 
 <pre>
 Docker API endpoint check failed:
@@ -16,63 +15,26 @@ API may be slow to start - try to connect to API after a few minutes:
 
 ## Cause ##
 
-During install, vic-machine checks that the endpoint that Docker clients connect to is reachable. If
-this check fails, vic-machine create fails with an error. The Docker API may be slow to start or it
-may have failed to start.
+During deployment, `vic-machine` checks that the endpoint VM is reachable from Docker clients. If this check fails, `vic-machine create` fails with an error. This error can be caused by the Docker API being slow to start or because it has failed to start.
 
 ## Solution ##
 
-### Docker API is slow to start ###
+The solution to choose depends on whether the API is slow to start or whether it failed to start.
 
-After waiting a few minutes, run the `docker info` command shown in the error message to test the
-API responsiveness. If this succeeds, output similar to below will be shown:
+### Docker API is Slow to Start ###
 
-<pre>
-$ docker -H 192.168.218.160:2376 --tls info
-Containers: 0
- Running: 0
- Paused: 0
- Stopped: 0
-Images: 0
-Server Version: v0.8.0-0-1652a8b
-Storage Driver: vSphere Integrated Containers v0.8.0-0-1652a8b Backend Engine
-VolumeStores:
-vSphere Integrated Containers v0.8.0-0-1652a8b Backend Engine: RUNNING
- VCH mhz limit: 2944 Mhz
- VCH memory limit: 1.259 GiB
- VMware Product: VMware ESXi
- VMware OS: vmnix-x86
- VMware OS version: 6.5.0
-Plugins:
- Volume:
- Network: bridge
-Swarm:
- NodeID:
- Is Manager: false
- Node Address:
-Security Options:
-Operating System: vmnix-x86
-OSType: vmnix-x86
-Architecture: x86_64
-CPUs: 2944
-Total Memory: 1.259 GiB
-Name: oceanlab
-ID: vSphere Integrated Containers
-Docker Root Dir:
-Debug Mode (client): false
-Debug Mode (server): false
-Registry: registry-1.docker.io
-</pre>
+Wait for a few minutes, then run the `docker info` command to test the responsiveness of the Docker API. 
 
-This output means that the VCH is running as expected and can accept Docker commands.
+If `docker info` succeeds, it shows information about the VCH, including confirmation that the storage driver is vSphere Integrated Containers. 
+<pre>Storage Driver: vSphere Integrated Containers <i>version</i> Backend Engine</pre> 
+
+This output means that the VCH is running correctly and can now accept Docker commands.
 
 If the command times out, proceed to `Docker API failed to start` for troubleshooting.
 
-### Docker API failed to start ###
+### Docker API Did Not Start ###
 
-If the Docker API is not responsive, run `vic-machine inspect`, login to the VCH Admin Portal, and
-download the Log Bundle. Follow troubleshooting steps to determine why the installation failed.
+If the Docker API was not responsive when you ran `docker info`, download the VCH log bundle and examine the logs to determine why the installation failed. Collecting the vSphere log bundle might also be useful for troubleshooting.
 
-If the VCH Admin Portal is not responsive, run `vic-machine debug` to enable the VCH debugging mode.
-SSH to the VCH to collect the VIC logs. Follow troubleshooting steps to determine why the installation
-failed. Collecting the vSphere log bundle may also be useful in troubleshooting.
+- For information about how to download VCH logs by using the VCH Admin Portal, see [Access the VCH Admin Portal](../vic_admin/access_vicadmin.html) in *vSphere Integrated Containers Engine Administration*.
+- For information about how to collect VCH logs manually, see [Access vSphere Integrated Containers Engine Log Bundles](../vic_admin/log_bundles.html) in *vSphere Integrated Containers Engine Administration*.
