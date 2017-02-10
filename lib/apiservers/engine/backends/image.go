@@ -259,8 +259,20 @@ func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
 	return imageConfigToDockerImageInspect(imageConfig, ProductName()), nil
 }
 
+// TagImage will tag the specified image with the provided reference
 func (i *Image) TagImage(newTag reference.Named, imageName string) error {
-	return fmt.Errorf("%s does not implement image.Tag", ProductName())
+	img, err := cache.ImageCache().Get(imageName)
+	if err != nil {
+		return err
+	}
+
+	// place tag in repo and save to portLayer k/v store
+	err = cache.RepositoryCache().AddReference(newTag, img.ImageID, true, "", true)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {

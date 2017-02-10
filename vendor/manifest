@@ -514,30 +514,11 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/mailru/easyjson/buffer",
+			"importpath": "github.com/mailru/easyjson",
 			"repository": "https://github.com/mailru/easyjson",
 			"vcs": "git",
-			"revision": "304d3dc6fae850e62b7db2aee661d9d7b628cef0",
+			"revision": "99e922cf9de1bc0ab38310c277cff32c2147e747",
 			"branch": "master",
-			"path": "buffer",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/mailru/easyjson/jlexer",
-			"repository": "https://github.com/mailru/easyjson",
-			"vcs": "git",
-			"revision": "304d3dc6fae850e62b7db2aee661d9d7b628cef0",
-			"branch": "master",
-			"path": "jlexer",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/mailru/easyjson/jwriter",
-			"repository": "https://github.com/mailru/easyjson",
-			"vcs": "git",
-			"revision": "304d3dc6fae850e62b7db2aee661d9d7b628cef0",
-			"branch": "master",
-			"path": "/jwriter",
 			"notests": true
 		},
 		{

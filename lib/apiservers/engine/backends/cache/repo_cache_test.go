@@ -37,6 +37,8 @@ func repoSetup() {
 func TestRepo(t *testing.T) {
 	repoSetup()
 
+	notInRepo, _ := reference.ParseNamed("alpine")
+	noImageID := uid.New()
 	ref, _ := reference.ParseNamed("busybox:1.25.1")
 	imageID := uid.New()
 	layerID := uid.New()
@@ -49,6 +51,26 @@ func TestRepo(t *testing.T) {
 	n, err := RepositoryCache().Get(ref)
 	assert.NoError(t, err)
 	assert.Equal(t, imageID.String(), n)
+
+	// Get all references
+	refs := RepositoryCache().References(imageID.String())
+	assert.Equal(t, 1, len(refs))
+
+	// Get reference by Named
+	associated := RepositoryCache().ReferencesByName(ref)
+	assert.Equal(t, 1, len(associated))
+
+	// Get tags for image
+	tags := RepositoryCache().Tags(imageID.String())
+	assert.Equal(t, 1, len(tags))
+
+	// Get references for non-existent image
+	refs = RepositoryCache().References(noImageID.String())
+	assert.Equal(t, 0, len(refs))
+
+	// Get reference by Named
+	associated = RepositoryCache().ReferencesByName(notInRepo)
+	assert.Equal(t, 0, len(associated))
 
 	// get image id via layer id
 	ig := RepositoryCache().GetImageID(layerID.String())
@@ -66,7 +88,7 @@ func TestRepo(t *testing.T) {
 
 	// add reference by digest
 	ng, _ := reference.ParseNamed("nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64")
-	err = RepositoryCache().AddReference(ng, imageID.String(), false, layerID.String(), false)
+	err = RepositoryCache().AddReference(ng, imageID.String(), true, layerID.String(), false)
 	assert.NoError(t, err)
 
 	dd := RepositoryCache().Digests(imageID.String())
@@ -78,4 +100,5 @@ func TestRepo(t *testing.T) {
 	// nada
 	nada := RepositoryCache().Digests(imageID.String())
 	assert.Equal(t, 0, len(nada))
+
 }
