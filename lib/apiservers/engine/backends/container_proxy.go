@@ -438,12 +438,12 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerLogsNotFound:
-			return NotFoundError(fmt.Sprintf("No such container: %s", name))
+			return NotFoundError(name)
 		case *containers.GetContainerLogsInternalServerError:
 			return InternalServerError("Server error from the interaction port layer")
 		default:
 			//Check for EOF.  Since the connection, transport, and data handling are
-			//encapsulated inisde of Swagger, we can only detect EOF by checking the
+			//encapsulated inside of Swagger, we can only detect EOF by checking the
 			//error string
 			if strings.Contains(err.Error(), swaggerSubstringEOF) {
 				return nil

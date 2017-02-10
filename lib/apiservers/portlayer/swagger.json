@@ -1601,16 +1601,10 @@
 						}
 					},
 					"404": {
-						"description": "Logs not found",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Logs not found"
 					},
 					"500": {
-						"description": "Failed to get logs",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Failed to get logs"
 					}
 				}
 			}

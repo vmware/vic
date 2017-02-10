@@ -1032,8 +1032,14 @@ func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConf
 
 	// Make a call to our proxy to handle the remoting
 	err = c.containerProxy.StreamContainerLogs(name, outStream, started, config.Timestamps, config.Follow, since, tailLines)
+	if err != nil {
+		// Don't return an error encountered while streaming logs.
+		// Once we've started streaming logs, the Docker client doesn't expect
+		// an error to be returned as it leads to a malformed response body.
+		log.Errorf("error while streaming logs: %#v", err)
+	}
 
-	return err
+	return nil
 }
 
 // ContainerStats writes information about the container to the stream
