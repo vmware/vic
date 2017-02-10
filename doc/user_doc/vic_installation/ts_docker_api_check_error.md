@@ -5,7 +5,6 @@ When you use `vic-machine create` to deploy a virtual container host (VCH), depl
 
 Deployment fails with the error `Connection failed with error: i/o timeout.`
 
-
 ## Cause ##
 
 During deployment, `vic-machine` checks that the endpoint VM is reachable from Docker clients. If this check fails, `vic-machine create` fails with an error. This error can be caused by the Docker API being slow to start or because it has failed to start.
