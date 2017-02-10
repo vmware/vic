@@ -30,7 +30,7 @@ If `docker info` succeeds, it shows information about the VCH, including confirm
 
 This output means that the VCH is running correctly and can now accept Docker commands.
 
-If the command times out, proceed to `Docker API failed to start` for troubleshooting.
+If `docker info` times out, it means that the Docker API did not start.
 
 ### Docker API Did Not Start ###
 
