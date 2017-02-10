@@ -24,7 +24,6 @@ import (
 )
 
 func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*mo.ResourcePool, error) {
-	log.Infof("In GetVCHstats")
 
 	if Config.ResourcePool == nil {
 		return &mo.ResourcePool{}, fmt.Errorf("Config.ResourcePool is nil")
