@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -253,12 +253,15 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 		e, err := r.open()
 		if err != nil {
 			log.Warningf("error reading %s(%s): %s\n", name, r, err)
-			continue
 		}
 
+		sz := int64(0)
+		if e != nil {
+			sz = e.Size()
+		}
 		header := tar.Header{
 			Name:    name,
-			Size:    e.Size(),
+			Size:    sz,
 			Mode:    0640,
 			ModTime: time.Now(),
 		}
@@ -273,8 +276,10 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 
 		// be explicit about the number of bytes to copy as the log files will likely
 		// be written to during this exercise
-		_, err = io.CopyN(t, e, e.Size())
-		_ = e.Close()
+		if e != nil {
+			e.Close()
+			_, err = io.CopyN(t, e, sz)
+		}
 		if err != nil {
 			log.Errorf("Failed to write content for %s: %s", header.Name, err)
 			continue
@@ -300,9 +305,14 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 		e, err := r.open()
 		if err != nil {
 			log.Warningf("error reading %s(%s): %s\n", name, r, err)
-			continue
+
 		}
-		sz := e.Size()
+
+		sz := int64(0)
+		if e != nil {
+			sz = e.Size()
+		}
+
 		header := &zip.FileHeader{
 			Name:   name,
 			Method: zip.Deflate,
@@ -313,7 +323,7 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 		if sz > uint32max {
 			header.UncompressedSize = uint32max
 		} else {
-			header.UncompressedSize = uint32(e.Size())
+			header.UncompressedSize = uint32(sz)
 		}
 
 		w, err := out.CreateHeader(header)
@@ -327,8 +337,12 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 
 		// be explicit about the number of bytes to copy as the log files will likely
 		// be written to during this exercise
-		_, err = io.CopyN(w, e, sz)
-		_ = e.Close()
+		//_, err = io.CopyN(w, e, sz)
+		if e != nil {
+			e.Close()
+			_, err = io.CopyN(w, e, sz)
+		}
+
 		if err != nil {
 			log.Errorf("Failed to write content for %s: %s", header.Name, err)
 			continue
