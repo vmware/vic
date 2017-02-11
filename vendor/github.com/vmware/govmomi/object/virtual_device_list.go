@@ -460,12 +460,14 @@ func (l VirtualDeviceList) CreateDisk(c types.BaseVirtualController, ds types.Ma
 func (l VirtualDeviceList) ChildDisk(parent *types.VirtualDisk) *types.VirtualDisk {
 	disk := *parent
 	backing := disk.Backing.(*types.VirtualDiskFlatVer2BackingInfo)
-	ds := strings.SplitN(backing.FileName[1:], "]", 2)
+	p := new(DatastorePath)
+	p.FromString(backing.FileName)
+	p.Path = ""
 
 	// Use specified disk as parent backing to a new disk.
 	disk.Backing = &types.VirtualDiskFlatVer2BackingInfo{
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			FileName:  fmt.Sprintf("[%s]", ds[0]),
+			FileName:  p.String(),
 			Datastore: backing.Datastore,
 		},
 		Parent:          backing,
@@ -672,6 +674,16 @@ func (l VirtualDeviceList) CreateSerialPort() (*types.VirtualSerialPort, error) 
 
 // ConnectSerialPort connects a serial port to a server or client uri.
 func (l VirtualDeviceList) ConnectSerialPort(device *types.VirtualSerialPort, uri string, client bool, proxyuri string) *types.VirtualSerialPort {
+	if strings.HasPrefix(uri, "[") {
+		device.Backing = &types.VirtualSerialPortFileBackingInfo{
+			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
+				FileName: uri,
+			},
+		}
+
+		return device
+	}
+
 	direction := types.VirtualDeviceURIBackingOptionDirectionServer
 	if client {
 		direction = types.VirtualDeviceURIBackingOptionDirectionClient

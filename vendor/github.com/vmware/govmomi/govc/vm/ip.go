@@ -36,6 +36,7 @@ type ip struct {
 	esx bool
 	all bool
 	v4  bool
+	nic string
 }
 
 func init() {
@@ -51,7 +52,44 @@ func (cmd *ip) Register(ctx context.Context, f *flag.FlagSet) {
 
 	f.BoolVar(&cmd.esx, "esxcli", false, "Use esxcli instead of guest tools")
 	f.BoolVar(&cmd.all, "a", false, "Wait for an IP address on all NICs")
+	f.StringVar(&cmd.nic, "n", "", "Wait for IP address on NIC, specified by device name or MAC")
 	f.BoolVar(&cmd.v4, "v4", false, "Only report IPv4 addresses")
+}
+
+func (cmd *ip) Usage() string {
+	return "VM..."
+}
+
+func (cmd *ip) Description() string {
+	return `List IPs for VM.
+
+By default the vm.ip command depends on vmware-tools to report the 'guest.ipAddress' field and will
+wait until it has done so.  This value can also be obtained using:
+
+  govc vm.info -json $vm | jq -r .VirtualMachines[].Guest.IpAddress
+
+When given the '-a' flag, only IP addresses for which there is a corresponding virtual nic are listed.
+If there are multiple nics, the listed addresses will be comma delimited.  The '-a' flag depends on
+vmware-tools to report the 'guest.net' field and will wait until it has done so for all nics.
+Note that this list includes IPv6 addresses if any, use '-v4' to filter them out.  IP addresses reported
+by tools for which there is no virtual nic are not included, for example that of the 'docker0' interface.
+
+These values can also be obtained using:
+
+  govc vm.info -json $vm | jq -r .VirtualMachines[].Guest.Net[].IpConfig.IpAddress[].IpAddress
+
+When given the '-n' flag, filters '-a' behavior to the nic specified by MAC address or device name.
+
+The 'esxcli' flag does not require vmware-tools to be installed, but does require the ESX host to
+have the /Net/GuestIPHack setting enabled.
+
+Examples:
+  govc vm.ip $vm
+  govc vm.ip -a -v4 $vm
+  govc vm.ip -n 00:0c:29:57:7b:c3 $vm
+  govc vm.ip -n ethernet-0 $vm
+  govc host.esxcli system settings advanced set -o /Net/GuestIPHack -i 1
+  govc vm.ip -esxcli $vm`
 }
 
 func (cmd *ip) Process(ctx context.Context) error {
@@ -99,9 +137,14 @@ func (cmd *ip) Run(ctx context.Context, f *flag.FlagSet) error {
 			}
 		}
 	} else {
+		var hwaddr []string
+		if cmd.nic != "" {
+			hwaddr = strings.Split(cmd.nic, ",")
+		}
+
 		get = func(vm *object.VirtualMachine) (string, error) {
-			if cmd.all {
-				macs, err := vm.WaitForNetIP(ctx, cmd.v4)
+			if cmd.all || hwaddr != nil {
+				macs, err := vm.WaitForNetIP(ctx, cmd.v4, hwaddr...)
 				if err != nil {
 					return "", err
 				}
