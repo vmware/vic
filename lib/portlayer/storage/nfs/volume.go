@@ -158,6 +158,7 @@ func (v *NFSv3VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume
 		op.Errorf("Failed to remove metadata for volume (%s) at path (%q) on volume store (%s)", vol.ID, v.volDirPath(vol.ID), v.Name)
 		//FIXME: Should we bail here? the volume is gone at this point...
 	}
+	op.Infof("Successfully removed volume (%s) from volumestore (%s)", vol.ID, v.Name)
 
 	return nil
 }

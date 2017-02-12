@@ -140,6 +140,7 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 		return
 	}
 
+	//Check Metadata Pathing
 	metadataPath := path.Join(dirpath, metadataDir)
 	volumePath := path.Join(dirpath, VolumesDir)
 
@@ -238,4 +239,276 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	if !assert.Equal(t, RetrievedInfo[testInfoKey], CreatedInfo[testInfoKey], "Failed due to mismatch in metadata between the content of the Created volume(%s) and the volume return from VolumesList", CreatedInfo[testInfoKey], RetrievedInfo[testInfoKey]) {
 		return
 	}
+
+	err = vs.VolumeDestroy(op, volToCheck)
+	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with err (%s)", err) {
+		return
+	}
+
+	volumeList, err = vs.VolumesList(op)
+	if !assert.Nil(t, err, "Failed during a call to VolumesListwith err (%s)", err) {
+		return
+	}
+
+	if !assert.Equal(t, len(volumeList), 0, "Expected %s volumes, VolumesList returned %s", 0, len(volumeList)) {
+		return
+	}
+
+	volumeDir.Close()
+	metaFilesDir.Close()
+
+	os.Remove(volumePath)
+	os.Remove(metadataDir)
 }
+
+func TestMultipleVolumes(t *testing.T) {
+	mockMount := MockMount{}
+	dirpath := path.Join(os.TempDir(), nfsTestDir)
+
+	targetURL := url.URL{Path: dirpath}
+	op := trace.NewOperation(context.TODO(), "TestOp")
+
+	//Create a Volume Store
+	vs, err := NewVolumeStore(op, "testStore", &targetURL, mockMount)
+	if !assert.Nil(t, err, "Failed during call to NewVolumeStore with err (%s)", err) {
+		return
+	}
+
+	_, err = os.Stat(dirpath)
+	if !assert.Nil(t, err, "Could not find the initial volume store directory after creation of volume store. err (%s)", err) {
+		return
+	}
+
+	if !assert.NotNil(t, vs, "Volume Store created with nil err, but return is also nil") {
+		return
+	}
+
+	// setup volume inputs
+	testVolNameOne := "test1"
+	infoOne := make(map[string][]byte)
+	testOneInfoKey := "junk"
+	infoOne[testOneInfoKey] = make([]byte, 20)
+
+	testVolNameTwo := "test2"
+	testTwoInfoKey := "important"
+	infoTwo := make(map[string][]byte)
+	infoTwo[testTwoInfoKey] = []byte("42")
+	testTwoInfoKeyTwo := "lessImportant"
+	infoTwo[testTwoInfoKeyTwo] = []byte("41")
+
+	testVolNameThree := "test3"
+	infoThree := make(map[string][]byte)
+	testThreeInfoKey := "lotsOfStuff"
+	infoThree[testThreeInfoKey] = []byte("importantData")
+	testThreeInfoKeyTwo := "someMoreStuff"
+	infoThree[testThreeInfoKeyTwo] = []byte("maybeSomeLabels")
+
+	//make volume one
+	volOne, err := vs.VolumeCreate(op, testVolNameOne, vs.Target, 0 /*we do not use this*/, infoOne)
+
+	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+		return
+	}
+
+	if !assert.Equal(t, testVolNameOne, volOne.ID, "expected volume ID (%s) got ID (%s)", testVolNameOne, volOne.ID) {
+		return
+	}
+
+	valOne, ok := volOne.Info[testOneInfoKey]
+	if !assert.True(t, ok, "TestInfoKey did not exist in the return metadata map") {
+		return
+	}
+
+	if !assert.Equal(t, valOne, volOne.Info[testOneInfoKey], "TestVolOne expected to have data (%s) and (%s) was found", infoOne, valOne) {
+		return
+	}
+
+	//make volume two
+	volTwo, err := vs.VolumeCreate(op, testVolNameTwo, vs.Target, 0 /*we do not use this*/, infoTwo)
+
+	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+		return
+	}
+
+	if !assert.Equal(t, testVolNameTwo, volTwo.ID, "expected volume ID (%s) got ID (%s)", testVolNameTwo, volTwo.ID) {
+		return
+	}
+
+	valOne, ok = volTwo.Info[testTwoInfoKey]
+	if !assert.True(t, ok, "TestInfoKey did not exist in the return metadata map") {
+		return
+	}
+
+	if !assert.Equal(t, []byte("42"), valOne, "TestVolTwo expected to have data (%s) and (%s) was found", []byte("42"), valOne) {
+		return
+	}
+
+	valTwo, ok := volTwo.Info[testTwoInfoKeyTwo]
+	if !assert.True(t, ok, "TestTwoInfoKeyTwo did not exist in the return metadata map for volTwo") {
+		return
+	}
+
+	if !assert.Equal(t, []byte("41"), valTwo, "TestVolTwo expected to have data (%s) and (%s) was found", []byte("41"), valTwo) {
+		return
+	}
+
+	//make volume three
+	volThree, err := vs.VolumeCreate(op, testVolNameThree, vs.Target, 0 /*we do not use this*/, infoThree)
+
+	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+		return
+	}
+
+	if !assert.Equal(t, testVolNameThree, volThree.ID, "expected volume ID (%s) got ID (%s)", testVolNameThree, volThree.ID) {
+		return
+	}
+
+	valOne, ok = volThree.Info[testThreeInfoKey]
+	if !assert.True(t, ok, "TestInfoKey did not exist in the return metadata map") {
+		return
+	}
+
+	if !assert.Equal(t, []byte("importantData"), valOne, "TestVolThree expected to have data (%s) and (%s) was found", []byte("importantData"), valOne) {
+		return
+	}
+
+	valTwo, ok = volThree.Info[testThreeInfoKeyTwo]
+	if !assert.True(t, ok, "TestThreeInfoKeyTwo did not exist in the return metadata map for volThree") {
+		return
+	}
+
+	if !assert.Equal(t, []byte("maybeSomeLabels"), valTwo, "TestVolThree expected to have data (%s) and (%s) was found", []byte("maybeSomeLabels"), valTwo) {
+		return
+	}
+
+	//list volumes
+	volumes, err := vs.VolumesList(op)
+	if !assert.Nil(t, err, "Failed during a call to VolumesList with err (%s)", err) {
+		return
+	}
+
+	volCount := len(volumes)
+	if !assert.Equal(t, volCount, 3, "VolumesList returned unexpected volume count. expected (%s), but received (%s) ", volCount, 3) {
+		return
+	}
+
+	//check metadatas
+	metadataPath := path.Join(dirpath, metadataDir)
+	volumePath := path.Join(dirpath, VolumesDir)
+
+	metaFilesDir, err := os.Open(metadataPath)
+	if !assert.Nil(t, err, "opening the metadata directory failed with err (%s)", err) {
+		return
+	}
+
+	volumeDir, err := os.Open(volumePath)
+	if !assert.Nil(t, err, "Opening the volume directory failed with err (%s)", err) {
+		return
+	}
+
+	metaDirEntries, err := metaFilesDir.Readdir(0)
+	if !assert.Nil(t, err, "Failed to read the metadata directory with err (%s)", err) {
+		return
+	}
+
+	volumeDirEntries, err := volumeDir.Readdir(0)
+	if !assert.Nil(t, err, "Failed to read the volume data directory with err (%s)", err) {
+		return
+	}
+
+	t.Logf("meta directory (%s)", metaDirEntries)
+	if !assert.Equal(t, len(metaDirEntries), 3, "expected metadata directory to have 1 entry and it had (%s)", len(metaDirEntries)) {
+		return
+	}
+	t.Logf("vol directory (%s)", volumeDirEntries)
+	if !assert.Equal(t, len(volumeDirEntries), 3, "expected metadata directory to have 1 entry and it had (%s)", len(volumeDirEntries)) {
+		return
+	}
+	metaFilesDir.Close()
+	volumeDir.Close()
+
+	//check and individual metadata dir
+	volThreeMetadataPath := path.Join(metadataPath, testVolNameThree)
+	volThreeMetadataDir, err := os.Open(volThreeMetadataPath)
+	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
+		return
+	}
+
+	metadataFiles, err := volThreeMetadataDir.Readdir(0)
+	if !assert.Len(t, metadataFiles, 2, "Expected %s files of metadata, instead %s were found", 2, len(metadataFiles)) {
+		return
+	}
+
+	volTwoMetadataPath := path.Join(metadataPath, testVolNameTwo)
+	volTwoMetadataDir, err := os.Open(volTwoMetadataPath)
+	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
+		return
+	}
+
+	metadataFiles, err = volTwoMetadataDir.Readdir(0)
+	if !assert.Len(t, metadataFiles, 2, "Expected %s files of metadata, instead %s were found", 2, len(metadataFiles)) {
+		return
+	}
+
+	volOneMetadataPath := path.Join(metadataPath, testVolNameOne)
+	volOneMetadataDir, err := os.Open(volOneMetadataPath)
+	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volOneMetadataPath, err) {
+		return
+	}
+
+	metadataFiles, err = volOneMetadataDir.Readdir(0)
+	if !assert.Len(t, metadataFiles, 1, "Expected %s files of metadata, instead %s were found", 2, len(metadataFiles)) {
+		return
+	}
+
+	volOneMetadataDir.Close()
+	volTwoMetadataDir.Close()
+	volThreeMetadataDir.Close()
+
+	//remove volume one
+	err = vs.VolumeDestroy(op, volOne)
+	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
+		return
+	}
+
+	//check that volume two and three exist with appropriate metadata
+	volThreeMetadataPath = path.Join(metadataPath, testVolNameThree)
+	volThreeMetadataDir, err = os.Open(volThreeMetadataPath)
+	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
+		return
+	}
+
+	metadataFiles, err = volThreeMetadataDir.Readdir(0)
+	if !assert.Len(t, metadataFiles, 2, "Expected %s files of metadata, instead %s were found", 2, len(metadataFiles)) {
+		return
+	}
+
+	volTwoMetadataPath = path.Join(metadataPath, testVolNameTwo)
+	volTwoMetadataDir, err = os.Open(volTwoMetadataPath)
+	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
+		return
+	}
+
+	metadataFiles, err = volTwoMetadataDir.Readdir(0)
+	if !assert.Len(t, metadataFiles, 2, "Expected %s files of metadata, instead %s were found", 2, len(metadataFiles)) {
+		return
+	}
+
+	volTwoMetadataDir.Close()
+	volThreeMetadataDir.Close()
+
+	//remove the rest of the volumes
+	err = vs.VolumeDestroy(op, volTwo)
+	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
+		return
+	}
+
+	err = vs.VolumeDestroy(op, volThree)
+	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
+		return
+	}
+
+	return
+}
+
+//make a test which targets paths that do not exist.
