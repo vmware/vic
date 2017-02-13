@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,16 +53,27 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 		conf.AddImageStore(imageDSpath)
 	}
 
-	if conf.VolumeLocations == nil {
-		conf.VolumeLocations = make(map[string]*url.URL)
-	}
-
-	// TODO: add volume locations
+	//volume location population
 	for label, volDSpath := range input.VolumeLocations {
-		dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
-		v.NoteIssue(err)
-		if dsURL != nil {
-			conf.VolumeLocations[label] = dsURL
+
+		switch label {
+		case "default":
+			dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--default-volume-store")
+			if err != nil {
+				v.NoteIssue(fmt.Errorf("%s: %s", err, "validation failed for --default-volume-store, the supplied default datastore path is not properly formatted."))
+			}
+			if dsURL != nil {
+				conf.AddVolumeLocation(label, dsURL)
+			}
+
+		default:
+			dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
+			if err != nil {
+				v.NoteIssue(fmt.Errorf("%s: validation failed for --volume-store, the supplied volume datastore path is not properly formatted.", err))
+			}
+			if dsURL != nil {
+				conf.AddVolumeLocation(label, dsURL)
+			}
 		}
 	}
 }

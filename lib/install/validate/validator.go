@@ -548,6 +548,9 @@ func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *confi
 	validStores := make(map[types.ManagedObjectReference]*object.Datastore)
 	// remove any found datastores from requested datastores
 	for _, cds := range clusterDatastores {
+		var ds mo.Datastore
+		cds.Properties(ctx, cds.Reference(), nil, &ds)
+
 		if requestedDatastores[cds.Reference()] != nil {
 			delete(requestedDatastores, cds.Reference())
 			validStores[cds.Reference()] = cds
