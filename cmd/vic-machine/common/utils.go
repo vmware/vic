@@ -31,8 +31,8 @@ const unsuppCharsRegex = `%|&|\*|\$|#|@|!|\\|/|:|\?|"|<|>|;|'|\|`
 // Same as unsuppCharsRegex but allows / and : for datastore paths
 const unsuppCharsDatastoreRegex = `%|&|\*|\$|#|@|!|\\|\?|"|<|>|;|'|\|`
 
-var reUnsupp *regexp.Regexp = regexp.MustCompile(unsuppCharsRegex)
-var reUnsuppDatastore *regexp.Regexp = regexp.MustCompile(unsuppCharsDatastoreRegex)
+var reUnsupp = regexp.MustCompile(unsuppCharsRegex)
+var reUnsuppDatastore = regexp.MustCompile(unsuppCharsDatastoreRegex)
 
 func LogErrorIfAny(clic *cli.Context, err error) error {
 	if err == nil {
