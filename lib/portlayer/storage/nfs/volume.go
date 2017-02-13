@@ -208,7 +208,7 @@ func writeMetadata(op trace.Operation, metadataPath string, info map[string][]by
 	op.Infof("Attempting to write metadata to (%s)", metadataPath)
 	for fileName, data := range info {
 		targetPath := path.Join(metadataPath, fileName)
-		blobFile, err := target.Create(targetPath)
+		blobFile, err := target.Create(targetPath, filePermissions)
 		// XXX: we might want to make sure the file we want to write does not exist...
 		if err != nil {
 			return err

@@ -47,7 +47,7 @@ func (v MockTarget) OpenFile(path string, mode os.FileMode) (io.ReadWriteCloser,
 	return os.OpenFile(path, os.O_RDWR, mode)
 }
 
-func (v MockTarget) Create(path string) (io.ReadWriteCloser, error) {
+func (v MockTarget) Create(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
 	return os.Create(path)
 }
 

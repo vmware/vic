@@ -36,7 +36,7 @@ type NFSTarget interface {
 	OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
 	//Creates a file, errors out if file already exists. assumes write permissions.
-	Create(path string) (io.ReadWriteCloser, error)
+	Create(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
 	// Create directory path
 	MkDir(path string, perm os.FileMode) ([]byte, error)
@@ -79,7 +79,7 @@ func (t NFSv3Target) OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser
 	return nil, nil
 }
 
-func (t NFSv3Target) Create(path string) (io.ReadWriteCloser, error) {
+func (t NFSv3Target) Create(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
 	return nil, nil
 }
 
