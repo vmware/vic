@@ -89,9 +89,9 @@ Docker logs follow shutdown
     Should Be Equal  ${output}  ${buffer}\n${buffer}
 
 Docker logs with timestamps and since certain time
-    ${status}=  Get State Of Github Issue  1738
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-8-Docker-Logs.robot needs to be updated now that Issue #366 has been resolved
-    Log  Issue \#1738 is blocking implementation  WARN
+    ${status}=  Get State Of Github Issue  2539
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-8-Docker-Logs.robot needs to be updated now that Issue #2539 has been resolved
+    Log  Issue \#2539 is blocking implementation  WARN
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/sh -c 'a=0; while [ $a -lt 5 ]; do echo "line $a"; a=`expr $a + 1`; sleep 1; done;'

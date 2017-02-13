@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/jsonlog"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -80,8 +81,11 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 		log.Errorf("Setting terminal speed failed with %s", err)
 	}
 
+	// wrap entries in JSON structs containing timestamps for each
+	lw := jsonlog.NewLogWriter(f)
+
 	// use multi-writer so it goes to both screen and session log
-	return dio.MultiWriter(f, os.Stdout), dio.MultiWriter(f, os.Stderr), nil
+	return dio.MultiWriter(lw, os.Stdout), dio.MultiWriter(lw, os.Stderr), nil
 }
 
 func (t *operations) Setup(sink tether.Config) error {
