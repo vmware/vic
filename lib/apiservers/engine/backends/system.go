@@ -55,15 +55,15 @@ type System struct {
 }
 
 const (
-	systemStatusMhz    = " VCH CPU limit"
-	systemStatusMemory = " VCH memory limit"
-	systemStatusCPUUsageMhz    = " VCH CPU usage"
-	systemStatusMemUsage = " VCH memory usage"
-	systemOS           = " VMware OS"
-	systemOSVersion    = " VMware OS version"
-	systemProductName  = " VMware Product"
-	volumeStoresID     = "VolumeStores"
-	loginTimeout       = 20 * time.Second
+	systemStatusMhz         = " VCH CPU limit"
+	systemStatusMemory      = " VCH memory limit"
+	systemStatusCPUUsageMhz = " VCH CPU usage"
+	systemStatusMemUsage    = " VCH memory usage"
+	systemOS                = " VMware OS"
+	systemOSVersion         = " VMware OS version"
+	systemProductName       = " VMware Product"
+	volumeStoresID          = "VolumeStores"
+	loginTimeout            = 20 * time.Second
 )
 
 func NewSystemBackend() *System {

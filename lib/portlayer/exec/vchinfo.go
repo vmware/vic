@@ -16,17 +16,17 @@ package exec
 
 import (
 	"context"
+	"fmt"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	log "github.com/Sirupsen/logrus"
-	"fmt"
 )
 
 func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*mo.ResourcePool, error) {
 
 	if Config.ResourcePool == nil {
-		return &mo.ResourcePool{}, fmt.Errorf("Config.ResourcePool is nil")
+		return nil, fmt.Errorf("Config.ResourcePool is nil")
 	}
 
 	var p mo.ResourcePool
@@ -48,16 +48,11 @@ func GetVCHstats(ctx context.Context, moref ...types.ManagedObjectReference) (*m
 
 	log.Debugf("The VCH stats are: %+v", stats)
 
-	// If any of the stats is -1 (s is true), we need to get the vch stats from the parent resource pool
-	s := false
+	// If any of the stats is -1, we need to get the vch stats from the parent resource pool
 	for _, v := range stats {
 		if v == -1 {
-			s = true
-			break
+			return GetVCHstats(ctx, *p.Parent)
 		}
-	}
-	if s {
-		return GetVCHstats(ctx, *p.Parent)
 	}
 
 	return &p, nil

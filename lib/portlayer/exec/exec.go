@@ -115,7 +115,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 
 		p, err := GetVCHstats(ctx)
 		if err != nil {
-			log.Errorf("Portlayer GetVCHstats error: %s", err)
+			log.Errorf("Failed to get VCH stats: %s", err)
 		} else {
 			Config.VCHMhz = p.Config.CpuAllocation.GetResourceAllocationInfo().Limit
 			Config.VCHMemoryLimit = p.Config.MemoryAllocation.GetResourceAllocationInfo().Limit
