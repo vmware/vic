@@ -15,11 +15,9 @@
 package nfs
 
 import (
-	"errors"
 	"io"
 	"net/url"
 
-	"github.com/vmware/vic/pkg/trace"
 	"os"
 )
 
@@ -50,55 +48,3 @@ type NFSTarget interface {
 	//Looks up the file information for a target entry
 	Lookup(path string) (os.FileInfo, error)
 }
-
-type NFSv3Target struct {
-	//nfs endpoint
-	host *url.URL
-
-	//Path to the the volume store
-	directoryPath string
-}
-
-func (t NFSv3Target) MkDir(path string, perm os.FileMode) ([]byte, error) {
-	return nil, nil
-}
-
-func (t NFSv3Target) RemoveAll(path string) error {
-	return nil
-}
-
-func (t NFSv3Target) ReadDir(path string) ([]os.FileInfo, error) {
-	return nil, nil
-}
-
-func (t NFSv3Target) Open(path string) (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (t NFSv3Target) OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
-	return nil, nil
-}
-
-func (t NFSv3Target) Create(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
-	return nil, nil
-}
-
-func (t NFSv3Target) Lookup(path string) (os.FileInfo, error) {
-	return nil, nil
-}
-
-func Mount(target *url.URL) (NFSTarget, error) {
-	return nil, nil
-}
-
-func Unmount(target NFSTarget) error {
-	return nil
-}
-
-// TODO: client implementation here
-func NewNFSv3Target(op trace.Operation, fqdn *url.URL, volumeDirectory string) (NFSTarget, error) {
-	return NFSv3Target{}, errors.New("FUNCTION NOT IMPLEMENTED")
-}
-
-//MAKE MOCK TARGET
-//USER TEMP DIR
