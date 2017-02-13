@@ -508,6 +508,8 @@ func TestMultipleVolumes(t *testing.T) {
 		return
 	}
 
+	os.Remove(volumePath)
+	os.Remove(metadataDir)
 	return
 }
 
