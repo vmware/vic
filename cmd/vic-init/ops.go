@@ -92,7 +92,7 @@ func (t *operations) SetupFirewall() error {
 	if l == nil {
 		l, err = netlink.LinkByAlias(publicIfaceName)
 		if l == nil {
-			return fmt.Errorf("could not find public interface")
+			return fmt.Errorf("could not find interface: %s", publicIfaceName)
 		}
 	}
 

@@ -151,6 +151,8 @@ func iptablesDelete(args [][]string) error {
 }
 
 // adapted from https://github.com/docker/libnetwork/blob/master/iptables/iptables.go
+//
+// assumes p is locked
 func (p *portMapper) forward(op Operation, ip net.IP, port int, proto, destAddr string, destPort int, srcIface, destIface string) error {
 	daddr := ip.String()
 	if ip == nil || ip.IsUnspecified() {

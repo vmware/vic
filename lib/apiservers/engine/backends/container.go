@@ -809,7 +809,7 @@ func interBridgeTraffic(op portmap.Operation, hostPort, proto, containerAddr, co
 		// specific mapped port. has to inserted at the top of the
 		// chain rather than appended to supersede bridge-to-bridge
 		// traffic blocking
-		args := []string{"-t", string(iptables.Filter),
+		baseArgs := []string{"-t", string(iptables.Filter),
 			"-i", bridgeIfaceName,
 			"-o", bridgeIfaceName,
 			"-p", proto,
@@ -818,11 +818,12 @@ func interBridgeTraffic(op portmap.Operation, hostPort, proto, containerAddr, co
 			"-j", "ACCEPT",
 		}
 
-		if _, err := iptables.Raw(append([]string{string(iptables.Insert), "VIC", "1"}, args...)...); err != nil && !os.IsExist(err) {
+		args := append([]string{string(iptables.Insert), "VIC", "1"}, baseArgs...)
+		if _, err := iptables.Raw(args...); err != nil && !os.IsExist(err) {
 			return err
 		}
 
-		btbRules[hostPort] = args
+		btbRules[hostPort] = baseArgs
 	case portmap.Unmap:
 		if args, ok := btbRules[hostPort]; ok {
 			args = append([]string{string(iptables.Delete), "VIC"}, args...)
@@ -1521,7 +1522,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 
 	config.HostConfig.Memory = memoryMB
 	log.Infof("Container memory: %d MB", config.HostConfig.Memory)
-
 
 	if config.NetworkingConfig == nil {
 		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
