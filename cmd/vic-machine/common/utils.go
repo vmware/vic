@@ -31,6 +31,9 @@ const unsuppCharsRegex = `%|&|\*|\$|#|@|!|\\|/|:|\?|"|<|>|;|'|\|`
 // Same as unsuppCharsRegex but allows / and : for datastore paths
 const unsuppCharsDatastoreRegex = `%|&|\*|\$|#|@|!|\\|\?|"|<|>|;|'|\|`
 
+var reUnsupp *regexp.Regexp = regexp.MustCompile(unsuppCharsRegex)
+var reUnsuppDatastore *regexp.Regexp = regexp.MustCompile(unsuppCharsDatastoreRegex)
+
 func LogErrorIfAny(clic *cli.Context, err error) error {
 	if err == nil {
 		return nil
@@ -43,14 +46,12 @@ func LogErrorIfAny(clic *cli.Context, err error) error {
 
 // CheckUnsupportedChars returns an error if string contains special characters
 func CheckUnsupportedChars(s string) error {
-	re := regexp.MustCompile(unsuppCharsRegex)
-	return checkUnsupportedChars(s, re)
+	return checkUnsupportedChars(s, reUnsupp)
 }
 
 // CheckUnsupportedCharsDatastore returns an error if a datastore string contains special characters
 func CheckUnsupportedCharsDatastore(s string) error {
-	re := regexp.MustCompile(unsuppCharsDatastoreRegex)
-	return checkUnsupportedChars(s, re)
+	return checkUnsupportedChars(s, reUnsuppDatastore)
 }
 
 func checkUnsupportedChars(s string, re *regexp.Regexp) error {
@@ -59,5 +60,5 @@ func checkUnsupportedChars(s string, re *regexp.Regexp) error {
 	if v = re.FindIndex(st); v == nil {
 		return nil
 	}
-	return fmt.Errorf("unsupported character in %q: %s", s, s[v[0]:v[1]])
+	return fmt.Errorf("unsupported character %q in %q", s[v[0]:v[1]], s)
 }

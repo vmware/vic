@@ -501,7 +501,7 @@ func (c *Create) processParams() error {
 
 	// prevent usage of special characters for certain user provided values
 	if err := common.CheckUnsupportedChars(c.DisplayName); err != nil {
-		return cli.NewExitError(fmt.Sprintf("--name contains unsupported characters: %s", err), 1)
+		return cli.NewExitError(fmt.Sprintf("--name contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( )", err), 1)
 	}
 
 	if len(c.DisplayName) > MaxDisplayNameLen {
@@ -549,7 +549,7 @@ func (c *Create) processParams() error {
 	}
 
 	if err := common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
-		return cli.NewExitError(fmt.Sprintf("--image-store contains unsupported characters: %s", err), 1)
+		return cli.NewExitError(fmt.Sprintf("--image-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err), 1)
 	}
 
 	if err := c.processVolumeStores(); err != nil {
@@ -878,7 +878,7 @@ func (c *Create) processVolumeStores() error {
 	c.VolumeLocations = make(map[string]string)
 	for _, arg := range c.volumeStores {
 		if err := common.CheckUnsupportedCharsDatastore(arg); err != nil {
-			return fmt.Errorf("--volume-store contains unsupported characters: %s", err)
+			return fmt.Errorf("--volume-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err)
 		}
 		splitMeta := strings.SplitN(arg, ":", 2)
 		if len(splitMeta) != 2 {

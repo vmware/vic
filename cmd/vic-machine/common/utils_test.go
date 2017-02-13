@@ -36,7 +36,12 @@ func TestCheckUnsupportedchars(t *testing.T) {
 		{"test@", false},
 		{"test!", false},
 		{`test\`, false},
-		{"test/", false},
+		{"test/", false},      // U+002F
+		{"test\u002f", false}, // U+002F
+		{`testЯ`, true},       // U+042F
+		{"test\u042f", true},  // U+042F
+		{`testį`, true},       // U+012F
+		{"test\u012f", true},  // U+012F
 		{"test:", false},
 		{"test?", false},
 		{`test"`, false},
@@ -44,6 +49,7 @@ func TestCheckUnsupportedchars(t *testing.T) {
 		{"test>", false},
 		{"test;", false},
 		{"test'", false},
+		{"test|", false},
 		{"test|", false},
 	}
 
@@ -83,7 +89,10 @@ func TestCheckUnsupportedCharsDatastore(t *testing.T) {
 		{"test$", false},
 		{"test#", false},
 		{"test@", false},
-		{"test!", false},
+		{"test!", false},      // U+0021
+		{"test\u0021", false}, // U+0021
+		{`testġ`, true},       // U+0121
+		{"test\u0121", true},  // U+0121
 		{`test\`, false},
 		{"test?", false},
 		{`test"`, false},
