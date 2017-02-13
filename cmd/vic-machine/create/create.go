@@ -499,12 +499,17 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if c.BridgeNetworkName == "" {
-		c.BridgeNetworkName = c.DisplayName
+	// prevent usage of special characters for certain user provided values
+	if err := common.CheckUnsupportedChars(c.DisplayName); err != nil {
+		return cli.NewExitError(fmt.Sprintf("--name contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( )", err), 1)
 	}
 
 	if len(c.DisplayName) > MaxDisplayNameLen {
 		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.DisplayName), 1)
+	}
+
+	if c.BridgeNetworkName == "" {
+		c.BridgeNetworkName = c.DisplayName
 	}
 
 	if err := c.processOpsCredentials(); err != nil {
@@ -541,6 +546,10 @@ func (c *Create) processParams() error {
 	// must come after client network processing as it checks for static IP on that interface
 	if err := c.processCertificates(); err != nil {
 		return err
+	}
+
+	if err := common.CheckUnsupportedCharsDatastore(c.ImageDatastorePath); err != nil {
+		return cli.NewExitError(fmt.Sprintf("--image-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err), 1)
 	}
 
 	if err := c.processVolumeStores(); err != nil {
@@ -868,6 +877,9 @@ func (c *Create) processVolumeStores() error {
 	defer trace.End(trace.Begin(""))
 	c.VolumeLocations = make(map[string]string)
 	for _, arg := range c.volumeStores {
+		if err := common.CheckUnsupportedCharsDatastore(arg); err != nil {
+			return fmt.Errorf("--volume-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err)
+		}
 		splitMeta := strings.SplitN(arg, ":", 2)
 		if len(splitMeta) != 2 {
 			return errors.New("Volume store input must be in format datastore/path:label")
