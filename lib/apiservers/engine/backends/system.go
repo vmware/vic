@@ -55,13 +55,15 @@ type System struct {
 }
 
 const (
-	systemStatusMhz    = " VCH mhz limit"
-	systemStatusMemory = " VCH memory limit"
-	systemOS           = " VMware OS"
-	systemOSVersion    = " VMware OS version"
-	systemProductName  = " VMware Product"
-	volumeStoresID     = "VolumeStores"
-	loginTimeout       = 20 * time.Second
+	systemStatusMhz         = " VCH CPU limit"
+	systemStatusMemory      = " VCH memory limit"
+	systemStatusCPUUsageMhz = " VCH CPU usage"
+	systemStatusMemUsage    = " VCH memory usage"
+	systemOS                = " VMware OS"
+	systemOSVersion         = " VMware OS version"
+	systemProductName       = " VMware Product"
+	volumeStoresID          = "VolumeStores"
+	loginTimeout            = 20 * time.Second
 )
 
 func NewSystemBackend() *System {
@@ -168,6 +170,14 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			info.MemTotal = vchInfo.Memory * 1024 * 1024 // Get Mebibytes
 
 			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.CPUUsage >= 0 {
+			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d Mhz", int(vchInfo.CPUUsage))}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.MemUsage >= 0 {
+			customInfo := [2]string{systemStatusMemUsage, units.BytesSize(float64(vchInfo.MemUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if vchInfo.HostProductName != "" {
