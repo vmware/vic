@@ -459,7 +459,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	// create appliance VM
 	if d.isVC && d.vchVapp != nil {
 		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return d.vchVapp.CreateChildVM_Task(ctx, *spec, d.session.Host)
+			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
 		})
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool

@@ -99,18 +99,29 @@ func (cmd *ls) Run(ctx context.Context, f *flag.FlagSet) error {
 
 	var ref = new(types.ManagedObjectReference)
 
+	var types []string
+	if cmd.Type != "" {
+		// TODO: support multiple -t flags
+		types = []string{cmd.Type}
+	}
+
 	for _, arg := range args {
 		if cmd.DeRef && ref.FromString(arg) {
 			e, err := finder.Element(ctx, *ref)
 			if err == nil {
 				if cmd.typeMatch(*ref) {
+					if e.Path == "/" && ref.Type != "Folder" {
+						// Special case: when given a moref with no ancestors,
+						// just echo the moref.
+						e.Path = ref.String()
+					}
 					lr.Elements = append(lr.Elements, *e)
 				}
 				continue
 			}
 		}
 
-		es, err := finder.ManagedObjectListChildren(ctx, arg)
+		es, err := finder.ManagedObjectListChildren(ctx, arg, types...)
 		if err != nil {
 			return err
 		}

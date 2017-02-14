@@ -224,7 +224,7 @@ func createNodes(ctx context.Context, sess *session.Session, pool *object.Resour
 			},
 		}
 		if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-			return vapp.CreateChildVM_Task(ctx, config, nil)
+			return vapp.CreateChildVM(ctx, config, nil)
 		}); err != nil {
 			return err
 		}

@@ -66,6 +66,14 @@ Filter images since
     Length Should Be  ${lines}  3
     Should Contain  ${output}  latest
 
+Tag images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag alpine alpine:cdg
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  cdg
 
 VIC/docker Image ID consistency
     @{tags}=  Create List  uclibc  glibc  musl

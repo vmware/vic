@@ -56,7 +56,12 @@ func (dss *HostDatastoreSystem) add(ds *Datastore) *soap.Fault {
 		}
 	}
 
+	folder := Map.getEntityFolder(dss.Host, "datastore")
 	ds.Self.Type = TypeName(ds)
+	// Datastore is the only type where create methods do not include the parent (Folder in this case),
+	// but we need the moref to be unique per DC/datastoreFolder, but not per-HostSystem.
+	ds.Self.Value += "@" + folder.Self.Value
+	// TODO: name should be made unique in the case of Local ds type
 
 	ds.Summary.Datastore = &ds.Self
 	ds.Summary.Name = ds.Name
@@ -71,7 +76,6 @@ func (dss *HostDatastoreSystem) add(ds *Datastore) *soap.Fault {
 	browser.Datastore = dss.Datastore
 	ds.Browser = Map.Put(browser).Reference()
 
-	folder := Map.Get(Map.getEntityDatacenter(dss.Host).DatastoreFolder).(*Folder)
 	folder.putChild(ds)
 
 	return nil
