@@ -162,7 +162,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		if vchInfo.CPUMhz > 0 {
 			info.NCPU = int(vchInfo.CPUMhz)
 
-			customInfo := [2]string{systemStatusMhz, fmt.Sprintf("%d Mhz", info.NCPU)}
+			customInfo := [2]string{systemStatusMhz, fmt.Sprintf("%d MHz", info.NCPU)}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if vchInfo.Memory > 0 {
@@ -172,7 +172,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if vchInfo.CPUUsage >= 0 {
-			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d Mhz", int(vchInfo.CPUUsage))}
+			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d MHz", int(vchInfo.CPUUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if vchInfo.MemUsage >= 0 {
