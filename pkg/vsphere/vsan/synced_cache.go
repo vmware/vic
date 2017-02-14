@@ -101,7 +101,7 @@ func (c *syncedDomCache) closeChannels() {
 	close(c.doneOnce)
 	close(c.waitCurrentRefresh)
 	c.m.Lock()
-	log.Debugf("Finish all watigroups")
+	log.Debugf("Finish all waitgroups")
 	for i := range c.refreshings {
 		if len(c.refreshings[i]) == 0 {
 			continue

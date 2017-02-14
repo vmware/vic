@@ -36,10 +36,10 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 	}
 
 	s, err := session.NewSession(config).Connect(context.Background())
-	s.Populate(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
+	s.Populate(context.Background())
 
 	return s
 }

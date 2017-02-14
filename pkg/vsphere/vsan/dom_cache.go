@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	vsanNamePattern = "vsan:[a-zA-Z0-9-]*/"
+	vsanNamePattern = "vsan:[a-zA-Z0-9-]+/"
 	vmdkFileSuffix  = ".vmdk"
 )
 
@@ -55,7 +55,7 @@ type vsanDSDomCache struct {
 func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("paths: %s", paths)))
 	var uuids []string
-	var ret []string
+	var leftVMDKs []string
 
 	v.m.Lock()
 	for _, path := range paths {
@@ -66,58 +66,47 @@ func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]
 		if uuid, ok := v.paths[path]; ok {
 			uuids = append(uuids, uuid)
 		} else {
-			ret = append(ret, path)
+			leftVMDKs = append(leftVMDKs, path)
 		}
 	}
 	v.m.Unlock()
 
 	force := true
-	res, err := v.hvis.DeleteVsanObjects(ctx, uuids, &force)
-	var deletedDoms []string
+	deleteResult, err := v.hvis.DeleteVsanObjects(ctx, uuids, &force)
 	if err != nil {
-		return ret, DomDeleteError{
+		return leftVMDKs, DomDeleteError{
 			Err:         err,
 			FailedUuids: uuids,
 		}
 	}
+	var deletedDoms []string
 	var failedIds []string
-	for _, r := range res {
-		if !r.Success {
-			failedIds = append(failedIds, r.Uuid)
-		} else {
+	for _, r := range deleteResult {
+		if r.Success {
 			deletedDoms = append(deletedDoms, r.Uuid)
+		} else {
+			failedIds = append(failedIds, r.Uuid)
 		}
 	}
-	v.cleanDeletedUUIDs(deletedDoms)
-
-	if len(failedIds) > 0 {
-		return ret, DomDeleteError{
-			FailedUuids: failedIds,
-			Result:      res,
-		}
-	}
-	return ret, nil
-}
-
-func (v *vsanDSDomCache) cleanDeletedUUIDs(deletedDoms []string) {
-	defer trace.End(trace.Begin(fmt.Sprintf("%s", deletedDoms)))
-
-	var deletedVMDKs []string
 	v.m.Lock()
 	defer v.m.Unlock()
 	for _, uuid := range deletedDoms {
 		vmdk := v.uuids[uuid]
 		delete(v.uuids, uuid)
-		deletedVMDKs = append(deletedVMDKs, vmdk)
-	}
-
-	for _, vmdk := range deletedVMDKs {
 		delete(v.paths, vmdk)
 	}
+
+	if len(failedIds) > 0 {
+		return leftVMDKs, DomDeleteError{
+			FailedUuids: failedIds,
+			Result:      deleteResult,
+		}
+	}
+	return leftVMDKs, nil
 }
 
 // Refresh searches dom objects from vsan datastore, and build reverse index for vmdk files
-// Tthe vmdk file format is removed vsan datastore header, e.g. /vmfs/volumes/vsan:52932941b44e2147-f1490d38c9730c6d/, to make it searchable through vmfs file path
+// The vmdk file format is removed vsan datastore header, e.g. /vmfs/volumes/vsan:52932941b44e2147-f1490d38c9730c6d/, to make it searchable through vmfs file path
 func (v *vsanDSDomCache) Refresh(ctx context.Context) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%s", v.ds.Reference().String())))
 	v.m.Lock()
@@ -125,18 +114,15 @@ func (v *vsanDSDomCache) Refresh(ctx context.Context) error {
 
 	uuids, err := v.hvis.QueryVsanObjectUuidsByFilter(ctx, nil, 0, 0)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	// do not query existing uuids, as we don't rename vmdk file
 	setIds := make(map[string]struct{}, len(uuids))
-	for i := range uuids {
-		setIds[uuids[i]] = struct{}{}
+	for _, uuid := range uuids {
+		setIds[uuid] = struct{}{}
 	}
 	for exist := range v.uuids {
-		if _, ok := setIds[exist]; ok {
-			delete(setIds, exist)
-		}
+		delete(setIds, exist)
 	}
 	leftIds := make([]string, len(setIds))
 	i := 0
@@ -146,14 +132,12 @@ func (v *vsanDSDomCache) Refresh(ctx context.Context) error {
 	}
 	mAttrs, err := v.hvis.GetVsanObjExtAttrs(ctx, leftIds)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 	// fill cache
 	for key, val := range mAttrs {
 		p, err := v.truncateFilePath(val.Path)
 		if err != nil {
-			log.Error(err)
 			return err
 		}
 		if p == "" {
@@ -176,7 +160,6 @@ func (v *vsanDSDomCache) CleanOrphanDoms(ctx context.Context) ([]string, error) 
 	orphanVMDKs, err := v.queryOrphanVMDKs(ctx)
 	if err != nil {
 		err = errors.Errorf("failed to get vmdk file information: %s", err)
-		log.Error(err)
 		return nil, err
 	}
 	log.Debugf("Found orphan vmdks: %s", orphanVMDKs)
@@ -219,7 +202,7 @@ func (v *vsanDSDomCache) truncateFilePath(path string) (string, error) {
 
 	loc := vsanNameRegex.FindStringIndex(path)
 	if len(loc) == 0 {
-		err := errors.Errorf("patthern %s is not found in path %s", vsanNamePattern, path)
+		err := errors.Errorf("pattern %s is not found in path %s", vsanNamePattern, path)
 		return "", err
 	}
 	return path[loc[1]:], nil

@@ -95,7 +95,7 @@ func (m HostVsanInternalSystem) QueryVsanObjects(ctx context.Context, uuids []st
 
 // GetVsanObjExtAttrs returns vsan extended vsan attributes, including object path. This API can be slow based on API doc
 func (m HostVsanInternalSystem) GetVsanObjExtAttrs(ctx context.Context, uuids []string) (map[string]VSANExtAttrs, error) {
-	var ret map[string]VSANExtAttrs
+	var extAttrs map[string]VSANExtAttrs
 
 	req := types.GetVsanObjExtAttrs{
 		This:  m.Reference(),
@@ -104,16 +104,16 @@ func (m HostVsanInternalSystem) GetVsanObjExtAttrs(ctx context.Context, uuids []
 
 	res, err := methods.GetVsanObjExtAttrs(ctx, m.cl, &req)
 	if err != nil {
-		return ret, err
+		return extAttrs, err
 	}
 
 	if res == nil {
-		return ret, nil
+		return extAttrs, nil
 	}
-	log.Debugf("Returned attributes: %s", res.Returnval)
-	ret = make(map[string]VSANExtAttrs)
-	json.Unmarshal([]byte(res.Returnval), &ret)
-	return ret, nil
+	log.Debugf("GetVsanObjExtAttrs: returned attributes: %s", res.Returnval)
+	extAttrs = make(map[string]VSANExtAttrs)
+	err = json.Unmarshal([]byte(res.Returnval), &extAttrs)
+	return extAttrs, err
 }
 
 // QueryCmmds query vsan CMMDS directly
