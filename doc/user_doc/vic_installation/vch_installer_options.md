@@ -33,11 +33,13 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
 - If the target ESXi host is not managed by vCenter Server, provide the address of the ESXi host.<pre>--target <i>esxi_host_address</i></pre>
 - If the target ESXi host is managed by vCenter Server, or if you are deploying to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
-- You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
+- You can include the user name and password in the target URL. If you are deploying a VCH on vCenter Server, specify the username for an account that has the Administrator role on that vCenter Server instance. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
 
   Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>'<i>vcenter_or_esxi_usern@me</i>':'<i>p@ssword</i>'@<i>vcenter_or_esxi_address</i></pre>
   
-  If you do not include the user name in the target URL, you must specify the `user` option. If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
+  If you do not include the user name in the target URL, you must specify the `user` option. If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password. 
+
+  You can configure a VCH so that it uses a non-administrator account for post-deployment operations by specifying the [`--ops-user`](#--ops-user) option.
 - If you are deploying a VCH on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. 
 
   <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
@@ -59,7 +61,9 @@ Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes
 
 <pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
 
-You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
+You can specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required. 
+
+You can configure a VCH so that it uses a non-administrator account for post-deployment operations by specifying the [`--ops-user`](#--ops-user) option.
 
 ### `--password` ###
 
@@ -628,13 +632,15 @@ Short name: None
 
 A vSphere user account with which the VCH runs after deployment. Because deploying a VCH requires greater levels of permissions than running a VCH, you can configure a VCH so that it uses different user accounts for deployment and for operation. In this way, you can limit the day-to-day operation of a VCH to an account that does not have full administrator permissions on the target vCenter Server.
 
-If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+If not specified, the VCH runs with the vSphere Administrator credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
 
 <pre>--ops-user <i>user_name</i></pre>
 
 Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes special characters.
 
 <pre>--ops-user '<i>user_n@me</i>'</pre>
+
+The user account that you specify in `--ops-user` must exist before you deploy the VCH. For information about the permissions that the `--ops-user` account requires, see [Set Up the `--ops-user` User Account](set_up_ops_user.md).
 
 ### `--ops-password` ###
 

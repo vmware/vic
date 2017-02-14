@@ -361,21 +361,20 @@ This example deploys a VCH with the following configuration:
 
 - Specifies the image store, cluster, bridge network, and name for the VCH.
 - Specifies <i>vsphere_admin</i> in the `--target` option, to identify the user account with which to deploy the VCH.
-- Specifies <i>vsphere_user</i> and its password in the `--ops-user` and `--ops-password` options, to identify the user account with which the VCH runs.
+- Specifies <i>vsphere_user</i> and its password in the `--ops-user` and `--ops-password` options, to identify the user account with which the VCH runs. The user account that you specify in `--ops-user` must exist before you deploy the VCH. For information about the permissions that the `--ops-user` account requires, see [Set Up the `--ops-user` User Account](set_up_ops_user.md).
+- Specifies a resource pool in which to deploy the VCH in the `--compute-resource` option and a port group in a network folder in the `--bridge-network` option. The resource pool and network folder must have the correct permissions, as described in [Set Up the `--ops-user` User Account](set_up_ops_user.md).
 
 <pre>vic-machine-<i>operating_system</i> create
 --target <i>vsphere_admin</i>:<i>vsphere_admin_password</i>@<i>vcenter_server_address</i>/dc1
---compute-resource cluster1
+--compute-resource cluster1/<i>resource_pool</i>
 --image-store datastore1
---bridge-network vch1-bridge
+--bridge-network <i>network_folder</i>/vch1-bridge
 --name vch1
 --ops-user <i>vsphere_user</i>
 --ops-password <i>vsphere_user_password</i>
 --force
 --no-tlsverify
 </pre>
-
-For more information about using custom server certificates, see [--ops-user](vch_installer_options.md#ops-user) in VCH Deployment Options.
 
 <a name="registry"></a>
 ### Authorize Access to an Insecure Private Registry Server ###
