@@ -75,7 +75,9 @@ endef
 
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
+docker-engine-api-test := $(BIN)/docker-engine-server-test
 portlayerapi := $(BIN)/port-layer-server
+portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
 portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
 
@@ -88,6 +90,7 @@ vic-ui-linux := $(BIN)/vic-ui-linux
 vic-ui-windows := $(BIN)/vic-ui-windows.exe
 vic-ui-darwin := $(BIN)/vic-ui-darwin
 vic-init := $(BIN)/vic-init
+vic-init-test := $(BIN)/vic-init-test
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns-linux := $(BIN)/vic-dns-linux
@@ -108,13 +111,16 @@ iso-base := $(BIN)/.iso-base.tgz
 
 # target aliases - target mapping
 docker-engine-api: $(docker-engine-api)
+docker-engine-api-test: $(docker-engine-api-test)
 portlayerapi: $(portlayerapi)
+portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
 
 vicadmin: $(vicadmin)
 rpctool: $(rpctool)
 vic-init: $(vic-init)
+vic-init-test: $(vic-init-test)
 
 tether-linux: $(tether-linux)
 tether-windows: $(tether-windows)
@@ -267,6 +273,10 @@ $(vic-init): $$(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -ldflags "$(ldflags)" -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
 
+$(vic-init-test): $$(call godeps,cmd/vic-init/*.go)
+	@echo building vic-init-test
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile init.cov -o ./$@ ./$(dir $<)
+
 $(tether-linux): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(ldflags) -extldflags "-static"' -o ./$@ ./$(dir $<)
@@ -300,6 +310,14 @@ else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
 
+$(docker-engine-api-test): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
+ifeq ($(OS),linux)
+	@echo Building docker-engine-api server for test...
+	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -outputdir /tmp -coverprofile docker-engine-api.cov -o $@ ./cmd/docker
+else
+	@echo skipping docker-engine-api server for test, cannot build on non-linux
+endif
+
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
@@ -317,6 +335,10 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 $(portlayerapi): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o $@ ./cmd/port-layer-server
+
+$(portlayerapi-test): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
+	@echo building Portlayer API server for test...
+	@$(TIME) $(GO) test -c -coverpkg github.com/vmware/vic/lib/...,github.com/vmware/vic/pkg/... -coverprofile port-layer-server.cov -outputdir /tmp -o $@ ./cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
