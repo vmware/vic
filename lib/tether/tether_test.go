@@ -131,6 +131,10 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
+func (t *Mocker) SetupFirewall() error {
+	return nil
+}
+
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *NetworkEndpoint) error {
 	return apply(t, &t.Base, endpoint)
