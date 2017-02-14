@@ -62,6 +62,11 @@ type Model struct {
 	// Machine specifies the number of VirtualMachine entities to create per ResourcePool
 	Machine int
 
+	// Folder specifies the number of Datacenter to place within a Folder.
+	// This includes a folder for the Datacenter itself and its host, vm, network and datastore folders.
+	// All resources for the Datacenter are placed within these folders, rather than the top-level folders.
+	Folder int
+
 	dirs []string
 }
 
@@ -186,10 +191,23 @@ func (m *Model) Create() error {
 		vms = append(vms, f)
 	}
 
+	nfolder := 0
+
 	for ndc := 0; ndc < m.Datacenter; ndc++ {
 		dcName := m.fmtName("DC", ndc)
+		folder := root
+		fName := m.fmtName("F", nfolder)
 
-		dc, err := root.CreateDatacenter(ctx, dcName)
+		// If Datacenter > Folder, don't create folders for the first N DCs.
+		if nfolder < m.Folder && ndc >= (m.Datacenter-m.Folder) {
+			f, err := folder.CreateFolder(ctx, fName)
+			if err != nil {
+				return err
+			}
+			folder = f
+		}
+
+		dc, err := folder.CreateDatacenter(ctx, dcName)
 		if err != nil {
 			return err
 		}
@@ -197,6 +215,22 @@ func (m *Model) Create() error {
 		folders, err := dc.Folders(ctx)
 		if err != nil {
 			return err
+		}
+
+		if folder != root {
+			// Create sub-folders and use them to create any resources that follow
+			subs := []**object.Folder{&folders.DatastoreFolder, &folders.HostFolder, &folders.NetworkFolder, &folders.VmFolder}
+
+			for _, sub := range subs {
+				f, err := (*sub).CreateFolder(ctx, fName)
+				if err != nil {
+					return err
+				}
+
+				*sub = f
+			}
+
+			nfolder++
 		}
 
 		if m.Portgroup > 0 {

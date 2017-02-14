@@ -205,7 +205,7 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 	}{
 		{"DC0_C0/Resources/validator", true, false},
 		{"DC0_C0/validator", true, false},
-		{"validator", true, true},
+		{"validator", true, false},
 		{"DC0_C0/test", true, true},
 		{"/DC0_C1/test", true, true},
 		{"/DC0_C1/test", true, true},

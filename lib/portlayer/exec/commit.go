@@ -60,7 +60,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		if sess.IsVC() && Config.VirtualApp.ResourcePool != nil {
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-				return Config.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
+				return Config.VirtualApp.CreateChildVM(ctx, *h.Spec.Spec(), nil)
 			})
 		} else {
 			// Find the Virtual Machine folder that we use
