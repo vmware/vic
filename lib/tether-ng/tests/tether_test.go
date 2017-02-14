@@ -73,7 +73,7 @@ func TestRegisterMock(t *testing.T) {
 
 	ctx := context.Background()
 
-	tether := mocker.NewMockTetherer(ctrl)
+	tether := mocker.NewMockPluginRegistrar(ctrl)
 
 	callctx, cancel := context.WithCancel(ctx)
 	defer cancel()

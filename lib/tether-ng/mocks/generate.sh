@@ -20,5 +20,5 @@ cat << EOF > mocks/tether.go
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-$(mockgen github.com/vmware/vic/lib/tether-ng Plugin,Tetherer | sed -e "s/${PROJECT_VENDOR}//" | goimports)
+$(mockgen github.com/vmware/vic/lib/tether-ng Signaler,Releaser,Waiter,Interactor,Reaper,Plugin,PluginRegistrar | sed -e "s/${PROJECT_VENDOR}//" | goimports)
 EOF

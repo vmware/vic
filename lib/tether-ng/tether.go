@@ -61,14 +61,14 @@ type Plugin interface {
 	UUID(ctx context.Context) uuid.UUID
 }
 
-type Tetherer interface {
+type PluginRegistrar interface {
 	Register(ctx context.Context, plugin Plugin) error
 	Unregister(ctx context.Context, plugin Plugin) error
 	Plugins(ctx context.Context) []Plugin
 }
 
 type Tether struct {
-	Tetherer
+	PluginRegistrar
 
 	ctx context.Context
 
@@ -76,7 +76,7 @@ type Tether struct {
 	plugins map[uuid.UUID]Plugin
 }
 
-func NewTether(ctx context.Context) Tetherer {
+func NewTether(ctx context.Context) PluginRegistrar {
 	return &Tether{
 		ctx:     ctx,
 		plugins: make(map[uuid.UUID]Plugin),
