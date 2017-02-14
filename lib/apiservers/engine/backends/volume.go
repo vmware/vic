@@ -19,14 +19,14 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/go-units"
 	"github.com/google/uuid"
 
@@ -78,6 +78,10 @@ var acceptedVolumeFilters = map[string]bool{
 }
 
 var errPortlayerClient = fmt.Errorf("failed to get a portlayer client")
+
+func NewVolumeBackend() *Volume {
+	return &Volume{}
+}
 
 // Volumes docker personality implementation for VIC
 func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
@@ -270,7 +274,7 @@ func (v *Volume) VolumeCreate(name, driverName string, volumeData, labels map[st
 }
 
 // VolumeRm : docker personality for VIC
-func (v *Volume) VolumeRm(name string) error {
+func (v *Volume) VolumeRm(name string, force bool) error {
 	defer trace.End(trace.Begin("Volume.VolumeRm"))
 
 	client := PortLayerClient()
@@ -296,6 +300,10 @@ func (v *Volume) VolumeRm(name string) error {
 		}
 	}
 	return nil
+}
+
+func (v *Volume) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
+	return nil, fmt.Errorf("%s does not yet implement VolumesPrune", ProductName())
 }
 
 type volumeMetadata struct {

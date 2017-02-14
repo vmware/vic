@@ -27,10 +27,11 @@ import (
 
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/filters"
-	"github.com/docker/engine-api/types/registry"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/distribution/digest"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
@@ -60,8 +61,12 @@ var unSupportedImageFilters = map[string]bool{
 type Image struct {
 }
 
-func (i *Image) Commit(name string, config *types.ContainerCommitConfig) (imageID string, err error) {
-	return "", fmt.Errorf("%s does not implement image.Commit", ProductName())
+func NewImageBackend() *Image {
+	return &Image{}
+}
+
+func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
+	return "", fmt.Errorf("%s does not yet implement image.Commit", ProductName())
 }
 
 func (i *Image) Exists(containerName string) bool {
@@ -189,24 +194,11 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 }
 
 func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
-	return nil, fmt.Errorf("%s does not implement image.History", ProductName())
+	return nil, fmt.Errorf("%s does not yet implement image.History", ProductName())
 }
 
-func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("filterArgs: %s", filterArgs)))
-
-	// This type conversion can be removed once we move to 1.13
-	// At 1.13 the Images func will change signatures and filterArgs will be properly
-	// typed
-	imageFilters, err := filters.FromParam(filterArgs)
-	if err != nil {
-		return nil, err
-	}
-
-	// utilize the filterArgs to incorporate the argument option
-	if filter != "" {
-		imageFilters.Add("reference", filter)
-	}
+func (i *Image) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("imageFilters: %#v", imageFilters)))
 
 	// validate filters for accuracy and support
 	filterContext, err := vicfilter.ValidateImageFilters(imageFilters, acceptedImageFilterTags, unSupportedImageFilters)
@@ -217,7 +209,7 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 	// get all images
 	images := cache.ImageCache().GetImages()
 
-	result := make([]*types.Image, 0, len(images))
+	result := make([]*types.ImageSummary, 0, len(images))
 
 imageLoop:
 	for i := range images {
@@ -259,11 +251,20 @@ func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
 	return imageConfigToDockerImageInspect(imageConfig, ProductName()), nil
 }
 
-// TagImage will tag the specified image with the provided reference
-func (i *Image) TagImage(newTag reference.Named, imageName string) error {
+func (i *Image) TagImage(imageName, repository, tag string) error {
 	img, err := cache.ImageCache().Get(imageName)
 	if err != nil {
 		return err
+	}
+
+	newTag, err := reference.WithName(repository)
+	if err != nil {
+		return err
+	}
+	if tag != "" {
+		if newTag, err = reference.WithTag(newTag, tag); err != nil {
+			return err
+		}
 	}
 
 	// place tag in repo and save to portLayer k/v store
@@ -275,22 +276,49 @@ func (i *Image) TagImage(newTag reference.Named, imageName string) error {
 	return nil
 }
 
-func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	return fmt.Errorf("%s does not implement image.LoadImage", ProductName())
+func (i *Image) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+	return nil, fmt.Errorf("%s does not yet implement image.ImagesPrune", ProductName())	
 }
 
-func (i *Image) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, config *container.Config) error {
-	return fmt.Errorf("%s does not implement image.ImportImage", ProductName())
+func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+	return fmt.Errorf("%s does not yet implement image.LoadImage", ProductName())
+}
+
+func (i *Image) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+	return fmt.Errorf("%s does not yet implement image.ImportImage", ProductName())
 }
 
 func (i *Image) ExportImage(names []string, outStream io.Writer) error {
-	return fmt.Errorf("%s does not implement image.ExportImage", ProductName())
+	return fmt.Errorf("%s does not yet implement image.ExportImage", ProductName())
 }
 
-func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	defer trace.End(trace.Begin(ref.String()))
+func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+	defer trace.End(trace.Begin(""))
 
-	log.Debugf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
+	log.Debugf("PullImage: image = %s, tag = %s, metaheaders = %+v\n", image, tag, metaHeaders)
+
+	//***** Code from Docker 1.13 PullImage to convert image and tag to a ref
+	image = strings.TrimSuffix(image, ":")
+
+	ref, err := reference.ParseNamed(image)
+	if err != nil {
+		return err
+	}
+
+	if tag != "" {
+		// The "tag" could actually be a digest.
+		var dgst digest.Digest
+		dgst, err = digest.ParseDigest(tag)
+		if err == nil {
+			ref, err = reference.WithDigest(reference.TrimNamed(ref), dgst)
+		} else {
+			ref, err = reference.WithTag(ref, tag)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	//*****
 
 	options := imagec.Options{
 		Destination: os.TempDir(),
@@ -329,7 +357,7 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 		portLayerServer)
 
 	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
-	err := ic.PullImage()
+	err = ic.PullImage()
 	if err != nil {
 		return err
 	}
@@ -337,23 +365,23 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 	return nil
 }
 
-func (i *Image) PushImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	return fmt.Errorf("%s does not implement image.PushImage", ProductName())
+func (i *Image) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+	return fmt.Errorf("%s does not yet implement image.PushImage", ProductName())
 }
 
-func (i *Image) SearchRegistryForImages(ctx context.Context, term string, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
-	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", ProductName())
+func (i *Image) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
+	return nil, fmt.Errorf("%s does not yet implement image.SearchRegistryForImages", ProductName())
 }
 
 // Utility functions
 
-func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
+func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.ImageSummary {
 	var labels map[string]string
 	if image.Config != nil {
 		labels = image.Config.Labels
 	}
 
-	return &types.Image{
+	return &types.ImageSummary{
 		ID:          image.ImageID,
 		ParentID:    image.Parent,
 		RepoTags:    image.Tags,

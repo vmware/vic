@@ -17,7 +17,7 @@ package filter
 import (
 	"fmt"
 
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types/filters"
 )
 
 // VolumeFilterContext stores volume information used while filtering

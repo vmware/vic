@@ -2,25 +2,24 @@ package daemon
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
 	var warnings []string
 
 	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
 	if err != nil {
-		return warnings, err
+		return container.ContainerUpdateOKBody{Warnings: warnings}, err
 	}
 
 	if err := daemon.update(name, hostConfig); err != nil {
-		return warnings, err
+		return container.ContainerUpdateOKBody{Warnings: warnings}, err
 	}
 
-	return warnings, nil
+	return container.ContainerUpdateOKBody{Warnings: warnings}, nil
 }
 
 // ContainerUpdateCmdOnBuild updates Path and Args for the container with ID cID.
@@ -62,21 +61,14 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		return errCannotUpdate(container.ID, fmt.Errorf("Container is marked for removal and cannot be \"update\"."))
 	}
 
-	if container.IsRunning() && hostConfig.KernelMemory != 0 {
-		return errCannotUpdate(container.ID, fmt.Errorf("Can not update kernel memory to a running container, please stop it first."))
-	}
-
 	if err := container.UpdateContainer(hostConfig); err != nil {
 		restoreConfig = true
 		return errCannotUpdate(container.ID, err)
 	}
 
 	// if Restart Policy changed, we need to update container monitor
-	container.UpdateMonitor(hostConfig.RestartPolicy)
-
-	// if container is restarting, wait 5 seconds until it's running
-	if container.IsRestarting() {
-		container.WaitRunning(5 * time.Second)
+	if hostConfig.RestartPolicy.Name != "" {
+		container.UpdateMonitor(hostConfig.RestartPolicy)
 	}
 
 	// If container is not running, update hostConfig struct is enough,

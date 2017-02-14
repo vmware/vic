@@ -26,7 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/distribution/digest"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/reference"
 
@@ -166,6 +166,7 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 	var config *metadata.ImageConfig
 	if imgDigest != "" {
 		config = ic.getImageByDigest(imgDigest)
+		// config = ic.getImageByDigest(string(imgDigest))
 	} else {
 		config = ic.getImageByNamed(named)
 	}

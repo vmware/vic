@@ -24,16 +24,23 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
+	"github.com/docker/docker/api/server/router/swarm"
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
-	"github.com/docker/docker/docker/listeners"
+	"github.com/docker/docker/api/server/router/checkpoint"
+	"github.com/docker/docker/api/server/router/plugin"
+	"github.com/docker/docker/daemon/cluster"
+	"github.com/docker/docker/pkg/listeners"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/executor"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
@@ -169,7 +176,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 			MaxVersion:               c.MaxVersion,
 			CurvePreferences:         c.CurvePreferences,
 		}
-	}(&tlsconfig.ServerDefault)
+	}(tlsconfig.ServerDefault())
 
 	if !vchConfig.HostCertificate.IsNil() {
 		log.Info("TLS enabled")
@@ -230,16 +237,40 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 }
 
 func setAPIRoutes(api *apiserver.Server) {
-	imageHandler := &vicbackends.Image{}
-	containerHandler := vicbackends.NewContainerBackend()
-	volumeHandler := &vicbackends.Volume{}
-	networkHandler := &vicbackends.Network{}
-	systemHandler := vicbackends.NewSystemBackend()
+	decoder := runconfig.ContainerDecoder{}
 
-	api.InitRouter(false,
-		image.NewRouter(imageHandler),
-		container.NewRouter(containerHandler),
-		volume.NewRouter(volumeHandler),
-		network.NewRouter(networkHandler),
-		system.NewRouter(systemHandler))
+	swarmBackend := executor.SwarmBackend{}
+
+	c, err := cluster.New(cluster.Config{
+		Root:                   "",
+		Name:                   "",
+		Backend:                swarmBackend,
+		NetworkSubnetsProvider: nil,
+		DefaultAdvertiseAddr:   "",
+		RuntimeRoot:            "",
+	})
+	if err != nil {
+		log.Fatalf("Error creating cluster component: %v", err)
+	}
+
+	routers := []router.Router{
+		image.NewRouter(vicbackends.NewImageBackend(), decoder),
+		container.NewRouter(vicbackends.NewContainerBackend(), decoder),
+		volume.NewRouter(vicbackends.NewVolumeBackend()),
+		network.NewRouter(vicbackends.NewNetworkBackend(), c),
+		system.NewRouter(vicbackends.NewSystemBackend(), c),
+		swarm.NewRouter(vicbackends.NewSwarmBackend()),
+		checkpoint.NewRouter(vicbackends.NewCheckpointBackend(), decoder),
+		plugin.NewRouter(vicbackends.NewPluginBackend()),
+	}
+
+	for _, r := range routers {
+		for _, route := range r.Routes() {
+			if experimental, ok := route.(router.ExperimentalRoute); ok {
+				experimental.Enable()
+			}
+		}
+	}
+
+	api.InitRouter(false, routers...)
 }

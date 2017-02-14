@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,19 +14,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
 )
 
+var daemonSockRoot = filepath.Join(os.TempDir(), "docker-integration")
+
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
-	// Defaults to "daemon"
-	// Useful to set to --daemon or -d for checking backwards compatibility
-	Command     string
 	GlobalFlags []string
 
 	id                string
@@ -41,6 +43,7 @@ type Daemon struct {
 	userlandProxy     bool
 	useDefaultHost    bool
 	useDefaultTLSHost bool
+	execRoot          string
 }
 
 type clientConfig struct {
@@ -56,7 +59,10 @@ func NewDaemon(c *check.C) *Daemon {
 	dest := os.Getenv("DEST")
 	c.Assert(dest, check.Not(check.Equals), "", check.Commentf("Please set the DEST environment variable"))
 
-	id := fmt.Sprintf("d%d", time.Now().UnixNano()%100000000)
+	err := os.MkdirAll(daemonSockRoot, 0700)
+	c.Assert(err, checker.IsNil, check.Commentf("could not create daemon socket root"))
+
+	id := fmt.Sprintf("d%s", stringid.TruncateID(stringid.GenerateRandomID()))
 	dir := filepath.Join(dest, id)
 	daemonFolder, err := filepath.Abs(dir)
 	c.Assert(err, check.IsNil, check.Commentf("Could not make %q an absolute path", dir))
@@ -72,14 +78,19 @@ func NewDaemon(c *check.C) *Daemon {
 	}
 
 	return &Daemon{
-		Command:       "daemon",
 		id:            id,
 		c:             c,
 		folder:        daemonFolder,
 		root:          daemonRoot,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
 		userlandProxy: userlandProxy,
+		execRoot:      filepath.Join(os.TempDir(), "docker-execroot", id),
 	}
+}
+
+// RootDir returns the root directory of the daemon.
+func (d *Daemon) RootDir() string {
+	return d.root
 }
 
 func (d *Daemon) getClientConfig() (*clientConfig, error) {
@@ -111,7 +122,7 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		scheme = "http"
 		transport = &http.Transport{}
 	} else {
-		addr = filepath.Join(d.folder, "docker.sock")
+		addr = d.sockPath()
 		proto = "unix"
 		scheme = "http"
 		transport = &http.Transport{}
@@ -137,17 +148,19 @@ func (d *Daemon) Start(args ...string) error {
 
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
-	dockerBinary, err := exec.LookPath(dockerBinary)
+	dockerdBinary, err := exec.LookPath(dockerdBinary)
 	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
 	args := append(d.GlobalFlags,
-		d.Command,
 		"--containerd", "/var/run/docker/libcontainerd/docker-containerd.sock",
 		"--graph", d.root,
-		"--exec-root", filepath.Join(d.folder, "exec-root"),
+		"--exec-root", d.execRoot,
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
+	if experimentalDaemon {
+		args = append(args, "--experimental", "--init")
+	}
 	if !(d.useDefaultHost || d.useDefaultTLSHost) {
 		args = append(args, []string{"--host", d.sock()}...)
 	}
@@ -175,8 +188,8 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 
 	args = append(args, providedArgs...)
-	d.cmd = exec.Command(dockerBinary, args...)
-
+	d.cmd = exec.Command(dockerdBinary, args...)
+	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
 	d.logFile = out
@@ -234,6 +247,8 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				return fmt.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
 			}
 			return nil
+		case <-d.wait:
+			return fmt.Errorf("[%s] Daemon exited during startup", d.id)
 		}
 	}
 }
@@ -270,6 +285,16 @@ func (d *Daemon) Kill() error {
 	return nil
 }
 
+// DumpStackAndQuit sends SIGQUIT to the daemon, which triggers it to dump its
+// stack to its log file and exit
+// This is used primarily for gathering debug information on test timeout
+func (d *Daemon) DumpStackAndQuit() {
+	if d.cmd == nil || d.cmd.Process == nil {
+		return
+	}
+	signalDaemonDump(d.cmd.Process.Pid)
+}
+
 // Stop will send a SIGINT every second and wait for the daemon to stop.
 // If it timeouts, a SIGKILL is sent.
 // Stop will not delete the daemon directory. If a purged daemon is needed,
@@ -295,9 +320,9 @@ out1:
 		select {
 		case err := <-d.wait:
 			return err
-		case <-time.After(15 * time.Second):
+		case <-time.After(20 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			d.c.Log("timeout")
+			d.c.Logf("timeout: %v", d.id)
 			break out1
 		}
 	}
@@ -309,7 +334,7 @@ out2:
 			return err
 		case <-tick:
 			i++
-			if i > 4 {
+			if i > 5 {
 				d.c.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
 				break out2
 			}
@@ -354,8 +379,9 @@ func (d *Daemon) LoadBusybox() error {
 			return fmt.Errorf("unexpected error on busybox.tar stat: %v", err)
 		}
 		// saving busybox image from main daemon
-		if err := exec.Command(dockerBinary, "save", "--output", bb, "busybox:latest").Run(); err != nil {
-			return fmt.Errorf("could not save busybox image: %v", err)
+		if out, err := exec.Command(dockerBinary, "save", "--output", bb, "busybox:latest").CombinedOutput(); err != nil {
+			imagesOut, _ := exec.Command(dockerBinary, "images", "--format", "{{ .Repository }}:{{ .Tag }}").CombinedOutput()
+			return fmt.Errorf("could not save busybox image: %s\n%s", string(out), strings.TrimSpace(string(imagesOut)))
 		}
 	}
 	// loading busybox image to this daemon
@@ -402,7 +428,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 	var b []byte
 	var i Info
 	b, err = readBody(body)
-	if err == nil && resp.StatusCode == 200 {
+	if err == nil && resp.StatusCode == http.StatusOK {
 		// read the docker root dir
 		if err = json.Unmarshal(b, &i); err == nil {
 			return i.DockerRootDir, nil
@@ -412,7 +438,11 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 func (d *Daemon) sock() string {
-	return fmt.Sprintf("unix://%s/docker.sock", d.folder)
+	return fmt.Sprintf("unix://" + d.sockPath())
+}
+
+func (d *Daemon) sockPath() string {
+	return filepath.Join(daemonSockRoot, d.id+".sock")
 }
 
 func (d *Daemon) waitRun(contID string) error {
@@ -437,22 +467,43 @@ func (d *Daemon) getBaseDeviceSize(c *check.C) int64 {
 
 // Cmd will execute a docker CLI command against this Daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
-func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
-	args := []string{"--host", d.sock(), name}
-	args = append(args, arg...)
-	c := exec.Command(dockerBinary, args...)
-	b, err := c.CombinedOutput()
+func (d *Daemon) Cmd(args ...string) (string, error) {
+	b, err := d.command(args...).CombinedOutput()
 	return string(b), err
 }
 
-// CmdWithArgs will execute a docker CLI command against a daemon with the
-// given additional arguments
-func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (string, error) {
-	args := append(daemonArgs, name)
-	args = append(args, arg...)
-	c := exec.Command(dockerBinary, args...)
-	b, err := c.CombinedOutput()
-	return string(b), err
+func (d *Daemon) command(args ...string) *exec.Cmd {
+	return exec.Command(dockerBinary, d.prependHostArg(args)...)
+}
+
+func (d *Daemon) prependHostArg(args []string) []string {
+	for _, arg := range args {
+		if arg == "--host" || arg == "-H" {
+			return args
+		}
+	}
+	return append([]string{"--host", d.sock()}, args...)
+}
+
+// SockRequest executes a socket request on a daemon and returns statuscode and output.
+func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []byte, error) {
+	jsonData := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
+		return -1, nil, err
+	}
+
+	res, body, err := d.SockRequestRaw(method, endpoint, jsonData, "application/json")
+	if err != nil {
+		return -1, nil, err
+	}
+	b, err := readBody(body)
+	return res.StatusCode, b, err
+}
+
+// SockRequestRaw executes a socket request on a daemon and returns an http
+// response and a reader for the output data.
+func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
+	return sockRequestRawToDaemon(method, endpoint, data, ct, d.sock())
 }
 
 // LogFileName returns the path the the daemon's log file
@@ -462,6 +513,16 @@ func (d *Daemon) LogFileName() string {
 
 func (d *Daemon) getIDByName(name string) (string, error) {
 	return d.inspectFieldWithError(name, "Id")
+}
+
+func (d *Daemon) activeContainers() (ids []string) {
+	out, _ := d.Cmd("ps", "-q")
+	for _, id := range strings.Split(out, "\n") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return
 }
 
 func (d *Daemon) inspectFilter(name, filter string) (string, error) {
@@ -483,4 +544,65 @@ func (d *Daemon) findContainerIP(id string) string {
 		d.c.Log(err)
 	}
 	return strings.Trim(out, " \r\n'")
+}
+
+func (d *Daemon) buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, int, error) {
+	buildCmd := buildImageCmdWithHost(name, dockerfile, d.sock(), useCache, buildFlags...)
+	return runCommandWithOutput(buildCmd)
+}
+
+func (d *Daemon) checkActiveContainerCount(c *check.C) (interface{}, check.CommentInterface) {
+	out, err := d.Cmd("ps", "-q")
+	c.Assert(err, checker.IsNil)
+	if len(strings.TrimSpace(out)) == 0 {
+		return 0, nil
+	}
+	return len(strings.Split(strings.TrimSpace(out), "\n")), check.Commentf("output: %q", string(out))
+}
+
+func (d *Daemon) reloadConfig() error {
+	if d.cmd == nil || d.cmd.Process == nil {
+		return fmt.Errorf("daemon is not running")
+	}
+
+	errCh := make(chan error)
+	started := make(chan struct{})
+	go func() {
+		_, body, err := sockRequestRawToDaemon("GET", "/events", nil, "", d.sock())
+		close(started)
+		if err != nil {
+			errCh <- err
+		}
+		defer body.Close()
+		dec := json.NewDecoder(body)
+		for {
+			var e events.Message
+			if err := dec.Decode(&e); err != nil {
+				errCh <- err
+				return
+			}
+			if e.Type != events.DaemonEventType {
+				continue
+			}
+			if e.Action != "reload" {
+				continue
+			}
+			close(errCh) // notify that we are done
+			return
+		}
+	}()
+
+	<-started
+	if err := signalDaemonReload(d.cmd.Process.Pid); err != nil {
+		return fmt.Errorf("error signaling daemon reload: %v", err)
+	}
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("error waiting for daemon reload event: %v", err)
+		}
+	case <-time.After(30 * time.Second):
+		return fmt.Errorf("timeout waiting for daemon reload event")
+	}
+	return nil
 }

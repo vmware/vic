@@ -36,7 +36,7 @@ import (
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"

@@ -1,32 +1,47 @@
 package config
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/osl"
 )
+
+// restrictedNameRegex represents the regular expression which regulates the allowed network or endpoint names.
+const restrictedNameRegex = `^[\w]+[\w-. ]*[\w]+$`
+
+// RestrictedNamePattern is a regular expression to validate names against the collection of restricted characters.
+var restrictedNamePattern = regexp.MustCompile(restrictedNameRegex)
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
-	Daemon  DaemonCfg
-	Cluster ClusterCfg
-	Scopes  map[string]*datastore.ScopeCfg
+	Daemon          DaemonCfg
+	Cluster         ClusterCfg
+	Scopes          map[string]*datastore.ScopeCfg
+	ActiveSandboxes map[string]interface{}
+	PluginGetter    plugingetter.PluginGetter
 }
 
 // DaemonCfg represents libnetwork core configuration
 type DaemonCfg struct {
-	Debug          bool
-	DataDir        string
-	DefaultNetwork string
-	DefaultDriver  string
-	Labels         []string
-	DriverCfg      map[string]interface{}
+	Debug           bool
+	DataDir         string
+	DefaultNetwork  string
+	DefaultDriver   string
+	Labels          []string
+	DriverCfg       map[string]interface{}
+	ClusterProvider cluster.Provider
+	DisableProvider chan struct{}
 }
 
 // ClusterCfg represents cluster configuration
@@ -66,7 +81,8 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 func ParseConfigOptions(cfgOptions ...Option) *Config {
 	cfg := &Config{
 		Daemon: DaemonCfg{
-			DriverCfg: make(map[string]interface{}),
+			DriverCfg:       make(map[string]interface{}),
+			DisableProvider: make(chan struct{}, 10),
 		},
 		Scopes: make(map[string]*datastore.ScopeCfg),
 	}
@@ -84,7 +100,7 @@ type Option func(c *Config)
 // OptionDefaultNetwork function returns an option setter for a default network
 func OptionDefaultNetwork(dn string) Option {
 	return func(c *Config) {
-		log.Debugf("Option DefaultNetwork: %s", dn)
+		logrus.Debugf("Option DefaultNetwork: %s", dn)
 		c.Daemon.DefaultNetwork = strings.TrimSpace(dn)
 	}
 }
@@ -92,7 +108,7 @@ func OptionDefaultNetwork(dn string) Option {
 // OptionDefaultDriver function returns an option setter for default driver
 func OptionDefaultDriver(dd string) Option {
 	return func(c *Config) {
-		log.Debugf("Option DefaultDriver: %s", dd)
+		logrus.Debugf("Option DefaultDriver: %s", dd)
 		c.Daemon.DefaultDriver = strings.TrimSpace(dd)
 	}
 }
@@ -118,7 +134,7 @@ func OptionLabels(labels []string) Option {
 // OptionKVProvider function returns an option setter for kvstore provider
 func OptionKVProvider(provider string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionKVProvider: %s", provider)
+		logrus.Debugf("Option OptionKVProvider: %s", provider)
 		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
 			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
 		}
@@ -129,7 +145,7 @@ func OptionKVProvider(provider string) Option {
 // OptionKVProviderURL function returns an option setter for kvstore url
 func OptionKVProviderURL(url string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionKVProviderURL: %s", url)
+		logrus.Debugf("Option OptionKVProviderURL: %s", url)
 		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
 			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
 		}
@@ -141,14 +157,14 @@ func OptionKVProviderURL(url string) Option {
 func OptionKVOpts(opts map[string]string) Option {
 	return func(c *Config) {
 		if opts["kv.cacertfile"] != "" && opts["kv.certfile"] != "" && opts["kv.keyfile"] != "" {
-			log.Info("Option Initializing KV with TLS")
+			logrus.Info("Option Initializing KV with TLS")
 			tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
 				CAFile:   opts["kv.cacertfile"],
 				CertFile: opts["kv.certfile"],
 				KeyFile:  opts["kv.keyfile"],
 			})
 			if err != nil {
-				log.Errorf("Unable to set up TLS: %s", err)
+				logrus.Errorf("Unable to set up TLS: %s", err)
 				return
 			}
 			if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
@@ -166,7 +182,7 @@ func OptionKVOpts(opts map[string]string) Option {
 				KeyFile:    opts["kv.keyfile"],
 			}
 		} else {
-			log.Info("Option Initializing KV without TLS")
+			logrus.Info("Option Initializing KV without TLS")
 		}
 	}
 }
@@ -192,6 +208,20 @@ func OptionDataDir(dataDir string) Option {
 	}
 }
 
+// OptionExecRoot function returns an option setter for exec root folder
+func OptionExecRoot(execRoot string) Option {
+	return func(c *Config) {
+		osl.SetBasePath(execRoot)
+	}
+}
+
+// OptionPluginGetter returns a plugingetter for remote drivers.
+func OptionPluginGetter(pg plugingetter.PluginGetter) Option {
+	return func(c *Config) {
+		c.PluginGetter = pg
+	}
+}
+
 // ProcessOptions processes options and stores it in config
 func (c *Config) ProcessOptions(options ...Option) {
 	for _, opt := range options {
@@ -201,18 +231,18 @@ func (c *Config) ProcessOptions(options ...Option) {
 	}
 }
 
-// IsValidName validates configuration objects supported by libnetwork
-func IsValidName(name string) bool {
-	if strings.TrimSpace(name) == "" {
-		return false
+// ValidateName validates configuration objects supported by libnetwork
+func ValidateName(name string) error {
+	if !restrictedNamePattern.MatchString(name) {
+		return fmt.Errorf("%q includes invalid characters, resource name has to conform to %q", name, restrictedNameRegex)
 	}
-	return true
+	return nil
 }
 
 // OptionLocalKVProvider function returns an option setter for kvstore provider
 func OptionLocalKVProvider(provider string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionLocalKVProvider: %s", provider)
+		logrus.Debugf("Option OptionLocalKVProvider: %s", provider)
 		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
 			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
 		}
@@ -223,7 +253,7 @@ func OptionLocalKVProvider(provider string) Option {
 // OptionLocalKVProviderURL function returns an option setter for kvstore url
 func OptionLocalKVProviderURL(url string) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionLocalKVProviderURL: %s", url)
+		logrus.Debugf("Option OptionLocalKVProviderURL: %s", url)
 		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
 			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
 		}
@@ -234,10 +264,18 @@ func OptionLocalKVProviderURL(url string) Option {
 // OptionLocalKVProviderConfig function returns an option setter for kvstore config
 func OptionLocalKVProviderConfig(config *store.Config) Option {
 	return func(c *Config) {
-		log.Debugf("Option OptionLocalKVProviderConfig: %v", config)
+		logrus.Debugf("Option OptionLocalKVProviderConfig: %v", config)
 		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
 			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
 		}
 		c.Scopes[datastore.LocalScope].Client.Config = config
+	}
+}
+
+// OptionActiveSandboxes function returns an option setter for passing the sandboxes
+// which were active during previous daemon life
+func OptionActiveSandboxes(sandboxes map[string]interface{}) Option {
+	return func(c *Config) {
+		c.ActiveSandboxes = sandboxes
 	}
 }

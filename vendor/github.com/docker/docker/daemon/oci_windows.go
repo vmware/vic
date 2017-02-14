@@ -1,18 +1,16 @@
 package daemon
 
 import (
-	"fmt"
-	"strings"
 	"syscall"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/libcontainerd/windowsoci"
 	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, error) {
+func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s := oci.DefaultSpec()
 
 	linkedEnv, err := daemon.setupLinkedContainers(c)
@@ -26,11 +24,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		return nil, err
 	}
 
-	img, err := daemon.imageStore.Get(c.ImageID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to graph.Get on ImageID %s - %s", c.ImageID, err)
-	}
-
 	// In base spec
 	s.Hostname = c.FullHostname()
 
@@ -40,142 +33,80 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		return nil, err
 	}
 	for _, mount := range mounts {
-		s.Mounts = append(s.Mounts, windowsoci.Mount{
+		m := specs.Mount{
 			Source:      mount.Source,
 			Destination: mount.Destination,
-			Readonly:    !mount.Writable,
-		})
-	}
-
-	// Are we going to run as a Hyper-V container?
-	hv := false
-	if c.HostConfig.Isolation.IsDefault() {
-		// Container is set to use the default, so take the default from the daemon configuration
-		hv = daemon.defaultIsolation.IsHyperV()
-	} else {
-		// Container is requesting an isolation mode. Honour it.
-		hv = c.HostConfig.Isolation.IsHyperV()
-	}
-	if hv {
-		// TODO We don't yet have the ImagePath hooked up. But set to
-		// something non-nil to pickup in libcontainerd.
-		s.Windows.HvRuntime = &windowsoci.HvRuntime{}
+		}
+		if !mount.Writable {
+			m.Options = append(m.Options, "ro")
+		}
+		s.Mounts = append(s.Mounts, m)
 	}
 
 	// In s.Process
-	if c.Config.ArgsEscaped {
-		s.Process.Args = append([]string{c.Path}, c.Args...)
-	} else {
-		// TODO (jstarks): escape the entrypoint too once the tests are fixed to not rely on this behavior
-		s.Process.Args = append([]string{c.Path}, escapeArgs(c.Args)...)
+	s.Process.Args = append([]string{c.Path}, c.Args...)
+	if !c.Config.ArgsEscaped {
+		s.Process.Args = escapeArgs(s.Process.Args)
 	}
 	s.Process.Cwd = c.Config.WorkingDir
-	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
-	s.Process.InitialConsoleSize = c.HostConfig.ConsoleSize
+	if len(s.Process.Cwd) == 0 {
+		// We default to C:\ to workaround the oddity of the case that the
+		// default directory for cmd running as LocalSystem (or
+		// ContainerAdministrator) is c:\windows\system32. Hence docker run
+		// <image> cmd will by default end in c:\windows\system32, rather
+		// than 'root' (/) on Linux. The oddity is that if you have a dockerfile
+		// which has no WORKDIR and has a COPY file ., . will be interpreted
+		// as c:\. Hence, setting it to default of c:\ makes for consistency.
+		s.Process.Cwd = `C:\`
+	}
+	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
+	s.Process.ConsoleSize.Height = c.HostConfig.ConsoleSize[0]
+	s.Process.ConsoleSize.Width = c.HostConfig.ConsoleSize[1]
 	s.Process.Terminal = c.Config.Tty
-	s.Process.User.User = c.Config.User
+	s.Process.User.Username = c.Config.User
 
-	// In spec.Root
-	s.Root.Path = c.BaseFS
-	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
-
-	// In s.Windows
-	s.Windows.FirstStart = !c.HasBeenStartedBefore
-
-	// s.Windows.LayerFolder.
-	m, err := c.RWLayer.Metadata()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get layer metadata - %s", err)
+	// In spec.Root. This is not set for Hyper-V containers
+	isHyperV := false
+	if c.HostConfig.Isolation.IsDefault() {
+		// Container using default isolation, so take the default from the daemon configuration
+		isHyperV = daemon.defaultIsolation.IsHyperV()
+	} else {
+		// Container may be requesting an explicit isolation mode.
+		isHyperV = c.HostConfig.Isolation.IsHyperV()
 	}
-	s.Windows.LayerFolder = m["dir"]
-
-	// s.Windows.LayerPaths
-	var layerPaths []string
-	if img.RootFS != nil && img.RootFS.Type == "layers+base" {
-		max := len(img.RootFS.DiffIDs)
-		for i := 0; i <= max; i++ {
-			img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
-			path, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
-			if err != nil {
-				return nil, fmt.Errorf("Failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
-			}
-			// Reverse order, expecting parent most first
-			layerPaths = append([]string{path}, layerPaths...)
-		}
+	if !isHyperV {
+		s.Root.Path = c.BaseFS
 	}
-	s.Windows.LayerPaths = layerPaths
-
-	// In s.Windows.Networking (TP5+ libnetwork way of doing things)
-	// Connect all the libnetwork allocated networks to the container
-	var epList []string
-	if c.NetworkSettings != nil {
-		for n := range c.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
-			if err != nil {
-				continue
-			}
-
-			ep, err := c.GetEndpointInNetwork(sn)
-			if err != nil {
-				continue
-			}
-
-			data, err := ep.DriverInfo()
-			if err != nil {
-				continue
-			}
-			if data["hnsid"] != nil {
-				epList = append(epList, data["hnsid"].(string))
-			}
-		}
-	}
-	s.Windows.Networking = &windowsoci.Networking{
-		EndpointList: epList,
-	}
-
-	// In s.Windows.Networking (TP4 back compat)
-	// TODO Windows: Post TP4 - Remove this along with definitions from spec
-	// and changes to libcontainerd to not read these fields.
-	if daemon.netController == nil {
-		parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
-		switch parts[0] {
-		case "none":
-		case "default", "": // empty string to support existing containers
-			if !c.Config.NetworkDisabled {
-				s.Windows.Networking = &windowsoci.Networking{
-					MacAddress:   c.Config.MacAddress,
-					Bridge:       daemon.configStore.bridgeConfig.Iface,
-					PortBindings: c.HostConfig.PortBindings,
-				}
-			}
-		default:
-			return nil, fmt.Errorf("invalid network mode: %s", c.HostConfig.NetworkMode)
-		}
-	}
+	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 
 	// In s.Windows.Resources
 	// @darrenstahlmsft implement these resources
-	cpuShares := uint64(c.HostConfig.CPUShares)
-	s.Windows.Resources = &windowsoci.Resources{
-		CPU: &windowsoci.CPU{
-			//TODO Count: ...,
-			//TODO Percent: ...,
-			Shares: &cpuShares,
+	cpuShares := uint16(c.HostConfig.CPUShares)
+	cpuPercent := uint8(c.HostConfig.CPUPercent)
+	if c.HostConfig.NanoCPUs > 0 {
+		cpuPercent = uint8(c.HostConfig.NanoCPUs * 100 / int64(sysinfo.NumCPU()) / 1e9)
+	}
+	cpuCount := uint64(c.HostConfig.CPUCount)
+	memoryLimit := uint64(c.HostConfig.Memory)
+	s.Windows.Resources = &specs.WindowsResources{
+		CPU: &specs.WindowsCPUResources{
+			Percent: &cpuPercent,
+			Shares:  &cpuShares,
+			Count:   &cpuCount,
 		},
-		Memory: &windowsoci.Memory{
-		//TODO Limit: ...,
-		//TODO Reservation: ...,
+		Memory: &specs.WindowsMemoryResources{
+			Limit: &memoryLimit,
+			//TODO Reservation: ...,
 		},
-		Network: &windowsoci.Network{
+		Network: &specs.WindowsNetworkResources{
 		//TODO Bandwidth: ...,
 		},
-		Storage: &windowsoci.Storage{
-		//TODO Bps: ...,
-		//TODO Iops: ...,
-		//TODO SandboxSize: ...,
+		Storage: &specs.WindowsStorageResources{
+			Bps:  &c.HostConfig.IOMaximumBandwidth,
+			Iops: &c.HostConfig.IOMaximumIOps,
 		},
 	}
-	return (*libcontainerd.Spec)(&s), nil
+	return (*specs.Spec)(&s), nil
 }
 
 func escapeArgs(args []string) []string {
@@ -184,4 +115,10 @@ func escapeArgs(args []string) []string {
 		escapedArgs[i] = syscall.EscapeArg(a)
 	}
 	return escapedArgs
+}
+
+// mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
+// It will do nothing on non-Linux platform
+func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
+	return
 }

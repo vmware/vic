@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types/filters"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 )

@@ -20,7 +20,7 @@ import (
 	"time"
 
 	v1 "github.com/docker/docker/image"
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types/container"
 
 	"github.com/stretchr/testify/assert"
 

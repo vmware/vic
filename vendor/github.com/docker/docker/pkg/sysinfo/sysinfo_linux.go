@@ -18,7 +18,7 @@ const (
 )
 
 func findCgroupMountpoints() (map[string]string, error) {
-	cgMounts, err := cgroups.GetCgroupMounts()
+	cgMounts, err := cgroups.GetCgroupMounts(false)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse cgroup information: %v", err)
 	}
@@ -75,7 +75,7 @@ func checkCgroupMem(cgMounts map[string]string, quiet bool) cgroupMemInfo {
 	mountPoint, ok := cgMounts["memory"]
 	if !ok {
 		if !quiet {
-			logrus.Warnf("Your kernel does not support cgroup memory limit")
+			logrus.Warn("Your kernel does not support cgroup memory limit")
 		}
 		return cgroupMemInfo{}
 	}
@@ -90,15 +90,15 @@ func checkCgroupMem(cgMounts map[string]string, quiet bool) cgroupMemInfo {
 	}
 	oomKillDisable := cgroupEnabled(mountPoint, "memory.oom_control")
 	if !quiet && !oomKillDisable {
-		logrus.Warnf("Your kernel does not support oom control.")
+		logrus.Warn("Your kernel does not support oom control.")
 	}
 	memorySwappiness := cgroupEnabled(mountPoint, "memory.swappiness")
 	if !quiet && !memorySwappiness {
-		logrus.Warnf("Your kernel does not support memory swappiness.")
+		logrus.Warn("Your kernel does not support memory swappiness.")
 	}
 	kernelMemory := cgroupEnabled(mountPoint, "memory.kmem.limit_in_bytes")
 	if !quiet && !kernelMemory {
-		logrus.Warnf("Your kernel does not support kernel memory limit.")
+		logrus.Warn("Your kernel does not support kernel memory limit.")
 	}
 
 	return cgroupMemInfo{
@@ -116,7 +116,7 @@ func checkCgroupCPU(cgMounts map[string]string, quiet bool) cgroupCPUInfo {
 	mountPoint, ok := cgMounts["cpu"]
 	if !ok {
 		if !quiet {
-			logrus.Warnf("Unable to find cpu cgroup in mounts")
+			logrus.Warn("Unable to find cpu cgroup in mounts")
 		}
 		return cgroupCPUInfo{}
 	}
@@ -135,10 +135,23 @@ func checkCgroupCPU(cgMounts map[string]string, quiet bool) cgroupCPUInfo {
 	if !quiet && !cpuCfsQuota {
 		logrus.Warn("Your kernel does not support cgroup cfs quotas")
 	}
+
+	cpuRealtimePeriod := cgroupEnabled(mountPoint, "cpu.rt_period_us")
+	if !quiet && !cpuRealtimePeriod {
+		logrus.Warn("Your kernel does not support cgroup rt period")
+	}
+
+	cpuRealtimeRuntime := cgroupEnabled(mountPoint, "cpu.rt_runtime_us")
+	if !quiet && !cpuRealtimeRuntime {
+		logrus.Warn("Your kernel does not support cgroup rt runtime")
+	}
+
 	return cgroupCPUInfo{
-		CPUShares:    cpuShares,
-		CPUCfsPeriod: cpuCfsPeriod,
-		CPUCfsQuota:  cpuCfsQuota,
+		CPUShares:          cpuShares,
+		CPUCfsPeriod:       cpuCfsPeriod,
+		CPUCfsQuota:        cpuCfsQuota,
+		CPURealtimePeriod:  cpuRealtimePeriod,
+		CPURealtimeRuntime: cpuRealtimeRuntime,
 	}
 }
 
@@ -147,7 +160,7 @@ func checkCgroupBlkioInfo(cgMounts map[string]string, quiet bool) cgroupBlkioInf
 	mountPoint, ok := cgMounts["blkio"]
 	if !ok {
 		if !quiet {
-			logrus.Warnf("Unable to find blkio cgroup in mounts")
+			logrus.Warn("Unable to find blkio cgroup in mounts")
 		}
 		return cgroupBlkioInfo{}
 	}
@@ -195,7 +208,7 @@ func checkCgroupCpusetInfo(cgMounts map[string]string, quiet bool) cgroupCpusetI
 	mountPoint, ok := cgMounts["cpuset"]
 	if !ok {
 		if !quiet {
-			logrus.Warnf("Unable to find cpuset cgroup in mounts")
+			logrus.Warn("Unable to find cpuset cgroup in mounts")
 		}
 		return cgroupCpusetInfo{}
 	}

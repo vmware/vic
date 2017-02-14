@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"

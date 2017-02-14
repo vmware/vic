@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/events/testutils"
+	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -89,7 +89,7 @@ func (e *eventObserver) Match(match eventMatcher, process eventMatchProcessor) {
 		err = io.EOF
 	}
 
-	logrus.Debug("EventObserver scanner loop finished: %v", err)
+	logrus.Debugf("EventObserver scanner loop finished: %v", err)
 	e.disconnectionError = err
 }
 
@@ -98,7 +98,7 @@ func (e *eventObserver) CheckEventError(c *check.C, id, event string, match even
 	scannerOut := e.buffer.String()
 
 	if e.disconnectionError != nil {
-		until := strconv.FormatInt(daemonTime(c).Unix(), 10)
+		until := daemonUnixTime(c)
 		out, _ := dockerCmd(c, "events", "--since", e.startTime, "--until", until)
 		events := strings.Split(strings.TrimSpace(out), "\n")
 		for _, e := range events {

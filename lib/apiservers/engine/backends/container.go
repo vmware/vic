@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 package backends
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -26,20 +25,22 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	containertypes "github.com/docker/engine-api/types/container"
-	dnetwork "github.com/docker/engine-api/types/network"
-	timetypes "github.com/docker/engine-api/types/time"
-	"github.com/docker/go-connections/nat"
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	dnetwork "github.com/docker/docker/api/types/network"
+	timetypes "github.com/docker/docker/api/types/time"
+	gonat "github.com/docker/go-connections/nat"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/portallocator"
@@ -184,33 +185,33 @@ func NewContainerBackend() *Container {
 // docker's container.execBackend
 
 // ContainerExecCreate sets up an exec in a running container.
-func (c *Container) ContainerExecCreate(config *types.ExecConfig) (string, error) {
-	return "", fmt.Errorf("%s does not implement container.ContainerExecCreate", ProductName())
+func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
+	return "", fmt.Errorf("%s does not yet implement ContainerExecCreate", ProductName())
 }
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
 func (c *Container) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerExecInspect", ProductName())
+	return nil, fmt.Errorf("%s does not yet implement ContainerExecInspect", ProductName())
 }
 
 // ContainerExecResize changes the size of the TTY of the process
 // running in the exec with the given name to the given height and
 // width.
 func (c *Container) ContainerExecResize(name string, height, width int) error {
-	return fmt.Errorf("%s does not implement container.ContainerExecResize", ProductName())
+	return fmt.Errorf("%s does not yet implement ContainerExecResize", ProductName())
 }
 
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
-func (c *Container) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
-	return fmt.Errorf("%s does not implement container.ContainerExecStart", ProductName())
+func (c *Container) ContainerExecStart(ctx context.Context, name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
+	return fmt.Errorf("%s does not yet implement ContainerExecStart", ProductName())
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
 func (c *Container) ExecExists(name string) (bool, error) {
-	return false, fmt.Errorf("%s does not implement container.ExecExists", ProductName())
+	return false, fmt.Errorf("%s does not yet implement ExecExists", ProductName())
 }
 
 // docker's container.copyBackend
@@ -219,19 +220,19 @@ func (c *Container) ExecExists(name string) (bool, error) {
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
 func (c *Container) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	return nil, nil, fmt.Errorf("%s does not implement container.ContainerArchivePath", ProductName())
+	return nil, nil, fmt.Errorf("%s does not yet implement ContainerArchivePath", ProductName())
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the container identified by the given name.
 func (c *Container) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerCopy", ProductName())
+	return nil, fmt.Errorf("%s does not yet implement ContainerCopy", ProductName())
 }
 
 // ContainerExport writes the contents of the container to the given
 // writer. An error is returned if the container cannot be found.
 func (c *Container) ContainerExport(name string, out io.Writer) error {
-	return fmt.Errorf("%s does not implement container.ContainerExport", ProductName())
+	return fmt.Errorf("%s does not yet implement ContainerExport", ProductName())
 }
 
 // ContainerExtractToDir extracts the given archive to the specified location
@@ -241,19 +242,19 @@ func (c *Container) ContainerExport(name string, out io.Writer) error {
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	return fmt.Errorf("%s does not implement container.ContainerExtractToDir", ProductName())
+	return fmt.Errorf("%s does not yet implement ContainerExtractToDir", ProductName())
 }
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
 func (c *Container) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerStatPath", ProductName())
+	return nil, fmt.Errorf("%s does not yet implement ContainerStatPath", ProductName())
 }
 
 // docker's container.stateBackend
 
 // ContainerCreate creates a container.
-func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
+func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
 	defer trace.End(trace.Begin(""))
 
 	var err error
@@ -262,7 +263,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
 		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
 		log.Errorf("%s", err.Error())
-		return types.ContainerCreateResponse{}, derr.NewRequestConflictError(err)
+		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
 	}
 
 	// get the image from the cache
@@ -271,27 +272,27 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
 		log.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
-		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
+		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestNotFoundError(err)
 	}
 
 	setCreateConfigOptions(config.Config, image.Config)
 
 	log.Debugf("config.Config = %+v", config.Config)
 	if err = validateCreateConfig(&config); err != nil {
-		return types.ContainerCreateResponse{}, err
+		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
 	// Create a container representation in the personality server.  This representation
 	// will be stored in the cache if create succeeds in the port layer.
 	container, err := createInternalVicContainer(image, &config)
 	if err != nil {
-		return types.ContainerCreateResponse{}, err
+		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
 	// Create an actualized container in the VIC port layer
 	id, err := c.containerCreate(container, config)
 	if err != nil {
-		return types.ContainerCreateResponse{}, err
+		return containertypes.ContainerCreateCreatedBody{}, err
 	}
 
 	// Container created ok, save the container id and save the config override from the API
@@ -303,7 +304,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	log.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
 		container.Name, container.ContainerID, container.Config, container.HostConfig)
 
-	return types.ContainerCreateResponse{ID: id}, nil
+	return containertypes.ContainerCreateCreatedBody{ID: id}, nil
 }
 
 // createContainer() makes calls to the container proxy to actually create the backing
@@ -373,14 +374,14 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 
 // ContainerPause pauses a container
 func (c *Container) ContainerPause(name string) error {
-	return fmt.Errorf("%s does not implement container.ContainerPause", ProductName())
+	return fmt.Errorf("%s does not yet implement ContainerPause", ProductName())
 }
 
 // ContainerRename changes the name of a container, using the oldName
 // to find the container. An error is returned if newName is already
 // reserved.
 func (c *Container) ContainerRename(oldName, newName string) error {
-	return fmt.Errorf("%s does not implement container.ContainerRename", ProductName())
+	return fmt.Errorf("%s does not yet implement ContainerRename", ProductName())
 }
 
 // ContainerResize changes the size of the TTY of the process running
@@ -407,7 +408,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // timeout, ContainerRestart will wait forever until a graceful
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
-func (c *Container) ContainerRestart(name string, seconds int) error {
+func (c *Container) ContainerRestart(name string, seconds *int) error {
 	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache ot get long ID
@@ -454,8 +455,9 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 	_ = &config.RemoveVolume
 
 	// Use the force and stop the container first
+	secs := 0
 	if config.ForceRemove {
-		c.containerProxy.Stop(vc, name, 0, true)
+		c.containerProxy.Stop(vc, name, &secs, true)
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -531,7 +533,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 }
 
 // ContainerStart starts a container.
-func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
+func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig, checkpoint string, checkpointDir string) error {
 	defer trace.End(trace.Begin(name))
 
 	operation := func() error {
@@ -668,16 +670,16 @@ func requestHostPort(proto string) (int, error) {
 type portMapping struct {
 	intHostPort int
 	strHostPort string
-	portProto   nat.Port
+	portProto   gonat.Port
 }
 
 // unrollPortMap processes config for mapping/unmapping ports e.g. from hostconfig.PortBindings
-func unrollPortMap(portMap nat.PortMap) ([]*portMapping, error) {
+func unrollPortMap(portMap gonat.PortMap) ([]*portMapping, error) {
 	var portMaps []*portMapping
 	for i, pb := range portMap {
 
-		proto, port := nat.SplitProtoPort(string(i))
-		nport, err := nat.NewPort(proto, port)
+		proto, port := gonat.SplitProtoPort(string(i))
+		nport, err := gonat.NewPort(proto, port)
 		if err != nil {
 			return nil, err
 		}
@@ -895,7 +897,7 @@ func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.Host
 // will wait for a graceful termination. An error is returned if the
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
-func (c *Container) ContainerStop(name string, seconds int) error {
+func (c *Container) ContainerStop(name string, seconds *int) error {
 	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache to get long ID
@@ -915,12 +917,12 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 
 // ContainerUnpause unpauses a container
 func (c *Container) ContainerUnpause(name string) error {
-	return fmt.Errorf("%s does not implement container.ContainerUnpause", ProductName())
+	return fmt.Errorf("%s does not yet implement ContainerUnpause", ProductName())
 }
 
 // ContainerUpdate updates configuration of the container
-func (c *Container) ContainerUpdate(name string, hostConfig *containertypes.HostConfig) ([]string, error) {
-	return make([]string, 0, 0), fmt.Errorf("%s does not implement container.ContainerUpdate", ProductName())
+func (c *Container) ContainerUpdate(name string, hostConfig *containertypes.HostConfig) (containertypes.ContainerUpdateOKBody, error) {
+	return containertypes.ContainerUpdateOKBody{}, fmt.Errorf("%s does not yet implement ontainerUpdate", ProductName())
 }
 
 // ContainerWait stops processing until the given container is
@@ -997,13 +999,13 @@ func dockerStatus(exitCode int, status string, state string, started time.Time, 
 
 // ContainerChanges returns a list of container fs changes
 func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
-	return make([]archive.Change, 0, 0), fmt.Errorf("%s does not implement container.ContainerChanges", ProductName())
+	return make([]archive.Change, 0, 0), fmt.Errorf("%s does not yet implement ontainerChanges", ProductName())
 }
 
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (c *Container) ContainerInspect(name string, size bool, version version.Version) (interface{}, error) {
+func (c *Container) ContainerInspect(name string, size bool, version string) (interface{}, error) {
 	// Ignore version.  We're supporting post-1.20 version.
 	defer trace.End(trace.Begin(name))
 
@@ -1064,7 +1066,7 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
-func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+func (c *Container) ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	defer trace.End(trace.Begin(""))
 
 	// Look up the container name in the metadata cache to get long ID
@@ -1105,8 +1107,8 @@ func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConf
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (c *Container) ContainerStats(name string, config *backend.ContainerStatsConfig) error {
-	return fmt.Errorf("%s does not implement container.ContainerStats", ProductName())
+func (c *Container) ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error {
+	return fmt.Errorf("%s does not yet implement ContainerStats", ProductName())
 }
 
 // ContainerTop lists the processes running inside of the given
@@ -1115,7 +1117,7 @@ func (c *Container) ContainerStats(name string, config *backend.ContainerStatsCo
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
 func (c *Container) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerTop", ProductName())
+	return nil, fmt.Errorf("%s does not yet implement ContainerTop", ProductName())
 }
 
 // Containers returns the list of containers to show given the user's filtering.
@@ -1170,7 +1172,7 @@ payloadLoop:
 		// TODO: refactor labelsFromAnnotations func for broader use
 		tempConfig := &containertypes.Config{}
 		err = labelsFromAnnotations(tempConfig, t.ContainerConfig.Annotations)
-		if err != nil && config.Filter.Include("label") {
+		if err != nil && config.Filters.Include("label") {
 			return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
 		}
 
@@ -1259,6 +1261,11 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 	}
 	return nil
 }
+
+func (c *Container) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
+	return nil, fmt.Errorf("%s does not yet implement ContainersPrune", ProductName())
+}
+
 
 func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConfig) error {
 	// Look up the container name in the metadata cache to get long ID
@@ -1562,7 +1569,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 				}
 			}
 
-			start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
+			start, end, _ := gonat.ParsePortRangeToInt(pb.HostPort)
 			if start != end {
 				return InternalServerError("host port ranges are not supported for port bindings")
 			}
@@ -1642,25 +1649,26 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 
 	portBindings := c.HostConfig.PortBindings
 	var resultPorts []types.Port
-	var err error
 
 	for _, port := range ports {
 		for portBindingPrivatePort, hostPortBindings := range portBindings {
 			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
-			port.PrivatePort, err = strconv.Atoi(portAndType[0])
+			portNum, err := strconv.Atoi(portAndType[0])
 			if err != nil {
 				log.Infof("Got an error trying to convert private port number to an int")
 				continue
 			}
+			port.PrivatePort = uint16(portNum)
 			port.Type = portAndType[1]
 
 			for i := 0; i < len(hostPortBindings); i++ {
 				newport := port
-				newport.PublicPort, err = strconv.Atoi(hostPortBindings[i].HostPort)
+				publicPort, err := strconv.Atoi(hostPortBindings[i].HostPort)
 				if err != nil {
 					log.Infof("Got an error trying to convert public port number to an int")
 					continue
 				}
+				newport.PublicPort = uint16(publicPort)
 				// sanity check -- sometimes these come back as 0 when no binding actually exists
 				// that doesn't make sense, so in that case we don't want to report these bindings
 				if newport.PublicPort != 0 && newport.PrivatePort != 0 {

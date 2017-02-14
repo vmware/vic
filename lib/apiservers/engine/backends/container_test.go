@@ -25,11 +25,11 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types/backend"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	dnetwork "github.com/docker/engine-api/types/network"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	dnetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
@@ -290,7 +290,7 @@ func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, sta
 	return nil
 }
 
-func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
+func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
 	return nil
 }
 
@@ -593,7 +593,7 @@ func TestContainerLogs(t *testing.T) {
 			started := make(chan struct{})
 
 			start := time.Now()
-			err := cb.ContainerLogs(containerID, &data.Config, started)
+			err := cb.ContainerLogs(context.TODO(), containerID, &data.Config, started)
 			end := time.Now()
 
 			select {
@@ -625,7 +625,7 @@ func TestContainerLogs(t *testing.T) {
 	// cache, so the only error will come from StreamContainerLogs. Since the
 	// containerID = "", StreamContainerLogs will return an error.
 	started := make(chan struct{})
-	err := cb.ContainerLogs(fakeContainerID, &mockData[0].Config, started)
+	err := cb.ContainerLogs(context.TODO(), fakeContainerID, &mockData[0].Config, started)
 	assert.NoError(t, err)
 }
 

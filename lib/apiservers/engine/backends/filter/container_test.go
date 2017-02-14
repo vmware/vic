@@ -17,8 +17,8 @@ package filter
 import (
 	"testing"
 
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -29,12 +29,12 @@ import (
 func TestValidateContainerFilters(t *testing.T) {
 
 	options := &types.ContainerListOptions{
-		Filter: filters.NewArgs(),
+		Filters: filters.NewArgs(),
 	}
-	options.Filter.Add("id", "12345")
-	options.Filter.Add("status", "running")
-	options.Filter.Add("exited", "143")
-	options.Filter.Add("exited", "127")
+	options.Filters.Add("id", "12345")
+	options.Filters.Add("status", "running")
+	options.Filters.Add("exited", "143")
+	options.Filters.Add("exited", "127")
 	// valid status & exit
 	listContext, err := ValidateContainerFilters(options, acceptedPsFilterTags, unSupportedPsFilters)
 	assert.NoError(t, err)
@@ -42,36 +42,36 @@ func TestValidateContainerFilters(t *testing.T) {
 	// we should have two exit codes added to the list
 	// context
 	assert.Equal(t, 2, len(listContext.exitAllowed))
-	assert.Equal(t, options.Filter, listContext.Filter)
+	assert.Equal(t, options.Filters, listContext.Filters)
 
 	// remove valid status and replace w/invalid
-	options.Filter.Del("status", "running")
-	options.Filter.Add("status", "jackedup")
+	options.Filters.Del("status", "running")
+	options.Filters.Add("status", "jackedup")
 
 	// invalid status
 	_, err = ValidateContainerFilters(options, acceptedPsFilterTags, unSupportedPsFilters)
 	assert.Error(t, err)
 
 	// remove valid exit code and replace w/invalid
-	options.Filter.Del("exited", "143")
-	options.Filter.Add("exited", "abc")
+	options.Filters.Del("exited", "143")
+	options.Filters.Add("exited", "abc")
 
 	// invalid exit code
 	_, err = ValidateContainerFilters(options, acceptedPsFilterTags, unSupportedPsFilters)
 	assert.Error(t, err)
 
 	// add an invalid container option
-	options.Filter.Add("jojo", "jojo")
+	options.Filters.Add("jojo", "jojo")
 
 	// invalid container filter option
 	_, err = ValidateContainerFilters(options, acceptedPsFilterTags, unSupportedPsFilters)
 	assert.Error(t, err)
 
-	options.Filter.Del("jojo", "jojo")
+	options.Filters.Del("jojo", "jojo")
 
 	// add before filter
-	options.Filter = filters.NewArgs()
-	options.Filter.Add("before", "1234")
+	options.Filters = filters.NewArgs()
+	options.Filters.Add("before", "1234")
 	// fail because the before container isn't present
 	_, err = ValidateContainerFilters(options, acceptedPsFilterTags, unSupportedPsFilters)
 	assert.Error(t, err)
@@ -88,7 +88,7 @@ func TestValidateContainerFilters(t *testing.T) {
 	_, err = ValidateContainerFilters(options, acceptedPsFilterTags, unSupportedPsFilters)
 	assert.NoError(t, err)
 
-	options.Filter.Add("since", "8888")
+	options.Filters.Add("since", "8888")
 
 	// fail because the since container isn't present
 	_, err = ValidateContainerFilters(options, acceptedPsFilterTags, unSupportedPsFilters)
@@ -138,10 +138,10 @@ func TestIncludeContainer(t *testing.T) {
 
 	listCtx := &ContainerListContext{
 		ContainerListOptions: &types.ContainerListOptions{
-			Filter: filters.NewArgs()},
+			Filters: filters.NewArgs()},
 	}
 
-	listCtx.Filter.Add("name", "jojo")
+	listCtx.Filters.Add("name", "jojo")
 	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
 
 	listCtx.Limit = 1
@@ -165,16 +165,16 @@ func TestIncludeContainer(t *testing.T) {
 	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
 
 	// test network name
-	listCtx.Filter = filters.NewArgs()
-	listCtx.Filter.Add("network", "bridge")
+	listCtx.Filters = filters.NewArgs()
+	listCtx.Filters.Add("network", "bridge")
 	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
 
-	listCtx.Filter = filters.NewArgs()
-	listCtx.Filter.Add("network", "missed")
+	listCtx.Filters = filters.NewArgs()
+	listCtx.Filters.Add("network", "missed")
 	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
 
-	listCtx.Filter = filters.NewArgs()
-	listCtx.Filter.Add("status", "stopped")
+	listCtx.Filters = filters.NewArgs()
+	listCtx.Filters.Add("status", "stopped")
 	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
 
 }
