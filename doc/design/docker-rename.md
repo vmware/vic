@@ -13,7 +13,7 @@ Risks might also arise in the underlying vSAN if the storage folder is renamed.
 
 |     |  S1  |  S2  |  S3  |
 |  ---  |  ---  |  ---  |  ---  |
-|  VM name on vSphere UI  |  Update using govmomi  |
+|  VM name on vSphere UI  |  Update using govmomi  |  Update using govmomi  |  Update using govmomi  |
 |  VM folder name  |  Do not update. The vi admin can easily find the VM folder path/name from the UI of the containerVM.  |  (1) Add the new name to the container metadata while keeping the old name. (2) docker inspect should show both the original name and the new name so that the vi admin/developers can easily for the VM folder using the original name. (3) When the container exits,  shuts down or restart, the portlayer commits the new name so that the VM folder name can be updated.  |  When creating the containerVM, only use containerID as the folder name. Therefore, there is no need to update the VM folder name during docker rename.  |
 
 ### Pros and Cons:
