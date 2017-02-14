@@ -9,7 +9,7 @@ This example illustrates using a deployed Virtual Container Host (VCH) with Harb
 
 ## Push a Container Image to Harbor Using Standard Docker
 
-1. Pull the busybox container image from the docker hub to your machine, which you  have updated with the CA certificate earlier. See  [Deploying vSphere Integrated Container Engine with vSphere Integrated Containers Registry (Harbor)](../vic_installation/deploy_vic_with_harbor.html) for more information on updating certificates.
+1. Pull the busybox container image from the docker hub to your machine, which you  have updated with the CA certificate earlier. See [Deploy a VCH with vSphere Integrated Containers Registry (Harbor)](../vic_installation/deploy_vch_harbor.html) for more information on updating certificates.
 2. Tag the image for uploading to your Harbor registry and push the image up to it. 
 
 **Important** You must log onto the Harbor server before pushing the image up to it.

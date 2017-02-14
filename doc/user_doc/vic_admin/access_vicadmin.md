@@ -1,4 +1,4 @@
-# Access the Administration Portal for a VCH #
+# Access the VCH Administration Portal #
 
 vSphere Integrated Containers Engine provides a Web-based administration portal for virtual container hosts (VCHs), called VCH Admin.
 
