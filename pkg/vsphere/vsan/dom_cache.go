@@ -39,7 +39,7 @@ var (
 	vsanNameRegex, _ = regexp.Compile(vsanNamePattern)
 )
 
-// vsanDatastoreCache is the map from vmdk file path to vsan dom object uuid, only vmdk files created by this VCH VM will be cached
+// vsanDatastoreCache is the map from vmdk file path to vsan dom object uuid, all vmdk files in the datastore will be cached
 type vsanDSDomCache struct {
 	ds   *object.Datastore
 	hvis *HostVsanInternalSystem
@@ -52,7 +52,7 @@ type vsanDSDomCache struct {
 }
 
 // DeleteVMDKDoms deletes vmdk dom objects if the vmdk file exists in dom cache, if not, return undeleted files
-func (v *vsanDSDomCache) DeleteVMDKDoms(paths []string) ([]string, error) {
+func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("paths: %s", paths)))
 	var uuids []string
 	var ret []string
@@ -72,7 +72,7 @@ func (v *vsanDSDomCache) DeleteVMDKDoms(paths []string) ([]string, error) {
 	v.m.Unlock()
 
 	force := true
-	res, err := v.hvis.DeleteVsanObjects(context.Background(), uuids, &force)
+	res, err := v.hvis.DeleteVsanObjects(ctx, uuids, &force)
 	var deletedDoms []string
 	if err != nil {
 		return ret, DomDeleteError{
@@ -118,12 +118,11 @@ func (v *vsanDSDomCache) cleanDeletedUUIDs(deletedDoms []string) {
 
 // Refresh searches dom objects from vsan datastore, and build reverse index for vmdk files
 // Tthe vmdk file format is removed vsan datastore header, e.g. /vmfs/volumes/vsan:52932941b44e2147-f1490d38c9730c6d/, to make it searchable through vmfs file path
-func (v *vsanDSDomCache) Refresh() error {
+func (v *vsanDSDomCache) Refresh(ctx context.Context) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%s", v.ds.Reference().String())))
 	v.m.Lock()
 	defer v.m.Unlock()
 
-	ctx := context.Background()
 	uuids, err := v.hvis.QueryVsanObjectUuidsByFilter(ctx, nil, 0, 0)
 	if err != nil {
 		log.Error(err)
@@ -170,21 +169,21 @@ func (v *vsanDSDomCache) Refresh() error {
 	return nil
 }
 
-func (v *vsanDSDomCache) CleanOrphanDoms() ([]string, error) {
+func (v *vsanDSDomCache) CleanOrphanDoms(ctx context.Context) ([]string, error) {
 	defer trace.End(trace.Begin(""))
 
 	// query file manager to see if the vmdk file exists
-	orphanVMDKs, err := v.queryOrphanVMDKs()
+	orphanVMDKs, err := v.queryOrphanVMDKs(ctx)
 	if err != nil {
 		err = errors.Errorf("failed to get vmdk file information: %s", err)
 		log.Error(err)
 		return nil, err
 	}
 	log.Debugf("Found orphan vmdks: %s", orphanVMDKs)
-	return v.DeleteVMDKDoms(orphanVMDKs)
+	return v.DeleteVMDKDoms(ctx, orphanVMDKs)
 }
 
-func (v *vsanDSDomCache) queryOrphanVMDKs() ([]string, error) {
+func (v *vsanDSDomCache) queryOrphanVMDKs(ctx context.Context) ([]string, error) {
 	defer trace.End(trace.Begin(v.ds.Reference().String()))
 	var vmdks []string
 	v.m.Lock()
@@ -193,7 +192,6 @@ func (v *vsanDSDomCache) queryOrphanVMDKs() ([]string, error) {
 	}
 	v.m.Unlock()
 
-	ctx := context.Background()
 	var orphanVMDKs []string
 	for _, vmdk := range vmdks {
 		if _, err := v.ds.Stat(ctx, vmdk); err != nil {

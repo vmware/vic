@@ -56,9 +56,9 @@ func (e DomDeleteError) Error() string {
 }
 
 type DSDomCache interface {
-	Refresh() error
-	DeleteVMDKDoms(paths []string) ([]string, error)
-	CleanOrphanDoms() ([]string, error)
+	Refresh(ctx context.Context) error
+	DeleteVMDKDoms(ctx context.Context, paths []string) ([]string, error)
+	CleanOrphanDoms(ctx context.Context) ([]string, error)
 }
 
 type dsWaitGroup struct {
@@ -124,7 +124,7 @@ func (c *syncedDomCache) datastoreDom(ds string) DSDomCache {
 }
 
 // AddDomCache create dom cache for Datastore
-func (c *syncedDomCache) AddDomCache(ds *object.Datastore) error {
+func (c *syncedDomCache) AddDomCache(ctx context.Context, ds *object.Datastore) error {
 	if ds == nil {
 		defer trace.End(trace.Begin(fmt.Sprintf("datastore is empty")))
 		return nil
@@ -137,7 +137,6 @@ func (c *syncedDomCache) AddDomCache(ds *object.Datastore) error {
 		return nil
 	}
 
-	ctx := context.Background()
 	if dsType, _ := ds.Type(ctx); dsType != types.HostFileSystemVolumeFileSystemTypeVsan {
 		log.Debugf("datastore %s is not vsan, no need to build vsan dom cache", ds.InventoryPath)
 		return nil
@@ -209,7 +208,7 @@ func (c *syncedDomCache) getNonRefreshingDS(requests []*dsWaitGroup) []*dsWaitGr
 }
 
 // doRefresh should be called by run only to make sure concurrency is handled properly
-func (c *syncedDomCache) doRefresh(requests []*dsWaitGroup) error {
+func (c *syncedDomCache) doRefresh(ctx context.Context, requests []*dsWaitGroup) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%#v", requests)))
 	dsws := c.getNonRefreshingDS(requests)
 	if len(dsws) == 0 {
@@ -239,7 +238,7 @@ func (c *syncedDomCache) doRefresh(requests []*dsWaitGroup) error {
 			}
 		}
 		go func(dsRef string) {
-			if err := dsc.Refresh(); err != nil {
+			if err := dsc.Refresh(ctx); err != nil {
 				log.Error(err)
 			}
 			c.doneOnce <- dsRef
@@ -255,12 +254,14 @@ func (c *syncedDomCache) doRefresh(requests []*dsWaitGroup) error {
 // Allow to inject more refresh request between timer timeout. But if the request comes while refresh is running, append the refresh waitgroup only, without new refresh triggered
 func (c *syncedDomCache) run() {
 	var tick <-chan time.Time
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	for {
 		select {
 		case r := <-c.refresh:
 			log.Debugf("start refresh datastore %s", r.dsRef)
-			c.doRefresh([]*dsWaitGroup{r})
+			c.doRefresh(ctx, []*dsWaitGroup{r})
 		case <-c.stop:
 			log.Debugf("Stop vsan dom cache refresh")
 			c.closeChannels()
@@ -311,7 +312,7 @@ func (c *syncedDomCache) run() {
 				}
 				return requests
 			}()
-			c.doRefresh(reqs)
+			c.doRefresh(ctx, reqs)
 		}
 	}
 }
@@ -345,14 +346,14 @@ func (c *syncedDomCache) waitRefresh(dsRef string) {
 // SyncDeleteVMDKDom deletes vsan dom object through HostVsanInternalSystem. If vmdk file is not found in dom cache, wait current refresh and refresh once again if oneMoreRefresh is true, and retry delete. Returns undeleted files
 // path is datastore path format, with namespace uuid as root dir
 // This method should be called after vmdk file is deleted
-func (c *syncedDomCache) SyncDeleteVMDKDoms(ds *object.Datastore, paths []string, oneMoreRefresh bool) ([]string, error) {
+func (c *syncedDomCache) SyncDeleteVMDKDoms(ctx context.Context, ds *object.Datastore, paths []string, oneMoreRefresh bool) ([]string, error) {
 	if ds == nil {
 		defer trace.End(trace.Begin(fmt.Sprintf("datastore is empty, paths: %s, one more refresh: %t", paths, oneMoreRefresh)))
 		return nil, nil
 	}
 	defer trace.End(trace.Begin(fmt.Sprintf("datastore: %s, paths: %s, one more refresh: %t", ds.Reference(), paths, oneMoreRefresh)))
 
-	leftPaths, err := c.deleteVMDKDoms(ds, paths)
+	leftPaths, err := c.deleteVMDKDoms(ctx, ds, paths)
 	if err != nil {
 		return leftPaths, err
 	}
@@ -375,7 +376,7 @@ func (c *syncedDomCache) SyncDeleteVMDKDoms(ds *object.Datastore, paths []string
 		wg.Wait()
 		log.Debugf("Refresh finished")
 	}
-	if leftPaths, err = c.deleteVMDKDoms(ds, leftPaths); err != nil {
+	if leftPaths, err = c.deleteVMDKDoms(ctx, ds, leftPaths); err != nil {
 		return leftPaths, err
 	}
 	if len(leftPaths) > 0 {
@@ -387,7 +388,7 @@ func (c *syncedDomCache) SyncDeleteVMDKDoms(ds *object.Datastore, paths []string
 // DeleteVMDKDoms deletes vmdk dom objects if the vmdk file exists in dom cache, if not, return undeleted files
 // path is datastore path format, with namespace uuid as root dir
 // This method should be called after vmdk file is deleted
-func (c *syncedDomCache) deleteVMDKDoms(ds *object.Datastore, paths []string) ([]string, error) {
+func (c *syncedDomCache) deleteVMDKDoms(ctx context.Context, ds *object.Datastore, paths []string) ([]string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("datastore %s, paths: %s", ds.Reference(), paths)))
 
 	dsc := c.datastoreDom(ds.Reference().String())
@@ -396,11 +397,11 @@ func (c *syncedDomCache) deleteVMDKDoms(ds *object.Datastore, paths []string) ([
 		log.Error(err)
 		return paths, err
 	}
-	return dsc.DeleteVMDKDoms(paths)
+	return dsc.DeleteVMDKDoms(ctx, paths)
 }
 
 // SyncCleanOrphanDoms deletes vsan dom objects without vmdk file backed in one datastore. This method will wait current refresh and refresh once again if oneMoreRefresh is true, and try cleanup.
-func (c *syncedDomCache) SyncCleanOrphanDoms(ds *object.Datastore, oneMoreRefresh bool) ([]string, error) {
+func (c *syncedDomCache) SyncCleanOrphanDoms(ctx context.Context, ds *object.Datastore, oneMoreRefresh bool) ([]string, error) {
 	if ds == nil {
 		defer trace.End(trace.Begin(fmt.Sprintf("datastore is empty, one more refresh: %t", oneMoreRefresh)))
 		return nil, nil
@@ -421,11 +422,11 @@ func (c *syncedDomCache) SyncCleanOrphanDoms(ds *object.Datastore, oneMoreRefres
 		wg.Wait()
 		log.Debugf("Refresh finished")
 	}
-	return c.cleanOrphanDoms(ds)
+	return c.cleanOrphanDoms(ctx, ds)
 }
 
 // cleanOrphanDoms deletes vsan dom objects without vmdk file backed in one datastore.
-func (c *syncedDomCache) cleanOrphanDoms(ds *object.Datastore) ([]string, error) {
+func (c *syncedDomCache) cleanOrphanDoms(ctx context.Context, ds *object.Datastore) ([]string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("datastore %s", ds.Reference())))
 
 	dsc := c.datastoreDom(ds.Reference().String())
@@ -434,5 +435,5 @@ func (c *syncedDomCache) cleanOrphanDoms(ds *object.Datastore) ([]string, error)
 		log.Error(err)
 		return nil, err
 	}
-	return dsc.CleanOrphanDoms()
+	return dsc.CleanOrphanDoms(ctx)
 }

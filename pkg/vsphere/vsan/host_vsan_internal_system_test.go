@@ -61,7 +61,10 @@ func testDelete(t *testing.T) {
 }
 
 func testCache(ctx context.Context, s *session.Session, t *testing.T) {
-	SyncedDomCache.AddDomCache(s.Datastore)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	SyncedDomCache.AddDomCache(ctx, s.Datastore)
 	t.Logf("Wait cache refresh")
 	SyncedDomCache.waitRefresh(s.Datastore.Reference().String())
 	t.Logf("Cache refresh finished")
@@ -69,17 +72,17 @@ func testCache(ctx context.Context, s *session.Session, t *testing.T) {
 	t.Logf("uuid cache: %#v", dsCache.uuids)
 	t.Logf("path cache: %#v", dsCache.paths)
 
-	SyncedDomCache.SyncCleanOrphanDoms(s.Datastore, false)
+	SyncedDomCache.SyncCleanOrphanDoms(ctx, s.Datastore, false)
 	dsCache = SyncedDomCache.dsMap[s.Datastore.Reference().String()].(*vsanDSDomCache)
 	t.Logf("uuid cache: %#v", dsCache.uuids)
 	t.Logf("path cache: %#v", dsCache.paths)
 
-	SyncedDomCache.SyncCleanOrphanDoms(s.Datastore, true)
+	SyncedDomCache.SyncCleanOrphanDoms(ctx, s.Datastore, true)
 	dsCache = SyncedDomCache.dsMap[s.Datastore.Reference().String()].(*vsanDSDomCache)
 	t.Logf("uuid cache: %#v", dsCache.uuids)
 	t.Logf("path cache: %#v", dsCache.paths)
 
-	SyncedDomCache.SyncDeleteVMDKDoms(s.Datastore, []string{"ef13a258-af82-6c3a-739f-020014517637/volumes/volume1/volume1.vmdk"}, true)
+	SyncedDomCache.SyncDeleteVMDKDoms(ctx, s.Datastore, []string{"ef13a258-af82-6c3a-739f-020014517637/volumes/volume1/volume1.vmdk"}, true)
 	t.Logf("uuid cache: %#v", dsCache.uuids)
 	t.Logf("path cache: %#v", dsCache.paths)
 }

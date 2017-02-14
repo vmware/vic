@@ -17,6 +17,7 @@
 package vsan
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -35,17 +36,17 @@ type testDSCache struct {
 	deleted   int32
 }
 
-func (tc *testDSCache) Refresh() error {
+func (tc *testDSCache) Refresh(ctx context.Context) error {
 	atomic.AddInt32(&tc.refreshed, 1)
 	return nil
 }
 
-func (tc *testDSCache) DeleteVMDKDoms(paths []string) ([]string, error) {
+func (tc *testDSCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]string, error) {
 	atomic.AddInt32(&tc.deleted, 1)
 	return []string{"test"}, nil
 }
 
-func (tc *testDSCache) CleanOrphanDoms() ([]string, error) {
+func (tc *testDSCache) CleanOrphanDoms(ctx context.Context) ([]string, error) {
 	return nil, nil
 }
 
@@ -57,6 +58,8 @@ func setUp(t *testing.T) {
 func TestSync(t *testing.T) {
 	setUp(t)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	refreshInterval = 50 * time.Millisecond
 	tc := testDSCache{}
 	SyncedDomCache.dsMap = map[string]DSDomCache{"test-1:": &tc}
@@ -85,17 +88,17 @@ func TestSync(t *testing.T) {
 			Type: "test-1",
 		}),
 	}
-	SyncedDomCache.deleteVMDKDoms(ds, nil)
+	SyncedDomCache.deleteVMDKDoms(ctx, ds, nil)
 	assert.Equal(t, int32(1), atomic.LoadInt32(&tc.deleted), "Delete should be called once")
 	d := atomic.LoadInt32(&tc.deleted)
 	r := atomic.LoadInt32(&tc.refreshed)
-	SyncedDomCache.SyncDeleteVMDKDoms(ds, nil, true)
+	SyncedDomCache.SyncDeleteVMDKDoms(ctx, ds, nil, true)
 	assert.Equal(t, r+1, atomic.LoadInt32(&tc.refreshed), "Refreshed once more")
 	assert.Equal(t, d+2, atomic.LoadInt32(&tc.deleted), "Delete should be called twice more")
 
 	d = atomic.LoadInt32(&tc.deleted)
 	r = atomic.LoadInt32(&tc.refreshed)
-	SyncedDomCache.SyncDeleteVMDKDoms(ds, nil, false)
+	SyncedDomCache.SyncDeleteVMDKDoms(ctx, ds, nil, false)
 	assert.Equal(t, r, atomic.LoadInt32(&tc.refreshed), "Refreshed once more")
 	assert.Equal(t, d+2, atomic.LoadInt32(&tc.deleted), "Delete should be called twice more")
 }
