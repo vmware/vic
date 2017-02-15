@@ -69,7 +69,7 @@ type dsWaitGroup struct {
 type syncedDomCache struct {
 	// datastore map - this cache can support multiple vsan datastores
 	dsMap map[string]DSDomCache
-	m     *sync.RWMutex
+	m     sync.RWMutex
 	// refresh request channel, dsWaitGroup.wg.Done() will be called after this datastore's refresh is done
 	refresh chan *dsWaitGroup
 	// channel for stop request
@@ -85,11 +85,10 @@ type syncedDomCache struct {
 func newDomCache() *syncedDomCache {
 	return &syncedDomCache{
 		dsMap:              make(map[string]DSDomCache),
-		m:                  &sync.RWMutex{},
-		refresh:            make(chan *dsWaitGroup),
+		refresh:            make(chan *dsWaitGroup, 10),
 		stop:               make(chan bool, 1),
-		doneOnce:           make(chan string),
-		waitCurrentRefresh: make(chan *dsWaitGroup),
+		doneOnce:           make(chan string, 10),
+		waitCurrentRefresh: make(chan *dsWaitGroup, 10),
 		refreshings:        make(map[string][]*sync.WaitGroup),
 	}
 }
@@ -101,6 +100,7 @@ func (c *syncedDomCache) closeChannels() {
 	close(c.doneOnce)
 	close(c.waitCurrentRefresh)
 	c.m.Lock()
+	defer c.m.Unlock()
 	log.Debugf("Finish all waitgroups")
 	for i := range c.refreshings {
 		if len(c.refreshings[i]) == 0 {
@@ -179,10 +179,11 @@ func (c *syncedDomCache) AddDomCache(ctx context.Context, ds *object.Datastore) 
 		paths: make(map[string]string),
 		m:     &sync.Mutex{},
 	}
-	c.m.Lock()
-	defer c.m.Unlock()
-	c.dsMap[ds.Reference().String()] = dsc
 	log.Debugf("Dom cache for datastore %s is created, start to refresh", ds.InventoryPath)
+	c.m.Lock()
+	c.dsMap[ds.Reference().String()] = dsc
+	c.m.Unlock()
+
 	c.Refresh(ds.Reference().String(), nil)
 	return nil
 }
@@ -193,15 +194,15 @@ func (c *syncedDomCache) getNonRefreshingDS(requests []*dsWaitGroup) []*dsWaitGr
 	c.m.Lock()
 	defer c.m.Unlock()
 	var ret []*dsWaitGroup
-	for i := range requests {
-		if _, ok := c.refreshings[requests[i].dsRef]; ok {
+	for _, request := range requests {
+		if _, ok := c.refreshings[request.dsRef]; ok {
 			// this datastore is refreshing, add wait group into the list
-			if requests[i].wg != nil {
-				log.Debugf("datastore %s is refreshing, append waiting group only", requests[i].dsRef)
-				c.refreshings[requests[i].dsRef] = append(c.refreshings[requests[i].dsRef], requests[i].wg)
+			if request.wg != nil {
+				log.Debugf("datastore %s is refreshing, append waiting group only", request.dsRef)
+				c.refreshings[request.dsRef] = append(c.refreshings[request.dsRef], request.wg)
 			}
 		} else {
-			ret = append(ret, requests[i])
+			ret = append(ret, request)
 		}
 	}
 	return ret
@@ -219,7 +220,7 @@ func (c *syncedDomCache) doRefresh(ctx context.Context, requests []*dsWaitGroup)
 	c.m.Lock()
 	defer c.m.Unlock()
 	var errs []string
-	for i, dsw := range dsws {
+	for _, dsw := range dsws {
 		dsc, ok := c.dsMap[dsw.dsRef]
 		if !ok {
 			err := errors.Errorf("requested datastore %s does not exist", c.dsMap[dsw.dsRef])
@@ -227,11 +228,11 @@ func (c *syncedDomCache) doRefresh(ctx context.Context, requests []*dsWaitGroup)
 			errs = append(errs, err.Error())
 			continue
 		}
-		if dsws[i].wg != nil {
-			c.refreshings[dsw.dsRef] = append(c.refreshings[dsw.dsRef], dsws[i].wg)
+		if dsw.wg != nil {
+			c.refreshings[dsw.dsRef] = append(c.refreshings[dsw.dsRef], dsw.wg)
 			log.Debugf("waiting groups for datastore %s: %#v", dsw.dsRef, c.refreshings[dsw.dsRef])
 		} else {
-			log.Debugf("wait group for datastore %s is empty", dsws[i].dsRef)
+			log.Debugf("wait group for datastore %s is empty", dsw.dsRef)
 			if _, ok := c.refreshings[dsw.dsRef]; !ok {
 				// no refreshing item yet
 				c.refreshings[dsw.dsRef] = nil

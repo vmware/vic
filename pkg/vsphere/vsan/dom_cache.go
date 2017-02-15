@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	vsanNamePattern = "vsan:[a-zA-Z0-9-]+/"
+	vsanNamePattern = "vsan:.*/"
 	vmdkFileSuffix  = ".vmdk"
 )
 
