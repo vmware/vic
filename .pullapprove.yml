@@ -22,6 +22,7 @@ groups:
   build-ci-infra:
     users:
       - mhagen-vmware
+      - rajanashok
     conditions:
       files:
         include:
