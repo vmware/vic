@@ -15,7 +15,7 @@
 package container
 
 import (
-	containertypes "github.com/docker/engine-api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 )
 
 // VicContainer is VIC's abridged version of Docker's container object.

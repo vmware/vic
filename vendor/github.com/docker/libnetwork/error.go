@@ -14,7 +14,7 @@ func (nsn ErrNoSuchNetwork) Error() string {
 // NotFound denotes the type of this error
 func (nsn ErrNoSuchNetwork) NotFound() {}
 
-// ErrNoSuchEndpoint is returned when a endpoint query finds no result
+// ErrNoSuchEndpoint is returned when an endpoint query finds no result
 type ErrNoSuchEndpoint string
 
 func (nse ErrNoSuchEndpoint) Error() string {
@@ -69,7 +69,7 @@ func (ii ErrInvalidID) Error() string {
 func (ii ErrInvalidID) BadRequest() {}
 
 // ErrInvalidName is returned when a query-by-name or resource create method is
-// invoked with an empty name parameter
+// invoked with an invalid name parameter
 type ErrInvalidName string
 
 func (in ErrInvalidName) Error() string {
@@ -107,7 +107,7 @@ func (nnr NetworkNameError) Error() string {
 // Forbidden denotes the type of this error
 func (nnr NetworkNameError) Forbidden() {}
 
-// UnknownNetworkError is returned when libnetwork could not find in it's database
+// UnknownNetworkError is returned when libnetwork could not find in its database
 // a network with the same name and id.
 type UnknownNetworkError struct {
 	name string
@@ -135,7 +135,7 @@ func (aee *ActiveEndpointsError) Error() string {
 // Forbidden denotes the type of this error
 func (aee *ActiveEndpointsError) Forbidden() {}
 
-// UnknownEndpointError is returned when libnetwork could not find in it's database
+// UnknownEndpointError is returned when libnetwork could not find in its database
 // an endpoint with the same name and id.
 type UnknownEndpointError struct {
 	name string
@@ -173,3 +173,13 @@ func (id InvalidContainerIDError) Error() string {
 
 // BadRequest denotes the type of this error
 func (id InvalidContainerIDError) BadRequest() {}
+
+// ManagerRedirectError is returned when the request should be redirected to Manager
+type ManagerRedirectError string
+
+func (mr ManagerRedirectError) Error() string {
+	return "Redirect the request to the manager"
+}
+
+// Maskable denotes the type of this error
+func (mr ManagerRedirectError) Maskable() {}

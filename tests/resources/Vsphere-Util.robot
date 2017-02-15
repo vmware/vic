@@ -164,3 +164,15 @@ Change Log Level On Server
     [Arguments]  ${level}
     ${out}=  Run  govc host.option.set Config.HostAgent.log.level ${level}
     Should Be Empty  ${out}
+
+Add Vsphere License
+    [Tags]  secret
+    [Arguments]  ${license}
+    ${out}=  Run  govc license.add ${license} 
+    Should Contain  ${out}  Key:
+
+Assign Vsphere License
+    [Tags]  secret
+    [Arguments]  ${license}  ${host}
+    ${out}=  Run  govc license.assign -host ${host} ${license}
+    Should Contain  ${out}  Key:

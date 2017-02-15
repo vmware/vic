@@ -18,13 +18,17 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/errors"
-	apinet "github.com/docker/engine-api/types/network"
+	derr "github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	apinet "github.com/docker/docker/api/types/network"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/networkdb"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	vicendpoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
@@ -34,6 +38,10 @@ import (
 )
 
 type Network struct {
+}
+
+func NewNetworkBackend() *Network {
+	return &Network{}
 }
 
 func (n *Network) NetworkControllerEnabled() bool {
@@ -90,7 +98,7 @@ func (n *Network) GetNetworksByID(partialID string) []libnetwork.Network {
 	return nets
 }
 
-func (n *Network) GetAllNetworks() []libnetwork.Network {
+func (n *Network) GetNetworks() []libnetwork.Network {
 	ok, err := PortLayerClient().Scopes.ListAll(scopes.NewListAllParamsWithContext(ctx))
 	if err != nil {
 		return nil
@@ -105,35 +113,35 @@ func (n *Network) GetAllNetworks() []libnetwork.Network {
 	return nets
 }
 
-func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options map[string]string, labels map[string]string, internal bool, enableIPv6 bool) (libnetwork.Network, error) {
-	if len(ipam.Config) > 1 {
+func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
+	if nc.IPAM != nil && len(nc.IPAM.Config) > 1 {
 		return nil, fmt.Errorf("at most one ipam config supported")
 	}
 
 	var gateway, subnet string
 	var pools []string
-	if len(ipam.Config) > 0 {
-		if ipam.Config[0].Gateway != "" {
-			gateway = ipam.Config[0].Gateway
+	if nc.IPAM != nil && len(nc.IPAM.Config) > 0 {
+		if nc.IPAM.Config[0].Gateway != "" {
+			gateway = nc.IPAM.Config[0].Gateway
 		}
 
-		if ipam.Config[0].Subnet != "" {
-			subnet = ipam.Config[0].Subnet
+		if nc.IPAM.Config[0].Subnet != "" {
+			subnet = nc.IPAM.Config[0].Subnet
 		}
 
-		if ipam.Config[0].IPRange != "" {
-			pools = append(pools, ipam.Config[0].IPRange)
+		if nc.IPAM.Config[0].IPRange != "" {
+			pools = append(pools, nc.IPAM.Config[0].IPRange)
 		}
 	}
 
-	if driver == "" {
-		driver = "bridge"
+	if nc.Driver == "" {
+		nc.Driver = "bridge"
 	}
 
 	cfg := &models.ScopeConfig{
 		Gateway:   gateway,
-		Name:      name,
-		ScopeType: driver,
+		Name:      nc.Name,
+		ScopeType: nc.Driver,
 		Subnet:    subnet,
 		IPAM:      pools,
 	}
@@ -142,7 +150,7 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 	if err != nil {
 		switch err := err.(type) {
 		case *scopes.CreateScopeConflict:
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("network %s already exists", name), http.StatusConflict)
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("network %s already exists", nc.Name), http.StatusConflict)
 
 		case *scopes.CreateScopeDefault:
 			return nil, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
@@ -151,8 +159,13 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 			return nil, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 	}
+	
+	ncResponse := &types.NetworkCreateResponse{
+		ID: created.Payload.ID,
+		Warning: "",
+	}
 
-	return &network{cfg: created.Payload}, nil
+	return ncResponse, nil
 }
 
 func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
@@ -271,12 +284,12 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 	return nil
 }
 
-func (n *Network) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error {
+func (n *Network) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
 		containerName = vc.ContainerID
 	}
-	return fmt.Errorf("%s does not implement network.DisconnectContainerFromNetwork", ProductName())
+	return fmt.Errorf("%s does not yet implement network.DisconnectContainerFromNetwork", ProductName())
 }
 
 func (n *Network) DeleteNetwork(name string) error {
@@ -296,6 +309,10 @@ func (n *Network) DeleteNetwork(name string) error {
 	}
 
 	return nil
+}
+
+func (n *Network) NetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error) {
+	return nil, fmt.Errorf("%s does not yet implement NetworksPrune", ProductName())
 }
 
 // network implements the libnetwork.Network and libnetwork.NetworkInfo interfaces
@@ -450,4 +467,24 @@ func (n *network) Internal() bool {
 
 func (n *network) Labels() map[string]string {
 	return make(map[string]string)
+}
+
+func (n *network) Attachable() bool {
+	return false //?
+}
+
+func (n *network) Dynamic() bool {
+	return false //?
+}
+
+func (n *network) Created() time.Time {
+	return time.Now()
+}
+
+// Peers returns a slice of PeerInfo structures which has the information about the peer
+// nodes participating in the same overlay network. This is currently the per-network
+// gossip cluster. For non-dynamic overlay networks and bridge networks it returns an
+// empty slice
+func (n *network) Peers() []networkdb.PeerInfo {
+	return nil
 }

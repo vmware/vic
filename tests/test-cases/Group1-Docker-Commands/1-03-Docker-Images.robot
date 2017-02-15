@@ -45,13 +45,35 @@ No-trunc images
     Length Should Be  @{line}[2]  64
 
 Specific images
-    ${status}=  Get State Of Github Issue  2248
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-3-Docker-Images.robot needs to be updated now that Issue #2248 has been resolved
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine:3.1
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    Should Contain  ${output}  3.1
-#    Should Contain X Times  ${output}  alpine  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine:3.1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  3.1
+
+Filter images before
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=alpine
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    @{lines}=  Split To Lines  ${output}
+    Length Should Be  ${lines}  3
+    Should Contain  ${output}  3.1
+
+Filter images since
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f since=alpine:3.1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    @{lines}=  Split To Lines  ${output}
+    Length Should Be  ${lines}  3
+    Should Contain  ${output}  latest
+
+Tag images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag alpine alpine:cdg
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  cdg
 
 VIC/docker Image ID consistency
     @{tags}=  Create List  uclibc  glibc  musl

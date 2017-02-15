@@ -4,11 +4,10 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func sPtr(s string) *string      { return &s }
-func rPtr(r rune) *rune          { return &r }
 func iPtr(i int64) *int64        { return &i }
 func u32Ptr(i int64) *uint32     { u := uint32(i); return &u }
 func fmPtr(i int64) *os.FileMode { fm := os.FileMode(i); return &fm }
@@ -60,7 +59,6 @@ func DefaultSpec() specs.Spec {
 			Options:     []string{"nosuid", "noexec", "nodev"},
 		},
 	}
-
 	s.Process.Capabilities = []string{
 		"CAP_CHOWN",
 		"CAP_DAC_OVERRIDE",
@@ -78,12 +76,14 @@ func DefaultSpec() specs.Spec {
 		"CAP_AUDIT_WRITE",
 	}
 
-	s.Linux = specs.Linux{
+	s.Linux = &specs.Linux{
 		MaskedPaths: []string{
 			"/proc/kcore",
 			"/proc/latency_stats",
+			"/proc/timer_list",
 			"/proc/timer_stats",
 			"/proc/sched_debug",
+			"/sys/firmware",
 		},
 		ReadonlyPaths: []string{
 			"/proc/asound",
@@ -100,53 +100,11 @@ func DefaultSpec() specs.Spec {
 			{Type: "pid"},
 			{Type: "ipc"},
 		},
-		Devices: []specs.Device{
-			{
-				Type:     "c",
-				Path:     "/dev/zero",
-				Major:    1,
-				Minor:    5,
-				FileMode: fmPtr(0666),
-				UID:      u32Ptr(0),
-				GID:      u32Ptr(0),
-			},
-			{
-				Type:     "c",
-				Path:     "/dev/null",
-				Major:    1,
-				Minor:    3,
-				FileMode: fmPtr(0666),
-				UID:      u32Ptr(0),
-				GID:      u32Ptr(0),
-			},
-			{
-				Type:     "c",
-				Path:     "/dev/urandom",
-				Major:    1,
-				Minor:    9,
-				FileMode: fmPtr(0666),
-				UID:      u32Ptr(0),
-				GID:      u32Ptr(0),
-			},
-			{
-				Type:     "c",
-				Path:     "/dev/random",
-				Major:    1,
-				Minor:    8,
-				FileMode: fmPtr(0666),
-				UID:      u32Ptr(0),
-				GID:      u32Ptr(0),
-			},
-			{
-				Type:     "c",
-				Path:     "/dev/fuse",
-				Major:    10,
-				Minor:    229,
-				FileMode: fmPtr(0666),
-				UID:      u32Ptr(0),
-				GID:      u32Ptr(0),
-			},
-		},
+		// Devices implicitly contains the following devices:
+		// null, zero, full, random, urandom, tty, console, and ptmx.
+		// ptmx is a bind-mount or symlink of the container's ptmx.
+		// See also: https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#default-devices
+		Devices: []specs.Device{},
 		Resources: &specs.Resources{
 			Devices: []specs.DeviceCgroup{
 				{

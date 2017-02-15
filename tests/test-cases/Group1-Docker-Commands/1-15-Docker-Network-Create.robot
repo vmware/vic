@@ -15,7 +15,7 @@ Basic network create
 Create already created network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: network with name test-network already exists 
+    Should Contain  ${output}  already exists 
 
 Create overlay network
     ${status}=  Get State Of Github Issue  1222

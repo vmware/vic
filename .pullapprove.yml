@@ -51,6 +51,7 @@ groups:
   nightlies:
     users:
       - rajanashok
+      - mhagen-vmware
     conditions:
       files:
         include:
@@ -59,12 +60,21 @@ groups:
   vcsim:
     users:
       - dougm
+      - caglar10ur
+    conditions:
+      files:
+        include:
+          - "cmd/vcsim/*"
+          - "pkg/vsphere/simulator/*"
+
+  toolbox:
+    users:
+      - dougm
+      - caglar10ur
     conditions:
       files:
         include:
           - "cmd/toolbox/*"
-          - "cmd/vcsim/*"
-          - "pkg/vsphere/simulator/*"
           - "pkg/vsphere/toolbox/*"
 
   docker-persona:
@@ -106,6 +116,7 @@ groups:
   vicadmin:
     users:
       - jzt
+      - gigawhitlocks
     conditions:
       files:
         include:
@@ -143,6 +154,8 @@ groups:
   port-layer-network:
     users:
       - hmahmood
+      - andrewtchin
+      - caglar10ur
     conditions:
       files:
         include:
@@ -189,3 +202,12 @@ groups:
       files:
         include:
           - "cmd/vic-ui/*"
+
+  pullapprove:
+    users:
+      - gigawhitlocks
+      - anchal-agrawal
+    conditions:
+      files:
+        include:
+          - ".pullapprove.yml"

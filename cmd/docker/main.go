@@ -24,16 +24,23 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
+	"github.com/docker/docker/api/server/router/swarm"
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
-	"github.com/docker/docker/docker/listeners"
+	"github.com/docker/docker/api/server/router/checkpoint"
+	"github.com/docker/docker/api/server/router/plugin"
+	"github.com/docker/docker/daemon/cluster"
+	"github.com/docker/docker/pkg/listeners"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/executor"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
@@ -42,9 +49,12 @@ import (
 )
 
 type CliOptions struct {
-	serverPort    uint
-	portLayerAddr string
-	proto         string
+	serverPort    *uint
+	portLayerAddr *string
+	portLayerPort *uint
+	debug         *bool
+
+	proto string
 }
 
 const (
@@ -52,12 +62,24 @@ const (
 	clientHostName = "client.localhost"
 )
 
-var vchConfig config.VirtualContainerHostConfigSpec
+var (
+	vchConfig config.VirtualContainerHostConfigSpec
+	cli       CliOptions
+)
 
 func init() {
 	log.SetFormatter(viclog.NewTextFormatter())
 	trace.Logger.Level = log.DebugLevel
 	pprof.StartPprof("docker personality", pprof.DockerPort)
+
+	flag.Usage = Usage
+
+	_ = flag.String("serveraddr", "127.0.0.1", "Server address to listen") // ignored
+	cli.serverPort = flag.Uint("port", 9000, "Port to listen")
+	cli.portLayerAddr = flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
+	cli.portLayerPort = flag.Uint("port-layer-port", 9001, "Port Layer server port")
+
+	cli.debug = flag.Bool("debug", false, "Enable debuglevel logging")
 }
 
 func Usage() {
@@ -68,18 +90,18 @@ func Usage() {
 
 func main() {
 	// Get flags
-	cli, ok := handleFlags()
+	ok := handleFlags()
 
 	if !ok {
 		os.Exit(1)
 	}
 
-	if err := vicbackends.Init(cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
+	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
 	// Start API server wit options from command line args
-	api := startServerWithOptions(cli)
+	api := startServer()
 
 	setAPIRoutes(api)
 
@@ -93,16 +115,7 @@ func main() {
 	<-serveAPIWait
 }
 
-func handleFlags() (*CliOptions, bool) {
-	flag.Usage = Usage
-
-	_ = flag.String("serveraddr", "127.0.0.1", "Server address to listen") // ignored
-	serverPort := flag.Uint("port", 9000, "Port to listen")
-	portLayerAddr := flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
-	portLayerPort := flag.Uint("port-layer-port", 9001, "Port Layer server port")
-
-	debug := flag.Bool("debug", false, "Enable debuglevel logging")
-
+func handleFlags() bool {
 	flag.Parse()
 
 	// load the vch config
@@ -112,17 +125,14 @@ func handleFlags() (*CliOptions, bool) {
 	}
 	extraconfig.Decode(src, &vchConfig)
 
-	if *debug || vchConfig.Diagnostics.DebugLevel > 0 {
+	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	cli := &CliOptions{
-		serverPort:    *serverPort,
-		portLayerAddr: fmt.Sprintf("%s:%d", *portLayerAddr, *portLayerPort),
-		proto:         "tcp",
-	}
+	*cli.portLayerAddr = fmt.Sprintf("%s:%d", *cli.portLayerAddr, *cli.portLayerPort)
+	cli.proto = "tcp"
 
-	return cli, true
+	return true
 }
 
 func loadCAPool() *x509.CertPool {
@@ -142,7 +152,7 @@ func loadCAPool() *x509.CertPool {
 	return pool
 }
 
-func startServerWithOptions(cli *CliOptions) *apiserver.Server {
+func startServer() *apiserver.Server {
 	serverConfig := &apiserver.Config{
 		Logging: true,
 		Version: "1.22", //dockerversion.Version,
@@ -169,7 +179,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 			MaxVersion:               c.MaxVersion,
 			CurvePreferences:         c.CurvePreferences,
 		}
-	}(&tlsconfig.ServerDefault)
+	}(tlsconfig.ServerDefault())
 
 	if !vchConfig.HostCertificate.IsNil() {
 		log.Info("TLS enabled")
@@ -217,7 +227,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 	}
 
 	api := apiserver.New(serverConfig)
-	fullserver := fmt.Sprintf("%s:%d", addr, cli.serverPort)
+	fullserver := fmt.Sprintf("%s:%d", addr, *cli.serverPort)
 	l, err := listeners.Init(cli.proto, fullserver, "", serverConfig.TLSConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -230,16 +240,40 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 }
 
 func setAPIRoutes(api *apiserver.Server) {
-	imageHandler := &vicbackends.Image{}
-	containerHandler := vicbackends.NewContainerBackend()
-	volumeHandler := &vicbackends.Volume{}
-	networkHandler := &vicbackends.Network{}
-	systemHandler := vicbackends.NewSystemBackend()
+	decoder := runconfig.ContainerDecoder{}
 
-	api.InitRouter(false,
-		image.NewRouter(imageHandler),
-		container.NewRouter(containerHandler),
-		volume.NewRouter(volumeHandler),
-		network.NewRouter(networkHandler),
-		system.NewRouter(systemHandler))
+	swarmBackend := executor.SwarmBackend{}
+
+	c, err := cluster.New(cluster.Config{
+		Root:                   "",
+		Name:                   "",
+		Backend:                swarmBackend,
+		NetworkSubnetsProvider: nil,
+		DefaultAdvertiseAddr:   "",
+		RuntimeRoot:            "",
+	})
+	if err != nil {
+		log.Fatalf("Error creating cluster component: %v", err)
+	}
+
+	routers := []router.Router{
+		image.NewRouter(vicbackends.NewImageBackend(), decoder),
+		container.NewRouter(vicbackends.NewContainerBackend(), decoder),
+		volume.NewRouter(vicbackends.NewVolumeBackend()),
+		network.NewRouter(vicbackends.NewNetworkBackend(), c),
+		system.NewRouter(vicbackends.NewSystemBackend(), c),
+		swarm.NewRouter(vicbackends.NewSwarmBackend()),
+		checkpoint.NewRouter(vicbackends.NewCheckpointBackend(), decoder),
+		plugin.NewRouter(vicbackends.NewPluginBackend()),
+	}
+
+	for _, r := range routers {
+		for _, route := range r.Routes() {
+			if experimental, ok := route.(router.ExperimentalRoute); ok {
+				experimental.Enable()
+			}
+		}
+	}
+
+	api.InitRouter(false, routers...)
 }

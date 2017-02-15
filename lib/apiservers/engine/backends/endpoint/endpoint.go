@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	apinet "github.com/docker/engine-api/types/network"
+	apinet "github.com/docker/docker/api/types/network"
 )
 
 func Alias(endpointConfig *apinet.EndpointSettings) []string {

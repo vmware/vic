@@ -19,7 +19,7 @@ import (
 	"net"
 	"net/http"
 
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/types"
 
@@ -127,5 +127,9 @@ func (e *endpoint) Address() *net.IPNet {
 
 // AddressIPv6 returns the IPv6 address assigned to the endpoint.
 func (e *endpoint) AddressIPv6() *net.IPNet {
+	return nil
+}
+
+func (e *endpoint) LinkLocalAddresses() []*net.IPNet {
 	return nil
 }

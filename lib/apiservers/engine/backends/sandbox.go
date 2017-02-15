@@ -102,3 +102,21 @@ func (s *sandbox) ResolveIP(name string) string {
 func (s *sandbox) Endpoints() []libnetwork.Endpoint {
 	return nil
 }
+
+// ResolveService returns all the backend details about the containers or hosts
+// backing a service. Its purpose is to satisfy an SRV query
+func (s *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
+	return nil, nil
+}
+
+// EnableService  makes a managed container's service available by adding the
+// endpoint to the service load balancer and service discovery
+func (s *sandbox) EnableService() error {
+	return notImplementedError
+}
+
+// DisableService removes a managed contianer's endpoints from the load balancer
+// and service discovery
+func (s *sandbox) DisableService() error {
+	return notImplementedError
+}

@@ -17,6 +17,7 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -25,7 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/distribution/digest"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/reference"
 
@@ -55,6 +56,14 @@ var (
 	imageCache *ICache
 	ctx        = context.TODO()
 )
+
+// byCreated is a temporary type used to sort a list of images by creation
+// time.
+type byCreated []*metadata.ImageConfig
+
+func (r byCreated) Len() int           { return len(r) }
+func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byCreated) Less(i, j int) bool { return r[i].Created.Unix() < r[j].Created.Unix() }
 
 func init() {
 	imageCache = &ICache{
@@ -117,6 +126,8 @@ func (ic *ICache) GetImages() []*metadata.ImageConfig {
 	for _, image := range ic.cacheByID {
 		result = append(result, copyImageConfig(image))
 	}
+
+	sort.Sort(sort.Reverse(byCreated(result)))
 	return result
 }
 
@@ -155,6 +166,7 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 	var config *metadata.ImageConfig
 	if imgDigest != "" {
 		config = ic.getImageByDigest(imgDigest)
+		// config = ic.getImageByDigest(string(imgDigest))
 	} else {
 		config = ic.getImageByNamed(named)
 	}

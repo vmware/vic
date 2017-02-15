@@ -38,10 +38,21 @@ func (out chanOutput) WriteProgress(p Progress) error {
 	return nil
 }
 
-// ChanOutput returns a Output that writes progress updates to the
+// ChanOutput returns an Output that writes progress updates to the
 // supplied channel.
 func ChanOutput(progressChan chan<- Progress) Output {
 	return chanOutput(progressChan)
+}
+
+type discardOutput struct{}
+
+func (discardOutput) WriteProgress(Progress) error {
+	return nil
+}
+
+// DiscardOutput returns an Output that discards progress
+func DiscardOutput() Output {
+	return discardOutput{}
 }
 
 // Update is a convenience function to write a progress update to the channel.

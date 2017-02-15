@@ -16,6 +16,9 @@ import (
 // Action signifies the iptable action.
 type Action string
 
+// Policy is the default iptable policies
+type Policy string
+
 // Table refers to Nat, Filter or Mangle.
 type Table string
 
@@ -32,16 +35,23 @@ const (
 	Filter Table = "filter"
 	// Mangle table is used for mangling the packet.
 	Mangle Table = "mangle"
+	// Drop is the default iptables DROP policy
+	Drop Policy = "DROP"
+	// Accept is the default iptables ACCEPT policy
+	Accept Policy = "ACCEPT"
 )
 
 var (
 	iptablesPath  string
 	supportsXlock = false
 	supportsCOpt  = false
+	xLockWaitMsg  = "Another app is currently holding the xtables lock; waiting"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
 	ErrIptablesNotFound = errors.New("Iptables not found")
+	probeOnce           sync.Once
+	firewalldOnce       sync.Once
 )
 
 // ChainInfo defines the iptables chain.
@@ -61,8 +71,25 @@ func (e ChainError) Error() string {
 	return fmt.Sprintf("Error iptables %s: %s", e.Chain, string(e.Output))
 }
 
+func probe() {
+	if out, err := exec.Command("modprobe", "-va", "nf_nat").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+	if out, err := exec.Command("modprobe", "-va", "xt_conntrack").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe xt_conntrack failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+}
+
+func initFirewalld() {
+	if err := FirewalldInit(); err != nil {
+		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
+	}
+}
+
 func initCheck() error {
 	if iptablesPath == "" {
+		probeOnce.Do(probe)
+		firewalldOnce.Do(initFirewalld)
 		path, err := exec.LookPath("iptables")
 		if err != nil {
 			return ErrIptablesNotFound
@@ -104,7 +131,7 @@ func NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
 // ProgramChain is used to add rules to a chain
 func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
 	if c.Name == "" {
-		return fmt.Errorf("Could not program chain, missing chain name.")
+		return fmt.Errorf("Could not program chain, missing chain name")
 	}
 
 	switch c.Table {
@@ -140,7 +167,7 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 		}
 	case Filter:
 		if bridgeName == "" {
-			return fmt.Errorf("Could not program chain %s/%s, missing bridge name.",
+			return fmt.Errorf("Could not program chain %s/%s, missing bridge name",
 				c.Table, c.Name)
 		}
 		link := []string{
@@ -187,7 +214,8 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 		// value" by both iptables and ip6tables.
 		daddr = "0/0"
 	}
-	args := []string{"-t", string(Nat), string(action), c.Name,
+
+	args := []string{
 		"-p", proto,
 		"-d", daddr,
 		"--dport", strconv.Itoa(port),
@@ -196,33 +224,31 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 	if !c.HairpinMode {
 		args = append(args, "!", "-i", bridgeName)
 	}
-	if output, err := Raw(args...); err != nil {
+	if err := ProgramRule(Nat, c.Name, action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
-	if output, err := Raw("-t", string(Filter), string(action), c.Name,
+	args = []string{
 		"!", "-i", bridgeName,
 		"-o", bridgeName,
 		"-p", proto,
 		"-d", destAddr,
 		"--dport", strconv.Itoa(destPort),
-		"-j", "ACCEPT"); err != nil {
+		"-j", "ACCEPT",
+	}
+	if err := ProgramRule(Filter, c.Name, action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
-	if output, err := Raw("-t", string(Nat), string(action), "POSTROUTING",
+	args = []string{
 		"-p", proto,
 		"-s", destAddr,
 		"-d", destAddr,
 		"--dport", strconv.Itoa(destPort),
-		"-j", "MASQUERADE"); err != nil {
+		"-j", "MASQUERADE",
+	}
+	if err := ProgramRule(Nat, "POSTROUTING", action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
 	return nil
@@ -231,29 +257,35 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.
 // Traffic is allowed from ip1 to ip2 and vice-versa
 func (c *ChainInfo) Link(action Action, ip1, ip2 net.IP, port int, proto string, bridgeName string) error {
-	if output, err := Raw("-t", string(Filter), string(action), c.Name,
+	// forward
+	args := []string{
 		"-i", bridgeName, "-o", bridgeName,
 		"-p", proto,
 		"-s", ip1.String(),
 		"-d", ip2.String(),
 		"--dport", strconv.Itoa(port),
-		"-j", "ACCEPT"); err != nil {
-		return err
-	} else if len(output) != 0 {
-		return fmt.Errorf("Error iptables forward: %s", output)
+		"-j", "ACCEPT",
 	}
-	if output, err := Raw("-t", string(Filter), string(action), c.Name,
-		"-i", bridgeName, "-o", bridgeName,
-		"-p", proto,
-		"-s", ip2.String(),
-		"-d", ip1.String(),
-		"--sport", strconv.Itoa(port),
-		"-j", "ACCEPT"); err != nil {
+	if err := ProgramRule(Filter, c.Name, action, args); err != nil {
 		return err
-	} else if len(output) != 0 {
-		return fmt.Errorf("Error iptables forward: %s", output)
+	}
+	// reverse
+	args[7], args[9] = args[9], args[7]
+	args[10] = "--sport"
+	if err := ProgramRule(Filter, c.Name, action, args); err != nil {
+		return err
 	}
 	return nil
+}
+
+// ProgramRule adds the rule specified by args only if the
+// rule is not already present in the chain. Reciprocally,
+// it removes the rule only if present.
+func ProgramRule(table Table, chain string, action Action, args []string) error {
+	if Exists(table, chain, args...) != (action == Delete) {
+		return nil
+	}
+	return RawCombinedOutput(append([]string{"-t", string(table), string(action), chain}, args...)...)
 }
 
 // Prerouting adds linking rule to nat/PREROUTING chain.
@@ -302,6 +334,21 @@ func (c *ChainInfo) Remove() error {
 
 // Exists checks if a rule exists
 func Exists(table Table, chain string, rule ...string) bool {
+	return exists(false, table, chain, rule...)
+}
+
+// ExistsNative behaves as Exists with the difference it
+// will always invoke `iptables` binary.
+func ExistsNative(table Table, chain string, rule ...string) bool {
+	return exists(true, table, chain, rule...)
+}
+
+func exists(native bool, table Table, chain string, rule ...string) bool {
+	f := Raw
+	if native {
+		f = raw
+	}
+
 	if string(table) == "" {
 		table = Filter
 	}
@@ -310,7 +357,7 @@ func Exists(table Table, chain string, rule ...string) bool {
 
 	if supportsCOpt {
 		// if exit status is 0 then return true, the rule exists
-		_, err := Raw(append([]string{"-t", string(table), "-C", chain}, rule...)...)
+		_, err := f(append([]string{"-t", string(table), "-C", chain}, rule...)...)
 		return err == nil
 	}
 
@@ -356,7 +403,7 @@ func raw(args ...string) ([]byte, error) {
 	}
 
 	// ignore iptables' message about xtables lock
-	if strings.Contains(string(output), "waiting for it to exit") {
+	if strings.Contains(string(output), xLockWaitMsg) {
 		output = []byte("")
 	}
 
@@ -396,6 +443,14 @@ func GetVersion() (major, minor, micro int, err error) {
 		major, minor, micro = parseVersionNumbers(string(out))
 	}
 	return
+}
+
+// SetDefaultPolicy sets the passed default policy for the table/chain
+func SetDefaultPolicy(table Table, chain string, policy Policy) error {
+	if err := RawCombinedOutput("-t", string(table), "-P", chain, string(policy)); err != nil {
+		return fmt.Errorf("setting default policy to %v in %v chain failed: %v", policy, chain, err)
+	}
+	return nil
 }
 
 func parseVersionNumbers(input string) (major, minor, micro int) {

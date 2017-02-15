@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/pkg/system"
 )
 
 // ErrExtractPointNotDirectory is used to convey that the operation to extract
@@ -86,7 +87,7 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	defer daemon.Unmount(container)
 
 	err = daemon.mountVolumes(container)
-	defer container.UnmountVolumes(true, daemon.LogVolumeEvent)
+	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	defer func() {
 		if err != nil {
 			// unmount any volumes
-			container.UnmountVolumes(true, daemon.LogVolumeEvent)
+			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs
 			daemon.Unmount(container)
 		}
@@ -156,7 +157,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 
 	content = ioutils.NewReadCloserWrapper(data, func() error {
 		err := data.Close()
-		container.UnmountVolumes(true, daemon.LogVolumeEvent)
+		container.DetachAndUnmount(daemon.LogVolumeEvent)
 		daemon.Unmount(container)
 		container.Unlock()
 		return err
@@ -183,7 +184,13 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	defer daemon.Unmount(container)
 
 	err = daemon.mountVolumes(container)
-	defer container.UnmountVolumes(true, daemon.LogVolumeEvent)
+	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
+	if err != nil {
+		return err
+	}
+
+	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
+	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path)
 	if err != nil {
 		return err
 	}
@@ -285,7 +292,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	defer func() {
 		if err != nil {
 			// unmount any volumes
-			container.UnmountVolumes(true, daemon.LogVolumeEvent)
+			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs
 			daemon.Unmount(container)
 		}
@@ -322,7 +329,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 
 	reader := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		container.UnmountVolumes(true, daemon.LogVolumeEvent)
+		container.DetachAndUnmount(daemon.LogVolumeEvent)
 		daemon.Unmount(container)
 		container.Unlock()
 		return err

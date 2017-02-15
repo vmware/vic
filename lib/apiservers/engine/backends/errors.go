@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net/http"
 
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 )
 
 // Used to check status code of derr, which is not a public type
@@ -56,6 +56,11 @@ func VolumeCreateNotFoundError(msg string) error {
 // VolumeNotFoundError returns a 404 docker error for a volume get request.
 func VolumeNotFoundError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("No such volume: %s", msg), http.StatusNotFound)
+}
+
+// VolumeInternalServerError returns a 500 docker error for a volume-related request.
+func VolumeInternalServerError(err error) error {
+	return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 }
 
 func ResourceNotFoundError(cid, res string) error {

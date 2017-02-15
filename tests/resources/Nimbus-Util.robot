@@ -13,9 +13,14 @@ Deploy Nimbus ESXi Server
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  To manage this VM use
+    :FOR  ${IDX}  IN RANGE  1  5
+    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
+    \   # Make sure the deploy actually worked
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
+    \   Exit For Loop If  ${status}
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
+    \   Sleep  5 minutes
+
     # Now grab the IP address and return the name and ip for later use
     @{out}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{out}
@@ -123,9 +128,14 @@ Deploy Nimbus vCenter Server
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  Overall Status: Succeeded
+    :FOR  ${IDX}  IN RANGE  1  5
+    \   ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
+    \   # Make sure the deploy actually worked
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
+    \   Exit For Loop If  ${status}
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
+    \   Sleep  5 minutes
+
     # Now grab the IP address and return the name and ip for later use
     @{out}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{out}
@@ -168,7 +178,14 @@ Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${testbed}
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
-    ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
+    
+    :FOR  ${IDX}  IN RANGE  1  5
+    \   ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
+    \   # Make sure the deploy actually worked
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  is up. IP:
+    \   Exit For Loop If  ${status}
+    \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
+    \   Sleep  5 minutes
     [Return]  ${out}
 
 Kill Nimbus Server
@@ -254,13 +271,17 @@ Create a Simple VC Cluster
     Log To Console  \nStarting simple VC cluster deploy...
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
+    Set Suite Variable  ${ESX1-IP}  ${esx1-ip}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX2}  ${esx2}
+    Set Suite Variable  ${ESX2-IP}  ${esx2-ip}
     ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX3}  ${esx3}
+    Set Suite Variable  ${ESX3-IP}  ${esx3-ip}
 
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
+    Set Suite Variable  ${VC-IP}  ${vc-ip}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ${datacenter}

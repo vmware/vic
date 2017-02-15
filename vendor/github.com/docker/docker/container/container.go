@@ -16,13 +16,20 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
+	networktypes "github.com/docker/docker/api/types/network"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
@@ -30,34 +37,46 @@ import (
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/volume"
-	containertypes "github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
+	agentexec "github.com/docker/swarmkit/agent/exec"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 const configFileName = "config.v2.json"
+
+const (
+	// DefaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
+	DefaultStopTimeout = 10
+)
 
 var (
 	errInvalidEndpoint = fmt.Errorf("invalid endpoint while building port map info")
 	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
 )
 
+// DetachError is special error which returned in case of container detach.
+type DetachError struct{}
+
+func (DetachError) Error() string {
+	return "detached from container"
+}
+
 // CommonContainer holds the fields for a container which are
 // applicable across all platforms supported by the daemon.
 type CommonContainer struct {
-	*runconfig.StreamConfig
+	StreamConfig *stream.Config
 	// embed for Container to support states directly.
-	*State          `json:"State"` // Needed for remote api version <= 1.11
+	*State          `json:"State"` // Needed for Engine API version <= 1.11
 	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
 	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
 	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
+	Managed         bool
 	Path            string
 	Args            []string
 	Config          *containertypes.Config
@@ -75,6 +94,8 @@ type CommonContainer struct {
 	MountPoints            map[string]*volume.MountPoint
 	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
 	ExecCommands           *exec.Store                `json:"-"`
+	SecretStore            agentexec.SecretGetter     `json:"-"`
+	SecretReferences       []*swarmtypes.SecretReference
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`
@@ -92,7 +113,7 @@ func NewBaseContainer(id, root string) *Container {
 			ExecCommands:  exec.NewStore(),
 			Root:          root,
 			MountPoints:   make(map[string]*volume.MountPoint),
-			StreamConfig:  runconfig.NewStreamConfig(),
+			StreamConfig:  stream.NewConfig(),
 			attachContext: &attachContext{},
 		},
 	}
@@ -131,7 +152,7 @@ func (container *Container) ToDisk() error {
 		return err
 	}
 
-	jsonSource, err := os.Create(pth)
+	jsonSource, err := ioutils.NewAtomicFileWriter(pth, 0644)
 	if err != nil {
 		return err
 	}
@@ -191,7 +212,7 @@ func (container *Container) WriteHostConfig() error {
 		return err
 	}
 
-	f, err := os.Create(pth)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0644)
 	if err != nil {
 		return err
 	}
@@ -206,13 +227,13 @@ func (container *Container) SetupWorkingDirectory(rootUID, rootGID int) error {
 		return nil
 	}
 
+	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
+
 	// If can't mount container FS at this point (eg Hyper-V Containers on
 	// Windows) bail out now with no action.
 	if !container.canMountFS() {
 		return nil
 	}
-
-	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
 
 	pth, err := container.GetResourcePath(container.Config.WorkingDir)
 	if err != nil {
@@ -250,6 +271,13 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 
 	cleanPath := cleanResourcePath(path)
 	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, cleanPath), container.BaseFS)
+
+	// Log this here on the daemon side as there's otherwise no indication apart
+	// from the error being propagated all the way back to the client. This makes
+	// debugging significantly easier and clearly indicates the error comes from the daemon.
+	if e != nil {
+		logrus.Errorf("Failed to FollowSymlinkInScope BaseFS %s cleanPath %s path %s %s\n", container.BaseFS, cleanPath, path, e)
+	}
 	return r, e
 }
 
@@ -275,9 +303,7 @@ func (container *Container) GetRootResourcePath(path string) (string, error) {
 // ExitOnNext signals to the monitor that it should not restart the container
 // after we send the kill signal.
 func (container *Container) ExitOnNext() {
-	if container.restartManager != nil {
-		container.restartManager.Cancel()
-	}
+	container.RestartManager().Cancel()
 }
 
 // HostConfigPath returns the path to the container's JSON hostconfig
@@ -288,6 +314,11 @@ func (container *Container) HostConfigPath() (string, error) {
 // ConfigPath returns the path to the container's JSON config
 func (container *Container) ConfigPath() (string, error) {
 	return container.GetRootResourcePath(configFileName)
+}
+
+// CheckpointDir returns the directory checkpoints are stored in
+func (container *Container) CheckpointDir() string {
+	return filepath.Join(container.Root, "checkpoints")
 }
 
 // StartLogger starts a new logger driver for the container.
@@ -307,6 +338,7 @@ func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Lo
 		ContainerCreated:    container.Created,
 		ContainerEnv:        container.Config.Env,
 		ContainerLabels:     container.Config.Labels,
+		DaemonName:          "docker",
 	}
 
 	// Set logging file for "json-logger"
@@ -332,9 +364,6 @@ func (container *Container) GetProcessLabel() string {
 // GetMountLabel returns the mounting label for the container.
 // This label is empty if the container is privileged.
 func (container *Container) GetMountLabel() string {
-	if container.HostConfig.Privileged {
-		return ""
-	}
 	return container.MountLabel
 }
 
@@ -352,7 +381,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr
 
 // AttachStreams connects streams to a TTY.
 // Used by exec too. Should this move somewhere else?
-func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer, keys []byte) chan error {
+func AttachStreams(ctx context.Context, streamConfig *stream.Config, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer, keys []byte) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		cStdin           io.WriteCloser
@@ -380,14 +409,13 @@ func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, op
 		if stdin == nil || !openStdin {
 			return
 		}
-		logrus.Debugf("attach: stdin: begin")
+		logrus.Debug("attach: stdin: begin")
 
 		var err error
 		if tty {
 			_, err = copyEscapable(cStdin, stdin, keys)
 		} else {
 			_, err = io.Copy(cStdin, stdin)
-
 		}
 		if err == io.ErrClosedPipe {
 			err = nil
@@ -407,7 +435,7 @@ func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, op
 				cStderr.Close()
 			}
 		}
-		logrus.Debugf("attach: stdin: end")
+		logrus.Debug("attach: stdin: end")
 		wg.Done()
 	}()
 
@@ -479,20 +507,27 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			// ---- Docker addition
+			preservBuf := []byte{}
 			for i, key := range keys {
+				preservBuf = append(preservBuf, buf[0:nr]...)
 				if nr != 1 || buf[0] != key {
 					break
 				}
 				if i == len(keys)-1 {
-					if err := src.Close(); err != nil {
-						return 0, err
-					}
-					return 0, nil
+					src.Close()
+					return 0, DetachError{}
 				}
 				nr, er = src.Read(buf)
 			}
-			// ---- End of docker
-			nw, ew := dst.Write(buf[0:nr])
+			var nw int
+			var ew error
+			if len(preservBuf) > 0 {
+				nw, ew = dst.Write(preservBuf)
+				nr = len(preservBuf)
+			} else {
+				// ---- End of docker
+				nw, ew = dst.Write(buf[0:nr])
+			}
 			if nw > 0 {
 				written += int64(nw)
 			}
@@ -519,34 +554,14 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 // ShouldRestart decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {
-	return container.HostConfig.RestartPolicy.Name == "always" ||
-		(container.HostConfig.RestartPolicy.Name == "unless-stopped" && !container.HasBeenManuallyStopped) ||
-		(container.HostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
-}
-
-// AddBindMountPoint adds a new bind mount point configuration to the container.
-func (container *Container) AddBindMountPoint(name, source, destination string, rw bool) {
-	container.MountPoints[destination] = &volume.MountPoint{
-		Name:        name,
-		Source:      source,
-		Destination: destination,
-		RW:          rw,
-	}
-}
-
-// AddLocalMountPoint adds a new local mount point configuration to the container.
-func (container *Container) AddLocalMountPoint(name, destination string, rw bool) {
-	container.MountPoints[destination] = &volume.MountPoint{
-		Name:        name,
-		Driver:      volume.DefaultDriverName,
-		Destination: destination,
-		RW:          rw,
-	}
+	shouldRestart, _, _ := container.RestartManager().ShouldRestart(uint32(container.ExitCode()), container.HasBeenManuallyStopped, container.FinishedAt.Sub(container.StartedAt))
+	return shouldRestart
 }
 
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.
 func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{
+		Type:        mounttypes.TypeVolume,
 		Name:        vol.Name(),
 		Driver:      vol.DriverName(),
 		Destination: destination,
@@ -554,6 +569,32 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 		Volume:      vol,
 		CopyData:    volume.DefaultCopyMode,
 	}
+}
+
+// UnmountVolumes unmounts all volumes
+func (container *Container) UnmountVolumes(volumeEventLog func(name, action string, attributes map[string]string)) error {
+	var errors []string
+	for _, volumeMount := range container.MountPoints {
+		// Check if the mounpoint has an ID, this is currently the best way to tell if it's actually mounted
+		// TODO(cpuguyh83): there should be a better way to handle this
+		if volumeMount.Volume != nil && volumeMount.ID != "" {
+			if err := volumeMount.Volume.Unmount(volumeMount.ID); err != nil {
+				errors = append(errors, err.Error())
+				continue
+			}
+			volumeMount.ID = ""
+
+			attributes := map[string]string{
+				"driver":    volumeMount.Volume.DriverName(),
+				"container": container.ID,
+			}
+			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("error while unmounting volumes for container %s: %s", container.ID, strings.Join(errors, "; "))
+	}
+	return nil
 }
 
 // IsDestinationMounted checks whether a path is mounted on the container or not.
@@ -572,6 +613,14 @@ func (container *Container) StopSignal() int {
 		stopSignal, _ = signal.ParseSignal(signal.DefaultStopSignal)
 	}
 	return int(stopSignal)
+}
+
+// StopTimeout returns the timeout (in seconds) used to stop the container.
+func (container *Container) StopTimeout() int {
+	if container.Config.StopTimeout != nil {
+		return *container.Config.StopTimeout
+	}
+	return DefaultStopTimeout
 }
 
 // InitDNSHostConfig ensures that the dns fields are never nil.
@@ -667,7 +716,8 @@ func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
 	return pm, nil
 }
 
-func getSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
+// GetSandboxPortMapInfo retrieves the current port-mapping programmed for the given sandbox
+func GetSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
 	pm := nat.PortMap{}
 	if sb == nil {
 		return pm
@@ -700,7 +750,9 @@ func (container *Container) BuildEndpointInfo(n libnetwork.Network, ep libnetwor
 	}
 
 	if _, ok := networkSettings.Networks[n.Name()]; !ok {
-		networkSettings.Networks[n.Name()] = new(networktypes.EndpointSettings)
+		networkSettings.Networks[n.Name()] = &network.EndpointSettings{
+			EndpointSettings: &networktypes.EndpointSettings{},
+		}
 	}
 	networkSettings.Networks[n.Name()].NetworkID = n.ID()
 	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
@@ -773,7 +825,7 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 }
 
 // BuildCreateEndpointOptions builds endpoint options from a given network.
-func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *networktypes.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
+func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *networktypes.EndpointSettings, sb libnetwork.Sandbox, daemonDNS []string) ([]libnetwork.EndpointOption, error) {
 	var (
 		bindings      = make(nat.PortMap)
 		pbList        []types.PortBinding
@@ -783,20 +835,48 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 
-	if n.Name() == defaultNetName || container.NetworkSettings.IsAnonymousEndpoint {
+	if (!container.EnableServiceDiscoveryOnDefaultNetwork() && n.Name() == defaultNetName) ||
+		container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
 	if epConfig != nil {
 		ipam := epConfig.IPAMConfig
-		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "" || len(ipam.LinkLocalIPs) > 0) {
+			var ipList []net.IP
+			for _, ips := range ipam.LinkLocalIPs {
+				if ip := net.ParseIP(ips); ip != nil {
+					ipList = append(ipList, ip)
+				}
+			}
 			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), ipList, nil))
 		}
 
 		for _, alias := range epConfig.Aliases {
 			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
 		}
+	}
+
+	if container.NetworkSettings.Service != nil {
+		svcCfg := container.NetworkSettings.Service
+
+		var vip string
+		if svcCfg.VirtualAddresses[n.ID()] != nil {
+			vip = svcCfg.VirtualAddresses[n.ID()].IPv4
+		}
+
+		var portConfigs []*libnetwork.PortConfig
+		for _, portConfig := range svcCfg.ExposedPorts {
+			portConfigs = append(portConfigs, &libnetwork.PortConfig{
+				Name:          portConfig.Name,
+				Protocol:      libnetwork.PortConfig_Protocol(portConfig.Protocol),
+				TargetPort:    portConfig.TargetPort,
+				PublishedPort: portConfig.PublishedPort,
+			})
+		}
+
+		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, net.ParseIP(vip), portConfigs, svcCfg.Aliases[n.ID()]))
 	}
 
 	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
@@ -824,7 +904,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 	}
 
 	// Port-mapping rules belong to the container & applicable only to non-internal networks
-	portmaps := getSandboxPortMapInfo(sb)
+	portmaps := GetSandboxPortMapInfo(sb)
 	if n.Info().Internal() || len(portmaps) > 0 {
 		return createOptions, nil
 	}
@@ -878,6 +958,19 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		}
 	}
 
+	var dns []string
+
+	if len(container.HostConfig.DNS) > 0 {
+		dns = container.HostConfig.DNS
+	} else if len(daemonDNS) > 0 {
+		dns = daemonDNS
+	}
+
+	if len(dns) > 0 {
+		createOptions = append(createOptions,
+			libnetwork.CreateOptionDNS(dns))
+	}
+
 	createOptions = append(createOptions,
 		libnetwork.CreateOptionPortMapping(pbList),
 		libnetwork.CreateOptionExposedPorts(exposeList))
@@ -891,7 +984,7 @@ func (container *Container) UpdateMonitor(restartPolicy containertypes.RestartPo
 		SetPolicy(containertypes.RestartPolicy)
 	}
 
-	if rm, ok := container.RestartManager(false).(policySetter); ok {
+	if rm, ok := container.RestartManager().(policySetter); ok {
 		rm.SetPolicy(restartPolicy)
 	}
 }
@@ -905,16 +998,23 @@ func (container *Container) FullHostname() string {
 	return fullHostname
 }
 
-// RestartManager returns the current restartmanager instace connected to container.
-func (container *Container) RestartManager(reset bool) restartmanager.RestartManager {
-	if reset {
-		container.RestartCount = 0
-		container.restartManager = nil
-	}
+// RestartManager returns the current restartmanager instance connected to container.
+func (container *Container) RestartManager() restartmanager.RestartManager {
 	if container.restartManager == nil {
-		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy)
+		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy, container.RestartCount)
 	}
 	return container.restartManager
+}
+
+// ResetRestartManager initializes new restartmanager based on container config
+func (container *Container) ResetRestartManager(resetCount bool) {
+	if container.restartManager != nil {
+		container.restartManager.Cancel()
+	}
+	if resetCount {
+		container.RestartCount = 0
+	}
+	container.restartManager = nil
 }
 
 type attachContext struct {
@@ -923,7 +1023,7 @@ type attachContext struct {
 	mu     sync.Mutex
 }
 
-// InitAttachContext initialize or returns existing context for attach calls to
+// InitAttachContext initializes or returns existing context for attach calls to
 // track container liveness.
 func (container *Container) InitAttachContext() context.Context {
 	container.attachContext.mu.Lock()
@@ -934,7 +1034,7 @@ func (container *Container) InitAttachContext() context.Context {
 	return container.attachContext.ctx
 }
 
-// CancelAttachContext cancel attach context. All attach calls should detach
+// CancelAttachContext cancels attach context. All attach calls should detach
 // after this call.
 func (container *Container) CancelAttachContext() {
 	container.attachContext.mu.Lock()
@@ -943,4 +1043,67 @@ func (container *Container) CancelAttachContext() {
 		container.attachContext.ctx = nil
 	}
 	container.attachContext.mu.Unlock()
+}
+
+func (container *Container) startLogging() error {
+	if container.HostConfig.LogConfig.Type == "none" {
+		return nil // do not start logging routines
+	}
+
+	l, err := container.StartLogger(container.HostConfig.LogConfig)
+	if err != nil {
+		return fmt.Errorf("Failed to initialize logging driver: %v", err)
+	}
+
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	container.LogCopier = copier
+	copier.Run()
+	container.LogDriver = l
+
+	// set LogPath field only for json-file logdriver
+	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
+		container.LogPath = jl.LogPath()
+	}
+
+	return nil
+}
+
+// StdinPipe gets the stdin stream of the container
+func (container *Container) StdinPipe() io.WriteCloser {
+	return container.StreamConfig.StdinPipe()
+}
+
+// StdoutPipe gets the stdout stream of the container
+func (container *Container) StdoutPipe() io.ReadCloser {
+	return container.StreamConfig.StdoutPipe()
+}
+
+// StderrPipe gets the stderr stream of the container
+func (container *Container) StderrPipe() io.ReadCloser {
+	return container.StreamConfig.StderrPipe()
+}
+
+// CloseStreams closes the container's stdio streams
+func (container *Container) CloseStreams() error {
+	return container.StreamConfig.CloseStreams()
+}
+
+// InitializeStdio is called by libcontainerd to connect the stdio.
+func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
+	if err := container.startLogging(); err != nil {
+		container.Reset(false)
+		return err
+	}
+
+	container.StreamConfig.CopyToPipe(iop)
+
+	if container.StreamConfig.Stdin() == nil && !container.Config.Tty {
+		if iop.Stdin != nil {
+			if err := iop.Stdin.Close(); err != nil {
+				logrus.Warnf("error closing stdin: %+v", err)
+			}
+		}
+	}
+
+	return nil
 }

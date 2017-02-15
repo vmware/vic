@@ -24,6 +24,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/iptables"
+	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/tether"
@@ -36,8 +38,9 @@ import (
 var pathPrefix string
 
 const (
-	logDir  = "var/log/vic"
-	initLog = "init.log"
+	logDir          = "var/log/vic"
+	initLog         = "init.log"
+	publicIfaceName = "public"
 )
 
 type operations struct {
@@ -81,6 +84,20 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 func (t *operations) SetHostname(name string, aliases ...string) error {
 	// switch the names around so we get the pretty name and not the ID
 	return t.BaseOperations.SetHostname(aliases[0])
+}
+
+func (t *operations) SetupFirewall() error {
+	// get the public interface name
+	l, err := netlink.LinkByName(publicIfaceName)
+	if l == nil {
+		l, err = netlink.LinkByAlias(publicIfaceName)
+		if l == nil {
+			return fmt.Errorf("could not find interface: %s", publicIfaceName)
+		}
+	}
+
+	_, err = iptables.Raw(string(iptables.Append), "FORWARD", "-i", "bridge", "-o", l.Attrs().Name, "-j", "ACCEPT")
+	return err
 }
 
 func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {

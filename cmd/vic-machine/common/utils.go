@@ -15,12 +15,24 @@
 package common
 
 import (
+	"fmt"
+	"regexp"
+
 	log "github.com/Sirupsen/logrus"
 
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/pkg/errors"
 )
+
+// https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2046088
+const unsuppCharsRegex = `%|&|\*|\$|#|@|!|\\|/|:|\?|"|<|>|;|'|\|`
+
+// Same as unsuppCharsRegex but allows / and : for datastore paths
+const unsuppCharsDatastoreRegex = `%|&|\*|\$|#|@|!|\\|\?|"|<|>|;|'|\|`
+
+var reUnsupp = regexp.MustCompile(unsuppCharsRegex)
+var reUnsuppDatastore = regexp.MustCompile(unsuppCharsDatastoreRegex)
 
 func LogErrorIfAny(clic *cli.Context, err error) error {
 	if err == nil {
@@ -30,4 +42,23 @@ func LogErrorIfAny(clic *cli.Context, err error) error {
 	log.Errorf("--------------------")
 	log.Errorf("%s %s failed: %s\n", clic.App.Name, clic.Command.Name, errors.ErrorStack(err))
 	return cli.NewExitError("", 1)
+}
+
+// CheckUnsupportedChars returns an error if string contains special characters
+func CheckUnsupportedChars(s string) error {
+	return checkUnsupportedChars(s, reUnsupp)
+}
+
+// CheckUnsupportedCharsDatastore returns an error if a datastore string contains special characters
+func CheckUnsupportedCharsDatastore(s string) error {
+	return checkUnsupportedChars(s, reUnsuppDatastore)
+}
+
+func checkUnsupportedChars(s string, re *regexp.Regexp) error {
+	st := []byte(s)
+	var v []int
+	if v = re.FindIndex(st); v == nil {
+		return nil
+	}
+	return fmt.Errorf("unsupported character %q in %q", s[v[0]:v[1]], s)
 }

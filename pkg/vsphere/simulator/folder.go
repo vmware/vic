@@ -57,7 +57,7 @@ func (f *Folder) putChild(o mo.Entity) {
 	f.m.Lock()
 	defer f.m.Unlock()
 
-	f.ChildEntity = append(f.ChildEntity, o.Reference())
+	f.ChildEntity = AddReference(o.Reference(), f.ChildEntity)
 
 	f.update(o, AddReference)
 }

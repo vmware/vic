@@ -16,24 +16,26 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/codegangsta/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/reexec"
 
 	"github.com/Sirupsen/logrus"
-	psignal "github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -65,12 +67,30 @@ func main() {
 	}
 }
 
-func parseConfig(cfgFile string) (*config.Config, error) {
+// ParseConfig parses the libnetwork configuration file
+func (d *dnetConnection) parseOrchestrationConfig(tomlCfgFile string) error {
+	dummy := &dnetConnection{}
+
+	if _, err := toml.DecodeFile(tomlCfgFile, dummy); err != nil {
+		return err
+	}
+
+	if dummy.Orchestration != nil {
+		d.Orchestration = dummy.Orchestration
+	}
+	return nil
+}
+
+func (d *dnetConnection) parseConfig(cfgFile string) (*config.Config, error) {
 	if strings.Trim(cfgFile, " ") == "" {
 		cfgFile = os.Getenv(cfgFileEnv)
 		if strings.Trim(cfgFile, " ") == "" {
 			cfgFile = defaultCfgFile
 		}
+	}
+
+	if err := d.parseOrchestrationConfig(cfgFile); err != nil {
+		return nil, err
 	}
 	return config.ParseConfig(cfgFile)
 }
@@ -201,7 +221,7 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 			}
 		}
 
-		_, err := c.NewNetwork(d, nw, createOptions...)
+		_, err := c.NewNetwork(d, nw, "", createOptions...)
 		if err != nil {
 			logrus.Errorf("Error creating default network : %s : %v", nw, err)
 		}
@@ -212,18 +232,30 @@ type dnetConnection struct {
 	// proto holds the client protocol i.e. unix.
 	proto string
 	// addr holds the client address.
-	addr string
+	addr          string
+	Orchestration *NetworkOrchestration
+	configEvent   chan struct{}
+}
+
+// NetworkOrchestration exported
+type NetworkOrchestration struct {
+	Agent   bool
+	Manager bool
+	Bind    string
+	Peer    string
 }
 
 func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	if err := startTestDriver(); err != nil {
-		return fmt.Errorf("failed to start test driver: %v\n", err)
+		return fmt.Errorf("failed to start test driver: %v", err)
 	}
 
-	cfg, err := parseConfig(cfgFile)
+	cfg, err := d.parseConfig(cfgFile)
 	var cOptions []config.Option
 	if err == nil {
 		cOptions = processConfig(cfg)
+	} else {
+		logrus.Errorf("Error parsing config %v", err)
 	}
 
 	bridgeConfig := options.Generic{
@@ -239,6 +271,11 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	if err != nil {
 		fmt.Println("Error starting dnetDaemon :", err)
 		return err
+	}
+	controller.SetClusterProvider(d)
+
+	if d.Orchestration.Agent || d.Orchestration.Manager {
+		d.configEvent <- struct{}{}
 	}
 
 	createDefaultNetwork(controller)
@@ -263,14 +300,55 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	return http.ListenAndServe(d.addr, r)
 }
 
-func setupDumpStackTrap() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR1)
-	go func() {
-		for range c {
-			psignal.DumpStacks()
-		}
-	}()
+func (d *dnetConnection) IsManager() bool {
+	return d.Orchestration.Manager
+}
+
+func (d *dnetConnection) IsAgent() bool {
+	return d.Orchestration.Agent
+}
+
+func (d *dnetConnection) GetAdvertiseAddress() string {
+	return d.Orchestration.Bind
+}
+
+func (d *dnetConnection) GetLocalAddress() string {
+	return d.Orchestration.Bind
+}
+
+func (d *dnetConnection) GetListenAddress() string {
+	return d.Orchestration.Bind
+}
+
+func (d *dnetConnection) GetRemoteAddress() string {
+	return d.Orchestration.Peer
+}
+
+func (d *dnetConnection) GetNetworkKeys() []*types.EncryptionKey {
+	return nil
+}
+
+func (d *dnetConnection) SetNetworkKeys([]*types.EncryptionKey) {
+}
+
+func (d *dnetConnection) ListenClusterEvents() <-chan struct{} {
+	return d.configEvent
+}
+
+func (d *dnetConnection) AttachNetwork(string, string, []string) (*network.NetworkingConfig, error) {
+	return nil, nil
+}
+
+func (d *dnetConnection) DetachNetwork(string, string) error {
+	return nil
+}
+
+func (d *dnetConnection) UpdateAttachment(string, string, *network.NetworkingConfig) error {
+	return nil
+}
+
+func (d *dnetConnection) WaitForDetachment(context.Context, string, string, string, string) error {
+	return nil
 }
 
 func handleSignals(controller libnetwork.NetworkController) {
@@ -289,7 +367,7 @@ func startTestDriver() error {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	if server == nil {
-		return fmt.Errorf("Failed to start a HTTP Server")
+		return fmt.Errorf("Failed to start an HTTP Server")
 	}
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -356,7 +434,7 @@ func newDnetConnection(val string) (*dnetConnection, error) {
 		return nil, fmt.Errorf("dnet currently only supports tcp transport")
 	}
 
-	return &dnetConnection{protoAddrParts[0], protoAddrParts[1]}, nil
+	return &dnetConnection{protoAddrParts[0], protoAddrParts[1], &NetworkOrchestration{}, make(chan struct{}, 10)}, nil
 }
 
 func (d *dnetConnection) httpCall(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
@@ -429,11 +507,11 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 }
 
 func ipamOption(bridgeName string) libnetwork.NetworkOption {
-	if nw, _, err := ipamutils.ElectInterfaceAddresses(bridgeName); err == nil {
-		ipamV4Conf := &libnetwork.IpamConf{PreferredPool: nw.String()}
-		hip, _ := types.GetHostPartIP(nw.IP, nw.Mask)
+	if nws, _, err := netutils.ElectInterfaceAddresses(bridgeName); err == nil {
+		ipamV4Conf := &libnetwork.IpamConf{PreferredPool: nws[0].String()}
+		hip, _ := types.GetHostPartIP(nws[0].IP, nws[0].Mask)
 		if hip.IsGlobalUnicast() {
-			ipamV4Conf.Gateway = nw.IP.String()
+			ipamV4Conf.Gateway = nws[0].IP.String()
 		}
 		return libnetwork.NetworkOptionIpam("default", "", []*libnetwork.IpamConf{ipamV4Conf}, nil, nil)
 	}

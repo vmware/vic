@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,11 +25,11 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types/backend"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	dnetwork "github.com/docker/engine-api/types/network"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	dnetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
@@ -106,6 +106,7 @@ const (
 	SUCCESS             = 0
 	dummyContainerID    = "abc123"
 	dummyContainerIDTTY = "tty123"
+	fakeContainerID     = ""
 )
 
 var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
@@ -267,6 +268,10 @@ func (m *MockContainerProxy) Client() *plclient.PortLayer {
 }
 
 func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
+	if name == "" {
+		return fmt.Errorf("sample error message")
+	}
+
 	var lineCount int64 = 10
 
 	close(started)
@@ -285,7 +290,7 @@ func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, sta
 	return nil
 }
 
-func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
+func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
 	return nil
 }
 
@@ -359,7 +364,6 @@ func AddMockContainerToCache() {
 		vc.Config = image.Config //Set defaults.  Overrides will get copied below.
 		vc.Config.Tty = false
 		vc.ContainerID = dummyContainerID
-
 		cache.ContainerCache().AddContainer(vc)
 
 		vc = viccontainer.NewVicContainer()
@@ -367,7 +371,13 @@ func AddMockContainerToCache() {
 		vc.Config = image.Config
 		vc.Config.Tty = true
 		vc.ContainerID = dummyContainerIDTTY
+		cache.ContainerCache().AddContainer(vc)
 
+		vc = viccontainer.NewVicContainer()
+		vc.ImageID = image.ID
+		vc.Config = image.Config
+		vc.Config.Tty = false
+		vc.ContainerID = fakeContainerID
 		cache.ContainerCache().AddContainer(vc)
 	}
 }
@@ -583,7 +593,7 @@ func TestContainerLogs(t *testing.T) {
 			started := make(chan struct{})
 
 			start := time.Now()
-			err := cb.ContainerLogs(containerID, &data.Config, started)
+			err := cb.ContainerLogs(context.TODO(), containerID, &data.Config, started)
 			end := time.Now()
 
 			select {
@@ -594,7 +604,6 @@ func TestContainerLogs(t *testing.T) {
 
 			if data.ExpectedSuccess {
 				assert.Nil(t, err, "Expected success, but got error, config: %#v", data.Config)
-
 			} else {
 				assert.NotEqual(t, err, nil, "Expected error but received nil, config: %#v", data.Config)
 			}
@@ -610,6 +619,14 @@ func TestContainerLogs(t *testing.T) {
 			}
 		}
 	}
+
+	// Check that ContainerLogs *does not* return an error if StreamContainerLogs
+	// returns an error. Here, the config is valid and the container is in the
+	// cache, so the only error will come from StreamContainerLogs. Since the
+	// containerID = "", StreamContainerLogs will return an error.
+	started := make(chan struct{})
+	err := cb.ContainerLogs(context.TODO(), fakeContainerID, &mockData[0].Config, started)
+	assert.NoError(t, err)
 }
 
 func TestPortInformation(t *testing.T) {

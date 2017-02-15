@@ -39,6 +39,8 @@ func compareModel(t *testing.T, m *Model) {
 			count.Machine++
 		case "ResourcePool":
 			count.Pool++
+		case "Folder":
+			count.Folder++
 		}
 	}
 
@@ -46,6 +48,8 @@ func compareModel(t *testing.T, m *Model) {
 	vms := ((m.Host + m.Cluster) * m.Datacenter) * m.Machine
 	// child pools + root pools
 	pools := (m.Pool * m.Cluster * m.Datacenter) + (m.Host+m.Cluster)*m.Datacenter
+	// root folder + Datacenter folders {host,vm,datastore,network} + top-level folders
+	folders := 1 + (4 * m.Datacenter) + (5 * m.Folder)
 
 	tests := []struct {
 		expect int
@@ -55,10 +59,11 @@ func compareModel(t *testing.T, m *Model) {
 		{m.Datacenter, count.Datacenter, "Datacenter"},
 		{m.Cluster * m.Datacenter, count.Cluster, "Cluster"},
 		{m.Portgroup * m.Datacenter, count.Portgroup, "Portgroup"},
-		{m.Datastore, count.Datastore, "Datastore"},
+		{m.Datastore * m.Datacenter, count.Datastore, "Datastore"},
 		{hosts, count.ClusterHost, "Host"},
 		{vms, count.Machine, "VirtualMachine"},
 		{pools, count.Pool, "ResourcePool"},
+		{folders, count.Folder, "Folder"},
 	}
 
 	for _, test := range tests {
@@ -129,6 +134,21 @@ func TestModelCustomVPX(t *testing.T) {
 		Pool:           2,
 		Portgroup:      2,
 	}
+
+	defer m.Remove()
+
+	err := m.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compareModel(t, m)
+}
+
+func TestModelWithFolders(t *testing.T) {
+	m := VPX()
+	m.Datacenter = 3
+	m.Folder = 2
 
 	defer m.Remove()
 

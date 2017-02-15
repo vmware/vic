@@ -43,10 +43,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/platform"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/go-units"
 )
 
@@ -55,13 +55,15 @@ type System struct {
 }
 
 const (
-	systemStatusMhz    = " VCH mhz limit"
-	systemStatusMemory = " VCH memory limit"
-	systemOS           = " VMware OS"
-	systemOSVersion    = " VMware OS version"
-	systemProductName  = " VMware Product"
-	volumeStoresID     = "VolumeStores"
-	loginTimeout       = 20 * time.Second
+	systemStatusMhz         = " VCH CPU limit"
+	systemStatusMemory      = " VCH memory limit"
+	systemStatusCPUUsageMhz = " VCH CPU usage"
+	systemStatusMemUsage    = " VCH memory usage"
+	systemOS                = " VMware OS"
+	systemOSVersion         = " VMware OS version"
+	systemProductName       = " VMware Product"
+	volumeStoresID          = "VolumeStores"
+	loginTimeout            = 20 * time.Second
 )
 
 func NewSystemBackend() *System {
@@ -94,7 +96,6 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		Debug:              VchConfig().Diagnostics.DebugLevel > 0,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
-		ExecutionDriver:    PortLayerName(),
 		LoggingDriver:      "",
 		CgroupDriver:       "",
 		DockerRootDir:      "",
@@ -161,13 +162,21 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		if vchInfo.CPUMhz > 0 {
 			info.NCPU = int(vchInfo.CPUMhz)
 
-			customInfo := [2]string{systemStatusMhz, fmt.Sprintf("%d Mhz", info.NCPU)}
+			customInfo := [2]string{systemStatusMhz, fmt.Sprintf("%d MHz", info.NCPU)}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if vchInfo.Memory > 0 {
 			info.MemTotal = vchInfo.Memory * 1024 * 1024 // Get Mebibytes
 
 			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.CPUUsage >= 0 {
+			customInfo := [2]string{systemStatusCPUUsageMhz, fmt.Sprintf("%d MHz", int(vchInfo.CPUUsage))}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.MemUsage >= 0 {
+			customInfo := [2]string{systemStatusMemUsage, units.BytesSize(float64(vchInfo.MemUsage))}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if vchInfo.HostProductName != "" {
@@ -234,7 +243,11 @@ func (s *System) SystemVersion() types.Version {
 	return version
 }
 
-func (s *System) SubscribeToEvents(since, sinceNano int64, ef filters.Args) ([]events.Message, chan interface{}) {
+func (s *System) SystemDiskUsage() (*types.DiskUsage, error) {
+	return nil, fmt.Errorf("%s does not yet implement SystemDiskUsage", ProductName())
+}
+
+func (s *System) SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{}) {
 	return make([]events.Message, 0, 0), make(chan interface{})
 }
 

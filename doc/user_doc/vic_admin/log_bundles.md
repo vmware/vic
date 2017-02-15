@@ -2,6 +2,8 @@
 
 vSphere Integrated Containers Engine provides log bundles that you can download from the VCH Admin portal for a virtual container host (VCH).
 
+You access the VCH Admin Portal at https://<i>vch_address</i>:2378.
+
 If the VCH is unable to connect to vSphere, logs that require a vSphere connection are disabled, and you see an error message. You can download the log bundle to troubleshoot the error.
 
 - The **Log Bundle** contains logs that relate specifically to the VCH that you created. 

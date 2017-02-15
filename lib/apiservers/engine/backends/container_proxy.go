@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,13 +51,14 @@ import (
 	httpclient "github.com/mreiferson/go-httpclient"
 
 	"github.com/docker/docker/api/types/backend"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	dnetwork "github.com/docker/engine-api/types/network"
-	"github.com/docker/engine-api/types/strslice"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	dnetwork "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/docker/pkg/term"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -84,7 +85,7 @@ type VicContainerProxy interface {
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 
-	Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error
+	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	IsRunning(vc *viccontainer.VicContainer) (bool, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
@@ -438,12 +439,12 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerLogsNotFound:
-			return NotFoundError(fmt.Sprintf("No such container: %s", name))
+			return NotFoundError(name)
 		case *containers.GetContainerLogsInternalServerError:
 			return InternalServerError("Server error from the interaction port layer")
 		default:
 			//Check for EOF.  Since the connection, transport, and data handling are
-			//encapsulated inisde of Swagger, we can only detect EOF by checking the
+			//encapsulated inside of Swagger, we can only detect EOF by checking the
 			//error string
 			if strings.Contains(err.Error(), swaggerSubstringEOF) {
 				return nil
@@ -459,7 +460,7 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 //
 // returns
 //	error
-func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
+func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error {
 	defer trace.End(trace.Begin(vc.ContainerID))
 
 	if c.client == nil {
@@ -523,7 +524,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	handle = stateChangeResponse.Payload
-	wait := int32(seconds)
+	wait := int32(*seconds)
 	err = c.CommitContainerHandle(handle, vc.ContainerID, wait)
 	if err != nil {
 		if IsNotFoundError(err) {
@@ -711,11 +712,20 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
 
+	var keys []byte
+	var err error
+	if ca.DetachKeys != "" {
+		keys, err = term.ToBytes(ca.DetachKeys)
+		if err != nil {
+			return fmt.Errorf("Invalid escape keys (%s) provided", ca.DetachKeys)
+		}
+	}
+
 	if ca.UseStdin {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := copyStdIn(ctx, plClient, vc, clStdin, ca.DetachKeys)
+			err := copyStdIn(ctx, plClient, vc, clStdin, keys)
 			if err != nil {
 				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err.Error())
 			} else {
@@ -1242,7 +1252,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 		container.NetworkDisabled = false
 		container.MacAddress = ""
 		container.ExposedPorts = vc.Config.ExposedPorts
-		container.PublishService = "" // Name of the network service exposed by the container
 	}
 
 	// Get the original container config from the image's metadata in our image cache.

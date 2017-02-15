@@ -34,3 +34,9 @@ Group 5 - Functional Tests
 -
 [Test 5-16 - iSCSI Datastore](5-16-iSCSI-Datastore.md)
 -
+[Test 5-17 - FC Datastore](5-17-FC-Datastore.md)
+-
+[Test 5-18 - Datastore Cluster SDRS](5-18-Datastore-Cluster-SDRS.md)
+-
+[Test 5-19 - ROBO SKU](5-19-ROBO-SKU.md)
+-

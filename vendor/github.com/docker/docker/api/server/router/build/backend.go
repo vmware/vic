@@ -3,8 +3,8 @@ package build
 import (
 	"io"
 
-	"github.com/docker/docker/builder"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"golang.org/x/net/context"
 )
 
@@ -16,5 +16,5 @@ type Backend interface {
 	// by the caller.
 	//
 	// TODO: make this return a reference instead of string
-	Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error)
+	BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error)
 }

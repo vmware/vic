@@ -132,6 +132,29 @@ func (r *Registry) getEntityDatacenter(item mo.Entity) *mo.Datacenter {
 	return r.getEntityParent(item, "Datacenter").(*mo.Datacenter)
 }
 
+func (r *Registry) getEntityFolder(item mo.Entity, kind string) *Folder {
+	dc := Map.getEntityDatacenter(item)
+
+	var ref types.ManagedObjectReference
+
+	switch kind {
+	case "datastore":
+		ref = dc.DatastoreFolder
+	}
+
+	folder := r.Get(ref).(*Folder)
+
+	// If Model was created with Folder option, use that Folder; else use top-level folder
+	for _, child := range folder.ChildEntity {
+		if child.Type == "Folder" {
+			folder = Map.Get(child).(*Folder)
+			break
+		}
+	}
+
+	return folder
+}
+
 // getEntityComputeResource returns the ComputeResource parent for the given item.
 // A ResourcePool for example may have N Parents of type ResourcePool, but the top
 // most Parent pool is always a ComputeResource child.

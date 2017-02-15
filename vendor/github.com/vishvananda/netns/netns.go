@@ -61,7 +61,7 @@ func (ns *NsHandle) Close() error {
 	return nil
 }
 
-// None gets an empty (closed) NsHandle.
+// Get an empty (closed) NsHandle
 func None() NsHandle {
 	return NsHandle(-1)
 }

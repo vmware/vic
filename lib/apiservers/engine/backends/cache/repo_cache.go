@@ -232,9 +232,11 @@ func (store *repoCache) AddReference(ref reference.Named, imageID string, force 
 		store.referencesByIDCache[imageID] = make(map[string]reference.Named)
 	}
 	store.referencesByIDCache[imageID][refStr] = ref
-	store.Layers[layerID] = imageID
-	store.images[imageID] = layerID
 
+	if layerID != "" {
+		store.Layers[layerID] = imageID
+		store.images[imageID] = layerID
+	}
 	// should we save this input?
 	if save {
 		err = store.Save()

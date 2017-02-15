@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,19 +17,21 @@ package backends
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 
 	log "github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/errors"
+	derr "github.com/docker/docker/api/errors"
 
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/go-units"
 	"github.com/google/uuid"
 
+	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
@@ -67,6 +69,20 @@ func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *ty
 type Volume struct {
 }
 
+// acceptedVolumeFilters are volume filters that are supported by VIC
+var acceptedVolumeFilters = map[string]bool{
+	"dangling": true,
+	"name":     true,
+	"driver":   true,
+	"label":    true,
+}
+
+var errPortlayerClient = fmt.Errorf("failed to get a portlayer client")
+
+func NewVolumeBackend() *Volume {
+	return &Volume{}
+}
+
 // Volumes docker personality implementation for VIC
 func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	defer trace.End(trace.Begin("Volume.Volumes"))
@@ -74,34 +90,96 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 
 	client := PortLayerClient()
 	if client == nil {
-		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+		return nil, nil, VolumeInternalServerError(errPortlayerClient)
 	}
 
 	res, err := client.Storage.ListVolumes(storage.NewListVolumesParamsWithContext(ctx).WithFilterString(&filter))
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.ListVolumesInternalServerError:
-			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Payload.Message), http.StatusInternalServerError)
+			return nil, nil, VolumeInternalServerError(fmt.Errorf("error from portlayer server: %s", err.Payload.Message))
 		case *storage.ListVolumesDefault:
-			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Payload.Message), http.StatusInternalServerError)
+			return nil, nil, VolumeInternalServerError(fmt.Errorf("error from portlayer server: %s", err.Payload.Message))
 		default:
-			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Error()), http.StatusInternalServerError)
+			return nil, nil, VolumeInternalServerError(fmt.Errorf("error from portlayer server: %s", err.Error()))
 		}
 	}
 
 	volumeResponses := res.Payload
 
-	log.Infoln("volumes found: ")
+	// Parse and validate filters
+	volumeFilters, err := filters.FromParam(filter)
+	if err != nil {
+		return nil, nil, VolumeInternalServerError(err)
+	}
+	volFilterContext, err := vicfilter.ValidateVolumeFilters(volumeFilters, acceptedVolumeFilters, nil)
+	if err != nil {
+		return nil, nil, VolumeInternalServerError(err)
+	}
+
+	// joinedVolumes stores names of volumes that are joined to a container
+	// and is used while filtering the output by dangling (dangling=true should
+	// return volumes that are not attached to a container)
+	joinedVolumes := make(map[string]struct{})
+
+	if volumeFilters.Include("dangling") {
+		// If the dangling filter is specified, gather required items beforehand
+
+		// Get all containers from the portlayer and use their metadata to obtain
+		// non-dangling (joined) volumes
+		conts, err := allContainers()
+		if err != nil {
+			return nil, nil, VolumeInternalServerError(err)
+		}
+
+		var s struct{}
+		for i := range conts {
+			for _, vol := range conts[i].VolumeConfig {
+				joinedVolumes[vol.Name] = s
+			}
+		}
+	}
+
+	log.Infoln("volumes found:")
 	for _, vol := range volumeResponses {
 		log.Infof("%s", vol.Name)
+
 		volumeMetadata, err := extractDockerMetadata(vol.Metadata)
 		if err != nil {
-			return nil, nil, fmt.Errorf("error unmarshalling docker metadata: %s", err)
+			return nil, nil, VolumeInternalServerError(fmt.Errorf("error unmarshalling docker metadata: %s", err))
 		}
-		volume := NewVolumeModel(vol, volumeMetadata.Labels)
-		volumes = append(volumes, volume)
+
+		// Set fields needed for filtering the output
+		volFilterContext.Name = vol.Name
+		volFilterContext.Driver = vol.Driver
+		_, volFilterContext.Joined = joinedVolumes[vol.Name]
+		volFilterContext.Labels = volumeMetadata.Labels
+
+		// Include the volume in the output if it meets the filtering criteria
+		filterAction := vicfilter.IncludeVolume(volumeFilters, volFilterContext)
+		if filterAction == vicfilter.IncludeAction {
+			volume := NewVolumeModel(vol, volumeMetadata.Labels)
+			volumes = append(volumes, volume)
+		}
 	}
+
 	return volumes, nil, nil
+}
+
+// allContainers obtains all containers from the portlayer, akin to `docker ps -a`.
+func allContainers() ([]*models.ContainerInfo, error) {
+	client := PortLayerClient()
+	if client == nil {
+		return nil, errPortlayerClient
+	}
+
+	all := true
+	cons, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+	if err != nil {
+		return nil, err
+	}
+
+	return cons.Payload, nil
 }
 
 // VolumeInspect : docker personality implementation for VIC
@@ -110,7 +188,7 @@ func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
 
 	client := PortLayerClient()
 	if client == nil {
-		return nil, fmt.Errorf("failed to get a portlayer client")
+		return nil, VolumeInternalServerError(errPortlayerClient)
 	}
 
 	if name == "" {
@@ -124,13 +202,13 @@ func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
 		case *storage.GetVolumeNotFound:
 			return nil, VolumeNotFoundError(name)
 		default:
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Error()), http.StatusInternalServerError)
+			return nil, VolumeInternalServerError(fmt.Errorf("error from portlayer server: %s", err.Error()))
 		}
 	}
 
 	volumeMetadata, err := extractDockerMetadata(res.Payload.Metadata)
 	if err != nil {
-		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("error unmarshalling docker metadata: %s", err), http.StatusInternalServerError)
+		return nil, VolumeInternalServerError(fmt.Errorf("error unmarshalling docker metadata: %s", err))
 	}
 	volume := NewVolumeModel(res.Payload, volumeMetadata.Labels)
 
@@ -144,7 +222,7 @@ func (v *Volume) volumeCreate(name, driverName string, volumeData, labels map[st
 
 	client := PortLayerClient()
 	if client == nil {
-		return nil, fmt.Errorf("failed to get a portlayer client")
+		return nil, errPortlayerClient
 	}
 
 	if name == "" {
@@ -175,20 +253,20 @@ func (v *Volume) VolumeCreate(name, driverName string, volumeData, labels map[st
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.CreateVolumeConflict:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name), http.StatusInternalServerError)
+			return result, VolumeInternalServerError(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name))
 
 		case *storage.CreateVolumeNotFound:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", volumeStore(volumeData)), http.StatusInternalServerError)
+			return result, VolumeInternalServerError(fmt.Errorf("No volume store named (%s) exists", volumeStore(volumeData)))
 
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
+			return result, VolumeInternalServerError(fmt.Errorf("%s", err.Error()))
 
 		case *storage.CreateVolumeDefault:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Payload.Message), http.StatusInternalServerError)
+			return result, VolumeInternalServerError(fmt.Errorf("%s", err.Payload.Message))
 
 		default:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusInternalServerError)
+			return result, VolumeInternalServerError(fmt.Errorf("%s", err))
 		}
 	}
 
@@ -196,12 +274,12 @@ func (v *Volume) VolumeCreate(name, driverName string, volumeData, labels map[st
 }
 
 // VolumeRm : docker personality for VIC
-func (v *Volume) VolumeRm(name string) error {
+func (v *Volume) VolumeRm(name string, force bool) error {
 	defer trace.End(trace.Begin("Volume.VolumeRm"))
 
 	client := PortLayerClient()
 	if client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+		return VolumeInternalServerError(errPortlayerClient)
 	}
 
 	// FIXME: check whether this is a name or a UUID. UUID expected for now.
@@ -216,12 +294,16 @@ func (v *Volume) VolumeRm(name string) error {
 			return derr.NewRequestConflictError(fmt.Errorf(err.Payload.Message))
 
 		case *storage.RemoveVolumeInternalServerError:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
+			return VolumeInternalServerError(fmt.Errorf("Server error from portlayer: %s", err.Payload.Message))
 		default:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err), http.StatusInternalServerError)
+			return VolumeInternalServerError(fmt.Errorf("Server error from portlayer: %s", err))
 		}
 	}
 	return nil
+}
+
+func (v *Volume) VolumesPrune(pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
+	return nil, fmt.Errorf("%s does not yet implement VolumesPrune", ProductName())
 }
 
 type volumeMetadata struct {

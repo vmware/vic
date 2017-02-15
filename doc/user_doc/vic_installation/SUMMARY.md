@@ -26,4 +26,5 @@
   * [Certificate cname Mismatch](ts_cname_mismatch.md)
   * [Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md)
   * [Docker API Version Error](ts_docker_version_error.md)
+  * [Docker API Endpoint Check Failed Error](ts_docker_api_check_error.md)
 * [Send Documentation Feedback](feedback.md)

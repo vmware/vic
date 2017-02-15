@@ -1601,16 +1601,10 @@
 						}
 					},
 					"404": {
-						"description": "Logs not found",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Logs not found"
 					},
 					"500": {
-						"description": "Failed to get logs",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Failed to get logs"
 					}
 				}
 			}
@@ -2214,6 +2208,14 @@
 					"format": "int64"
 				},
 				"memory": {
+					"type": "integer",
+					"format": "int64"
+				},
+				"cpuUsage": {
+					"type": "integer",
+					"format": "int64"
+				},
+				"memUsage": {
 					"type": "integer",
 					"format": "int64"
 				},
@@ -2856,6 +2858,9 @@
 					"items": {
 						"type": "string"
 					}
+				},
+				"name": {
+					"type": "string"
 				},
 				"mountPoint": {
 					"type": "string"
