@@ -80,6 +80,8 @@ groups:
   docker-persona:
     users:
       - sflxn
+      - cgtexmex
+      - jzt
     conditions:
       files:
         include:
