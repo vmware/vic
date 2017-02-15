@@ -17,6 +17,7 @@ package tetherng
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 
 	"github.com/google/uuid"
@@ -52,6 +53,16 @@ type Reaper interface {
 	Reap(ctx context.Context) error
 }
 
+//
+type Reporter interface {
+	Report(ctx context.Context, err chan<- error)
+}
+
+//
+type Collector interface {
+	Collect(ctx context.Context)
+}
+
 type Plugin interface {
 	Configure(ctx context.Context, config *types.ExecutorConfig) error
 
@@ -69,6 +80,7 @@ type PluginRegistrar interface {
 
 type Tether struct {
 	PluginRegistrar
+	Collector
 
 	ctx context.Context
 
@@ -123,4 +135,38 @@ func (t *Tether) Plugins(ctx context.Context) []Plugin {
 		list = append(list, t.plugins[uuid])
 	}
 	return list
+}
+
+func (t *Tether) Collect(ctx context.Context) {
+	var chans = []chan error{}
+
+	t.m.RLock()
+	for uuid := range t.plugins {
+		plugin := t.plugins[uuid]
+		if reporter, ok := plugin.(Reporter); ok {
+			ch := make(chan error)
+			chans = append(chans, ch)
+			go reporter.Report(ctx, ch)
+		}
+	}
+	t.m.RUnlock()
+
+	//FIXME(caglar10ur): Should unregister also remove it from here?
+	cases := make([]reflect.SelectCase, len(chans))
+	for i := range chans {
+		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(chans[i])}
+	}
+
+	remaining := len(cases)
+	for remaining > 0 {
+		chosen, value, ok := reflect.Select(cases)
+		if !ok {
+			// The chosen channel has been closed, so zero out the channel to disable the case
+			cases[chosen].Chan = reflect.ValueOf(nil)
+			remaining--
+			continue
+		}
+
+		fmt.Printf("Read from channel %#v and received %s\n", chans[chosen], value)
+	}
 }

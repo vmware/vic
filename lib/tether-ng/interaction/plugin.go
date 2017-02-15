@@ -37,6 +37,8 @@ type Interaction struct {
 	uuid uuid.UUID
 	ctx  context.Context
 
+	err chan error
+
 	config types.ExecutorConfig
 }
 
@@ -44,6 +46,7 @@ func NewInteraction(ctx context.Context) *Interaction {
 	return &Interaction{
 		uuid: uuid.New(),
 		ctx:  ctx,
+		err:  make(chan error),
 	}
 }
 
@@ -54,8 +57,15 @@ func (i *Interaction) Configure(ctx context.Context, config *types.ExecutorConfi
 	return nil
 }
 
-func (i *Interaction) Start(ctx context.Context) error    { return nil }
-func (i *Interaction) Stop(ctx context.Context) error     { return nil }
+func (i *Interaction) Start(ctx context.Context) error { return nil }
+
+func (i *Interaction) Stop(ctx context.Context) error {
+	// close the err chan
+	close(i.err)
+
+	return nil
+}
+
 func (i *Interaction) UUID(ctx context.Context) uuid.UUID { return i.uuid }
 
 func (i *Interaction) Release(ctx context.Context, out chan<- chan struct{}) {
@@ -68,11 +78,15 @@ func (i *Interaction) Release(ctx context.Context, out chan<- chan struct{}) {
 
 		fmt.Printf("Sleeping some before unblocking\n")
 
+		i.err <- fmt.Errorf("Something happened (not really)\n")
 		time.Sleep(3 * time.Second)
+		i.err <- fmt.Errorf("Something else happened (not really)\n")
 
 		// send the response
 		out <- release
 	}
+	i.err <- fmt.Errorf("Nothing happened (not really)\n")
+
 	fmt.Printf("Done Releasing\n")
 }
 
@@ -212,4 +226,17 @@ func (i *Interaction) Close(ctx context.Context, in <-chan *types.Session) <-cha
 	}()
 
 	return c
+}
+
+func (i *Interaction) Report(ctx context.Context, err chan<- error) {
+	for {
+		select {
+		case msg := <-i.err:
+			if msg == nil {
+				close(err)
+				return
+			}
+			err <- msg
+		}
+	}
 }

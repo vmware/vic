@@ -97,6 +97,11 @@ func main() {
 		fmt.Printf("Err: %s\n", err)
 	}
 
+	if collector, ok := tether.(tetherng.Collector); ok {
+		fmt.Printf("Collector\n")
+		go collector.Collect(ctx)
+	}
+
 	for _, i := range tether.Plugins(callctx) {
 		if err := i.Configure(callctx, config); err != nil {
 			fmt.Printf("Err: %s\n", err)
