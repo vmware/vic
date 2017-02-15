@@ -25,22 +25,23 @@ import (
 	"github.com/vmware/vic/lib/tether-ng/types"
 )
 
+// Signaler provides the process signal related methods
 type Signaler interface {
 	Running(ctx context.Context, sessionID string) bool
 	Kill(ctx context.Context, sessionID string) error
 }
 
-// Interaction calls this to release Waiter
+// Releaser is called by Interactor to release Waiter
 type Releaser interface {
 	Release(ctx context.Context, out chan<- chan struct{})
 }
 
-// Process calls this to wait Releaser to release
+//Waiter is called by process plugin to wait Releaser to release
 type Waiter interface {
 	Wait(ctx context.Context, in <-chan chan struct{})
 }
 
-// Process calls this to mutate writers/readers
+// Interactor is called by process plugin to mutate its writers/readers
 type Interactor interface {
 	PseudoTerminal(ctx context.Context, in <-chan *types.Session) <-chan struct{}
 	NonInteract(ctx context.Context, in <-chan *types.Session) <-chan struct{}
@@ -48,21 +49,22 @@ type Interactor interface {
 	Close(ctx context.Context, in <-chan *types.Session) <-chan struct{}
 }
 
-//
+// Reaper implements the reaper to reap processes
 type Reaper interface {
 	Reap(ctx context.Context) error
 }
 
-//
+// Reporter implements the error reporting mechanism
 type Reporter interface {
 	Report(ctx context.Context, err chan<- error)
 }
 
-//
+// Collector implements the error collecting mechanism
 type Collector interface {
 	Collect(ctx context.Context)
 }
 
+// Plugin implements the plugins
 type Plugin interface {
 	Configure(ctx context.Context, config *types.ExecutorConfig) error
 
@@ -72,12 +74,14 @@ type Plugin interface {
 	UUID(ctx context.Context) uuid.UUID
 }
 
+// PluginRegistrar is the registry of Plugins
 type PluginRegistrar interface {
 	Register(ctx context.Context, plugin Plugin) error
 	Unregister(ctx context.Context, plugin Plugin) error
 	Plugins(ctx context.Context) []Plugin
 }
 
+// Tether implements PluginRegistrar and Collector
 type Tether struct {
 	PluginRegistrar
 	Collector
@@ -88,6 +92,7 @@ type Tether struct {
 	plugins map[uuid.UUID]Plugin
 }
 
+// NewTether returns a new tether instance
 func NewTether(ctx context.Context) PluginRegistrar {
 	return &Tether{
 		ctx:     ctx,
@@ -95,6 +100,7 @@ func NewTether(ctx context.Context) PluginRegistrar {
 	}
 }
 
+// Register registers the plugin
 func (t *Tether) Register(ctx context.Context, plugin Plugin) error {
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -112,6 +118,7 @@ func (t *Tether) Register(ctx context.Context, plugin Plugin) error {
 	return nil
 }
 
+// Unregister unregisters the plugin
 func (t *Tether) Unregister(ctx context.Context, plugin Plugin) error {
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -126,6 +133,7 @@ func (t *Tether) Unregister(ctx context.Context, plugin Plugin) error {
 	return nil
 }
 
+// Plugins returns the plugins
 func (t *Tether) Plugins(ctx context.Context) []Plugin {
 	t.m.RLock()
 	defer t.m.RUnlock()
@@ -137,6 +145,7 @@ func (t *Tether) Plugins(ctx context.Context) []Plugin {
 	return list
 }
 
+// Collect creates an error channel for each Reporter and sends it to them. Then creates a dynamic select statement using those
 func (t *Tether) Collect(ctx context.Context) {
 	var chans = []chan error{}
 

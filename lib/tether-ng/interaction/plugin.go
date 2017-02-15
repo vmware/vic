@@ -33,6 +33,7 @@ const (
 	ioCopyBufferSize = 32 * 1024
 )
 
+// Interaction implements the interaction plugin
 type Interaction struct {
 	uuid uuid.UUID
 	ctx  context.Context
@@ -42,6 +43,7 @@ type Interaction struct {
 	config types.ExecutorConfig
 }
 
+// NewInteraction returns a new Interaction instance
 func NewInteraction(ctx context.Context) *Interaction {
 	return &Interaction{
 		uuid: uuid.New(),
@@ -50,6 +52,7 @@ func NewInteraction(ctx context.Context) *Interaction {
 	}
 }
 
+// Configure sets the config
 func (i *Interaction) Configure(ctx context.Context, config *types.ExecutorConfig) error {
 	// create our own copy
 	i.config = *config
@@ -57,10 +60,12 @@ func (i *Interaction) Configure(ctx context.Context, config *types.ExecutorConfi
 	return nil
 }
 
+// Start starts the plugin
 func (i *Interaction) Start(ctx context.Context) error { return nil }
 
+// Stop stops the plugin
 func (i *Interaction) Stop(ctx context.Context) error {
-	// close the err chan
+	// close the err chan as we are reporter
 	close(i.err)
 
 	return nil
@@ -68,16 +73,12 @@ func (i *Interaction) Stop(ctx context.Context) error {
 
 func (i *Interaction) UUID(ctx context.Context) uuid.UUID { return i.uuid }
 
+// Release releases the caller
 func (i *Interaction) Release(ctx context.Context, out chan<- chan struct{}) {
-	fmt.Printf("Releasing\n")
 	if out != nil {
-		// make a new response chan
 		release := make(chan struct{})
 
-		fmt.Printf("Really releasing %#v\n", out)
-
-		fmt.Printf("Sleeping some before unblocking\n")
-
+		// simulating some work
 		i.err <- fmt.Errorf("Something happened (not really)\n")
 		time.Sleep(3 * time.Second)
 		i.err <- fmt.Errorf("Something else happened (not really)\n")
@@ -90,6 +91,7 @@ func (i *Interaction) Release(ctx context.Context, out chan<- chan struct{}) {
 	fmt.Printf("Done Releasing\n")
 }
 
+// PseudoTerminal implements pty
 func (i *Interaction) PseudoTerminal(ctx context.Context, in <-chan *types.Session) <-chan struct{} {
 	var err error
 
@@ -131,6 +133,7 @@ func (i *Interaction) PseudoTerminal(ctx context.Context, in <-chan *types.Sessi
 	return c
 }
 
+// NonInteract implements non-pty
 func (i *Interaction) NonInteract(ctx context.Context, in <-chan *types.Session) <-chan struct{} {
 	var wg sync.WaitGroup
 	c := make(chan struct{})
@@ -181,6 +184,7 @@ func (i *Interaction) NonInteract(ctx context.Context, in <-chan *types.Session)
 	return c
 }
 
+// Close closes the readers/writers
 func (i *Interaction) Close(ctx context.Context, in <-chan *types.Session) <-chan struct{} {
 	var wg sync.WaitGroup
 	c := make(chan struct{})
@@ -228,6 +232,7 @@ func (i *Interaction) Close(ctx context.Context, in <-chan *types.Session) <-cha
 	return c
 }
 
+// Report implements the Reporter interface
 func (i *Interaction) Report(ctx context.Context, err chan<- error) {
 	for {
 		select {

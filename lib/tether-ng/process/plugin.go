@@ -31,10 +31,11 @@ import (
 )
 
 const (
-	//https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
+	//SetChildSubreaper from https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
 	SetChildSubreaper = 0x24
 )
 
+// Process implements the process plugin
 type Process struct {
 	uuid uuid.UUID
 	ctx  context.Context
@@ -44,7 +45,7 @@ type Process struct {
 	sm       sync.Mutex
 	sessions map[string]*types.Session
 
-	m    sync.RWMutex
+	pm   sync.RWMutex
 	pids map[int]*types.Session
 
 	incoming chan os.Signal
@@ -53,6 +54,7 @@ type Process struct {
 	tether.Interactor
 }
 
+// NewProcess returns a new Process instance
 func NewProcess(ctx context.Context) *Process {
 	return &Process{
 		uuid:     uuid.New(),
@@ -63,14 +65,17 @@ func NewProcess(ctx context.Context) *Process {
 	}
 }
 
+// SetReleaser sets the releaser
 func (p *Process) SetReleaser(ctx context.Context, releaser tether.Releaser) {
 	p.Releaser = releaser
 }
 
+// SetInteractor sets the interactor
 func (p *Process) SetInteractor(ctx context.Context, interactor tether.Interactor) {
 	p.Interactor = interactor
 }
 
+// Configure sets the config and initializes sessions
 func (p *Process) Configure(ctx context.Context, config *types.ExecutorConfig) error {
 	// create our own copy
 	p.config = *config
@@ -95,6 +100,7 @@ func (p *Process) Configure(ctx context.Context, config *types.ExecutorConfig) e
 	return nil
 }
 
+// Start starts the plugin
 func (p *Process) Start(ctx context.Context) error {
 	p.Reap(ctx)
 
@@ -107,12 +113,14 @@ func (p *Process) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop stops the plugin
 func (p *Process) Stop(ctx context.Context) error {
 	p.StopReaper(ctx)
 
 	return nil
 }
 
+// StartSession starts the session
 func (p *Process) StartSession(ctx context.Context, i *types.Session) error {
 	in := make(chan *types.Session, 1)
 
@@ -133,14 +141,15 @@ func (p *Process) StartSession(ctx context.Context, i *types.Session) error {
 		p.Wait(ctx, requestChan)
 	}
 
-	p.m.Lock()
+	p.pm.Lock()
 	i.Cmd.Start()
 	p.pids[i.Cmd.Process.Pid] = i
-	p.m.Unlock()
+	p.pm.Unlock()
 
 	return nil
 }
 
+// StopSession stops the session
 func (p *Process) StopSession(ctx context.Context, i *types.Session) error {
 	in := make(chan *types.Session, 1)
 
