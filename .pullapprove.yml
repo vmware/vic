@@ -209,5 +209,5 @@ groups:
       - anchal-agrawal
     conditions:
       files:
-        includes:
+        include:
           - ".pullapprove.yml"
