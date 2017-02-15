@@ -1,5 +1,6 @@
 # Tether
 
+
 This document describes tether re-organization (this is not a complete re-design). The reasons of re-organizing the code base could be summarized as below;
 
 - Making concurrent parts of the code little bit easy to follow by sharing the data via communicating,
@@ -64,21 +65,21 @@ lib
 Tether implements following interface
 
 ```go
-type Tetherer interface {
+// PluginRegistrar is the registry of Plugins
+type PluginRegistrar interface {
 	Register(ctx context.Context, plugin Plugin) error
 	Unregister(ctx context.Context, plugin Plugin) error
 	Plugins(ctx context.Context) []Plugin
-
-    // FIXME(caglar10ur)
-    TODO
 }
 ```
 
 which can be used like following;
 
 ```go
+// Tether implements PluginRegistrar and Collector
 type Tether struct {
-	Tetherer
+	PluginRegistrar
+	Collector
 
 	ctx context.Context
 
@@ -86,39 +87,56 @@ type Tether struct {
 	plugins map[uuid.UUID]Plugin
 }
 
-func NewTether(ctx context.Context) Tetherer {
+// NewTether returns a new tether instance
+func NewTether(ctx context.Context) PluginRegistrar {
 	return &Tether{
 		ctx:     ctx,
 		plugins: make(map[uuid.UUID]Plugin),
 	}
 }
-
 ...
 ```
 
 plugins can provide additional capabilities via implementing following interfaces
 
 ```go
-// Interaction calls this to release Waiter
+// Signaler provides the process signal related methods
+type Signaler interface {
+	Running(ctx context.Context, sessionID string) bool
+	Kill(ctx context.Context, sessionID string) error
+}
+
+// Releaser is called by Interactor to release Waiter
 type Releaser interface {
 	Release(ctx context.Context, out chan<- chan struct{})
 }
 
-// Process calls this to wait Releaser to release
+//Waiter is called by process plugin to wait Releaser to release
 type Waiter interface {
 	Wait(ctx context.Context, in <-chan chan struct{})
 }
 
-// Process calls this to mutate writers/readers
+// Interactor is called by process plugin to mutate its writers/readers
 type Interactor interface {
-	Interact(ctx context.Context, in <-chan *types.Session) <-chan struct{}
+	PseudoTerminal(ctx context.Context, in <-chan *types.Session) <-chan struct{}
+	NonInteract(ctx context.Context, in <-chan *types.Session) <-chan struct{}
 
 	Close(ctx context.Context, in <-chan *types.Session) <-chan struct{}
 }
 
-//
+// Reaper implements the reaper to reap processes
 type Reaper interface {
 	Reap(ctx context.Context) error
+}
+
+// Reporter implements the error reporting mechanism
+type Reporter interface {
+	Report(ctx context.Context, err chan<- error)
+}
+
+// Collector implements the error collecting mechanism
+type Collector interface {
+	Collect(ctx context.Context)
 }
 ```
 
@@ -201,6 +219,7 @@ type Interaction struct {
 	Done <-chan struct{}
 
 	Pty       *os.File               `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
 	Outwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Errwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Reader    dio.DynamicMultiReader `vic:"0.1" scope:"read-only" recurse:"depth=0"`
@@ -311,3 +330,8 @@ package tetherng
 PASS
 ok      github.com/vmware/vic/lib/tether-ng/tests       0.012s
 ```
+
+## Missing Items - ToDo 
+- Talk about update
+- Implement SSH Server
+- Write tests that simulates SSH interaction

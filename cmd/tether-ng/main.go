@@ -98,7 +98,6 @@ func main() {
 	}
 
 	if collector, ok := tether.(tetherng.Collector); ok {
-		fmt.Printf("Collector\n")
 		go collector.Collect(ctx)
 	}
 
