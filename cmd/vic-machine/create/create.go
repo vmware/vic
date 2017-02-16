@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -986,14 +986,18 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 		return certs, nil, err
 	}
 
-	// We just do a direct equality check here - trying to be clever is liable to lead to hard
-	// to diagnose errors
-	if cert.Leaf.Subject.CommonName != c.cname {
-		log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
-		if c.Debug.Debug > 2 {
-			log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
+	if cert.Leaf == nil {
+		log.Warnf("Failed to load x509 leaf: Unable to confirm server certificate cname matches provided cname %q. Continuing...", c.cname)
+	} else {
+		// We just do a direct equality check here - trying to be clever is liable to lead to hard
+		// to diagnose errors
+		if cert.Leaf.Subject.CommonName != c.cname {
+			log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
+			if c.Debug.Debug > 2 {
+				log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
+			}
+			return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.certPath)
 		}
-		return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.certPath)
 	}
 
 	log.Infof("Loaded server certificate %s", scert)

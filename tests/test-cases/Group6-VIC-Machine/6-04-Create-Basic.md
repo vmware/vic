@@ -223,12 +223,30 @@ vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PA
 * Regression test pass
 
 
+## Create VCH - Server certificate with multiple blocks
+1. Generate key/cert files with server-cert.pem containing a block other than CERTIFICATE as the
+   first PEM block
+2. Specify key, cert files during creation
+
+### Expected Outcome
+* vic-machine warns about failure to load x509 leaf
+* Deployment succeeds
+
+
 ## Create VCH - Invalid keys
 1. Specify key, cert files with mal-format files
 
 ### Expected Outcome
 * Command fail for wrong key/cert file
 
+
+## Create VCH - Reuse keys
+1. Create VCH
+2. Destroy VCH
+3. Create VCH using keys and certificates from previous deployment
+
+### Expected Outcome
+* Deployment succeeds
 
 
 Timeout
