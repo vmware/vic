@@ -35,9 +35,9 @@ Error: failed to start containers: fakeContainer
 ```
 * Step 9 should result in an error message stating unable to wait for process launch status
 * Steps 10-12 should all result in all containers succeeding and not throwing any errors
-* Step 8 should result in the VIC appliance returning the following error:
+* Step 13 should result in the VIC appliance returning the following error:
 ```
-Error response from daemon: Server error from portlayer: Network test-network not found
+Error response from daemon: Server error from portlayer: network test-network not found
 Error: failed to start containers: containerID
 ```
 #Possible Problems:
