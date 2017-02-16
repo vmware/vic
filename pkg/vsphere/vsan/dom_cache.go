@@ -90,11 +90,7 @@ func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]
 	}
 	v.m.Lock()
 	defer v.m.Unlock()
-	for _, uuid := range deletedDoms {
-		vmdk := v.uuids[uuid]
-		delete(v.uuids, uuid)
-		delete(v.paths, vmdk)
-	}
+	v.removeFromCache(deletedDoms)
 
 	if len(failedIds) > 0 {
 		return leftVMDKs, DomDeleteError{
@@ -103,6 +99,16 @@ func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]
 		}
 	}
 	return leftVMDKs, nil
+}
+
+// removeFromCache deletes obsolete objects from cache.
+// this method does not lock cache
+func (v *vsanDSDomCache) removeFromCache(uuids []string) {
+	for _, uuid := range uuids {
+		vmdk := v.uuids[uuid]
+		delete(v.uuids, uuid)
+		delete(v.paths, vmdk)
+	}
 }
 
 // Refresh searches dom objects from vsan datastore, and build reverse index for vmdk files
@@ -116,14 +122,23 @@ func (v *vsanDSDomCache) Refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	// do not query existing uuids, as we don't rename vmdk file
 	setIds := make(map[string]struct{}, len(uuids))
 	for _, uuid := range uuids {
 		setIds[uuid] = struct{}{}
 	}
+
+	var obsoletes []string
 	for exist := range v.uuids {
-		delete(setIds, exist)
+		if _, ok := setIds[exist]; ok {
+			delete(setIds, exist)
+		} else {
+			obsoletes = append(obsoletes, exist)
+		}
 	}
+	// remove deleted uuids
+	v.removeFromCache(obsoletes)
 	leftIds := make([]string, len(setIds))
 	i := 0
 	for left := range setIds {
