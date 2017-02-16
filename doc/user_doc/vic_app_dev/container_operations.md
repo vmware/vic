@@ -1,6 +1,6 @@
 # Supported Docker Commands
 
- vSphere Integrated Containers Engine supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md). 
+ vSphere Integrated Containers Engine 0.8 supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md). 
 
 - [Docker Management Commands](#mgmt)
 - [Image Commands](#image)
@@ -107,12 +107,14 @@ For more information about volume operations with vSphere Integrated Containers 
 <a name="compose"></a>
 ## Docker Compose Commands ##
 
+vSphere Integrated Containers Engine 0.8 supports Docker Compose version 1.10.
+
 For more information about using Docker Compose with vSphere Integrated Containers Engine, see [Creating a Containerized Application with vSphere Integrated Containers Engine](creating_containerized_app_with_vic.md).
 
 | **Command** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
 | `build`  | [Build or rebuild service](https://docs.docker.com/compose/reference/build/)  | No. Depends on `docker build`.|
-| `bundle`  | [Generate a Distributed Application Bundle (DAB) from the Compose file](https://docs.docker.com/compose/reference/bundle/)| No. Depends on `RepoDigests` from `docker inspect {image}`.|
+| `bundle`  | [Generate a Distributed Application Bundle (DAB) from the Compose file](https://docs.docker.com/compose/reference/bundle/)| No|
 | `config`  | [Validate and view the compose file](https://docs.docker.com/compose/reference/config/)  | Yes  |
 | `create`  | [Create services](https://docs.docker.com/compose/reference/create/)  | Yes  |
 | `down`  | [Stop and remove containers, networks, images, and volumes](https://docs.docker.com/compose/reference/down/)  | Yes  |
@@ -132,7 +134,6 @@ For more information about using Docker Compose with vSphere Integrated Containe
 | `scale`  | [Set number of containers for a service](https://docs.docker.com/compose/reference/scale/)  | No. Depends on `docker ps --filter`. |
 | `start`  | [Start services](https://docs.docker.com/compose/reference/start/)  | Yes  |
 | `stop`  | [Stop services](https://docs.docker.com/compose/reference/stop/)  | Yes  |
-| `top`  | [Displays the running processes](https://docs.docker.com/compose/reference/top/)  | No  |
 | `unpause`  | [Unpause services](https://docs.docker.com/compose/reference/unpause/)  | No. Depends on `docker unpause`.  |
 | `up`  | [Create and start containers]()  | Conditionally supported. Does not work if there are orphaned containers. Depends on `docker rename` and `docker ps --filter`.  |
 | `version`  | Show the Docker-Compose version information  | Yes  |
