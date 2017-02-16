@@ -35,7 +35,7 @@ You can deploy VCHs in vCenter Linked Mode environments.
 ## vSphere Features Not Supported in This Release
 vSphere Integrated Containers Engine does not currently support the following vSphere features:
 
-- vSphere Storage DRS&trade;: You cannot configure VCHs to use datastores that are in Storage DRS clusters.
+- vSphere Storage DRS&trade;: You cannot configure VCHs to use Storage DRS datastore clusters. However, you can specify the path to a specific datastore within a Storage DRS datastore clusters by specifying the full inventory path to the datastore in the `vic-machine create --image-store` option. For example, `--image-store /dc1/datastore/my-storage-pod/datastore1`.
 - vSphere High Availability: You can deploy VCHs to systems that are configured with High Availability, but you cannot use High Availability to fail over the VCHs themselves.
 - vSphere Fault Tolerance: You cannot configure Fault Tolerance on VCHs.
 - vSphere Virtual Volumes&trade;: You cannot use Virtual Volumes as the target datastores for image stores or volume stores.
