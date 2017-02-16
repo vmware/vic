@@ -78,7 +78,7 @@ func Put(client *client.PortLayer, key string, val string) error {
 	_, err := client.Kv.PutValue(ckv.NewPutValueParamsWithContext(
 		context.Background()).WithKey(fullKey).WithKeyValue(keyval))
 	if err != nil {
-		log.Errorf("Error Putting Key/Value: %#v", err)
+		log.Errorf("Error Putting Key/Value: %s", err)
 		return err
 	}
 
@@ -92,7 +92,7 @@ func Delete(client *client.PortLayer, key string) error {
 	_, err := client.Kv.DeleteValue(ckv.NewDeleteValueParamsWithContext(
 		context.Background()).WithKey(createNameSpacedKey(key)))
 	if err != nil {
-		log.Errorf("Error Deleting Key/Value: %#v", err)
+		log.Errorf("Error Deleting Key/Value: %s", err)
 		return err
 	}
 
