@@ -23,17 +23,22 @@ This test requires that a vSphere server is running and available
 10. Create and start 5 busybox containers running /bin/top serially
 11. Create and start 5 ubuntu containers running /bin/top serially
 12. Create and start 5 busybox containers running /bin/top all at once
+13. Run a container with a test-network, stop the container, remove the test-network, then start the container again
 
 #Expected Outcome:
 * Commands 1-7 should all return without error and respond with the container ID
 * After commands 3, 5, and 7 verify that the containers are running
-* Step 8 should result in the VIC applaiance returning the following error:
+* Step 8 should result in the VIC appliance returning the following error:
 ```
 Error response from daemon: No such container: fakeContainer
 Error: failed to start containers: fakeContainer
 ```
 * Step 9 should result in an error message stating unable to wait for process launch status
 * Steps 10-12 should all result in all containers succeeding and not throwing any errors
-
+* Step 13 should result in the VIC appliance returning the following error:
+```
+Error response from daemon: Server error from portlayer: network test-network not found
+Error: failed to start containers: containerID
+```
 #Possible Problems:
 None
