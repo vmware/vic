@@ -247,6 +247,15 @@
 			"path": "/spew"
 		},
 		{
+			"importpath": "github.com/davecgh/go-xdr/xdr2",
+			"repository": "https://github.com/davecgh/go-xdr",
+			"vcs": "git",
+			"revision": "e6a2ba005892b6a5b27cb5352f64c2e96942dd28",
+			"branch": "master",
+			"path": "/xdr2",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/dchest/siphash",
 			"repository": "https://github.com/dchest/siphash",
 			"vcs": "git",
