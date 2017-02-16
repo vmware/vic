@@ -434,3 +434,5 @@ clean:
 distclean:
 	@echo removing binaries
 	@rm -fr $(BIN)
+
+include installer/vic-unified-installer.mk
