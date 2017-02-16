@@ -8,6 +8,7 @@
 - [Hub and Registry Commands](#registry)
 - [Network and Connectivity Commands](#network)
 - [Shared Data Volume Commands](#volume)
+- [Docker Compose Commands](#compose)
 - [Swarm Commands](#swarm)
 
 <a name="mgmt"></a>
@@ -48,12 +49,12 @@
 |`diff`|[Inspect changes on a container's filesystem](https://docs.docker.com/engine/reference/commandline/diff/)|No|
 |`events`|[Get real time events from the server](https://docs.docker.com/engine/reference/commandline/events/)|No|
 |`exec`|[Run a command in a running container](https://docs.docker.com/engine/reference/commandline/exec/)|No|
-|export|[Export a container](https://docs.docker.com/engine/reference/commandline/export/)|No|
+|`export`|[Export a container](https://docs.docker.com/engine/reference/commandline/export/)|No|
 |`kill`|[Kill a running container](https://docs.docker.com/engine/reference/commandline/kill/)|Yes. Docker must wait for the container to shut down.|
 |`logs`|[Get container logs](https://docs.docker.com/engine/reference/commandline/logs/)|Yes,  vSphere Integrated Container Engine does not yet support `docker logs --timestamps` (`-t`) and `--since` options.|
 |`pause`|[Pause processes in a container](https://docs.docker.com/engine/reference/commandline/pause/)|No|
 |`port`|[Obtain port data](https://docs.docker.com/engine/reference/commandline/port/)|Yes. Displays port mapping data. <br> vSphere Integrated Container Engine supports mapping a random host port to the container when the host port is not specified.|
-|`ps`|[Show running containers](https://docs.docker.com/engine/reference/commandline/ps/)|Yes, vSphere Integrated Containers Engine supports only `-a/--all`, `--no-trunc`, and `-q/--quiet` options.|
+|`ps`|[Show running containers](https://docs.docker.com/engine/reference/commandline/ps/)|Yes. Only supports the `-a/--all`, `--no-trunc`, and `-q/--quiet` options.|
 |`rename`|[Rename a container](https://docs.docker.com/engine/reference/commandline/rename/)|No|
 |`restart`|[Restart a container](https://docs.docker.com/engine/reference/commandline/restart/)|Yes|
 |`rm`|[Remove a container](https://docs.docker.com/engine/reference/commandline/rm/)|Yes, vSphere Integrated Containers Engine also removes associated anonymous and regular volumes, supports `-f/--force` option and the <code>name</code> parameter.  `docker rm -v` and `docker rm -f` are not supported. To view volumes attached to a container that is removed, use `docker volume ls` and `docker volume inspect <id>`. If you continually invoke `docker create` to make more anonymous volumes, those volumes are left behind after each subsequent removal of that container.|
@@ -102,6 +103,39 @@ For more information about volume operations with vSphere Integrated Containers 
 |`volume inspect`|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes, use with docker compose.|
 |`volume ls`|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/)|Yes. `--filter` is not supported.|
 |`volume rm`|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/)|Yes|
+
+<a name="compose"></a>
+## Docker Compose Commands ##
+
+For more information about using Docker Compose with vSphere Integrated Containers Engine, see [Creating a Containerized Application with vSphere Integrated Containers Engine](creating_containerized_app_with_vic.md).
+
+| **Command** | **Docker Reference** | **Supported** |
+| --- | --- | --- |
+| `build`  | [Build or rebuild service](https://docs.docker.com/compose/reference/build/)  | No. Depends on `docker build`.|
+| `bundle`  | [Generate a Distributed Application Bundle (DAB) from the Compose file](https://docs.docker.com/compose/reference/bundle/)| No. Depends on `RepoDigests` from `docker inspect {image}`.|
+| `config`  | [Validate and view the compose file](https://docs.docker.com/compose/reference/config/)  | Yes  |
+| `create`  | [Create services](https://docs.docker.com/compose/reference/create/)  | Yes  |
+| `down`  | [Stop and remove containers, networks, images, and volumes](https://docs.docker.com/compose/reference/down/)  | Yes  |
+| `events`  |[Receive real time events from containers](https://docs.docker.com/compose/reference/events/)  | No. Depends on `docker events`.|
+| `exec`  | [Run commands in services](https://docs.docker.com/compose/reference/exec/) | No. Depends on `docker exec`. |
+| `help`  | [Get help on a command](https://docs.docker.com/compose/reference/help/)  | yes  |
+| `kill`  | [Kill containers](https://docs.docker.com/compose/reference/kill/)  | No, but `docker kill` works. |
+| `logs`  | [View output from containers](https://docs.docker.com/compose/reference/logs/)  | Yes |
+| `pause`  | [Pause services](https://docs.docker.com/compose/reference/pause/)  | No. Depends on `docker pause`.  |
+| `port`  | [Print the public port for a port binding](https://docs.docker.com/compose/reference/port/)  | Yes |
+| `ps`  | [List containers](https://docs.docker.com/compose/reference/ps/)  | No. Depends on `docker ps --filter`.  |
+| `pull`  | [Pulls service images](https://docs.docker.com/compose/reference/pull/)  | Yes  |
+| `push`  | [Pushes images for service](https://docs.docker.com/compose/reference/push/)  | No. Depends on `docker push`  |
+| `restart`  |	[Restart services](https://docs.docker.com/compose/reference/restart/)  | Yes  |
+| `rm`  | [Remove stopped containers](https://docs.docker.com/compose/reference/rm/)  | Yes  |
+| `run`  | [Run a one-off command](https://docs.docker.com/compose/reference/run/)  | Yes  |
+| `scale`  | [Set number of containers for a service](https://docs.docker.com/compose/reference/scale/)  | No. Depends on `docker ps --filter`. |
+| `start`  | [Start services](https://docs.docker.com/compose/reference/start/)  | Yes  |
+| `stop`  | [Stop services](https://docs.docker.com/compose/reference/stop/)  | Yes  |
+| `top`  | [Displays the running processes](https://docs.docker.com/compose/reference/top/)  | No  |
+| `unpause`  | [Unpause services](https://docs.docker.com/compose/reference/unpause/)  | No. Depends on `docker unpause`.  |
+| `up`  | [Create and start containers]()  | Conditionally supported. Does not work if there are orphaned containers. Depends on `docker rename` and `docker ps --filter`.  |
+| `version`  | Show the Docker-Compose version information  | Yes  |
 
 <a name="swarm"></a>
 ## Swarm Commands ##
