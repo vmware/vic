@@ -38,14 +38,11 @@ type ContainerListContext struct {
 	*types.ContainerListOptions
 }
 
-/*
-*	IncludeContainer will evaluate the filter criteria in listContext against the provided
-* 	container and determine what action to take.  There are three options:
-*		* IncludeAction
-*		* ExcludeAction
-*		* StopAction
-*
- */
+// IncludeContainer will evaluate the filter criteria in listContext against the provided
+// container and determine what action to take. There are three options:
+//	* IncludeAction
+//  * ExcludeAction
+//  * StopAction
 func IncludeContainer(listContext *ContainerListContext, container *models.ContainerInfo) FilterAction {
 
 	// if we need to filter on name add to the listContext
@@ -87,31 +84,59 @@ func IncludeContainer(listContext *ContainerListContext, container *models.Conta
 	}
 
 	// filter on network name
-	for n := range container.Endpoints {
-		name := container.Endpoints[n].Scope
-		if listContext.Filters.Include("network") {
-			err := listContext.Filters.WalkValues("network", func(value string) error {
-				if name == value {
-					return nil
-				}
-				return fmt.Errorf("not part of container network")
-			})
-			if err != nil {
-				return ExcludeAction
+	if listContext.Filters.Include("network") {
+		netFilterValues := listContext.Filters.Get("network")
+
+		// Gather the container's networks in a map
+		numNetworks := len(container.Endpoints)
+		networks := make(map[string]struct{}, numNetworks)
+		var s struct{}
+		for i := range container.Endpoints {
+			networks[container.Endpoints[i].Scope] = s
+		}
+
+		// Exclude the container if its network(s) match no supplied filter values
+		exists := false
+		for i := range netFilterValues {
+			if _, exists = networks[netFilterValues[i]]; exists {
+				break
 			}
+		}
+		if !exists {
+			return ExcludeAction
+		}
+	}
+
+	// Filter on volume name
+	if listContext.Filters.Include("volume") {
+		volFilterValues := listContext.Filters.Get("volume")
+
+		// Gather the container's volumes in a map
+		numVols := len(container.VolumeConfig)
+		vols := make(map[string]struct{}, numVols)
+		var s struct{}
+		for i := range container.VolumeConfig {
+			vols[container.VolumeConfig[i].Name] = s
+		}
+
+		// Exclude the container if its volume(s) match no supplied filter values
+		exists := false
+		for i := range volFilterValues {
+			if _, exists = vols[volFilterValues[i]]; exists {
+				break
+			}
+		}
+		if !exists {
+			return ExcludeAction
 		}
 	}
 
 	return IncludeAction
 }
 
-/*
-* ValidateContainerFilters will validate the container filters are
-* valid docker filters / values and supported by vic.
-*
-* The function will reuse dockers filter validation
-*
- */
+// ValidateContainerFilters validates that the container filters are
+// valid docker filters / values and supported by VIC.
+// The function reuses Docker's filter validation.
 func ValidateContainerFilters(options *types.ContainerListOptions, acceptedFilters map[string]bool, unSupportedFilters map[string]bool) (*ContainerListContext, error) {
 	containerFilters := options.Filters
 

@@ -194,3 +194,47 @@ Docker ps with label and name filter
     Should Contain  ${output}  busybox
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
+
+Docker ps with volume filter
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v foo:/dir --name fooContainer busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=foo
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  fooContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=foo -f volume=bar
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  fooContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=fo
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  fooContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  1
+
+Docker ps with network filter
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create fooNet
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=fooNet --name fooNetContainer busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f network=fooNet
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  fooNetContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f network=fooNet -f network=barNet
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  fooNetContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f network=fo
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  fooNetContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  1

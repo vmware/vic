@@ -128,11 +128,17 @@ func TestIncludeContainer(t *testing.T) {
 	}
 	eps := make([]*models.EndpointConfig, 0)
 
+	vol := &models.VolumeConfig{
+		Name: "fooVol",
+	}
+	vols := make([]*models.VolumeConfig, 0)
+
 	contain := &models.ContainerInfo{
 		ContainerConfig: &models.ContainerConfig{
 			Names: []string{"jojo"},
 		},
 		ProcessConfig: &models.ProcessConfig{},
+		VolumeConfig:  append(vols, vol),
 		Endpoints:     append(eps, ep),
 	}
 
@@ -168,6 +174,23 @@ func TestIncludeContainer(t *testing.T) {
 	listCtx.Filters = filters.NewArgs()
 	listCtx.Filters.Add("network", "bridge")
 	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
+	listCtx.Filters.Add("network", "fooNet")
+	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
+	listCtx.Filters.Del("network", "bridge")
+	listCtx.Filters.Del("network", "fooNet")
+	listCtx.Filters.Add("network", "barNet")
+	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
+
+	// test volume name
+	listCtx.Filters = filters.NewArgs()
+	listCtx.Filters.Add("volume", "fooVol")
+	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
+	listCtx.Filters.Add("volume", "barVol")
+	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
+	listCtx.Filters.Del("volume", "fooVol")
+	listCtx.Filters.Del("volume", "barVol")
+	listCtx.Filters.Add("volume", "quxVol")
+	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
 
 	listCtx.Filters = filters.NewArgs()
 	listCtx.Filters.Add("network", "missed")
