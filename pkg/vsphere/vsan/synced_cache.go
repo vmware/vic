@@ -177,7 +177,6 @@ func (c *syncedDomCache) AddDomCache(ctx context.Context, ds *object.Datastore) 
 		hvis:  hvis,
 		uuids: make(map[string]string),
 		paths: make(map[string]string),
-		m:     &sync.Mutex{},
 	}
 	log.Debugf("Dom cache for datastore %s is created, start to refresh", ds.InventoryPath)
 	c.m.Lock()

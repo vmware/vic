@@ -26,12 +26,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
-	vsanNamePattern = "vsan:.*/"
+	vsanNamePattern = "vsan:[^/]+/"
 	vmdkFileSuffix  = ".vmdk"
 )
 
@@ -39,16 +40,22 @@ var (
 	vsanNameRegex, _ = regexp.Compile(vsanNamePattern)
 )
 
+type internalMgr interface {
+	DeleteVsanObjects(ctx context.Context, uuids []string, force *bool) ([]types.HostVsanInternalSystemDeleteVsanObjectsResult, error)
+	QueryVsanObjectUuidsByFilter(ctx context.Context, uuids []string, limit int32, version int32) ([]string, error)
+	GetVsanObjExtAttrs(ctx context.Context, uuids []string) (map[string]VSANExtAttrs, error)
+}
+
 // vsanDatastoreCache is the map from vmdk file path to vsan dom object uuid, all vmdk files in the datastore will be cached
 type vsanDSDomCache struct {
 	ds   *object.Datastore
-	hvis *HostVsanInternalSystem
+	hvis internalMgr
 	// vsan dom object uuid: vsan dom object path, this path does not have vsan namespace prefix in this format /vmfs/volumes/vsan:52932941b44e2147-f1490d38c9730c6d/.
 	// uuids keeps all vsan dom objects in this datastore, to improve VMDK uuid query performance, because API does not provide any way to filter based on object path
 	uuids map[string]string
 	// vsan dom object path:object uuid. This path has same truncation with the above map
 	paths map[string]string
-	m     *sync.Mutex
+	m     sync.Mutex
 }
 
 // DeleteVMDKDoms deletes vmdk dom objects if the vmdk file exists in dom cache, if not, return undeleted files
@@ -56,6 +63,10 @@ func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]
 	defer trace.End(trace.Begin(fmt.Sprintf("paths: %s", paths)))
 	var uuids []string
 	var leftVMDKs []string
+
+	if len(paths) == 0 {
+		return nil, nil
+	}
 
 	v.m.Lock()
 	for _, path := range paths {
@@ -70,6 +81,9 @@ func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]
 		}
 	}
 	v.m.Unlock()
+	if len(leftVMDKs) > 0 {
+		log.Debugf("Doms %s not found, do not delete them", leftVMDKs)
+	}
 
 	force := true
 	deleteResult, err := v.hvis.DeleteVsanObjects(ctx, uuids, &force)
@@ -88,6 +102,8 @@ func (v *vsanDSDomCache) DeleteVMDKDoms(ctx context.Context, paths []string) ([]
 			failedIds = append(failedIds, r.Uuid)
 		}
 	}
+	log.Debugf("Doms %s deleted", deletedDoms)
+	log.Debugf("Failed to delete ids: %s", failedIds)
 	v.m.Lock()
 	defer v.m.Unlock()
 	v.removeFromCache(deletedDoms)
