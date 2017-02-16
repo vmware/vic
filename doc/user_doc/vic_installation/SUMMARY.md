@@ -12,7 +12,7 @@
   * [Verify the Deployment of a VCH](verify_vch_deployment.md)
   * [VCH Deployment Options](vch_installer_options.md)
   * [Advanced Examples of Deploying a VCH](vch_installer_examples.md)
-  * [Set Up the `--ops-user` User Account](set_up_ops_user.md)
+  * [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md)
   * [Deploy a VCH with vSphere Integrated Containers Registry (Harbor)](deploy_vch_harbor.md)
 * [Installing the vSphere Web Client Plug-in](install_vic_plugin.md)
   * [vCenter Server For Windows with a Web Server](plugin_vc_web.md)

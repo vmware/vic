@@ -363,11 +363,15 @@ If you specify an invalid port group name, `vic-machine create` fails and sugges
 
 The `bridge-network` option is **optional** when you are deploying a VCH to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the VCH. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the VCH.
 
-<pre>--bridge-network <i>distributed_port_group_name</i></pre>
+<pre>--bridge-network <i>port_group_name</i></pre>
 
 Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--bridge-network '<i>port group name</i>'</pre>
+
+If you intend to use the [`--ops-user`](#ops-user) option to use different user accounts for deployment and operation of the VCH, you must place the bridge network port group in a network folder that has the `Read-Only` role with propagation enabled. For more information about the requirements when using `--ops-user`, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md). If the port group is located in a network folder, include the full inventory path to the port group when you specify the `--bridge-network` option.
+
+<pre>--bridge-network '<i>datacenter</i>/network/<i>network_folder</i>/<i>port_group_name</i>'</pre>
 
 For information about how to specify a range of IP addresses for additional bridge networks, see [`bridge-network-range`](#bridge-range) in Advanced Networking Options.
 
@@ -465,6 +469,10 @@ If you do not specify `--container-network`, or if you deploy containers that do
 Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
 <pre>--container-network '<i>port group name</i>':<i>container port group name</i></pre>
+
+If you intend to use the [`--ops-user`](#ops-user) option to use different user accounts for deployment and operation of the VCH, you must place any container network port groups in a network folder that has the `Read-Only` role with propagation enabled. For more information about the requirements when using `--ops-user`, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md). If a port group is located in a network folder, include the full inventory path to the port group when you specify the `--container-network` option.
+
+<pre>--container-network '<i>datacenter</i>/network/<i>network_folder</i>/<i>port_group_name</i>':container_port _group_name</i></pre>
 
 <a name="deployment"></a>
 ## Additional Deployment Options ##
@@ -640,7 +648,7 @@ Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes
 
 <pre>--ops-user '<i>user_n@me</i>'</pre>
 
-The user account that you specify in `--ops-user` must exist before you deploy the VCH. For information about the permissions that the `--ops-user` account requires, see [Set Up the `--ops-user` User Account](set_up_ops_user.md).
+The user account that you specify in `--ops-user` must exist before you deploy the VCH. For information about the permissions that the `--ops-user` account requires, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md).
 
 ### `--ops-password` ###
 
@@ -648,7 +656,7 @@ Short name: None
 
 The password or token for the operations user that you specify in `--ops-user`.
  
-If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+If not specified, `vic-machine create` prompts you to enter the password for the `--ops-user` account.
 
 <pre>--ops-password <i>password</i></pre>
 
