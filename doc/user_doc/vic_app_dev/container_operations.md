@@ -85,7 +85,7 @@ For more information about network operations with vSphere Integrated Containers
 | **Command** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
 |`network connect`|[Connect to a network](https://docs.docker.com/engine/reference/commandline/network_connect/)|Yes, However, this is not supported for running containers.|
-|`network create`|[Create a network](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network in [Container Networking with vSphere Integrated Containers Engine](network_use_cases.md). Bridge is also supported.|
+|`network create`|[Create a network](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network in [Container Networking with vSphere Integrated Containers Engine](network_use_cases.md). Bridge is also supported.<br><br>The `--label`, `--internal`, and `--ipam` options are currently not supported.|
 |`network disconnect`|[Disconnect a network](https://docs.docker.com/engine/reference/commandline/network_disconnect/)|No|
 |`network inspect`|[Inspect a network](https://docs.docker.com/engine/reference/commandline/network_inspect/)|Yes|
 |`network ls`|[List networks/](https://docs.docker.com/engine/reference/commandline/network_ls/)|Yes|
