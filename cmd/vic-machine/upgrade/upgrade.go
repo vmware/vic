@@ -15,6 +15,7 @@
 package upgrade
 
 import (
+	"context"
 	"path"
 	"time"
 
@@ -28,8 +29,6 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"context"
 )
 
 // Upgrade has all input parameters for vic-machine upgrade command
@@ -144,12 +143,13 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	log.Infof("")
 	log.Infof("VCH ID: %s", vch.Reference().String())
 
-	vchConfig, err := executor.GetVCHConfig(vch)
+	vchConfig, err := executor.FetchAndMigrateVCHConfig(vch)
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
 		return errors.New("upgrade failed")
 	}
+
 	executor.InitDiagnosticLogs(vchConfig)
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, u.Data)
@@ -158,7 +158,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	vConfig.BootstrapISO = path.Base(u.BootstrapISO)
 	vConfig.RollbackTimeout = u.Timeout
 
-	if vchConfig, err = validator.MigrateConfig(ctx, vchConfig); err != nil {
+	if vchConfig, err = validator.ValidateMigratedConfig(ctx, vchConfig); err != nil {
 		log.Errorf("Failed to migrate Virtual Container Host configuration %s", u.DisplayName)
 		log.Error(err)
 		return errors.New("upgrade failed")

@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/migration"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -148,6 +149,41 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 	result := extraconfig.Decode(data, vchConfig)
 	if result == nil {
 		err = errors.Errorf("Failed to decode VM configuration %q: %s", vm.Reference(), err)
+		log.Error(err)
+		return nil, err
+	}
+
+	//	vchConfig.ID
+	return vchConfig, nil
+}
+
+func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
+	//this is the appliance vm
+	mapConfig, err := vm.FetchExtraConfigBaseOptions(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get VM extra config of %q: %s", vm.Reference(), err)
+		log.Error(err)
+		return nil, err
+	}
+
+	kv := vmomi.OptionValueMap(mapConfig)
+	newMap, migrated, err := migration.MigrateApplianceConfig(d.ctx, d.session, kv)
+	if err != nil {
+		err = errors.Errorf("Failed to migrate config of %q: %s", vm.Reference(), err)
+		log.Error(err)
+		return nil, err
+	}
+	if !migrated {
+		log.Debugf("No need to migrate configuration for %q", vm.Reference())
+	}
+
+	data := extraconfig.MapSource(newMap)
+	vchConfig := &config.VirtualContainerHostConfigSpec{}
+	result := extraconfig.Decode(data, vchConfig)
+	if result == nil {
+		err = errors.Errorf("Failed to decode migrated VM configuration %q: %s", vm.Reference(), err)
 		log.Error(err)
 		return nil, err
 	}

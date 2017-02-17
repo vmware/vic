@@ -24,7 +24,7 @@ import (
 )
 
 // MigrateConfig migrate old VCH configuration to new version. Currently check required fields only
-func (v *Validator) MigrateConfig(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) ValidateMigratedConfig(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(conf.Name))
 
 	v.assertBasics(conf)
@@ -32,15 +32,7 @@ func (v *Validator) MigrateConfig(ctx context.Context, conf *config.VirtualConta
 	v.assertDatastore(conf)
 	v.assertNetwork(conf)
 
-	if err := v.ListIssues(); err != nil {
-		return conf, err
-	}
-	return v.migrateData(ctx, conf)
-}
-
-func (v *Validator) migrateData(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
-	conf.Version = version.GetBuild()
-	return conf, nil
+	return conf, v.ListIssues()
 }
 
 func (v *Validator) assertNetwork(conf *config.VirtualContainerHostConfigSpec) {
