@@ -61,6 +61,7 @@ func (v MockTarget) RemoveAll(path string) error {
 
 func (v MockTarget) ReadDir(path string) ([]os.FileInfo, error) {
 	dir, err := os.Open(path)
+	defer dir.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -121,12 +122,10 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	info[testInfoKey] = make([]byte, 20)
 
 	file, err := os.Open(dirpath)
-	contents, err := file.Readdir(0)
-	t.Logf("%s\n", contents)
+	defer file.Close()
 
 	//Create a Volume
 	vol, err := vs.VolumeCreate(op, testVolName, vs.Target, 0 /*we do not use this*/, info)
-
 	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
@@ -145,11 +144,13 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	volumePath := path.Join(dirpath, VolumesDir)
 
 	metaFilesDir, err := os.Open(metadataPath)
+	defer metaFilesDir.Close()
 	if !assert.Nil(t, err, "opening the metadata directory failed with err (%s)", err) {
 		return
 	}
 
 	volumeDir, err := os.Open(volumePath)
+	defer volumeDir.Close()
 	if !assert.Nil(t, err, "Opening the volume directory failed with err (%s)", err) {
 		return
 	}
@@ -173,21 +174,27 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 		return
 	}
 
-	metaFilesDir.Close()
-	volumeDir.Close()
-
-	//Remove the same Volume
+	//Remove the Volume
 	err = vs.VolumeDestroy(op, vol)
 	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with err (%s)", err) {
 		return
 	}
 
+	volumeMetadatapath := path.Join(metadataPath, vol.ID)
+	volDirCheck, err := os.Open(volumeMetadatapath)
+	defer volDirCheck.Close()
+	if !assert.Error(t, err, "expected the path (%s) to be deleted after the deletion of vol (%s)", volumeMetadatapath, vol.ID) {
+		return
+	}
+
 	metaFilesDir, err = os.Open(metadataPath)
+	defer metaFilesDir.Close()
 	if !assert.Nil(t, err, "opening the metadata directory failed with err (%s)", err) {
 		return
 	}
 
 	volumeDir, err = os.Open(volumePath)
+	defer volumeDir.Close()
 	if !assert.Nil(t, err, "Opening the volume directory failed with err (%s)", err) {
 		return
 	}
@@ -245,6 +252,13 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 		return
 	}
 
+	volToCheckMetaDataPath := path.Join(metadataPath, volToCheck.ID)
+	volToCheckDirCheck, err := os.Open(volToCheckMetaDataPath)
+	defer volToCheckDirCheck.Close()
+	if !assert.Error(t, err, "expected path (%s) to no longer exist after the deletion of volume (%s)", volToCheckMetaDataPath, volToCheck.ID) {
+		return
+	}
+
 	volumeList, err = vs.VolumesList(op)
 	if !assert.Nil(t, err, "Failed during a call to VolumesListwith err (%s)", err) {
 		return
@@ -253,9 +267,6 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	if !assert.Equal(t, len(volumeList), 0, "Expected %s volumes, VolumesList returned %s", 0, len(volumeList)) {
 		return
 	}
-
-	volumeDir.Close()
-	metaFilesDir.Close()
 
 	os.Remove(volumePath)
 	os.Remove(metadataDir)
@@ -397,11 +408,13 @@ func TestMultipleVolumes(t *testing.T) {
 	volumePath := path.Join(dirpath, VolumesDir)
 
 	metaFilesDir, err := os.Open(metadataPath)
+	defer metaFilesDir.Close()
 	if !assert.Nil(t, err, "opening the metadata directory failed with err (%s)", err) {
 		return
 	}
 
 	volumeDir, err := os.Open(volumePath)
+	defer volumeDir.Close()
 	if !assert.Nil(t, err, "Opening the volume directory failed with err (%s)", err) {
 		return
 	}
@@ -424,12 +437,11 @@ func TestMultipleVolumes(t *testing.T) {
 	if !assert.Equal(t, len(volumeDirEntries), 3, "expected metadata directory to have 1 entry and it had (%s)", len(volumeDirEntries)) {
 		return
 	}
-	metaFilesDir.Close()
-	volumeDir.Close()
 
 	//check and individual metadata dir
 	volThreeMetadataPath := path.Join(metadataPath, testVolNameThree)
 	volThreeMetadataDir, err := os.Open(volThreeMetadataPath)
+	defer volThreeMetadataDir.Close()
 	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
 		return
 	}
@@ -441,6 +453,7 @@ func TestMultipleVolumes(t *testing.T) {
 
 	volTwoMetadataPath := path.Join(metadataPath, testVolNameTwo)
 	volTwoMetadataDir, err := os.Open(volTwoMetadataPath)
+	defer volTwoMetadataDir.Close()
 	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
 		return
 	}
@@ -452,6 +465,7 @@ func TestMultipleVolumes(t *testing.T) {
 
 	volOneMetadataPath := path.Join(metadataPath, testVolNameOne)
 	volOneMetadataDir, err := os.Open(volOneMetadataPath)
+	defer volOneMetadataDir.Close()
 	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volOneMetadataPath, err) {
 		return
 	}
@@ -461,19 +475,23 @@ func TestMultipleVolumes(t *testing.T) {
 		return
 	}
 
-	volOneMetadataDir.Close()
-	volTwoMetadataDir.Close()
-	volThreeMetadataDir.Close()
-
 	//remove volume one
 	err = vs.VolumeDestroy(op, volOne)
 	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
 		return
 	}
 
+	volOneMetaDataPath := path.Join(metadataPath, volOne.ID)
+	volOneDirCheck, err := os.Open(volOneMetaDataPath)
+	defer volOneDirCheck.Close()
+	if !assert.Error(t, err, "expected path (%s) to no longer exist after the deletion of volume (%s)", volOneMetaDataPath, volOne.ID) {
+		return
+	}
+
 	//check that volume two and three exist with appropriate metadata
 	volThreeMetadataPath = path.Join(metadataPath, testVolNameThree)
 	volThreeMetadataDir, err = os.Open(volThreeMetadataPath)
+	defer volThreeMetadataDir.Close()
 	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
 		return
 	}
@@ -485,6 +503,7 @@ func TestMultipleVolumes(t *testing.T) {
 
 	volTwoMetadataPath = path.Join(metadataPath, testVolNameTwo)
 	volTwoMetadataDir, err = os.Open(volTwoMetadataPath)
+	defer volTwoMetadataDir.Close()
 	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
 		return
 	}
@@ -494,12 +513,16 @@ func TestMultipleVolumes(t *testing.T) {
 		return
 	}
 
-	volTwoMetadataDir.Close()
-	volThreeMetadataDir.Close()
-
 	//remove the rest of the volumes
 	err = vs.VolumeDestroy(op, volTwo)
 	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
+		return
+	}
+
+	volTwoMetaDataPath := path.Join(metadataPath, volTwo.ID)
+	volTwoDirCheck, err := os.Open(volTwoMetaDataPath)
+	defer volTwoDirCheck.Close()
+	if !assert.Error(t, err, "expected path (%s) to no longer exist after the deletion of volume (%s)", volTwoMetaDataPath, volTwo.ID) {
 		return
 	}
 
@@ -508,9 +531,14 @@ func TestMultipleVolumes(t *testing.T) {
 		return
 	}
 
+	volThreeMetaDataPath := path.Join(metadataPath, volThree.ID)
+	volThreeDirCheck, err := os.Open(volThreeMetaDataPath)
+	defer volThreeDirCheck.Close()
+	if !assert.Error(t, err, "expected path (%s) to no longer exist after the deletion of volume (%s)", volThreeMetaDataPath, volThree.ID) {
+		return
+	}
+
 	os.Remove(volumePath)
 	os.Remove(metadataDir)
 	return
 }
-
-//make a test which targets paths that do not exist.
