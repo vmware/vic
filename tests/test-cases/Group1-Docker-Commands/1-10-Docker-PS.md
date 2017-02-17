@@ -57,6 +57,11 @@ This test requires that a vSphere server is running and available
 44. Issue docker ps -a -f network=fooNet
 45. Issue docker ps -a -f network=fooNet -f network=barNet
 46. Issue docker ps -a -f network=fo
+47. Issue docker ps -a -f volume=foo -f network=bar
+48. Issue docker ps -a -f network=bar -f volume=foo
+49. Issue docker ps -a -f volume=foo -f volume=buz -f network=bar
+50. Issue docker create -v buz:/dir --net=fooNet --name buzFooContainer busybox
+51. Issue docker ps -a -f volume=buz -f network=fooNet
 
 #Expected Outcome:
 * Steps 2-13 should all return without error
@@ -90,6 +95,9 @@ This test requires that a vSphere server is running and available
 * Step 44 should include only fooNetContainer
 * Step 45 should include only fooNetContainer
 * Step 46 should not include any containers
+* Steps 47-49 should not include any containers
+* Step 50 should return without error
+* Step 51 should include only buzFooContainer
 
 #Possible Problems:
 None

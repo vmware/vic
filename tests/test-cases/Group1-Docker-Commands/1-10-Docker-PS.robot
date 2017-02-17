@@ -238,3 +238,35 @@ Docker ps with network filter
     Should Not Contain  ${output}  fooNetContainer
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  1
+
+Docker ps with volume and network filters
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=foo -f network=bar
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  fooContainer
+    Should Not Contain  ${output}  fooNetContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  1
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f network=bar -f volume=foo
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  fooContainer
+    Should Not Contain  ${output}  fooNetContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  1
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=foo -f volume=buz -f network=bar
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  fooContainer
+    Should Not Contain  ${output}  fooNetContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  1
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v buz:/dir --net=fooNet --name buzFooContainer busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=buz -f network=fooNet
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  fooContainer
+    Should Not Contain  ${output}  fooNetContainer
+    Should Contain  ${output}  buzFooContainer
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
