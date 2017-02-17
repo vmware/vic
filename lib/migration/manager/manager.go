@@ -47,7 +47,7 @@ type Plugin interface {
 type DataMigration interface {
 	// Register plugin to data migration system
 	Register(version int, target string, plugin Plugin) error
-	// Migrate data with current version ID, return true if has any plugin executed
+	// Migrate data with current version ID, return maximum ID number of executed plugins
 	Migrate(ctx context.Context, s *session.Session, target string, currentVersion int, data interface{}) (int, error)
 	// LatestVersion return the latest plugin version for specified target
 	LatestVersion(target string) int
