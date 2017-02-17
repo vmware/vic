@@ -640,7 +640,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
 		if !ok {
-			return nil, &ResourceNotFoundError{}
+			return nil, &ResourceNotFoundError{error: fmt.Errorf("network %s not found", ne.Network.Name)}
 		}
 
 		defer func() {

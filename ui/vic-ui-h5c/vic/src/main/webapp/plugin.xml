@@ -19,6 +19,47 @@
       <dependency type="css" uri="vic/assets/css/plugin-icons.css" />
    </dependencies>
 
+   <templateInstance id="com.vmware.vic.viewTemplateInstance">
+       <templateId>vsphere.core.inventory.objectViewTemplate</templateId>
+       <variable name="namespace" value="com.vmware.vic.objectView"/>
+       <variable name="objectType" value="vic:dashboard"/>
+       <excludedExtension>com.vmware.vic.objectView.related</excludedExtension>
+   </templateInstance>
+
+   <templateInstance id="com.vmware.vic.objectView.lists.allDashboards">
+       <templateId>vsphere.core.inventorylist.objectCollectionTemplate</templateId>
+       <variable name="namespace" value="com.vmware.vic.objectView"/>
+       <variable name="title" value="vSphere Integrated Containers"/>
+       <variable name="icon" value="#{addIcon}"/>
+       <variable name="objectType" value="vic:dashboard"/>
+       <variable name="listViewId" value="com.vmware.vic.objectView.list"/>
+       <variable name="parentUid" value="vsphere.core.navigator.viInventoryLists"/>
+   </templateInstance>
+
+   <!-- <extension id="com.vmware.vic.objectView.summaryView">
+       <extendedPoint>com.vmware.vic.objectView.summaryViews</extendedPoint>
+       <object>
+           <name>SUMMARY</name>
+           <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">
+               <object>
+                   <root>
+                       <url>/vsphere-client/chassisa/resources/chassis-summary.html</url>
+                   </root>
+               </object>
+           </componentClass>
+       </object>
+   </extension> -->
+
+   <extension id="com.vmware.vic.homeShortcut">
+       <extendedPoint>vise.home.shortcuts</extendedPoint>
+       <object>
+           <name>vSphere Integrated Containers</name>
+           <categoryUid>vsphere.core.controlcenter.inventoriesCategory</categoryUid>
+           <icon>#{home.shortcut.icon}</icon>
+           <targetViewUid>com.vmware.vic.objectView.domainView</targetViewUid>
+       </object>
+   </extension>
+
    <extension id="com.vmware.vic.containerSummaryView">
       <extendedPoint>vsphere.core.vm.summarySectionViews.html</extendedPoint>
       <object>

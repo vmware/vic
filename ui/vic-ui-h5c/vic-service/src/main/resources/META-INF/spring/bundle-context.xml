@@ -13,13 +13,44 @@
 
    <bean name="EchoServiceImpl" class="com.vmware.vic.services.EchoServiceImpl"/>
 
-   <bean name="SampleActionServiceImpl" class="com.vmware.vic.services.SampleActionServiceImpl">
+   <bean name="SampleActionServiceImpl"
+         class="com.vmware.vic.services.SampleActionServiceImpl">
         <constructor-arg index="0" ref="vimObjectReferenceService"/>
    </bean>
 
-   <bean name="VicUIPropertyProvider" class="com.vmware.vic.VicUIPropertyProvider">
-      <constructor-arg index="0" ref="dataServiceExtensionRegistry"></constructor-arg>
+   <bean name="PropFetcherImpl"
+         class="com.vmware.vic.PropFetcher">
+      <constructor-arg index="0" ref="userSessionService"></constructor-arg>
       <constructor-arg index="1" ref="vimObjectReferenceService"></constructor-arg>
-      <constructor-arg index="2" ref="userSessionService"></constructor-arg>
+   </bean>
+
+   <bean name="VicUIPropertyProvider"
+         class="com.vmware.vic.VicUIPropertyProvider">
+      <constructor-arg index="0" ref="dataServiceExtensionRegistry"></constructor-arg>
+      <constructor-arg index="1" ref="PropFetcherImpl"></constructor-arg>
+   </bean>
+
+   <bean name="vicUIDataAdapterImpl" class="com.vmware.vic.VicUIDataAdapter">
+      <constructor-arg index="0" ref="vimObjectReferenceService"></constructor-arg>
+      <constructor-arg index="1" ref="objectStore"></constructor-arg>
+   </bean>
+
+   <bean name="modelObjectUriResolver"
+         class="com.vmware.vic.ModelObjectUriResolver"/>
+
+   <bean name="objectStore"
+         class="com.vmware.vic.ObjectStore"
+         init-method="init" destroy-method="destroy">
+      <constructor-arg index="0" ref="dataService"></constructor-arg>
+      <constructor-arg index="1" ref="modelObjectUriResolver"></constructor-arg>
+      <constructor-arg index="2" ref="PropFetcherImpl"></constructor-arg>
+      <constructor-arg index="3" ref="vimObjectReferenceService"></constructor-arg>
+   </bean>
+
+   <bean name="uriSchemeInitializer" class="com.vmware.vise.data.uri.UriSchemeInitializer"
+         destroy-method="close">
+      <constructor-arg index="0" ref="resourceTypeResolverRegistry" />
+      <constructor-arg index="1" value="urn:vic" />
+      <constructor-arg index="2" ref="modelObjectUriResolver" />
    </bean>
 </beans>

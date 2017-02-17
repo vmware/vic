@@ -104,3 +104,16 @@ Parallel start 5 long running containers
     :FOR  ${pid}  IN  @{pids}
     \   ${res}=  Wait For Process  ${pid}
     \   Should Be Equal As Integers  ${res.rc}  0
+
+Start a container with removed network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net test-network busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network rm test-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  network test-network not found
