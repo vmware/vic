@@ -142,7 +142,7 @@ func main() {
 	}
 
 	if len(outDirs) != 2 {
-		log.Fatalf("directory shoudl be empty!")
+		log.Fatalf("directory should be empty!")
 	}
 
 	if err = mount.Unmount(); err != nil {

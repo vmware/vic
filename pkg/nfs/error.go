@@ -98,8 +98,6 @@ func NFS3Error(errnum uint32) error {
 
 		return os.ErrInvalid
 	}
-
-	return nil
 }
 
 // Error represents an unexpected I/O behavior.
