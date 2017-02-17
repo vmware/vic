@@ -101,35 +101,35 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigS
 	}
 
 	var err error
+	// try best to get datastore and cluster, but do not return for any error. The least is to collect VC log only
 	if d.session.Datastore == nil {
-		if len(conf.ImageStores) == 0 {
-			log.Errorf("Image datastore is empty")
-			return
-
+		if len(conf.ImageStores) > 0 {
+			if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
+				log.Debugf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
+			} else {
+				log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
+			}
+		} else {
+			log.Debugf("Image datastore is empty")
 		}
-		if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
-			log.Errorf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
-			return
-		}
-		log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
 	}
 	// find the host(s) attached to given storage
 	if d.session.Cluster == nil {
 		if len(conf.ComputeResources) > 0 {
 			rp := compute.NewResourcePool(d.ctx, d.session, conf.ComputeResources[0])
 			if d.session.Cluster, err = rp.GetCluster(d.ctx); err != nil {
-				log.Errorf("Unable to get cluster for given resource pool %s: %s", conf.ComputeResources[0], err)
-				return
+				log.Debugf("Unable to get cluster for given resource pool %s: %s", conf.ComputeResources[0], err)
 			}
 		} else {
-			log.Errorf("Compute resource is empty")
-			return
+			log.Debugf("Compute resource is empty")
 		}
 	}
-	hosts, err := d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
-	if err != nil {
-		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
-		return
+	var hosts []*object.HostSystem
+	if d.session.Datastore != nil {
+		hosts, err = d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
+		if err != nil {
+			log.Debugf("Unable to get the list of hosts attached to given storage: %s", err)
+		}
 	}
 
 	if d.session.Host == nil {
