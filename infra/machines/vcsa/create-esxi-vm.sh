@@ -29,7 +29,8 @@ EOF
 
 disk=48
 mem=16
-iso=VMware-VMvisor-6.5.0-4564106.x86_64.iso # 6.5.0
+# 6.5.0a - http://pubs.vmware.com/Release_Notes/en/vsphere/65/vsphere-esxi-650a-release-notes.html
+iso=VMware-VMvisor-6.5.0-4887370.x86_64.iso
 
 while getopts d:hi:m:s flag
 do
