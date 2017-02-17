@@ -10,7 +10,6 @@ build:
       BIN: vic
       GOPATH: /drone
       SHELL: /bin/bash
-      DOCKER_API_VERSION: "1.21"
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
       LOG_TEMP_DIR: install-logs
       DRONE_SERVER:  $$DRONE_SERVER

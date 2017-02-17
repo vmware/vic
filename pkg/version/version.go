@@ -36,6 +36,12 @@ var (
 	v bool
 )
 
+const (
+	DockerAPIVersion     = "1.25"
+	DockerDefaultVersion = "1.25"
+	DockerMinimumVersion = "1.23"
+)
+
 type Build struct {
 	Version       string
 	GitCommit     string
