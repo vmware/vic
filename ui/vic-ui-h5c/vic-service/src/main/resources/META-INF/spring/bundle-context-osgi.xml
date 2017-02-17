@@ -13,11 +13,17 @@
 
    <!-- Services defined by this module   -->
 
+   <osgi:service id="vicUIDataAdapter" ref="vicUIDataAdapterImpl"
+         interface="com.vmware.vise.data.query.DataProviderAdapter" />
+
    <osgi:service id="EchoService" ref="EchoServiceImpl"
          interface="com.vmware.vic.services.EchoService" />
 
    <osgi:service id="SampleActionService" ref="SampleActionServiceImpl"
          interface="com.vmware.vic.services.SampleActionService" />
+
+   <osgi:service id="PropFetcher" ref="PropFetcherImpl"
+         interface="com.vmware.vise.security.ClientSessionEndListener"/>
 
   <!-- References to platform services used by the controllers -->
 
@@ -26,9 +32,12 @@
 
    <osgi:reference id="dataServiceExtensionRegistry"
          interface="com.vmware.vise.data.query.DataServiceExtensionRegistry" />
-         
+
    <osgi:reference id="userSessionService"
          interface="com.vmware.vise.usersession.UserSessionService" />
+
+   <osgi:reference id="resourceTypeResolverRegistry"
+         interface="com.vmware.vise.data.uri.ResourceTypeResolverRegistry" />
 
    <osgi:reference id="objectReferenceService"
       interface="com.vmware.vise.data.query.ObjectReferenceService" />
