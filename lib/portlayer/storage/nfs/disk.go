@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ import (
 	"net/url"
 )
 
-//device information for interaction with the tether and portlayer
+//  Device information for interaction with the tether and portlayer
 type NFSVolume struct {
 
-	//This is the nfs host the the volume belongs to
+	// This is the nfs host the the volume belongs to
 	Host *url.URL
 
-	//Path on the Host where the volume is located
+	// Path on the Host where the volume is located
 	NFSPath string
 }
 
@@ -40,7 +40,7 @@ func (v NFSVolume) MountPath() (string, error) {
 	return "", nil
 }
 
-// includes url to nfs directory for container to mount,
+// Includes url to nfs directory for container to mount,
 func (v NFSVolume) DiskPath() url.URL {
 	if v.Host == nil {
 		return url.URL{}

@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,34 +17,39 @@ package nfs
 import (
 	"io"
 	"net/url"
-
 	"os"
 )
 
-type MountHandler interface {
-	Mount(target *url.URL) (NFSTarget, error)
-	Unmount(target NFSTarget) error
+// The MountServer is an interface used to communicate with network attached storage.
+type MountServer interface {
+	// Mount initiates the NAS Target and returns a Target interface.
+	Mount(target *url.URL) (target, error)
+
+	// Unmount terminates the Mount on the Target.
+	Unmount(target target) error
 }
 
-type NFSTarget interface {
-	//opens a target path in a READONLY context
+// Target is the filesystem interface for performing actions against attached storage.:w
+
+type target interface {
+	// Opens a target path in a READONLY context
 	Open(path string) (io.ReadCloser, error)
 
-	//Opens targeted file with the supplied attr.
+	// Opens targeted file with the supplied attr.
 	OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
-	//Creates a file, errors out if file already exists. assumes write permissions.
+	// Creates a file, errors out if file already exists. assumes write permissions.
 	Create(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
 	// Create directory path
-	MkDir(path string, perm os.FileMode) ([]byte, error)
+	Mkdir(path string, perm os.FileMode) ([]byte, error)
 
 	// Delete Directory Path, and children
 	RemoveAll(Path string) error
 
-	//Reads the contents of the targeted directory
+	// Reads the contents of the targeted directory
 	ReadDir(path string) ([]os.FileInfo, error)
 
-	//Looks up the file information for a target entry
+	// Looks up the file information for a target entry
 	Lookup(path string) (os.FileInfo, error)
 }

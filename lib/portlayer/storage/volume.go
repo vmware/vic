@@ -32,8 +32,6 @@ type Disk interface {
 
 	//Path to the disk on the datastore
 	DiskPath() url.URL
-	//STUFF THE STRING INTO THE PATH FIELD FOR VSPHERE IMPLEMENTATION
-	//NFS PUT THE STUFF IN THE HOST.  2 3
 }
 
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.

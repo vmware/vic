@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ func (v MockTarget) Create(path string, perm os.FileMode) (io.ReadWriteCloser, e
 	return os.Create(path)
 }
 
-func (v MockTarget) MkDir(path string, perm os.FileMode) ([]byte, error) {
+func (v MockTarget) Mkdir(path string, perm os.FileMode) ([]byte, error) {
 	return nil, os.Mkdir(path, perm)
 }
 
@@ -77,11 +77,11 @@ func (v MockTarget) Lookup(path string) (os.FileInfo, error) {
 type MockMount struct {
 }
 
-func (m MockMount) Mount(target *url.URL) (NFSTarget, error) {
+func (m MockMount) Mount(target *url.URL) (target, error) {
 	return NewMocktarget(target.Path), nil
 }
 
-func (m MockMount) Unmount(target NFSTarget) error {
+func (m MockMount) Unmount(target target) error {
 	return nil
 }
 
@@ -388,7 +388,7 @@ func TestMultipleVolumes(t *testing.T) {
 	}
 
 	volCount := len(volumes)
-	if !assert.Equal(t, volCount, 3, "VolumesList returned unexpected volume count. expected (%s), but received (%s) ", volCount, 3) {
+	if !assert.Equal(t, volCount, 3, "VolumesList returned unexpected volume count. expected (%s), but received (%s) ", 3, volCount) {
 		return
 	}
 
