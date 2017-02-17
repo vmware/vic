@@ -86,11 +86,11 @@ func TestIncludeImage(t *testing.T) {
 
 	imageContext.ID = "1202"
 	action := IncludeImage(cmdFilters, imageContext)
-	assert.Equal(t, action, ExcludeAction)
+	assert.Equal(t, ExcludeAction, action)
 
 	imageContext.ID = "1200"
 	action = IncludeImage(cmdFilters, imageContext)
-	assert.Equal(t, action, IncludeAction)
+	assert.Equal(t, IncludeAction, action)
 
 	cmdFilters.Del("before", "busyboxy:1.03")
 
@@ -100,16 +100,21 @@ func TestIncludeImage(t *testing.T) {
 
 	imageContext.ID = "1200"
 	action = IncludeImage(cmdFilters, imageContext)
-	assert.Equal(t, action, StopAction)
+	assert.Equal(t, StopAction, action)
 
 	cmdFilters.Del("since", "busyboxy:1.01")
 	cmdFilters.Add("reference", "busy*")
 	imageContext.SinceID = nil
 	action = IncludeImage(cmdFilters, imageContext)
-	assert.Equal(t, action, IncludeAction)
+	assert.Equal(t, IncludeAction, action)
 
+	// remove previous filter and reset tags / digests
 	cmdFilters.Del("reference", "busy*")
-	cmdFilters.Add("reference", "busy")
+	imageContext.Tags = []string{}
+	imageContext.Digests = []string{}
+	cmdFilters.Add("reference", "busyboxy:1.01")
+
 	action = IncludeImage(cmdFilters, imageContext)
-	assert.Equal(t, action, ExcludeAction)
+	assert.Equal(t, action, IncludeAction)
+	assert.EqualValues(t, 1, len(imageContext.Tags))
 }
