@@ -127,3 +127,15 @@ Restart a stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
+
+Stop a container with Docker 1.13 CLI
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${trap}=  Trap Signal Command  HUP
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stop ${container}
+    Should Be Equal As Integers  ${rc}  0
+   

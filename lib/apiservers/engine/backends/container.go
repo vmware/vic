@@ -99,6 +99,8 @@ const (
 	MinCPUs = 1
 	// DefaultCPUs - the default number of container VM CPUs
 	DefaultCPUs = 2
+	// Default timeout to stop a container if not specified in container config
+	DefaultStopTimeout = 10
 )
 
 var (
@@ -904,6 +906,14 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
+	}
+
+	if seconds == nil {
+		timeout := DefaultStopTimeout
+		if vc.Config.StopTimeout != nil {
+			timeout = *vc.Config.StopTimeout
+		}
+		seconds = &timeout
 	}
 
 	operation := func() error {
