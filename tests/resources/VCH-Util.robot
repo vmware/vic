@@ -45,7 +45,7 @@ Set Test Environment Variables
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 %{VCH-NAME}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-bridge
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-bridge
 
 Set Test VCH Name
@@ -66,7 +66,7 @@ Parse Environment Variables
     ${logdeco}  ${vars}=  Run Keyword If  ${status}  Split String  ${line}  ${SPACE}  1
     Run Keyword If  ${status}  Set List Of Env Variables  ${vars}
     Return From Keyword If  ${status}
-    
+
     # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
     ${logmon}  ${logday}  ${logyear}  ${logtime}  ${loglevel}  ${vars}=  Split String  ${line}  max_split=5
     Set List Of Env Variables  ${vars}
