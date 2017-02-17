@@ -4,8 +4,9 @@
 .project
 target/
 *.zip
-installer/vsphere-client-serenity/
-test-output/
-testResultReportFile
-screenshots/
 \$*
+
+# vic plugin jar / war files
+installer/vsphere-client-serenity/
+installer/plugin-packages/
+

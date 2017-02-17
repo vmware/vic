@@ -31,3 +31,11 @@
     vertical-align: text-bottom;
     margin: 1px 4px 0;
 }
+
+.com_vmware_vic-home-shortcut-icon {
+    background: url("../vic-icons/32x32.png");
+    width: 32px;
+    height: 32px;
+    display: inline-block;
+    vertical-align: top;
+}

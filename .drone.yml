@@ -89,7 +89,8 @@ build:
     environment:
       BIN: bin
       VICUI_SOURCE_PATH: "ui/vic-ui"
-      VICUI_H5_SOURCE_PATH: "ui/vic-ui-h5c/vic"
+      VICUI_H5_UI_PATH: "ui/vic-ui-h5c/vic"
+      VICUI_H5_SERVICE_PATH: "ui/vic-ui-h5c/vic-service"
       BINTRAY_DOWNLOAD_PATH: "https://bintray.com/vmware/vic-repo/download_file?file_path="
       SDK_PACKAGE_ARCHIVE: "vic-ui-sdk.tar.gz"
       UI_INSTALLER_WIN_UTILS_ARCHIVE: "vic_installation_utils_win.tgz"
@@ -102,10 +103,12 @@ build:
       - version=`$BIN/vic-machine-linux version`
       - version=`echo $version | awk '{print $3}' | awk -F- '{print $1}' | cut -c 2-`
       - sed "s/0.0.1/${version}/" ./$VICUI_SOURCE_PATH/plugin-package.xml > ./$VICUI_SOURCE_PATH/new_plugin-package.xml
-      - sed "s/1.0.0/${version}/" ./$VICUI_H5_SOURCE_PATH/plugin-package.xml > ./$VICUI_H5_SOURCE_PATH/new_plugin-package.xml
-      - rm ./$VICUI_SOURCE_PATH/plugin-package.xml ./$VICUI_H5_SOURCE_PATH/plugin-package.xml
+      - sed "s/1.0.0/${version}/" ./$VICUI_H5_UI_PATH/plugin-package.xml > ./$VICUI_H5_UI_PATH/new_plugin-package.xml
+      - sed "s/UI_VERSION_PLACEHOLDER/${version}/" ./$VICUI_H5_SERVICE_PATH/src/main/resources/configs.properties > ./$VICUI_H5_SERVICE_PATH/src/main/resources/new_configs.properties
+      - rm ./$VICUI_SOURCE_PATH/plugin-package.xml ./$VICUI_H5_UI_PATH/plugin-package.xml ./$VICUI_H5_SERVICE_PATH/src/main/resources/configs.properties
       - mv ./$VICUI_SOURCE_PATH/new_plugin-package.xml ./$VICUI_SOURCE_PATH/plugin-package.xml
-      - mv ./$VICUI_H5_SOURCE_PATH/new_plugin-package.xml ./$VICUI_H5_SOURCE_PATH/plugin-package.xml
+      - mv ./$VICUI_H5_UI_PATH/new_plugin-package.xml ./$VICUI_H5_UI_PATH/plugin-package.xml
+      - mv ./$VICUI_H5_SERVICE_PATH/src/main/resources/new_configs.properties ./$VICUI_H5_SERVICE_PATH/src/main/resources/configs.properties
       - curl -sL https://deb.nodesource.com/setup_7.x | bash -
       - apt-get install -yq nodejs
       - wget -nv $BINTRAY_DOWNLOAD_PATH$SDK_PACKAGE_ARCHIVE -O /tmp/$SDK_PACKAGE_ARCHIVE
