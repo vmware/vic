@@ -23,16 +23,16 @@ import (
 // The MountServer is an interface used to communicate with network attached storage.
 type MountServer interface {
 	// Mount initiates the NAS Target and returns a Target interface.
-	Mount(target *url.URL) (target, error)
+	Mount(target *url.URL) (Target, error)
 
 	// Unmount terminates the Mount on the Target.
-	Unmount(target target) error
+	Unmount(target Target) error
 }
 
 // Target is the filesystem interface for performing actions against attached storage.:w
 
-type target interface {
-	// Opens a target path in a READONLY context
+type Target interface {
+	// Opens a Target path in a READONLY context
 	Open(path string) (io.ReadCloser, error)
 
 	// Opens targeted file with the supplied attr.

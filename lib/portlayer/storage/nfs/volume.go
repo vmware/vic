@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	// The directory created in the NFS volumeStore which we create volumes under
+	// The directory created in the NFS VolumeStore which we create volumes under
 	VolumesDir = "volumes"
 
 	// path that namespaces the metadata for a specific volume. It lives beside the Volumes Directory.
@@ -39,12 +39,12 @@ const (
 	defaultPermissions = 0755
 )
 
-type volumeStore struct {
+type VolumeStore struct {
 	//volume store name
 	Name string
 
 	//volume directory path, used to construct paths.
-	volumeStoreDir string
+	VolumeStoreDir string
 
 	//handler for establishing connection to a target.
 	Service MountServer
@@ -56,7 +56,7 @@ type volumeStore struct {
 	SelfLink *url.URL
 }
 
-func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL, mount MountServer) (*volumeStore, error) {
+func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL, mount MountServer) (*VolumeStore, error) {
 	op.Infof("Creating datastore (%s) at target (%q)", storeName, nfsTargetURL.String())
 
 	target, err := mount.Mount(nfsTargetURL)
@@ -81,9 +81,9 @@ func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL,
 		return nil, err
 	}
 
-	v := &volumeStore{
+	v := &VolumeStore{
 		Name:           storeName,
-		volumeStoreDir: nfsTargetURL.Path,
+		VolumeStoreDir: nfsTargetURL.Path,
 		Service:        mount,
 		Target:         nfsTargetURL,
 		SelfLink:       selfLink,
@@ -94,21 +94,21 @@ func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL,
 
 // Returns the path to the vol relative to the given store.  The dir structure
 // for a vol in a nfs store is `<configured nfs server path>/volumes/<vol ID>/<volume contents>`.
-func (v *volumeStore) volDirPath(ID string) string {
-	return path.Join(v.volumeStoreDir, VolumesDir, ID)
+func (v *VolumeStore) volDirPath(ID string) string {
+	return path.Join(v.VolumeStoreDir, VolumesDir, ID)
 }
 
-func (v *volumeStore) volumesDir() string {
-	return path.Join(v.volumeStoreDir, VolumesDir)
+func (v *VolumeStore) volumesDir() string {
+	return path.Join(v.VolumeStoreDir, VolumesDir)
 }
 
 // Returns the path to the metadata directory for a volume
-func (v *volumeStore) volMetadataDirPath(ID string) string {
-	return path.Join(v.volumeStoreDir, metadataDir, ID)
+func (v *VolumeStore) volMetadataDirPath(ID string) string {
+	return path.Join(v.VolumeStoreDir, metadataDir, ID)
 }
 
 // Creates a volume directory and volume object for NFS based volumes
-func (v *volumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
+func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
 	target, err := v.Service.Mount(v.Target)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (v *volumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 }
 
 // Removes a volume and all of its contents from the nfs store. We already know via the cache if it is in use.
-func (v *volumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
+func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
 	target, err := v.Service.Mount(v.Target)
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func (v *volumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 	return nil
 }
 
-func (v *volumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
+func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
 
 	target, err := v.Service.Mount(v.Target)
 	if err != nil {
@@ -214,7 +214,7 @@ func (v *volumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	return volumes, nil
 }
 
-func writeMetadata(op trace.Operation, metadataPath string, info map[string][]byte, target target) error {
+func writeMetadata(op trace.Operation, metadataPath string, info map[string][]byte, target Target) error {
 	//NOTE: right now we do not support updating metadata, thus we make the ID directory here
 	_, err := target.Mkdir(metadataPath, defaultPermissions)
 	if err != nil {
@@ -241,7 +241,7 @@ func writeMetadata(op trace.Operation, metadataPath string, info map[string][]by
 	return nil
 }
 
-func getMetadata(op trace.Operation, metadataPath string, target target) (map[string][]byte, error) {
+func getMetadata(op trace.Operation, metadataPath string, target Target) (map[string][]byte, error) {
 	op.Infof("Attempting to retrieve volume metadata at (%s)", metadataPath)
 	metadataInfo := make(map[string][]byte)
 	dataKeys, err := target.ReadDir(metadataPath)
