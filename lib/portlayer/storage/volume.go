@@ -27,10 +27,10 @@ import (
 )
 
 type Disk interface {
-	//Path to this disk on the VCH
+	// Path to this disk on the VCH
 	MountPath() (string, error)
 
-	//Path to the disk on the datastore
+	// Path to the disk on the datastore
 	DiskPath() url.URL
 }
 

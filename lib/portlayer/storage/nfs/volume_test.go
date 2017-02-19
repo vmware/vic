@@ -104,12 +104,12 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 
 	//Create a Volume Store
 	vs, err := NewVolumeStore(op, "testStore", &targetURL, mockMount)
-	if !assert.Nil(t, err, "Failed during call to NewVolumeStore with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to NewVolumeStore with err (%s)", err) {
 		return
 	}
 
 	_, err = os.Stat(dirpath)
-	if !assert.Nil(t, err, "Could not find the initial volume store directory after creation of volume store. err (%s)", err) {
+	if assert.Error(t, err, "Could not find the initial volume store directory after creation of volume store. err (%s)", err) {
 		return
 	}
 
@@ -126,7 +126,7 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 
 	//Create a Volume
 	vol, err := vs.VolumeCreate(op, testVolName, vs.Target, 0 /*we do not use this*/, info)
-	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
 
@@ -145,23 +145,23 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 
 	metaFilesDir, err := os.Open(metadataPath)
 	defer metaFilesDir.Close()
-	if !assert.Nil(t, err, "opening the metadata directory failed with err (%s)", err) {
+	if assert.Error(t, err, "opening the metadata directory failed with err (%s)", err) {
 		return
 	}
 
 	volumeDir, err := os.Open(volumePath)
 	defer volumeDir.Close()
-	if !assert.Nil(t, err, "Opening the volume directory failed with err (%s)", err) {
+	if assert.Error(t, err, "Opening the volume directory failed with err (%s)", err) {
 		return
 	}
 
 	metaDirEntries, err := metaFilesDir.Readdir(0)
-	if !assert.Nil(t, err, "Failed to read the metadata directory with err (%s)", err) {
+	if assert.Error(t, err, "Failed to read the metadata directory with err (%s)", err) {
 		return
 	}
 
 	volumeDirEntries, err := volumeDir.Readdir(0)
-	if !assert.Nil(t, err, "Failed to read the volume data directory with err (%s)", err) {
+	if assert.Error(t, err, "Failed to read the volume data directory with err (%s)", err) {
 		return
 	}
 
@@ -176,7 +176,7 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 
 	//Remove the Volume
 	err = vs.VolumeDestroy(op, vol)
-	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with err (%s)", err) {
+	if assert.Error(t, err, "Failed during a call to VolumeDestroy with err (%s)", err) {
 		return
 	}
 
@@ -189,23 +189,23 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 
 	metaFilesDir, err = os.Open(metadataPath)
 	defer metaFilesDir.Close()
-	if !assert.Nil(t, err, "opening the metadata directory failed with err (%s)", err) {
+	if assert.Error(t, err, "opening the metadata directory failed with err (%s)", err) {
 		return
 	}
 
 	volumeDir, err = os.Open(volumePath)
 	defer volumeDir.Close()
-	if !assert.Nil(t, err, "Opening the volume directory failed with err (%s)", err) {
+	if assert.Error(t, err, "Opening the volume directory failed with err (%s)", err) {
 		return
 	}
 
 	metaDirEntries, err = metaFilesDir.Readdir(0)
-	if !assert.Nil(t, err, "Failed to read the metadata directory with err (%s)", err) {
+	if assert.Error(t, err, "Failed to read the metadata directory with err (%s)", err) {
 		return
 	}
 
 	volumeDirEntries, err = volumeDir.Readdir(0)
-	if !assert.Nil(t, err, "Failed to read the volume data directory with err (%s)", err) {
+	if assert.Error(t, err, "Failed to read the volume data directory with err (%s)", err) {
 		return
 	}
 
@@ -219,12 +219,12 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	}
 
 	volToCheck, err := vs.VolumeCreate(op, testVolName, vs.Target, 0, info)
-	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
 
 	volumeList, err := vs.VolumesList(op)
-	if !assert.Nil(t, err, "Failed during call to VolumesList with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to VolumesList with err (%s)", err) {
 		return
 	}
 
@@ -248,7 +248,7 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	}
 
 	err = vs.VolumeDestroy(op, volToCheck)
-	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with err (%s)", err) {
+	if assert.Error(t, err, "Failed during a call to VolumeDestroy with err (%s)", err) {
 		return
 	}
 
@@ -260,7 +260,7 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	}
 
 	volumeList, err = vs.VolumesList(op)
-	if !assert.Nil(t, err, "Failed during a call to VolumesListwith err (%s)", err) {
+	if assert.Error(t, err, "Failed during a call to VolumesListwith err (%s)", err) {
 		return
 	}
 
@@ -281,12 +281,12 @@ func TestMultipleVolumes(t *testing.T) {
 
 	//Create a Volume Store
 	vs, err := NewVolumeStore(op, "testStore", &targetURL, mockMount)
-	if !assert.Nil(t, err, "Failed during call to NewVolumeStore with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to NewVolumeStore with err (%s)", err) {
 		return
 	}
 
 	_, err = os.Stat(dirpath)
-	if !assert.Nil(t, err, "Could not find the initial volume store directory after creation of volume store. err (%s)", err) {
+	if assert.Error(t, err, "Could not find the initial volume store directory after creation of volume store. err (%s)", err) {
 		return
 	}
 
@@ -317,7 +317,7 @@ func TestMultipleVolumes(t *testing.T) {
 	//make volume one
 	volOne, err := vs.VolumeCreate(op, testVolNameOne, vs.Target, 0 /*we do not use this*/, infoOne)
 
-	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
 
@@ -337,7 +337,7 @@ func TestMultipleVolumes(t *testing.T) {
 	//make volume two
 	volTwo, err := vs.VolumeCreate(op, testVolNameTwo, vs.Target, 0 /*we do not use this*/, infoTwo)
 
-	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
 
@@ -366,7 +366,7 @@ func TestMultipleVolumes(t *testing.T) {
 	//make volume three
 	volThree, err := vs.VolumeCreate(op, testVolNameThree, vs.Target, 0 /*we do not use this*/, infoThree)
 
-	if !assert.Nil(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
+	if assert.Error(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
 
@@ -394,7 +394,7 @@ func TestMultipleVolumes(t *testing.T) {
 
 	//list volumes
 	volumes, err := vs.VolumesList(op)
-	if !assert.Nil(t, err, "Failed during a call to VolumesList with err (%s)", err) {
+	if assert.Error(t, err, "Failed during a call to VolumesList with err (%s)", err) {
 		return
 	}
 
@@ -409,23 +409,23 @@ func TestMultipleVolumes(t *testing.T) {
 
 	metaFilesDir, err := os.Open(metadataPath)
 	defer metaFilesDir.Close()
-	if !assert.Nil(t, err, "opening the metadata directory failed with err (%s)", err) {
+	if assert.Error(t, err, "opening the metadata directory failed with err (%s)", err) {
 		return
 	}
 
 	volumeDir, err := os.Open(volumePath)
 	defer volumeDir.Close()
-	if !assert.Nil(t, err, "Opening the volume directory failed with err (%s)", err) {
+	if assert.Error(t, err, "Opening the volume directory failed with err (%s)", err) {
 		return
 	}
 
 	metaDirEntries, err := metaFilesDir.Readdir(0)
-	if !assert.Nil(t, err, "Failed to read the metadata directory with err (%s)", err) {
+	if assert.Error(t, err, "Failed to read the metadata directory with err (%s)", err) {
 		return
 	}
 
 	volumeDirEntries, err := volumeDir.Readdir(0)
-	if !assert.Nil(t, err, "Failed to read the volume data directory with err (%s)", err) {
+	if assert.Error(t, err, "Failed to read the volume data directory with err (%s)", err) {
 		return
 	}
 
@@ -442,7 +442,7 @@ func TestMultipleVolumes(t *testing.T) {
 	volThreeMetadataPath := path.Join(metadataPath, testVolNameThree)
 	volThreeMetadataDir, err := os.Open(volThreeMetadataPath)
 	defer volThreeMetadataDir.Close()
-	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
+	if assert.Error(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
 		return
 	}
 
@@ -454,7 +454,7 @@ func TestMultipleVolumes(t *testing.T) {
 	volTwoMetadataPath := path.Join(metadataPath, testVolNameTwo)
 	volTwoMetadataDir, err := os.Open(volTwoMetadataPath)
 	defer volTwoMetadataDir.Close()
-	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
+	if assert.Error(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
 		return
 	}
 
@@ -466,7 +466,7 @@ func TestMultipleVolumes(t *testing.T) {
 	volOneMetadataPath := path.Join(metadataPath, testVolNameOne)
 	volOneMetadataDir, err := os.Open(volOneMetadataPath)
 	defer volOneMetadataDir.Close()
-	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volOneMetadataPath, err) {
+	if assert.Error(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volOneMetadataPath, err) {
 		return
 	}
 
@@ -477,7 +477,7 @@ func TestMultipleVolumes(t *testing.T) {
 
 	//remove volume one
 	err = vs.VolumeDestroy(op, volOne)
-	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
+	if assert.Error(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
 		return
 	}
 
@@ -492,7 +492,7 @@ func TestMultipleVolumes(t *testing.T) {
 	volThreeMetadataPath = path.Join(metadataPath, testVolNameThree)
 	volThreeMetadataDir, err = os.Open(volThreeMetadataPath)
 	defer volThreeMetadataDir.Close()
-	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
+	if assert.Error(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volThreeMetadataPath, err) {
 		return
 	}
 
@@ -504,7 +504,7 @@ func TestMultipleVolumes(t *testing.T) {
 	volTwoMetadataPath = path.Join(metadataPath, testVolNameTwo)
 	volTwoMetadataDir, err = os.Open(volTwoMetadataPath)
 	defer volTwoMetadataDir.Close()
-	if !assert.Nil(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
+	if assert.Error(t, err, "Expected for path (%s) to exist, but received this error instead (%s)", volTwoMetadataPath, err) {
 		return
 	}
 
@@ -515,7 +515,7 @@ func TestMultipleVolumes(t *testing.T) {
 
 	//remove the rest of the volumes
 	err = vs.VolumeDestroy(op, volTwo)
-	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
+	if assert.Error(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
 		return
 	}
 
@@ -527,7 +527,7 @@ func TestMultipleVolumes(t *testing.T) {
 	}
 
 	err = vs.VolumeDestroy(op, volThree)
-	if !assert.Nil(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
+	if assert.Error(t, err, "Failed during a call to VolumeDestroy with error (%s)", err) {
 		return
 	}
 
