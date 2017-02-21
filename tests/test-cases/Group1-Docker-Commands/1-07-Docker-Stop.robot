@@ -60,6 +60,15 @@ Basic docker container stop
     Should Be Equal As Integers  ${rc}  0
     Assert Kill Signal  ${container}  False
 
+Basic docker stop w/ unclean exit from running process
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container} | jq '.[]|.["State"]|.["ExitCode"]'
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal As Integers  ${output}  143
+
 Stop a container with SIGKILL using default grace period
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
