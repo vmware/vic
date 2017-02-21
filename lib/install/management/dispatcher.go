@@ -179,6 +179,10 @@ func (d *Dispatcher) InitDiagnosticLogsFromVCH(vch *vm.VirtualMachine) {
 
 	var err error
 	// where the VM is running
+	force := d.force
+	d.force = true
+	defer d.force = force
+
 	ds, err := d.getImageDatastore(vch, nil)
 	if err != nil {
 		log.Debugf("Failure finding image store from VCH VM %s: %s", vch.Reference(), err.Error())
