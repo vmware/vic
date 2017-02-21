@@ -82,7 +82,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
 
 	// if the moref of the target matches where we expect to find it for a VCH, run with it
-	if remoteConf.ExecutorConfig.ID == vm.Reference().String() {
+	if remoteConf.ExecutorConfig.ID == vm.Reference().String() || remoteConf.IsCreating() {
 		return true, nil
 	}
 
@@ -290,6 +290,9 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 
 	var devices object.VirtualDeviceList
 	var err error
+
+	// set a creating instance ID for vch id before the vm id is set, to identify if that's one vch
+	conf.SetIsCreating()
 
 	cfg, err := d.encodeConfig(conf)
 	if err != nil {

@@ -155,7 +155,10 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 		return nil, err
 	}
 
-	//	vchConfig.ID
+	if vchConfig.IsCreating() {
+		vmRef := vm.Reference()
+		vchConfig.SetMoref(&vmRef)
+	}
 	return vchConfig, nil
 }
 

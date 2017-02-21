@@ -39,6 +39,8 @@ const (
 	ID = "{id}"
 	// Name is the container name of the VM
 	Name = "{name}"
+	// ID represents the creating VCH
+	CreatingVCH = "CreatingVCH"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image
@@ -212,6 +214,15 @@ func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectRefe
 	if moref != nil {
 		t.ExecutorConfig.ID = moref.String()
 	}
+}
+
+// SetCreatingVCHID sets the ID of the VCH to a constant, to identify the creating VCH VM before the VM moref can be set into this property
+func (t *VirtualContainerHostConfigSpec) SetIsCreating() {
+	t.ExecutorConfig.ID = CreatingVCH
+}
+
+func (t *VirtualContainerHostConfigSpec) IsCreating() bool {
+	return t.ExecutorConfig.ID == CreatingVCH
 }
 
 // AddNetwork adds a network that will be configured on the appliance VM
