@@ -232,7 +232,15 @@ imageLoop:
 			break imageLoop
 		}
 		// if we are here then add image
-		result = append(result, convertV1ImageToDockerImage(images[i]))
+		dockerImage := convertV1ImageToDockerImage(images[i])
+		// reference is a filter, so we must add the tags / digests
+		// identified by the filter
+		if imageFilters.Include("reference") {
+			dockerImage.RepoTags = filterContext.Tags
+			dockerImage.RepoDigests = filterContext.Digests
+
+		}
+		result = append(result, dockerImage)
 	}
 
 	return result, nil

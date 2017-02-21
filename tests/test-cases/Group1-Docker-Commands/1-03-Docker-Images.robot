@@ -44,12 +44,6 @@ No-trunc images
     @{line}=  Split String  @{lines}[2]
     Length Should Be  @{line}[2]  64
 
-Specific images
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine:3.1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain  ${output}  3.1
-
 Filter images before
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=alpine
     Should Be Equal As Integers  ${rc}  0
@@ -74,6 +68,14 @@ Tag images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  cdg
+
+Specific images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine:3.1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    @{lines}=  Split To Lines  ${output}
+    Length Should Be  ${lines}  2
+    Should Contain  ${output}  3.1
 
 VIC/docker Image ID consistency
     @{tags}=  Create List  uclibc  glibc  musl

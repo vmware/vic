@@ -18,10 +18,20 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/filters"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 )
+
+type ImageListContext struct {
+	FilterContext
+
+	// Tags for an image filtered by reference
+	Tags []string
+	// Digests for an image filtered by reference
+	Digests []string
+}
 
 /*
 * ValidateImageFilters will validate the image filters are
@@ -30,7 +40,7 @@ import (
 * The function will reuse dockers filter validation
 *
  */
-func ValidateImageFilters(cmdFilters filters.Args, acceptedFilters map[string]bool, unSupportedFilters map[string]bool) (*FilterContext, error) {
+func ValidateImageFilters(cmdFilters filters.Args, acceptedFilters map[string]bool, unSupportedFilters map[string]bool) (*ImageListContext, error) {
 
 	// ensure filter options are valid and supported by vic
 	if err := ValidateFilters(cmdFilters, acceptedFilters, unSupportedFilters); err != nil {
@@ -38,7 +48,7 @@ func ValidateImageFilters(cmdFilters filters.Args, acceptedFilters map[string]bo
 	}
 
 	// return value
-	imgFilterContext := &FilterContext{}
+	imgFilterContext := &ImageListContext{}
 
 	err := cmdFilters.WalkValues("before", func(value string) error {
 		before, err := cache.ImageCache().Get(value)
@@ -77,10 +87,10 @@ func ValidateImageFilters(cmdFilters filters.Args, acceptedFilters map[string]bo
 *		* StopAction
 *
  */
-func IncludeImage(imgFilters filters.Args, listContext *FilterContext) FilterAction {
+func IncludeImage(imgFilters filters.Args, listContext *ImageListContext) FilterAction {
 
 	// filter common requirements
-	act := filterCommon(listContext, imgFilters)
+	act := filterCommon(&listContext.FilterContext, imgFilters)
 	if act != IncludeAction {
 		return act
 	}
@@ -89,21 +99,32 @@ func IncludeImage(imgFilters filters.Args, listContext *FilterContext) FilterAct
 	if imgFilters.Include("reference") {
 		// references for this imageID
 		refs := cache.RepositoryCache().References(listContext.ID)
+		// reference filters
+		refFilters := imgFilters.Get("reference")
+		// iterate of reporsitory references and filters
 		for _, ref := range refs {
-			err := imgFilters.WalkValues("reference", func(value string) error {
+			for _, rf := range refFilters {
 				// match on complete ref ie. busybox:latest
-				matchRef, _ := path.Match(value, ref.String())
+				matchRef, _ := path.Match(rf, ref.String())
 				// match on repo only ie. busybox
-				matchName, _ := path.Match(value, ref.Name())
-				if !matchRef && !matchName {
-					return fmt.Errorf("reference not found")
+				matchName, _ := path.Match(rf, ref.Name())
+
+				// if either matched then add to tag / digest
+				if matchRef || matchName {
+					if _, ok := ref.(reference.Canonical); ok {
+						listContext.Digests = append(listContext.Digests, ref.String())
+					}
+					if _, ok := ref.(reference.NamedTagged); ok {
+						listContext.Tags = append(listContext.Tags, ref.String())
+					}
 				}
-				return nil
-			})
-			if err != nil {
-				return ExcludeAction
 			}
 		}
+		// if there were no reference matches then exclude the image
+		if len(listContext.Tags) == 0 && len(listContext.Digests) == 0 {
+			return ExcludeAction
+		}
 	}
+
 	return IncludeAction
 }

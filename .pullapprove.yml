@@ -22,6 +22,7 @@ groups:
   build-ci-infra:
     users:
       - mhagen-vmware
+      - rajanashok
     conditions:
       files:
         include:
@@ -80,6 +81,8 @@ groups:
   docker-persona:
     users:
       - sflxn
+      - cgtexmex
+      - jzt
     conditions:
       files:
         include:
