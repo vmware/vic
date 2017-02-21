@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -291,7 +291,7 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	var devices object.VirtualDeviceList
 	var err error
 
-	// set a creating instance ID for vch id before the vm id is set, to identify if that's one vch
+	// set to creating VCH
 	conf.SetIsCreating()
 
 	cfg, err := d.encodeConfig(conf)
@@ -1002,8 +1002,8 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	return fmt.Errorf("Failed to get IP address information from appliance: %s", updateErr)
 }
 
-// CheckServiceReady checks service information, including appliance initialization, Docker API
-// For more checking in the future, should expand this method
+// CheckServiceReady checks if service is launched correctly, including ip address, service initialization, VC connection and Docker API
+// Should expand this method for any more VCH service checking
 func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
 	oldCtx := d.ctx
 	d.ctx = ctx
@@ -1012,7 +1012,7 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	}()
 
 	if err := d.ensureApplianceInitializes(conf); err != nil {
-		return errors.Errorf("%s. Exiting...", err)
+		return err
 	}
 
 	// vic-init will try to reach out to the vSphere target.

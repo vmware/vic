@@ -1369,7 +1369,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	defer func() {
 		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
-			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
+			err = errors.Errorf("Creating VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target")
 		}
 	}()
 
@@ -1377,7 +1377,11 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		executor.CollectDiagnosticLogs()
 		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
-		log.Infof("\t\tRun command: %s", cmd)
+		if cmd != "" {
+			log.Infof("\t\tRun command: %s", cmd)
+		} else {
+			log.Infof("\t\tRun %s inspect to find API connection command and run the command if ip address is ready", clic.App.Name)
+		}
 		log.Info("\t\tIf command succeeds, VCH is started. If command fails, VCH failed to install - see documentation for troubleshooting.")
 		return err
 	}

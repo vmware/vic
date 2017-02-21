@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -179,13 +179,7 @@ func (d *Dispatcher) InitDiagnosticLogsFromVCH(vch *vm.VirtualMachine) {
 
 	var err error
 	// where the VM is running
-	force := d.force
-	d.force = true
-	defer func() {
-		d.force = force
-	}()
-
-	ds, err := d.getImageDatastore(vch, nil)
+	ds, err := d.getImageDatastore(vch, nil, true)
 	if err != nil {
 		log.Debugf("Failure finding image store from VCH VM %s: %s", vch.Reference(), err.Error())
 	}

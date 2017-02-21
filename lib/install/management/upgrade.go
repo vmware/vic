@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -97,12 +97,12 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
 		log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
-		// return the error message for upgrade, instead of rollback
 	} else {
-		log.Infof("Appliance is rollback to old version")
+		log.Infof("Appliance is rollbacked to old version")
 	}
 
 	d.deleteUpgradeImages(ds, settings)
+	// return the error message for upgrade
 	return err
 }
 
@@ -206,7 +206,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
 	defer cancel()
 	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
-		log.Info("\tAPI may be slow to start - might retry with increased timeout: %s", err)
+		log.Info("\tAPI may be slow to start - might retry with increased timeout using --timeout: %s", err)
 		return err
 	}
 	return nil

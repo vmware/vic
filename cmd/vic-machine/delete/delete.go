@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -155,7 +155,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	installerBuild := version.GetBuild()
 	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
 		if !d.Data.Force {
-			log.Errorf("VCH version %q is different than installer version %s. Specify --force to force delete or upgrade VCH before delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
+			log.Errorf("VCH version %q is different than installer version %s. Upgrade VCH before delete or specify --force to force delete or ", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 			return errors.New("delete failed")
 		}
 

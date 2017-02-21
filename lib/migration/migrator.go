@@ -47,17 +47,17 @@ func MigrateContainerConfig(conf map[string]string) (map[string]string, bool, er
 	return migrateConfig(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
-// IsContainerDataOlder returns true if input container config is older than latest version. If error happens, always returns false
+// ContainerDataIsOlder returns true if input container config is older than latest version. If error happens, always returns false
 func ContainerDataIsOlder(conf map[string]string) (bool, error) {
 	return dataIsOlder(conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
-// IsApplianceDataOlder returns true if input appliance config is older than latest version. If error happens, always returns false
+// ApplianceDataIsOlder returns true if input appliance config is older than latest version. If error happens, always returns false
 func ApplianceDataIsOlder(conf map[string]string) (bool, error) {
 	return dataIsOlder(conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
 
-// isDataOlder returns true if data is older than latest. If error happens, always returns false
+// dataIsOlder returns true if data is older than latest. If error happens, always returns false
 func dataIsOlder(data map[string]string, target string, verKey string) (bool, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("target: %s, version key: %s", target, verKey)))
 
