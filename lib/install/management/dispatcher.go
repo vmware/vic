@@ -181,7 +181,9 @@ func (d *Dispatcher) InitDiagnosticLogsFromVCH(vch *vm.VirtualMachine) {
 	// where the VM is running
 	force := d.force
 	d.force = true
-	defer d.force = force
+	defer func() {
+		d.force = force
+	}()
 
 	ds, err := d.getImageDatastore(vch, nil)
 	if err != nil {
