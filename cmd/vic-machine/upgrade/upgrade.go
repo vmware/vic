@@ -113,7 +113,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 
 	log.Infof("### Upgrading VCH ####")
 
-	ctx, cancel := context.WithTimeout(context.Background(), u.Timeout)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	validator, err := validate.NewValidator(ctx, u.Data)
@@ -150,13 +150,11 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return errors.New("upgrade failed")
 	}
 
-	executor.InitDiagnosticLogs(vchConfig)
-
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, u.Data)
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(u.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(u.BootstrapISO)
-	vConfig.RollbackTimeout = u.Timeout
+	vConfig.Timeout = u.Timeout
 
 	if vchConfig, err = validator.ValidateMigratedConfig(ctx, vchConfig); err != nil {
 		log.Errorf("Failed to migrate Virtual Container Host configuration %s", u.DisplayName)
@@ -170,13 +168,6 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		if err == nil {
 			err = errors.New("upgrade failed")
 		}
-		return err
-	}
-
-	// check the docker endpoint is responsive
-	if err = executor.CheckDockerAPI(vchConfig, nil); err != nil {
-
-		executor.CollectDiagnosticLogs()
 		return err
 	}
 

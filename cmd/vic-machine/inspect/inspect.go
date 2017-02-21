@@ -139,7 +139,6 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		log.Error(err)
 		return errors.New("inspect failed")
 	}
-	executor.InitDiagnosticLogs(vchConfig)
 
 	installerVer := version.GetBuild()
 

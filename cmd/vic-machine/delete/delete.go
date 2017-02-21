@@ -161,7 +161,6 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 
 		log.Warnf("VCH version %q is different than installer version %s. Force delete will attempt to remove everything related to the installed VCH", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
-	executor.InitDiagnosticLogs(vchConfig)
 
 	if err = executor.DeleteVCH(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()

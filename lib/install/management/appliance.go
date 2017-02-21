@@ -32,8 +32,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/docker/docker/opts"
 	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -47,6 +47,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -949,7 +950,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		log.Debugf("Obtained IP address for client interface: %q", d.HostIP)
+		log.Infof("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 
@@ -996,4 +997,40 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	return fmt.Errorf("Failed to get IP address information from appliance: %s", updateErr)
+}
+
+// CheckServiceReady checks service information, including appliance initialization, Docker API
+// For more checking in the future, should expand this method
+func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
+	oldCtx := d.ctx
+	d.ctx = ctx
+	defer func() {
+		d.ctx = oldCtx
+	}()
+
+	if err := d.ensureApplianceInitializes(conf); err != nil {
+		return errors.Errorf("%s. Exiting...", err)
+	}
+
+	// vic-init will try to reach out to the vSphere target.
+	log.Info("Checking VCH connectivity with vSphere target")
+	// Checking access to vSphere API
+	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target); err == nil {
+		code := int(cd)
+		if code > 0 {
+			log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		} else {
+			log.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		}
+	} else {
+		log.Warningf("Could not run VCH vSphere API target check due to %v", err)
+	}
+
+	if err := d.CheckDockerAPI(conf, clientCert); err != nil {
+		err = errors.Errorf("Docker API endpoint check failed: %s", err)
+		// log with info cause this might not be an error
+		log.Info(err.Error())
+		return err
+	}
+	return nil
 }

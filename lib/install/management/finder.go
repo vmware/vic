@@ -74,6 +74,7 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 		log.Error(err)
 		return nil, err
 	}
+	d.InitDiagnosticLogsFromVCH(vmm)
 	return vmm, nil
 }
 
@@ -130,6 +131,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		log.Error(err)
 		return nil, err
 	}
+	d.InitDiagnosticLogsFromVCH(vmm)
 	return vmm, nil
 }
 

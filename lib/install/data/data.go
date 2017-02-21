@@ -120,7 +120,7 @@ type InstallerData struct {
 	BootstrapISO      string
 	ISOVersion        string
 	PreUpgradeVersion string
-	RollbackTimeout   time.Duration
+	Timeout           time.Duration
 
 	UseRP bool
 

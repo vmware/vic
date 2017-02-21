@@ -85,14 +85,14 @@ func NewDispatcher(ctx context.Context, s *session.Session, conf *config.Virtual
 		force:   force,
 	}
 	if conf != nil {
-		e.InitDiagnosticLogs(conf)
+		e.InitDiagnosticLogsFromConf(conf)
 	}
 	return e
 }
 
-// Get the current log header LineEnd of the hostd/vpxd logs.
+// Get the current log header LineEnd of the hostd/vpxd logs based on VCH configuration
 // With this we avoid collecting log file data that existed prior to install.
-func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigSpec) {
+func (d *Dispatcher) InitDiagnosticLogsFromConf(conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	if d.isVC {
@@ -149,6 +149,51 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigS
 
 		diagnosticLogs[d.session.Host.Reference().Value] =
 			&diagnosticLog{"hostd", "hostd.log", 0, host, true}
+	}
+
+	m := diagnostic.NewDiagnosticManager(d.session)
+
+	for k, l := range diagnosticLogs {
+		// get LineEnd without any LineText
+		h, err := m.BrowseLog(d.ctx, l.host, l.key, math.MaxInt32, 0)
+
+		if err != nil {
+			log.Warnf("Disabling %s %s collection (%s)", k, l.name, err)
+			diagnosticLogs[k] = nil
+			continue
+		}
+
+		l.start = h.LineEnd
+	}
+}
+
+// Get the current log header LineEnd of the hostd/vpxd logs based on vch VM hardwares, cause VCH configuration might not be available at this time
+// With this we avoid collecting log file data that existed prior to install.
+func (d *Dispatcher) InitDiagnosticLogsFromVCH(vch *vm.VirtualMachine) {
+	defer trace.End(trace.Begin(""))
+
+	if d.isVC {
+		diagnosticLogs[d.session.ServiceContent.About.InstanceUuid] =
+			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
+	}
+
+	var err error
+	// where the VM is running
+	ds, err := d.getImageDatastore(vch, nil)
+	if err != nil {
+		log.Debugf("Failure finding image store from VCH VM %s: %s", vch.Reference(), err.Error())
+	}
+	var hosts []*object.HostSystem
+	if ds != nil {
+		hosts, err = ds.AttachedClusterHosts(d.ctx, d.session.Cluster)
+		if err != nil {
+			log.Debugf("Unable to get the list of hosts attached to given storage: %s", err)
+		}
+	}
+
+	for _, host := range hosts {
+		diagnosticLogs[host.Reference().Value] =
+			&diagnosticLog{"hostd", "hostd.log", 0, host, false}
 	}
 
 	m := diagnostic.NewDiagnosticManager(d.session)

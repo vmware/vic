@@ -122,7 +122,7 @@ func (d *Dispatcher) getComputeResource(vmm *vm.VirtualMachine, conf *config.Vir
 
 func (d *Dispatcher) getImageDatastore(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*object.Datastore, error) {
 	var err error
-	if len(conf.ImageStores) == 0 {
+	if conf == nil || len(conf.ImageStores) == 0 {
 		if !d.force {
 			err = errors.Errorf("Cannot find image stores from configuration")
 			return nil, err

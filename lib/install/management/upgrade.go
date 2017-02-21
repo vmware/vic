@@ -95,19 +95,14 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	log.Errorf("Failed to upgrade: %s", err)
 	log.Infof("Rolling back upgrade")
 
-	// reset timeout, to make sure rollback still happens in case of deadline exceeded error in previous step
-	var cancel context.CancelFunc
-	d.ctx, cancel = context.WithTimeout(context.Background(), settings.RollbackTimeout)
-	defer cancel()
-
-	if rerr := d.rollback(conf, snapshotName); rerr != nil {
+	if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
 		log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
 		// return the error message for upgrade, instead of rollback
-		return err
+	} else {
+		log.Infof("Appliance is rollback to old version")
 	}
 
 	d.deleteUpgradeImages(ds, settings)
-	log.Infof("Appliance is rollback to old version")
 	return err
 }
 
@@ -204,10 +199,20 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 
-	return d.startAppliance(conf)
+	if err = d.startAppliance(conf); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
+	defer cancel()
+	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
+		log.Info("\tAPI may be slow to start - might retry with increased timeout: %s", err)
+		return err
+	}
+	return nil
 }
 
-func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string) error {
+func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("old appliance iso: %q, snapshot: %q", d.oldApplianceISO, snapshot)))
 
 	// do not power on appliance in this snapsthot revert
@@ -218,10 +223,10 @@ func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snaps
 		return errors.Errorf("Failed to roll back upgrade: %s.", err)
 	}
 
-	return d.ensureRollbackReady(conf)
+	return d.ensureRollbackReady(conf, settings)
 }
 
-func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	power, err := d.appliance.PowerState(d.ctx)
@@ -233,7 +238,17 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 		log.Infof("Roll back finished - Appliance is kept in powered off status")
 		return nil
 	}
-	return d.startAppliance(conf)
+	if err = d.startAppliance(conf); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
+	defer cancel()
+	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
+		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes")
+		return err
+	}
+	return nil
 }
 
 func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, isoFile string) error {

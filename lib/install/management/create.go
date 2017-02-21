@@ -95,10 +95,6 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
 
-	if err = d.ensureApplianceInitializes(conf); err != nil {
-		return errors.Errorf("%s. Exiting...", err)
-	}
-
 	return nil
 }
 

@@ -43,7 +43,6 @@ import (
 	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/diag"
 )
 
 const (
@@ -1330,15 +1329,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		return errors.New("invalid CLI arguments")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
-	defer cancel()
-	defer func() {
-		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
-			//context deadline exceeded, replace returned error message
-			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
-		}
-	}()
-
+	// all these operations will be executed without timeout
+	ctx := context.Background()
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
 		log.Error("Create cannot continue: failed to create validator")
@@ -1359,6 +1351,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
+	vConfig.Timeout = c.Data.Timeout
+
 	// separate initial validation from dispatch of creation task
 	log.Info("")
 
@@ -1369,36 +1363,23 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	// vic-init will try to reach out to the vSphere target.
-	log.Info("Checking VCH connectivity with vSphere target")
-	vch, err := executor.NewVCHFromComputePath(c.Data.ComputeResourcePath, c.Data.DisplayName, validator)
-	if err != nil {
-		log.Warningf("Failed to get Virtual Container Host %s. Error: %v", c.Data.DisplayName, err)
-	} else {
-		// Checking access to vSphere API
-		if cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target); err == nil {
-			code := int(cd)
-			if code > 0 {
-				log.Warningf("vSphere API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-			} else {
-				log.Infof("vSphere API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-			}
-		} else {
-			log.Warningf("Could not run VCH vSphere API target check due to %v", err)
+	// timeoout start to work from here, to make sure user does not wait forever
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
+	defer func() {
+		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
 		}
-	}
+	}()
 
-	// check the docker endpoint is responsive
-	log.Info("Checking Docker API endpoint")
-	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
+	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
 		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert)
-		msg := fmt.Sprintf("Docker API endpoint check failed: %s", err)
-		log.Info(msg)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
 		log.Infof("\t\tRun command: %s", cmd)
 		log.Info("\t\tIf command succeeds, VCH is started. If command fails, VCH failed to install - see documentation for troubleshooting.")
-		return fmt.Errorf(msg)
+		return err
 	}
 
 	log.Infof("Initialization of appliance successful")
