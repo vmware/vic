@@ -83,23 +83,18 @@ func IncludeContainer(listContext *ContainerListContext, container *models.Conta
 		return ExcludeAction
 	}
 
-	// filter on network name
+	// Filter on network name
 	if listContext.Filters.Include("network") {
 		netFilterValues := listContext.Filters.Get("network")
-
-		// Gather the container's networks in a map
-		numNetworks := len(container.Endpoints)
-		networks := make(map[string]struct{}, numNetworks)
-		var s struct{}
-		for i := range container.Endpoints {
-			networks[container.Endpoints[i].Scope] = s
-		}
 
 		// Exclude the container if its network(s) match no supplied filter values
 		exists := false
 		for i := range netFilterValues {
-			if _, exists = networks[netFilterValues[i]]; exists {
-				break
+			for j := range container.Endpoints {
+				if netFilterValues[i] == container.Endpoints[j].Scope {
+					exists = true
+					break
+				}
 			}
 		}
 		if !exists {
@@ -111,19 +106,14 @@ func IncludeContainer(listContext *ContainerListContext, container *models.Conta
 	if listContext.Filters.Include("volume") {
 		volFilterValues := listContext.Filters.Get("volume")
 
-		// Gather the container's volumes in a map
-		numVols := len(container.VolumeConfig)
-		vols := make(map[string]struct{}, numVols)
-		var s struct{}
-		for i := range container.VolumeConfig {
-			vols[container.VolumeConfig[i].Name] = s
-		}
-
 		// Exclude the container if its volume(s) match no supplied filter values
 		exists := false
 		for i := range volFilterValues {
-			if _, exists = vols[volFilterValues[i]]; exists {
-				break
+			for j := range container.VolumeConfig {
+				if volFilterValues[i] == container.VolumeConfig[j].Name {
+					exists = true
+					break
+				}
 			}
 		}
 		if !exists {

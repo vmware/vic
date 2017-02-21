@@ -181,6 +181,10 @@ func TestIncludeContainer(t *testing.T) {
 	listCtx.Filters.Add("network", "barNet")
 	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
 
+	listCtx.Filters = filters.NewArgs()
+	listCtx.Filters.Add("network", "missed")
+	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
+
 	// test volume name
 	listCtx.Filters = filters.NewArgs()
 	listCtx.Filters.Add("volume", "fooVol")
@@ -192,12 +196,18 @@ func TestIncludeContainer(t *testing.T) {
 	listCtx.Filters.Add("volume", "quxVol")
 	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
 
+	// test volume and network filters together
 	listCtx.Filters = filters.NewArgs()
-	listCtx.Filters.Add("network", "missed")
+	listCtx.Filters.Add("volume", "fooVol")
+	listCtx.Filters.Add("network", "bridge")
+	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
+	listCtx.Filters.Add("volume", "barVol")
+	listCtx.Filters.Add("network", "fooNet")
+	assert.Equal(t, IncludeAction, IncludeContainer(listCtx, contain))
+	listCtx.Filters.Del("volume", "fooVol")
 	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
 
 	listCtx.Filters = filters.NewArgs()
 	listCtx.Filters.Add("status", "stopped")
 	assert.Equal(t, ExcludeAction, IncludeContainer(listCtx, contain))
-
 }
