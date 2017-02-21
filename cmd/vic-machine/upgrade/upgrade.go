@@ -156,6 +156,11 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	vConfig.BootstrapISO = path.Base(u.BootstrapISO)
 	vConfig.Timeout = u.Timeout
 
+	if err := validator.AssertVersion(vchConfig); err != nil {
+		log.Error(err)
+		return errors.New("upgrade failed")
+	}
+
 	if vchConfig, err = validator.ValidateMigratedConfig(ctx, vchConfig); err != nil {
 		log.Errorf("Failed to migrate Virtual Container Host configuration %s", u.DisplayName)
 		log.Error(err)
