@@ -955,7 +955,6 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 	}
 
 	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	// TODO: once started / finished time are available replace time.Now()
 	exitCode, _ := dockerStatus(int(processExitCode), processStatus, containerState, time.Time{}, time.Time{})
 
 	return exitCode, nil
