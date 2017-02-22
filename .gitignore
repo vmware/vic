@@ -33,3 +33,7 @@ tests/.project
 
 # Intellij files
 *.iml
+
+# Eclipse files
+.project
+

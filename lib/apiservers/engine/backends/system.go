@@ -203,7 +203,6 @@ func (s *System) SystemInfo() (*types.Info, error) {
 const buildTimeLayout = "2006/01/02@15:04:05"
 
 func (s *System) SystemVersion() types.Version {
-	APIVersion := "1.22"
 	Arch := runtime.GOARCH
 
 	BuildTime := version.BuildDate
@@ -229,7 +228,8 @@ func (s *System) SystemVersion() types.Version {
 	_ = Arch
 
 	version := types.Version{
-		APIVersion:    APIVersion,
+		APIVersion:    version.DockerAPIVersion,
+		MinAPIVersion: version.DockerMinimumVersion,
 		Arch:          Arch,
 		BuildTime:     BuildTime,
 		Experimental:  Experimental,
