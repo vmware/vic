@@ -11,7 +11,6 @@ build:
       BIN: bin
       GOPATH: /drone
       SHELL: /bin/bash
-      DOCKER_API_VERSION: "1.21"
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
       LOG_TEMP_DIR: install-logs
       DRONE_SERVER:  $$DRONE_SERVER
@@ -33,4 +32,4 @@ build:
       DOMAIN: $$DOMAIN
     commands:
       - tests/integration-test.sh
-      #- pybot tests/test-cases/Group1-Docker-Commands/1-5-Docker-Start.robot
+      #- pybot tests/test-cases/Group1-Docker-Commands/1-13-Docker-Version.robot
