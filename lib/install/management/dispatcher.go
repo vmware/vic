@@ -154,6 +154,9 @@ func (d *Dispatcher) InitDiagnosticLogsFromConf(conf *config.VirtualContainerHos
 	m := diagnostic.NewDiagnosticManager(d.session)
 
 	for k, l := range diagnosticLogs {
+		if l == nil {
+			continue
+		}
 		// get LineEnd without any LineText
 		h, err := m.BrowseLog(d.ctx, l.host, l.key, math.MaxInt32, 0)
 
@@ -199,6 +202,9 @@ func (d *Dispatcher) InitDiagnosticLogsFromVCH(vch *vm.VirtualMachine) {
 	m := diagnostic.NewDiagnosticManager(d.session)
 
 	for k, l := range diagnosticLogs {
+		if l == nil {
+			continue
+		}
 		// get LineEnd without any LineText
 		h, err := m.BrowseLog(d.ctx, l.host, l.key, math.MaxInt32, 0)
 
