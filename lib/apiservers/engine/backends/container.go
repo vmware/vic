@@ -28,19 +28,19 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/api/errors"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	dnetwork "github.com/docker/docker/api/types/network"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
-	dnetwork "github.com/docker/docker/api/types/network"
-	timetypes "github.com/docker/docker/api/types/time"
 	gonat "github.com/docker/go-connections/nat"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/portallocator"
@@ -83,7 +83,6 @@ var unSupportedPsFilters = map[string]bool{
 	"health":    false,
 	"isolation": false,
 	"is-task":   false,
-	"volume":    false,
 }
 
 const (
@@ -1274,7 +1273,6 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 func (c *Container) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
 	return nil, fmt.Errorf("%s does not yet implement ContainersPrune", ProductName())
 }
-
 
 func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConfig) error {
 	// Look up the container name in the metadata cache to get long ID
