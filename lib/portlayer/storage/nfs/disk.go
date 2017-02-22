@@ -18,30 +18,30 @@ import (
 	"net/url"
 )
 
-//  Device information for interaction with the tether and portlayer
-type NFSVolume struct {
+//  Volume identifies an NFS based volume
+type Volume struct {
 
 	// This is the nfs host the the volume belongs to
 	Host *url.URL
 
 	// Path on the Host where the volume is located
-	NFSPath string
+	Path string
 }
 
-func NewNFSVolumeDevice(host *url.URL, NFSPath string) NFSVolume {
-	v := NFSVolume{
-		Host:    host,
-		NFSPath: NFSPath,
+func NewVolume(host *url.URL, NFSPath string) Volume {
+	v := Volume{
+		Host: host,
+		Path: NFSPath,
 	}
 	return v
 }
 
-func (v NFSVolume) MountPath() (string, error) {
-	return "", nil
+func (v Volume) MountPath() (string, error) {
+	return v.Path, nil
 }
 
-// Includes url to nfs directory for container to mount,
-func (v NFSVolume) DiskPath() url.URL {
+// DiskPath includes the url to the nfs directory for the container to mount,
+func (v Volume) DiskPath() url.URL {
 	if v.Host == nil {
 		return url.URL{}
 	}

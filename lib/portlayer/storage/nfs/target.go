@@ -20,7 +20,7 @@ import (
 	"os"
 )
 
-// The MountServer is an interface used to communicate with network attached storage.
+// MountServer is an interface used to communicate with network attached storage.
 type MountServer interface {
 	// Mount initiates the NAS Target and returns a Target interface.
 	Mount(target *url.URL) (Target, error)
@@ -29,27 +29,26 @@ type MountServer interface {
 	Unmount(target Target) error
 }
 
-// Target is the filesystem interface for performing actions against attached storage.:w
-
+// Target is the filesystem interface for performing actions against attached storage.
 type Target interface {
-	// Opens a Target path in a READONLY context
+	// Open opens a file on the Target in RD_ONLY
 	Open(path string) (io.ReadCloser, error)
 
-	// Opens targeted file with the supplied attr.
+	// OpenFile opens a file on the Target with the given mode
 	OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
-	// Creates a file, errors out if file already exists. assumes write permissions.
+	// Create creates a file, errors out if file already exists
 	Create(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
-	// Create directory path
+	// Mkdir creates a directory at the given path
 	Mkdir(path string, perm os.FileMode) ([]byte, error)
 
-	// Delete Directory Path, and children
+	// RemoveAll deletes Directory recursively
 	RemoveAll(Path string) error
 
-	// Reads the contents of the targeted directory
+	// ReadDir reads the dirents of the given directory
 	ReadDir(path string) ([]os.FileInfo, error)
 
-	// Looks up the file information for a target entry
+	// Lookup reads os.FileInfo for the given path
 	Lookup(path string) (os.FileInfo, error)
 }

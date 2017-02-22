@@ -39,20 +39,18 @@ const (
 	defaultPermissions = 0755
 )
 
+// VolumeStore this is nfs related volume store definition
 type VolumeStore struct {
-	//volume store name
+	// volume store name
 	Name string
 
-	//volume directory path, used to construct paths.
-	VolumeStoreDir string
-
-	//handler for establishing connection to a target.
+	// handler for establishing connection to a target.
 	Service MountServer
 
-	//nfs target for filesystem interaction
+	// nfs target for filesystem interaction
 	Target *url.URL
 
-	//Service selflink to volume store.
+	// Service selflink to volume store.
 	SelfLink *url.URL
 }
 
@@ -65,13 +63,13 @@ func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL,
 	}
 	defer mount.Unmount(target)
 
-	//we assume that nfsTargetURL.path already exists.
-	//make volumes directory
+	// we assume that nfsTargetURL.path already exists.
+	// make volumes directory
 	if _, err := target.Mkdir(path.Join(nfsTargetURL.Path, VolumesDir), defaultPermissions); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	//make metadata directory
+	// make metadata directory
 	if _, err := target.Mkdir(path.Join(nfsTargetURL.Path, metadataDir), defaultPermissions); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
@@ -82,11 +80,10 @@ func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL,
 	}
 
 	v := &VolumeStore{
-		Name:           storeName,
-		VolumeStoreDir: nfsTargetURL.Path,
-		Service:        mount,
-		Target:         nfsTargetURL,
-		SelfLink:       selfLink,
+		Name:     storeName,
+		Service:  mount,
+		Target:   nfsTargetURL,
+		SelfLink: selfLink,
 	}
 
 	return v, nil
@@ -95,16 +92,16 @@ func NewVolumeStore(op trace.Operation, storeName string, nfsTargetURL *url.URL,
 // Returns the path to the vol relative to the given store.  The dir structure
 // for a vol in a nfs store is `<configured nfs server path>/volumes/<vol ID>/<volume contents>`.
 func (v *VolumeStore) volDirPath(ID string) string {
-	return path.Join(v.VolumeStoreDir, VolumesDir, ID)
+	return path.Join(v.Target.Path, VolumesDir, ID)
 }
 
 func (v *VolumeStore) volumesDir() string {
-	return path.Join(v.VolumeStoreDir, VolumesDir)
+	return path.Join(v.Target.Path, VolumesDir)
 }
 
 // Returns the path to the metadata directory for a volume
 func (v *VolumeStore) volMetadataDirPath(ID string) string {
-	return path.Join(v.VolumeStoreDir, metadataDir, ID)
+	return path.Join(v.Target.Path, metadataDir, ID)
 }
 
 // Creates a volume directory and volume object for NFS based volumes
@@ -119,7 +116,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, err
 	}
 
-	backing := NewNFSVolumeDevice(v.Target, v.volDirPath(ID))
+	backing := NewVolume(v.Target, v.volDirPath(ID))
 
 	vol, err := storage.NewVolume(v.SelfLink, ID, info, backing)
 	if err != nil {
@@ -144,18 +141,15 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 
 	op.Infof("Attempting to remove volume (%s) and its metadata from volume store (%s)", vol.ID, v.Name)
 
-	//remove volume directory and children
+	// remove volume directory and children
 	if err := target.RemoveAll(v.volDirPath(vol.ID)); err != nil {
 		op.Errorf("failed to remove volume (%s) on volume store (%s) due to error (%s)", vol.ID, v.Name, err)
 		return err
 	}
 
-	//XXX: what should we do if we lose the nfs server between volume and metadata deletion?
-
-	//remove volume metadata directory and children
+	// remove volume metadata directory and children
 	if err := target.RemoveAll(v.volMetadataDirPath(vol.ID)); err != nil {
 		op.Errorf("failed to remove metadata for volume (%s) at path (%q) on volume store (%s)", vol.ID, v.volDirPath(vol.ID), v.Name)
-		//FIXME: Should we bail here? the volume is gone at this point...
 	}
 	op.Infof("Successfully removed volume (%s) from volumestore (%s)", vol.ID, v.Name)
 
@@ -175,7 +169,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		return nil, err
 	}
 	var volumes []*storage.Volume
-	var fetchErrors []error
+	var fetchErr error
 
 	for _, fileInfo := range volFileInfo {
 
@@ -185,30 +179,23 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 
 		volMetadata, err := getMetadata(op, v.volMetadataDirPath(fileInfo.Name()), target)
 		if err != nil {
-			fetchErrors = append(fetchErrors, err)
+			fetchErr = err
 			continue
 		}
 
-		volDeviceBacking := NewNFSVolumeDevice(v.Target, v.volDirPath(fileInfo.Name()))
+		volDeviceBacking := NewVolume(v.Target, v.volDirPath(fileInfo.Name()))
 
 		vol, err := storage.NewVolume(v.SelfLink, fileInfo.Name(), volMetadata, volDeviceBacking)
 		if err != nil {
+			op.Errorf("Failed to create volume struct from volume directory (%s)", fileInfo.Name())
 			return nil, err
 		}
 
 		volumes = append(volumes, vol)
 	}
 
-	if len(fetchErrors) > 0 {
-		var collectedErrors bytes.Buffer
-		collectedErrors.WriteString("Some Volumes metadata Could not be fetched: \n")
-
-		for index, err := range fetchErrors {
-			collectedErrors.WriteString(fmt.Sprintf("error (%d) : (%s);", index, err))
-		}
-
-		op.Errorf("some volumes were not able to be listed : (%s)", collectedErrors.String())
-		return volumes, errors.New(collectedErrors.String())
+	if fetchErr != nil {
+		return nil, err
 	}
 
 	return volumes, nil
@@ -225,17 +212,16 @@ func writeMetadata(op trace.Operation, metadataPath string, info map[string][]by
 	for fileName, data := range info {
 		targetPath := path.Join(metadataPath, fileName)
 		blobFile, err := target.Create(targetPath, defaultPermissions)
-		defer blobFile.Close()
-		// XXX: we might want to make sure the file we want to write does not exist...
 		if err != nil {
 			return err
 		}
+		defer blobFile.Close()
 
 		_, err = blobFile.Write(data)
 		if err != nil {
-			//XXX: Should we attempt to clean up what we wrote in this case?
 			return err
 		}
+		defer blobFile.Close()
 	}
 	op.Infof("Successfully wrote metadata to (%s)", metadataPath)
 	return nil
@@ -253,10 +239,10 @@ func getMetadata(op trace.Operation, metadataPath string, target Target) (map[st
 		pth := path.Join(metadataPath, metadataFile.Name())
 
 		fileBlob, err := target.Open(pth)
-		defer fileBlob.Close()
 		if err != nil {
 			return nil, err
 		}
+		defer fileBlob.Close()
 
 		dataBlob, err := ioutil.ReadAll(fileBlob)
 		if err != nil {
