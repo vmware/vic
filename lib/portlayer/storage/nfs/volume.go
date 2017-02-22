@@ -15,9 +15,6 @@
 package nfs
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
