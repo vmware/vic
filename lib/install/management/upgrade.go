@@ -264,6 +264,10 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 	spec.DeviceChange = deviceChange
 
 	if conf != nil {
+		// reset service started attribute
+		for _, sess := range conf.ExecutorConfig.Sessions {
+			sess.Started = ""
+		}
 		cfg := make(map[string]string)
 		extraconfig.Encode(extraconfig.MapSink(cfg), conf)
 		spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
