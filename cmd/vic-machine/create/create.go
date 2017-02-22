@@ -365,7 +365,7 @@ func (c *Create) Flags() []cli.Flag {
 		},
 		cli.StringSliceFlag{
 			Name:   "organization",
-			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQND if provided.",
+			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQDN if provided.",
 			Value:  &c.org,
 			Hidden: true,
 		},

@@ -760,7 +760,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 				}
 
 				if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
-					log.Debug("Unable add CAs from config to validation pool")
+					log.Warn("Unable add CAs from config to validation pool")
 				}
 
 				// tr.TLSClientConfig.ClientCAs = pool
@@ -783,20 +783,26 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 				cip := net.ParseIP(d.HostIP)
 				if err != nil {
-					log.Debugf("Unable to process client ip address: %s", err)
+					log.Debugf("Unable to process Docker API host address from %q: %s", d.HostIP, err)
 					tlsErrExpected = true
 					return
 				}
 
-				// find the name to use and override the IP
+				// find the name to use and override the IP if found
 				addr, err := addrToUse([]net.IP{cip}, cert, conf.CertificateAuthorities)
 				if err != nil {
-					log.Warn("Unable to determine address to use with remote certificate, skipping API liveliness checks")
-					tlsErrExpected = true
-					return
+					log.Debugf("Unable to determine address to use with remote certificate, checking SANs")
+					addr, _ = viableHostAddress([]net.IP{cip}, cert, conf.CertificateAuthorities)
+					log.Debugf("Using host address: %s", addr)
 				}
-
-				d.HostIP = addr
+				if addr != "" {
+					d.HostIP = addr
+				} else {
+					log.Debug("Failed to find a viable address for Docker API from certificates")
+					// Server certificate won't validate since we don't have a hostname
+					tlsErrExpected = true
+				}
+				log.Debugf("Host address set to: %q", d.HostIP)
 			}()
 		}
 
@@ -901,9 +907,27 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 				case x509.UnknownAuthorityError:
 					// This will occur if the server certificate was signed by a CA that is not the one used for client authentication
 					// and does not have a trusted root registered on the system running vic-machine
-					// This is a legitimate deployment so no error, but definitely requires a warning.
-					log.Warnf("Unable to verify server certificate with configured CAs: %s", neterr.Error())
-					return nil
+					msg := fmt.Sprintf("Unable to validate server certificate with configured CAs (unknown CA): %s", neterr.Error())
+					if tlsErrExpected {
+						// Legitimate deployment so no error, but definitely requires a warning.
+						log.Warn(msg)
+						return nil
+					} else {
+						// TLS error not expected, the validation failure is a problem
+						log.Error(msg)
+						return neterr
+					}
+
+				case x509.HostnameError:
+					// e.g. "doesn't contain any IP SANs"
+					msg := fmt.Sprintf("Server certificate hostname doesn't match: %s", neterr.Error())
+					if tlsErrExpected {
+						log.Warn(msg)
+						return nil
+					} else {
+						log.Error(msg)
+						return neterr
+					}
 
 				default:
 					log.Debugf("Unhandled net error type: %#v", neterr)
