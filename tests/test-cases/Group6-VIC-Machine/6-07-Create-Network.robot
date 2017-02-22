@@ -96,6 +96,66 @@ Management network - valid
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
+Connectivity Bridge to Public
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    Log To Console  Create a public portgroup
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 vm-network
+    Should Be Empty  ${out}
+
+    Log To Console  Create a bridge portgroup
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
+    Should Be Empty  ${out}
+
+    Log To Console  Create a management portgroup
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 management
+    Should Be Empty  ${out}
+
+    ${output}=  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network management --container-network vm-network --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify
+
+    Should Contain  ${output}  Installer completed successfully
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --network vm-network --name p1 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start p1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --network bridge --name b1 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start b1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
+
+    ${out}=  Run  docker %{VCH-PARAMS} run -i -t busybox ping ${ip}
+
+    Should Contain  ${out}  PING ${ip}
+    Should Contain  ${out}  64 bytes from ${ip}: seq=0
+
+    Log To Console  Remove the management portgroup
+    ${out}=  Run  govc host.portgroup.remove management
+    Should Be Empty  ${out}
+
+    Log To Console  Remove the bridge portgroup
+    ${out}=  Run  govc host.portgroup.remove bridge
+    Should Be Empty  ${out}
+
+    Log To Console  Remove the public portgroup
+    ${out}=  Run  govc host.portgroup.remove vm-network
+    Should Be Empty  ${out}
+
+    Cleanup VIC Appliance On Test Server
+
+Connectivity Bridge to Management
+    Pass execution  Test not implemented
+
 Bridge network - vCenter none
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
 
