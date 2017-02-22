@@ -72,7 +72,6 @@ build:
       BIN: bin
       GOPATH: /drone
       SHELL: /bin/bash
-      DOCKER_API_VERSION: "1.21"
       TEST_TIMEOUT: 60s
       GOVC_INSECURE: true
     commands:

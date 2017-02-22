@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
@@ -46,6 +47,7 @@ import (
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/version"
 )
 
 type CliOptions struct {
@@ -227,6 +229,10 @@ func startServer() *apiserver.Server {
 	}
 
 	api := apiserver.New(serverConfig)
+	mw := middleware.NewVersionMiddleware(	version.DockerAPIVersion,
+											version.DockerDefaultVersion,
+											version.DockerMinimumVersion)
+	api.UseMiddleware(mw)
 	fullserver := fmt.Sprintf("%s:%d", addr, *cli.serverPort)
 	l, err := listeners.Init(cli.proto, fullserver, "", serverConfig.TLSConfig)
 	if err != nil {
