@@ -79,7 +79,7 @@ func (v *Validator) AssertVersion(conf *config.VirtualContainerHostConfigSpec) (
 		return err
 	}
 	if !older {
-		v.NoteIssue(errors.Errorf("%q has same or newer version %s than installer version. No upgrade is available.", conf.Name, conf.Version.ShortVersion(), installerBuild.ShortVersion()))
+		v.NoteIssue(errors.Errorf("%q has same or newer version %s than installer version %s. No upgrade is available.", conf.Name, conf.Version.ShortVersion(), installerBuild.ShortVersion()))
 		return err
 	}
 	return nil

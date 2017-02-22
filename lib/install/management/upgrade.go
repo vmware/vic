@@ -82,14 +82,9 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
-	defer func() {
-		if err == nil {
-			// do clean up aggressively, even the previous operation failed with context deadline excceeded.
-			d.deleteSnapshot(*snapshotRefID, snapshotName, conf.Name)
-		}
-	}()
 
 	if err = d.update(conf, settings); err == nil {
+		d.deleteSnapshot(*snapshotRefID, snapshotName, conf.Name)
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -97,11 +92,12 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
 		log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
-	} else {
-		log.Infof("Appliance is rollbacked to old version")
+		return err
 	}
+	log.Infof("Appliance is rollbacked to old version")
 
 	d.deleteUpgradeImages(ds, settings)
+	d.deleteSnapshot(*snapshotRefID, snapshotName, conf.Name)
 	// return the error message for upgrade
 	return err
 }
@@ -206,6 +202,11 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
 	defer cancel()
 	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
+		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Upgrading VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", settings.Timeout)
+		}
+
 		log.Info("\tAPI may be slow to start - might retry with increased timeout using --timeout: %s", err)
 		return err
 	}
@@ -245,8 +246,8 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
 	defer cancel()
 	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
+		// do not return error in this case, to make sure clean up continues
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes")
-		return err
 	}
 	return nil
 }
