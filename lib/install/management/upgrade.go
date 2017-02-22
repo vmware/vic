@@ -77,14 +77,13 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
-	snapshotRefID, err := d.createSnapshot(snapshotName, "upgrade snapshot")
-	if err != nil {
+	if err = d.tryCreateSnapshot(snapshotName, "upgrade snapshot"); err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
 
 	if err = d.update(conf, settings); err == nil {
-		d.deleteSnapshot(*snapshotRefID, snapshotName, conf.Name)
+		d.deleteSnapshot(snapshotName, conf.Name)
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -97,18 +96,19 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	log.Infof("Appliance is rollbacked to old version")
 
 	d.deleteUpgradeImages(ds, settings)
-	d.deleteSnapshot(*snapshotRefID, snapshotName, conf.Name)
+	d.deleteSnapshot(snapshotName, conf.Name)
 	// return the error message for upgrade
 	return err
 }
 
-func (d *Dispatcher) deleteSnapshot(id types.ManagedObjectReference, snapshotName string, applianceName string) error {
+func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) error {
 	defer trace.End(trace.Begin(snapshotName))
 	log.Infof("Deleting upgrade snapshot %q", snapshotName)
 	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
-	d.ctx = context.Background()
-	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return d.appliance.RemoveSnapshot(ctx, id, true, true)
+	ctx := context.Background()
+	if _, err := d.appliance.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		consolidate := true
+		return d.appliance.RemoveSnapshot(ctx, snapshotName, true, &consolidate)
 	}); err != nil {
 		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
 		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshotName, applianceName)
@@ -117,40 +117,25 @@ func (d *Dispatcher) deleteSnapshot(id types.ManagedObjectReference, snapshotNam
 	return nil
 }
 
-func (d *Dispatcher) createSnapshot(name string, desc string) (*types.ManagedObjectReference, error) {
-	defer trace.End(trace.Begin(name))
-	log.Infof("Creating snapshot %s", name)
-
-	snapRefID, err := d.tryCreateSnapshot(name, desc)
-	if err == nil {
-		log.Infof("created snapshot %s", snapRefID)
-		return snapRefID, nil
-	}
-	log.Error(err)
-	return nil, err
-}
-
 // tryCreateSnapshot try to create upgrade snapshot. It will check if upgrade snapshot already exists. If exists, return error.
 // if succeed, return snapshot refID
-func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectReference, error) {
+func (d *Dispatcher) tryCreateSnapshot(name, desc string) error {
 	defer trace.End(trace.Begin(name))
 
 	upgrading, snapshot, err := d.appliance.UpgradeInProgress(d.ctx, UpgradePrefix)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if upgrading {
-		return nil, errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
+		return errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
 	}
 
-	taskInfo, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	if _, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
-	})
-	if err != nil {
-		return nil, errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
+	}); err != nil {
+		return errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
 	}
-	ref := taskInfo.Result.(types.ManagedObjectReference)
-	return &ref, nil
+	return nil
 }
 
 func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.InstallerData) {
