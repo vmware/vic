@@ -31,7 +31,7 @@ func TestBackdoorChannel(t *testing.T) {
 
 	for _, f := range funcs {
 		if err := f(); err != nil {
-			t.SkipNow()
+			t.Skip(err.Error())
 		}
 	}
 
