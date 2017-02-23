@@ -182,6 +182,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	case StateStopped:
 		for _, sc := range h.ExecConfig.Sessions {
 			sc.StopTime = time.Now().UTC().Unix()
+			sc.Started = ""
 		}
 	}
 

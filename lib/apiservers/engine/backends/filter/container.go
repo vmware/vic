@@ -38,14 +38,11 @@ type ContainerListContext struct {
 	*types.ContainerListOptions
 }
 
-/*
-*	IncludeContainer will evaluate the filter criteria in listContext against the provided
-* 	container and determine what action to take.  There are three options:
-*		* IncludeAction
-*		* ExcludeAction
-*		* StopAction
-*
- */
+// IncludeContainer will evaluate the filter criteria in listContext against the provided
+// container and determine what action to take. There are three options:
+//  * IncludeAction
+//  * ExcludeAction
+//  * StopAction
 func IncludeContainer(listContext *ContainerListContext, container *models.ContainerInfo) FilterAction {
 
 	// if we need to filter on name add to the listContext
@@ -86,32 +83,50 @@ func IncludeContainer(listContext *ContainerListContext, container *models.Conta
 		return ExcludeAction
 	}
 
-	// filter on network name
-	for n := range container.Endpoints {
-		name := container.Endpoints[n].Scope
-		if listContext.Filters.Include("network") {
-			err := listContext.Filters.WalkValues("network", func(value string) error {
-				if name == value {
-					return nil
+	// Filter on network name
+	if listContext.Filters.Include("network") {
+		netFilterValues := listContext.Filters.Get("network")
+
+		// Exclude the container if its network(s) match no supplied filter values
+		exists := false
+		for i := range netFilterValues {
+			for j := range container.Endpoints {
+				if netFilterValues[i] == container.Endpoints[j].Scope {
+					exists = true
+					break
 				}
-				return fmt.Errorf("not part of container network")
-			})
-			if err != nil {
-				return ExcludeAction
 			}
+		}
+		if !exists {
+			return ExcludeAction
+		}
+	}
+
+	// Filter on volume name
+	if listContext.Filters.Include("volume") {
+		volFilterValues := listContext.Filters.Get("volume")
+
+		// Exclude the container if its volume(s) match no supplied filter values
+		exists := false
+		for i := range volFilterValues {
+			for j := range container.VolumeConfig {
+				if volFilterValues[i] == container.VolumeConfig[j].Name {
+					exists = true
+					break
+				}
+			}
+		}
+		if !exists {
+			return ExcludeAction
 		}
 	}
 
 	return IncludeAction
 }
 
-/*
-* ValidateContainerFilters will validate the container filters are
-* valid docker filters / values and supported by vic.
-*
-* The function will reuse dockers filter validation
-*
- */
+// ValidateContainerFilters validates that the container filters are
+// valid docker filters / values and supported by VIC.
+// The function reuses Docker's filter validation.
 func ValidateContainerFilters(options *types.ContainerListOptions, acceptedFilters map[string]bool, unSupportedFilters map[string]bool) (*ContainerListContext, error) {
 	containerFilters := options.Filters
 
