@@ -121,6 +121,8 @@ Connectivity Bridge to Public
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network management --container-network vm-network --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify
 
     Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --network vm-network --name p1 busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
