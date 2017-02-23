@@ -27,6 +27,7 @@ import (
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/guest"
 )
 
 type PprofPort int
@@ -42,10 +43,16 @@ const (
 )
 
 var (
-	vchConfig config.VirtualContainerHostConfigSpec
+	debugLevel int
 )
 
 func init() {
+	// XXX replace this with vmcheck.IsVirtualCPU() when it's ready.  We need
+	// to be able to check this is a vm from non UID 0.
+	if _, err := guest.UUID(); err != nil {
+		return
+	}
+
 	// load the vch config
 	// TODO: Optimize this to just pull the fields we need...
 	src, err := extraconfig.GuestInfoSource()
@@ -53,7 +60,10 @@ func init() {
 		log.Errorf("Unable to load configuration from guestinfo")
 		return
 	}
-	extraconfig.Decode(src, &vchConfig)
+
+	vchConfig := new(config.VirtualContainerHostConfigSpec)
+	extraconfig.Decode(src, vchConfig)
+	debugLevel = vchConfig.ExecutorConfig.Diagnostics.DebugLevel
 }
 
 func GetPprofEndpoint(component PprofPort) *url.URL {
@@ -65,7 +75,7 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 	ip := "127.0.0.1"
 	// exposing this data on an external port definitely counts as a change of behaviour,
 	// so this is > 1, just debug on/off.
-	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 1 {
+	if debugLevel > 1 {
 		ips, err := net.LookupIP("client.localhost")
 		if err != nil || len(ips) == 0 {
 			log.Warnf("Unable to resolve 'client.localhost': ", err)
