@@ -124,6 +124,8 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 	// lock here so that we get all layers in flight before another client comes along
 	ldm.m.Lock()
 
+	defer LayerCache().Save()
+
 	// Grab the imageLayers
 	layers := ic.ImageLayers
 
@@ -293,7 +295,10 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				}
 				// cache and persist the image
 				cache.ImageCache().Add(&imageConfig)
-				cache.ImageCache().Save()
+				if err := cache.ImageCache().Save(); err != nil {
+					d.err = fmt.Errorf("error saving image cache: %s", err)
+					return
+				}
 
 				// place calculated ImageID in struct
 				ic.ImageID = imageConfig.ImageID

@@ -34,6 +34,7 @@ type LCache struct {
 	layers map[string]*ImageWithMeta
 
 	client *client.PortLayer
+	dirty  bool
 }
 
 // LayerNotFoundError is returned when a layer does not exist in the cache
@@ -97,7 +98,10 @@ func (lc *LCache) Add(layer *ImageWithMeta) {
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	lc.layers[layer.ID] = layer
+	if _, ok := lc.layers[layer.ID]; !ok {
+		lc.layers[layer.ID] = layer
+		lc.dirty = true
+	}
 }
 
 // Remove removes a layer from the cache
@@ -106,18 +110,23 @@ func (lc *LCache) Remove(id string) {
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	delete(lc.layers, id)
+	if _, ok := lc.layers[id]; ok {
+		delete(lc.layers, id)
+		lc.dirty = true
+	}
 }
 
 // Commit marks a layer as downloaded
-func (lc *LCache) Commit(layer *ImageWithMeta) {
+func (lc *LCache) Commit(layer *ImageWithMeta) error {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
-	defer lc.Save()
 	defer lc.m.Unlock()
 
 	lc.layers[layer.ID] = layer
 	lc.layers[layer.ID].Downloading = false
+	lc.dirty = true
+
+	return lc.save()
 }
 
 // Get returns a cached layer, or LayerNotFoundError if it doesn't exist
@@ -134,11 +143,12 @@ func (lc *LCache) Get(id string) (*ImageWithMeta, error) {
 	return layer, nil
 }
 
-// Save will persist the image cache to the portlayer k/v store
-func (lc *LCache) Save() error {
+func (lc *LCache) save() error {
 	defer trace.End(trace.Begin(""))
-	lc.m.Lock()
-	defer lc.m.Unlock()
+
+	if !lc.dirty {
+		return nil
+	}
 
 	m := struct {
 		Layers map[string]*ImageWithMeta
@@ -158,5 +168,15 @@ func (lc *LCache) Save() error {
 		return err
 	}
 
+	lc.dirty = false
 	return nil
+}
+
+// Save will persist the image cache to the portlayer k/v store
+func (lc *LCache) Save() error {
+	defer trace.End(trace.Begin(""))
+	lc.m.Lock()
+	defer lc.m.Unlock()
+
+	return lc.save()
 }

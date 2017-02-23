@@ -25,13 +25,13 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/reference"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	vicfilter "github.com/vmware/vic/lib/apiservers/engine/backends/filter"
@@ -151,6 +151,10 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 				imageDeleted := types.ImageDelete{Deleted: strings.TrimPrefix(id, "sha256:")}
 				deletedRes = append(deletedRes, imageDeleted)
 			}
+
+			if err := imagec.LayerCache().Save(); err != nil {
+				return nil, fmt.Errorf("failed to save layer cache: %s", err)
+			}
 		}
 
 		if err != nil {
@@ -164,6 +168,9 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 
 		// we've deleted the image so remove from cache
 		cache.ImageCache().RemoveImageByConfig(img)
+		if err := cache.ImageCache().Save(); err != nil {
+			return nil, fmt.Errorf("failed to save image cache: %s", err)
+		}
 
 	} else {
 
@@ -285,7 +292,7 @@ func (i *Image) TagImage(imageName, repository, tag string) error {
 }
 
 func (i *Image) ImagesPrune(pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
-	return nil, fmt.Errorf("%s does not yet implement image.ImagesPrune", ProductName())	
+	return nil, fmt.Errorf("%s does not yet implement image.ImagesPrune", ProductName())
 }
 
 func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
