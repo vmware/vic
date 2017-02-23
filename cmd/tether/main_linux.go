@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/signal"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -33,9 +32,6 @@ import (
 var tthr tether.Tether
 
 func init() {
-	// We are pid 1 so let's ignore SIGKILL or SIGTERM signals
-	signal.Ignore(syscall.SIGTERM, syscall.SIGKILL)
-
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())
 
