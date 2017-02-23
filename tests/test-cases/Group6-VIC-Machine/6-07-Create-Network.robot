@@ -102,7 +102,7 @@ Connectivity Bridge to Public
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    Log To Console  Create a public portgroup
+    Log To Console  Create a public portgroup 
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 vm-network
     Should Be Empty  ${out}
 
