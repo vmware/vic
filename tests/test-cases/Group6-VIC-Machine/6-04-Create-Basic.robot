@@ -243,7 +243,7 @@ Create VCH - Server certificate with multiple blocks
     Run  echo "-----BEGIN RSA PRIVATE KEY-----\nJUNK\n-----END RSA PRIVATE KEY-----" | cat - ./%{VCH-NAME}/server-cert.pem > /tmp/%{VCH-NAME}-server-cert.pem && mv /tmp/%{VCH-NAME}-server-cert.pem ./%{VCH-NAME}/server-cert.pem
 
     # Install VCH
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tlsverify
     Should Contain  ${output}  Failed to load x509 leaf
     Should Contain  ${output}  Loaded server certificate
     Should Contain  ${output}  Installer completed successfully
