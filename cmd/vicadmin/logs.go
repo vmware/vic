@@ -277,7 +277,7 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 
         // be explicit about the number of bytes to copy as the log files will likely
         // be written to during this exercise
-        if e != nil{
+        if e != nil {
             _, err = io.CopyN(t, e, sz)
             _ = e.Close()
         }
@@ -308,7 +308,7 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
             log.Warningf("error reading %s(%s): %s\n", name, r, err)
         }
         var sz int64
-        if e != nil{
+        if e != nil {
             sz = e.Size()
         }
         header := &zip.FileHeader{
