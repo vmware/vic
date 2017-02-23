@@ -21,6 +21,7 @@ ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
 endif
+REV :=$(shell git rev-parse --short HEAD)
 
 BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BASE_PKG := github.com/vmware/vic/
@@ -37,7 +38,7 @@ GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 MISSPELL ?= $(GOPATH)/bin/misspell$(BIN_ARCH)
 
-.PHONY: all tools clean test check \
+.PHONY: all tools clean test check distro \
 	goversion goimports gopath govet gofmt misspell gas golint \
 	isos tethers apiservers copyright
 
@@ -406,6 +407,9 @@ $(vic-dns-windows): $$(call godeps,cmd/vic-dns/*.go)
 $(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
+
+distro: all
+	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-*
 
 clean:
 	@echo removing binaries
