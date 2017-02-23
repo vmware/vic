@@ -26,9 +26,12 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"github.com/vmware/vic/lib/spec/"
 
 	log "github.com/Sirupsen/logrus"
 )
+
+const maxVMNameLength = 80
 
 // Commit executes the requires steps on the handle
 func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
@@ -92,6 +95,25 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		// clear the spec as we've acted on it - this prevents a reconfigure from occurring in follow-on
 		// processing
 		h.Spec = nil
+
+		// reconfigure vm display name to containerName-containerID
+		nameMaxLen := maxVMNameLength - len(c.ExecConfig.ID)
+		prettyName := c.ExecConfig.Name
+		if len(prettyName) > nameMaxLen-1 {
+			prettyName = prettyName[:nameMaxLen-1]
+		}
+
+		fullName := fmt.Sprintf("%s-%s", prettyName, c.ExecConfig.ID)
+		task, err := h.vm.VirtualMachine.Rename(ctx, fullName)
+		if err != nil {
+			return err
+		}
+
+		_, err = task.WaitForResult(ctx, nil)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
