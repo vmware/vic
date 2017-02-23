@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -549,6 +550,8 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 	//remove container from cache
 	Containers.Remove(c.ExecConfig.ID)
+	publishContainerEvent(c.ExecConfig.ID, time.Now(), events.ContainerRemoved)
+
 	return nil
 }
 
