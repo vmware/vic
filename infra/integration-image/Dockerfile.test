@@ -41,7 +41,7 @@ Run apt-get install -yq ant openjdk-7-jdk
 Run apt-get install unzip
 Run apt-get install zip
 
-RUN curl -L https://github.com/docker/compose/releases/download/1.8.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+RUN curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
 RUN chmod +x /usr/local/bin/docker-compose
 
 COPY vmware-ovftool /usr/lib/vmware-ovftool
