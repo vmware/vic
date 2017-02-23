@@ -114,7 +114,7 @@ Connectivity Bridge to Public
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
     Should Be Empty  ${out}
 
-    Log To Console  Create a management portgroup
+    Log To Console  Create a management portgroup.
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 management
     Should Be Empty  ${out}
 
