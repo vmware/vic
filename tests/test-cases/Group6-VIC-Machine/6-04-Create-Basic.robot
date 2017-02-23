@@ -194,8 +194,6 @@ Create VCH - Existing vApp on vCenter
     Pass execution  Test not implemented
 
 Create VCH - defaults with --no-tls
-    ${status}=  Get State Of Github Issue  3063
-
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -225,6 +223,32 @@ Create VCH - force accept target thumbprint
 
 Create VCH - Specified keys
     Pass execution  Test not implemented until vic-machine can poll status correctly
+
+Create VCH - Server certificate with multiple blocks
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # Install first to generate certificates
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    # Remove the installed VCH
+    ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --name=%{VCH-NAME} --force
+    Should Contain  ${ret}  Completed successfully
+
+    # Update server-cert.pem with a junk block in the beginning
+    Run  echo "-----BEGIN RSA PRIVATE KEY-----\nJUNK\n-----END RSA PRIVATE KEY-----" | cat - ./%{VCH-NAME}/server-cert.pem > /tmp/%{VCH-NAME}-server-cert.pem && mv /tmp/%{VCH-NAME}-server-cert.pem ./%{VCH-NAME}/server-cert.pem
+
+    # Install VCH
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tlsverify
+    Should Contain  ${output}  Failed to load x509 leaf
+    Should Contain  ${output}  Loaded server certificate
+    Should Contain  ${output}  Installer completed successfully
+
+    Cleanup VIC Appliance On Test Server
 
 Create VCH - Invalid keys
     ${domain}=  Get Environment Variable  DOMAIN  ''
