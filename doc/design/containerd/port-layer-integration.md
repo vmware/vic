@@ -50,9 +50,9 @@ As such, closely aping runc’s behavior is not a useful goal for VICe. It is a 
 
 **Integration Points**
 
-![image alt text](image_0.png)
+![VICe layers](images/vic-layers.png)
 
-![image alt text](image_1.png)
+![Containerd architecture](https://github.com/docker/containerd/blob/0a5544d8c4dab44dfc682f5ad07f1cd011c0a115/design/architecture.png)
 
 Since the goal is to integrate with containerd, the most important consideration is what the integration points should be. At this point the following have been identified:
 
@@ -68,7 +68,7 @@ Since the goal is to integrate with containerd, the most important consideration
 
 Containerd has components which are designed to take an image from being pulled down through to a container being invoked (see above) which map pretty consistently to our integration points. The data flow envisaged looks something like this:
 
-![image alt text](image_2.png)
+![Data flow](https://github.com/docker/containerd/blob/0a5544d8c4dab44dfc682f5ad07f1cd011c0a115/design/data-flow.png)
 
 In order to understand the process an image goes through, it’s also helpful to understand the OCI image format: [https://github.com/opencontainers/image-spec](https://github.com/opencontainers/image-spec)
 
