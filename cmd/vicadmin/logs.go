@@ -230,122 +230,122 @@ func findDiagnosticLogs(c *session.Session) (map[string]entryReader, error) {
 }
 
 func tarEntries(readers map[string]entryReader, out io.Writer) error {
-    defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(""))
 
-    r, w := io.Pipe()
-    t := tar.NewWriter(w)
+	r, w := io.Pipe()
+	t := tar.NewWriter(w)
 
-    wg := new(sync.WaitGroup)
-    wg.Add(1)
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
 
-    // stream tar to out
-    go func() {
-        _, err := io.Copy(out, r)
-        if err != nil {
-            log.Errorf("error copying tar: %s", err)
-        }
-        wg.Done()
-    }()
+	// stream tar to out
+	go func() {
+		_, err := io.Copy(out, r)
+		if err != nil {
+			log.Errorf("error copying tar: %s", err)
+		}
+		wg.Done()
+	}()
 
-    for name, r := range readers {
-        log.Infof("Collecting log with reader %s(%#v)", name, r)
+	for name, r := range readers {
+		log.Infof("Collecting log with reader %s(%#v)", name, r)
 
-        e, err := r.open()
-        if err != nil {
-            log.Warningf("error reading %s(%s): %s\n", name, r, err)
-            continue
-        }
-        var sz int64
-        if e != nil {
-            sz = e.Size()
-        }
+		e, err := r.open()
+		if err != nil {
+			log.Warningf("error reading %s(%s): %s\n", name, r, err)
+			continue
+		}
+		var sz int64
+		if e != nil {
+			sz = e.Size()
+		}
 
-        header := tar.Header{
-            Name:    name,
-            Size:    sz,
-            Mode:    0640,
-            ModTime: time.Now(),
-        }
+		header := tar.Header{
+			Name:    name,
+			Size:    sz,
+			Mode:    0640,
+			ModTime: time.Now(),
+		}
 
-        err = t.WriteHeader(&header)
-        if err != nil {
-            log.Errorf("Failed to write header for %s: %s", header.Name, err)
-            continue
-        }
+		err = t.WriteHeader(&header)
+		if err != nil {
+			log.Errorf("Failed to write header for %s: %s", header.Name, err)
+			continue
+		}
 
-        log.Infof("%s has size %d", header.Name, header.Size)
+		log.Infof("%s has size %d", header.Name, header.Size)
 
-        // be explicit about the number of bytes to copy as the log files will likely
-        // be written to during this exercise
-        if e != nil {
-            _, err = io.CopyN(t, e, sz)
-            _ = e.Close()
-        }
-        if err != nil {
-            log.Errorf("Failed to write content for %s: %s", header.Name, err)
-            continue
-        }
-    }
+		// be explicit about the number of bytes to copy as the log files will likely
+		// be written to during this exercise
+		if e != nil {
+			_, err = io.CopyN(t, e, sz)
+			_ = e.Close()
+		}
+		if err != nil {
+			log.Errorf("Failed to write content for %s: %s", header.Name, err)
+			continue
+		}
+	}
 
-    _ = t.Flush()
-    _ = w.Close()
-    wg.Wait()
-    _ = r.Close()
+	_ = t.Flush()
+	_ = w.Close()
+	wg.Wait()
+	_ = r.Close()
 
-    return nil
+	return nil
 }
 
 func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
-    defer trace.End(trace.Begin(""))
-    defer out.Close()
-    defer out.Flush()
+	defer trace.End(trace.Begin(""))
+	defer out.Close()
+	defer out.Flush()
 
-    for name, r := range readers {
-        log.Infof("Collecting log with reader %s(%#v)", name, r)
+	for name, r := range readers {
+		log.Infof("Collecting log with reader %s(%#v)", name, r)
 
-        e, err := r.open()
-        if err != nil {
-            log.Warningf("error reading %s(%s): %s\n", name, r, err)
-        }
-        var sz int64
-        if e != nil {
-            sz = e.Size()
-        }
-        header := &zip.FileHeader{
-            Name:   name,
-            Method: zip.Deflate,
-        }
+		e, err := r.open()
+		if err != nil {
+			log.Warningf("error reading %s(%s): %s\n", name, r, err)
+		}
+		var sz int64
+		if e != nil {
+			sz = e.Size()
+		}
+		header := &zip.FileHeader{
+			Name:   name,
+			Method: zip.Deflate,
+		}
 
-        header.SetModTime(time.Now())
-        header.SetMode(0644)
-        if sz > uint32max {
-            header.UncompressedSize = uint32max
-        } else {
-            header.UncompressedSize = uint32(sz)
-        }
+		header.SetModTime(time.Now())
+		header.SetMode(0644)
+		if sz > uint32max {
+			header.UncompressedSize = uint32max
+		} else {
+			header.UncompressedSize = uint32(sz)
+		}
 
-        w, err := out.CreateHeader(header)
+		w, err := out.CreateHeader(header)
 
-        if err != nil {
-            log.Errorf("Failed to create Zip writer for %s: %s", header.Name, err)
-            continue
-        }
+		if err != nil {
+			log.Errorf("Failed to create Zip writer for %s: %s", header.Name, err)
+			continue
+		}
 
-        log.Infof("%s has size %d", header.Name, sz)
+		log.Infof("%s has size %d", header.Name, sz)
 
-        // be explicit about the number of bytes to copy as the log files will likely
-        // be written to during this exercise
-        if e != nil {
-            _, err = io.CopyN(w, e, sz)
-            _ = e.Close()
-        }
-        if err != nil {
-            log.Errorf("Failed to write content for %s: %s", header.Name, err)
-            continue
-        }
-        log.Infof("Wrote %d bytes to %s", sz, header.Name)
-    }
-    return nil
+		// be explicit about the number of bytes to copy as the log files will likely
+		// be written to during this exercise
+		if e != nil {
+			_, err = io.CopyN(w, e, sz)
+			_ = e.Close()
+		}
+		if err != nil {
+			log.Errorf("Failed to write content for %s: %s", header.Name, err)
+			continue
+		}
+		log.Infof("Wrote %d bytes to %s", sz, header.Name)
+	}
+	return nil
 }
 func tailFile(wr io.Writer, file string, done *chan bool) error {
 	defer trace.End(trace.Begin(file))
