@@ -51,7 +51,7 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 			Backing: &types.VirtualDiskFlatVer2BackingInfo{
 				DiskMode: string(types.VirtualDiskModeIndependent_persistent),
 				VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-					FileName: volume.Device.DiskPath(),
+					FileName: volume.Device.DiskPath().Path,
 				},
 			},
 		},

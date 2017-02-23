@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,9 +27,11 @@ import (
 )
 
 type Disk interface {
+	// Path to this disk on the VCH
 	MountPath() (string, error)
-	DiskPath() string
-	//FIXME: Add a capacity and populate it.
+
+	// Path to the disk on the datastore
+	DiskPath() url.URL
 }
 
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
