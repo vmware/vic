@@ -1,0 +1,9 @@
+{
+	"title": "VMWare vSphere Integrated Containers Installation, Document version 0.6",
+
+	"pdf": {
+		"headerTemplate": "_TITLE_",
+		"footerTemplate": "_PAGENUM_"
+	}
+
+}
