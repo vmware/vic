@@ -1,6 +1,6 @@
 # Supported Docker Commands
 
- vSphere Integrated Containers Engine 0.9 supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md). 
+ vSphere Integrated Containers Engine 0.9 supports Docker 1.13. The supported version of the Docker API is 1.25. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md). 
 
 - [Docker Management Commands](#mgmt)
 - [Image Commands](#image)
