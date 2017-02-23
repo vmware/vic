@@ -12,7 +12,7 @@ Compose LEMP Server
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
     # must set CURL_CA_BUNDLE to work around Compose bug https://github.com/docker/compose/issues/3365
     Set Environment Variable  CURL_CA_BUNDLE  ${EMPTY}
-	
+
     ${vch_ip}=  Get Environment Variable  VCH_IP  %{VCH-IP}
     Log To Console  \nThe VCH IP is %{VCH-IP}
 

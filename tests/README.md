@@ -8,7 +8,7 @@ Use ./local-integration-test.sh
 
 ## Manually configure local Drone
 
-1. Create a `test_secrets.yml` file that includes:
+* Create a `test_secrets.yml` file that includes:
 
   ```
   environment:
@@ -25,24 +25,36 @@ Use ./local-integration-test.sh
     DOMAIN: <domain for TLS cert generation, may be blank>
   ```
 
-If you are using a vSAN environment or non-default ESX install, then you can also specify the two networks to use with the following command (make sure to add them to the yaml file in Step 2 below as well):
+  If you are using a vSAN environment or non-default ESX install, then you can also specify the two networks to use with the following command (make sure to add them to the yaml file in Step 2 below as well):
 
   ```
     BRIDGE_NETWORK: bridge
     PUBLIC_NETWORK: public
   ```
 
+* Execute Drone from the project root directory:
 
-2. Execute Drone from the project root directory:
+  Drone will run based on `.drone.local.yml` - defaults should be fine, edit as needed
 
-Drone will run based on `.drone.local.yml` - defaults should be fine, edit as needed
+  *  To run only the regression tests:
+     ```
+     drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"regression", "event":"push"}, "repo": {"full_name":"regression"}}'
+     ```
 
-To run only the regression tests:
-`drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"regression", "event":"push"}, "repo": {"full_name":"regression"}}'`
+  * To run the full suite:
+     ```
+     drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"master", "event":"push"}, "repo": {"full_name":"vmware/vic"}}'
+     ```
 
-To run the full suite:
-`drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"master", "event":"push"}, "repo": {"full_name":"vmware/vic"}}'`
+## Test a specific .robot file
 
+* Set environment in robot.sh
+* Run robot.sh with the desired .robot file
+
+  From the project root directory:
+  ```
+  ./tests/robot.sh tests/test-cases/Group6-VIC-Machine/6-04-Create-Basic.robot
+  ```
 
 ## Find the documentation for each of the tests here:
 
