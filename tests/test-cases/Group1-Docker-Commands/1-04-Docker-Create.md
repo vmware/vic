@@ -40,6 +40,7 @@ This test requires that a vSphere server is running and available
 27. Create a container with a custom amount of Memory in KB
 28. Create a container with a custom amount of Memory in Bytes
 29. Create a container using a rest api call without HostConfig in the form data
+30. Create a container, then check the vm display name in vsphere through govc
 
 #Expected Outcome:
 * Steps 3-7 should all return without error and printing the container ID on return
@@ -55,6 +56,7 @@ This test requires that a vSphere server is running and available
 * Step 23 should return with the following error message - Error response from daemon: No command specified
 * Steps 24-28 should return without error.
 * Step 29 should return without error.
+* Step 30 should show that the VM display name equals to containerName-containerID
 
 #Possible Problems:
 None

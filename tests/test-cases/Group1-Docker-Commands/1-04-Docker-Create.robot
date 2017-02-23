@@ -181,3 +181,10 @@ Create a container using rest api call without HostConfig in the form data
     ${output}=  Run  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Content-Type: application/json" -d '{"Image": "busybox", "Cmd": ["ping", "127.0.0.1"], "NetworkMode": "bridge"}' https://%{VCH-IP}:2376/containers/create
     Log  ${output}
     Should contain  ${output}  "Warnings":null
+
+Create a container and check the VM display name
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name busy3 busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info busy3-${id}
+    Should contain  ${output}  busy3-${id}
+    Should Be Equal As Integers  ${rc}  0
