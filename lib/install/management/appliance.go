@@ -292,7 +292,7 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	var err error
 
 	// set to creating VCH
-	conf.SetIsCreating()
+	conf.SetIsCreating(true)
 
 	cfg, err := d.encodeConfig(conf)
 	if err != nil {
@@ -301,12 +301,12 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
-			Name:     conf.Name,
-			GuestId:  string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+			Name:               conf.Name,
+			GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
 			AlternateGuestName: constants.DefaultAltVCHGuestName(),
-			Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:  int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB: vConf.ApplianceSize.Memory.Limit,
+			Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+			NumCPUs:            int32(vConf.ApplianceSize.CPU.Limit),
+			MemoryMB:           vConf.ApplianceSize.Memory.Limit,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
 			ExtraConfig: append(vmomi.OptionValueFromMap(cfg), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
@@ -632,10 +632,10 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 	var err error
 
 	spec := &types.VirtualMachineConfigSpec{
-		Name:    conf.Name,
-		GuestId:  string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+		Name:               conf.Name,
+		GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
 		AlternateGuestName: constants.DefaultAltVCHGuestName(),
-		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+		Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
 	// create new devices

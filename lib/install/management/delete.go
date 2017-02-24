@@ -127,7 +127,7 @@ func (d *Dispatcher) getImageDatastore(vmm *vm.VirtualMachine, conf *config.Virt
 			err = errors.Errorf("Cannot find image stores from configuration")
 			return nil, err
 		}
-		log.Debugf("Cannot find image stores from configuration, attempting to find from vm datastore")
+		log.Debugf("Cannot find image stores from configuration; attempting to find from vm datastore")
 		dss, err := vmm.DatastoreReference(d.ctx)
 		if err != nil {
 			return nil, errors.Errorf("Failed to query vm datastore: %s", err)

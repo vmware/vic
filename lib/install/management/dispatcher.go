@@ -159,7 +159,6 @@ func (d *Dispatcher) InitDiagnosticLogsFromConf(conf *config.VirtualContainerHos
 		}
 		// get LineEnd without any LineText
 		h, err := m.BrowseLog(d.ctx, l.host, l.key, math.MaxInt32, 0)
-
 		if err != nil {
 			log.Warnf("Disabling %s %s collection (%s)", k, l.name, err)
 			diagnosticLogs[k] = nil

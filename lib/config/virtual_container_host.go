@@ -216,9 +216,14 @@ func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectRefe
 	}
 }
 
-// SetIsCreating sets the ID of the VCH to a constant, to identify the creating VCH VM before the VM moref can be set into this property
-func (t *VirtualContainerHostConfigSpec) SetIsCreating() {
-	t.ExecutorConfig.ID = CreatingVCH
+// SetIsCreating sets the ID of the VCH to a constant if creating is true, to identify the creating VCH VM before the VM moref can be set into this property
+// Reset the property back to empty string if creating is false
+func (t *VirtualContainerHostConfigSpec) SetIsCreating(creating bool) {
+	if creating {
+		t.ExecutorConfig.ID = CreatingVCH
+	} else {
+		t.ExecutorConfig.ID = ""
+	}
 }
 
 // IsCreating is checking if this configuration is for one creating VCH VM

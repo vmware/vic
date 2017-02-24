@@ -93,7 +93,7 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
 		return err
 	}
-	log.Infof("Appliance is rollbacked to old version")
+	log.Infof("Appliance is rolled back to old version")
 
 	d.deleteUpgradeImages(ds, settings)
 	d.deleteSnapshot(snapshotName, conf.Name)
@@ -104,7 +104,7 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) error {
 	defer trace.End(trace.Begin(snapshotName))
 	log.Infof("Deleting upgrade snapshot %q", snapshotName)
-	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
+	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
 	ctx := context.Background()
 	if _, err := d.appliance.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		consolidate := true
@@ -143,7 +143,7 @@ func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.In
 
 	log.Infof("Deleting upgrade images")
 
-	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
+	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
 	d.ctx = context.Background()
 
 	m := object.NewFileManager(ds.Client())
@@ -187,12 +187,12 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
 	defer cancel()
 	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
-		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+		if ctx.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
 			err = errors.Errorf("Upgrading VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", settings.Timeout)
 		}
 
-		log.Info("\tAPI may be slow to start - might retry with increased timeout using --timeout: %s", err)
+		log.Info("\tAPI may be slow to start - please retry with increased timeout using --timeout: %s", err)
 		return err
 	}
 	return nil
