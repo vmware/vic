@@ -225,3 +225,4 @@ groups:
       files:
         include:
           - ".drone.yml"
+          - ".drone.sec"
