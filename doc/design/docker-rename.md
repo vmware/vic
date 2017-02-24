@@ -18,7 +18,7 @@ Rename involves the containerVM’s display name and the name of the storage fol
 
     - Network alias should be updated.
     - If `--link` is used when creating the container, HostConfig of relevant containers should be updated.
-    - The containerName shown in `/etc/host` within the container should be updated. Proposal: Remove containerName from `/etc/host`; docker does not put the containerName in this file. For backward compatibility, if we rename a container which is created with containerName in its `/etc/host`, we use the VMware RPC API's guestinfo facility.
+    - The containerName shown in `/etc/host` within the container should be updated. Proposal: Remove containerName from `/etc/host`; docker does not put the containerName in this file. For backward compatibility, if we rename a container which is created with containerName in its `/etc/host`, we use the VMware RPC API's guestinfo facility to update `/etc/host`.
   
   - Storage: Nothing needs to be updated if we set the storage folder name to containerID.
   
