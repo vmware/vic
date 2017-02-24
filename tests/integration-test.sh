@@ -30,6 +30,7 @@ elif (echo $buildinfo | grep -q "\[specific ci="); then
     buildtype=$(echo $buildinfo | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -v FS="(=|])" '{print $2}')
     pybot --removekeywords TAG:secret --suite $testsuite tests/test-cases
+    pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
 else
     pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
 fi
