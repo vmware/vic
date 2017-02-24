@@ -109,7 +109,7 @@ Connectivity Bridge to Public
     Log To Console  Create a public portgroup. 
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 vm-network
 
-    Log To Console  Create a bridge portgroup
+    Log To Console  Create a bridge portgroup.
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
 
     Log To Console  Create a management portgroup.
