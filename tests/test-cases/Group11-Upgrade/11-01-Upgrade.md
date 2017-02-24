@@ -12,11 +12,13 @@ This test requires that a vSphere server is running and available
 2. Deploy VIC 5470 to vsphere server
 3. Issue docker network create bar, creating a new network called "bar"
 4. Create container with port mapping
-5. Upgrade VCH to latest version
+5. Upgrade VCH to latest version with short timeout 1s
+6. Upgrade VCH to latest version
 6. Check the previous created container and image are still there
 
 #Expected Outcome:
-* All steps should result in success
+* Step 5 should fail with timeout
+* All other steps should result in success
 
 #Possible Problems:
 Upgrade test will upgrade VCH from build 5470, because that build has VCH restart and configuration restart features done.
