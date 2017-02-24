@@ -145,7 +145,7 @@ Connectivity Bridge to Public
     Log To Console  Getting IP for public container
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
-    Log To Console  Pinging from bridge to public container
+    Log To Console  Pinging from bridge to public container.
     ${out}=  Run  docker %{VCH-PARAMS} run -i busybox ping ${ip}
 
     Should Contain  ${out}  PING ${ip}
