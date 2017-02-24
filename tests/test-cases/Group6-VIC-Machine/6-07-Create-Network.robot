@@ -166,7 +166,7 @@ Connectivity Bridge to Management
     ${out}=  Run  govc host.portgroup.remove vm-network
     ${out}=  Run  govc host.portgroup.remove management
 
-    Log To Console  Create a public portgroup 
+    Log To Console  Create a public portgroup. 
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 vm-network
     Should Be Empty  ${out}
 
