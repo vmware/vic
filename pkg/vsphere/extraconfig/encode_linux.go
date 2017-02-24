@@ -15,11 +15,13 @@
 package extraconfig
 
 import (
+	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
+	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 // GuestInfoSink uses the rpcvmx mechanism to update the guestinfo key/value map as
@@ -32,6 +34,11 @@ func GuestInfoSink() (DataSink, error) {
 // or trailing separator characters, but may have separators in other positions. The separator
 // (either . or /) will be replaced with the appropriate value for the key in question.
 func GuestInfoSinkWithPrefix(prefix string) (DataSink, error) {
+	// Check we're using a vcpu (which doesn't assume this is UID 0).
+	if !vmcheck.IsVirtualCPU() {
+		return nil, fmt.Errorf("not in a virtual world")
+	}
+
 	guestinfo := rpcvmx.NewConfig()
 
 	return func(key, value string) error {
