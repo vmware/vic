@@ -214,3 +214,13 @@ groups:
       files:
         include:
           - ".pullapprove.yml"
+
+  drone:
+    users:
+      - jakedsouza
+      - rajanashok
+      - mhagen-vmware
+    conditions:
+      files:
+        include:
+          - ".drone.yml"
