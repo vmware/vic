@@ -194,6 +194,7 @@ groups:
   ui:
     users:
       - jooskim
+      - jak-atx
     conditions:
       files:
         include:
