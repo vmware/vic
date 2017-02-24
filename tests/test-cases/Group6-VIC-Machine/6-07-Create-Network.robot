@@ -117,7 +117,7 @@ Connectivity Bridge to Public
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
-    Log To Console  Creating public container
+    Log To Console  Creating public container.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p1 busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
 
