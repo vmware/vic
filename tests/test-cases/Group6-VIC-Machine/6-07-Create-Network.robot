@@ -151,7 +151,8 @@ Connectivity Bridge to Public
     Log To Console  Attach to running container.
     ${out}=  Run  docker %{VCH-PARAMS} attach ${id}
 
-    Should Contain  ${out}  30 packets received
+    Should Contain  ${out}  64 bytes from ${ip}
+    Log To Console  Ping test succeeded.
     
     Log To Console  Remove the management portgroup
     ${out}=  Run  govc host.portgroup.remove management
