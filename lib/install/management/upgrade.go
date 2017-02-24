@@ -21,14 +21,16 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/task"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -83,7 +85,7 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	}
 
 	if err = d.update(conf, settings); err == nil {
-		d.deleteSnapshot(snapshotName, conf.Name)
+		d.retryDeleteSnapshot(snapshotName, conf.Name)
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -96,9 +98,50 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	log.Infof("Appliance is rolled back to old version")
 
 	d.deleteUpgradeImages(ds, settings)
-	d.deleteSnapshot(snapshotName, conf.Name)
+	d.retryDeleteSnapshot(snapshotName, conf.Name)
 	// return the error message for upgrade
 	return err
+}
+
+// retryDeleteSnapshot will retry to delete snpashot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
+func (d *Dispatcher) retryDeleteSnapshot(snapshotName string, applianceName string) error {
+	// delete snapshot immediately after snapshot rollback usually fail in vSAN, so have to retry several times
+	operation := func() error {
+		return d.deleteSnapshot(snapshotName, applianceName)
+	}
+	var err error
+	if err = retry.Do(operation, isSystemError); err != nil {
+		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
+		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshotName, applianceName)
+	}
+	return err
+}
+
+func isSystemError(err error) bool {
+	if soap.IsSoapFault(err) {
+		switch soap.ToSoapFault(err).VimFault().(type) {
+		case types.SystemError:
+			return true
+		}
+	}
+
+	if soap.IsVimFault(err) {
+		log.Infof("Is soap vim fault")
+		switch soap.ToVimFault(err).(type) {
+		case *types.SystemError:
+			return true
+		}
+	}
+
+	if terr, ok := err.(task.Error); ok {
+		log.Infof("Is task fault")
+		switch terr.Fault().(type) {
+		case *types.SystemError:
+			return true
+		}
+	}
+
+	return false
 }
 
 func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) error {
@@ -110,8 +153,6 @@ func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) e
 		consolidate := true
 		return d.appliance.RemoveSnapshot(ctx, snapshotName, true, &consolidate)
 	}); err != nil {
-		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
-		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshotName, applianceName)
 		return err
 	}
 	return nil
