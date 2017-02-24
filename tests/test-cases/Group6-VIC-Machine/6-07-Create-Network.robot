@@ -146,10 +146,12 @@ Connectivity Bridge to Public
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
     Log To Console  Pinging from bridge to public container.
-    ${out}=  Run  docker %{VCH-PARAMS} run -i busybox ping ${ip}
+    ${id}=  Run  docker %{VCH-PARAMS} run -d busybox ping -c 30 ${ip}
 
-    Should Contain  ${out}  PING ${ip}
-    Should Contain  ${out}  64 bytes from ${ip}: seq=0
+    Log To Console  Attach to running container.
+    ${out}=  Run  docker %{VCH-PARAMS} attach ${id}
+
+    Should Contain  ${out}  30 packets received
     
     Log To Console  Remove the management portgroup
     ${out}=  Run  govc host.portgroup.remove management
