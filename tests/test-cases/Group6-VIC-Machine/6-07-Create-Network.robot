@@ -124,27 +124,33 @@ Connectivity Bridge to Public
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --network vm-network --name p1 busybox /bin/top
+    Log To Console  Creating public container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p1 busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
 
+    Log To Console  Starting public container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start p1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --network bridge --name b1 busybox /bin/top
+ 
+    Log To Console  Creating bridge container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
 
+    Log To Console  Starting bridge container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start b1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
+    Log To Console  Getting IP for public container
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
+    Log To Console  Pinging from bridge to public container
     ${out}=  Run  docker %{VCH-PARAMS} run -i -t busybox ping ${ip}
 
     Should Contain  ${out}  PING ${ip}
     Should Contain  ${out}  64 bytes from ${ip}: seq=0
-
+    
     Log To Console  Remove the management portgroup
     ${out}=  Run  govc host.portgroup.remove management
     Should Be Empty  ${out}
