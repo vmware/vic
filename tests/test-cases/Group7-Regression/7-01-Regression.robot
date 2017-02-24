@@ -14,4 +14,4 @@ Regression test
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
     ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info %{VCH-NAME}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
-    Should Contain  ${out}  Other 3.x or later Linux (64-bit)
+    Should Contain  ${out}  Photon - VCH
