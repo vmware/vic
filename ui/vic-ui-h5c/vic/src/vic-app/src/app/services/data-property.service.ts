@@ -15,39 +15,66 @@
 */
 
 import { Injectable } from '@angular/core';
-import { Observable, BehaviorSubject } from 'rxjs/Rx';
+import { Observable, Subject } from 'rxjs/Rx';
 import { Http, Response } from '@angular/http';
+
+import { GlobalsService } from '../shared/globals.service';
+import { APP_CONFIG } from '../shared/app-config';
 
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/catch';
 
 import {
-    VirtualMachine,
     CONTAINER_VM_IMAGE_NAME_KEY,
     CONTAINER_VM_PORTMAPPING_KEY,
     CONTAINER_PRETTY_NAME_KEY,
     VCH_VM_CLIENT_IP_KEY,
     VCH_VM_ENDPOINT_PORT,
     VCH_VM_LOG_PORT
-} from '../vm.interface';
+} from '../vm.constants';
+import { VirtualMachine } from '../vm.interface';
+import { getVmStubData } from './mocks/vmStub';
 
 @Injectable()
 export class DataPropertyService {
-    private _results: BehaviorSubject<VirtualMachine> = new BehaviorSubject<VirtualMachine>(null);
+    private _objectId: string;
+    private vmInfoSource: Subject<VirtualMachine> = new Subject<VirtualMachine>();
+    private vicObjectSource: Subject<any> = new Subject<any>();
+    public vmInfo$: Observable<VirtualMachine> = this.vmInfoSource.asObservable();
+    public vicObject$: Observable<any> = this.vicObjectSource.asObservable();
 
-    constructor(private http: Http) {}
+    constructor(
+        private http: Http,
+        private gs: GlobalsService
+    ) {
+        // retrieve objectId from the frame's URL
+        this._objectId = this.gs.getWebPlatform().getObjectId();
+    }
 
-    buildDataUrl(props: string[]): string {
-        let url: string = com_vmware_vic.buildDataUrl(WEB_PLATFORM.getObjectId(), props);
+    /**
+     * Builds data URL for vSphere Client's REST API
+     * @param   id
+     * @param   props : properties to extract
+     * @return  data URL
+     */
+    buildDataUrl(id: string = this._objectId, props: string[]): string {
+        let url: string = window[APP_CONFIG.bundleName]
+            .buildDataUrl(id, props);
         return url;
     }
 
-    getCurrent(): VirtualMachine {
-        return this._results.getValue();
-    }
+    /**
+     * Calls the vSphere Client's API endpoint to retrieve VM information,
+     * and emits the results to Observable
+     * @param props
+     * @param stubVmType? : stub type (vch or container)
+     */
+    fetchVmInfo(props: string[], stubVmType?: string): void {
+        if (!this.gs.isPluginMode()) {
+            this.vmInfoSource.next(<VirtualMachine>getVmStubData(stubVmType));
+        }
 
-    fetch(props: string[]): Observable<VirtualMachine> {
-        this.http.get(this.buildDataUrl(props))
+        this.http.get(this.buildDataUrl(this._objectId, props))
             .map(res => {
                 let parsed = res.json();
                 return parsed;
@@ -59,16 +86,51 @@ export class DataPropertyService {
             })
             .subscribe(
                 res => {
-                    this._results.next(<VirtualMachine>res);
+                    this.vmInfoSource.next(<VirtualMachine>res);
                 }, err => {
-                    this._results.error(err);
+                    this.vmInfoSource.error(err);
                 }
             );
+    }
 
-        return this._results.asObservable();
+    /**
+     * Calls the vSphere Client's API endpoint to retrieve VIC Root information,
+     * and emits the results to Observable
+     * @param props
+     */
+    fetchRootInfo(props: string[]): void {
+        if (!this.gs.isPluginMode()) {
+            this.vicObjectSource.next({
+                uiVersion: '3.14159265',
+                vchVmsLen: 1000,
+                containerVmsLen: 50000
+            });
+            return;
+        }
+        this.http.get(
+            this.buildDataUrl(
+                'urn:vic:vic:Root:vic%252Fvic-root',
+                props)
+            )
+            .map(res => res.json())
+            .catch((err: Response | any) => {
+                return Observable.throw(err);
+            })
+            .subscribe(
+                res => {
+                    this.vicObjectSource.next(res);
+                }, err => {
+                    this.vicObjectSource.next(err);
+                }
+            );
     }
 }
 
+/**
+ * Process raw response from vSphere Client data service
+ * to process properties specific to VCH or Container VM
+ * @param obj : raw json object
+ */
 function processVmType(obj: any): any {
     if (!obj) {
         return {};
@@ -116,6 +178,11 @@ function processVmType(obj: any): any {
     return obj;
 }
 
+/**
+ * Process raw response from vSphere Client data service
+ * to get powerState
+ * @param obj : raw json object
+ */
 function processPowerState(obj: any): any {
     obj.powerState = obj['summary.runtime.powerState'];
     delete obj['summary.runtime.powerState'];

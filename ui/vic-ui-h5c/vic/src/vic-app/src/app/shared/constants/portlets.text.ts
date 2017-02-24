@@ -14,10 +14,8 @@
  limitations under the License.
 */
 
-export interface VirtualMachine {
-    id: string;
-    name: string;
-    powerState: string;
-    isVCH: boolean;
-    isContainer: boolean;
-}
+export const DEFAULT_CONTAINER_NAME_LABEL = 'Container';
+export const DEFAULT_CONTAINER_IMAGE_LABEL = 'Image';
+export const DEFAULT_CONTAINER_PORT_MAPPING_LABEL = 'Port Mapping';
+export const DEFAULT_VCH_DOCKER_ENDPOINT_LABEL = 'Docker API endpoint';
+export const DEFAULT_VCH_VCH_ADMIN_PORTAL_LABEL = 'VCH Admin portal';

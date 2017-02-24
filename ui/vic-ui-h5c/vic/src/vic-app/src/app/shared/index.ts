@@ -14,10 +14,9 @@
  limitations under the License.
 */
 
-export interface VirtualMachine {
-    id: string;
-    name: string;
-    powerState: string;
-    isVCH: boolean;
-    isContainer: boolean;
-}
+export * from './app-config';
+export * from './app-alert.component';
+export * from './app-alert.service';
+export * from './globals.service';
+export * from './refresh.service';
+export * from './i18n.service';

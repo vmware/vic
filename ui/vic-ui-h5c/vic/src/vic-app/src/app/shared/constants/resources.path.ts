@@ -14,10 +14,4 @@
  limitations under the License.
 */
 
-export interface VirtualMachine {
-    id: string;
-    name: string;
-    powerState: string;
-    isVCH: boolean;
-    isContainer: boolean;
-}
+export const VIC_LOGO_100X100 = '/assets/vic-icons/100x100.png';

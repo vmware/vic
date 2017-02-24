@@ -14,10 +14,16 @@
  limitations under the License.
 */
 
-export interface VirtualMachine {
-    id: string;
-    name: string;
-    powerState: string;
-    isVCH: boolean;
-    isContainer: boolean;
-}
+export const VM_PROPERTIES_TO_EXTRACT = [
+    'name',
+    'isVCH',
+    'isContainer',
+    'summary.runtime.powerState',
+    'config.extraConfig'
+];
+export const CONTAINER_VM_IMAGE_NAME_KEY = 'guestinfo.vice./repo';
+export const CONTAINER_VM_PORTMAPPING_KEY = 'guestinfo.vice./networks|bridge/ports~';
+export const CONTAINER_PRETTY_NAME_KEY = 'guestinfo.vice./common/name';
+export const VCH_VM_CLIENT_IP_KEY = 'guestinfo.vice..init.networks|client.assigned.IP';
+export const VCH_VM_ENDPOINT_PORT = ':2376';
+export const VCH_VM_LOG_PORT = ':2378';

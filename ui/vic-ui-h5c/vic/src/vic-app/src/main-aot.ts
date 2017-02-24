@@ -14,10 +14,13 @@
  limitations under the License.
 */
 
-export interface VirtualMachine {
-    id: string;
-    name: string;
-    powerState: string;
-    isVCH: boolean;
-    isContainer: boolean;
+import { platformBrowser } from '@angular/platform-browser';
+import { enableProdMode } from '@angular/core';
+import { environment } from './app/environment';
+import { AppModuleNgFactory } from '../aot/src/app/app.module.ngfactory';
+
+if (environment.production) {
+    enableProdMode();
 }
+
+platformBrowser().bootstrapModuleFactory(AppModuleNgFactory);
