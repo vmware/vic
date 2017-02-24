@@ -27,7 +27,6 @@ import (
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
-	"github.com/vmware/vic/pkg/vsphere/guest"
 )
 
 type PprofPort int
@@ -47,12 +46,6 @@ var (
 )
 
 func init() {
-	// XXX replace this with vmcheck.IsVirtualCPU() when it's ready.  We need
-	// to be able to check this is a vm from non UID 0.
-	if _, err := guest.UUID(); err != nil {
-		return
-	}
-
 	// load the vch config
 	// TODO: Optimize this to just pull the fields we need...
 	src, err := extraconfig.GuestInfoSource()
