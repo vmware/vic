@@ -14,10 +14,17 @@
  limitations under the License.
 */
 
-export interface VirtualMachine {
-    id: string;
-    name: string;
-    powerState: string;
-    isVCH: boolean;
-    isContainer: boolean;
+// Application level constants can be kept here
+export interface AppConfig {
+   pluginName: string;
+   bundleName: string;
+   packageName: string;
 }
+
+export const APP_CONFIG: AppConfig = {
+   // Names used during plugin generation, can be changed once here
+   // and the rest of the generated .ts and .html code will use them.
+   pluginName: 'vic',
+   bundleName: 'com_vmware_vic',
+   packageName: 'com.vmware.vic'
+};

@@ -14,10 +14,5 @@
  limitations under the License.
 */
 
-export interface VirtualMachine {
-    id: string;
-    name: string;
-    powerState: string;
-    isVCH: boolean;
-    isContainer: boolean;
-}
+export * from './resources.path';
+export * from './portlets.text';
