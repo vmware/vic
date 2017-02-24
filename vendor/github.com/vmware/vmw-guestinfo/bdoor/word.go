@@ -12,38 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package bdoor
 
-import (
-	"os/user"
-	"testing"
+type UInt32 struct {
+	High uint16
+	Low  uint16
+}
 
-	"github.com/stretchr/testify/assert"
+func (u *UInt32) Word() uint32 {
+	return uint32(u.High)<<16 + uint32(u.Low)
+}
 
-	"github.com/vmware/vmw-guestinfo/vmcheck"
-)
+func (u *UInt32) SetWord(w uint32) {
+	u.High = uint16(w >> 16)
+	u.Low = uint16(w)
+}
 
-func TestUUID(t *testing.T) {
-	if isVM, err := vmcheck.IsVirtualWorld(); !isVM || err != nil {
-		t.Skip("can get uuid if not running on a vm")
-	}
-	// need to be root and on esx to run this test
-	u, err := user.Current()
-	if !assert.NoError(t, err) {
-		return
-	}
+type UInt64 struct {
+	High UInt32
+	Low  UInt32
+}
 
-	if u.Uid != "0" {
-		t.SkipNow()
-		return
-	}
+func (u *UInt64) Quad() uint64 {
+	return uint64(u.High.Word())<<32 + uint64(u.Low.Word())
+}
 
-	s, err := UUID()
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, s) {
-		return
-	}
+func (u *UInt64) SetQuad(w uint64) {
+	u.High.SetWord(uint32(w >> 32))
+	u.Low.SetWord(uint32(w))
 }

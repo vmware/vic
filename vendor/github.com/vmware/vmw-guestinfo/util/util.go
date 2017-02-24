@@ -12,38 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package util
 
 import (
-	"os/user"
+	"reflect"
+	"runtime"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
-func TestUUID(t *testing.T) {
-	if isVM, err := vmcheck.IsVirtualWorld(); !isVM || err != nil {
-		t.Skip("can get uuid if not running on a vm")
-	}
-	// need to be root and on esx to run this test
-	u, err := user.Current()
-	if !assert.NoError(t, err) {
-		return
+// Test utilities.
+
+func AssertEqual(t *testing.T, a interface{}, b interface{}) bool {
+	if !reflect.DeepEqual(a, b) {
+		Fail(t)
+		return false
 	}
 
-	if u.Uid != "0" {
-		t.SkipNow()
-		return
+	return true
+}
+
+func AssertNoError(t *testing.T, err error) bool {
+	if err != nil {
+		t.Logf("error :%s", err.Error())
+		Fail(t)
+		return false
 	}
 
-	s, err := UUID()
-	if !assert.NoError(t, err) {
-		return
+	return true
+}
+
+func AssertNotNil(t *testing.T, a interface{}) bool {
+	val := reflect.ValueOf(a)
+	if val.IsNil() {
+		Fail(t)
+		return false
 	}
 
-	if !assert.NotNil(t, s) {
-		return
-	}
+	return true
+}
+
+func Fail(t *testing.T) {
+	_, file, line, _ := runtime.Caller(2)
+	t.Logf("FAIL on %s:%d", file, line)
+	t.Fail()
 }

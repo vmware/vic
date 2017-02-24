@@ -50,7 +50,12 @@ func main() {
 		return
 	}
 
-	if !vmcheck.IsVirtualWorld() {
+	isVM, err := vmcheck.IsVirtualWorld()
+	if err != nil {
+		log.Fatalf("Error: %s", err)
+	}
+
+	if !isVM {
 		log.Fatalf("ERROR: not in a virtual world.")
 	}
 

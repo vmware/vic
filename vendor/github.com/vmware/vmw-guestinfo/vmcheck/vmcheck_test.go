@@ -12,38 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package vmcheck
 
 import (
-	"os/user"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/vmware/vmw-guestinfo/vmcheck"
+	"github.com/vmware/vmw-guestinfo/util"
 )
 
-func TestUUID(t *testing.T) {
-	if isVM, err := vmcheck.IsVirtualWorld(); !isVM || err != nil {
-		t.Skip("can get uuid if not running on a vm")
-	}
-	// need to be root and on esx to run this test
-	u, err := user.Current()
-	if !assert.NoError(t, err) {
+func TestIsVirtualWorld(t *testing.T) {
+	isVm, err := hypervisorPortCheck()
+	if !util.AssertNoError(t, err) {
 		return
 	}
 
-	if u.Uid != "0" {
-		t.SkipNow()
-		return
-	}
+	t.Log("Backdoor available: ", isVm)
+	t.Log("CPU HV: ", cpuIsVM())
 
-	s, err := UUID()
-	if !assert.NoError(t, err) {
+	isVM, err := IsVirtualWorld()
+	if !util.AssertNoError(t, err) {
 		return
 	}
-
-	if !assert.NotNil(t, s) {
-		return
-	}
+	t.Log("Running in a VM: ", isVM)
 }

@@ -30,13 +30,8 @@ func TestBackdoorChannel(t *testing.T) {
 	}
 
 	for _, f := range funcs {
-		err := f()
-
-		if err != nil {
-			if err == ErrNotVirtualWorld {
-				t.SkipNow()
-			}
-			t.Fatal(err)
+		if err := f(); err != nil {
+			t.Skip(err.Error())
 		}
 	}
 

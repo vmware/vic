@@ -12,38 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package bdoor
 
 import (
-	"os/user"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/vmware/vmw-guestinfo/vmcheck"
+	"github.com/vmware/vmw-guestinfo/util"
 )
 
-func TestUUID(t *testing.T) {
-	if isVM, err := vmcheck.IsVirtualWorld(); !isVM || err != nil {
-		t.Skip("can get uuid if not running on a vm")
-	}
-	// need to be root and on esx to run this test
-	u, err := user.Current()
-	if !assert.NoError(t, err) {
-		return
-	}
+func TestBdoorArgAlignment(t *testing.T) {
+	a := uint64(0xFFFFFFFF0000022)
+	b := uint64(33)
+	c := uint64(44)
+	d := uint64(55)
+	si := uint64(0xFFFFFFFF0000066)
+	di := uint64(0xFFFAAFFF0000077)
+	bp := uint64(0xFFFFFFFFAAAAAAA)
 
-	if u.Uid != "0" {
-		t.SkipNow()
-		return
-	}
+	oa, ob, oc, od, osi, odi, obp := bdoor_inout_test(a, b, c, d, si, di, bp)
 
-	s, err := UUID()
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, s) {
+	if !util.AssertEqual(t, a, oa) ||
+		!util.AssertEqual(t, b, ob) ||
+		!util.AssertEqual(t, c, oc) ||
+		!util.AssertEqual(t, d, od) ||
+		!util.AssertEqual(t, si, osi) ||
+		!util.AssertEqual(t, di, odi) ||
+		!util.AssertEqual(t, bp, obp) {
 		return
 	}
 }
