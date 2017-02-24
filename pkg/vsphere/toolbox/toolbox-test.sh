@@ -125,7 +125,7 @@ scp "${opts[@]}" "$GOPATH"/bin/toolbox{,.test} "core@${ip}:"
 
 if [ -n "$test" ] ; then
     echo "Running toolbox tests..."
-    ssh "${opts[@]}" "core@${ip}" ./toolbox.test -test.v -test.run TestServiceRunESX -toolbox.testesx \
+    ssh "${opts[@]}" "core@${ip}" sudo ./toolbox.test -test.v -test.run TestServiceRunESX -toolbox.testesx \
         -toolbox.testpid="$$" -toolbox.powerState="$state" &
 
     echo "Waiting for VM ip from toolbox..."
