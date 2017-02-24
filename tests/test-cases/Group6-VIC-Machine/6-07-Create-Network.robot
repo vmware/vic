@@ -153,18 +153,6 @@ Connectivity Bridge to Public
 
     Should Contain  ${out}  64 bytes from ${ip}
     Log To Console  Ping test succeeded.
-    
-    Log To Console  Remove the management portgroup
-    ${out}=  Run  govc host.portgroup.remove management
-    Should Be Empty  ${out}
-
-    Log To Console  Remove the bridge portgroup
-    ${out}=  Run  govc host.portgroup.remove bridge
-    Should Be Empty  ${out}
-
-    Log To Console  Remove the public portgroup
-    ${out}=  Run  govc host.portgroup.remove vm-network
-    Should Be Empty  ${out}
 
     Cleanup VIC Appliance On Test Server
 
