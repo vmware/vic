@@ -94,6 +94,7 @@ groups:
   install:
     users:
       - emlin
+      - andrewtchin
     conditions:
       files:
         include:
