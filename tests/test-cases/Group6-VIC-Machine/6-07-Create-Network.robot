@@ -105,11 +105,11 @@ Connectivity Bridge to Public
     ${out}=  Run  govc host.portgroup.remove bridge
     ${out}=  Run  govc host.portgroup.remove vm-network
 
-    Log To Console  Create a public portgroup. 
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 vm-network
+    Log To Console  Create a public portgroup.
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN vm-network
 
     Log To Console  Create a bridge portgroup.
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
 
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --no-tlsverify
 
@@ -125,7 +125,7 @@ Connectivity Bridge to Public
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start p1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
- 
+
     Log To Console  Creating bridge container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
@@ -159,10 +159,10 @@ Connectivity Bridge to Management
     ${out}=  Run  govc host.portgroup.remove management
 
     Log To Console  Create a bridge portgroup
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
 
     Log To Console  Create a management portgroup.
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 management
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN management
 
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --container-network management --container-network vm-network --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify
 
@@ -178,7 +178,7 @@ Connectivity Bridge to Management
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start m1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
- 
+
     Log To Console  Creating bridge container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
