@@ -182,7 +182,7 @@ func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.In
 	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
 	d.ctx = context.Background()
 
-	m := object.NewFileManager(ds.Client())
+	m := ds.NewFileManager(d.session.Datacenter, true)
 
 	file := ds.Path(path.Join(d.vmPathName, settings.ApplianceISO))
 	if err := d.deleteVMFSFiles(m, ds, file); err != nil {

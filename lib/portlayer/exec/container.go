@@ -22,7 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -510,9 +509,11 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		c.updateState(existingState)
 		return err
 	}
-	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
-	// how widely it's used but couldn't - will ask around.
-	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
+
+	ds, err := sess.Finder.Datastore(ctx, url.Host)
+	if err != nil {
+		return err
+	}
 
 	//removes the vm from vsphere, but detaches the disks first
 	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
@@ -539,13 +540,11 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	}
 
 	// remove from datastore
-	fm := object.NewFileManager(c.vm.Client.Client)
+	fm := ds.NewFileManager(sess.Datacenter, true)
 
-	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
-	}); err != nil {
+	if err = fm.Delete(ctx, url.Path); err != nil {
 		// at this phase error doesn't matter. Just log it.
-		log.Debugf("Failed to delete %s, %s", dsPath, err)
+		log.Debugf("Failed to delete %s, %s", url, err)
 	}
 
 	//remove container from cache

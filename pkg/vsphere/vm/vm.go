@@ -86,7 +86,7 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 func (vm *VirtualMachine) DSPath(ctx context.Context) (url.URL, error) {
 	var mvm mo.VirtualMachine
 
-	if err := vm.Properties(ctx, vm.Reference(), []string{"runtime.host", "config"}, &mvm); err != nil {
+	if err := vm.Properties(ctx, vm.Reference(), []string{"config.files.vmPathName"}, &mvm); err != nil {
 		log.Errorf("Unable to get managed config for VM: %s", err)
 		return url.URL{}, err
 	}

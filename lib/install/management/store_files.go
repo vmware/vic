@@ -16,7 +16,6 @@ package management
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"path"
 	"sort"
@@ -32,7 +31,6 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 const (
@@ -138,7 +136,7 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 		return empty, nil
 	}
 
-	m := object.NewFileManager(ds.Client())
+	m := ds.NewFileManager(d.session.Datacenter, true)
 	if err = d.deleteFilesIteratively(m, ds, dsPath); err != nil {
 		return empty, err
 	}
@@ -151,7 +149,7 @@ func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
 	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
 }
 
-func (d *Dispatcher) deleteFilesIteratively(m *object.FileManager, ds *object.Datastore, dsPath string) error {
+func (d *Dispatcher) deleteFilesIteratively(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath))
 
 	// Get sorted result to make sure children files listed ahead of folder. Then we can empty folder before delete it
@@ -174,12 +172,10 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.FileManager, ds *object.Da
 	return d.deleteVMFSFiles(m, ds, dsPath)
 }
 
-func (d *Dispatcher) deleteVMFSFiles(m *object.FileManager, ds *object.Datastore, dsPath string) error {
+func (d *Dispatcher) deleteVMFSFiles(m *object.DatastoreFileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath))
 
-	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return m.DeleteDatastoreFile(ctx, dsPath, d.session.Datacenter)
-	}); err != nil {
+	if err := m.Delete(d.ctx, dsPath); err != nil {
 		log.Debugf("Failed to delete %q: %s", dsPath, err)
 	}
 	return nil
