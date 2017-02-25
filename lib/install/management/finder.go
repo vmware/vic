@@ -162,6 +162,7 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 	return vchConfig, nil
 }
 
+// FetchAndMigrateVCHConfig query VCH guestinfo, and try to migrate older version data to latest if the data is old
 func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -169,7 +170,6 @@ func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.Vi
 	mapConfig, err := vm.FetchExtraConfigBaseOptions(d.ctx)
 	if err != nil {
 		err = errors.Errorf("Failed to get VM extra config of %q: %s", vm.Reference(), err)
-		log.Error(err)
 		return nil, err
 	}
 
@@ -177,7 +177,6 @@ func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.Vi
 	newMap, migrated, err := migration.MigrateApplianceConfig(d.ctx, d.session, kv)
 	if err != nil {
 		err = errors.Errorf("Failed to migrate config of %q: %s", vm.Reference(), err)
-		log.Error(err)
 		return nil, err
 	}
 	if !migrated {
@@ -189,11 +188,9 @@ func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.Vi
 	result := extraconfig.Decode(data, vchConfig)
 	if result == nil {
 		err = errors.Errorf("Failed to decode migrated VM configuration %q: %s", vm.Reference(), err)
-		log.Error(err)
 		return nil, err
 	}
 
-	//	vchConfig.ID
 	return vchConfig, nil
 }
 

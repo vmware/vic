@@ -119,24 +119,19 @@ func (d *Dispatcher) retryDeleteSnapshot(snapshotName string, applianceName stri
 
 func isSystemError(err error) bool {
 	if soap.IsSoapFault(err) {
-		switch soap.ToSoapFault(err).VimFault().(type) {
-		case types.SystemError:
+		if _, ok := soap.ToSoapFault(err).VimFault().(*types.SystemError); ok {
 			return true
 		}
 	}
 
 	if soap.IsVimFault(err) {
-		log.Infof("Is soap vim fault")
-		switch soap.ToVimFault(err).(type) {
-		case *types.SystemError:
+		if _, ok := soap.ToVimFault(err).(*types.SystemError); ok {
 			return true
 		}
 	}
 
 	if terr, ok := err.(task.Error); ok {
-		log.Infof("Is task fault")
-		switch terr.Fault().(type) {
-		case *types.SystemError:
+		if _, ok := terr.Fault().(*types.SystemError); ok {
 			return true
 		}
 	}
