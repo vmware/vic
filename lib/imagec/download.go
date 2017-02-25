@@ -124,8 +124,6 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 	// lock here so that we get all layers in flight before another client comes along
 	ldm.m.Lock()
 
-	defer LayerCache().Save()
-
 	// Grab the imageLayers
 	layers := ic.ImageLayers
 
@@ -155,7 +153,9 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 				ldm.registerDownload(topDownload)
 				layer.Downloading = true
 				LayerCache().Add(layer)
-
+				if err := LayerCache().Save(); err != nil {
+					return err
+				}
 				continue
 			default:
 				return err

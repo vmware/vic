@@ -224,8 +224,7 @@ func (ic *ICache) Add(imageConfig *metadata.ImageConfig) error {
 	// Normalize the name stored in imageConfig using Docker's reference code
 	ref, err := reference.WithName(imageConfig.Name)
 	if err != nil {
-		err = fmt.Errorf("error trying to create reference from %s: %s", imageConfig.Name, err)
-		return err
+		return fmt.Errorf("error trying to create reference from %s: %s", imageConfig.Name, err)
 	}
 
 	imageID := prefixImageID(imageConfig.ImageID)

@@ -98,10 +98,8 @@ func (lc *LCache) Add(layer *ImageWithMeta) {
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	if _, ok := lc.layers[layer.ID]; !ok {
-		lc.layers[layer.ID] = layer
-		lc.dirty = true
-	}
+	lc.layers[layer.ID] = layer
+	lc.dirty = true
 }
 
 // Remove removes a layer from the cache
