@@ -279,7 +279,8 @@ func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
 		return
 	}
 
-	if err = d.deleteFilesIteratively(m, ds, ds.Path("Test")); err != nil {
+	fm := ds.NewFileManager(d.session.Datacenter, true)
+	if err = d.deleteFilesIteratively(fm, ds, ds.Path("Test")); err != nil {
 		t.Errorf("Failed to delete recursively: %s", err)
 	}
 

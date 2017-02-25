@@ -244,9 +244,7 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 func (d *Helper) Rm(ctx context.Context, pth string) error {
 	f := path.Join(d.RootURL, pth)
 	log.Infof("Removing %s", pth)
-	return tasks.Wait(context.TODO(), func(ctx context.Context) (tasks.Task, error) {
-		return d.fm.DeleteDatastoreFile(ctx, f, d.s.Datacenter)
-	})
+	return d.ds.NewFileManager(d.s.Datacenter, true).Delete(ctx, f) // TODO: NewHelper should create the DatastoreFileManager
 }
 
 func (d *Helper) IsVSAN(ctx context.Context) bool {
