@@ -334,21 +334,6 @@ func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
 	return mvm.Config.Files.VmPathName, nil
 }
 
-// RemoveSnapshot delete one snapshot
-func (vm *VirtualMachine) RemoveSnapshot(ctx context.Context, id types.ManagedObjectReference, removeChildren bool, consolidate bool) (*object.Task, error) {
-	req := types.RemoveSnapshot_Task{
-		This:           id,
-		RemoveChildren: removeChildren,
-		Consolidate:    &consolidate,
-	}
-	res, err := methods.RemoveSnapshot_Task(ctx, vm.Client.RoundTripper, &req)
-	if err != nil {
-		return nil, err
-	}
-
-	return object.NewTask(vm.Vim25(), res.Returnval), nil
-}
-
 // GetCurrentSnapshotTree returns current snapshot, with tree information
 func (vm *VirtualMachine) GetCurrentSnapshotTree(ctx context.Context) (*types.VirtualMachineSnapshotTree, error) {
 	var err error

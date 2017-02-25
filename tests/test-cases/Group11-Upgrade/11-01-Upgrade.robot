@@ -46,6 +46,15 @@ Upgrade VCH with containers
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
 
+    Log To Console  \nUpgrading VCH with 1s timeout ...
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
+    Should Contain  ${output}  Upgrading VCH exceeded time limit
+    Should Not Contain  ${output}  Completed successfully
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}/%{VCH-NAME}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  upgrade
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  upgrade
+
     Log To Console  \nUpgrading VCH...
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully

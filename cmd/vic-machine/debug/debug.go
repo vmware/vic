@@ -168,7 +168,6 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 		log.Error(err)
 		return errors.New("debug failed")
 	}
-	executor.InitDiagnosticLogs(vchConfig)
 
 	installerVer := version.GetBuild()
 

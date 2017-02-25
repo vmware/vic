@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/migration"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -73,6 +74,7 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 		log.Error(err)
 		return nil, err
 	}
+	d.InitDiagnosticLogsFromVCH(vmm)
 	return vmm, nil
 }
 
@@ -129,6 +131,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		log.Error(err)
 		return nil, err
 	}
+	d.InitDiagnosticLogsFromVCH(vmm)
 	return vmm, nil
 }
 
@@ -152,7 +155,42 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 		return nil, err
 	}
 
-	//	vchConfig.ID
+	if vchConfig.IsCreating() {
+		vmRef := vm.Reference()
+		vchConfig.SetMoref(&vmRef)
+	}
+	return vchConfig, nil
+}
+
+// FetchAndMigrateVCHConfig query VCH guestinfo, and try to migrate older version data to latest if the data is old
+func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
+	//this is the appliance vm
+	mapConfig, err := vm.FetchExtraConfigBaseOptions(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get VM extra config of %q: %s", vm.Reference(), err)
+		return nil, err
+	}
+
+	kv := vmomi.OptionValueMap(mapConfig)
+	newMap, migrated, err := migration.MigrateApplianceConfig(d.ctx, d.session, kv)
+	if err != nil {
+		err = errors.Errorf("Failed to migrate config of %q: %s", vm.Reference(), err)
+		return nil, err
+	}
+	if !migrated {
+		log.Debugf("No need to migrate configuration for %q", vm.Reference())
+	}
+
+	data := extraconfig.MapSource(newMap)
+	vchConfig := &config.VirtualContainerHostConfigSpec{}
+	result := extraconfig.Decode(data, vchConfig)
+	if result == nil {
+		err = errors.Errorf("Failed to decode migrated VM configuration %q: %s", vm.Reference(), err)
+		return nil, err
+	}
+
 	return vchConfig, nil
 }
 

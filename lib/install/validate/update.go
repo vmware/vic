@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,23 +24,14 @@ import (
 )
 
 // MigrateConfig migrate old VCH configuration to new version. Currently check required fields only
-func (v *Validator) MigrateConfig(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) ValidateMigratedConfig(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(conf.Name))
 
-	v.assertBasics(conf)
 	v.assertTarget(conf)
 	v.assertDatastore(conf)
 	v.assertNetwork(conf)
 
-	if err := v.ListIssues(); err != nil {
-		return conf, err
-	}
-	return v.migrateData(ctx, conf)
-}
-
-func (v *Validator) migrateData(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
-	conf.Version = version.GetBuild()
-	return conf, nil
+	return conf, v.ListIssues()
 }
 
 func (v *Validator) assertNetwork(conf *config.VirtualContainerHostConfigSpec) {
@@ -71,29 +62,25 @@ func (v *Validator) assertTarget(conf *config.VirtualContainerHostConfigSpec) {
 	}
 }
 
-func (v *Validator) assertBasics(conf *config.VirtualContainerHostConfigSpec) {
+func (v *Validator) AssertVersion(conf *config.VirtualContainerHostConfigSpec) (err error) {
 	defer trace.End(trace.Begin(""))
-	v.assertVersion(conf)
-}
+	defer func() {
+		err = v.ListIssues()
+	}()
 
-func (v *Validator) assertVersion(conf *config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
 	if conf.Version == nil {
 		v.NoteIssue(errors.Errorf("Unknown version of VCH %q", conf.Name))
-		return
+		return err
 	}
+	var older bool
 	installerBuild := version.GetBuild()
-	if installerBuild.Equal(conf.Version) {
-		v.NoteIssue(errors.Errorf("%q has same version as installer. No upgrade is available.", conf.Name))
-		return
-	}
-	older, err := installerBuild.IsOlder(conf.Version)
-	if err != nil {
+	if older, err = conf.Version.IsOlder(installerBuild); err != nil {
 		v.NoteIssue(errors.Errorf("Failed to compare VCH version %q with installer version %q: %s", conf.Version.ShortVersion(), installerBuild.ShortVersion(), err))
-		return
+		return err
 	}
-	if older {
-		v.NoteIssue(errors.Errorf("VCH version %q is newer than installer version %q", conf.Version.ShortVersion(), installerBuild.ShortVersion()))
-		return
+	if !older {
+		v.NoteIssue(errors.Errorf("%q has same or newer version %s than installer version %s. No upgrade is available.", conf.Name, conf.Version.ShortVersion(), installerBuild.ShortVersion()))
+		return err
 	}
+	return nil
 }
