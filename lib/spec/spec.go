@@ -94,16 +94,17 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	// TEMPORARY
 	// set VM name to prettyname-ID, to make it readable a little bit
 	// if prettyname-ID is longer than max vm name length, truncate pretty name, instead of UUID, to make it unique
-	nameMaxLen := maxVMNameLength - len(config.ID)
-	prettyName := config.Name
-	if len(prettyName) > nameMaxLen-1 {
-		prettyName = prettyName[:nameMaxLen-1]
-	}
-	fullName := fmt.Sprintf("%s-%s", prettyName, config.ID)
-	config.VMFullName = fullName
+	//nameMaxLen := maxVMNameLength - len(config.ID)
+	//prettyName := config.Name
+	//if len(prettyName) > nameMaxLen-1 {
+	//	prettyName = prettyName[:nameMaxLen-1]
+	//}
+	//fullName := fmt.Sprintf("%s-%s", prettyName, config.ID)
+	//config.VMFullName = fullName
+	config.VMFullName = config.ID
 
 	s := &types.VirtualMachineConfigSpec{
-		Name: fullName,
+		Name: config.ID,
 		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: config.VMPathName,
