@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/docker/docker/opts"
 	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -47,6 +47,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -81,7 +82,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
 
 	// if the moref of the target matches where we expect to find it for a VCH, run with it
-	if remoteConf.ExecutorConfig.ID == vm.Reference().String() {
+	if remoteConf.ExecutorConfig.ID == vm.Reference().String() || remoteConf.IsCreating() {
 		return true, nil
 	}
 
@@ -290,6 +291,9 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	var devices object.VirtualDeviceList
 	var err error
 
+	// set to creating VCH
+	conf.SetIsCreating(true)
+
 	cfg, err := d.encodeConfig(conf)
 	if err != nil {
 		return nil, err
@@ -297,11 +301,12 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
-			Name:     conf.Name,
-			GuestId:  "other3xLinux64Guest",
-			Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:  int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB: vConf.ApplianceSize.Memory.Limit,
+			Name:               conf.Name,
+			GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+			AlternateGuestName: constants.DefaultAltVCHGuestName(),
+			Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+			NumCPUs:            int32(vConf.ApplianceSize.CPU.Limit),
+			MemoryMB:           vConf.ApplianceSize.Memory.Limit,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
 			ExtraConfig: append(vmomi.OptionValueFromMap(cfg), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
@@ -627,9 +632,10 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 	var err error
 
 	spec := &types.VirtualMachineConfigSpec{
-		Name:    conf.Name,
-		GuestId: "other3xLinux64Guest",
-		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+		Name:               conf.Name,
+		GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+		AlternateGuestName: constants.DefaultAltVCHGuestName(),
+		Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
 	// create new devices
@@ -947,7 +953,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		log.Debugf("Obtained IP address for client interface: %q", d.HostIP)
+		log.Infof("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 
@@ -994,4 +1000,40 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	return fmt.Errorf("Failed to get IP address information from appliance: %s", updateErr)
+}
+
+// CheckServiceReady checks if service is launched correctly, including ip address, service initialization, VC connection and Docker API
+// Should expand this method for any more VCH service checking
+func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
+	oldCtx := d.ctx
+	d.ctx = ctx
+	defer func() {
+		d.ctx = oldCtx
+	}()
+
+	if err := d.ensureApplianceInitializes(conf); err != nil {
+		return err
+	}
+
+	// vic-init will try to reach out to the vSphere target.
+	log.Info("Checking VCH connectivity with vSphere target")
+	// Checking access to vSphere API
+	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target); err == nil {
+		code := int(cd)
+		if code > 0 {
+			log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		} else {
+			log.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		}
+	} else {
+		log.Warningf("Could not run VCH vSphere API target check due to %v", err)
+	}
+
+	if err := d.CheckDockerAPI(conf, clientCert); err != nil {
+		err = errors.Errorf("Docker API endpoint check failed: %s", err)
+		// log with info cause this might not be an error
+		log.Info(err.Error())
+		return err
+	}
+	return nil
 }

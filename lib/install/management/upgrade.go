@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,14 +21,16 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/task"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -77,89 +79,99 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
-	snapshotRefID, err := d.createSnapshot(snapshotName, "upgrade snapshot")
-	if err != nil {
+	if err = d.tryCreateSnapshot(snapshotName, "upgrade snapshot"); err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
-	defer func() {
-		if err == nil {
-			// do clean up aggressively, even the previous operation failed with context deadline excceeded.
-			d.deleteSnapshot(*snapshotRefID, snapshotName, conf.Name)
-		}
-	}()
 
 	if err = d.update(conf, settings); err == nil {
+		d.retryDeleteSnapshot(snapshotName, conf.Name)
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
 	log.Infof("Rolling back upgrade")
 
-	// reset timeout, to make sure rollback still happens in case of deadline exceeded error in previous step
-	var cancel context.CancelFunc
-	d.ctx, cancel = context.WithTimeout(context.Background(), settings.RollbackTimeout)
-	defer cancel()
-
-	if rerr := d.rollback(conf, snapshotName); rerr != nil {
+	if rerr := d.rollback(conf, snapshotName, settings); rerr != nil {
 		log.Errorf("Failed to revert appliance to snapshot: %s", rerr)
-		// return the error message for upgrade, instead of rollback
 		return err
 	}
+	log.Infof("Appliance is rolled back to old version")
 
 	d.deleteUpgradeImages(ds, settings)
-	log.Infof("Appliance is rollback to old version")
+	d.retryDeleteSnapshot(snapshotName, conf.Name)
+	// return the error message for upgrade
 	return err
 }
 
-func (d *Dispatcher) deleteSnapshot(id types.ManagedObjectReference, snapshotName string, applianceName string) error {
-	defer trace.End(trace.Begin(snapshotName))
-	log.Infof("Deleting upgrade snapshot %q", snapshotName)
-	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
-	d.ctx = context.Background()
-	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return d.appliance.RemoveSnapshot(ctx, id, true, true)
-	}); err != nil {
+// retryDeleteSnapshot will retry to delete snpashot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
+func (d *Dispatcher) retryDeleteSnapshot(snapshotName string, applianceName string) error {
+	// delete snapshot immediately after snapshot rollback usually fail in vSAN, so have to retry several times
+	operation := func() error {
+		return d.deleteSnapshot(snapshotName, applianceName)
+	}
+	var err error
+	if err = retry.Do(operation, isSystemError); err != nil {
 		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
 		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshotName, applianceName)
+	}
+	return err
+}
+
+func isSystemError(err error) bool {
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(*types.SystemError); ok {
+			return true
+		}
+	}
+
+	if soap.IsVimFault(err) {
+		if _, ok := soap.ToVimFault(err).(*types.SystemError); ok {
+			return true
+		}
+	}
+
+	if terr, ok := err.(task.Error); ok {
+		if _, ok := terr.Fault().(*types.SystemError); ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) error {
+	defer trace.End(trace.Begin(snapshotName))
+	log.Infof("Deleting upgrade snapshot %q", snapshotName)
+	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
+	ctx := context.Background()
+	if _, err := d.appliance.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		consolidate := true
+		return d.appliance.RemoveSnapshot(ctx, snapshotName, true, &consolidate)
+	}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d *Dispatcher) createSnapshot(name string, desc string) (*types.ManagedObjectReference, error) {
-	defer trace.End(trace.Begin(name))
-	log.Infof("Creating snapshot %s", name)
-
-	snapRefID, err := d.tryCreateSnapshot(name, desc)
-	if err == nil {
-		log.Infof("created snapshot %s", snapRefID)
-		return snapRefID, nil
-	}
-	log.Error(err)
-	return nil, err
-}
-
 // tryCreateSnapshot try to create upgrade snapshot. It will check if upgrade snapshot already exists. If exists, return error.
 // if succeed, return snapshot refID
-func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectReference, error) {
+func (d *Dispatcher) tryCreateSnapshot(name, desc string) error {
 	defer trace.End(trace.Begin(name))
 
 	upgrading, snapshot, err := d.appliance.UpgradeInProgress(d.ctx, UpgradePrefix)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if upgrading {
-		return nil, errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
+		return errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
 	}
 
-	taskInfo, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	if _, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
-	})
-	if err != nil {
-		return nil, errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
+	}); err != nil {
+		return errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
 	}
-	ref := taskInfo.Result.(types.ManagedObjectReference)
-	return &ref, nil
+	return nil
 }
 
 func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.InstallerData) {
@@ -167,7 +179,7 @@ func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.In
 
 	log.Infof("Deleting upgrade images")
 
-	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
+	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
 	d.ctx = context.Background()
 
 	m := object.NewFileManager(ds.Client())
@@ -204,10 +216,25 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 
-	return d.startAppliance(conf)
+	if err = d.startAppliance(conf); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
+	defer cancel()
+	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Upgrading VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", settings.Timeout)
+		}
+
+		log.Info("\tAPI may be slow to start - please retry with increased timeout using --timeout: %s", err)
+		return err
+	}
+	return nil
 }
 
-func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string) error {
+func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("old appliance iso: %q, snapshot: %q", d.oldApplianceISO, snapshot)))
 
 	// do not power on appliance in this snapsthot revert
@@ -218,10 +245,10 @@ func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snaps
 		return errors.Errorf("Failed to roll back upgrade: %s.", err)
 	}
 
-	return d.ensureRollbackReady(conf)
+	return d.ensureRollbackReady(conf, settings)
 }
 
-func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	power, err := d.appliance.PowerState(d.ctx)
@@ -233,7 +260,17 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 		log.Infof("Roll back finished - Appliance is kept in powered off status")
 		return nil
 	}
-	return d.startAppliance(conf)
+	if err = d.startAppliance(conf); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
+	defer cancel()
+	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
+		// do not return error in this case, to make sure clean up continues
+		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes")
+	}
+	return nil
 }
 
 func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, isoFile string) error {
@@ -249,6 +286,10 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 	spec.DeviceChange = deviceChange
 
 	if conf != nil {
+		// reset service started attribute
+		for _, sess := range conf.ExecutorConfig.Sessions {
+			sess.Started = ""
+		}
 		cfg := make(map[string]string)
 		extraconfig.Encode(extraconfig.MapSink(cfg), conf)
 		spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)

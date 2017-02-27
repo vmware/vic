@@ -24,7 +24,7 @@ import (
 )
 
 func TestUUID(t *testing.T) {
-	if !vmcheck.IsVirtualWorld() {
+	if isVM, err := vmcheck.IsVirtualWorld(); !isVM || err != nil {
 		t.Skip("can get uuid if not running on a vm")
 	}
 	// need to be root and on esx to run this test

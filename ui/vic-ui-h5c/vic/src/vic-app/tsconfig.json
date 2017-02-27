@@ -9,7 +9,18 @@
     "removeComments": false,
     "noImplicitAny": false,
     "suppressImplicitAnyIndexErrors": true,
-    "outDir": "./tsc-results"
+    "outDir": "./tsc-results",
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "types": [
+      "jasmine",
+      "node",
+      "core-js",
+      "source-map",
+      "uglify-js",
+      "webpack"
+    ]
   },
   "awesomeTypescriptLoaderOptions": {
     "useWebpackText": true
@@ -25,19 +36,5 @@
   ],
   "atom": {
     "rewriteTsconfig": true
-  },
-  "files": [
-    "./src/app/app-routing.module.ts",
-    "./src/app/app.component.ts",
-    "./src/app/app.module.ts",
-    "./src/app/data-property-service/data-property.service.ts",
-    "./src/app/environment.ts",
-    "./src/app/summary-portlet/container-portlet/container-portlet.component.ts",
-    "./src/app/summary-portlet/summary-portlet.component.ts",
-    "./src/app/summary-portlet/vch-portlet/vch-portlet.component.ts",
-    "./src/app/vm.interface.ts",
-    "./src/custom-typings.d.ts",
-    "./src/main.ts",
-    "./src/vendor.ts"
-  ]
+  }
 }

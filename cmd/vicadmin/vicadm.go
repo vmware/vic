@@ -102,7 +102,7 @@ type logfile struct {
 	Host   *object.HostSystem
 }
 
-func init() {
+func Init() {
 	log.SetFormatter(viclog.NewTextFormatter())
 
 	defer trace.End(trace.Begin(""))
@@ -181,6 +181,13 @@ func newBytesEntry(name string, b []byte) entry {
 		size:       int64(r.Len()),
 		name:       name,
 	}
+}
+
+type versionReader string
+
+func (path versionReader) open() (entry,error) {
+	defer trace.End(trace.Begin(string(path)))
+	return newBytesEntry(string(path), []byte(version.Version)), nil
 }
 
 type commandReader string
@@ -550,6 +557,8 @@ func (fw *flushWriter) Write(p []byte) (int, error) {
 }
 
 func main() {
+	Init()
+
 	if version.Show() {
 		fmt.Fprintf(os.Stdout, "%s\n", version.String())
 		return
