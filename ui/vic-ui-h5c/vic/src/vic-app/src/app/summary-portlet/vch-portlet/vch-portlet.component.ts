@@ -13,25 +13,36 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
+import { I18nService } from '../../shared/i18n.service';
+import { GlobalsService } from '../../shared/globals.service';
 
 import { Component, Input, OnInit } from '@angular/core';
 import { VirtualMachine } from '../../vm.interface';
 
+import {
+    DEFAULT_VCH_DOCKER_ENDPOINT_LABEL,
+    DEFAULT_VCH_VCH_ADMIN_PORTAL_LABEL
+} from '../../shared/constants/index';
+
 @Component({
     selector: 'vic-vch-portlet',
-    styleUrls: ['./vch-portlet.scss'],
+    styleUrls: ['vch-portlet.scss'],
     template: `
     <table class="table table-vertical">
         <tbody>
             <tr>
                 <th>{{ dockerApiEndpointLabel }}</th>
-                <td>{{ activeVm.dockerEndpoint }}</td>
+                <td>{{ activeVm['dockerEndpoint'] }}</td>
             </tr>
             <tr>
                 <th>{{ vchAdminPortalLabel }}</th>
-                <td [ngSwitch]="activeVm.powerState">
-                    <span *ngSwitchCase="'poweredOn'"><a href="{{ activeVm.dockerLog }}" target="_blank">{{ activeVm.dockerLog }}</a></span>
-                    <span *ngSwitchCase="'poweredOff'">{{ activeVm.dockerLog }}</span>
+                <td [ngSwitch]="activeVm['powerState']">
+                    <span *ngSwitchCase="'poweredOn'">
+                        <a href="{{ activeVm['dockerLog'] }}" target="_blank">
+                        {{ activeVm['dockerLog'] }}
+                        </a>
+                    </span>
+                    <span *ngSwitchCase="'poweredOff'">{{ activeVm['dockerLog'] }}</span>
                 </td>
             </tr>
         </tbody>
@@ -41,17 +52,29 @@ import { VirtualMachine } from '../../vm.interface';
 export class VchPortletComponent implements OnInit {
     @Input() activeVm: VirtualMachine;
 
-    private dockerApiEndpointLabel: string;
-    private vchAdminPortalLabel: string;
+    public dockerApiEndpointLabel: string;
+    public vchAdminPortalLabel: string;
 
-    constructor() {}
+    constructor(
+        private i18n: I18nService,
+        private gs: GlobalsService
+    ) {}
+
+    /**
+     * Evaluates if the application is running in the vSphere Client environment,
+     * which is called the "Plugin Mode"
+     * @returns true if plugin mode. false if not
+     */
+    isPluginMode() {
+        return this.gs.isPluginMode() && !(<any>this.activeVm)['is_testing'];
+    }
 
     ngOnInit() {
-        this.dockerApiEndpointLabel = window.hasOwnProperty('com_vmware_vic')
-            ? com_vmware_vic.getString('vch.dockerApiEndpoint.label') :
-            'Docker API endpoint';
-        this.vchAdminPortalLabel = window.hasOwnProperty('com_vmware_vic') ?
-            com_vmware_vic.getString('vch.vchAdminPortal.label') :
-            'VCH Admin portal';
+        this.dockerApiEndpointLabel = this.isPluginMode() ?
+            this.i18n.translate('vch.dockerApiEndpoint.label') :
+            DEFAULT_VCH_DOCKER_ENDPOINT_LABEL;
+        this.vchAdminPortalLabel = this.isPluginMode() ?
+            this.i18n.translate('vch.vchAdminPortal.label') :
+            DEFAULT_VCH_VCH_ADMIN_PORTAL_LABEL;
     }
 }

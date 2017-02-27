@@ -19,6 +19,7 @@ package com.vmware.vic.model;
 
 public class Root extends ModelObject {
 	private final String _uiVersion;
+	private static final String VIC_ROOT = "vSphere Integrated Containers";
 	private int _vchVmsLen;
 	private int _containerVmsLen;
 
@@ -30,7 +31,7 @@ public class Root extends ModelObject {
 	}
 
 	public String getName() {
-		return "vSphere Integrated Containers";
+		return VIC_ROOT;
 	}
 
 	public String getUiVersion() {
@@ -56,7 +57,7 @@ public class Root extends ModelObject {
 		} else if ("id".equals(property)) {
 			return this.getId();
 		} else if ("name".equals(property)) {
-			return "Root";
+			return VIC_ROOT;
 		}
 		return UNSUPPORTED_PROPERTY;
 	}

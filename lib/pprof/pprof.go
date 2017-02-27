@@ -42,7 +42,7 @@ const (
 )
 
 var (
-	vchConfig config.VirtualContainerHostConfigSpec
+	debugLevel int
 )
 
 func init() {
@@ -53,7 +53,10 @@ func init() {
 		log.Errorf("Unable to load configuration from guestinfo")
 		return
 	}
-	extraconfig.Decode(src, &vchConfig)
+
+	vchConfig := new(config.VirtualContainerHostConfigSpec)
+	extraconfig.Decode(src, vchConfig)
+	debugLevel = vchConfig.ExecutorConfig.Diagnostics.DebugLevel
 }
 
 func GetPprofEndpoint(component PprofPort) *url.URL {
@@ -65,7 +68,7 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 	ip := "127.0.0.1"
 	// exposing this data on an external port definitely counts as a change of behaviour,
 	// so this is > 1, just debug on/off.
-	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 1 {
+	if debugLevel > 1 {
 		ips, err := net.LookupIP("client.localhost")
 		if err != nil || len(ips) == 0 {
 			log.Warnf("Unable to resolve 'client.localhost': ", err)

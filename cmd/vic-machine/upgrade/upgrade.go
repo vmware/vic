@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package upgrade
 
 import (
+	"context"
 	"path"
 	"time"
 
@@ -28,8 +29,6 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"context"
 )
 
 // Upgrade has all input parameters for vic-machine upgrade command
@@ -114,7 +113,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 
 	log.Infof("### Upgrading VCH ####")
 
-	ctx, cancel := context.WithTimeout(context.Background(), u.Timeout)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	validator, err := validate.NewValidator(ctx, u.Data)
@@ -144,21 +143,25 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	log.Infof("")
 	log.Infof("VCH ID: %s", vch.Reference().String())
 
-	vchConfig, err := executor.GetVCHConfig(vch)
+	vchConfig, err := executor.FetchAndMigrateVCHConfig(vch)
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
 		return errors.New("upgrade failed")
 	}
-	executor.InitDiagnosticLogs(vchConfig)
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, u.Data)
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(u.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(u.BootstrapISO)
-	vConfig.RollbackTimeout = u.Timeout
+	vConfig.Timeout = u.Timeout
 
-	if vchConfig, err = validator.MigrateConfig(ctx, vchConfig); err != nil {
+	if err := validator.AssertVersion(vchConfig); err != nil {
+		log.Error(err)
+		return errors.New("upgrade failed")
+	}
+
+	if vchConfig, err = validator.ValidateMigratedConfig(ctx, vchConfig); err != nil {
 		log.Errorf("Failed to migrate Virtual Container Host configuration %s", u.DisplayName)
 		log.Error(err)
 		return errors.New("upgrade failed")
@@ -170,13 +173,6 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		if err == nil {
 			err = errors.New("upgrade failed")
 		}
-		return err
-	}
-
-	// check the docker endpoint is responsive
-	if err = executor.CheckDockerAPI(vchConfig, nil); err != nil {
-
-		executor.CollectDiagnosticLogs()
 		return err
 	}
 

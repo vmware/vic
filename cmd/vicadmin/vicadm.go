@@ -102,7 +102,7 @@ type logfile struct {
 	Host   *object.HostSystem
 }
 
-func init() {
+func Init() {
 	log.SetFormatter(viclog.NewTextFormatter())
 
 	defer trace.End(trace.Begin(""))
@@ -557,6 +557,8 @@ func (fw *flushWriter) Write(p []byte) (int, error) {
 }
 
 func main() {
+	Init()
+
 	if version.Show() {
 		fmt.Fprintf(os.Stdout, "%s\n", version.String())
 		return

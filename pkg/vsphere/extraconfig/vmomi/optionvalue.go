@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,9 +23,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-// OptionValueSource is a convenience method to generate a MapSource source from
-// and array of OptionValue's
-func OptionValueSource(src []types.BaseOptionValue) extraconfig.DataSource {
+// OptionValueMap returns a map from array of OptionValues
+func OptionValueMap(src []types.BaseOptionValue) map[string]string {
 	// create the key/value store from the extraconfig slice for lookups
 	kv := make(map[string]string)
 	for i := range src {
@@ -36,7 +35,13 @@ func OptionValueSource(src []types.BaseOptionValue) extraconfig.DataSource {
 		}
 		kv[k] = v
 	}
+	return kv
+}
 
+// OptionValueSource is a convenience method to generate a MapSource source from
+// and array of OptionValue's
+func OptionValueSource(src []types.BaseOptionValue) extraconfig.DataSource {
+	kv := OptionValueMap(src)
 	return extraconfig.MapSource(kv)
 }
 

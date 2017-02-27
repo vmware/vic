@@ -94,6 +94,7 @@ groups:
   install:
     users:
       - emlin
+      - andrewtchin
     conditions:
       files:
         include:
@@ -193,6 +194,7 @@ groups:
   ui:
     users:
       - jooskim
+      - jak-atx
     conditions:
       files:
         include:
@@ -214,3 +216,14 @@ groups:
       files:
         include:
           - ".pullapprove.yml"
+
+  drone:
+    users:
+      - jakedsouza
+      - rajanashok
+      - mhagen-vmware
+    conditions:
+      files:
+        include:
+          - ".drone.yml"
+          - ".drone.sec"

@@ -19,14 +19,24 @@ import { async, TestBed, ComponentFixture } from '@angular/core/testing';
 
 import { By } from '@angular/platform-browser';
 import { RouterModule } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { HttpModule } from '@angular/http';
 import { APP_BASE_HREF } from '@angular/common';
 
-import { AppRoutingModule } from './app-routing.module';
-import { AppComponent } from './app.component';
-import { VicSummaryPortletComponent } from './summary-portlet/summary-portlet.component';
+import {
+    AppAlertComponent,
+    AppAlertService,
+    Globals,
+    GlobalsService,
+    I18nService,
+    RefreshService
+} from './shared/index';
+import { ActionDevService } from './services/action-dev.service';
+import { ClarityModule } from 'clarity-angular';
+import { AppRoutingModule, routedComponents } from './app-routing.module';
 import { VchPortletComponent } from './summary-portlet/vch-portlet/vch-portlet.component';
 import { ContainerPortletComponent } from './summary-portlet/container-portlet/container-portlet.component';
+import { VicSummaryViewComponent } from './summary-view/summary-view.component';
+import { AppComponent } from './app.component';
 
 describe('VIC UI Unit Tests', () => {
   let fixture: ComponentFixture<AppComponent>;
@@ -36,16 +46,24 @@ describe('VIC UI Unit Tests', () => {
       TestBed.configureTestingModule({
         declarations: [
           AppComponent,
-          VicSummaryPortletComponent,
           VchPortletComponent,
-          ContainerPortletComponent
+          ContainerPortletComponent,
+          VicSummaryViewComponent,
+          routedComponents,
+          AppAlertComponent
         ],
         providers: [
-          { provide: APP_BASE_HREF, useValue: '/'}
+          { provide: APP_BASE_HREF, useValue: '/'},
+          AppAlertService,
+          Globals,
+          GlobalsService,
+          I18nService,
+          RefreshService
         ],
         imports: [
-          FormsModule,
-          AppRoutingModule
+          AppRoutingModule,
+          ClarityModule,
+          HttpModule
         ]
       })
       .compileComponents();

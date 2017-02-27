@@ -15,7 +15,7 @@
 package extraconfig
 
 import (
-	"errors"
+	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -34,11 +34,12 @@ func GuestInfoSink() (DataSink, error) {
 // or trailing separator characters, but may have separators in other positions. The separator
 // (either . or /) will be replaced with the appropriate value for the key in question.
 func GuestInfoSinkWithPrefix(prefix string) (DataSink, error) {
-	guestinfo := rpcvmx.NewConfig()
-
-	if !vmcheck.IsVirtualWorld() {
-		return nil, errors.New("not in a virtual world")
+	// Check we're using a vcpu (which doesn't assume this is UID 0).
+	if !vmcheck.IsVirtualCPU() {
+		return nil, fmt.Errorf("not in a virtual world")
 	}
+
+	guestinfo := rpcvmx.NewConfig()
 
 	return func(key, value string) error {
 		if strings.Contains(key, "/") {

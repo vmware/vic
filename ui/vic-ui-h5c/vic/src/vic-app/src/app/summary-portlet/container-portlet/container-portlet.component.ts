@@ -14,26 +14,35 @@
  limitations under the License.
 */
 
+import { I18nService } from '../../shared/i18n.service';
+import { GlobalsService } from '../../shared/globals.service';
+
 import { Component, OnInit, Input } from '@angular/core';
 import { VirtualMachine } from '../../vm.interface';
 
+import {
+    DEFAULT_CONTAINER_NAME_LABEL,
+    DEFAULT_CONTAINER_IMAGE_LABEL,
+    DEFAULT_CONTAINER_PORT_MAPPING_LABEL
+} from '../../shared/constants/index';
+
 @Component({
     selector: 'vic-container-portlet',
-    styleUrls: ['./container-portlet.scss'],
+    styleUrls: ['container-portlet.scss'],
     template: `
     <table class="table table-vertical">
         <tbody>
             <tr>
                 <th>{{ containerNameLabel }}</th>
-                <td>{{ activeVm.container_name }}</td>
+                <td>{{ activeVm['container_name'] }}</td>
             </tr>
             <tr>
                 <th>{{ containerImageLabel }}</th>
-                <td>{{ activeVm.image_name }}</td>
+                <td>{{ activeVm['image_name'] }}</td>
             </tr>
-            <tr *ngIf="activeVm.portmapping">
+            <tr *ngIf="activeVm.hasOwnProperty('portmapping')">
                 <th>{{ containerPortmappingLabel }}</th>
-                <td>{{ activeVm.portmapping }}</td>
+                <td>{{ activeVm['portmapping'] }}</td>
             </tr>
         </tbody>
     </table>
@@ -42,22 +51,36 @@ import { VirtualMachine } from '../../vm.interface';
 export class ContainerPortletComponent implements OnInit {
     @Input() activeVm: VirtualMachine;
 
-    private containerNameLabel: string;
-    private containerImageLabel: string;
-    private containerPortmappingLabel: string;
+    public containerNameLabel: string;
+    public containerImageLabel: string;
+    public containerPortmappingLabel: string;
 
-    constructor() {}
+    constructor(
+        private i18n: I18nService,
+        private gs: GlobalsService
+    ) {}
+
+    /**
+     * Evaluates if the application is running in the vSphere Client environment,
+     * which is called the "Plugin Mode"
+     * @returns true if plugin mode. false if not
+     */
+    isPluginMode() {
+        return this.gs.isPluginMode() && !(<any>this.activeVm)['is_testing'];
+    }
 
     ngOnInit() {
-        this.containerNameLabel = window.hasOwnProperty('com_vmware_vic') ?
-            com_vmware_vic.getString('container.name.label') :
-            'Container';
-        this.containerImageLabel = window.hasOwnProperty('com_vmware_vic') ?
-            com_vmware_vic.getString('container.image.label') :
-            'Image';
-        this.containerPortmappingLabel = window.hasOwnProperty('com_vmware_vic') ?
-            com_vmware_vic.getString('container.portmapping.label') :
-            'Port Mapping';
+        this.containerNameLabel = this.isPluginMode() ?
+            this.i18n.translate('container.name.label') :
+            DEFAULT_CONTAINER_NAME_LABEL;
+
+        this.containerImageLabel = this.isPluginMode() ?
+            this.i18n.translate('container.image.label') :
+            DEFAULT_CONTAINER_IMAGE_LABEL;
+
+        this.containerPortmappingLabel = this.isPluginMode() ?
+            this.i18n.translate('container.portmapping.label') :
+            DEFAULT_CONTAINER_PORT_MAPPING_LABEL;
     }
 
 }

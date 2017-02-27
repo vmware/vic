@@ -14,6 +14,12 @@
 
 package constants
 
+import (
+	"fmt"
+
+	"github.com/vmware/vic/pkg/version"
+)
+
 const (
 	SerialOverLANPort  = 2377
 	ManagementHostName = "management.localhost"
@@ -23,4 +29,15 @@ const (
 	ExternalScopeType = "external"
 	// DefaultBridgeRange is the default pool for bridge networks
 	DefaultBridgeRange = "172.16.0.0/12"
+	// vSphere Display name for the VCH's Guest Name and for VAC support
+	defaultAltVCHGuestName = "Photon - VCH"
+	defaultAltContainerGuestName = "Photon - Container"
 )
+
+func DefaultAltVCHGuestName() string {
+	return fmt.Sprintf("%s %s, %s, %7s", defaultAltVCHGuestName, version.Version, version.BuildNumber, version.GitCommit)
+}
+
+func DefaultAltContainerGuestName() string {
+	return fmt.Sprintf("%s %s, %s, %7s", defaultAltContainerGuestName, version.Version, version.BuildNumber, version.GitCommit)
+}

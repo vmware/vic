@@ -259,6 +259,17 @@ Timeout
 * Command fail for timeout error #1557
 
 
+Short time creation
+===================
+
+# Stop VCH creation immediately
+=============================
+1. Interrupt creation process after 2s, 
+2. Delete the VCH
+
+### Expected Outcome
+* Delete should succeed
+
 
 Appliance size
 =======
