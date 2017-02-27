@@ -79,7 +79,6 @@ var (
 
 	// VMFiles is the set of files to collect per VM associated with the VCH
 	vmFiles = []string{
-		"output.log",
 		"vmware.log",
 		"tether.debug",
 	}
