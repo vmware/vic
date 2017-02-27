@@ -247,6 +247,15 @@
 			"path": "/spew"
 		},
 		{
+			"importpath": "github.com/davecgh/go-xdr/xdr2",
+			"repository": "https://github.com/davecgh/go-xdr",
+			"vcs": "git",
+			"revision": "e6a2ba005892b6a5b27cb5352f64c2e96942dd28",
+			"branch": "master",
+			"path": "/xdr2",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/dchest/siphash",
 			"repository": "https://github.com/dchest/siphash",
 			"vcs": "git",
@@ -345,6 +354,15 @@
 			"vcs": "git",
 			"revision": "335561b66a44bf214224afe879e4368204e7fa45",
 			"branch": "HEAD",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/fdawg4l/go-nfs-client/nfs",
+			"repository": "https://github.com/fdawg4l/go-nfs-client",
+			"vcs": "git",
+			"revision": "43c69b0d08c429520d4a8e148a472f74c892d682",
+			"branch": "master",
+			"path": "/nfs",
 			"notests": true
 		},
 		{
