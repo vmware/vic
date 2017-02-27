@@ -15,7 +15,6 @@
 package spec
 
 import (
-	"fmt"
 	"net/url"
 
 	"context"

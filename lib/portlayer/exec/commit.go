@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-	"github.com/vmware/vic/lib/spec/"
 
 	log "github.com/Sirupsen/logrus"
 )
