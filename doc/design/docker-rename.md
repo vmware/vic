@@ -8,7 +8,7 @@ Rename involves the containerVM’s display name and the name of the datastore f
 
 ### Proposed solution:
 
-- We use containerName-containerShortID to assemble the VM name. We do not use containerName-containerID as the VM name in order to avoid the scenario wherein the containerName gets truncated to satisfy the maximum length of a VM name in vSphere. In addition, we use the containerID to set the name of the datastore folder, thus there is no need to worry about the VM display name and datastore folder name being inconsistent. 
+- We use containerName-containerShortID to assemble the VM display name. We do not use containerName-containerID in order to avoid the scenario wherein the containerName gets truncated to satisfy the maximum length of a VM display name in vSphere. In addition, we use the containerID to set the name of the datastore folder, thus there is no need to worry about the VM display name and datastore folder name being inconsistent. 
 
 - VM Reconfiguration: Since vSAN requires the VM display name to be the same as the datastore folder name during VM creation, we set both the VM display name and the datastore folder name to containerID during VM creation, and then start a VM reconfiguration task after the VM is created to change its display name to containerName-containerShortID. 
 
