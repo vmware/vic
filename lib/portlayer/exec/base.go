@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/migration"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -72,9 +73,22 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	// construct a working copy of the exec config
 	if c != nil && c.ExtraConfig != nil {
 		src := vmomi.OptionValueSource(c.ExtraConfig)
-		extraconfig.Decode(src, base.ExecConfig)
-	}
+		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
 
+		migratedConf, isMigration, err := migration.MigrateContainerConfig(containerExecKeyValues)
+		//TODO: We need to decide how we want to handle "partial migrations" since it is very possible the container could be broken at the end of it.
+		if isMigration && err == nil {
+			// this is the case that a migration has occurred.
+			migratedConfValues := vmomi.OptionValueFromMap(migratedConf)
+			migratedConfSource := vmomi.OptionValueSource(migratedConfValues)
+
+			extraconfig.Decode(migratedConfSource, base.ExecConfig)
+			base.ExecConfig.Migrated = true
+		} else {
+			extraconfig.Decode(src, base.ExecConfig)
+			base.ExecConfig.Migrated = false
+		}
+	}
 	return base
 }
 
