@@ -153,9 +153,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 				ldm.registerDownload(topDownload)
 				layer.Downloading = true
 				LayerCache().Add(layer)
-				if err := LayerCache().Save(); err != nil {
-					return err
-				}
+
 				continue
 			default:
 				return err
