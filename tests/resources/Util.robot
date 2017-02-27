@@ -4,7 +4,7 @@ Library  String
 Library  Collections
 Library  requests
 Library  Process
-Library  SSHLibrary  1 minute  prompt=bash-4.1$
+Library  SSHLibrary  1 minute
 Library  DateTime
 Resource  Nimbus-Util.robot
 Resource  Vsphere-Util.robot

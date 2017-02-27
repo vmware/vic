@@ -39,8 +39,8 @@ Set Test Environment Variables
 
     # set the TLS config options suitable for vic-machine in this env
     ${domain}=  Get Environment Variable  DOMAIN  ''
-    Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  --no-tlsverify
-    Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  --tls-cname=*.${domain}
+    Run Keyword If  $domain == ''  Set Suite Variable  ${vicmachinetls}  --no-tlsverify
+    Run Keyword If  $domain != ''  Set Suite Variable  ${vicmachinetls}  --tls-cname=*.${domain}
 
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID

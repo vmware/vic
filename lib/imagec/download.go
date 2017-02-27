@@ -293,7 +293,10 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				}
 				// cache and persist the image
 				cache.ImageCache().Add(&imageConfig)
-				cache.ImageCache().Save()
+				if err := cache.ImageCache().Save(); err != nil {
+					d.err = fmt.Errorf("error saving image cache: %s", err)
+					return
+				}
 
 				// place calculated ImageID in struct
 				ic.ImageID = imageConfig.ImageID
