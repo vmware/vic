@@ -186,5 +186,5 @@ Create a container and check the VM display name
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name busy3 busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info busy3-${id}
-    Should contain  ${output}  busy3-${id}
     Should Be Equal As Integers  ${rc}  0
+    Should contain  ${output}  busy3-${id}
