@@ -18,6 +18,15 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Obtain VM name from container id
+    [Arguments]  ${id}
+    ${rc}  ${name}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format='{{.Name}}' ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${name}=  Get Substring  ${name}  1
+    ${vmName}=  Catenate  SEPARATOR=-  ${name}  ${id}
+    [Return]  ${vmName}
+
 *** Test Cases ***
 Simple creates
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -120,8 +129,7 @@ Create a container with no command specified
 Create a container with custom CPU count
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --cpuset-cpus 3 busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
-    Should Be Equal As Integers  ${rc}  0
+    ${id}=  Obtain VM name from container id  ${id}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/CPU:/ {print $2}'
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  3
@@ -132,8 +140,7 @@ Create a container with custom CPU count
 Create a container with custom amount of memory in GB
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 4G busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
-    Should Be Equal As Integers  ${rc}  0
+    ${id}=  Obtain VM name from container id  ${id}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  4096MB
@@ -144,8 +151,7 @@ Create a container with custom amount of memory in GB
 Create a container with custom amount of memory in MB
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 2048M busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
-    Should Be Equal As Integers  ${rc}  0
+    ${id}=  Obtain VM name from container id  ${id}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  2048MB
@@ -156,8 +162,7 @@ Create a container with custom amount of memory in MB
 Create a container with custom amount of memory in KB
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 2097152K busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
-    Should Be Equal As Integers  ${rc}  0
+    ${id}=  Obtain VM name from container id  ${id}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  2048MB
@@ -168,8 +173,7 @@ Create a container with custom amount of memory in KB
 Create a container with custom amount of memory in Bytes
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -m 2147483648B busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
-    Should Be Equal As Integers  ${rc}  0
+    ${id}=  Obtain VM name from container id  ${id}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${id} |awk '/Memory:/ {print $2}'
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  2048MB
@@ -185,6 +189,8 @@ Create a container using rest api call without HostConfig in the form data
 Create a container and check the VM display name
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name busy3 busybox
     Should Be Equal As Integers  ${rc}  0
+    ${vmName}=  Obtain VM name from container id  ${id}
+    Should Be Equal  ${vmName}  busy3-${id}
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info busy3-${id}
     Should Be Equal As Integers  ${rc}  0
     Should contain  ${output}  busy3-${id}
