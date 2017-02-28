@@ -38,7 +38,8 @@
                         <div class="col-md-6 center">
 
                             <div class="card card-block text-xs-center">
-                                <h2 class="card-title">{{.Hostname}} Login</h2>
+                              <h2 class="card-title">{{.Hostname}} Login</h2>
+			      <h3 class="error-message"> {{.InvalidLogin}}</h3>
 
                                 <form method="post">
                                     <label for="username">vSphere or ESXi Username:</label>
