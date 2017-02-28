@@ -49,4 +49,4 @@ Robot scripts will be written to test the following:
   - `docker-compose up –force-recreate` when there are existing containers for the same service even if the configuration or image has not been changed
   
 3. Backward compatibility
-  - Add a test case in the upgrade test. The old VCH would create a container with containerName in its `/etc/hosts`. Then we upgrade the VCH. Without rebooting the container, `docker rename` does not update `/etc/hosts`. After rebooting the container,  `/etc/hosts` is updated with the new name.
+  - Add a test case in the upgrade test. The old VCH would create a container with containerName in its `/etc/hosts`. Then we upgrade the VCH and call `docker rename`. For an existing container that is powered off, `/etc/hosts` should contain the new containerName after it is powered on again. For an existing container that is still powered on, `/etc/hosts` is not updated.
