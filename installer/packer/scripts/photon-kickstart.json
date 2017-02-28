@@ -1,0 +1,15 @@
+{
+    "hostname": "photon",
+    "password":
+        {
+            "crypted": false,
+            "text": "2RQrZ83i79N6szpvZNX6"
+        },
+    "disk": "/dev/sda",
+    "type": "minimal",
+    "postinstall": [
+                    "#!/bin/sh",
+                    "sed -i 's/PermitRootLogin no/PermitRootLogin yes/g' /etc/ssh/sshd_config",
+                    "systemctl restart sshd.service"
+                   ]
+}

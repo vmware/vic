@@ -51,3 +51,5 @@ RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_a
 RUN  dpkg -i wget_1.18-2ubuntu1_amd64.deb
 
 RUN apt-get install -y bzip2
+
+RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux_amd64.zip && unzip packer_0.12.2_linux_amd64.zip -d /usr/bin
