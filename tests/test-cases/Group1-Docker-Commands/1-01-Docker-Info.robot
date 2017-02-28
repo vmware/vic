@@ -114,7 +114,19 @@ Check updated resource pool CPU and memory usages
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-    Sleep  10s  wait for vsphere stats update
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    Sleep  60s  wait for vsphere stats update
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
