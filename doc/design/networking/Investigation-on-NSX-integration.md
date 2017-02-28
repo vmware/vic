@@ -74,7 +74,7 @@ https://{nsxmanager's hostname or IP}/api
 * docker network list
   * list all the security groups
     * GET /2.0/services/securitygroup/internal/scope/{scopeId}
-  * filter security group names by `<vch name>-SecurityGroup' prefix
+  * filter security group names by `<vch name>-SecurityGroup` prefix
   * or if we keep KV pairs of each created network, then we just need to use that to list all the networks
 
 ## State Storage
