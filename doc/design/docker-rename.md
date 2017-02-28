@@ -18,9 +18,25 @@ Rename involves the containerVM’s display name and the name of the datastore f
 
     - Network alias should be updated.
     - If `--link` is used when creating the container, HostConfig of relevant containers should be automatically updated based on the backend data.
-    - The containerName shown in `/etc/hosts` within the container should be updated. Proposal: Remove containerName from `/etc/hosts`; docker does not put the containerName in this file. For backward compatibility, if we rename a container which is created with containerName in its `/etc/hosts`, we use the VMware RPC mechanism to trigger a `Reload` in tether, which should cause the network config to be inspected and changes to be applied.
-  
+    - The containerName shown in `/etc/hosts` within the container should be updated. 
+      - Proposal: Remove containerName from `/etc/hosts`; docker does not put the containerName in this file. 
+      - Backward compatibility: If the user calls `docker rename` on an existing container (created by a VCH of an older version) after VCH upgrade, 
+        - If the container is already powered off, we trigger a `reload` in tether, which should cause the network config to be inspected and changes to be applied when the container is powered on again.
+        - If the container is still powered on, since it is not created with the new tether binary, `docker rename` will only update DNS but not `/etc/hosts`, and we will throw a warning message about the mismatch between the new containerName and the name in `/etc/hosts`. 
+          
   - Storage: Nothing needs to be updated if we set the datastore folder name to containerID.
+
+####Note on `reload`
+
+We have two approaches to trigger `reload`:
+- (a) The portlayer sends a `HUP` signal to the tether process (pid=1) via `startGuestProgram`, which then triggers `reload` in the signal handler
+- (b) We add a new case to `startGuestProgram` as the `reload` command in the portlayer. Then the portlayer sends the `reload` command to the toolbox via the guest ProcessManager. The toolbox needs to implement its own handler for the `reload` command
+
+The benefit of (a) is that it provides a single path for handling `reload` triggered from in-guest and out-of-guest, while the call path of (b) is simpler. We pick (a) in our implementation.
+
+In addition, for existing container that are not , `reload` won't work. 
+
+
   
 ## Testing and Acceptance Criteria
 
@@ -36,4 +52,4 @@ Robot scripts will be written to test the following:
   - `docker-compose up –force-recreate` when there are existing containers for the same service even if the configuration or image has not been changed
   
 3. Backward compatibility
-  - Add a test case in the upgrade test. The old VCH would create a container with containerName in its `/etc/hosts`. After upgrading the VCH, check whether `docker rename` updates `/etc/hosts` with the new name
+  - Add a test case in the upgrade test. The old VCH would create a container with containerName in its `/etc/hosts`. Then we upgrade the VCH. Without rebooting the container, `docker rename` does not update `/etc/hosts`. After rebooting the container,  `/etc/hosts` is updated with the new name.
