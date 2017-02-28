@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,35 +14,36 @@
 
 package toolbox
 
-import "testing"
+import (
+	"net"
+	"reflect"
+	"testing"
+)
 
-var _ Channel = new(backdoorChannel)
+func TestDefaultGuestNicProto(t *testing.T) {
+	p := DefaultGuestNicInfo()
 
-func TestBackdoorChannel(t *testing.T) {
-	in := NewBackdoorChannelIn()
-	out := NewBackdoorChannelOut()
+	info := p.V3
 
-	funcs := []func() error{
-		in.Start,
-		out.Start,
-		in.Stop,
-		out.Stop,
-	}
-
-	for _, f := range funcs {
-		err := f()
-
+	for _, nic := range info.Nics {
+		_, err := net.ParseMAC(nic.MacAddress)
 		if err != nil {
-			if err == ErrNotVirtualWorld {
-				t.SkipNow()
-			}
-			t.Fatal(err)
+			t.Errorf("invalid MAC %s: %s", nic.MacAddress, err)
 		}
 	}
 
-	// expect an error if we don't specify the protocol
-	err := new(backdoorChannel).Start()
-	if err == nil {
-		t.Error("expected error")
+	b, err := EncodeXDR(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var dp GuestNicInfo
+	err = DecodeXDR(b, &dp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(p, &dp) {
+		t.Error("decode mismatch")
 	}
 }

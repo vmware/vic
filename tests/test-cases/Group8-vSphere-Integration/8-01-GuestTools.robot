@@ -24,8 +24,11 @@ Verify container VM guest IP is reported
     ${name}=  Generate Random String  15
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.ip ${name}-*
+    ${rc}  ${ip}=  Run And Return Rc And Output  govc vm.ip ${name}-*
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Guest.Net[].IpAddress[]
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${ip}
 
 Stop container VM using guest shutdown
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox

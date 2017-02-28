@@ -216,6 +216,7 @@ func TestServiceErrors(t *testing.T) {
 		out.reply,
 		rpciERR,
 		rpciOK,
+		rpciOK,
 		append(rpciOK, foo...),
 		rpciERR,
 	)

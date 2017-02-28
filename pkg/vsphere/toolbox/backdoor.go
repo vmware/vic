@@ -39,12 +39,7 @@ type backdoorChannel struct {
 }
 
 func (b *backdoorChannel) Start() error {
-	isVM, err := vmcheck.IsVirtualWorld()
-	if err != nil {
-		return err
-	}
-
-	if !isVM {
+	if !vmcheck.IsVirtualCPU() {
 		return ErrNotVirtualWorld
 	}
 

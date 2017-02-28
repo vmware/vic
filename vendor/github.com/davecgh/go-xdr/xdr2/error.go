@@ -61,6 +61,14 @@ const (
 	// RFC3339 formatted time value.  The actual underlying error will be
 	// available via the Err field of the UnmarshalError struct.
 	ErrParseTime
+
+	// ErrBadDiscriminant indicates that a non-integer field of a struct
+	// was marked as a union discriminant through a struct tag.
+	ErrBadDiscriminant
+
+	// ErrBadOptional indicates that a non-pointer field of a struct
+	// was marked as an optional-data.
+	ErrBadOptional
 )
 
 // Map of ErrorCode values back to their constant names for pretty printing.
@@ -73,6 +81,8 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrNilInterface:    "ErrNilInterface",
 	ErrIO:              "ErrIO",
 	ErrParseTime:       "ErrParseTime",
+	ErrBadDiscriminant: "ErrBadDiscriminant",
+	ErrBadOptional:     "ErrBadOptional",
 }
 
 // String returns the ErrorCode as a human-readable name.
