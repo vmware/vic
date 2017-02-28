@@ -24,6 +24,7 @@ Obtain VM name from container id
     ${rc}  ${name}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format='{{.Name}}' ${id}
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Get Substring  ${name}  1
+    ${id}=  Get Subsring  ${id}  0  13
     ${vmName}=  Catenate  SEPARATOR=-  ${name}  ${id}
     [Return]  ${vmName}
 

@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 const maxVMNameLength = 80
@@ -96,13 +97,14 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		h.Spec = nil
 
 		// reconfigure vm display name to containerName-containerID
-		nameMaxLen := maxVMNameLength - len(c.ExecConfig.ID)
+		shortID := stringid.TruncateID(c.ExecConfig.ID)
+		nameMaxLen := maxVMNameLength - len(shortID)
 		prettyName := c.ExecConfig.Name
 		if len(prettyName) > nameMaxLen-1 {
 			prettyName = prettyName[:nameMaxLen-1]
 		}
 
-		fullName := fmt.Sprintf("%s-%s", prettyName, c.ExecConfig.ID)
+		fullName := fmt.Sprintf("%s-%s", prettyName, shortID)
 		task, err := h.vm.VirtualMachine.Rename(ctx, fullName)
 		if err != nil {
 			return err
