@@ -66,14 +66,15 @@ and Unmarshal functions has specific details of how the mapping proceeds.
 	[#]byte <-> XDR Fixed-Length Opaque Data
 	[]<type> <-> XDR Variable-Length Array
 	[#]<type> <-> XDR Fixed-Length Array
-	struct <-> XDR Structure
+	*<type> <-> XDR Optional data (when marked with struct tag `xdr:"optional"`)
+	struct <-> XDR Structure or Discriminated Unions
 	map <-> XDR Variable-Length Array of two-element XDR Structures
 	time.Time <-> XDR String encoded with RFC3339 nanosecond precision
 
 Notes and Limitations:
 
 	* Automatic marshalling and unmarshalling of variable and fixed-length
-	  arrays of uint8s require a special struct tag `xdropaque:"false"`
+	  arrays of uint8s require a special struct tag `xdr:"opaque=false"`
 	  since byte slices and byte arrays are assumed to be opaque data and
 	  byte is a Go alias for uint8 thus indistinguishable under reflection
 	* Channel, complex, and function types cannot be encoded
@@ -158,6 +159,40 @@ vast majority of cases, a Decoder object is provided that can be used to
 manually decode XDR primitives for complex scenarios where automatic
 reflection-based decoding won't work.  The included examples provide a sample of
 manual usage via a Decoder.
+
+
+Discriminated Unions
+
+Discriminated unions are marshalled via Go structs, using special struct tags
+to mark the discriminant and the different cases. For instance:
+
+	type ReturnValue struct {
+		Status int		`xdr:"union"`
+		StatusOk struct {
+			Width int
+			Height int
+		}				`xdr:"unioncase=0"`
+		StatusError struct {
+			ErrMsg string
+		}				`xdr:"unioncase=-1"`
+	}
+
+The Status field is the discriminant of the union, and is always serialized;
+if its value is 0, the StatusOK struct is serialized while the StatusErr struct
+is ignored; if its value is -1, the opposite happens. If the value is different
+from both 0 and -1, only the Status field is serialized. Any additional field
+not marked with unioncase is always serialized as normal.
+
+You are not forced to use sub-structures; for instance, the following is also
+valid:
+
+	type ReturnValue struct {
+		Status int		`xdr:"union"`
+		Width int		`xdr:"unioncase=0"`
+		Height int		`xdr:"unioncase=0"`
+		ErrMsg string	`xdr:"unioncase=-1"`
+	}
+
 
 Errors
 
