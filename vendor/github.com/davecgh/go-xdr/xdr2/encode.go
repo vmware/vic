@@ -21,6 +21,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -440,6 +441,7 @@ func (enc *Encoder) encodeArray(v reflect.Value, ignoreOpaque bool) (int, error)
 // 	XDR encoded elements in the order of their declaration in the struct
 func (enc *Encoder) encodeStruct(v reflect.Value) (int, error) {
 	var n int
+	var union string
 	vt := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		// Skip unexported fields and indirect through pointers.
@@ -447,12 +449,35 @@ func (enc *Encoder) encodeStruct(v reflect.Value) (int, error) {
 		if vtf.PkgPath != "" {
 			continue
 		}
+
 		vf := v.Field(i)
+		tag := parseTag(vtf.Tag)
+
+		// RFC Section 4.19 - Optional data
+		if tag.Get("optional") == "true" {
+			if vf.Type().Kind() != reflect.Ptr {
+				msg := fmt.Sprintf("optional must be a pointer, not '%v'",
+					vf.Type().String())
+				err := marshalError("encodeStruct", ErrBadOptional,
+					msg, nil, nil)
+				return n, err
+			}
+
+			hasopt := !vf.IsNil()
+			n2, err := enc.EncodeBool(hasopt)
+			n += n2
+			if err != nil {
+				return n, err
+			}
+			if !hasopt {
+				continue
+			}
+		}
+
 		vf = enc.indirect(vf)
 
 		// Handle non-opaque data to []uint8 and [#]uint8 based on struct tag.
-		tag := vtf.Tag.Get("xdropaque")
-		if tag == "false" {
+		if tag.Get("opaque") == "false" {
 			switch vf.Kind() {
 			case reflect.Slice:
 				n2, err := enc.encodeArray(vf, true)
@@ -472,6 +497,32 @@ func (enc *Encoder) encodeStruct(v reflect.Value) (int, error) {
 			}
 		}
 
+		// RFC Section 4.15 - Discriminated Union
+		// The tag option "union" marks the discriminant in the struct; the tag
+		// option "unioncase=N" marks a struct field that is only serialized
+		// when the discriminant has the specified value.
+		if tag.Get("union") == "true" {
+			if vf.Type().ConvertibleTo(reflect.TypeOf(0)) {
+				union = strconv.Itoa(int(vf.Convert(reflect.TypeOf(0)).Int()))
+			} else if vf.Kind() == reflect.Bool {
+				if vf.Bool() {
+					union = "1"
+				} else {
+					union = "0"
+				}
+			} else {
+				msg := fmt.Sprintf("type '%s' is not valid", vf.Kind().String())
+				return n, marshalError("encodeStruct", ErrBadDiscriminant, msg, nil, nil)
+			}
+		}
+
+		if union != "" {
+			ucase := tag.Get("unioncase")
+			if ucase != "" && ucase != union {
+				continue
+			}
+		}
+
 		// Encode each struct field.
 		n2, err := enc.encode(vf)
 		n += n2
@@ -483,14 +534,12 @@ func (enc *Encoder) encodeStruct(v reflect.Value) (int, error) {
 	return n, nil
 }
 
-// RFC Section 4.15 - Discriminated Union
 // RFC Section 4.16 - Void
 // RFC Section 4.17 - Constant
 // RFC Section 4.18 - Typedef
 // RFC Section 4.19 - Optional data
-// RFC Sections 4.15 though 4.19 only apply to the data specification language
-// which is not implemented by this package.  In the case of discriminated
-// unions, struct tags are used to perform a similar function.
+// RFC Sections 4.16 though 4.19 only apply to the data specification language
+// which is not implemented by this package.
 
 // encodeMap treats the map represented by the passed reflection value as a
 // variable-length array of 2-element structures whose fields are of the same

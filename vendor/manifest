@@ -248,10 +248,10 @@
 		},
 		{
 			"importpath": "github.com/davecgh/go-xdr/xdr2",
-			"repository": "https://github.com/davecgh/go-xdr",
+			"repository": "https://github.com/rasky/go-xdr",
 			"vcs": "git",
-			"revision": "e6a2ba005892b6a5b27cb5352f64c2e96942dd28",
-			"branch": "master",
+			"revision": "4930550ba2e22f87187498acfd78348b15f4e7a8",
+			"branch": "improvements",
 			"path": "/xdr2",
 			"notests": true
 		},

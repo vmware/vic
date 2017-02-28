@@ -233,6 +233,8 @@ func (s *Service) SetOption(args []byte) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			s.SendGuestInfo()
 		}
 	default:
 		// TODO: handle other options...
@@ -267,4 +269,22 @@ func (s *Service) CapabilitiesRegister([]byte) ([]byte, error) {
 	}
 
 	return nil, nil
+}
+
+func (s *Service) SendGuestInfo() {
+	info := []func() ([]byte, error){
+		GuestInfoNicInfoRequest,
+	}
+
+	for i, r := range info {
+		b, err := r()
+
+		if err == nil {
+			_, err = s.out.Request(b)
+		}
+
+		if err != nil {
+			log.Printf("SendGuestInfo %d: %s", i, err)
+		}
+	}
 }
