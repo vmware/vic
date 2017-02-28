@@ -61,8 +61,11 @@ Upgrade VCH with containers
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
 
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
+    @{vers}=  Split String  ${output}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  Completed successfully
+    Should Contain  ${output}  @{vers}[2]
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Get Docker Params  ${output}  ${true}
