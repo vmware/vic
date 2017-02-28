@@ -34,9 +34,6 @@ We have two approaches to trigger `reload`:
 
 The benefit of (a) is that it provides a single path for handling `reload` triggered from in-guest and out-of-guest, while the call path of (b) is simpler. We pick (a) in our implementation.
 
-In addition, for existing container that are not , `reload` won't work. 
-
-
   
 ## Testing and Acceptance Criteria
 
