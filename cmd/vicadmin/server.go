@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ type server struct {
 type LoginPageData struct {
 	Hostname   string
 	SystemTime string
+	InvalidLogin string
 }
 
 type format int
@@ -265,6 +266,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 // renders the page for login and handles authorization requests
 func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
+	var invalidLoginMessage = ""
 
 	if req.Method == "POST" {
 		// take the form data and use it to try to authenticate with vsphere
@@ -288,7 +290,24 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		if err != nil || vs == nil {
 			// something went wrong or we could not authenticate
 			log.Warnf("%s failed to authenticate ", req.RemoteAddr)
-			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusUnauthorized)
+			invalidLoginMessage = "Authentication failed due to incorrect credential(s)"
+			hostName, err := os.Hostname()
+			if err != nil {
+				hostName = "VCH"
+			}
+			loginPageData := &LoginPageData{
+				Hostname:   hostName,
+				SystemTime: time.Now().Format(time.UnixDate),
+				InvalidLogin: invalidLoginMessage,
+			}
+
+			tmpl, err := template.ParseFiles("auth.html")
+			err = tmpl.ExecuteTemplate(res, "auth.html", loginPageData)
+			if err != nil {
+				log.Errorf("Error parsing template: %s", err)
+				http.Error(res, genericErrorMessage, http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 
@@ -345,6 +364,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 	loginPageData := &LoginPageData{
 		Hostname:   hostName,
 		SystemTime: time.Now().Format(time.UnixDate),
+		InvalidLogin: invalidLoginMessage,
 	}
 
 	tmpl, err := template.ParseFiles("auth.html")
