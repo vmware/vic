@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	dnetwork "github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
@@ -305,6 +306,10 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 	log.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
 		container.Name, container.ContainerID, container.Config, container.HostConfig)
 
+	// Add create event
+	actor := CreateContainerEventActorWithAttributes(container, map[string]string{})
+	EventService().Log("create", eventtypes.ContainerEventType, actor)
+
 	return containertypes.ContainerCreateCreatedBody{ID: id}, nil
 }
 
@@ -369,6 +374,12 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 	}
 
 	err := c.containerProxy.Signal(vc, sig)
+	if err == nil {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"signal": fmt.Sprintf("%d", sig)})
+
+		EventService().Log("kill", eventtypes.ContainerEventType, actor)
+
+	}
 
 	return err
 }
@@ -400,7 +411,17 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	plHeight := int32(height)
 	plWidth := int32(width)
 
-	return c.containerProxy.Resize(vc, plHeight, plWidth)
+	var err error
+	if err = c.containerProxy.Resize(vc, plHeight, plWidth); err == nil {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
+			"height": fmt.Sprintf("%d", height),
+			"width":  fmt.Sprintf("%d", width),
+		})
+
+		EventService().Log("resize", eventtypes.ContainerEventType, actor)
+	}
+
+	return err
 }
 
 // ContainerRestart stops and starts a container. It attempts to
@@ -431,6 +452,9 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
 	}
+
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log("restart", eventtypes.ContainerEventType, actor)
 
 	return nil
 }
@@ -921,6 +945,10 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
+
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log("stop", eventtypes.ContainerEventType, actor)
+
 	return nil
 }
 
@@ -1332,6 +1360,12 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log("attach", eventtypes.ContainerEventType, actor)
+	defer func() {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+		EventService().Log("detach", eventtypes.ContainerEventType, actor)
+	}()
 	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
@@ -1732,4 +1766,21 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 	}
 
 	return tailLines, since.Unix(), nil
+}
+
+func CreateContainerEventActorWithAttributes(vc *viccontainer.VicContainer, attributes map[string]string) eventtypes.Actor {
+	if vc.Config != nil {
+		for k, v := range vc.Config.Labels {
+			attributes[k] = v
+		}
+	}
+	if vc.Config.Image != "" {
+		attributes["image"] = vc.Config.Image
+	}
+	attributes["name"] = strings.TrimLeft(vc.Name, "/")
+
+	return eventtypes.Actor{
+		ID:         vc.ContainerID,
+		Attributes: attributes,
+	}
 }

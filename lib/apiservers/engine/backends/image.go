@@ -28,6 +28,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -172,6 +173,8 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 			return nil, fmt.Errorf("failed to save image cache: %s", err)
 		}
 
+		actor := CreateImageEventActorWithAttributes(imageRef, imageRef, map[string]string{})
+		EventService().Log("delete", eventtypes.ImageEventType, actor)
 	} else {
 
 		// only untag the ref supplied
@@ -181,6 +184,9 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		}
 		tag := reference.WithDefaultTag(n)
 		tags = []string{tag.String()}
+
+		actor := CreateImageEventActorWithAttributes(imageRef, imageRef, map[string]string{})
+		EventService().Log("untag", eventtypes.ImageEventType, actor)
 	}
 	// loop thru and remove from repoCache
 	for i := range tags {
@@ -288,6 +294,9 @@ func (i *Image) TagImage(imageName, repository, tag string) error {
 		return err
 	}
 
+	actor := CreateImageEventActorWithAttributes(imageName, newTag.String(), map[string]string{})
+	EventService().Log("tag", eventtypes.ImageEventType, actor)
+
 	return nil
 }
 
@@ -377,6 +386,9 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 		return err
 	}
 
+	//TODO:  Need repo name as second parameter.  Leave blank for now
+	actor := CreateImageEventActorWithAttributes(image, "", map[string]string{})
+	EventService().Log("pull", eventtypes.ImageEventType, actor)
 	return nil
 }
 
@@ -451,4 +463,21 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	inspectData.ID = "sha256:" + imageConfig.ImageID
 
 	return inspectData
+}
+
+func CreateImageEventActorWithAttributes(imageID, refName string, attributes map[string]string) eventtypes.Actor {
+	if imageConfig, err := cache.ImageCache().Get(imageID); err == nil && imageConfig != nil {
+		for k, v := range imageConfig.Config.Labels {
+			attributes[k] = v
+		}
+	}
+
+	if refName != "" {
+		attributes["name"] = refName
+	}
+
+	return eventtypes.Actor{
+		ID:         imageID,
+		Attributes: attributes,
+	}
 }
