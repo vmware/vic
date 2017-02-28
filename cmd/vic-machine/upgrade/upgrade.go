@@ -59,6 +59,12 @@ func (u *Upgrade) Flags() []cli.Flag {
 			Usage:       "Time to wait for upgrade",
 			Destination: &u.Timeout,
 		},
+		cli.IntFlag{
+			Name:        "rollback",
+			Value:       0,
+			Usage:       "Rollback n versions, e.g. --rollback=1 to go to the version before the last upgrade",
+			Destination: &u.Rollback,
+		},
 	}
 
 	target := u.TargetFlags()
@@ -156,9 +162,12 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	vConfig.BootstrapISO = path.Base(u.BootstrapISO)
 	vConfig.Timeout = u.Timeout
 
-	if err := validator.AssertVersion(vchConfig); err != nil {
-		log.Error(err)
-		return errors.New("upgrade failed")
+	// only care about versions if we're not doing a manual rollback
+	if u.Data.Rollback <= 0 {
+		if err := validator.AssertVersion(vchConfig); err != nil {
+			log.Error(err)
+			return errors.New("upgrade failed")
+		}
 	}
 
 	if vchConfig, err = validator.ValidateMigratedConfig(ctx, vchConfig); err != nil {
@@ -167,7 +176,13 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return errors.New("upgrade failed")
 	}
 
-	if err = executor.Upgrade(vch, vchConfig, vConfig); err != nil {
+	if u.Data.Rollback <= 0 {
+		err = executor.Upgrade(vch, vchConfig, vConfig)
+	} else {
+		err = executor.Rollback(vch, vchConfig, vConfig)
+	}
+
+	if err != nil {
 		// upgrade failed
 		executor.CollectDiagnosticLogs()
 		if err == nil {

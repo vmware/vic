@@ -80,6 +80,7 @@ type Data struct {
 	UseRP bool
 
 	ScratchSize string
+	Rollback    int
 }
 
 // NetworkConfig is used to set IP addr for each network

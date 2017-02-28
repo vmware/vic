@@ -85,7 +85,9 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	}
 
 	if err = d.update(conf, settings); err == nil {
-		d.retryDeleteSnapshot(snapshotName, conf.Name)
+		// TODO don't save too many old snapshots.. uncomment this and delete old ones
+		// ... or something
+		//		d.retryDeleteSnapshot(snapshotName, conf.Name)
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -99,8 +101,21 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	d.deleteUpgradeImages(ds, settings)
 	d.retryDeleteSnapshot(snapshotName, conf.Name)
+
 	// return the error message for upgrade
 	return err
+}
+
+func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	d.appliance = vch
+	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.ctx)
+	if err != nil {
+		return errors.Errorf("could not find a snapshot to roll back to: %s", err)
+	}
+	if snapshot == nil {
+		return errors.Errorf("search for snapshot completed but no snapshot found")
+	}
+	return d.rollback(conf, snapshot.Name, settings)
 }
 
 // retryDeleteSnapshot will retry to delete snpashot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
@@ -158,15 +173,15 @@ func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) e
 func (d *Dispatcher) tryCreateSnapshot(name, desc string) error {
 	defer trace.End(trace.Begin(name))
 
-	upgrading, snapshot, err := d.appliance.UpgradeInProgress(d.ctx, UpgradePrefix)
-	if err != nil {
-		return err
-	}
-	if upgrading {
-		return errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
-	}
+	// upgrading, snapshot, err := d.appliance.UpgradeInProgress(d.ctx, UpgradePrefix)
+	// if err != nil {
+	// 	return err
+	// }
+	// if upgrading {
+	// 	return errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
+	// }
 
-	if _, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
 	}); err != nil {
 		return errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
@@ -237,7 +252,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("old appliance iso: %q, snapshot: %q", d.oldApplianceISO, snapshot)))
 
-	// do not power on appliance in this snapsthot revert
+	// do not power on appliance in this snapshot revert
 	log.Infof("Reverting to snapshot %s", snapshot)
 	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.RevertToSnapshot(d.ctx, snapshot, true)
