@@ -107,15 +107,29 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 }
 
 func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+
+	// some setup that is only necessary because we didn't just create a VCH in this case
 	d.appliance = vch
+	d.setDockerPort(conf, settings)
+	if !strings.HasSuffix(conf.Target, "/sdk") {
+		conf.Target = fmt.Sprintf("%s/sdk", conf.Target)
+	}
+
 	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.ctx)
 	if err != nil {
 		return errors.Errorf("could not find a snapshot to roll back to: %s", err)
 	}
+
 	if snapshot == nil {
 		return errors.Errorf("search for snapshot completed but no snapshot found")
 	}
-	return d.rollback(conf, snapshot.Name, settings)
+
+	err = d.rollback(conf, snapshot.Name, settings)
+	if err != nil {
+		return errors.Errorf("could not complete manual rollback: %s", err)
+	}
+
+	return d.retryDeleteSnapshot(snapshot.Name, conf.Name)
 }
 
 // retryDeleteSnapshot will retry to delete snpashot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
@@ -259,7 +273,6 @@ func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snaps
 	}); err != nil {
 		return errors.Errorf("Failed to roll back upgrade: %s.", err)
 	}
-
 	return d.ensureRollbackReady(conf, settings)
 }
 

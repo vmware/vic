@@ -449,6 +449,14 @@ func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, 
 	return []types.BaseVirtualDevice{serial}, nil
 }
 
+func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) {
+	if conf.HostCertificate != nil {
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
+	} else {
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
+	}
+}
+
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
@@ -534,11 +542,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	},
 	)
 
-	if conf.HostCertificate != nil {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
-	} else {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
-	}
+	d.setDockerPort(conf, settings)
 
 	personality := executor.Cmd{
 		Path: "/sbin/docker-engine-server",
@@ -1057,7 +1061,7 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 			log.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
 		}
 	} else {
-		log.Warningf("Could not run VCH vSphere API target check due to %v", err)
+		log.Warningf("Could not run VCH vSphere API target check: %v", err)
 	}
 
 	if err := d.CheckDockerAPI(conf, clientCert); err != nil {
