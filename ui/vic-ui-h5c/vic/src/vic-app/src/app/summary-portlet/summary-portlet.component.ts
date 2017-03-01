@@ -77,7 +77,12 @@ export class VicSummaryPortletComponent implements
 
     ngAfterViewInit() {
         setTimeout(() => {
-            this.service.fetchVmInfo(VM_PROPERTIES_TO_EXTRACT, this.stubType);
+            // set up objectId in data property service
+            this.route.params.subscribe((params: any) => {
+                this.service.setObjectId(params.id);
+                this.service.fetchVmInfo(VM_PROPERTIES_TO_EXTRACT, this.stubType);
+                console.log(`objectId set to ${params.id}`);
+            });
         });
     }
 
