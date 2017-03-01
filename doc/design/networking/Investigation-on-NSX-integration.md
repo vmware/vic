@@ -32,7 +32,7 @@ To achieve our goal, use NSX security/policy groups:
      * `<vch name>-PolicyGroup-rule-2`: weight 7300, Any to Policy's Security Group : block
      * `<vch name>-PolicyGroup-rule-3`: weight 6300, Policy's Security Group to Any : block
   * NSX manager create an IP sets  `<vch name>-IPSets-network-a` with the subnet of this network
-  * NSX manager create a security group `<vch name>-SecurityTag-network-a` (with members: IP Sets == `<vch name>-IPSets-network-a`))
+  * NSX manager create a security group `<vch name>-SecurityGroup-network-a` (with members: IP Sets == `<vch name>-IPSets-network-a`))
   * NSX manager apply the policy groups to this security group
 
 ### docker run -net=network-a
