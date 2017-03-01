@@ -31,14 +31,16 @@ To achieve our goal, use NSX security/policy groups:
      * `<vch name>-PolicyGroup-rule-1`: weight 8300, Policy's Security Group to Policy's Security Group :  allow
      * `<vch name>-PolicyGroup-rule-2`: weight 7300, Any to Policy's Security Group : block
      * `<vch name>-PolicyGroup-rule-3`: weight 6300, Policy's Security Group to Any : block
-  * NSX manager create an IP sets  `<vch name>-IPSets-network-a` with the subnet of this network
-  * NSX manager create a security group `<vch name>-SecurityGroup-network-a` (with members: IP Sets == `<vch name>-IPSets-network-a`))
+  * NSX manager create an IP sets  `<vch name>-IPSets-network-a` with the subnet of this network (or Security Tag `<vch name>-SecurityTag-network-a` and add it to containerVMs)
+  * NSX manager create a security group `<vch name>-SecurityGroup-network-a` (with members: IP Sets == `<vch name>-IPSets-network-a` or Security Tag == `<vch name>-SecurityTag-network-a`))
   * NSX manager apply the policy groups to this security group
 
 ### docker run -net=network-a
   * create a containerVM 
 
-![how security groups and policy groups can be used to isolate container networks] (pics/security-group-with-ip-sets.png)
+![how security groups (with IP Sets as membership condition) and policy groups can be used to isolate container networks] (pics/security-group-with-ip-sets.png)
+
+![how security groups (with Security Tag as membership condition) and policy groups can be used to isolate container networks] (pics/security-group-with-ip-sets.png)
 
 ## NSX Manager API:
 ![Code flow to use NSX Manager API] (pics/with-nsx.png)
@@ -51,7 +53,9 @@ https://{nsxmanager's hostname or IP}/api
 * docker network create
   * create IP Sets
      * POST /2.0/services/ipset/{scopeMoref}
-  * create security group withe IP Sets as members
+  * or create Security Tag
+     * POST /2.0/services/securitytags/tag
+  * create security group withe IP Sets or Security Tag as members
      * POST /2.0/services/securitygroup/bulk/{scopeId} (For the scopeId use globalroot-0 for non-universal security groups and universalroot-0 for universal security groups.)
   * create security policy and apply it to security group
      * POST /2.0/services/policy/securitypolicy (specify securityGroupBinding in the xml request body)
@@ -69,6 +73,11 @@ https://{nsxmanager's hostname or IP}/api
     * GET /2.0/services/securitygroup/internal/scope/{scopeId}
   * filter security group names by `<vch name>-SecurityGroup` prefix
   * or if we keep KV pairs of each created network, then we just need to use that to list all the networks
+
+* docker run <image> --net=<network-name>
+  * create a containerVM
+  * if using security tag as the membership condition, need to assign security tag to the containerVM
+    * POST /2.0/services/securitytags/vm/{vmId}
 
 ## State Storage
   * we can map a docker network name to a security group name as `<vch name>-SecurityGroup-<network name>`
