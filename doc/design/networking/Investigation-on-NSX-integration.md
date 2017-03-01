@@ -31,15 +31,14 @@ To achieve our goal, use NSX security/policy groups:
      * `<vch name>-PolicyGroup-rule-1`: weight 8300, Policy's Security Group to Policy's Security Group :  allow
      * `<vch name>-PolicyGroup-rule-2`: weight 7300, Any to Policy's Security Group : block
      * `<vch name>-PolicyGroup-rule-3`: weight 6300, Policy's Security Group to Any : block
-  * NSX manager create a security tag `<vch name>-SecurityTag-network-a`
-  * NSX manager create a security group `<vch name>-SecurityTag-network-a` (with members: security tag == `<vch name>-SecurityTag-network-a`))
+  * NSX manager create an IP sets  `<vch name>-IPSets-network-a` with the subnet of this network
+  * NSX manager create a security group `<vch name>-SecurityTag-network-a` (with members: IP Sets == `<vch name>-IPSets-network-a`))
   * NSX manager apply the policy groups to this security group
 
 ### docker run -net=network-a
   * create a containerVM 
-  * NSX manager assign security tag `<vch name>-SecurityTag-network-a` to this container
 
-![how security groups and policy groups can be used to isolate container networks] (pics/security-group.png)
+![how security groups and policy groups can be used to isolate container networks] (pics/security-group-with-ip-sets.png)
 
 ## NSX Manager API:
 ![Code flow to use NSX Manager API] (pics/with-nsx.png)
@@ -50,26 +49,20 @@ https://{nsxmanager's hostname or IP}/api
 ### API calls
 (details in http://pubs.vmware.com/nsx-63/topic/com.vmware.ICbase/PDF/nsx_63_api.pdf , note that many NSX API methods reference vCenter object IDs in URI parameters, query parameters, request bodies, and response bodies, also it takes XML as request body (sad) )
 * docker network create
-  * create security tag
-     * POST /2.0/services/securitytags/tag
-
-  * create security group withe security tag as member
+  * create IP Sets
+     * POST /2.0/services/ipset/{scopeMoref}
+  * create security group withe IP Sets as members
      * POST /2.0/services/securitygroup/bulk/{scopeId} (For the scopeId use globalroot-0 for non-universal security groups and universalroot-0 for universal security groups.)
-
   * create security policy and apply it to security group
      * POST /2.0/services/policy/securitypolicy (specify securityGroupBinding in the xml request body)
 
 * docker network delete 
   * check if any VMs attached to this security group
      * GET /2.0/services/securitygroup/{objectId}/translation/virtualmachine 
-  * delete the network (security group, policy group, security tag)
+  * delete the network (security group, policy group, IP Sets)
      * DELETE /2.0/services/securitytags/tag/{tagId}
      * DELETE /2.0/services/securitygroup/{objectId} 
-     * DELETE /2.0/services/policy/securitypolicy/{ID} 
-
-* connect container to the network 
-  * apply security tag to a virtual machine (containerVM)  
-    * POST /2.0/services/securitytags/tag/{tagId}/vm 
+     * DELETE /2.0/services/ipset/{ipsetId}
 
 * docker network list
   * list all the security groups
@@ -82,10 +75,6 @@ https://{nsxmanager's hostname or IP}/api
   * we can store KV pairs for each created network and then everything else will be in the NSX control plane
 
 ## Unclear / need discussion:
-
-### Security policy does not work with current containerVMs 
-  * currently if I create VCH with 'logical-switch' as bridge network, and then create containerVMs. Even if put them in different security groups, they can still ping each other. Need to investigate this. Is this related to IP management? Need to understand more on how NSX policy group works.
-  * I tried using 'ifconfig eth0 192.168.10.90 netmask 255.255.255.0 up' to change the containerVMs' IP, but security policy still does not work. (the containerVMs in different security groups can still poing each other)
 
 ### Details of integrating with current Port Layer API 
   * does the current Port Layer API map perfectly to our goals in using NSX ?
