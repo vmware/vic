@@ -75,13 +75,19 @@ https://{nsxmanager's hostname or IP}/api
   * we can store KV pairs for each created network and then everything else will be in the NSX control plane
 
 ## Unclear / need discussion:
+### Security Tag v.s IP Sets
+  * Security Tag we only need to add the tag to a VM then it is added to a security group, which makes adding VMs to multiple security groups convinient. We do not need to update security groups everytime we create a new containerVM in a network.
+  * With IP Sets, we need to add the VM's IP to an IP Set. The downside is that 1. it requires the VM's IP to be static. 2. if we have more than one vch in the environment, containerVMs' IPs overlap, we cannot allow one VM in multiple security groups. 3. it may limit the number of VMs added to an IP Set (how many IPs can be added one IP set?). 4. everytime adding a new containerVM in a network, we need to add its IP to the IP set.
+  * I think Security tag is more convinient than IP Sets, if we can figure out why security tag does not work on current containerVMs. Otherwise, using IP Sets allows using what we already have and moving fast as long as we are ok with its limitation. 
+  * I tried MAC Sets or Virtual Machine as security group members. They do not work for current containerVM either.
 
 ### Details of integrating with current Port Layer API 
   * does the current Port Layer API map perfectly to our goals in using NSX ?
   * if not, what changes do we need to make?
 
-### Bridged containers with exposed port
+### Bridged containers with exposed port or directly connected to public network
   * I have not looked into how/if this can work with NSX yet
+  * all the user cases mentioned in the networking design document should still be valid or improved
 
 ### To support both cases: with or without NSX?
   * need to find out how to verify if a bridge network specified is a logic switch?
