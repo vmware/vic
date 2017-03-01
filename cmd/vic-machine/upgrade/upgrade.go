@@ -59,10 +59,9 @@ func (u *Upgrade) Flags() []cli.Flag {
 			Usage:       "Time to wait for upgrade",
 			Destination: &u.Timeout,
 		},
-		cli.IntFlag{
+		cli.BoolFlag{
 			Name:        "rollback",
-			Value:       0,
-			Usage:       "Rollback n versions, e.g. --rollback=1 to go to the version before the last upgrade",
+			Usage:       "Roll back VCH version to before the previous upgrade",
 			Destination: &u.Rollback,
 		},
 	}
@@ -163,7 +162,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	vConfig.Timeout = u.Timeout
 
 	// only care about versions if we're not doing a manual rollback
-	if u.Data.Rollback <= 0 {
+	if !u.Data.Rollback {
 		if err := validator.AssertVersion(vchConfig); err != nil {
 			log.Error(err)
 			return errors.New("upgrade failed")
@@ -176,7 +175,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return errors.New("upgrade failed")
 	}
 
-	if u.Data.Rollback <= 0 {
+	if !u.Data.Rollback {
 		err = executor.Upgrade(vch, vchConfig, vConfig)
 	} else {
 		err = executor.Rollback(vch, vchConfig, vConfig)
