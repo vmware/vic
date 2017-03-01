@@ -8,7 +8,7 @@ Rename involves the containerVM’s display name and the name of the datastore f
 
 ### Proposed solution:
 
-- We use containerName-containerShortID to assemble the VM display name. We do not use containerName-containerID in order to avoid the scenario wherein the containerName gets truncated to satisfy the maximum length of a VM display name in vSphere. In addition, we use the containerID to set the name of the datastore folder, thus there is no need to worry about the VM display name and datastore folder name being inconsistent. 
+- We use **containerName-containerShortID** to assemble the VM display name. We do not use containerName-containerID in order to avoid the scenario wherein the containerName gets truncated to satisfy the maximum length of a VM display name in vSphere. In addition, we use the **containerID** to set the name of the datastore folder, thus there is no need to worry about the VM display name and datastore folder name being inconsistent. 
 
 - VM Reconfiguration: Since vSAN requires the VM display name to be the same as the datastore folder name during VM creation, we set both the VM display name and the datastore folder name to containerID during VM creation, and then start a VM reconfiguration task after the VM is created to change its display name to containerName-containerShortID. 
 
@@ -19,22 +19,12 @@ Rename involves the containerVM’s display name and the name of the datastore f
     - Network alias should be updated.
     - If `--link` is used when creating the container, HostConfig of relevant containers should be automatically updated based on the backend data.
     - The containerName shown in `/etc/hosts` within the container should be updated. 
-      - Proposal: Remove containerName from `/etc/hosts`; docker does not put the containerName in this file. 
-      - Backward compatibility: If the user calls `docker rename` on an existing container (created by a VCH of an older version) after VCH upgrade, 
-        - If the container is already powered off, we trigger a `reload` in tether, which should cause the network config to be inspected and changes to be applied when the container is powered on again.
-        - If the container is still powered on, since it is not created with the new tether binary, `docker rename` will only update DNS but not `/etc/hosts`, and we will throw a warning message about the mismatch between the new containerName and the name in `/etc/hosts`. 
+      - Proposal: Remove containerName from `/etc/hosts`
+      - Backward compatibility for containers created by a VCH of an older version: No matter the container is powered off or still powered on, change the network setting if needed and also use govmomi to update the name in the containerVM's `guestinfo.vice./common/name`. `/etc/hosts` will be automatically regenerated with the new containerName when the containerVM is rebooted. 
           
   - Storage: Nothing needs to be updated if we set the datastore folder name to containerID.
 
-####Note on `reload`
 
-We have two approaches to trigger `reload`:
-- (a) The portlayer sends a `HUP` signal to the tether process (pid=1) via `startGuestProgram`, which then triggers `reload` in the signal handler
-- (b) We add a new case to `startGuestProgram` as the `reload` command in the portlayer. Then the portlayer sends the `reload` command to the toolbox via the guest ProcessManager. The toolbox needs to implement its own handler for the `reload` command
-
-The benefit of (a) is that it provides a single path for handling `reload` triggered from in-guest and out-of-guest, while the call path of (b) is simpler. We pick (a) in our implementation.
-
-  
 ## Testing and Acceptance Criteria
 
 Robot scripts will be written to test the following:
@@ -49,4 +39,4 @@ Robot scripts will be written to test the following:
   - `docker-compose up –force-recreate` when there are existing containers for the same service even if the configuration or image has not been changed
   
 3. Backward compatibility
-  - Add a test case in the upgrade test. The old VCH would create a container with containerName in its `/etc/hosts`. Then we upgrade the VCH and call `docker rename`. For an existing container that is powered off, `/etc/hosts` should contain the new containerName after it is powered on again. For an existing container that is still powered on, `/etc/hosts` is not updated.
+  - Add a test case in the upgrade test. The old VCH would create a container with containerName in its `/etc/hosts`. Then we upgrade the VCH and call `docker rename` on an existing container. `/etc/hosts` should contain the new containerName after the container is rebooted. 
