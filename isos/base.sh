@@ -69,6 +69,13 @@ cp $DIR/base/yum.conf $(rootfs_dir $PKGDIR)/etc/yum/
 
 # install the core packages
 yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils linux-esx --nogpgcheck -y
+
+
+# Issue 3858: find all kernel modules and unpack them and run depmod against that directory
+find $(rootfs_dir $PKGDIR)/lib/modules -name "*.ko.xz" | xargs xz -d
+KERNEL_VERSION=$(basename $(rootfs_dir $PKGDIR)/lib/modules/*)
+chroot $(rootfs_dir $PKGDIR) depmod $KERNEL_VERSION
+
 # strip the cache from the resulting image
 yum_cached -c $cache -p $PKGDIR clean all
 
