@@ -77,6 +77,39 @@ Upgrade VCH with containers
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
 
+    # check version
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
+    @{vers}=  Split String  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  Completed successfully
+    Should Contain  ${output}  @{vers}[2]
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Get Docker Params  ${output}  ${true}
+
+    Log To Console  \nTesting rollback...
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --rollback
+    Should Contain  ${output}  Completed successfully
+    Should Be Equal As Integers  ${rc}  0
+
+    # check version again, but old version this time
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
+    @{vers}=  Split String  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  Completed successfully
+    Should Contain  ${output}  @{vers}[1]
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Get Docker Params  ${output}  ${true}
+
+    # upgrade again to latest version
+    Log To Console  \nUpgrading VCH...
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Completed successfully
+    Should Not Contain  ${output}  Rolling back upgrade
+    Should Be Equal As Integers  ${rc}  0
+
+    # check version
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     @{vers}=  Split String  ${output}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
