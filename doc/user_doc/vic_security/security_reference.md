@@ -47,7 +47,7 @@ Public interface:
 
 <a name="accounts"></a>
 ## Service Accounts and Privileges
-vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. The `--ops-user` and `--ops-password` options allow a VCH to operate with less-privileged credentials than those that are required for deploying a new VCH. For information about the `--ops-user` option and the permissions that it requires, see the descriptions of `--ops-user` in [VCH Deployment Options](../vic_installation/vch_installer_options.html#ops-user) and [Advanced Examples of Deploying a VCH](../vic_installation/vch_installer_examples.html#ops-user), and the section [Use Different User Accounts for VCH Deployment and Operation](../vic_installation/set_up_ops_user.html) in *vSphere Integrated Containers Engine Installation*.
+vSphere Integrated Containers Engine does not create service accounts and does not assign privileges. The `--ops-user` and `--ops-password` options allow a VCH to operate with less-privileged credentials than those that are required for deploying a new VCH. For information about the `--ops-user` option, see the descriptions of `--ops-user` in [VCH Deployment Options](../vic_installation/vch_installer_options.html#ops-user) and [Advanced Examples of Deploying a VCH](../vic_installation/vch_installer_examples.html#ops-user) in *vSphere Integrated Containers Engine Installation*.
 
 <a name="patches"></a>
 

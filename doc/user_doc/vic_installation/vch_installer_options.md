@@ -33,14 +33,11 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
 - If the target ESXi host is not managed by vCenter Server, provide the address of the ESXi host.<pre>--target <i>esxi_host_address</i></pre>
 - If the target ESXi host is managed by vCenter Server, or if you are deploying to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
-- You can include the user name and password in the target URL. If you are deploying a VCH on vCenter Server, specify the username for an account that has the Administrator role on that vCenter Server instance. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
+- You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
 
   Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>'<i>vcenter_or_esxi_usern@me</i>':'<i>p@ssword</i>'@<i>vcenter_or_esxi_address</i></pre>
   
   If you do not include the user name in the target URL, you must specify the `user` option. If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
-
-  You can configure a VCH so that it uses a non-administrator account for post-deployment operations by specifying the [`--ops-user`](#--ops-user) option. 
-
 - If you are deploying a VCH on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. 
 
   <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
@@ -62,9 +59,7 @@ Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes
 
 <pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
 
-You can specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
-
-You can configure a VCH so that it uses a non-administrator account for post-deployment operations by specifying the [`--ops-user`](#--ops-user) option.
+You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
 
 ### `--password` ###
 
@@ -364,15 +359,11 @@ If you specify an invalid port group name, `vic-machine create` fails and sugges
 
 The `bridge-network` option is **optional** when you are deploying a VCH to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the VCH. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the VCH.
 
-<pre>--bridge-network <i>port_group_name</i></pre>
+<pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
 Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--bridge-network '<i>port group name</i>'</pre>
-
-If you intend to use the [`--ops-user`](#ops-user) option to use different user accounts for deployment and operation of the VCH, you must place the bridge network port group in a network folder that has the `Read-Only` role with propagation enabled. For more information about the requirements when using `--ops-user`, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md). If the port group is located in a network folder, include the full inventory path to the port group when you specify the `--bridge-network` option.
-
-<pre>--bridge-network '<i>datacenter</i>/network/<i>network_folder</i>/<i>port_group_name</i>'</pre>
 
 For information about how to specify a range of IP addresses for additional bridge networks, see [`bridge-network-range`](#bridge-range) in Advanced Networking Options.
 
@@ -470,10 +461,6 @@ If you do not specify `--container-network`, or if you deploy containers that do
 Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
 <pre>--container-network '<i>port group name</i>':<i>container port group name</i></pre>
-
-If you intend to use the [`--ops-user`](#ops-user) option to use different user accounts for deployment and operation of the VCH, you must place any container network port groups in a network folder that has the `Read-Only` role with propagation enabled. For more information about the requirements when using `--ops-user`, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md). If a port group is located in a network folder, include the full inventory path to the port group when you specify the `--container-network` option.
-
-<pre>--container-network '<i>datacenter</i>/network/<i>network_folder</i>/<i>port_group_name</i>':container_port _group_name</i></pre>
 
 <a name="deployment"></a>
 ## Additional Deployment Options ##
@@ -641,7 +628,7 @@ Short name: None
 
 A vSphere user account with which the VCH runs after deployment. Because deploying a VCH requires greater levels of permissions than running a VCH, you can configure a VCH so that it uses different user accounts for deployment and for operation. In this way, you can limit the day-to-day operation of a VCH to an account that does not have full administrator permissions on the target vCenter Server.
 
-If not specified, the VCH runs with the vSphere Administrator credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
 
 <pre>--ops-user <i>user_name</i></pre>
 
@@ -649,15 +636,13 @@ Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes
 
 <pre>--ops-user '<i>user_n@me</i>'</pre>
 
-The user account that you specify in `--ops-user` must exist before you deploy the VCH. For information about the permissions that the `--ops-user` account requires, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md).
-
 ### `--ops-password` ###
 
 Short name: None
 
 The password or token for the operations user that you specify in `--ops-user`.
  
-If not specified, `vic-machine create` prompts you to enter the password for the `--ops-user` account.
+If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
 
 <pre>--ops-password <i>password</i></pre>
 
