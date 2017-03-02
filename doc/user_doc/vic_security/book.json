@@ -1,7 +1,7 @@
 {
 
 	"title": "VMware vSphere Integrated Containers Engine 0.8 Security",
-
+        "gitbook": "2.x.x",
 	"pdf": {
 		"headerTemplate": "_TITLE_",
 		"footerTemplate": "_PAGENUM_"
