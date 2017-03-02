@@ -10,5 +10,5 @@ The error in the log states:
 
 You specified a `--bridge-network-range` that cannot accommodate a /16 network. By default, the range is 172.16.0.0/12, which can accept 16 /16 networks.
 
-## Solution
+##Solution
 Use a bridge network of at least /16 or larger. See [Other Advanced Options](../vic_installation/vch_installer_options.html#adv-other) in the VCH Deployment Options section of *vSphere Integrated Containers Installation*.
