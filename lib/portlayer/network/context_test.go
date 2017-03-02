@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -293,14 +293,16 @@ func TestContextNewScope(t *testing.T) {
 	tests = append(validScopeTests, tests...)
 
 	for _, te := range tests {
-		s, err := ctx.NewScope(
-			context.TODO(),
-			te.in.scopeType,
-			te.in.name,
-			te.in.subnet,
-			te.in.gateway,
-			te.in.dns,
-			te.in.pools)
+
+		scopeData := &ScopeData{
+			ScopeType: te.in.scopeType,
+			Name:      te.in.name,
+			Subnet:    te.in.subnet,
+			Gateway:   te.in.gateway,
+			DNS:       te.in.dns,
+			Pools:     te.in.pools,
+		}
+		s, err := ctx.NewScope(context.TODO(), scopeData)
 
 		if te.out == nil {
 			// no additional call to kv.Set
@@ -308,13 +310,7 @@ func TestContextNewScope(t *testing.T) {
 
 			// error case
 			if s != nil || err == nil {
-				t.Fatalf("NewScope(%s, %s, %s, %s, %+v, %+v) => (s, nil), want (nil, err)",
-					te.in.scopeType,
-					te.in.name,
-					te.in.subnet,
-					te.in.gateway,
-					te.in.dns,
-					te.in.pools)
+				t.Fatalf("NewScope(%+v) => (s, nil), want (nil, err)", scopeData)
 			}
 
 			// if there is an error specified, check if we got that error
@@ -432,15 +428,17 @@ func TestScopes(t *testing.T) {
 	scopesByID := make(map[string]*Scope)
 	scopesByName := make(map[string]*Scope)
 	for _, te := range validScopeTests {
-		s, err := ctx.NewScope(
-			context.TODO(),
-			te.in.scopeType,
-			te.in.name,
-			te.in.subnet,
-			te.in.gateway,
-			te.in.dns,
-			te.in.pools)
 
+		scopeData := &ScopeData{
+			ScopeType: te.in.scopeType,
+			Name:      te.in.name,
+			Subnet:    te.in.subnet,
+			Gateway:   te.in.gateway,
+			DNS:       te.in.dns,
+			Pools:     te.in.pools,
+		}
+
+		s, err := ctx.NewScope(context.TODO(), scopeData)
 		if err != nil {
 			t.Fatalf("NewScope() => (_, %s), want (_, nil)", err)
 		}
@@ -553,7 +551,12 @@ func TestContextAddContainer(t *testing.T) {
 		return nil, fmt.Errorf("error")
 	}
 
-	otherScope, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	scopeData := &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "other",
+		Gateway:   net.IPv4(0, 0, 0, 0),
+	}
+	otherScope, err := ctx.NewScope(context.TODO(), scopeData)
 	if err != nil {
 		t.Fatalf("failed to add scope")
 	}
@@ -700,9 +703,13 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "scope", nil, nil, nil, nil)
+	scopeData := &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "scope",
+	}
+	scope, err := ctx.NewScope(context.TODO(), scopeData)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", constants.BridgeScopeType, "scope", err)
+		t.Fatalf("ctx.NewScope(%+v) => (nil, %s)", scopeData, err)
 	}
 
 	foo := newContainer("foo")
@@ -912,7 +919,11 @@ func TestContextRemoveContainer(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "scope", nil, nil, nil, nil)
+	scopeData := &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "scope",
+	}
+	scope, err := ctx.NewScope(context.TODO(), scopeData)
 	if err != nil {
 		t.Fatalf("ctx.NewScope() => (nil, %s), want (scope, nil)", err)
 	}
@@ -1020,9 +1031,13 @@ func TestDeleteScope(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	foo, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "foo", nil, nil, nil, nil)
+	scopeData := &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "foo",
+	}
+	foo, err := ctx.NewScope(context.TODO(), scopeData)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", constants.BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%+v) => (nil, %#v), want (foo, nil)", scopeData, err)
 	}
 	h := newContainer("container")
 	options := &AddContainerOptions{
@@ -1031,9 +1046,13 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 
 	// bar is a scope with bound endpoints
-	bar, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "bar", nil, nil, nil, nil)
+	scopeData = &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "bar",
+	}
+	bar, err := ctx.NewScope(context.TODO(), scopeData)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", constants.BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%+v) => (nil, %#v), want (bar, nil)", scopeData, err)
 	}
 
 	h = newContainer("container2")
@@ -1041,14 +1060,22 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 	ctx.BindContainer(h)
 
-	baz, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "bazScope", nil, nil, nil, nil)
+	scopeData = &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "bazScope",
+	}
+	baz, err := ctx.NewScope(context.TODO(), scopeData)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"bazScope\", nil, nil, nil, nil) => (nil, %#v), want (baz, nil)", constants.BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%+v) => (nil, %#v), want (baz, nil)", scopeData, err)
 	}
 
-	qux, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "quxScope", nil, nil, nil, nil)
+	scopeData = &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      "quxScope",
+	}
+	qux, err := ctx.NewScope(context.TODO(), scopeData)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"quxScope\", nil, nil, nil, nil) => (nil, %#v), want (qux, nil)", constants.BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%+v) => (nil, %#v), want (qux, nil)", scopeData, err)
 	}
 
 	var tests = []struct {
@@ -1330,7 +1357,11 @@ func TestKVStoreSetFails(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, ctx)
 
-	_, err = ctx.NewScope(context.TODO(), constants.BridgeScopeType, sn, nil, nil, nil, nil)
+	scopeData := &ScopeData{
+		ScopeType: constants.BridgeScopeType,
+		Name:      sn,
+	}
+	_, err = ctx.NewScope(context.TODO(), scopeData)
 	assert.EqualError(t, err, assert.AnError.Error())
 	scs, err := ctx.Scopes(context.TODO(), &sn)
 	assert.Error(t, err)
