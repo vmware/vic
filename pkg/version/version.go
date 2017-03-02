@@ -39,7 +39,7 @@ var (
 const (
 	DockerAPIVersion     = "1.25"
 	DockerDefaultVersion = "1.25"
-	DockerMinimumVersion = "1.23"
+	DockerMinimumVersion = "1.19"
 )
 
 type Build struct {
