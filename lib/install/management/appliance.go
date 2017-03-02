@@ -912,11 +912,10 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 						// Legitimate deployment so no error, but definitely requires a warning.
 						log.Warn(msg)
 						return nil
-					} else {
-						// TLS error not expected, the validation failure is a problem
-						log.Error(msg)
-						return neterr
 					}
+					// TLS error not expected, the validation failure is a problem
+					log.Error(msg)
+					return neterr
 
 				case x509.HostnameError:
 					// e.g. "doesn't contain any IP SANs"
@@ -924,10 +923,9 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 					if tlsErrExpected {
 						log.Warn(msg)
 						return nil
-					} else {
-						log.Error(msg)
-						return neterr
 					}
+					log.Error(msg)
+					return neterr
 
 				default:
 					log.Debugf("Unhandled net error type: %#v", neterr)
