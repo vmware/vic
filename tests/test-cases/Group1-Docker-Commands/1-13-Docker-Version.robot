@@ -51,7 +51,7 @@ Docker1.13 Version Format Server API Version
 Docker1.13 Version Format Server Minimum API Version
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} version --format '{{.Server.MinAPIVersion}}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${output}  1.23
+    Should Be Equal As Strings  ${output}  1.19
 
 Docker Version Format Server Go Version
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} version --format '{{.Server.GoVersion}}'
