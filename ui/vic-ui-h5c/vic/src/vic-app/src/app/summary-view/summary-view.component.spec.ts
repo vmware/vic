@@ -31,8 +31,8 @@ import {
 import { DataPropertyService } from '../services/data-property.service';
 import { AppErrorHandler } from '../shared/appErrorHandler';
 import { VicSummaryViewComponent } from './summary-view.component';
-
 import { ClarityModule } from 'clarity-angular';
+import { JASMINE_TIMEOUT } from '../testing/jasmine.constants';
 
 describe('VIC object view: Summary tab', () => {
     let fixture: ComponentFixture<VicSummaryViewComponent>;
@@ -72,6 +72,7 @@ describe('VIC object view: Summary tab', () => {
     }));
 
     beforeEach(() => {
+        jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
         fixture = TestBed.createComponent(VicSummaryViewComponent);
         compInstance = fixture.componentInstance;
         dpService = fixture.debugElement.injector.get(DataPropertyService);

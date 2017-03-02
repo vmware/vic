@@ -30,8 +30,15 @@ func (v *Validator) ValidateMigratedConfig(ctx context.Context, conf *config.Vir
 	v.assertTarget(conf)
 	v.assertDatastore(conf)
 	v.assertNetwork(conf)
+	if err := v.ListIssues(); err != nil {
+		return conf, err
+	}
+	return v.migrateData(ctx, conf)
+}
 
-	return conf, v.ListIssues()
+func (v *Validator) migrateData(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
+	conf.Version = version.GetBuild()
+	return conf, nil
 }
 
 func (v *Validator) assertNetwork(conf *config.VirtualContainerHostConfigSpec) {
