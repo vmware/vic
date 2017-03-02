@@ -79,14 +79,22 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
+
+	// check for old snapshot
+	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.ctx)
+
 	if err = d.tryCreateSnapshot(snapshotName, "upgrade snapshot"); err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
 
 	if err = d.update(conf, settings); err == nil {
+		if oldSnapshot != nil && vm.IsUpgradeSnapshot(oldSnapshot, UpgradePrefix) {
+			d.retryDeleteSnapshot(oldSnapshot, conf.Name)
+		}
 		return nil
 	}
+
 	log.Errorf("Failed to upgrade: %s", err)
 	log.Infof("Rolling back upgrade")
 

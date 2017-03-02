@@ -410,6 +410,11 @@ func (vm *VirtualMachine) bfsSnapshotTree(q *list.List, compare func(node types.
 	return vm.bfsSnapshotTree(q, compare)
 }
 
+// helper func that returns true if node is an upgrade snapshot image
+func IsUpgradeSnapshot(node *types.VirtualMachineSnapshotTree, upgradePrefix string) bool {
+	return node != nil && strings.HasPrefix(node.Name, upgradePrefix)
+}
+
 // UpgradeInProgress tells if an upgrade has already been started based on snapshot name beginning with upgradePrefix
 func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix string) (bool, string, error) {
 	node, err := vm.GetCurrentSnapshotTree(ctx)
@@ -417,7 +422,7 @@ func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix s
 		return false, "", fmt.Errorf("Failed to check upgrade snapshot status: %s", err)
 	}
 
-	if node != nil && strings.HasPrefix(node.Name, upgradePrefix) {
+	if IsUpgradeSnapshot(node, upgradePrefix) {
 		return true, node.Name, nil
 	}
 
