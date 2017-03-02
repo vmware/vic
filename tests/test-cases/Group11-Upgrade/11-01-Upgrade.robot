@@ -11,6 +11,7 @@ Install VIC with version to Test Server
     Log To Console  \nDownloading vic ${version} from bintray...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
+	Set Environment Variable  TEST_TIMEOUT  20m0s
 	Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
 
