@@ -44,6 +44,21 @@ type Common struct {
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
 }
 
+// Common data (specifically for a containerVM) between managed entities, across execution environments.
+type Common2 struct {
+	// A reference to the components hosting execution environment, if any
+	ExecutionEnvironment string
+
+	// Unambiguous ID with meaning in the context of its hosting execution environment
+	ID string `vic:"0.1" scope:"read-only" key:"id"`
+
+	// Convenience field to record a human readable name
+	Name string `vic:"0.1" scope:"hidden" key:"name"`
+
+	// Freeform notes related to the entity
+	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
+}
+
 // Diagnostics records some basic control and lifecycle information for diagnostic purposes
 type Diagnostics struct {
 	// Should debugging be enabled on whatever component this is and at what level
@@ -108,7 +123,7 @@ type ContainerVM struct {
 // in that there is no process inherently associated - this is closer to a ThreadPool than a Thread and
 // is the owner of the shared filesystem environment. This is the guest visible complement to ContainerVM.
 type ExecutorConfig struct {
-	Common `vic:"0.1" scope:"read-only" key:"common"`
+	Common2 `vic:"0.1" scope:"read-only" key:"common"`
 
 	// CreateTime stamp
 	CreateTime int64 `vic:"0.1" scope:"read-write" key:"createtime"`

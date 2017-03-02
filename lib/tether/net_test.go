@@ -27,7 +27,7 @@ func TestSetHostname(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		Common2: executor.Common2{
 			ID:   "sethostname",
 			Name: "tether_test_executor",
 		},
@@ -54,7 +54,7 @@ func TestNoNetwork(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		Common2: executor.Common2{
 			ID:   "ipconfig",
 			Name: "tether_test_executor",
 		},

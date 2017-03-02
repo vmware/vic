@@ -88,7 +88,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	}
 
 	m := &executor.ExecutorConfig{
-		Common: executor.Common{
+		Common2: executor.Common2{
 			ID:   id,
 			Name: params.CreateConfig.Name,
 		},
