@@ -51,6 +51,20 @@ Get Container IP
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
 
+Get container shortID
+    [Arguments]  ${id}
+    ${shortID}=  Get Substring  ${id}  0  12
+    [Return]  ${shortID}
+
+Get VM display name
+    [Arguments]  ${id}
+    ${rc}  ${name}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format='{{.Name}}' ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${name}=  Get Substring  ${name}  1
+    ${shortID}=  Get container shortID  ${id}
+    ${vmName}=  Catenate  SEPARATOR=-  ${name}  ${shortID}
+    [Return]  ${vmName}
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
