@@ -85,9 +85,6 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	}
 
 	if err = d.update(conf, settings); err == nil {
-		// TODO don't save too many old snapshots.. uncomment this and delete old ones
-		// ... or something
-		//		d.retryDeleteSnapshot(snapshotName, conf.Name)
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -115,13 +112,14 @@ func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContai
 		conf.Target = fmt.Sprintf("%s/sdk", conf.Target)
 	}
 
+	notfound := "A VCH version available from before the last upgrade could not be found."
 	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.ctx)
 	if err != nil {
-		return errors.Errorf("could not find a snapshot to roll back to: %s", err)
+		return errors.Errorf("%s An error was reported while trying to discover it: %s", notfound, err)
 	}
 
 	if snapshot == nil {
-		return errors.Errorf("search for snapshot completed but no snapshot found")
+		return errors.Errorf("%s No error was reported, so it's possible that this VCH has never been upgraded or the saved previous version was removed out-of-band.", notfound)
 	}
 
 	err = d.rollback(conf, snapshot.Name, settings)
@@ -187,13 +185,8 @@ func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) e
 func (d *Dispatcher) tryCreateSnapshot(name, desc string) error {
 	defer trace.End(trace.Begin(name))
 
-	// upgrading, snapshot, err := d.appliance.UpgradeInProgress(d.ctx, UpgradePrefix)
-	// if err != nil {
-	// 	return err
-	// }
-	// if upgrading {
-	// 	return errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
-	// }
+	// TODO detect whether another upgrade is in progress & bail if it is.
+	// Use solution from https://github.com/vmware/vic/issues/4069 to do this either as part of 4069 or once it's closed
 
 	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
