@@ -20,6 +20,7 @@ import { TestBed } from "@angular/core/testing";
 // Internal imports
 import { Globals, GlobalsService } from "./globals.service";
 import { initGlobalService, globalStub } from "../testing/index";
+import { JASMINE_TIMEOUT } from "../testing/jasmine.constants";
 
 // ---------- Testing stubs ------------
 
@@ -35,6 +36,7 @@ describe("Globals tests", () => {
 
    describe("when WEB_PLATFORM is defined", () => {
       beforeEach(() => {
+         jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
          window.parent["WEB_PLATFORM"] = globalStub.webPlatform;
          globals = new Globals();
       });

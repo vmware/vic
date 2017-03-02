@@ -19,6 +19,7 @@ import { Response, ResponseOptions } from "@angular/http";
 
 // Internal imports
 import { AppErrorHandler, liveDataHelp, jsonServerHelp } from "../shared/appErrorHandler";
+import { JASMINE_TIMEOUT } from '../testing/jasmine.constants';
 
 // Simple service unit tests without assistance from Angular testing utilities
 
@@ -28,6 +29,7 @@ describe("AppErrorHandler tests", () => {
    let errorToDisplay = "some error message";
 
    beforeEach(() => {
+      jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
       appErrorHandler = new AppErrorHandler(null);
    });
 

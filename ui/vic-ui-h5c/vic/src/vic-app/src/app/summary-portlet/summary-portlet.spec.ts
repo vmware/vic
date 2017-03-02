@@ -41,6 +41,7 @@ import { VchPortletComponent } from './vch-portlet/vch-portlet.component';
 import { ContainerPortletComponent } from './container-portlet/container-portlet.component';
 import { VirtualMachine } from '../vm.interface';
 import { VM_PROPERTIES_TO_EXTRACT } from '../vm.constants';
+import { JASMINE_TIMEOUT } from '../testing/jasmine.constants';
 
 describe('VIC Summary Portlet Components', () => {
     let fixture: ComponentFixture<VicSummaryPortletComponent>;
@@ -105,6 +106,7 @@ describe('VIC Summary Portlet Components', () => {
     }));
 
     beforeEach(() => {
+        jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
         fixture = TestBed.createComponent<VicSummaryPortletComponent>(VicSummaryPortletComponent);
         compInstance = fixture.componentInstance;
         svc = fixture.debugElement.injector.get(DataPropertyService);
