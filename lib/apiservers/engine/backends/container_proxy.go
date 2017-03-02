@@ -41,6 +41,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -629,7 +630,10 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		return fmt.Errorf("%s is not running", vc.ContainerID)
 	}
 
-	// If request wasn't for sigkill, we simply pass on the signal to the container
+	// If Docker CLI sends sig == 0, we use sigkill
+	if sig == 0 {
+		sig = uint64(syscall.SIGKILL)
+	}
 	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(sig))
 	if _, err := client.Containers.ContainerSignal(params); err != nil {
 		switch err := err.(type) {

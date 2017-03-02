@@ -28,3 +28,12 @@ Compose basic
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml stop
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
+
+Compose kill
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} -f basic-compose.yml up -d
+    Log  ${out}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} -f basic-compose.yml kill redis
+    Log  ${out}
+    Should Be Equal As Integers  ${rc}  0
