@@ -401,7 +401,7 @@ func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *con
 
 	vimClient, err := vim25.NewClient(ctx, soapClient)
 	if err != nil {
-		v.NoteIssue(fmt.Errorf("Failed to create client for validaiton of operations credentials: %s", err))
+		v.NoteIssue(fmt.Errorf("Failed to create client for validation of operations credentials: %s", err))
 		return
 	}
 
