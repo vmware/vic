@@ -177,7 +177,7 @@ Create a container using rest api call without HostConfig in the form data
     Log  ${output}
     Should contain  ${output}  "Warnings":null
 
-Create a container and check the VM display name
+Create a container and check the VM display name and datastore folder name
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name busy3 busybox
     Should Be Equal As Integers  ${rc}  0
     ${vmName}=  Get VM display name  ${id}
@@ -186,3 +186,6 @@ Create a container and check the VM display name
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${vmName}*
     Should Be Equal As Integers  ${rc}  0
     Should contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${id}

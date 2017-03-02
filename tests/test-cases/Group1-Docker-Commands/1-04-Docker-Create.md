@@ -56,7 +56,7 @@ This test requires that a vSphere server is running and available
 * Step 23 should return with the following error message - Error response from daemon: No command specified
 * Steps 24-28 should return without error.
 * Step 29 should return without error.
-* Step 30 should show that the VM display name equals to containerName-containerShortID
+* Step 30 should show that the VM display name equals to containerName-containerShortID and datastore folder name equal to containerID
 
 #Possible Problems:
 None
