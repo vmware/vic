@@ -430,8 +430,15 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = ccid
 
-	s := container.State().String()
-	info.ContainerConfig.State = s
+	var state string
+	if container.MigrationError != nil {
+		state = "Migration failed"
+		info.ProcessConfig.ErrorMsg = container.MigrationError.Error()
+		info.ProcessConfi.Status = state
+	} else {
+		state = container.State().String()
+	}
+	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
 	info.ContainerConfig.CreateTime = container.ExecConfig.CreateTime

@@ -147,6 +147,9 @@ func Bind(h interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
+	if handle.MigrationError != nil {
+		return nil, fmt.Errorf("Migration failed %s", handle.MigrationError)
+	}
 	return toggle(handle, true)
 }
 
@@ -157,6 +160,9 @@ func Unbind(h interface{}) (interface{}, error) {
 	handle, ok := h.(*exec.Handle)
 	if !ok {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
+	}
+	if handle.MigrationError != nil {
+		return nil, fmt.Errorf("Migration failed %s", handle.MigrationError)
 	}
 	return toggle(handle, false)
 }

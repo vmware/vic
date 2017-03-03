@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/migration"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -52,6 +53,11 @@ func (e NotYetExistError) Error() string {
 type containerBase struct {
 	ExecConfig *executor.ExecutorConfig
 
+	// Migrated is used during in memory migration to assign whether an execConfig is viable for a commit phase
+	Migrated bool
+	// MigrationError means the errors happens during data migration, some operation might fail for we cannot extract the whole container configuration
+	MigrationError error
+
 	// original - can be pointers so long as refreshes
 	// use different instances of the structures
 	Config  *types.VirtualMachineConfigInfo
@@ -71,8 +77,10 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 
 	// construct a working copy of the exec config
 	if c != nil && c.ExtraConfig != nil {
-		src := vmomi.OptionValueSource(c.ExtraConfig)
-		extraconfig.Decode(src, base.ExecConfig)
+		var migratedConf map[string]string
+		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
+		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+		extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
 	}
 
 	return base
@@ -116,7 +124,10 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	}
 
 	// Get the ExtraConfig
-	extraconfig.Decode(vmomi.OptionValueSource(o.Config.ExtraConfig), base.ExecConfig)
+	var migratedConf map[string]string
+	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
+	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+	extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
 
 	return base, nil
 }
