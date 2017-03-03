@@ -18,15 +18,19 @@ import (
 	"io"
 	"net/url"
 	"os"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // MountServer is an interface used to communicate with network attached storage.
 type MountServer interface {
-	// Mount initiates the NAS Target and returns a Target interface.
-	Mount(target *url.URL) (Target, error)
+	// Mount executes the mount program on the Target.
+	Mount(op trace.Operation) (Target, error)
 
 	// Unmount terminates the Mount on the Target.
-	Unmount(target Target) error
+	Unmount(op trace.Operation) error
+
+	URL() (*url.URL, error)
 }
 
 // Target is the filesystem interface for performing actions against attached storage.
@@ -37,18 +41,15 @@ type Target interface {
 	// OpenFile opens a file on the Target with the given mode
 	OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error)
 
-	// Create creates a file, errors out if file already exists
-	Create(path string, perm os.FileMode) (io.ReadWriteCloser, error)
-
 	// Mkdir creates a directory at the given path
 	Mkdir(path string, perm os.FileMode) ([]byte, error)
 
 	// RemoveAll deletes Directory recursively
 	RemoveAll(Path string) error
 
-	// ReadDir reads the dirents of the given directory
+	// ReadDir reads the dirents in the given directory
 	ReadDir(path string) ([]os.FileInfo, error)
 
 	// Lookup reads os.FileInfo for the given path
-	Lookup(path string) (os.FileInfo, error)
+	Lookup(path string) (os.FileInfo, []byte, error)
 }
