@@ -189,3 +189,4 @@ Create a container and check the VM display name and datastore folder name
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  ${id}
+    
