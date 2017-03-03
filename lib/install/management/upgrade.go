@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/task"
@@ -60,11 +59,7 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		return err
 	}
 	d.session.Datastore = ds
-	if !conf.HostCertificate.IsNil() {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
-	} else {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
-	}
+	d.setDockerPort(conf, settings)
 
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
@@ -116,6 +111,12 @@ func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContai
 	// some setup that is only necessary because we didn't just create a VCH in this case
 	d.appliance = vch
 	d.setDockerPort(conf, settings)
+
+	// ensure that we wait for components to come up
+	// TODO this stanza appears in Update too so we need to abstract it into a helper function
+	for _, s := range conf.ExecutorConfig.Sessions {
+		s.Started = ""
+	}
 
 	notfound := "A VCH version available from before the last upgrade could not be found."
 	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.ctx)

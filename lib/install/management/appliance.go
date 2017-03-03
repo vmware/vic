@@ -45,7 +45,6 @@ import (
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
-	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diag"
@@ -1054,30 +1053,15 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	// vic-init will try to reach out to the vSphere target.
 	log.Info("Checking VCH connectivity with vSphere target")
 	// Checking access to vSphere API
-
-	err := retry.Do(
-
-		// check access
-		func() error {
-			cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target)
-			if err == nil {
-				code := int(cd)
-				if code > 0 {
-					log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
-				} else {
-					log.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
-				}
-			}
-			return err
-		},
-
-		// retry on error
-		func(err error) bool {
-			return true
-		})
-
-	if err != nil {
-		log.Warningf("Could not run VCH vSphere API target check: %v", err)
+	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target); err == nil {
+		code := int(cd)
+		if code > 0 {
+			log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		} else {
+			log.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		}
+	} else {
+		log.Warningf("Could not run VCH vSphere API target check due to %v but the VCH may still function normally", err)
 	}
 
 	if err := d.CheckDockerAPI(conf, clientCert); err != nil {
