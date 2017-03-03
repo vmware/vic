@@ -42,7 +42,7 @@ build:
     commands:
       - make mark
       - apt-get update
-      - apt-get install -yq time xz-utils
+      - apt-get install -yq time
       - make -j3 all
       - make sincemark
       - make mark
