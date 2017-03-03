@@ -94,7 +94,6 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		}
 		return nil
 	}
-
 	log.Errorf("Failed to upgrade: %s", err)
 	log.Infof("Rolling back upgrade")
 
