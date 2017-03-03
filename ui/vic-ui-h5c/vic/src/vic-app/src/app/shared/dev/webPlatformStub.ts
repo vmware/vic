@@ -32,7 +32,6 @@ export const webPlatformStub: WebPlatform = {
    },
    getClientVersion(): string { return '6.5.0'; },
    getClientType(): string { return 'html'; },
-   getObjectId(): string { return 'some-random-value'; },
 
    getRootPath(): string {
       // FIXME: change it to 3000 later
