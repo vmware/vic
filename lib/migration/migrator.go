@@ -33,7 +33,7 @@ import (
 //
 // Note: Input map conf is VCH appliance guestinfo map, and returned map is the new guestinfo.
 // Returns false without error means no need to migrate, and returned map is the copy of input map
-// If there is error returned, return true and half-migrated value
+// If there is error returned, returns true and half-migrated value
 func MigrateApplianceConfig(ctx context.Context, s *session.Session, conf map[string]string) (map[string]string, bool, error) {
 	return migrateConfig(ctx, s, conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
@@ -42,7 +42,7 @@ func MigrateApplianceConfig(ctx context.Context, s *session.Session, conf map[st
 //
 // Note: Migrated data will be returned in map, and input object is not changed.
 // Returns false without error means no need to migrate, and returned map is the copy of input map
-// If there is error returned, return true and half-migrated value
+// If there is error returned, returns true and half-migrated value
 func MigrateContainerConfig(conf map[string]string) (map[string]string, bool, error) {
 	return migrateConfig(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }

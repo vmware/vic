@@ -88,6 +88,7 @@ type VicContainerProxy interface {
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	IsRunning(vc *viccontainer.VicContainer) (bool, error)
+	IsBroken(vc *viccontainer.VicContainer) (bool, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
@@ -477,12 +478,13 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	// we have a container on the PL side lets check the state before proceeding
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
 	// TODO: can be replaced with simple cache check once power events are propagated to persona
-	running, err := c.IsRunning(vc)
+	inspectJSON, err := c.dockerInfo(vc)
 	if err != nil && IsNotFoundError(err) {
 		cache.ContainerCache().DeleteContainer(vc.ContainerID)
 		return err
 	}
-	if !running {
+	// attempt to stop container if status is running or broken
+	if !inspectJSON.State.Running && inspectJSON.State.Status != "broken" {
 		return nil
 	}
 
@@ -541,29 +543,44 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 func (c *ContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) {
 	defer trace.End(trace.Begin(""))
 
+	inspectJSON, err := c.dockerInfo(vc)
+	if err != nil {
+		return false, err
+	}
+	return inspectJSON.State.Running, nil
+}
+
+func (c *ContainerProxy) dockerInfo(vc *viccontainer.VicContainer) (*types.ContainerJSON, error) {
+	defer trace.End(trace.Begin(""))
+
 	if c.client == nil {
-		return false, InternalServerError("ContainerProxy.IsRunning failed to get a portlayer client")
+		return nil, InternalServerError("ContainerProxy.dockerInfo failed to get a portlayer client")
 	}
 
 	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
-			return false, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
+			return nil, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
 		case *containers.GetContainerInfoInternalServerError:
-			return false, InternalServerError(err.Payload.Message)
+			return nil, InternalServerError(err.Payload.Message)
 		default:
-			return false, InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
+			return nil, InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
-	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, c.portlayerName)
+	return ContainerInfoToDockerContainerInspect(vc, results.Payload, c.portlayerName)
+}
+
+// IsBroken returns true if the given container is broken, e.g. migration failed
+func (c *ContainerProxy) IsBroken(vc *viccontainer.VicContainer) (bool, error) {
+	defer trace.End(trace.Begin(""))
+
+	inspectJSON, err := c.dockerInfo(vc)
 	if err != nil {
-		log.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
 		return false, err
 	}
-
-	return inspectJSON.State.Running, nil
+	return inspectJSON.State.Status == "broken", nil
 }
 
 func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (

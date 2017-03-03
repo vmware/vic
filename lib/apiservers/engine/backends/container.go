@@ -481,8 +481,18 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 	// Use the force and stop the container first
 	secs := 0
+
 	if config.ForceRemove {
 		c.containerProxy.Stop(vc, name, &secs, true)
+	} else {
+		broken, err := c.containerProxy.IsBroken(vc)
+		if err != nil {
+			return err
+		}
+		// force stop if container is broken to make sure container is deletable later
+		if broken {
+			c.containerProxy.Stop(vc, name, &secs, true)
+		}
 	}
 
 	//call the remove directly on the name. No need for using a handle.
