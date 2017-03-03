@@ -90,7 +90,7 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	if err = d.update(conf, settings); err == nil {
 		if oldSnapshot != nil && vm.IsUpgradeSnapshot(oldSnapshot, UpgradePrefix) {
-			d.retryDeleteSnapshot(oldSnapshot, conf.Name)
+			d.retryDeleteSnapshot(oldSnapshot.Name, conf.Name)
 		}
 		return nil
 	}
@@ -116,9 +116,6 @@ func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContai
 	// some setup that is only necessary because we didn't just create a VCH in this case
 	d.appliance = vch
 	d.setDockerPort(conf, settings)
-	if !strings.HasSuffix(conf.Target, "/sdk") {
-		conf.Target = fmt.Sprintf("%s/sdk", conf.Target)
-	}
 
 	notfound := "A VCH version available from before the last upgrade could not be found."
 	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.ctx)
