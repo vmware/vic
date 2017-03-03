@@ -54,7 +54,7 @@ if [ ! -z "$*" -o -z "$PACKAGE" ]; then
 fi
 
 # prep the build system
-ensure_apt_packages cpio rpm tar ca-certificates
+ensure_apt_packages cpio rpm tar ca-certificates xz-utils
 
 PKGDIR=$(mktemp -d)
 
