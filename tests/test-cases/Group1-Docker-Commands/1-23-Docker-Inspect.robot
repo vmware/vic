@@ -79,3 +79,11 @@ Docker inspect invalid object
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect fake
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error: No such image or container: fake
+
+Docker inspect non-nil volume
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=test-with-volume -v /var/lib/test busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Volumes}}' test-with-volume
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  /var/lib/test
+    
