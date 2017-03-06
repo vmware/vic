@@ -34,7 +34,7 @@ type Common struct {
 	// A reference to the components hosting execution environment, if any
 	ExecutionEnvironment string
 
-	// Unambiguous ID with meaning in the context of its hosting execution environment. Change this definition will cause container backward compatibility issue
+	// Unambiguous ID with meaning in the context of its hosting execution environment. Change this definition will cause container backward compatibility issue. Please don't change this.
 	ID string `vic:"0.1" scope:"read-only" key:"id"`
 
 	// Convenience field to record a human readable name
