@@ -30,6 +30,8 @@ const (
 	DefaultPrefix = ""
 	// DefaultGuestInfoPrefix value
 	DefaultGuestInfoPrefix = "guestinfo.vice."
+	//Separator for slice values and map keys
+	Separator = "|"
 )
 
 const (
@@ -300,7 +302,7 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 			if !found {
 				panic(fmt.Sprintf("could not find map key %s", s[0]))
 			}
-			prefix = fmt.Sprintf("%s|%s", prefix, s[0])
+			prefix = fmt.Sprintf("%s%s%s", prefix, Separator, s[0])
 		case reflect.Array, reflect.Slice:
 			i, err := strconv.Atoi(s[0])
 			if err != nil {
@@ -308,7 +310,7 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 			}
 			switch v.Type().Elem().Kind() {
 			case reflect.Struct:
-				prefix = fmt.Sprintf("%s|%d", prefix, i)
+				prefix = fmt.Sprintf("%s%s%d", prefix, Separator, i)
 			case reflect.Uint8:
 				return []string{prefix}
 			default:
@@ -334,14 +336,14 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 	case reflect.Map:
 		for _, k := range v.MapKeys() {
 			sk := k.Convert(reflect.TypeOf(""))
-			prefix := fmt.Sprintf("%s|%s", prefix, sk.String())
+			prefix := fmt.Sprintf("%s%s%s", prefix, Separator, sk.String())
 			out = append(out, calculateKeys(v.MapIndex(k), field, prefix)...)
 		}
 	case reflect.Array, reflect.Slice:
 		switch v.Type().Elem().Kind() {
 		case reflect.Struct:
 			for i := 0; i < v.Len(); i++ {
-				prefix := fmt.Sprintf("%s|%d", prefix, i)
+				prefix := fmt.Sprintf("%s%s%d", prefix, Separator, i)
 				out = append(out, calculateKeys(v.Index(i), field, prefix)...)
 			}
 		case reflect.Uint8:

@@ -179,27 +179,27 @@ func TestCalculateKeys(t *testing.T) {
 		},
 		{
 			"ExecutorConfig.Sessions.*",
-			[]string{"executorconfig/sessions|Session1"},
+			[]string{"executorconfig/sessions" + Separator + "Session1"},
 		},
 		{
 			"ExecutorConfig.Sessions.Session1.Cmd.Args",
-			[]string{"executorconfig/sessions|Session1/cmd/args"},
+			[]string{"executorconfig/sessions" + Separator + "Session1/cmd/args"},
 		},
 		{
 			"ExecutorConfig.Sessions.*.Cmd.Args.*",
-			[]string{"executorconfig/sessions|Session1/cmd/args~"},
+			[]string{"executorconfig/sessions" + Separator + "Session1/cmd/args~"},
 		},
 		{
 			"ExecutorConfig.Sessions.*.Cmd.Args.0",
-			[]string{"executorconfig/sessions|Session1/cmd/args~"},
+			[]string{"executorconfig/sessions" + Separator + "Session1/cmd/args~"},
 		},
 		{
 			"Array.0.I",
-			[]string{visibleRW("array|0/I")},
+			[]string{visibleRW("array" + Separator + "0/I")},
 		},
 		{
 			"Array.*",
-			[]string{visibleRW("array|0")},
+			[]string{visibleRW("array" + Separator + "0")},
 		},
 		{
 			"Ptr.I",

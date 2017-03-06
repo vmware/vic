@@ -279,7 +279,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 	if kind == reflect.Struct || isEncodableSliceElemType(dest.Type().Elem()) {
 		for i := 0; i < length; i++ {
 			// convert key to name|index format
-			key := fmt.Sprintf("%s|%d", prefix, i)
+			key := fmt.Sprintf("%s%s%d", prefix, Separator, i)
 
 			// if there's already a struct in the array at this index then we pass that as the current
 			// value
@@ -311,7 +311,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 	}
 
 	// lookup the key and split it
-	values := strings.Split(kval, "|")
+	values := strings.Split(kval, Separator)
 	for i := 0; i < length; i++ {
 		v := values[i]
 		t := this.Type().Elem()
@@ -346,14 +346,14 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursio
 	valtype := this.Type().Elem()
 
 	// split the list of map keys and iterate
-	for _, value := range strings.Split(mapkeys, "|") {
+	for _, value := range strings.Split(mapkeys, Separator) {
 		k := fromString(reflect.Zero(keytype), value)
 		target := this.MapIndex(k)
 		if !target.IsValid() {
 			target = reflect.Zero(valtype)
 		}
 
-		key := fmt.Sprintf("%s|%s", prefix, value)
+		key := fmt.Sprintf("%s%s%s", prefix, Separator, value)
 
 		// check to see if the resulting object is not nil
 		// If it is nil, then there was nothing to decode and the pointer remains nil
