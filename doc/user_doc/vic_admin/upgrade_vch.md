@@ -50,8 +50,9 @@ For descriptions of the options that `vic-machine upgrade` includes in addition 
 During the upgrade process, `vic-machine upgrade` performs the following operations:
 
 - Validates whether the configuration of the existing VCH is compatible the new version. If not, the upgrade fails. 
-- Uploads the new versions of the `appliance.iso` and `bootstrap.iso` files to the VCH.
+- Uploads the new versions of the `appliance.iso` and `bootstrap.iso` files to the VCH. There is no timeout for this stage of the upgrade process, so that the ISO files can upload over slow connections.
 - Creates a snapshot of the VCH endpoint VM, to use in case the upgrade fails and has to roll back.
 - Boots the VCH by using the new version of the `appliance.iso` file.
 - Deletes the snapshot of the VCH endpoint VM once the upgrade has succeeded.
 - After you upgrade a VCH, any new container VMs will boot from the new version of the `bootstrap.iso` file.
+- If the upgrade times out while waiting for the VCH service to start, the upgrade fails and rolls back to the previous version.

@@ -97,6 +97,6 @@ The vSphere Managed Object Reference, or moref, of the VCH, for example `vm-100`
 
 Short name: none
 
-The timeout period for performing operations on the VCH. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
+The timeout period for performing operations on the VCH. Specify a value in the format `XmYs` if the default timeout is insufficient.
 
 <pre>--timeout 5m0s</pre> 
