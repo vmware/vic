@@ -29,7 +29,7 @@ Curl
 *** Test Cases ***
 Display HTML
      ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  ${EMPTY}
-     Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
+     Should contain  ${output}  <title>VIC: </title>
 
 Get Portlayer Log
     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/port-layer.log

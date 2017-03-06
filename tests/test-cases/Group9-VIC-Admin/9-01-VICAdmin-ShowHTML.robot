@@ -76,7 +76,7 @@ While Logged Out Fail To Get VICAdmin Log
 Display HTML
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
-    Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
+    Should contain  ${output}  <title>VIC: </title>
 
 Get Portlayer Log
     Login And Save Cookies

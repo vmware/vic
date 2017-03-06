@@ -179,7 +179,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		if err != nil {
 			errs = append(errs, err.Error())
 		}
-		
+
 		if err = d.deleteVM(child, d.force); err != nil {
 			errs = append(errs, err.Error())
 		}
