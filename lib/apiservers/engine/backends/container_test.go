@@ -24,12 +24,12 @@ import (
 
 	"context"
 
-	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/api/errors"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	dnetwork "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/reference"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
@@ -295,6 +295,18 @@ func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, se
 }
 
 func (m *MockContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) {
+	// Assume container is running if container in cache.  If we need other conditions
+	// in the future, we can add it, but for now, just assume running.
+	c := cache.ContainerCache().GetContainer(vc.ContainerID)
+
+	if c == nil {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (m *MockContainerProxy) IsBroken(vc *viccontainer.VicContainer) (bool, error) {
 	// Assume container is running if container in cache.  If we need other conditions
 	// in the future, we can add it, but for now, just assume running.
 	c := cache.ContainerCache().GetContainer(vc.ContainerID)
