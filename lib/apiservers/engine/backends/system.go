@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -145,6 +145,14 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	} else {
 		customInfo := [2]string{volumeStoresID, volumeStoreString}
 		info.SystemStatus = append(info.SystemStatus, customInfo)
+
+		// Show a list of supported volume drivers if there's at least one volume
+		// store configured for the VCH
+		if len(volumeStoreString) > 0 {
+			for driver := range supportedVolDrivers {
+				info.Plugins.Volume = append(info.Plugins.Volume, driver)
+			}
+		}
 	}
 
 	if s.systemProxy.PingPortlayer() {

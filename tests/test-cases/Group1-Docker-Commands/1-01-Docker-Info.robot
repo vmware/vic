@@ -63,10 +63,13 @@ Set resource pool CPU and mem limits
 
 *** Test Cases ***
 Basic Info
-    Log To Console  \nRunning docker info command...
-    ${output}=  Run  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  vSphere
+    ${volpluginline}=  Get Lines Containing String  ${output}  Volume:
+    Should Contain  ${volpluginline}  local
+    Should Contain  ${volpluginline}  vsphere
 
 Debug Info
     ${status}=  Get State Of Github Issue  780
