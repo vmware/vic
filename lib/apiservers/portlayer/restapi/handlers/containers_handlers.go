@@ -432,7 +432,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 
 	var state string
 	if container.MigrationError != nil {
-		state = "broken"
+		state = "error"
 		info.ProcessConfig.ErrorMsg = fmt.Sprintf("Migration failed: %s", container.MigrationError.Error())
 		info.ProcessConfig.Status = state
 	} else {

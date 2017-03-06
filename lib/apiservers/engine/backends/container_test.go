@@ -294,28 +294,16 @@ func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, se
 	return nil
 }
 
-func (m *MockContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) {
+func (m *MockContainerProxy) Status(vc *viccontainer.VicContainer) (string, error) {
 	// Assume container is running if container in cache.  If we need other conditions
 	// in the future, we can add it, but for now, just assume running.
 	c := cache.ContainerCache().GetContainer(vc.ContainerID)
 
 	if c == nil {
-		return false, nil
+		return "", nil
 	}
 
-	return true, nil
-}
-
-func (m *MockContainerProxy) IsBroken(vc *viccontainer.VicContainer) (bool, error) {
-	// Assume container is running if container in cache.  If we need other conditions
-	// in the future, we can add it, but for now, just assume running.
-	c := cache.ContainerCache().GetContainer(vc.ContainerID)
-
-	if c == nil {
-		return false, nil
-	}
-
-	return true, nil
+	return ContainerRunning, nil
 }
 
 func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
