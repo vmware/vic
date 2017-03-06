@@ -32,6 +32,13 @@ const (
 	DefaultGuestInfoPrefix = "guestinfo.vice."
 	//Separator for slice values and map keys
 	Separator = "|"
+
+	// suffix separator character
+	suffixSeparator = "@"
+	// secret suffix
+	secretSuffix = "secret"
+	// non-persistent suffix
+	nonpersistentSuffix = "non-persistent"
 )
 
 const (
@@ -64,7 +71,7 @@ var Unbounded = recursion{depth: -1, follow: true}
 // calculateScope returns the uint representation of scope tag
 func calculateScope(scopes []string) uint {
 	var scope uint
-	if len(scopes) == 0 {
+	if len(scopes) == 0 || (len(scopes) == 1 && scopes[0] == "") {
 		return Hidden | ReadOnly
 	}
 
@@ -76,11 +83,11 @@ func calculateScope(scopes []string) uint {
 			scope |= ReadOnly
 		case "read-write":
 			scope |= ReadWrite
-		case "non-persistent":
+		case nonpersistentSuffix:
 			scope |= NonPersistent
 		case "volatile":
 			scope |= Volatile
-		case "secret":
+		case secretSuffix:
 			scope |= Secret | ReadOnly
 		default:
 			return Invalid
@@ -90,7 +97,35 @@ func calculateScope(scopes []string) uint {
 }
 
 func isSecret(key string) bool {
-	return strings.HasSuffix(key, "@secret")
+	suffix := strings.Split(key, suffixSeparator)
+	if len(suffix) < 2 {
+		// no @ separator
+		return false
+	}
+
+	for i := range suffix[1:] {
+		if suffix[i+1] == secretSuffix {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isNonPersistent(key string) bool {
+	suffix := strings.Split(key, suffixSeparator)
+	if len(suffix) < 2 {
+		// no @ separator
+		return false
+	}
+
+	for i := range suffix[1:] {
+		if suffix[i+1] == nonpersistentSuffix {
+			return true
+		}
+	}
+
+	return false
 }
 
 func calculateScopeFromKey(key string) []string {
@@ -107,7 +142,11 @@ func calculateScopeFromKey(key string) []string {
 	}
 
 	if isSecret(key) {
-		scopes = append(scopes, "secret")
+		scopes = append(scopes, secretSuffix)
+	}
+
+	if isNonPersistent(key) {
+		scopes = append(scopes, nonpersistentSuffix)
 	}
 
 	return scopes
@@ -192,7 +231,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 // calculateKey calculates the key based on the scope and current prefix
 func calculateKey(scopes []string, prefix string, key string) string {
 	scope := calculateScope(scopes)
-	if scope&Invalid != 0 || scope&NonPersistent != 0 {
+	if scope&Invalid != 0 {
 		log.Debugf("invalid scope")
 		return ""
 	}
@@ -210,6 +249,12 @@ func calculateKey(scopes []string, prefix string, key string) string {
 		newSep = "."
 	}
 
+	// strip any existing suffix from the prefix - it'll be re-added if still applicable
+	suffix := strings.Index(prefix, suffixSeparator)
+	if suffix != -1 {
+		prefix = prefix[:suffix]
+	}
+
 	// assemble the actual keypath with appropriate separators
 	out := key
 	if prefix != "" {
@@ -217,7 +262,15 @@ func calculateKey(scopes []string, prefix string, key string) string {
 	}
 
 	if scope&Secret != 0 {
-		out += "@secret"
+		out += suffixSeparator + secretSuffix
+	}
+
+	if scope&NonPersistent != 0 {
+		if hide {
+			log.Debugf("Unable to combine non-persistent and hidden scopes")
+			return ""
+		}
+		out += suffixSeparator + nonpersistentSuffix
 	}
 
 	// we don't care about existing separators when hiden

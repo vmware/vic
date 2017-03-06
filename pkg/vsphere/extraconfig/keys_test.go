@@ -17,11 +17,17 @@ package extraconfig
 import (
 	"testing"
 
+	"strings"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func visibleRO(key string) string {
 	return calculateKey([]string{"read-only"}, "", key)
+}
+
+func visibleRONonpersistent(key string) string {
+	return calculateKey([]string{"read-only", "non-persistent"}, "", key)
 }
 
 func visibleRW(key string) string {
@@ -122,7 +128,23 @@ func TestSecret(t *testing.T) {
 
 	key := calculateKey(scopes, DefaultGuestInfoPrefix+".a.b", "c")
 
-	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c@secret", key, "Key should have secret suffix")
+	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c"+suffixSeparator+secretSuffix, key, "Key should have secret suffix")
+}
+
+func TestNonpersistent(t *testing.T) {
+	scopes := []string{"non-persistent", "read-write"}
+
+	key := calculateKey(scopes, DefaultGuestInfoPrefix+".a.b", "c")
+
+	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c"+suffixSeparator+nonpersistentSuffix, key, "Key should have non-persistent suffix")
+}
+
+func TestMultipleSuffixes(t *testing.T) {
+	scopes := []string{"non-persistent", "secret", "read-write"}
+
+	key := calculateKey(scopes, DefaultGuestInfoPrefix+".a.b", "c")
+
+	assert.True(t, strings.Contains(key, suffixSeparator+secretSuffix) && strings.Contains(key, suffixSeparator+nonpersistentSuffix), "Key should contain both secret and non-persistent suffix")
 }
 
 func TestCalculateKeys(t *testing.T) {

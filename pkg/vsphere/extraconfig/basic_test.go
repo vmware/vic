@@ -333,3 +333,43 @@ func TestPointer(t *testing.T) {
 
 	assert.Equal(t, Pointer, decoded, "Encoded and decoded does not match")
 }
+
+func TestFilterSink(t *testing.T) {
+	type CommonPersistence struct {
+		ExecutionEnvironment string `vic:"0.1" recurse:"depth=0"`
+
+		ID string `vic:"0.1" scope:"read-only" key:"id"`
+
+		Name string `vic:"0.1" scope:"read-only,non-persistent" key:"name"`
+
+		Notes string `vic:"0.1" scope:"read-only" key:"notes"`
+	}
+
+	type Type struct {
+		Common CommonPersistence `vic:"0.1" scope:"non-persistent,read-write" key:"common"`
+	}
+
+	Struct := Type{
+		Common: CommonPersistence{
+			ID:   "0xDEADBEEF",
+			Name: "Struct",
+		},
+	}
+
+	encoded := map[string]string{}
+	filterSink := ScopeFilterSink(NonPersistent|Hidden, MapSink(encoded))
+	Encode(filterSink, Struct)
+
+	expected := map[string]string{
+		visibleRONonpersistent("common/name"): "Struct",
+	}
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+
+	// strip ID as that would be filtered out
+	Struct.Common.ID = ""
+
+	var decoded Type
+	Decode(MapSource(encoded), &decoded)
+
+	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")
+}
