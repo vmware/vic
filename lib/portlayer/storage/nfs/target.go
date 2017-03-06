@@ -61,11 +61,11 @@ type NfsMount struct {
 	// Hostname is the name to authenticate with to the target as
 	Hostname string
 
-	// Uid and Gid are the user id and group id to authenticate with the target
-	Uid, Gid uint32
+	// UID and GID are the user id and group id to authenticate with the target
+	UID, GID uint32
 
 	// The URL (host + path) of the NFS server and target path
-	TargetUrl *url.URL
+	TargetURL *url.URL
 
 	s *nfsClient.Mount
 }
@@ -73,15 +73,15 @@ type NfsMount struct {
 func NewMount(t *url.URL, hostname string, uid, gid uint32) *NfsMount {
 	return &NfsMount{
 		Hostname:  hostname,
-		Uid:       uid,
-		Gid:       gid,
-		TargetUrl: t,
+		UID:       uid,
+		GID:       gid,
+		TargetURL: t,
 	}
 }
 
 func (m *NfsMount) Mount(op trace.Operation) (Target, error) {
-	op.Debugf("Mounting %s", m.TargetUrl.String())
-	s, err := nfsClient.DialMount(m.TargetUrl.Host)
+	op.Debugf("Mounting %s", m.TargetURL.String())
+	s, err := nfsClient.DialMount(m.TargetURL.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -93,19 +93,19 @@ func (m *NfsMount) Mount(op trace.Operation) (Target, error) {
 		}
 	}()
 
-	auth := rpc.NewAuthUnix(m.Hostname, m.Uid, m.Gid)
-	mnt, err := s.Mount(m.TargetUrl.Path, auth.Auth())
+	auth := rpc.NewAuthUnix(m.Hostname, m.UID, m.GID)
+	mnt, err := s.Mount(m.TargetURL.Path, auth.Auth())
 	if err != nil {
 		op.Errorf("unable to mount volume: %v", err)
 		return nil, err
 	}
 
-	op.Infof("Mounted %s", m.TargetUrl.String())
+	op.Infof("Mounted %s", m.TargetURL.String())
 	return &target{mnt}, nil
 }
 
 func (m *NfsMount) Unmount(op trace.Operation) error {
-	op.Debugf("Unmounting %s", m.TargetUrl.String())
+	op.Debugf("Unmounting %s", m.TargetURL.String())
 	if err := m.s.Unmount(); err != nil {
 		return err
 	}
@@ -114,13 +114,13 @@ func (m *NfsMount) Unmount(op trace.Operation) error {
 		return err
 	}
 
-	op.Debugf("Unmounted %s", m.TargetUrl.String())
+	op.Debugf("Unmounted %s", m.TargetURL.String())
 	m.s = nil
 	return nil
 }
 
 func (m *NfsMount) URL() (*url.URL, error) {
-	return m.TargetUrl, nil
+	return m.TargetURL, nil
 }
 
 // wrap ReadDir to return a slice of os.FileInfo
