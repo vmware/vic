@@ -360,7 +360,7 @@
 			"importpath": "github.com/fdawg4l/go-nfs-client/nfs",
 			"repository": "https://github.com/fdawg4l/go-nfs-client",
 			"vcs": "git",
-			"revision": "43c69b0d08c429520d4a8e148a472f74c892d682",
+			"revision": "ba0907caa92da3d762b621a251af64688fa1222b",
 			"branch": "master",
 			"path": "/nfs",
 			"notests": true

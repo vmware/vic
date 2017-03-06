@@ -153,7 +153,7 @@ func (f *File) Close() error {
 }
 
 // OpenFile writes to an existing file or creates one
-func (v *Target) OpenFile(path string, perm os.FileMode) (*File, error) {
+func (v *Target) OpenFile(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
 	_, fh, err := v.Lookup(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -176,7 +176,7 @@ func (v *Target) OpenFile(path string, perm os.FileMode) (*File, error) {
 }
 
 // Open opens a file for reading
-func (v *Target) Open(path string) (*File, error) {
+func (v *Target) Open(path string) (io.ReadCloser, error) {
 	_, fh, err := v.Lookup(path)
 	if err != nil {
 		return nil, err
