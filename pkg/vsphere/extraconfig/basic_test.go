@@ -148,9 +148,9 @@ func TestBasicMap(t *testing.T) {
 	Encode(MapSink(encoded), IntMap)
 
 	expected := map[string]string{
-		visibleRO("intmap|1st"): "12345",
-		visibleRO("intmap|2nd"): "67890",
-		visibleRO("intmap"):     "1st|2nd",
+		visibleRO("intmap" + Separator + "1st"): "12345",
+		visibleRO("intmap" + Separator + "2nd"): "67890",
+		visibleRO("intmap"):                     "1st" + Separator + "2nd",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -196,7 +196,7 @@ func TestBasicSlice(t *testing.T) {
 	Encode(MapSink(encoded), IntSlice)
 
 	expected := map[string]string{
-		visibleRO("intslice~"): "1|2|3|4|5",
+		visibleRO("intslice~"): "1" + Separator + "2" + Separator + "3" + Separator + "4" + Separator + "5",
 		visibleRO("intslice"):  "4",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")

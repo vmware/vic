@@ -170,7 +170,7 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 	} else if kind == reflect.Struct || isEncodableSliceElemType(src.Type().Elem()) {
 		for i := 0; i < length; i++ {
 			// convert key to name|index format
-			key := fmt.Sprintf("%s|%d", prefix, i)
+			key := fmt.Sprintf("%s%s%d", prefix, Separator, i)
 			encode(sink, src.Index(i), key, depth)
 		}
 	} else {
@@ -188,7 +188,7 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 
 		// convert key to name|index format
 		key := fmt.Sprintf("%s~", prefix)
-		err := sink(key, strings.Join(values, "|"))
+		err := sink(key, strings.Join(values, Separator))
 		if err != nil {
 			log.Errorf("Failed to encode slice data for key %s: %s", key, err)
 		}
@@ -216,13 +216,13 @@ func encodeMap(sink DataSink, src reflect.Value, prefix string, depth recursion)
 	keys := make([]string, length)
 	for i, v := range mkeys {
 		keys[i] = toString(v)
-		key := fmt.Sprintf("%s|%s", prefix, keys[i])
+		key := fmt.Sprintf("%s%s%s", prefix, Separator, keys[i])
 		encode(sink, src.MapIndex(v), key, depth)
 	}
 
 	// sort the keys before joining - purely to make testing viable
 	sort.Strings(keys)
-	err := sink(prefix, strings.Join(keys, "|"))
+	err := sink(prefix, strings.Join(keys, Separator))
 	if err != nil {
 		log.Errorf("Failed to encode map keys for key %s: %s", prefix, err)
 	}
