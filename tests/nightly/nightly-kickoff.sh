@@ -17,6 +17,7 @@
 nightly_list_var="5-1-Distributed-Switch \
 5-2-Cluster \
 5-3-Enhanced-Linked-Mode \
+5-4-High-Availability \
 5-5-Heterogenous-ESXi \
 5-6-1-VSAN-Simple \
 5-6-2-VSAN-Complex \
@@ -130,8 +131,8 @@ for i in $nightly_list_var; do
 done
 
 # Setting the NSX test status to Not Implemented.
-nightlystatus[6]="Not Implemented"
-nightlystatus[21]="Not Implemented"
+nightlystatus[7]="TODO"
+nightlystatus[23]="TODO"
 
 for i in "${nightlystatus[@]}" 
 do

@@ -102,6 +102,8 @@ func main() {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
+	plEventMonitor := vicbackends.NewPortlayerEventMonitor(vicbackends.PlEventProxy{}, vicbackends.DockerEventPublisher{})
+	plEventMonitor.Start()
 	// Start API server wit options from command line args
 	api := startServer()
 
@@ -115,6 +117,7 @@ func main() {
 	})
 
 	<-serveAPIWait
+	plEventMonitor.Stop()
 }
 
 func handleFlags() bool {

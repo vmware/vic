@@ -22,6 +22,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -35,32 +36,38 @@ type MockTarget struct {
 	dirPath string
 }
 
-func NewMocktarget(path string) MockTarget {
-	return MockTarget{dirPath: path}
+func NewMocktarget(pth string) MockTarget {
+	return MockTarget{dirPath: pth}
 }
 
-func (v MockTarget) Open(path string) (io.ReadCloser, error) {
-	return os.Open(path)
+func (v MockTarget) Open(pth string) (io.ReadCloser, error) {
+	pth = path.Join(v.dirPath, pth)
+	logrus.Infof("open(%s)", pth)
+	return os.Open(pth)
 }
 
-func (v MockTarget) OpenFile(path string, mode os.FileMode) (io.ReadWriteCloser, error) {
-	return os.OpenFile(path, os.O_RDWR, mode)
+func (v MockTarget) OpenFile(pth string, mode os.FileMode) (io.ReadWriteCloser, error) {
+	pth = path.Join(v.dirPath, pth)
+	logrus.Infof("openfile(%s)", pth)
+	return os.OpenFile(pth, os.O_RDWR|os.O_CREATE, mode)
 }
 
-func (v MockTarget) Create(path string, perm os.FileMode) (io.ReadWriteCloser, error) {
-	return os.Create(path)
+func (v MockTarget) Mkdir(pth string, perm os.FileMode) ([]byte, error) {
+	pth = path.Join(v.dirPath, pth)
+	logrus.Infof("mkdir(%s)", pth)
+	return nil, os.Mkdir(pth, perm)
 }
 
-func (v MockTarget) Mkdir(path string, perm os.FileMode) ([]byte, error) {
-	return nil, os.Mkdir(path, perm)
+func (v MockTarget) RemoveAll(pth string) error {
+	pth = path.Join(v.dirPath, pth)
+	logrus.Infof("RemoveAll(%s)", pth)
+	return os.RemoveAll(pth)
 }
 
-func (v MockTarget) RemoveAll(path string) error {
-	return os.RemoveAll(path)
-}
-
-func (v MockTarget) ReadDir(path string) ([]os.FileInfo, error) {
-	dir, err := os.Open(path)
+func (v MockTarget) ReadDir(pth string) ([]os.FileInfo, error) {
+	pth = path.Join(v.dirPath, pth)
+	logrus.Infof("readdir(%s)", pth)
+	dir, err := os.Open(pth)
 	defer dir.Close()
 	if err != nil {
 		return nil, err
@@ -69,21 +76,29 @@ func (v MockTarget) ReadDir(path string) ([]os.FileInfo, error) {
 	return dir.Readdir(0)
 }
 
-func (v MockTarget) Lookup(path string) (os.FileInfo, error) {
-	return os.Stat(path)
+func (v MockTarget) Lookup(pth string) (os.FileInfo, []byte, error) {
+	pth = path.Join(v.dirPath, pth)
+	logrus.Infof("stat(%s)", pth)
+	info, err := os.Stat(pth)
+	return info, nil, err
 }
 
 // MOCK MOUNT STRUCT AND IMPL
 
 type MockMount struct {
+	Path string
 }
 
-func (m MockMount) Mount(target *url.URL) (Target, error) {
-	return NewMocktarget(target.Path), nil
+func (m MockMount) Mount(op trace.Operation) (Target, error) {
+	return NewMocktarget(m.Path), nil
 }
 
-func (m MockMount) Unmount(target Target) error {
+func (m MockMount) Unmount(op trace.Operation) error {
 	return nil
+}
+
+func (m MockMount) URL() (*url.URL, error) {
+	return url.Parse("nfs://localhost/some/interesting/dir")
 }
 
 func TestMain(m *testing.M) {
@@ -95,20 +110,18 @@ func TestMain(m *testing.M) {
 }
 
 func TestSimpleVolumeStoreOperations(t *testing.T) {
-	mockMount := MockMount{}
-	testVolName := "testVolume"
-	dirpath := path.Join(os.TempDir(), nfsTestDir)
+	testdir := path.Join(os.TempDir(), nfsTestDir)
+	mockMount := MockMount{testdir}
 
-	targetURL := url.URL{Path: dirpath}
 	op := trace.NewOperation(context.TODO(), "TestOp")
 
 	//Create a Volume Store
-	vs, err := NewVolumeStore(op, "testStore", &targetURL, mockMount)
+	vs, err := NewVolumeStore(op, "testStore", mockMount)
 	if !assert.NoError(t, err, "Failed during call to NewVolumeStore with err (%s)", err) {
 		return
 	}
 
-	_, err = os.Stat(dirpath)
+	_, err = os.Stat(path.Join(mockMount.Path, volumesDir))
 	if !assert.NoError(t, err, "Could not find the initial volume store directory after creation of volume store. err (%s)", err) {
 		return
 	}
@@ -121,11 +134,10 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	testInfoKey := "junk"
 	info[testInfoKey] = make([]byte, 20)
 
-	file, err := os.Open(dirpath)
-	defer file.Close()
-
 	//Create a Volume
-	vol, err := vs.VolumeCreate(op, testVolName, vs.Target, 0 /*we do not use this*/, info)
+	testVolName := "testVolume"
+
+	vol, err := vs.VolumeCreate(op, testVolName, vs.SelfLink, 0 /*we do not use this*/, info)
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
@@ -140,8 +152,8 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	}
 
 	//Check Metadata Pathing
-	metadataPath := path.Join(dirpath, metadataDir)
-	volumePath := path.Join(dirpath, VolumesDir)
+	metadataPath := path.Join(testdir, metadataDir)
+	volumePath := path.Join(testdir, volumesDir)
 
 	metaFilesDir, err := os.Open(metadataPath)
 	defer metaFilesDir.Close()
@@ -165,11 +177,10 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 		return
 	}
 
-	t.Logf("meta directory (%s)", metaDirEntries)
 	if !assert.Equal(t, len(metaDirEntries), 1, "expected metadata directory to have 1 entry and it had (%s)", len(metaDirEntries)) {
 		return
 	}
-	t.Logf("vol directory (%s)", volumeDirEntries)
+
 	if !assert.Equal(t, len(volumeDirEntries), 1, "expected metadata directory to have 1 entry and it had (%s)", len(volumeDirEntries)) {
 		return
 	}
@@ -209,16 +220,15 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 		return
 	}
 
-	t.Logf("meta directory (%s)", metaDirEntries)
 	if !assert.Equal(t, len(metaDirEntries), 0, "expected metadata directory to have 1 entry and it had (%s)", len(metaDirEntries)) {
 		return
 	}
-	t.Logf("vol directory (%s)", volumeDirEntries)
+
 	if !assert.Equal(t, len(volumeDirEntries), 0, "expected metadata directory to have 1 entry and it had (%s)", len(volumeDirEntries)) {
 		return
 	}
 
-	volToCheck, err := vs.VolumeCreate(op, testVolName, vs.Target, 0, info)
+	volToCheck, err := vs.VolumeCreate(op, testVolName, vs.SelfLink, 0, info)
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
 	}
@@ -267,25 +277,20 @@ func TestSimpleVolumeStoreOperations(t *testing.T) {
 	if !assert.Equal(t, len(volumeList), 0, "Expected %s volumes, VolumesList returned %s", 0, len(volumeList)) {
 		return
 	}
-
-	os.Remove(volumePath)
-	os.Remove(metadataDir)
 }
 
 func TestMultipleVolumes(t *testing.T) {
-	mockMount := MockMount{}
-	dirpath := path.Join(os.TempDir(), nfsTestDir)
+	mockMount := MockMount{path.Join(os.TempDir(), nfsTestDir)}
 
-	targetURL := url.URL{Path: dirpath}
 	op := trace.NewOperation(context.TODO(), "TestOp")
 
 	//Create a Volume Store
-	vs, err := NewVolumeStore(op, "testStore", &targetURL, mockMount)
+	vs, err := NewVolumeStore(op, "testStore", mockMount)
 	if !assert.NoError(t, err, "Failed during call to NewVolumeStore with err (%s)", err) {
 		return
 	}
 
-	_, err = os.Stat(dirpath)
+	_, err = os.Stat(path.Join(mockMount.Path, volumesDir))
 	if !assert.NoError(t, err, "Could not find the initial volume store directory after creation of volume store. err (%s)", err) {
 		return
 	}
@@ -315,7 +320,7 @@ func TestMultipleVolumes(t *testing.T) {
 	infoThree[testThreeInfoKeyTwo] = []byte("maybeSomeLabels")
 
 	//make volume one
-	volOne, err := vs.VolumeCreate(op, testVolNameOne, vs.Target, 0 /*we do not use this*/, infoOne)
+	volOne, err := vs.VolumeCreate(op, testVolNameOne, vs.SelfLink, 0 /*we do not use this*/, infoOne)
 
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
@@ -335,7 +340,7 @@ func TestMultipleVolumes(t *testing.T) {
 	}
 
 	//make volume two
-	volTwo, err := vs.VolumeCreate(op, testVolNameTwo, vs.Target, 0 /*we do not use this*/, infoTwo)
+	volTwo, err := vs.VolumeCreate(op, testVolNameTwo, vs.SelfLink, 0 /*we do not use this*/, infoTwo)
 
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
@@ -364,7 +369,7 @@ func TestMultipleVolumes(t *testing.T) {
 	}
 
 	//make volume three
-	volThree, err := vs.VolumeCreate(op, testVolNameThree, vs.Target, 0 /*we do not use this*/, infoThree)
+	volThree, err := vs.VolumeCreate(op, testVolNameThree, vs.SelfLink, 0 /*we do not use this*/, infoThree)
 
 	if !assert.NoError(t, err, "Failed during call to VolumeCreate with err (%s)", err) {
 		return
@@ -404,8 +409,8 @@ func TestMultipleVolumes(t *testing.T) {
 	}
 
 	//check metadatas
-	metadataPath := path.Join(dirpath, metadataDir)
-	volumePath := path.Join(dirpath, VolumesDir)
+	metadataPath := path.Join(mockMount.Path, metadataDir)
+	volumePath := path.Join(mockMount.Path, volumesDir)
 
 	metaFilesDir, err := os.Open(metadataPath)
 	defer metaFilesDir.Close()
@@ -536,7 +541,5 @@ func TestMultipleVolumes(t *testing.T) {
 		return
 	}
 
-	os.Remove(volumePath)
-	os.Remove(metadataDir)
 	return
 }

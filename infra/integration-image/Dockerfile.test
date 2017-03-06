@@ -2,7 +2,7 @@
 #docker build -t vic-test -f Dockerfile.test .
 #docker tag vic-test vmware-docker-ci-repo.bintray.io/integration/vic-test:1.x
 #docker push vmware-docker-ci-repo.bintray.io/integration/vic-test
-FROM golang:1.7
+FROM golang:1.8
 
 RUN apt-get update
 RUN apt-get install -y jq time

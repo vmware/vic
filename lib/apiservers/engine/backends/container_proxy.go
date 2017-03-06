@@ -41,6 +41,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -50,15 +51,15 @@ import (
 	"github.com/google/uuid"
 	httpclient "github.com/mreiferson/go-httpclient"
 
-	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/api/errors"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	dnetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/go-connections/nat"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/go-connections/nat"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -629,7 +630,10 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		return fmt.Errorf("%s is not running", vc.ContainerID)
 	}
 
-	// If request wasn't for sigkill, we simply pass on the signal to the container
+	// If Docker CLI sends sig == 0, we use sigkill
+	if sig == 0 {
+		sig = uint64(syscall.SIGKILL)
+	}
 	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(sig))
 	if _, err := client.Containers.ContainerSignal(params); err != nil {
 		switch err := err.(type) {
@@ -1267,12 +1271,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 		container.StopSignal = imageConfig.ContainerConfig.StopSignal // Signal to stop a container
 
 		container.OnBuild = imageConfig.ContainerConfig.OnBuild // ONBUILD metadata that were defined on the image Dockerfile
-
-		// Fill in information about the container's volumes
-		// FIXME:  Why does types.ContainerJSON have Mounts and also ContainerConfig,
-		// which also has Volumes?  Assuming this is a copy from image's container
-		// config till we figure this out.
-		container.Volumes = imageConfig.ContainerConfig.Volumes
 	}
 
 	// Pull labels from the annotation

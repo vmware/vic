@@ -28,7 +28,7 @@ build:
       - tests/wait_until_previous_builds_complete.sh
 
   vic:
-    image: golang:1.7
+    image: golang:1.8
     pull: true
     environment:
       BIN: bin
@@ -126,7 +126,7 @@ build:
       success: true
 
   bundle:
-    image: golang:1.7
+    image: golang:1.8
     pull: true
     environment:
       BIN: bin

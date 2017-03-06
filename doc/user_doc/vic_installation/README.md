@@ -22,8 +22,8 @@ Help us to improve the vSphere Integrated Containers documentation.
 
 Copyright &copy; 2017 VMware, Inc. All rights reserved. [Copyright and trademark information](http://pubs.vmware.com/copyright-trademark.html). Any feedback you provide to VMware is subject to the terms at [www.vmware.com/community_terms.html](http://www.vmware.com/community_terms.html).
 
-**VMware, Inc.**
-3401 Hillview Ave.
+**VMware, Inc.**<br>
+3401 Hillview Ave.<br>
 Palo Alto, CA 94304
 
 [www.vmware.com](http://www.vmware.com)

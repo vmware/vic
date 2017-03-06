@@ -29,8 +29,7 @@ elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); t
 elif (echo $buildinfo | grep -q "\[specific ci="); then
     buildtype=$(echo $buildinfo | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -v FS="(=|])" '{print $2}')
-    pybot --removekeywords TAG:secret --suite $testsuite tests/test-cases
-    pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
+    pybot --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
     pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
 fi

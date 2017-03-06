@@ -15,6 +15,7 @@
 */
 
 import { I18nService } from "./i18n.service";
+import { JASMINE_TIMEOUT } from "../testing/jasmine.constants";
 
 let i18nService: I18nService;
 
@@ -23,6 +24,7 @@ let i18nService: I18nService;
 
 describe("I18Service tests", () => {
    beforeEach(() => {
+      jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
       i18nService = new I18nService(null, null, null);
    });
    it ("interpolates messages correctly", () => {
