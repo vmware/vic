@@ -15,6 +15,8 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,6 +28,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/dns"
+	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/vspc"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
 )
@@ -92,6 +96,24 @@ func main() {
 	defer server.Shutdown()
 
 	go func() {
+		vchIP, err := lookupVCHIP()
+		if err != nil {
+			log.Fatalf("cannot retrieve vch-endpoint ip: %v", err)
+		}
+		log.Infof("vSPC started...")
+		doneCh := make(chan bool)
+		vspc := vspc.NewVspc(vchIP.String(), constants.SerialOverLANPort, "127.0.0.1", constants.AttachServerPort, doneCh)
+		for {
+			_, err := vspc.Accept()
+			if err != nil {
+				log.Errorf("vSPC cannot accept connection: %v", err)
+				doneCh <- true
+				log.Errorf("vSPC exiting...")
+				return
+			}
+		}
+	}()
+	go func() {
 		<-sig
 
 		dnsserver.Stop()
@@ -106,4 +128,22 @@ func main() {
 	if err := server.Serve(); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func lookupVCHIP() (net.IP, error) {
+	// FIXME: THERE MUST BE ANOTHER WAY
+	// following is from Create@exec.go
+	ips, err := net.LookupIP(constants.ManagementHostName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("No IP found on %s", constants.ManagementHostName)
+	}
+
+	if len(ips) > 1 {
+		return nil, fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
+	}
+	return ips[0], nil
 }

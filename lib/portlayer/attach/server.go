@@ -42,10 +42,9 @@ func NewAttachServer(ip string, port int) *Server {
 	defer trace.End(trace.Begin(""))
 
 	if port == 0 {
-		port = constants.SerialOverLANPort
+		port = constants.AttachServerPort
 	}
-
-	return &Server{ip: ip, port: port}
+	return &Server{ip: "localhost", port: port}
 }
 
 // Start starts the TCP listener.
