@@ -2,7 +2,13 @@
 
 You upgrade virtual container hosts (VCHs) by downloading a new version of vSphere Integrated Containers Engine and running the `vic-machine upgrade` command.
 
-**IMPORTANT**: You can only use `vic-machine upgrade` to upgrade VCHs from version 0.8 and above.
+You can use `vic-machine upgrade` to upgrade VCHs from version 0.8 and above. You can run `vic-machine upgrade` on VCHs that are either running or powered off. When you upgrade a running VCH, the VCH goes temporarily offline, but container workloads continue as normal during the upgrade process. Upgrading a VCH does not affect any mapped container networks that you defined by setting the `vic-machine create --container-network` option. The following operations are not available during upgrade:
+
+- You cannot access container logs
+- You cannot attach to a container
+- NAT based port forwarding is unavailable
+
+**IMPORTANT**: Upgrading a VCH does not upgrade any existing container VMs that the VCH manages. For container VMs to boot from the latest version of `bootstrap.iso`, container developers must recreate them.
 
 For descriptions of the options that `vic-machine upgrade` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [VCH Upgrade Options](upgrade_vch_options.md).
 
@@ -18,7 +24,7 @@ For descriptions of the options that `vic-machine upgrade` includes in addition 
 1. On the system on which you run `vic-machine`, navigate to the directory that contains the new version of the `vic-machine` utility.
 2. Run the `vic-machine upgrade` command. 
 
-   The following example includes the options required to upgrade a VCH in a simple vCenter Server environment. 
+     The following example includes the options required to upgrade a VCH in a simple vCenter Server environment. 
 
   - You must specify the username and optionally the password, either in the `target` option or separately in the `--user` and `--password` options. 
   - If the VCH has a name other than the default name, `virtual-container-host`, you must specify the `--name` or `--id` option. 
@@ -49,5 +55,3 @@ During the upgrade process, `vic-machine upgrade` performs the following operati
 - Boots the VCH by using the new version of the `appliance.iso` file.
 - Deletes the snapshot of the VCH endpoint VM once the upgrade has succeeded.
 - After you upgrade a VCH, any new container VMs will boot from the new version of the `bootstrap.iso` file.
-
-**NOTE**:  Upgrading a VCH does not upgrade any  existing container VMs that are running in the VCH. For container VMs to boot from the latest version of `bootstrap.iso`, container developers must recreate them.
