@@ -2,6 +2,8 @@
 
 You upgrade virtual container hosts (VCHs) by downloading a new version of vSphere Integrated Containers Engine and running the `vic-machine upgrade` command.
 
+**IMPORTANT**: You can only use `vic-machine upgrade` to upgrade VCHs from version 0.8 and above.
+
 For descriptions of the options that `vic-machine upgrade` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [VCH Upgrade Options](upgrade_vch_options.md).
 
 **Prerequisites**
@@ -23,16 +25,16 @@ For descriptions of the options that `vic-machine upgrade` includes in addition 
   - If multiple compute resources exist in the datacenter, you must specify the `--compute-resource` or `--id` option. 
   - If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the `--thumbprint` option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine` without the specifying the `--thumbprint` or `--force` options. The upgrade of the VCH fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run `vic-machine` again, including the `--thumbprint` option.
 
-   <pre>$ vic-machine-<i>operating_system</i> upgrade
+     <pre>$ vic-machine-<i>operating_system</i> upgrade
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --thumbprint <i>certificate_thumbprint</i>
 --name <i>vch_name</i></pre>
 
 3. If the upgrade operation fails with error messages, run `vic-machine upgrade` again with the `--force` option.
 
-  If your vSphere environment uses untrusted, self-signed certificates, running `vic-machine upgrade` with the `--force` option allows you to omit the `--thumbprint` option.
+    If your vSphere environment uses untrusted, self-signed certificates, running `vic-machine upgrade` with the `--force` option allows you to omit the `--thumbprint` option.
 
-   <pre>$ vic-machine-<i>operating_system</i> upgrade
+     <pre>$ vic-machine-<i>operating_system</i> upgrade
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --name <i>cluster_name</i></i>
 --force</pre>
