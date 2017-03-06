@@ -64,8 +64,9 @@ While Logged Out Fail To Get Container Logs
     Should not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  gzip: stdin: not in gzip format
     Log  ${output}
-    Should not Contain  ${output}  ${container}/vmware.log
-    Should not Contain  ${output}  ${container}/tether.debug
+    ${vmName}=  Get VM display name  ${container}
+    Should not Contain  ${output}  ${vmName}/vmware.log
+    Should not Contain  ${output}  ${vmName}/tether.debug
 
 While Logged Out Fail To Get VICAdmin Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN}/logs/vicadmin.log
@@ -76,7 +77,7 @@ While Logged Out Fail To Get VICAdmin Log
 Display HTML
     Login And Save Cookies
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
-    Should contain  ${output}  <title>VIC: </title>
+    Should contain  ${output}  <title>VIC: %{VCH-NAME}</title>
 
 Get Portlayer Log
     Login And Save Cookies
@@ -107,7 +108,7 @@ Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    {vmName}=  Get VM display name  ${container}
+    ${vmName}=  Get VM display name  ${container}
     Should Contain  ${output}  ${vmName}/vmware.log
     Should Contain  ${output}  ${vmName}/tether.debug
 
