@@ -21,6 +21,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"strconv"
+
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration/manager"
@@ -34,10 +36,10 @@ func setUp() {
 	// register sample plugin into test
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
-	version.MaxPluginVersion = 1
+	version.MaxPluginVersion = 3
 
-	if err := manager.Migrator.Register(1, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
-		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, 1, err)
+	if err := manager.Migrator.Register(version.MaxPluginVersion, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
+		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, version.MaxPluginVersion, err)
 	}
 }
 
@@ -72,7 +74,7 @@ func TestMigrateConfigure(t *testing.T) {
 	assert.True(t, migrated, "should be migrated")
 
 	latestVer := newData[manager.ApplianceVersionKey]
-	assert.Equal(t, "1", latestVer, "upgrade version mismatch")
+	assert.Equal(t, strconv.Itoa(version.MaxPluginVersion), latestVer, "upgrade version mismatch")
 
 	// check new data
 	var found bool
@@ -102,7 +104,7 @@ func TestMigrateConfigure(t *testing.T) {
 	newConf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.Decode(extraconfig.MapSource(newData), newConf)
 
-	assert.Equal(t, 1, newConf.Version.PluginVersion, "should not be migrated")
+	assert.Equal(t, version.MaxPluginVersion, newConf.Version.PluginVersion, "should not be migrated")
 	t.Logf("other version fields: %s", newConf.Version.String())
 }
 
@@ -139,5 +141,5 @@ func TestIsDataOlder(t *testing.T) {
 
 	older, err = ContainerDataIsOlder(mapData)
 	assert.Equal(t, nil, err, "should not have error")
-	assert.False(t, older, "Test data should not be older than latest, no container update plugin registered yet")
+	assert.True(t, older, "Test data should be older than latest since a container update plugin has been registered")
 }
