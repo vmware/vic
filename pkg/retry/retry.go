@@ -32,8 +32,8 @@ const (
 	DefaultMaxElapsedTime      = 1 * time.Minute
 )
 
-// Retry retries the given function DefaultRetryCount times while sleeping some time between unsuccesfull attempts
-// if retryOnError return true, continue retry, otherwise, return error
+// Retry retries the given function DefaultRetryCount times while sleeping some time between unsuccessful attempts
+// if retryOnError returns true, continue retry, otherwise, return error
 func Do(operation func() error, retryOnError func(err error) bool) error {
 	defer trace.End(trace.Begin(""))
 

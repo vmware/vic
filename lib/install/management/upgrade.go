@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/task"
@@ -60,11 +59,7 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		return err
 	}
 	d.session.Datastore = ds
-	if !conf.HostCertificate.IsNil() {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
-	} else {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
-	}
+	d.setDockerPort(conf, settings)
 
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
@@ -79,15 +74,22 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
+
+	// check for old snapshot
+	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.ctx)
+
 	if err = d.tryCreateSnapshot(snapshotName, "upgrade snapshot"); err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
 
 	if err = d.update(conf, settings); err == nil {
-		d.retryDeleteSnapshot(snapshotName, conf.Name)
+		if oldSnapshot != nil && vm.IsUpgradeSnapshot(oldSnapshot, UpgradePrefix) {
+			d.retryDeleteSnapshot(oldSnapshot.Name, conf.Name)
+		}
 		return nil
 	}
+
 	log.Errorf("Failed to upgrade: %s", err)
 	log.Infof("Rolling back upgrade")
 
@@ -99,11 +101,42 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	d.deleteUpgradeImages(ds, settings)
 	d.retryDeleteSnapshot(snapshotName, conf.Name)
+
 	// return the error message for upgrade
 	return err
 }
 
-// retryDeleteSnapshot will retry to delete snpashot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
+func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+
+	// some setup that is only necessary because we didn't just create a VCH in this case
+	d.appliance = vch
+	d.setDockerPort(conf, settings)
+
+	// ensure that we wait for components to come up
+	// TODO this stanza appears in Update too so we need to abstract it into a helper function
+	for _, s := range conf.ExecutorConfig.Sessions {
+		s.Started = ""
+	}
+
+	notfound := "A VCH version available from before the last upgrade could not be found."
+	snapshot, err := d.appliance.GetCurrentSnapshotTree(d.ctx)
+	if err != nil {
+		return errors.Errorf("%s An error was reported while trying to discover it: %s", notfound, err)
+	}
+
+	if snapshot == nil {
+		return errors.Errorf("%s No error was reported, so it's possible that this VCH has never been upgraded or the saved previous version was removed out-of-band.", notfound)
+	}
+
+	err = d.rollback(conf, snapshot.Name, settings)
+	if err != nil {
+		return errors.Errorf("could not complete manual rollback: %s", err)
+	}
+
+	return d.retryDeleteSnapshot(snapshot.Name, conf.Name)
+}
+
+// retryDeleteSnapshot will retry to delete snapshot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
 func (d *Dispatcher) retryDeleteSnapshot(snapshotName string, applianceName string) error {
 	// delete snapshot immediately after snapshot rollback usually fail in vSAN, so have to retry several times
 	operation := func() error {
@@ -158,15 +191,10 @@ func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) e
 func (d *Dispatcher) tryCreateSnapshot(name, desc string) error {
 	defer trace.End(trace.Begin(name))
 
-	upgrading, snapshot, err := d.appliance.UpgradeInProgress(d.ctx, UpgradePrefix)
-	if err != nil {
-		return err
-	}
-	if upgrading {
-		return errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
-	}
+	// TODO detect whether another upgrade is in progress & bail if it is.
+	// Use solution from https://github.com/vmware/vic/issues/4069 to do this either as part of 4069 or once it's closed
 
-	if _, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
 	}); err != nil {
 		return errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
@@ -237,14 +265,13 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("old appliance iso: %q, snapshot: %q", d.oldApplianceISO, snapshot)))
 
-	// do not power on appliance in this snapsthot revert
+	// do not power on appliance in this snapshot revert
 	log.Infof("Reverting to snapshot %s", snapshot)
 	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.RevertToSnapshot(d.ctx, snapshot, true)
 	}); err != nil {
 		return errors.Errorf("Failed to roll back upgrade: %s.", err)
 	}
-
 	return d.ensureRollbackReady(conf, settings)
 }
 
