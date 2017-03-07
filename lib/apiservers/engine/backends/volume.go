@@ -53,9 +53,11 @@ var validDriverOptsKeys = map[string]struct{}{
 	DriverArgImageKey:     {},
 }
 
+// Volume drivers currently supported. "local" is the default driver supplied by the client
+// and is equivalent to "vsphere" for our implementation.
 var supportedVolDrivers = map[string]struct{}{
-	"local":   struct{}{},
 	"vsphere": struct{}{},
+	"local":   struct{}{},
 }
 
 //Validation pattern for Volume Names

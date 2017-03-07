@@ -147,10 +147,14 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		info.SystemStatus = append(info.SystemStatus, customInfo)
 
 		// Show a list of supported volume drivers if there's at least one volume
-		// store configured for the VCH
+		// store configured for the VCH. "local" is excluded because it's the default
+		// driver supplied by the Docker client and is equivalent to "vsphere" in
+		// our implementation.
 		if len(volumeStoreString) > 0 {
 			for driver := range supportedVolDrivers {
-				info.Plugins.Volume = append(info.Plugins.Volume, driver)
+				if driver != "local" {
+					info.Plugins.Volume = append(info.Plugins.Volume, driver)
+				}
 			}
 		}
 	}

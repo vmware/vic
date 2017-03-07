@@ -68,7 +68,6 @@ Basic Info
     Log  ${output}
     Should Contain  ${output}  vSphere
     ${volpluginline}=  Get Lines Containing String  ${output}  Volume:
-    Should Contain  ${volpluginline}  local
     Should Contain  ${volpluginline}  vsphere
 
 Debug Info
