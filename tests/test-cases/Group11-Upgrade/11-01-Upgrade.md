@@ -14,6 +14,8 @@ This test requires that a vSphere server is running and available
 4. Create container with port mapping
 5. Upgrade VCH to latest version with short timeout 1s
 6. Upgrade VCH to latest version
+6. Roll back to the previous version
+6. Upgrade again to the upgraded version
 6. Check the previous created container and image are still there
 
 #Expected Outcome:
