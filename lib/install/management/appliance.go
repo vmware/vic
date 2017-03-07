@@ -503,12 +503,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 	log.Debugf("vm folder name: %q", d.vmPathName)
 	log.Debugf("vm inventory path: %q", vm2.InventoryPath)
-
-	conf.AddComponent("vicadmin", &executor.SessionConfig{
-		User:  "vicadmin",
-		Group: "vicadmin",
-		Cmd: executor.Cmd{
-			Path: "/sbin/vicadmin",
+	
+	vicadmin := executor.Cmd {
+		Path: "/sbin/vicadmin",
 			Args: []string{
 				"/sbin/vicadmin",
 				"--dc=" + settings.DatacenterName,
@@ -520,7 +517,19 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"GOTRACEBACK=all",
 			},
 			Dir: "/home/vicadmin",
-		},
+		
+	}
+	if settings.HTTPProxy != nil {
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+	}
+	if settings.HTTPSProxy != nil {
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+	}
+
+	conf.AddComponent("vicadmin", &executor.SessionConfig{
+		User:  "vicadmin",
+		Group: "vicadmin",
+		Cmd: vicadmin,
 		Restart: true,
 	},
 	)
