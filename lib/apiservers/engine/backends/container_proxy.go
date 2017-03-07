@@ -63,6 +63,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	epoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
@@ -87,6 +88,7 @@ type VicContainerProxy interface {
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
+	StreamContainerStats(ctx context.Context, id string, out io.Writer, stream bool, CPUMhz int64, memory int64) error
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
@@ -506,6 +508,65 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 		}
 	}
 
+	return nil
+}
+
+// StreamContainerStats will provide a stream of container stats written to the provided
+// io.Writer.  Prior to writing to the provided io.Writer there will be a transformation
+// from the portLayer representation of stats to the docker format
+func (c *ContainerProxy) StreamContainerStats(ctx context.Context, id string, out io.Writer, stream bool, CPUMhz int64, mem int64) error {
+	defer trace.End(trace.Begin(id))
+
+	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
+	defer transport.Close()
+
+	// create a child context that we control
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	params := containers.NewGetContainerStatsParamsWithContext(ctx)
+	params.ID = id
+	params.Stream = stream
+
+	// converter config
+	config := convert.ContainerStatsConfig{
+		Ctx:         ctx,
+		Cancel:      cancel,
+		VchMhz:      CPUMhz,
+		Stream:      stream,
+		ContainerID: id,
+		Out:         out,
+		Memory:      mem,
+	}
+	// create our converter
+	containerConverter := convert.NewContainerStats(config)
+	// provide the writer for the portLayer and start listening for metrics
+	writer := containerConverter.Listen()
+	if writer == nil {
+		// problem with the listener
+		return InternalServerError(fmt.Sprintf("unable to gather container(%s) statistics", id))
+	}
+
+	_, err := plClient.Containers.GetContainerStats(params, writer)
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetContainerStatsNotFound:
+			return NotFoundError(id)
+		case *containers.GetContainerStatsInternalServerError:
+			return InternalServerError("Server error from the interaction port layer")
+		default:
+			if ctx.Err() == context.Canceled {
+				return nil
+			}
+			//Check for EOF.  Since the connection, transport, and data handling are
+			//encapsulated inside of Swagger, we can only detect EOF by checking the
+			//error string
+			if strings.Contains(err.Error(), swaggerSubstringEOF) {
+				return nil
+			}
+			return InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
+		}
+	}
 	return nil
 }
 
