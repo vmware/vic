@@ -87,7 +87,7 @@ type VicContainerProxy interface {
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
-	Status(vc *viccontainer.VicContainer) (string, error)
+	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
@@ -482,13 +482,13 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	// we have a container on the PL side lets check the state before proceeding
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
 	// TODO: can be replaced with simple cache check once power events are propagated to persona
-	status, err := c.Status(vc)
+	state, err := c.State(vc)
 	if err != nil && IsNotFoundError(err) {
 		cache.ContainerCache().DeleteContainer(vc.ContainerID)
 		return err
 	}
 	// attempt to stop container if status is running or broken
-	if status != ContainerRunning && status != ContainerError {
+	if !state.Running && state.Status != ContainerError {
 		return nil
 	}
 
@@ -543,31 +543,31 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	return nil
 }
 
-// Status returns container status
-func (c *ContainerProxy) Status(vc *viccontainer.VicContainer) (string, error) {
+// State returns container state
+func (c *ContainerProxy) State(vc *viccontainer.VicContainer) (*types.ContainerState, error) {
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return "", InternalServerError("ContainerProxy.dockerInfo failed to get a portlayer client")
+		return nil, InternalServerError("ContainerProxy.dockerInfo failed to get a portlayer client")
 	}
 
 	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
-			return "", NotFoundError(fmt.Sprintf("No such container: %s", vc.Name))
+			return nil, NotFoundError(fmt.Sprintf("No such container: %s", vc.Name))
 		case *containers.GetContainerInfoInternalServerError:
-			return "", InternalServerError(err.Payload.Message)
+			return nil, InternalServerError(err.Payload.Message)
 		default:
-			return "", InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
+			return nil, InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
 	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, c.portlayerName)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return inspectJSON.State.Status, nil
+	return inspectJSON.State, nil
 }
 
 func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (
@@ -630,7 +630,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		return InternalServerError("Signal failed to create a portlayer client")
 	}
 
-	if status, err := c.Status(vc); status != ContainerRunning && err == nil {
+	if state, err := c.State(vc); !state.Running && err == nil {
 		return fmt.Errorf("%s is not running", vc.ContainerID)
 	}
 
@@ -650,7 +650,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		}
 	}
 
-	if status, err := c.Status(vc); status != ContainerRunning && err == nil {
+	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
 		if err = UnmapPorts(vc.HostConfig); err != nil {
 			return err

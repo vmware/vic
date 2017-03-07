@@ -294,16 +294,19 @@ func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, se
 	return nil
 }
 
-func (m *MockContainerProxy) Status(vc *viccontainer.VicContainer) (string, error) {
+func (m *MockContainerProxy) State(vc *viccontainer.VicContainer) (*types.ContainerState, error) {
 	// Assume container is running if container in cache.  If we need other conditions
 	// in the future, we can add it, but for now, just assume running.
 	c := cache.ContainerCache().GetContainer(vc.ContainerID)
 
 	if c == nil {
-		return "", nil
+		return nil, nil
 	}
 
-	return ContainerRunning, nil
+	state := &types.ContainerState{
+		Running: true,
+	}
+	return state, nil
 }
 
 func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
