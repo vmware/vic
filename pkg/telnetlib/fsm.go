@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,12 +30,10 @@ const (
 type telnetFSM struct {
 	curState state
 	tc       *TelnetConn
-	doneCh   chan chan struct{}
 }
 
 func newTelnetFSM() *telnetFSM {
 	f := &telnetFSM{
-		doneCh:   make(chan chan struct{}),
 		curState: dataState,
 	}
 	return f
@@ -46,16 +44,26 @@ func (fsm *telnetFSM) start() {
 		log.Infof("FSM closed")
 	}()
 	for {
-		select {
-		case ch := <-fsm.tc.fsmInputCh:
-			//log.Infof("FSM state is %d", fsm.curState)
-			ns := fsm.nextState(ch)
-			fsm.curState = ns
-		case ch := <-fsm.doneCh:
-			ch <- struct{}{}
-			return
+		b := make([]byte, 4096)
+		n, err := fsm.readFromRawConnection(b)
+		if n > 0 {
+			log.Debugf("read %d bytes from the TCP Connection %v", n, b[:n])
+			for i := 0; i < n; i++ {
+				ch := b[i]
+				ns := fsm.nextState(ch)
+				fsm.curState = ns
+			}
+		}
+		if err != nil {
+			log.Debugf("connection read: %v", err)
+			fsm.tc.Close()
+			break
 		}
 	}
+}
+
+func (fsm *telnetFSM) readFromRawConnection(b []byte) (int, error) {
+	return fsm.tc.conn.Read(b)
 }
 
 // this function returns what the next state is and performs the appropriate action
@@ -64,7 +72,7 @@ func (fsm *telnetFSM) nextState(ch byte) state {
 	b := []byte{ch}
 	switch fsm.curState {
 	case dataState:
-		if ch != IAC {
+		if ch != Iac {
 			fsm.tc.dataRW.Write(b)
 			fsm.tc.dataWrittenCh <- true
 			nextState = dataState
@@ -73,14 +81,14 @@ func (fsm *telnetFSM) nextState(ch byte) state {
 		}
 
 	case cmdState:
-		if ch == IAC { // this is an escaping of IAC to send it as data
+		if ch == Iac { // this is an escaping of IAC to send it as data
 			fsm.tc.dataRW.Write(b)
 			fsm.tc.dataWrittenCh <- true
 			nextState = dataState
-		} else if ch == DO || ch == DONT || ch == WILL || ch == WONT {
+		} else if ch == Do || ch == Dont || ch == Will || ch == Wont {
 			fsm.tc.cmdBuffer.WriteByte(ch)
 			nextState = optionNegotiationState
-		} else if ch == SB {
+		} else if ch == Sb {
 			fsm.tc.cmdBuffer.WriteByte(ch)
 			nextState = subnegState
 		} else { // anything else
@@ -97,19 +105,19 @@ func (fsm *telnetFSM) nextState(ch byte) state {
 		fsm.tc.cmdBuffer.Reset()
 		nextState = dataState
 	case subnegState:
-		if ch == IAC {
+		if ch == Iac {
 			nextState = subnegEndState
 		} else {
 			nextState = subnegState
 			fsm.tc.cmdBuffer.WriteByte(ch)
 		}
 	case subnegEndState:
-		if ch == SE {
+		if ch == Se {
 			fsm.tc.cmdBuffer.WriteByte(ch)
 			fsm.tc.cmdHandlerWrapper(fsm.tc.handlerWriter, &fsm.tc.cmdBuffer)
 			fsm.tc.cmdBuffer.Reset()
 			nextState = dataState
-		} else if ch == IAC { // escaping IAC
+		} else if ch == Iac { // escaping IAC
 			nextState = subnegState
 			fsm.tc.cmdBuffer.WriteByte(ch)
 		} else {
@@ -117,7 +125,7 @@ func (fsm *telnetFSM) nextState(ch byte) state {
 		}
 	case errorState:
 		nextState = dataState
-		log.Infof("Finite state machine is in an error state. This should not happen for correct telnel protocol syntax")
+		log.Infof("Finite state machine is in an error state. This should not happen for correct telnet protocol syntax")
 	}
 	return nextState
 }

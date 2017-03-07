@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,22 +106,22 @@ var samples = []testSample{
 		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, nil},
 	},
 	testSample{
-		inputSeq: []byte{IAC, DO, ECHO, 10, 20, IAC, WILL, SGA},
+		inputSeq: []byte{Iac, Do, Echo, 10, 20, Iac, Will, Sga},
 		expState: []state{cmdState, optionNegotiationState, dataState, dataState, dataState, cmdState, optionNegotiationState, dataState},
-		expOpt:   []*opt{nil, nil, &opt{DO, ECHO, true}, nil, nil, nil, nil, &opt{WILL, SGA, true}},
+		expOpt:   []*opt{nil, nil, &opt{Do, Echo, true}, nil, nil, nil, nil, &opt{Will, Sga, true}},
 		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, nil, nil},
 	},
 	testSample{
-		inputSeq: []byte{10, 20, IAC, AYT, 5, IAC, AO},
+		inputSeq: []byte{10, 20, Iac, Ayt, 5, Iac, Ao},
 		expState: []state{dataState, dataState, cmdState, dataState, dataState, cmdState, dataState},
 		expOpt:   []*opt{nil, nil, nil, nil, nil, nil, nil},
-		expCmd:   []*cmd{nil, nil, nil, &cmd{[]byte{AYT}, true}, nil, nil, &cmd{[]byte{AO}, true}},
+		expCmd:   []*cmd{nil, nil, nil, &cmd{[]byte{Ayt}, true}, nil, nil, &cmd{[]byte{Ao}, true}},
 	},
 	testSample{
-		inputSeq: []byte{10, IAC, SB, 5, 12, IAC, SE},
+		inputSeq: []byte{10, Iac, Sb, 5, 12, Iac, Se},
 		expState: []state{dataState, cmdState, subnegState, subnegState, subnegState, subnegEndState, dataState},
 		expOpt:   []*opt{nil, nil, nil, nil, nil, nil, nil},
-		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, &cmd{[]byte{SB, 5, 12, SE}, true}},
+		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, &cmd{[]byte{Sb, 5, 12, Se}, true}},
 	},
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,13 +22,17 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// DataHandlerFunc is the callback function in the event of receiving data from the telnet client
 type DataHandlerFunc func(w io.Writer, data []byte, tc *TelnetConn)
+
+// CmdHandlerFunc is the callback function in the event of receiving a command from the telnet client
 type CmdHandlerFunc func(w io.Writer, cmd []byte, tc *TelnetConn)
 
 var defaultDataHandlerFunc = func(w io.Writer, data []byte, tc *TelnetConn) {}
 
 var defaultCmdHandlerFunc = func(w io.Writer, cmd []byte, tc *TelnetConn) {}
 
+// TelnetOpts is the telnet server constructor options
 type TelnetOpts struct {
 	Addr        string
 	ServerOpts  []byte
@@ -37,6 +41,7 @@ type TelnetOpts struct {
 	CmdHandler  CmdHandlerFunc
 }
 
+// TelnetServer is the struct representing the telnet server
 type TelnetServer struct {
 	ServerOptions map[byte]bool
 	ClientOptions map[byte]bool
@@ -45,6 +50,7 @@ type TelnetServer struct {
 	ln            net.Listener
 }
 
+// NewTelnetServer is the constructor of the telnet server
 func NewTelnetServer(opts TelnetOpts) *TelnetServer {
 	ts := new(TelnetServer)
 	ts.ClientOptions = make(map[byte]bool)
@@ -85,8 +91,7 @@ func (ts *TelnetServer) Accept() (*TelnetConn, error) {
 		fsm:         newTelnetFSM(),
 	}
 	tc := newTelnetConn(opts)
-	go tc.connectionLoop()
-	go tc.readLoop()
+	go tc.writeLoop()
 	go tc.dataHandlerWrapper(tc.handlerWriter, tc.dataRW)
 	go tc.fsm.start()
 	go tc.startNegotiation()
