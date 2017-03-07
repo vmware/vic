@@ -187,7 +187,7 @@ The `vic-machine` utility is a binary for Windows, Linux, and OSX that manages t
 - Creates certificates for Docker client TLS authentication.
 - Checks that the prerequisites for VCH deployment are met on the cluster or host, namely that the firewall, licenses, and so on are configured correctly.
 - Configures existing VCHs for debugging.
-- Lists and deletes VCHs.
+- Lists, inspects, upgrades, and deletes VCHs.
 
 
 

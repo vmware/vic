@@ -41,6 +41,7 @@ groups:
   docs:
     users:
       - stuclem
+      - mdubya66
     conditions:
       files:
         include:
