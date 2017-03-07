@@ -166,8 +166,9 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 			continue
 		}
 
-		volMetadata, err := getMetadata(op, v.volMetadataDirPath(fileInfo.Name()), target)
+		volMetadata, err := v.getMetadata(op, fileInfo.Name(), target)
 		if err != nil {
+			op.Errorf("getting metadata for %s: %s", fileInfo.Name(), err.Error())
 			fetchErr = err
 			continue
 		}
@@ -221,31 +222,41 @@ func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[stri
 	return nil
 }
 
-func getMetadata(op trace.Operation, metadataPath string, target Target) (map[string][]byte, error) {
-	op.Infof("Attempting to retrieve volume metadata at (%s)", metadataPath)
-	metadataInfo := make(map[string][]byte)
+func (v *VolumeStore) getMetadata(op trace.Operation, ID string, target Target) (map[string][]byte, error) {
+	metadataPath := v.volMetadataDirPath(ID)
+	op.Debugf("Attempting to retrieve volume metadata for (%s) at (%s)", ID, metadataPath)
+
 	dataKeys, err := target.ReadDir(metadataPath)
 	if err != nil {
+		op.Errorf("readdir(%s): %s", metadataPath, err.Error())
 		return nil, err
 	}
 
-	for _, metadataFile := range dataKeys {
-		pth := path.Join(metadataPath, metadataFile.Name())
+	info := make(map[string][]byte)
+	for _, keyFile := range dataKeys {
 
-		fileBlob, err := target.Open(pth)
-		if err != nil {
-			return nil, err
-		}
-		defer fileBlob.Close()
-
-		dataBlob, err := ioutil.ReadAll(fileBlob)
-		if err != nil {
-			return nil, err
+		if keyFile.Name() == "." || keyFile.Name() == ".." {
+			continue
 		}
 
-		metadataInfo[metadataFile.Name()] = dataBlob
+		pth := path.Join(metadataPath, keyFile.Name())
+
+		f, err := target.Open(pth)
+		if err != nil {
+			op.Errorf("open(%s): %s", pth, err.Error())
+			return nil, err
+		}
+		defer f.Close()
+
+		dataBlob, err := ioutil.ReadAll(f)
+		if err != nil {
+			op.Errorf("readall(%s): %s", pth, err.Error())
+			return nil, err
+		}
+
+		info[keyFile.Name()] = dataBlob
 	}
 
 	op.Infof("Successfully read volume metadata at (%s)", metadataPath)
-	return metadataInfo, nil
+	return info, nil
 }

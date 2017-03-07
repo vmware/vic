@@ -103,7 +103,7 @@ func (v *Target) FSInfo() (*FSInfo, error) {
 }
 
 // Lookup returns attributes and the file handle to a given dirent
-func (v *Target) Lookup(p string) (*Fattr, []byte, error) {
+func (v *Target) Lookup(p string) (os.FileInfo, []byte, error) {
 	var (
 		err   error
 		fattr *Fattr
