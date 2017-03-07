@@ -57,6 +57,7 @@ type containerBase struct {
 	Migrated bool
 	// MigrationError means the errors happens during data migration, some operation might fail for we cannot extract the whole container configuration
 	MigrationError error
+	DataVersion    int
 
 	// original - can be pointers so long as refreshes
 	// use different instances of the structures
@@ -79,6 +80,7 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	if c != nil && c.ExtraConfig != nil {
 		var migratedConf map[string]string
 		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
+		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
 		extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
 	}
@@ -126,6 +128,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
+	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
 	extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
 

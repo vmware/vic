@@ -361,9 +361,8 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		return containers.NewGetContainerLogsInternalServerError()
 	}
 
-	// containers with PluginVersion > 0 will use updated output logging on the backend
-	// containers with ExecConfig.Version = nil are assumed to be PluginVersion 0
-	if container.ExecConfig.Version != nil && container.ExecConfig.Version.PluginVersion > 0 {
+	// containers with DataVersion > 0 will use updated output logging on the backend
+	if container.DataVersion > 0 {
 		// wrap the reader in a LogReader to deserialize persisted containerVM output
 		reader = iolog.NewLogReader(reader)
 	}

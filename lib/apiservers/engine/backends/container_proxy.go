@@ -555,7 +555,7 @@ func (c *ContainerProxy) State(vc *viccontainer.VicContainer) (*types.ContainerS
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
-			return nil, NotFoundError(fmt.Sprintf("No such container: %s", vc.Name))
+			return nil, NotFoundError(vc.Name)
 		case *containers.GetContainerInfoInternalServerError:
 			return nil, InternalServerError(err.Payload.Message)
 		default:
