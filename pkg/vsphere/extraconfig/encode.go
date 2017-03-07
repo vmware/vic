@@ -291,3 +291,17 @@ func MapSink(sink map[string]string) DataSink {
 		return nil
 	}
 }
+
+// ScopeFilterSink will create a DataSink that only stores entries where the key scope
+// matches one or more scopes in the filter.
+// The filter is a bitwise composion of scope flags
+func ScopeFilterSink(filter uint, sink DataSink) DataSink {
+	return func(key, value string) error {
+		scope := calculateScope(calculateScopeFromKey(key))
+		if scope&filter != 0 {
+			sink(key, value)
+		}
+		log.Debugf("Skipping encode of %s with scopes that do not match filter: %v", key, calculateScopeFromKey(key))
+		return nil
+	}
+}
