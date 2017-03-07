@@ -131,6 +131,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 		DNS:         dns,
 		Pools:       cfg.IPAM,
 		Annotations: annotations,
+		Internal:    cfg.Internal,
 	}
 
 	s, err := handler.netCtx.NewScope(context.Background(), scopeData)
@@ -347,6 +348,7 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 		ScopeType: scope.Type(),
 		Subnet:    subnet,
 		Gateway:   gateway,
+		Internal:  scope.Internal(),
 	}
 
 	var pools []string
