@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,12 +140,6 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			// poor man's test and set
 			s.ChangeVersion = h.Config.ChangeVersion
 			log.Debugf("ChangeVersion is %s", s.ChangeVersion)
-
-			// nilify ExtraConfig if vm is running
-			if h.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-				log.Debugf("Nilifying ExtraConfig as we are running")
-				s.ExtraConfig = nil
-			}
 
 			_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return h.vm.Reconfigure(ctx, *s)
