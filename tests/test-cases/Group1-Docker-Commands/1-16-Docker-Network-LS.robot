@@ -31,10 +31,25 @@ Docker network ls -q
     Should Not Contain  ${output}  DRIVER
     Should Not Contain  ${output}  bridge
 
-Docker network ls -f
+Docker network ls filter by name
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls -f name=bridge
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  bridge
+    @{lines}=  Split To Lines  ${output}
+    Length Should Be  ${lines}  2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls -f name=fakeName
+    Should Be Equal As Integers  ${rc}  0
+    @{lines}=  Split To Lines  ${output}
+    Length Should Be  ${lines}  1
+    Should Contain  @{lines}[0]  NAME
+
+Docker network ls filter by label
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --label=foo foo-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls -f label=foo
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  foo-network
     @{lines}=  Split To Lines  ${output}
     Length Should Be  ${lines}  2
 
@@ -45,9 +60,3 @@ Docker network ls --no-trunc
     @{line}=  Split String  @{lines}[1]
     Length Should Be  @{line}[0]  64
 
-Docker network ls -f fake network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls -f name=fakeName
-    Should Be Equal As Integers  ${rc}  0
-    @{lines}=  Split To Lines  ${output}
-    Length Should Be  ${lines}  1
-    Should Contain  @{lines}[0]  NAME
