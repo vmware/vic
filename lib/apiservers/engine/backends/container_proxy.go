@@ -548,7 +548,7 @@ func (c *ContainerProxy) State(vc *viccontainer.VicContainer) (*types.ContainerS
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return nil, InternalServerError("ContainerProxy.dockerInfo failed to get a portlayer client")
+		return nil, InternalServerError("ContainerProxy.State failed to get a portlayer client")
 	}
 
 	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))

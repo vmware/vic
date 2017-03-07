@@ -489,7 +489,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		if err != nil {
 			return err
 		}
-		// force stop if container is broken to make sure container is deletable later
+		// force stop if container state is error to make sure container is deletable later
 		if state.Status == ContainerError {
 			c.containerProxy.Stop(vc, name, &secs, true)
 		}
