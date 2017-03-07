@@ -40,3 +40,6 @@ groupadd docker
 
 # Add Photon user to Docker group
 usermod -a -G docker vagrant
+
+# Set up HGFS generic mount point
+mkdir -p /mnt/hgfs

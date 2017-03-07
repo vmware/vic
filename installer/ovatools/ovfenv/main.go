@@ -44,6 +44,10 @@ func main() {
 			Value: "",
 			Usage: "Get single OVF property",
 		},
+		cli.BoolFlag{
+			Name:  "dump",
+			Usage: "Dump the OVF Environment XML",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
@@ -69,6 +73,11 @@ func main() {
 			os.Exit(1)
 		}
 
+		if c.Bool("dump") {
+			fmt.Println(ovfEnv)
+			return nil
+		}
+
 		// TODO: fix this when proper support for namespaces is added to golang.
 		// ref: golang/go/issues/14407 and golang/go/issues/14407
 		ovfEnv = strings.Replace(ovfEnv, "oe:key", "key", -1)
@@ -84,11 +93,13 @@ func main() {
 
 		if c.String("key") != "" {
 			fmt.Println(e.Properties[c.String("key")])
-		} else {
-			for k, v := range e.Properties {
-				fmt.Printf("[%s]=%s\n", k, v)
-			}
+			return nil
 		}
+
+		for k, v := range e.Properties {
+			fmt.Printf("[%s]=%s\n", k, v)
+		}
+
 		return nil
 	}
 
