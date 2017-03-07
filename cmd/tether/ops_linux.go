@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,9 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/crypto/ssh/terminal"
 
+	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -50,6 +52,14 @@ func (t *operations) Log() (io.Writer, error) {
 
 	if err := setTerminalSpeed(f.Fd()); err != nil {
 		log.Errorf("Setting terminal speed failed with %s", err)
+	}
+
+	// enable raw mode
+	_, err = terminal.MakeRaw(int(f.Fd()))
+	if err != nil {
+		detail := fmt.Sprintf("Making ttyS1 raw failed with %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
 	}
 
 	return io.MultiWriter(f, os.Stdout), nil
@@ -80,8 +90,20 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 		log.Errorf("Setting terminal speed failed with %s", err)
 	}
 
+	// enable raw mode
+	_, err = terminal.MakeRaw(int(f.Fd()))
+	if err != nil {
+		detail := fmt.Sprintf("Making ttyS2 raw failed with %s", err)
+		log.Error(detail)
+		return nil, nil, errors.New(detail)
+	}
+
+	// wrap output in a LogWriter to serialize it into our persisted
+	// containerVM output format, using iolog.LogClock for timestamps
+	lw := iolog.NewLogWriter(f, iolog.LogClock{})
+
 	// use multi-writer so it goes to both screen and session log
-	return dio.MultiWriter(f, os.Stdout), dio.MultiWriter(f, os.Stderr), nil
+	return dio.MultiWriter(lw, os.Stdout), dio.MultiWriter(lw, os.Stderr), nil
 }
 
 func (t *operations) Setup(sink tether.Config) error {

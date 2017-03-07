@@ -26,6 +26,16 @@ Basic network create
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  test-network
 
+Network create with label
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --label=foo=bar label-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  label-network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect -f '{{.Labels}}' label-network
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  map[foo:bar]
+
 Create already created network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
     Should Be Equal As Integers  ${rc}  1

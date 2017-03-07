@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -358,6 +359,13 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 	if err != nil {
 		// Do not return an error here.  It's a workaround for a panic similar to #2594
 		return containers.NewGetContainerLogsInternalServerError()
+	}
+
+	// containers with PluginVersion > 0 will use updated output logging on the backend
+	// containers with ExecConfig.Version = nil are assumed to be PluginVersion 0
+	if container.ExecConfig.Version != nil && container.ExecConfig.Version.PluginVersion > 0 {
+		// wrap the reader in a LogReader to deserialize persisted containerVM output
+		reader = iolog.NewLogReader(reader)
 	}
 
 	detachableOut := NewFlushingReader(reader)
