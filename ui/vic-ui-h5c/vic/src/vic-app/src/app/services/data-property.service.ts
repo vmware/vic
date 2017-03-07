@@ -46,9 +46,10 @@ export class DataPropertyService {
     constructor(
         private http: Http,
         private gs: GlobalsService
-    ) {
-        // retrieve objectId from the frame's URL
-        this._objectId = this.gs.getWebPlatform().getObjectId();
+    ) {}
+
+    setObjectId(id: string) {
+        this._objectId = id;
     }
 
     /**

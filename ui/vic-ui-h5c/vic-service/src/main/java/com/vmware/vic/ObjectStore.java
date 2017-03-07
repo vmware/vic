@@ -70,7 +70,7 @@ public class ObjectStore {
 	private final static String[] VAPP_PROPERTIES_TO_FETCH = new String[]{
 			"name", "overallStatus", "summary.config.entity",
 			"summary.quickStats", "summary.config.cpuAllocation",
-			"summary.config.memoryAllocation", "vAppConfig.product.name", "vm"};
+			"summary.config.memoryAllocation", "vAppConfig.annotation", "vm"};
 	private final static String RESOURCE_ID_FOR_ALL_VICVMS = "vic/ALL";
 	private final static Log _logger = LogFactory.getLog(ObjectStore.class);
 
@@ -333,9 +333,8 @@ public class ObjectStore {
 
 		for (ResultItem ri : resultItems.toArray(new ResultItem[]{})) {
 			for (PropertyValue pv : ri.properties) {
-				if (pv.propertyName == "vAppConfig.product.name") {
-					String vAppProductName = (String)pv.value;
-					if (VIC_VAPP_IDENTIFIER.equals(vAppProductName)) {
+				if (pv.propertyName == "vAppConfig.annotation") {
+					if (VIC_VAPP_IDENTIFIER.equals(pv.value)) {
 						results.add(ri);
 					}
 				}

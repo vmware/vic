@@ -148,9 +148,9 @@ func TestBasicMap(t *testing.T) {
 	Encode(MapSink(encoded), IntMap)
 
 	expected := map[string]string{
-		visibleRO("intmap|1st"): "12345",
-		visibleRO("intmap|2nd"): "67890",
-		visibleRO("intmap"):     "1st|2nd",
+		visibleRO("intmap" + Separator + "1st"): "12345",
+		visibleRO("intmap" + Separator + "2nd"): "67890",
+		visibleRO("intmap"):                     "1st" + Separator + "2nd",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -196,7 +196,7 @@ func TestBasicSlice(t *testing.T) {
 	Encode(MapSink(encoded), IntSlice)
 
 	expected := map[string]string{
-		visibleRO("intslice~"): "1|2|3|4|5",
+		visibleRO("intslice~"): "1" + Separator + "2" + Separator + "3" + Separator + "4" + Separator + "5",
 		visibleRO("intslice"):  "4",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
@@ -332,4 +332,44 @@ func TestPointer(t *testing.T) {
 	Decode(MapSource(encoded), &decoded)
 
 	assert.Equal(t, Pointer, decoded, "Encoded and decoded does not match")
+}
+
+func TestFilterSink(t *testing.T) {
+	type CommonPersistence struct {
+		ExecutionEnvironment string `vic:"0.1" recurse:"depth=0"`
+
+		ID string `vic:"0.1" scope:"read-only" key:"id"`
+
+		Name string `vic:"0.1" scope:"read-only,non-persistent" key:"name"`
+
+		Notes string `vic:"0.1" scope:"read-only" key:"notes"`
+	}
+
+	type Type struct {
+		Common CommonPersistence `vic:"0.1" scope:"non-persistent,read-write" key:"common"`
+	}
+
+	Struct := Type{
+		Common: CommonPersistence{
+			ID:   "0xDEADBEEF",
+			Name: "Struct",
+		},
+	}
+
+	encoded := map[string]string{}
+	filterSink := ScopeFilterSink(NonPersistent|Hidden, MapSink(encoded))
+	Encode(filterSink, Struct)
+
+	expected := map[string]string{
+		visibleRONonpersistent("common/name"): "Struct",
+	}
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+
+	// strip ID as that would be filtered out
+	Struct.Common.ID = ""
+
+	var decoded Type
+	Decode(MapSource(encoded), &decoded)
+
+	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")
 }

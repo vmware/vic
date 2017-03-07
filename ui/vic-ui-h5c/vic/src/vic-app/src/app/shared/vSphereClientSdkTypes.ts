@@ -24,7 +24,6 @@ export interface WebPlatform {
    closeDialog(): void;
    getClientType(): string;
    getClientVersion(): string;
-   getObjectId(): string;
    getString(bundleName: string, key: string, params: any): string;
    getRootPath(): string;
    getUserSession(): UserSession;

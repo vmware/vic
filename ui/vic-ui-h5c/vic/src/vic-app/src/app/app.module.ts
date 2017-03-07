@@ -16,7 +16,6 @@
 
 import { NgModule, ErrorHandler } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
 import { HttpModule } from '@angular/http';
 
 import { ClarityModule } from 'clarity-angular';
@@ -63,7 +62,7 @@ import { AppComponent } from './app.component';
         DataPropertyService,
         { provide: ErrorHandler, useClass: AppErrorHandler }
     ],
-    bootstrap: [ AppComponent ]
+    bootstrap: [AppComponent]
 })
 export class AppModule {
 

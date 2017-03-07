@@ -137,16 +137,16 @@ func TestStructMap(t *testing.T) {
 	Encode(MapSink(encoded), StructMap)
 
 	expected := map[string]string{
-		visibleRO("map|Key1/id"):    "0xDEADBEEF",
-		visibleRO("map|Key1/name"):  "beef",
-		visibleRO("map|Key1/notes"): "",
-		visibleRO("map|Key2/id"):    "0x8BADF00D",
-		visibleRO("map|Key2/name"):  "food",
-		visibleRO("map|Key2/notes"): "",
-		visibleRO("map|Key3/id"):    "0xDEADF00D",
-		visibleRO("map|Key3/name"):  "dead",
-		visibleRO("map|Key3/notes"): "",
-		visibleRO("map"):            "Key1|Key2|Key3",
+		visibleRO("map" + Separator + "Key1/id"):    "0xDEADBEEF",
+		visibleRO("map" + Separator + "Key1/name"):  "beef",
+		visibleRO("map" + Separator + "Key1/notes"): "",
+		visibleRO("map" + Separator + "Key2/id"):    "0x8BADF00D",
+		visibleRO("map" + Separator + "Key2/name"):  "food",
+		visibleRO("map" + Separator + "Key2/notes"): "",
+		visibleRO("map" + Separator + "Key3/id"):    "0xDEADF00D",
+		visibleRO("map" + Separator + "Key3/name"):  "dead",
+		visibleRO("map" + Separator + "Key3/notes"): "",
+		visibleRO("map"):                            "Key1" + Separator + "Key2" + Separator + "Key3",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -182,16 +182,16 @@ func TestIntStructMap(t *testing.T) {
 	Encode(MapSink(encoded), StructMap)
 
 	expected := map[string]string{
-		visibleRO("map|1/id"):    "0xDEADBEEF",
-		visibleRO("map|1/name"):  "beef",
-		visibleRO("map|1/notes"): "",
-		visibleRO("map|2/id"):    "0x8BADF00D",
-		visibleRO("map|2/name"):  "food",
-		visibleRO("map|2/notes"): "",
-		visibleRO("map|3/id"):    "0xDEADF00D",
-		visibleRO("map|3/name"):  "dead",
-		visibleRO("map|3/notes"): "",
-		visibleRO("map"):         "1|2|3",
+		visibleRO("map" + Separator + "1/id"):    "0xDEADBEEF",
+		visibleRO("map" + Separator + "1/name"):  "beef",
+		visibleRO("map" + Separator + "1/notes"): "",
+		visibleRO("map" + Separator + "2/id"):    "0x8BADF00D",
+		visibleRO("map" + Separator + "2/name"):  "food",
+		visibleRO("map" + Separator + "2/notes"): "",
+		visibleRO("map" + Separator + "3/id"):    "0xDEADF00D",
+		visibleRO("map" + Separator + "3/name"):  "dead",
+		visibleRO("map" + Separator + "3/notes"): "",
+		visibleRO("map"):                         "1" + Separator + "2" + Separator + "3",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -223,13 +223,13 @@ func TestStructSlice(t *testing.T) {
 	Encode(MapSink(encoded), StructSlice)
 
 	expected := map[string]string{
-		visibleRO("slice"):         "1",
-		visibleRO("slice|0/id"):    "0xDEADFEED",
-		visibleRO("slice|0/name"):  "feed",
-		visibleRO("slice|0/notes"): "",
-		visibleRO("slice|1/id"):    "0xFACEFEED",
-		visibleRO("slice|1/name"):  "face",
-		visibleRO("slice|1/notes"): "",
+		visibleRO("slice"):                         "1",
+		visibleRO("slice" + Separator + "0/id"):    "0xDEADFEED",
+		visibleRO("slice" + Separator + "0/name"):  "feed",
+		visibleRO("slice" + Separator + "0/notes"): "",
+		visibleRO("slice" + Separator + "1/id"):    "0xFACEFEED",
+		visibleRO("slice" + Separator + "1/name"):  "face",
+		visibleRO("slice" + Separator + "1/notes"): "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -331,21 +331,21 @@ func TestComplex(t *testing.T) {
 	Encode(MapSink(encoded), ExecutorConfig)
 
 	expected := map[string]string{
-		visibleRO("executorconfig/common/id"):                      "",
-		visibleRO("executorconfig/common/name"):                    "",
-		visibleRO("executorconfig/common/notes"):                   "",
-		visibleRO("executorconfig/sessions|Session1/common/id"):    "SessionID",
-		visibleRO("executorconfig/sessions|Session1/common/name"):  "SessionName",
-		visibleRO("executorconfig/sessions|Session1/common/notes"): "",
-		hidden("executorconfig/sessions|Session1/cmd/path"):        "/vmware",
-		hidden("executorconfig/sessions|Session1/cmd/args~"):       "/bin/imagec|-standalone",
-		hidden("executorconfig/sessions|Session1/cmd/args"):        "1",
-		hidden("executorconfig/sessions|Session1/cmd/env~"):        "PATH=/bin|USER=imagec",
-		hidden("executorconfig/sessions|Session1/cmd/env"):         "1",
-		hidden("executorconfig/sessions|Session1/cmd/dir"):         "/",
-		hidden("executorconfig/sessions|Session1/tty"):             "true",
-		hidden("executorconfig/sessions"):                          "Session1",
-		hidden("executorconfig/Key"):                               "",
+		visibleRO("executorconfig/common/id"):                                      "",
+		visibleRO("executorconfig/common/name"):                                    "",
+		visibleRO("executorconfig/common/notes"):                                   "",
+		visibleRO("executorconfig/sessions" + Separator + "Session1/common/id"):    "SessionID",
+		visibleRO("executorconfig/sessions" + Separator + "Session1/common/name"):  "SessionName",
+		visibleRO("executorconfig/sessions" + Separator + "Session1/common/notes"): "",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/path"):        "/vmware",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/args~"):       "/bin/imagec" + Separator + "-standalone",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/args"):        "1",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/env~"):        "PATH=/bin" + Separator + "USER=imagec",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/env"):         "1",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/dir"):         "/",
+		hidden("executorconfig/sessions" + Separator + "Session1/tty"):             "true",
+		hidden("executorconfig/sessions"):                                          "Session1",
+		hidden("executorconfig/Key"):                                               "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -384,21 +384,21 @@ func TestComplexPointer(t *testing.T) {
 	Encode(MapSink(encoded), ExecutorConfig)
 
 	expected := map[string]string{
-		visibleRO("executorconfig/common/id"):                      "",
-		visibleRO("executorconfig/common/name"):                    "",
-		visibleRO("executorconfig/common/notes"):                   "",
-		visibleRO("executorconfig/sessions|Session1/common/id"):    "SessionID",
-		visibleRO("executorconfig/sessions|Session1/common/name"):  "SessionName",
-		visibleRO("executorconfig/sessions|Session1/common/notes"): "",
-		hidden("executorconfig/sessions|Session1/cmd/path"):        "/vmware",
-		hidden("executorconfig/sessions|Session1/cmd/args~"):       "/bin/imagec|-standalone",
-		hidden("executorconfig/sessions|Session1/cmd/args"):        "1",
-		hidden("executorconfig/sessions|Session1/cmd/env~"):        "PATH=/bin|USER=imagec",
-		hidden("executorconfig/sessions|Session1/cmd/env"):         "1",
-		hidden("executorconfig/sessions|Session1/cmd/dir"):         "/",
-		hidden("executorconfig/sessions|Session1/tty"):             "true",
-		hidden("executorconfig/sessions"):                          "Session1",
-		hidden("executorconfig/Key"):                               "",
+		visibleRO("executorconfig/common/id"):                                      "",
+		visibleRO("executorconfig/common/name"):                                    "",
+		visibleRO("executorconfig/common/notes"):                                   "",
+		visibleRO("executorconfig/sessions" + Separator + "Session1/common/id"):    "SessionID",
+		visibleRO("executorconfig/sessions" + Separator + "Session1/common/name"):  "SessionName",
+		visibleRO("executorconfig/sessions" + Separator + "Session1/common/notes"): "",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/path"):        "/vmware",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/args~"):       "/bin/imagec" + Separator + "-standalone",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/args"):        "1",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/env~"):        "PATH=/bin" + Separator + "USER=imagec",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/env"):         "1",
+		hidden("executorconfig/sessions" + Separator + "Session1/cmd/dir"):         "/",
+		hidden("executorconfig/sessions" + Separator + "Session1/tty"):             "true",
+		hidden("executorconfig/sessions"):                                          "Session1",
+		hidden("executorconfig/Key"):                                               "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -433,21 +433,21 @@ func TestPointerDecode(t *testing.T) {
 	Encode(MapSink(encoded), reference)
 
 	expected := map[string]string{
-		visibleRO("common/id"):                      "",
-		visibleRO("common/name"):                    "",
-		visibleRO("common/notes"):                   "",
-		visibleRO("sessions|Session1/common/id"):    "SessionID",
-		visibleRO("sessions|Session1/common/name"):  "SessionName",
-		visibleRO("sessions|Session1/common/notes"): "",
-		hidden("sessions|Session1/cmd/path"):        "/vmware",
-		hidden("sessions|Session1/cmd/args~"):       "/bin/imagec|-standalone",
-		hidden("sessions|Session1/cmd/args"):        "1",
-		hidden("sessions|Session1/cmd/env~"):        "PATH=/bin|USER=imagec",
-		hidden("sessions|Session1/cmd/env"):         "1",
-		hidden("sessions|Session1/cmd/dir"):         "/",
-		hidden("sessions|Session1/tty"):             "true",
-		hidden("sessions"):                          "Session1",
-		hidden("Key"):                               "",
+		visibleRO("common/id"):                                      "",
+		visibleRO("common/name"):                                    "",
+		visibleRO("common/notes"):                                   "",
+		visibleRO("sessions" + Separator + "Session1/common/id"):    "SessionID",
+		visibleRO("sessions" + Separator + "Session1/common/name"):  "SessionName",
+		visibleRO("sessions" + Separator + "Session1/common/notes"): "",
+		hidden("sessions" + Separator + "Session1/cmd/path"):        "/vmware",
+		hidden("sessions" + Separator + "Session1/cmd/args~"):       "/bin/imagec" + Separator + "-standalone",
+		hidden("sessions" + Separator + "Session1/cmd/args"):        "1",
+		hidden("sessions" + Separator + "Session1/cmd/env~"):        "PATH=/bin" + Separator + "USER=imagec",
+		hidden("sessions" + Separator + "Session1/cmd/env"):         "1",
+		hidden("sessions" + Separator + "Session1/cmd/dir"):         "/",
+		hidden("sessions" + Separator + "Session1/tty"):             "true",
+		hidden("sessions"):                                          "Session1",
+		hidden("Key"):                                               "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -527,7 +527,7 @@ func TestIPSlice(t *testing.T) {
 		visibleRO("slice"): fmt.Sprintf("%d", len(ips)-1),
 	}
 	for i := range encodedIPs {
-		expected[visibleRO(fmt.Sprintf("slice|%d", i))] = encodedIPs[i]
+		expected[visibleRO(fmt.Sprintf("slice"+Separator+"%d", i))] = encodedIPs[i]
 	}
 
 	assert.Equal(t, expected, encoded, "Encoded and expected do not match")

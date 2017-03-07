@@ -37,6 +37,7 @@ import { VchPortletComponent } from './summary-portlet/vch-portlet/vch-portlet.c
 import { ContainerPortletComponent } from './summary-portlet/container-portlet/container-portlet.component';
 import { VicSummaryViewComponent } from './summary-view/summary-view.component';
 import { AppComponent } from './app.component';
+import { JASMINE_TIMEOUT } from './testing/jasmine.constants';
 
 describe('VIC UI Unit Tests', () => {
   let fixture: ComponentFixture<AppComponent>;
@@ -70,6 +71,7 @@ describe('VIC UI Unit Tests', () => {
     }));
 
     beforeEach(() => {
+      jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
       fixture = TestBed.createComponent<AppComponent>(AppComponent);
       appInstance = fixture.componentInstance;
     });
