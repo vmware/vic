@@ -136,7 +136,7 @@ func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContai
 	return d.retryDeleteSnapshot(snapshot.Name, conf.Name)
 }
 
-// retryDeleteSnapshot will retry to delete snpashot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
+// retryDeleteSnapshot will retry to delete snapshot if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
 func (d *Dispatcher) retryDeleteSnapshot(snapshotName string, applianceName string) error {
 	// delete snapshot immediately after snapshot rollback usually fail in vSAN, so have to retry several times
 	operation := func() error {
