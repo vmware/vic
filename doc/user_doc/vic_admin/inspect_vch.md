@@ -33,13 +33,11 @@ The `vic-machine inspect` command displays information about the VCH:
 - The version of the `vic-machine` utility and the version of the VCH that you are inspecting.<pre>Installer version: <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>git_commit</i>
 VCH version: <i>vch_version</i>-<i>vch_build</i>-<i>git_commit</i></pre>
 
-<!--
 - The upgrade status of the VCH:<pre>
 VCH upgrade status: 
 Installer has same version as VCH
 No upgrade available with this installer version</pre>
   If `vic-machine inspect` reports a difference between the version or build number of `vic-machine` and the version or build number of the VCH, the upgrade status is `Upgrade available`. 
--->
 
 - The address of the VCH Admin portal for the VCH.
   

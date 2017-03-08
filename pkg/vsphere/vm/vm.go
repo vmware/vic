@@ -364,7 +364,7 @@ func (vm *VirtualMachine) GetCurrentSnapshotTree(ctx context.Context) (*types.Vi
 	return vm.bfsSnapshotTree(q, compareID), nil
 }
 
-// GetCurrentSnapshotTree returns current snapshot, with tree information
+// GetCurrentSnapshotTreeByName returns current snapshot, with tree information
 func (vm *VirtualMachine) GetSnapshotTreeByName(ctx context.Context, name string) (*types.VirtualMachineSnapshotTree, error) {
 	var err error
 
@@ -393,6 +393,7 @@ func (vm *VirtualMachine) GetSnapshotTreeByName(ctx context.Context, name string
 	return vm.bfsSnapshotTree(q, compareName), nil
 }
 
+// Finds a snapshot tree based on comparator function 'compare' via a breadth first search of the snapshot tree attached to the VM
 func (vm *VirtualMachine) bfsSnapshotTree(q *list.List, compare func(node types.VirtualMachineSnapshotTree) bool) *types.VirtualMachineSnapshotTree {
 	if q.Len() == 0 {
 		return nil
@@ -409,6 +410,11 @@ func (vm *VirtualMachine) bfsSnapshotTree(q *list.List, compare func(node types.
 	return vm.bfsSnapshotTree(q, compare)
 }
 
+// helper func that returns true if node is an upgrade snapshot image
+func IsUpgradeSnapshot(node *types.VirtualMachineSnapshotTree, upgradePrefix string) bool {
+	return node != nil && strings.HasPrefix(node.Name, upgradePrefix)
+}
+
 // UpgradeInProgress tells if an upgrade has already been started based on snapshot name beginning with upgradePrefix
 func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix string) (bool, string, error) {
 	node, err := vm.GetCurrentSnapshotTree(ctx)
@@ -416,7 +422,7 @@ func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix s
 		return false, "", fmt.Errorf("Failed to check upgrade snapshot status: %s", err)
 	}
 
-	if node != nil && strings.HasPrefix(node.Name, upgradePrefix) {
+	if IsUpgradeSnapshot(node, upgradePrefix) {
 		return true, node.Name, nil
 	}
 

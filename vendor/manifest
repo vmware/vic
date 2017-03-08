@@ -360,7 +360,7 @@
 			"importpath": "github.com/fdawg4l/go-nfs-client/nfs",
 			"repository": "https://github.com/fdawg4l/go-nfs-client",
 			"vcs": "git",
-			"revision": "43c69b0d08c429520d4a8e148a472f74c892d682",
+			"revision": "ba0907caa92da3d762b621a251af64688fa1222b",
 			"branch": "master",
 			"path": "/nfs",
 			"notests": true
@@ -953,7 +953,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "f4a3ffe52df6113f08a3c68e473ab6ff7dad28cf",
+			"revision": "3a2c0f8c41a0a183271fb29e3333c1c074b81b10",
 			"branch": "master"
 		},
 		{

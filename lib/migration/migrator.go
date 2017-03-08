@@ -33,7 +33,7 @@ import (
 //
 // Note: Input map conf is VCH appliance guestinfo map, and returned map is the new guestinfo.
 // Returns false without error means no need to migrate, and returned map is the copy of input map
-// If there is error returned, returned map might have half-migrated value
+// If there is error returned, returns true and half-migrated value
 func MigrateApplianceConfig(ctx context.Context, s *session.Session, conf map[string]string) (map[string]string, bool, error) {
 	return migrateConfig(ctx, s, conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
@@ -42,7 +42,7 @@ func MigrateApplianceConfig(ctx context.Context, s *session.Session, conf map[st
 //
 // Note: Migrated data will be returned in map, and input object is not changed.
 // Returns false without error means no need to migrate, and returned map is the copy of input map
-// If there is error returned, returned map might have half-migrated value.
+// If there is error returned, returns true and half-migrated value
 func MigrateContainerConfig(conf map[string]string) (map[string]string, bool, error) {
 	return migrateConfig(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
@@ -55,6 +55,11 @@ func ContainerDataIsOlder(conf map[string]string) (bool, error) {
 // ApplianceDataIsOlder returns true if input appliance config is older than latest version. If error happens, always returns false
 func ApplianceDataIsOlder(conf map[string]string) (bool, error) {
 	return dataIsOlder(conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
+}
+
+// ContainerDataVersion returns container data version
+func ContainerDataVersion(conf map[string]string) (int, error) {
+	return getCurrentID(conf, manager.ContainerVersionKey)
 }
 
 // dataIsOlder returns true if data is older than latest. If error happens, always returns false

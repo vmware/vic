@@ -102,10 +102,42 @@ Docker logs follow shutdown
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  ${buffer}\n${buffer}
 
+Docker binary logs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ubuntu
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ubuntu /bin/cat /bin/hostname >/tmp/hostname
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a |grep ubuntu |awk '{print $1}'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${id} >/tmp/hostname-log
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${h1}=  Run And Return Rc And Output  sha256sum /tmp/hostname |awk '{print $1}'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${h2}=  Run And Return Rc And Output  sha256sum /tmp/hostname-log |awk '{print $1}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${h1}  ${h2}
+    ${rc}  ${output}=  Run And Return Rc And Output  rm /tmp/hostname*
+    Should Be Equal As Integers  ${rc}  0
+
+Docker text logs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ubuntu /bin/ls >/tmp/ls
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a |grep /bin/ls |awk '{print $1}'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${id} >/tmp/ls-log
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${h1}=  Run And Return Rc And Output  sha256sum /tmp/ls |awk '{print $1}'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${h2}=  Run And Return Rc And Output  sha256sum /tmp/ls-log |awk '{print $1}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${h1}  ${h2}
+    ${rc}  ${output}=  Run And Return Rc And Output  rm /tmp/ls*
+    Should Be Equal As Integers  ${rc}  0
+
 Docker logs with timestamps and since certain time
-    ${status}=  Get State Of Github Issue  1738
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-8-Docker-Logs.robot needs to be updated now that Issue #366 has been resolved
-    Log  Issue \#1738 is blocking implementation  WARN
+    ${status}=  Get State Of Github Issue  2539
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-8-Docker-Logs.robot needs to be updated now that Issue #2539 has been resolved
+    Log  Issue \#2539 is blocking implementation  WARN
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/sh -c 'a=0; while [ $a -lt 5 ]; do echo "line $a"; a=`expr $a + 1`; sleep 1; done;'

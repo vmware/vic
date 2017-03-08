@@ -2370,6 +2370,12 @@
 					"items": {
 						"$ref": "#/definitions/EndpointConfig"
 					}
+				},
+				"annotations": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
 				}
 			}
 		},
