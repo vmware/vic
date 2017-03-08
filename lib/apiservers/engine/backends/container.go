@@ -481,8 +481,18 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 	// Use the force and stop the container first
 	secs := 0
+
 	if config.ForceRemove {
 		c.containerProxy.Stop(vc, name, &secs, true)
+	} else {
+		state, err := c.containerProxy.State(vc)
+		if err != nil {
+			return err
+		}
+		// force stop if container state is error to make sure container is deletable later
+		if state.Status == ContainerError {
+			c.containerProxy.Stop(vc, name, &secs, true)
+		}
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -536,12 +546,12 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 				// port bindings were cleaned up by another operation.
 				continue
 			}
-			running, err := c.containerProxy.IsRunning(cc)
+			state, err := c.containerProxy.State(cc)
 			if err != nil {
 				return fmt.Errorf("Failed to get container %q power state: %s",
 					mappedCtr, err)
 			}
-			if running {
+			if state.Running {
 				log.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
 				continue
 			}
