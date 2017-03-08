@@ -3,44 +3,94 @@ This document is for this issue: https://github.com/vmware/vic/issues/3936
 
 
 ## A Working Installation of NSX-v
-I documented how to install and configure NSX with Vsphere: How to set up VM-to-VM communication on NSX logical switch with Nimbus
+For VMWare engineers using Nimbus, here is a document about how to install and configure NSX with Vsphere: How to set up VM-to-VM communication on NSX logical switch with Nimbus
 https://confluence.eng.vmware.com/pages/viewpage.action?pageId=209964551
+
+## About NSX Security Groups and Security Policies
+This section is a brief introduction about NSX security groups and security policies (some words are taken from this document http://www.vmware.com/content/dam/digitalmarketing/vmware/en/pdf/products/nsx/vmw-nsx-network-virtualization-design-guide.pdf).  
+  * Security Groups
+    NSX provides various grouping mechanisms :
+      * vCenter Objects: VMs, Distributed Switches, Clusters, etc.
+      * VM Properties: vNICs, VM names, VM operating Systems, etc.
+      * NSX Objects: Logical Switches, Security Tags, Logical Routers, etc. 
+    In this document, we propose to use vNICs as the grouping creteria. We will dicuss more on this later.
+
+  * Security Policies
+    NSX provides security policies as a way to group rules for security controls that will be applied to one or more security groups.
+    Each security policy contains the following :
+      * Firewall rules: 
+        * NSX built in distributed firewall.
+      * weight
+        * Weight of a policy determines the rank of the policy versus other policies in the NSX eco-system. Higher weight rules are executed first.
 
 ## An Overview of Workflow
 
+Current VIC implementation may have the container bridge networks all reside on a single port group and only be separated by IP space. Our container networks (created using `docker network create`) are not isolated from each other. For example, a containerVM in one container network can change its IP and be able to reach containerVMs in another container network.
+
+Our research shows that we can use NSX security groups and policies on top of current VIC implementation and achieve micro-segmentation. 
+
+Our goals :
+  * VMs can communicate with VMs in the same network (security group).
+  * VMs cannot talk to VMs in a differrent network (security group).
+  * one VM to be added to more than one network (security group).
+
+In the following example, we see that : 
+  * containerVM1 and containerVM2 are in default bridge network
+  * containerVM3 , containerVM4 and containerVM5 are in bridge network `network-a` 
+  * containerVM5 and containerVM6 are in bridge network `network-b`
+    (note that adding containerVM5 to both network `network-a` and network `network-b` are not supported on current VIC yet.)
+
+![An Example of How We Apply Security Group on Container Networks] (pics/example-SG-vs-network.png)
+
+Let us use this example to explain the workflow.
+
 ### Prerequisite
-VSphere admin already has NSX installed and configured on VCenter. That means there is an NSX logical switch created by the admin, which automatically creates a port group on distributed switch.
+We assume VSphere admin already has NSX installed and configured on VCenter. That means there is an NSX logical switch created by the admin, which automatically creates a port group on distributed switch.
 So this port group can be used as a bridge network for `vic-machine create`
 
 ![Distributed Switch with logic switch added] (pics/dswitch.png)
 
 ### Create VCH 
-specifying 'bridge-network' as the port group 'vxw-dvs-55-virtualwire-1-sid-5000-logical-switch-1':
-  * I use this VCH to create containers, they are automatically added to this port group (i.e. logical switch)
-  * containerVMs get their IPs in the internal network
-  * containerVMs can ping each other
+Specifying 'bridge-network' as the port group 'vxw-dvs-55-virtualwire-1-sid-5000-logical-switch-1'.
+  * VIC creates VCH
+  * NSX manager creates a security group `<vch name>-SG-VCH` with dynamic membership: NIC (of VCH) 
+  * NSX manager creates these security policies shown in the following picture
+  * NSX manager applies security policy `<vch name>-SP-0` on security group `<vch name>-SG-VCH`
+
+  ![Security policies] (pics/security-policies)
+
+### docker run --name=containerVM1 <image name>
+  * VIC create containerVM1
+  * NSX manager creates security group `<vch name>-SG-bridge` with dynamic membership: NIC-1 (of containerVM1)
+  * NSX manager applies all the defined policy groups to this security group
 
 ### docker network create network-a
-Our goal:
-  * VMs can communicate with VMs in the same security group.
-  * VMs cannot talk to VMs in a differrent security group.
-  * one VM to be added to more than one security group.
+  * VIC creates network scopes for this container bridge network
+  * NSX manager creates a security group `<vch name>-SG-network-a` 
+  * NSX manager applies all the defined policy groups to this security group  
+  (creating network-b is similar are similar to this)
 
-To achieve our goal, use NSX security/policy groups:
-  * NSX manager create three policy groups:
-     * `<vch name>-PolicyGroup-rule-1`: weight 8300, Policy's Security Group to Policy's Security Group :  allow
-     * `<vch name>-PolicyGroup-rule-2`: weight 7300, Any to Policy's Security Group : block
-     * `<vch name>-PolicyGroup-rule-3`: weight 6300, Policy's Security Group to Any : block
-  * NSX manager create an IP sets  `<vch name>-IPSets-network-a` with the subnet of this network (or Security Tag `<vch name>-SecurityTag-network-a` and add it to containerVMs)
-  * NSX manager create a security group `<vch name>-SecurityGroup-network-a` (with members: IP Sets == `<vch name>-IPSets-network-a` or Security Tag == `<vch name>-SecurityTag-network-a`))
-  * NSX manager apply the policy groups to this security group
+### docker run -net=network-a --name=containerVM3 <image name>
+  * VIC creates containerVM3
+  * NSX manager update security group `<vch name>-SG-network-a` with dynamic mebership: NIC-3 (of containerVM3)
+  (creating other containerVMs are similar to this)
 
-### docker run -net=network-a
-  * create a containerVM 
+### Summary of security groups and security policies of this example
+We associate vNICs to security groups. So the memberships of security groups look like this :
+  * `<vch name>-SG-VCH`  dynamic membership: NIC (of VCH) 
+  * `<vch name>-SG-bridge`    dynamic membership: NIC-1 (of containerVM1), NIC-2 (of containerVM2)
+  * `<vch name>-SG-network-a`    dynamic membership: NIC-3 (of containerVM3), NIC-4 (of containerVM4), NIC-52 (of containerVM5)
+  * `<vch name>-SG-network-b`    dynamic membership: NIC-5 (of containerVM5), NIC-6 (of containerVM6)
 
-![how security groups (with IP Sets as membership condition) and policy groups can be used to isolate container networks] (pics/security-group-with-ip-sets.png)
+We apply the following security policies to our security groups:
+  * `<vch name>-SP-0` is applied to all the security groups
+  * `<vch name>-SP-1` is applied to security groups `<vch name>-SG-bridge`, `<vch name>-SG-network-a` and `<vch name>-SG-network-b` 
+  * `<vch name>-SP-2` is applied to security groups `<vch name>-SG-bridge`, `<vch name>-SG-network-a` and `<vch name>-SG-network-b`
+  * `<vch name>-SP-3` is applied to security groups `<vch name>-SG-bridge`, `<vch name>-SG-network-a` and `<vch name>-SG-network-b`
 
-![how security groups (with Security Tag as membership condition) and policy groups can be used to isolate container networks] (pics/security-group-with-ip-sets.png)
+The result we get :
+  * all the networks are isolated to each other
+  * containerVMs in the network can connect to their gateway at VCH
 
 ## NSX Manager API:
 ![Code flow to use NSX Manager API] (pics/with-nsx.png)
@@ -50,60 +100,79 @@ https://{nsxmanager's hostname or IP}/api
 
 ### API calls
 (details in http://pubs.vmware.com/nsx-63/topic/com.vmware.ICbase/PDF/nsx_63_api.pdf , note that many NSX API methods reference vCenter object IDs in URI parameters, query parameters, request bodies, and response bodies, also it takes XML as request body (sad) )
+* VCH create
+  * create security group 
+    * POST /2.0/services/securitygroup/bulk/{scopeId}
+  * create security policies and apply them to the security group
+    * POST /2.0/services/policy/securitypolicy (specify securityGroupBinding in the xml request body)
+
 * docker network create
-  * create IP Sets
-     * POST /2.0/services/ipset/{scopeMoref}
-  * or create Security Tag
-     * POST /2.0/services/securitytags/tag
-  * create security group withe IP Sets or Security Tag as members
+  * create security group `<vch name>-SG-<network name>`
      * POST /2.0/services/securitygroup/bulk/{scopeId} (For the scopeId use globalroot-0 for non-universal security groups and universalroot-0 for universal security groups.)
-  * create security policy and apply it to security group
-     * POST /2.0/services/policy/securitypolicy (specify securityGroupBinding in the xml request body)
+  * update security policies to apply them to the security group
+     * PUT /2.0/services/policy/securitypolicy/{ID}
 
 * docker network delete 
   * check if any VMs attached to this security group
      * GET /2.0/services/securitygroup/{objectId}/translation/virtualmachine 
-  * delete the network (security group, policy group, IP Sets)
+  * delete the network (security group, policy group)
      * DELETE /2.0/services/securitytags/tag/{tagId}
      * DELETE /2.0/services/securitygroup/{objectId} 
-     * DELETE /2.0/services/ipset/{ipsetId}
 
 * docker network list
   * list all the security groups
     * GET /2.0/services/securitygroup/internal/scope/{scopeId}
-  * filter security group names by `<vch name>-SecurityGroup` prefix
-  * or if we keep KV pairs of each created network, then we just need to use that to list all the networks
+  * filter security group names by `<vch name>-SG-` prefix
 
-* docker run <image> --net=<network-name>
-  * create a containerVM
-  * if using security tag as the membership condition, need to assign security tag to the containerVM
-    * POST /2.0/services/securitytags/vm/{vmId}
+* docker run --net=<network name> <image name>
+  * update security group `<vch name>-SG-<network name>` dynamic membership 
+    * PUT /2.0/services/securitygroup/bulk/{objectId}
 
-## State Storage
-  * we can map a docker network name to a security group name as `<vch name>-SecurityGroup-<network name>`
-  * we can store KV pairs for each created network and then everything else will be in the NSX control plane
 
-## Unclear / need discussion:
-### Security Tag v.s IP Sets
-  * Security Tag we only need to add the tag to a VM then it is added to a security group, which makes adding VMs to multiple security groups convinient. We do not need to update security groups everytime we create a new containerVM in a network.
-  * With IP Sets, we need to add the VM's IP to an IP Set. The downside is that 1. it requires the VM's IP to be static. 2. if we have more than one vch in the environment, containerVMs' IPs overlap, we cannot allow one VM in multiple security groups. 3. it may limit the number of VMs added to an IP Set (how many IPs can be added one IP set?). 4. everytime adding a new containerVM in a network, we need to add its IP to the IP set.
-  * I think Security tag is more convinient than IP Sets, if we can figure out why security tag does not work on current containerVMs. Otherwise, using IP Sets allows using what we already have and moving fast as long as we are ok with its limitation. 
-  * I tried MAC Sets or Virtual Machine as security group members. They do not work for current containerVM either.
+## Discussion:
+### Multi-tenants
+NSX-v supports multi-tenancy, and here is an example of a NSX network topology:
 
-### Details of integrating with current Port Layer API 
+![NSX-v multi-tenancy] (pics/nsx-multi-tenants.png)
+
+It worths to mention that we would expect only one VCH is created for one tenant. Otherwise there IP overlapping would issue. 
+
+### Associating to Security Group: Security Tag versus vNIC 
+  * Security Tag: 
+    * Pros:
+      * We only need to tag a VM then it is added to a security group. 
+      * we do not need to update security groups everytime a new containerVM is created. 
+    * Cons:
+      * It does not allow a containerVM to be added in multiple networks.  
+
+  * vNIC:
+    * Pros:
+      * It serves our goals.
+    * Cons:
+      * Everytime a containerVM is created, we need to update related security groups' by adding one more membership criterias. Not sure the maximum number of membership criterias NSX-v supports. 
+
+### Bridged Containers with Exposed Port or Directly Connected to Public network
+  * all the user cases mentioned in the networking design document should still be valid 
+
+## Unclear
+### Adding a ContainerVM to Multiple Networks
+This is not supported in current VIC implementation. 
+  * Is adding another network adapter to a containerVM the right way to do it?
+  * Was the challenge not able to add a new network adapter to a running containerVM?
+  * if so, maybe after the VSPC work is committed we would be unblocked.
+
+### Details of Integrating with Current Port Layer API 
   * does the current Port Layer API map perfectly to our goals in using NSX ?
   * if not, what changes do we need to make?
 
-### Bridged containers with exposed port or directly connected to public network
-  * I have not looked into how/if this can work with NSX yet
-  * all the user cases mentioned in the networking design document should still be valid or improved
-
-### To support both cases: with or without NSX?
+### With or Without NSX?
+Do we surpport both cases :
+  1. User does not have NSX setup, then we continue providing with current VIC
+  2. User has NSX setup, then we provide VIC with NSX integration
   * need to find out how to verify if a bridge network specified is a logic switch?
 
-### User management
+### User Management
   * NSX allows RBAC, we can add Vcenter users and assign roles for them
-  * to my understanding, in terms of using NSX for 'docker network create', we will not need RBAC controls? Unless if we want to restrict users from creating networks, otherwise we may not need RBAC at this point?
-
-
+  * Only security Admin or enterprise admin can operate on NSX security groups and policies. 
+  * Need to discuss more with Geroge
 
