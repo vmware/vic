@@ -56,6 +56,14 @@ Simple VSAN
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
+    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+    Should Be Empty  ${out}
+
     Install VIC Appliance To Test Server
 
     Run Regression Tests
+
+    Cleanup VIC Appliance On Test Server
+
+    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+    Should Be Empty  ${out}
