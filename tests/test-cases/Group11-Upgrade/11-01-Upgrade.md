@@ -17,9 +17,11 @@ This test requires that a vSphere server is running and available
 7. Roll back to the previous version
 8. Upgrade again to the upgraded version
 9. Check the previous created container and image are still there
+10. Check the previous created container's display name and datastore folder name
 
 #Expected Outcome:
 * Step 5 should fail with timeout
+* Step 10 should show that both the container's display name and datastore folder name are containerName-containerID
 * All other steps should result in success
 
 #Possible Problems:

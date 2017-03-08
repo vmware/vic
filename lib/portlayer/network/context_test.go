@@ -693,7 +693,7 @@ func TestContextAddContainer(t *testing.T) {
 
 func newContainer(name string) *exec.Handle {
 	h := exec.TestHandle(uid.New().String())
-	h.ExecConfig.CommonSpecForVM.Name = name
+	h.ExecConfig.ExecutorConfigCommon.Name = name
 	return h
 }
 

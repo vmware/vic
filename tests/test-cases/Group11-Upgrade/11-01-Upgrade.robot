@@ -103,6 +103,12 @@ Run Docker Checks
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Exited (0)
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info *-%{ID1}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vch-restart-tes-%{ID1}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls |grep *-%{ID1}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  vch-restart-tes-%{ID1}
 
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001

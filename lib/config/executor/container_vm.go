@@ -45,7 +45,7 @@ type Common struct {
 }
 
 // Common data (specifically for a containerVM) between managed entities, across execution environments.
-type CommonSpecForVM struct {
+type ExecutorConfigCommon struct {
 	// A reference to the components hosting execution environment, if any
 	ExecutionEnvironment string
 
@@ -123,7 +123,7 @@ type ContainerVM struct {
 // in that there is no process inherently associated - this is closer to a ThreadPool than a Thread and
 // is the owner of the shared filesystem environment. This is the guest visible complement to ContainerVM.
 type ExecutorConfig struct {
-	CommonSpecForVM `vic:"0.1" scope:"read-only" key:"common"`
+	ExecutorConfigCommon `vic:"0.1" scope:"read-only" key:"common"`
 
 	// CreateTime stamp
 	CreateTime int64 `vic:"0.1" scope:"read-write" key:"createtime"`

@@ -39,7 +39,7 @@ func TestRestart(t *testing.T) {
 	defer testTeardown(t)
 
 	cfg := executor.ExecutorConfig{
-		CommonSpecForVM: executor.CommonSpecForVM{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "pathlookup",
 			Name: "tether_test_executor",
 		},

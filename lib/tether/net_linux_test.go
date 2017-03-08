@@ -74,7 +74,7 @@ func TestSetIpAddress(t *testing.T) {
 	secondIP, _ := netlink.ParseIPNet("172.16.0.10/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
 	cfg := executor.ExecutorConfig{
-		CommonSpecForVM: executor.CommonSpecForVM{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "ipconfig",
 			Name: "tether_test_executor",
 		},
