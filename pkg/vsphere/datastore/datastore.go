@@ -81,23 +81,31 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 	return d, nil
 }
 
+func NewHelperFromURL(ctx context.Context, s *session.Session, u *url.URL) (*Helper, error) {
+	fm := object.NewFileManager(s.Vim25())
+	vsDs, err := s.Finder.DatastoreOrDefault(ctx, u.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	d := &Helper{
+		ds:      vsDs,
+		s:       s,
+		fm:      fm,
+		RootURL: u.Path,
+	}
+
+	return d, nil
+}
+
 // GetDatastores returns a map of datastores given a map of names and urls
 func GetDatastores(ctx context.Context, s *session.Session, dsURLs map[string]*url.URL) (map[string]*Helper, error) {
 	stores := make(map[string]*Helper)
 
-	fm := object.NewFileManager(s.Vim25())
 	for name, dsURL := range dsURLs {
-
-		vsDs, err := s.Finder.DatastoreOrDefault(ctx, dsURL.Host)
+		d, err := NewHelperFromURL(ctx, s, dsURL)
 		if err != nil {
 			return nil, err
-		}
-
-		d := &Helper{
-			ds:      vsDs,
-			s:       s,
-			fm:      fm,
-			RootURL: dsURL.Path,
 		}
 
 		stores[name] = d
