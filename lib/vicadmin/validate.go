@@ -19,7 +19,6 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net"
-	//"os"
 	"path"
 	"sort"
 	"strings"
@@ -216,17 +215,17 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 func GetVCHName(ctx context.Context, sess *session.Session) string {
 	defer trace.End(trace.Begin(""))
 
-	var vchName = "VCH"
+	var vchName = fmt.Sprintf("VCH")
 	self, err := guest.GetSelf(ctx, sess)
 	if err != nil || self == nil {
-		log.Errorf("Unable to collect appliance logs due to unknown self-reference: %s", err)
+		log.Errorf("Unable to get VCH name due to unknown self-reference: %s", err)
 		log.Infof("Setting the VCH name to VCH")
 		return vchName
 	}
 	self2 := vm.NewVirtualMachineFromVM(ctx, sess, self)
 	vchName, err = self2.Name(ctx)
 	if err != nil {
-		log.Infof("Err get VCH name: %s", err)
+		log.Infof("Unable to get VCH name: %s", err)
 	}
 	log.Infof("Setting the VCH name to %s", vchName)
 	return vchName
