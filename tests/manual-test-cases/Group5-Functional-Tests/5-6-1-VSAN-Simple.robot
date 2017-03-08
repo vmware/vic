@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-6-1 - VSAN-Simple
 Resource  ../../resources/Util.robot
-#Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 Simple VSAN
