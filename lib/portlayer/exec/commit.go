@@ -96,24 +96,9 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		// processing
 		h.Spec = nil
 
-		// reconfigure vm display name to containerName-containerID
-		shortID := stringid.TruncateID(c.ExecConfig.ID)
-		nameMaxLen := maxVMNameLength - len(shortID)
-		prettyName := c.ExecConfig.Name
-		if len(prettyName) > nameMaxLen-1 {
-			prettyName = prettyName[:nameMaxLen-1]
-		}
-
-		fullName := fmt.Sprintf("%s-%s", prettyName, shortID)
-		task, err := h.vm.VirtualMachine.Rename(ctx, fullName)
-		if err != nil {
-			return err
-		}
-
-		_, err = task.WaitForResult(ctx, nil)
-		if err != nil {
-			return err
-		}
+		c.m.Lock()
+		err = c.UpdateDisplayName(ctx, c.ExecConfig.Name)
+		c.m.Unlock()
 
 	}
 
