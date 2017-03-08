@@ -190,5 +190,5 @@ publish:
     include: .+\\.out$
     when:
       repo: vmware/vic
-#      branch: master
+      branch: master
       success: true
