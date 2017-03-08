@@ -103,9 +103,13 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 	for name, dsurl := range spl.Config.VolumeLocations {
 		switch dsurl.Scheme {
 		case "nfs":
-			uid, err := strconv.Atoi(dsurl.User.Username())
-			if err != nil {
-				return err
+			uid := nfs.DefaultUID
+
+			if dsurl.User != nil && dsurl.User.Username() != "" {
+				uid, err = strconv.Atoi(dsurl.User.Username())
+				if err != nil {
+					return err
+				}
 			}
 
 			// XXX replace with the vch name
@@ -134,7 +138,6 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 		if _, err = h.volumeCache.AddStore(op, name, vs); err != nil {
 			return fmt.Errorf("volume addition error %s", err)
 		}
-
 	}
 
 	return nil
