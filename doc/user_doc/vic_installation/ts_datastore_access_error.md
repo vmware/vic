@@ -12,4 +12,13 @@ VCHs require datastores to be writable. The shared NFS datastore is possibly mou
 
 ## Solution ##
 
-To see whether a datastore is writable or read-only, consult  `mountInfo` in the Managed Object Browser (MOB) of the vCenter Server instance to which you are deploying the VCH. You access the MOB at https://<i>vcenter_server_address</i>/mob/.
+To see whether a datastore is writable or read-only, consult  `mountInfo` in the Managed Object Browser (MOB) of the vCenter Server instance to which you are deploying the VCH. 
+
+1. Go to https://<i>vcenter_server_address</i>/mob/.
+2. Click **content**.
+3. Click **group-xx (Datacenters)** in the `rootFolder` row.
+4. Click the managed object reference (MoRef) of your datacenter in the `childEntity` row.
+5. Click the MoRef of the shared NFS datastore in the `datastore` row.
+6. Click the `DatastoreHostMount` link in the `host` row.
+7. Click **`mountInfo`** and check the `accessMode` value.
+8. If the `accessMode` value is `readOnly`, unmount the datastore from vCenter Server and remount it with `readWrite` permissions.
