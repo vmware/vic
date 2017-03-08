@@ -671,7 +671,7 @@ Wrap the password in single quotes (') on Mac OS and Linux and in double quotes 
 
 You can specify a static IP address for the VCH endpoint VM on each of the client, public, and management networks. DHCP is used for the endpoint VM for any network on which you do not specify a static IP address.
 
-To specify a static IP address for the endpoint VM on the client, public, or management network, you provide an IP address in the `client/public/management-network-ip` option. If you set a static IP address, you must also provide a gateway address. You can optionally specify one or more DNS server addresses.
+To specify a static IP address for the endpoint VM on the client, public, or management network, you provide an IP address in the `client/public/management-network-ip` option. If you set a static IP address, you can optionally provide gateway addresses and specify one or more DNS server addresses.
 
 ### `--dns-server` ###
 
@@ -694,10 +694,9 @@ Short name: None
 
 A static IP address for the VCH endpoint VM on the public, client, or management network. 
 
-You specify a static IP address for the endpoint VM on the public, client, or management networks by using the `--public/client/management-network-ip` options. If you set a static IP address for the endpoint VM on any of the networks, you must specify a corresponding gateway address by using the `--public/client/management-network-gateway` option. 
+You specify a static IP address for the endpoint VM on the public, client, or management networks by using the `--public/client/management-network-ip` options. If you set a static IP address for the endpoint VM on the public network, you must specify a corresponding gateway address by using the `--public-network-gateway` option. If the management and client networks are L2 adjacent to their gateways, you do not need to specify the gateway for those networks.
 
-- You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks 
-- s a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
+- You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks share a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
 - If either of the client or management networks shares a port group with the public network, you can only specify a static IP address on the public network.
 - If either or both of the client or management networks do not use the same port group as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
 - If the client and management networks both use the same port group, and the public network does not use that port group, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
@@ -706,13 +705,12 @@ You specify a static IP address for the endpoint VM on the public, client, or ma
   **IMPORTANT**: If the client network shares a port group with the public network you cannot set a static IP address for the endpoint VM on the client network. To assign a static IP address to the endpoint VM you must set a static IP address on the public network by using the `--public-network-ip` option. In this case, `vic-machine create` uses the public network IP address as the Common Name with which to auto-generate trusted CA certificates, in the same way as it would for the client network.
 
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
--  When you specify an address, `vic-machine create` uses the netmask from the gateway.
 
-You can specify addresses as IPv4 addresses. Do not use CIDR notation.
+You specify addresses as IPv4 addresses with a network mask.
 
-<pre>--public-network-ip 192.168.X.N
---management-network-ip 192.168.Y.N
---client-network-ip 192.168.Z.N
+<pre>--public-network-ip 192.168.X.N/24
+--management-network-ip 192.168.Y.N/24
+--client-network-ip 192.168.Z.N/24
 </pre>
 
 You can also specify addresses as resolvable FQDNs.
@@ -726,28 +724,22 @@ You can also specify addresses as resolvable FQDNs.
 
 Short name: None
 
-The gateway to use if you use `--public/client/management-network-ip` to specify a static IP address for the VCH endpoint VM on the public, client, or management networks. If you specify a static IP address on any network, you must specify a gateway by using the `--public/client/management-network-gateway` options. 
+The gateway to use if you use `--public/client/management-network-ip` to specify a static IP address for the VCH endpoint VM on the public, client, or management networks. If you specify a static IP address on the public network, you must specify a gateway by using the `--public-network-gateway` option. If the management and client networks are L2 adjacent to their gateways, you do not need to specify the gateway for those networks.
 
-You specify the public network gateway address in CIDR format.
+You specify gateway addresses as IP addresses without a network mask.
 
-<pre>--public-network-gateway 192.168.X.1/24</pre>
+<pre>--public-network-gateway 192.168.X.1</pre>
 
-**IMPORTANT**: Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
+The default route for the VCH endpoint VM is always on the public network. As a consequence, if you specify a static IP address on either of the management or client networks and those networks are not L2 adjacent to their gateways, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:).
 
-The default route for the VCH endpoint VM is always on the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
-
-<pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
-<i>routing_destination_2</i>/<i>subnet_mask</i>:
-<i>gateway_address</i>/<i>subnet_mask</i></pre>
-<pre>--client-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
-<i>routing_destination_2</i>/<i>subnet_mask</i>:
-<i>gateway_address</i>/<i>subnet_mask</i>
-</pre>
+<pre>--management-network-gateway <i>routing_destination_1</i>,
+<i>routing_destination_2</i>:<i>gateway_address</i></pre>
+<pre>--client-network-gateway <i>routing_destination_1</i>,
+<i>routing_destination_2</i>:<i>gateway_address</i></pre>
 
 In the following example, `--management-network-gateway` informs the VCH that it can reach all of the vSphere management endoints that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that will connect to this VCH instance. 
 
-<pre>--management-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
-</pre>
+<pre>--management-network-gateway 192.168.3.0,192.168.128.0:192.168.2.1</pre>
 
 
 <a name="adv-container-net"></a>
@@ -892,7 +884,7 @@ Short name: `--bnr`
 
 The range of IP addresses that additional bridge networks can use when container application developers use `docker network create` to create new bridge networks. If you do not specify the `bridge-network-range` option, the IP range for bridge networks is 172.16.0.0/12.
 
-When you specify the bridge network IP range, you specify the IP range as a CIDR. The smallest subnet that you can specify is /16.
+When you specify the bridge network IP range, you specify the IP range as a CIDR. The smallest subnet that you can specify is /16. If you specify an invalid value for `--bridge-network-range`, `vic-machine create` fails with an error.
 
 <pre>--bridge-network-range 192.168.100.0/16</pre>
 
