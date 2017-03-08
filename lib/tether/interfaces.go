@@ -17,6 +17,7 @@ package tether
 import (
 	"context"
 	"io"
+	"net/url"
 
 	"github.com/vmware/vic/pkg/dio"
 )
@@ -35,6 +36,7 @@ type Operations interface {
 	SetupFirewall() error
 	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(ctx context.Context, label, target string) error
+	MountFileSystem(ctx context.Context, source url.URL, target string, mountOptions string) error
 	Fork() error
 	// Returns two DynamicMultiWriters for stdout and stderr
 	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error)

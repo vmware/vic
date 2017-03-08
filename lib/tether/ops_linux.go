@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"os"
 	"os/user"
 	"path"
@@ -637,6 +638,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
 	if err := os.MkdirAll(target, 0600); err != nil {
+		// same as MountFileSystem error for consistency
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
@@ -661,7 +663,26 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	}
 
 	if err := Sys.Syscall.Mount(label, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
+		// consistent with MountFileSystem
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
+		return errors.New(detail)
+	}
+
+	return nil
+}
+
+// MountFileSystem performs a mount based on teh target path from the source url
+// This assumes that the source url is valid and available.
+func (t *BaseOperations) MountFileSystem(ctx context.Context, source url.URL, target string, mountOptions string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", source.String(), target)))
+
+	if err := os.MkdirAll(target, 0600); err != nil {
+		// same as MountLabel error for consistency
+		return fmt.Errorf("unable to create mount point %s: %s", target, err)
+	}
+
+	if err := Sys.Syscall.Mount(source.String(), target, "nfs", 0, mountOptions); err != nil {
+		detail := fmt.Sprintf("mounting %s on %s failed: %s", source.String(), target, err)
 		return errors.New(detail)
 	}
 
