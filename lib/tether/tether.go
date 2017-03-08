@@ -236,12 +236,17 @@ func (t *tether) setNetworks() error {
 
 func (t *tether) setMounts() error {
 	for k, v := range t.config.Mounts {
-		if v.Source.Scheme != "label" {
+		switch v.Source.Scheme {
+		case "label":
+			// this could block indefinitely while waiting for a volume to present
+			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
+
+		case "nfs":
+			t.ops.MountFileSystem(context.Background(), v.Source, v.Path, v.Mode)
+
+		default:
 			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
 		}
-
-		// this could block indefinitely while waiting for a volume to present
-		t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
 	}
 	return nil
 }
