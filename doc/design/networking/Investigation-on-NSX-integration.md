@@ -9,6 +9,7 @@ https://confluence.eng.vmware.com/pages/viewpage.action?pageId=209964551
 ## About NSX Security Groups and Security Policies
 This section is a brief introduction about NSX security groups and security policies (some words are taken from this document http://www.vmware.com/content/dam/digitalmarketing/vmware/en/pdf/products/nsx/vmw-nsx-network-virtualization-design-guide.pdf).  
   * Security Groups
+  
     NSX provides various grouping mechanisms :
       * vCenter Objects: VMs, Distributed Switches, Clusters, etc.
       * VM Properties: vNICs, VM names, VM operating Systems, etc.
@@ -16,6 +17,7 @@ This section is a brief introduction about NSX security groups and security poli
     In this document, we propose to use vNICs as the grouping creteria. We will dicuss more on this later.
 
   * Security Policies
+
     NSX provides security policies as a way to group rules for security controls that will be applied to one or more security groups.
     Each security policy contains the following :
       * Firewall rules: 
@@ -57,7 +59,7 @@ Specifying 'bridge-network' as the port group 'vxw-dvs-55-virtualwire-1-sid-5000
   * NSX manager creates these security policies shown in the following picture
   * NSX manager applies security policy `<vch name>-SP-0` on security group `<vch name>-SG-VCH`
 
-  ![Security policies] (pics/security-policies)
+  ![Security policies] (pics/security-policies.png)
 
 ### docker run --name=containerVM1 <image name>
   * VIC create containerVM1
