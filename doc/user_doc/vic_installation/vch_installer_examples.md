@@ -190,7 +190,7 @@ This example deploys a VCH with the following configuration:
 - Sets a DNS server for use by the public, management, and client networks.
 - Sets a static IP address and subnet mask for the VCH endpoint VM on the public and client networks. Because the management network shares a network with the public network, you only need to specify the public network IP address. You cannot specify a management IP address because you are sharing a port group between the management and public network.
 - Specifies the gateway for the public network. If you set a static IP address on the public network, you must also specify the gateway address.
-- Does not specify a gateway for the client network. If is not necessary to specify a gateway on either of the client or management networks if those networks are L2 adjacent to their gateways.
+- Does not specify a gateway for the client network. It is not necessary to specify a gateway on either of the client or management networks if those networks are L2 adjacent to their gateways.
 - Because this example specifies a static IP address for the VCH endpoint VM on the client network, `vic-machine create` uses this address as the Common Name with which to create auto-generated trusted certificates. Full TLS authentication is implemented by default, so no TLS options are specified. 
 
 <pre>vic-machine-<i>operating_system</i> create
