@@ -361,9 +361,8 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		return containers.NewGetContainerLogsInternalServerError()
 	}
 
-	// containers with PluginVersion > 0 will use updated output logging on the backend
-	// containers with ExecConfig.Version = nil are assumed to be PluginVersion 0
-	if container.ExecConfig.Version != nil && container.ExecConfig.Version.PluginVersion > 0 {
+	// containers with DataVersion > 0 will use updated output logging on the backend
+	if container.DataVersion > 0 {
 		// wrap the reader in a LogReader to deserialize persisted containerVM output
 		reader = iolog.NewLogReader(reader)
 	}
@@ -430,8 +429,15 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = ccid
 
-	s := container.State().String()
-	info.ContainerConfig.State = s
+	var state string
+	if container.MigrationError != nil {
+		state = "error"
+		info.ProcessConfig.ErrorMsg = fmt.Sprintf("Migration failed: %s", container.MigrationError.Error())
+		info.ProcessConfig.Status = state
+	} else {
+		state = container.State().String()
+	}
+	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
 	info.ContainerConfig.CreateTime = container.ExecConfig.CreateTime

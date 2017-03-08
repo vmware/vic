@@ -146,6 +146,12 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 				log.Debugf("Nilifying ExtraConfig as we are running")
 				s.ExtraConfig = nil
 			}
+			// nilify ExtraConfig if container configuration is migrated
+			// in this case, VCH and container are in different version. Migrated configuration cannot be written back to old container, to avoid data loss in old version's container
+			if h.Migrated {
+				log.Debugf("Nilifying ExtraConfig as configuration of container %s is migrated", h.ExecConfig.ID)
+				s.ExtraConfig = nil
+			}
 
 			_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return h.vm.Reconfigure(ctx, *s)
