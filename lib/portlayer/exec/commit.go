@@ -35,6 +35,13 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 	defer trace.End(trace.Begin(h.ExecConfig.ID))
 
 	c := Containers.Container(h.ExecConfig.ID)
+
+	// check for an in memory container migration and reject the commit if it is the case.
+	if c.ExecConfig.Migrated {
+		log.Errorf("rejecting commit to container (%s) due to in memory migration of the container's ExecConfig", h.ExecConfig.ID)
+		return fmt.Errorf("container (%s) cannot complete this operation due to a previous migration.", h.ExecConfig.ID)
+	}
+
 	creation := h.vm == nil
 	if creation {
 		if h.Spec == nil {

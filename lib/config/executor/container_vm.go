@@ -143,6 +143,9 @@ type ExecutorConfig struct {
 
 	// version
 	Version *version.Build `vic:"0.1" scope:"read-only" key:"version"`
+
+	// migrated - this is used during in memory migration to assign whether an execConfig is viable for a commit phase
+	Migrated bool
 }
 
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct
