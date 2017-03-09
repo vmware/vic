@@ -3,7 +3,7 @@ This document is for this issue: https://github.com/vmware/vic/issues/3936
 
 
 ## A Working Installation of NSX-v
-For VMWare engineers using Nimbus, here is a document about how to install and configure NSX with Vsphere: How to set up VM-to-VM communication on NSX logical switch with Nimbus
+For VMware engineers using Nimbus, here is a document about how to install and configure NSX with vSphere: How to set up VM-to-VM communication on NSX logical switch with Nimbus
 https://confluence.eng.vmware.com/pages/viewpage.action?pageId=209964551
 
 ## About NSX Security Groups and Security Policies
@@ -14,7 +14,7 @@ This section is a brief introduction about NSX security groups and security poli
       * vCenter Objects: VMs, Distributed Switches, Clusters, etc.
       * VM Properties: vNICs, VM names, VM operating Systems, etc.
       * NSX Objects: Logical Switches, Security Tags, Logical Routers, etc. 
-    In this document, we propose to use vNICs as the grouping creteria. We will dicuss more on this later.
+    In this document, we propose to use vNICs as the grouping criteria. We will discuss more on this later.
 
   * Security Policies
 
@@ -47,7 +47,7 @@ In the following example, we see that :
 Let us use this example to explain the workflow.
 
 ### Prerequisite
-We assume VSphere admin already has NSX installed and configured on VCenter. That means there is an NSX logical switch created by the admin, which automatically creates a port group on distributed switch.
+We assume vSphere admin already has NSX installed and configured on vCenter. That means there is an NSX logical switch created by the admin, which automatically creates a port group on distributed switch.
 So this port group can be used as a bridge network for `vic-machine create`
 
 ![Distributed Switch with logic switch added] (pics/dswitch.png)
@@ -155,7 +155,7 @@ Do we surpport both cases :
 ### User Management
   * NSX allows RBAC, we can add Vcenter users and assign roles for them
   * Only security Admin or enterprise admin can operate on NSX security groups and policies. 
-  * Is there a way to assign user to a logical switch?
+  * Is there a way to assign users to a logical switch?
 
 ### Approaches Comparison: Security Tag versus vNIC versus Logical Switch
   * Security Group Membership with Security Tag: 
@@ -171,38 +171,84 @@ Do we surpport both cases :
       * It serves our needs in leveraging NSX micro-segmentation. 
       * We can use it on top of our current VIC implementation.
     * Cons:
-      * Everytime a containerVM is created, we need to update related security groups' by adding one more membership criterias. Not sure the maximum number of membership criterias NSX-v supports. 
+      * Everytime a containerVM is created, we need to update related security groups' by adding one more membership criteria. Not sure the maximum number of membership criterias NSX-v supports. 
       * The number of networks a containerVM can be added to may be limited (15 at most?). But this might be acceptable.
 
   * Logical Switch:
     * Pros:
       * It seems to be a more natural way in using NSX providing isolated networks: a logical switch is an isolated network until logical router is configured.
-      * It may provide user more NSX features 
+      * It may enable more NSX features.
     * Cons:
       * It requires more implementation work because VIC networking achitecture will be changed.
       * A few details need to be figured out, for example, how to expose a port for a containerVM,
       * To add a containerVM to multiple networks, we still need to create vNICs for it. And a VCH may need to have multiple vNICs to connect to multiple logical switches.
 
-  * A chart :
-  
-    Approach     | Docker Network Create net-a                                 | Docker Network Connect net-b VM1         | Docker Run --net=net-a --net=net-b 
-    ------------ | ----------------------------------------------------------- | ------------------------------------     | -----------------------------------
-    SecTag       | 1. create SecTag                                            |    1. add SecTag to VM1                  | 1. add SectagA and SecTagB to VM
-                 | 2. create SecGroup, associate SecTag to it                  |    VM1 can reach both its old network    |
-                 | 3. create SecPolicies and apply them on SecGroup            |    and network B, with one NIC.          | 
-                 |    (SecPolicy's SecGroup to SecPolicy's SecGroup, Allow)    |                                          |  
-                 |    (SecPolicy's SecGroup to Any, Block)                     |                                          |
-                 |    (Any to SecPolicy's SecGroup, Block)                     |                                          | 
-    vNIC         | 1. create SecGroup                                          |    1. create a new vNIC for VM1          | 1. create two vNICs for VM1
-                 | 2. create SecPolicies and apply to SecGroup                 |    2. update SecGroup, add the new       | 2. update SecGroup for net-a
-                 |   (details mentioned in this doc)                           |       vNIC of VM1to it.                  | 3. update SecGroup for net-b
-                 | Note that VCH only needs one vNIC and associated to         |    VM1 can reach its old network with    |
-                 | SG-VCH, because it needs to connect to all docker created   |    old vNIC and network B with the new   |
-                 | bridge networks. SecPolicy allows SG-VCH to talk to         |    vNIC.                                 |
-                 | all SecGroups.                                              |                                          |
-    LSwitch      | 1. create a logical switch                                  |    1. create a new vNIC for VM1          | 1. create two vNICs for VM1
-                 | 2. create a vNIC for VCH to connect it to this switch       |    2. connect it to logcial switch net-b | 2. connect one vNIC to logical
-                 |                                                             |                                          |    switch of net-a
-                 |                                                             |                                          | 3. connect one vNIC to logical  
-                 |                                                             |                                          |    switch of net-b
+  * Comparison Chart:
                 
+  <table>
+    <tbody>
+      <tr>
+        <th width="300">Approach</th>
+        <th width="300">Docker Network Create net-a</th>
+        <th width="300">Docker Network Connect net-b VM1</th>
+        <th width="300">Docker Run  --net=net-a --net=net-b</th> 
+      </tr>
+      <tr>
+        <td valign="top">SecTag</td>
+        <td valign="top">
+          <li>create SecTag</li>
+          <li>create SecGroup, associate SecTag to it</li>
+          <li>create SecPolicies and apply them on SecGroup</li>
+        </td>
+        <td valign="top">
+          <li>add SecTag to VM1</li>
+          <p>
+            VM1 can reach both its old network and network net-b, with one NIC.
+          </p>
+        </td>
+        <td valign="top">
+          <li>add SectagA and SecTagB to VM</li>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">vNIC</td>
+        <td valign="top">
+          <li>create SecGroup</li>
+          <li>create SecPolicies and apply to SecGroup</li>
+          <p>
+             Note that VCH only needs one vNIC and associated to SG-VCH, 
+             because it needs to connect to all docker created bridge networks.
+             SecPolicy allows SG-VCH to talk to all SecGroups.
+          </p>
+        </td>
+        <td valign="top">
+          <li>create a new vNIC for VM1</li>
+          <li>update SecGroup, add the new vNIC of VM1to it.</li>
+          <p>
+             VM1 can reach its old network with old vNIC and network B with the new vNIC. 
+          </p>
+        </td>
+        <td valign="top">
+          <li>create two vNICs for VM1</li>
+          <li>update SecGroup for net-a</li>
+          <li>update SecGroup for net-b</li>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Logical Switch</td>
+        <td valign="top">
+          <li>create a logical switch</li>
+          <li>create a vNIC for VCH to connect it to this switch</li>
+        </td>
+        <td valign="top">
+          <li>create a new vNIC for VM1</li>
+          <li>connect it to logcial switch net-b</li>
+        </td>
+        <td valign="top">
+          <li>create two vNICs for VM1</li>
+          <li>connect one vNIC to logical switch of net-a</li>
+          <li>connect one vNIC to logical switch of net-b</li>
+        </td>
+      </tr>
+    </tbody>
+  </table>
