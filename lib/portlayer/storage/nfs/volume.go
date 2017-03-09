@@ -34,6 +34,8 @@ const (
 
 	// Stock permissions that are set, In the future we may pass these in.
 	defaultPermissions = 0755
+
+	DefaultUID = 1000
 )
 
 // VolumeStore this is nfs related volume store definition

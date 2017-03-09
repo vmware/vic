@@ -71,8 +71,8 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 
 	if t.logging {
 		detail := "unable to log more than one session concurrently"
-		log.Error(detail)
-		return nil, nil, errors.New(detail)
+		log.Warn(detail)
+		return nil, nil, nil
 	}
 
 	t.logging = true

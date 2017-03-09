@@ -149,8 +149,8 @@ func (t *attachServerSSH) start() error {
 
 	if t.Enabled() {
 		err := fmt.Errorf("attach server is already enabled")
-		log.Error(err)
-		return err
+		log.Warn(err)
+		return nil
 	}
 
 	// don't assume that the key hasn't changed
