@@ -16,7 +16,8 @@
 Documentation  Test 13-2 - vMotion Container
 Resource  ../../resources/Util.robot
 Suite Setup  Create a VSAN Cluster
-Suite Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Test
@@ -56,5 +57,3 @@ Test
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container3}
     Should Be Equal As Integers  ${rc}  0
-
-    Cleanup VIC Appliance On Test Server

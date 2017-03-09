@@ -16,7 +16,8 @@
 Documentation  Test 13-1 - vMotion VCH Appliance
 Resource  ../../resources/Util.robot
 Suite Setup  Create a VSAN Cluster
-Suite Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Step 1-5
@@ -51,7 +52,6 @@ Step 1-5
 #    Run Regression Tests
     #TODO
     #This does not work currently, as the VM has been migrated out of the vApp
-    #Cleanup VIC Appliance On Test Server
 
 Step 6-9
     Install VIC Appliance To Test Server
@@ -62,7 +62,6 @@ Step 6-9
     Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources %{VCH-NAME}/%{VCH-NAME}
     Set Environment Variable  VCH-NAME  "%{VCH-NAME} (1)"
     Run Regression Tests
-    #Cleanup VIC Appliance On Test Server
 
 Step 10-13
     Install VIC Appliance To Test Server
@@ -103,5 +102,3 @@ Step 10-13
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container3}
     Should Be Equal As Integers  ${rc}  0
-
-    #Cleanup VIC Appliance On Test Server
