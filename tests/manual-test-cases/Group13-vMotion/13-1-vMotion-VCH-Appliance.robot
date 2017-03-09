@@ -17,13 +17,13 @@ Documentation  Test 13-1 - vMotion VCH Appliance
 Resource  ../../resources/Util.robot
 Suite Setup  Create a VSAN Cluster
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
-Test Teardown  Cleanup VIC Appliance On Test Server
+Test Teardown  Gather Logs From Test Server 
 
 *** Test Cases ***
-Step 1-5
-    ${status}=  Get State Of Github Issue  701
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 13-1-vMotion-VCH-Appliance.robot needs to be updated now that Issue #701 has been resolved
-    Log  Issue \#701 is blocking implementation  WARN
+#Step 1-5
+#    ${status}=  Get State Of Github Issue  701
+#    Run Keyword If  '${status}' == 'closed'  Fail  Test 13-1-vMotion-VCH-Appliance.robot needs to be updated now that Issue #701 has been resolved
+#    Log  Issue \#701 is blocking implementation  WARN
 #    Install VIC Appliance To Test Server
 #    Run Regression Tests
 #    ${host}=  Get VM Host Name  %{VCH-NAME}/%{VCH-NAME}
