@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"runtime"
 	"testing"
@@ -150,6 +151,18 @@ func (t *Mocker) MountLabel(ctx context.Context, label, target string) error {
 	}
 
 	t.Mounts[label] = target
+	return nil
+}
+
+// MountFileSystem performs a mount with the source treated as an nfs target
+func (t *Mocker) MountFileSystem(ctx context.Context, source url.URL, target string, mountOptions string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("mocking mounting %s on %s", source.String(), target)))
+
+	if t.Mounts == nil {
+		t.Mounts = make(map[string]string)
+	}
+
+	t.Mounts[source.String()] = target
 	return nil
 }
 
