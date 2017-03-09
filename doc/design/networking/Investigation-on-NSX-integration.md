@@ -9,7 +9,7 @@ https://confluence.eng.vmware.com/pages/viewpage.action?pageId=209964551
 ## About NSX Security Groups and Security Policies
 This section is a brief introduction about NSX security groups and security policies (some words are taken from this document http://www.vmware.com/content/dam/digitalmarketing/vmware/en/pdf/products/nsx/vmw-nsx-network-virtualization-design-guide.pdf).  
   * Security Groups
-  
+
     NSX provides various grouping mechanisms :
       * vCenter Objects: VMs, Distributed Switches, Clusters, etc.
       * VM Properties: vNICs, VM names, VM operating Systems, etc.
@@ -132,26 +132,6 @@ https://{nsxmanager's hostname or IP}/api
 
 
 ## Discussion:
-### Multi-tenants
-NSX-v supports multi-tenancy, and here is an example of a NSX network topology:
-
-![NSX-v multi-tenancy] (pics/nsx-multi-tenants.png)
-
-It worths to mention that we would expect only one VCH is created for one tenant. Otherwise there IP overlapping would issue. 
-
-### Associating to Security Group: Security Tag versus vNIC 
-  * Security Tag: 
-    * Pros:
-      * We only need to tag a VM then it is added to a security group. 
-      * we do not need to update security groups everytime a new containerVM is created. 
-    * Cons:
-      * It does not allow a containerVM to be added in multiple networks.  
-
-  * vNIC:
-    * Pros:
-      * It serves our goals.
-    * Cons:
-      * Everytime a containerVM is created, we need to update related security groups' by adding one more membership criterias. Not sure the maximum number of membership criterias NSX-v supports. 
 
 ### Bridged Containers with Exposed Port or Directly Connected to Public network
   * all the user cases mentioned in the networking design document should still be valid 
@@ -159,9 +139,8 @@ It worths to mention that we would expect only one VCH is created for one tenant
 ## Unclear
 ### Adding a ContainerVM to Multiple Networks
 This is not supported in current VIC implementation. 
-  * Is adding another network adapter to a containerVM the right way to do it?
-  * Was the challenge not able to add a new network adapter to a running containerVM?
-  * if so, maybe after the VSPC work is committed we would be unblocked.
+  * Is adding another NIC to a containerVM the right way to do it?
+  * Does having multiple interfaces matter ? How would user use multiple NICs?
 
 ### Details of Integrating with Current Port Layer API 
   * does the current Port Layer API map perfectly to our goals in using NSX ?
@@ -176,5 +155,54 @@ Do we surpport both cases :
 ### User Management
   * NSX allows RBAC, we can add Vcenter users and assign roles for them
   * Only security Admin or enterprise admin can operate on NSX security groups and policies. 
-  * Need to discuss more with Geroge
+  * Is there a way to assign user to a logical switch?
 
+### Approaches Comparison: Security Tag versus vNIC versus Logical Switch
+  * Security Group Membership with Security Tag: 
+    * Pros:
+      * We only need to tag a VM then it is added to a security group. 
+      * we do not need to update security groups everytime a new containerVM is created. 
+    * Cons:
+      * It seems at the backend of NSX, IP address is used to identify the membership of a security group. So it does not work in this scenario, for example, when there are two port groups on the same VDS and each of them have a VIC (say VIC-a and VIC-b) created. Then the security group and policy on VIC-a aslo affects VIC-b. (One NSX-v tenant is not allowed to have overlapping IPs. But VIC users might be the same tenant (if our understanding of a NSX tenant is correct).)
+      * Also security tag associate VM to security group membership, which makes it not working well in this scenario: let us consider a containerVM which has an identity in some external network and also an identity in internal container network. Security group SG1's membership criterias is security tag ST1. We tag containerVM with ST1, it automatically gets the membership in SG1. Then this containerVM cannot reach the external network it belongs to. 
+
+  * Security Group Membership with vNIC:
+    * Pros:
+      * It serves our needs in leveraging NSX micro-segmentation. 
+      * We can use it on top of our current VIC implementation.
+    * Cons:
+      * Everytime a containerVM is created, we need to update related security groups' by adding one more membership criterias. Not sure the maximum number of membership criterias NSX-v supports. 
+      * The number of networks a containerVM can be added to may be limited (15 at most?). But this might be acceptable.
+
+  * Logical Switch:
+    * Pros:
+      * It seems to be a more natural way in using NSX providing isolated networks: a logical switch is an isolated network until logical router is configured.
+      * It may provide user more NSX features 
+    * Cons:
+      * It requires more implementation work because VIC networking achitecture will be changed.
+      * A few details need to be figured out, for example, how to expose a port for a containerVM,
+      * To add a containerVM to multiple networks, we still need to create vNICs for it. And a VCH may need to have multiple vNICs to connect to multiple logical switches.
+
+  * A chart :
+  
+    Approach     | Docker Network Create net-a                                 | Docker Network Connect net-b VM1         | Docker Run --net=net-a --net=net-b 
+    ------------ | ----------------------------------------------------------- | ------------------------------------     | -----------------------------------
+    SecTag       | 1. create SecTag                                            |    1. add SecTag to VM1                  | 1. add SectagA and SecTagB to VM
+                 | 2. create SecGroup, associate SecTag to it                  |    VM1 can reach both its old network    |
+                 | 3. create SecPolicies and apply them on SecGroup            |    and network B, with one NIC.          | 
+                 |    (SecPolicy's SecGroup to SecPolicy's SecGroup, Allow)    |                                          |  
+                 |    (SecPolicy's SecGroup to Any, Block)                     |                                          |
+                 |    (Any to SecPolicy's SecGroup, Block)                     |                                          | 
+    vNIC         | 1. create SecGroup                                          |    1. create a new vNIC for VM1          | 1. create two vNICs for VM1
+                 | 2. create SecPolicies and apply to SecGroup                 |    2. update SecGroup, add the new       | 2. update SecGroup for net-a
+                 |   (details mentioned in this doc)                           |       vNIC of VM1to it.                  | 3. update SecGroup for net-b
+                 | Note that VCH only needs one vNIC and associated to         |    VM1 can reach its old network with    |
+                 | SG-VCH, because it needs to connect to all docker created   |    old vNIC and network B with the new   |
+                 | bridge networks. SecPolicy allows SG-VCH to talk to         |    vNIC.                                 |
+                 | all SecGroups.                                              |                                          |
+    LSwitch      | 1. create a logical switch                                  |    1. create a new vNIC for VM1          | 1. create two vNICs for VM1
+                 | 2. create a vNIC for VCH to connect it to this switch       |    2. connect it to logcial switch net-b | 2. connect one vNIC to logical
+                 |                                                             |                                          |    switch of net-a
+                 |                                                             |                                          | 3. connect one vNIC to logical  
+                 |                                                             |                                          |    switch of net-b
+                
