@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	// TODO: pick potentially more sane defaults for these values
 	nfsMountOptions = "rw,noatime,vers=3,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountvers=3,mountproto=tcp,local_lock=none"
 )
 
