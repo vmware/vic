@@ -109,6 +109,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	}
 
 	u, _ := v.Service.URL()
+	u.Scheme = "nfs"
 	vol, err := storage.NewVolume(v.SelfLink, ID, info, NewVolume(u, v.volDirPath(ID)))
 	if err != nil {
 		return nil, err

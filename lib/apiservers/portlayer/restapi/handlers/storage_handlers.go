@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -491,7 +492,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	//Note: Name should already be populated by now.
 	volume, err := h.volumeCache.VolumeGet(op, params.Name)
 	if err != nil {
-		log.Errorf("Volumes: StorageHandler : %#v", err)
+		op.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    http.StatusInternalServerError,
@@ -499,9 +500,18 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		})
 	}
 
-	actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	switch volume.Device.DiskPath().Scheme {
+	case "nfs":
+		actualHandle, err = nfs.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	case "ds":
+		actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	default:
+		errMsg := fmt.Sprintf("Unkown scheme (%s) for Volume (%s)", volume.Device.DiskPath().Scheme, *volume)
+		err = errors.New(errMsg)
+	}
+
 	if err != nil {
-		log.Errorf("Volumes: StorageHandler : %#v", err)
+		op.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    http.StatusInternalServerError,
@@ -509,7 +519,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		})
 	}
 
-	log.Infof("volume %s has been joined to a container", volume.ID)
+	op.Infof("volume %s has been joined to a container", volume.ID)
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }
 
