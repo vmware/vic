@@ -32,7 +32,7 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 	defer trace.End(trace.Begin("nfs.VolumeJoin"))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
-		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.ExecConfig.ID)
+		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec config", volume.ID, handle.ExecConfig.ID)
 	}
 
 	//constuct MountSpec for the tether
