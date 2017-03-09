@@ -166,8 +166,12 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 
 	var key string
 	var scopes []string
+	var scope uint
 
 	fdepth := depth
+
+	prefixScopes := calculateScopeFromKey(prefix)
+	prefixScope := calculateScope(prefixScopes)
 
 	// do we have DefaultTagName?
 	if tags.Get(DefaultTagName) != "" {
@@ -211,7 +215,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 		}
 	} else {
 		log.Debugf("%s not tagged - inheriting parent scope", field.Name)
-		scopes = calculateScopeFromKey(prefix)
+		scopes = prefixScopes
 	}
 
 	if key == "" {
@@ -219,8 +223,15 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 		key = field.Name
 	}
 
+	scope = calculateScope(scopes)
+
+	// non-persistent is inherited, even if other scopes are specified
+	if prefixScope&NonPersistent != 0 {
+		scope |= NonPersistent
+	}
+
 	// re-calculate the key based on the scope and prefix
-	if key = calculateKey(scopes, prefix, key); key == "" {
+	if key = calculateKey(scope, prefix, key); key == "" {
 		log.Warnf("Skipping %s (unknown scope %s)", field.Name, scopes)
 		return "", skip
 	}
@@ -229,8 +240,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 }
 
 // calculateKey calculates the key based on the scope and current prefix
-func calculateKey(scopes []string, prefix string, key string) string {
-	scope := calculateScope(scopes)
+func calculateKey(scope uint, prefix string, key string) string {
 	if scope&Invalid != 0 {
 		log.Debugf("invalid scope")
 		return ""

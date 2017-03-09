@@ -297,11 +297,13 @@ func MapSink(sink map[string]string) DataSink {
 // The filter is a bitwise composion of scope flags
 func ScopeFilterSink(filter uint, sink DataSink) DataSink {
 	return func(key, value string) error {
+		log.Debugf("Filtering encode of %s with scopes: %v", key, calculateScopeFromKey(key))
 		scope := calculateScope(calculateScopeFromKey(key))
 		if scope&filter != 0 {
 			sink(key, value)
+		} else {
+			log.Debugf("Skipping encode of %s with scopes that do not match filter: %v", key, calculateScopeFromKey(key))
 		}
-		log.Debugf("Skipping encode of %s with scopes that do not match filter: %v", key, calculateScopeFromKey(key))
 		return nil
 	}
 }
