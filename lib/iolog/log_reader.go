@@ -18,6 +18,13 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"io"
+	"time"
+)
+
+const (
+	// RFC3339NanoFixed is Docker's version of RFC339Nano that pads the
+	// nanoseconds with zeros to ensure that the timestamps are aligned in the logs.
+	RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 )
 
 // LogReader reads containerVM entries from a stream and decodes them into
@@ -25,11 +32,14 @@ import (
 type LogReader struct {
 	io.ReadCloser
 	prev []byte
+	ts   bool
 }
 
 // NewLogReader wraps an io.ReadCloser in a LogReader.
-func NewLogReader(r io.ReadCloser) *LogReader {
-	return &LogReader{ReadCloser: r}
+func NewLogReader(r io.ReadCloser, ts bool) *LogReader {
+	return &LogReader{
+		ReadCloser: r,
+		ts:         ts}
 }
 
 // Read reads a 10 byte header and decodes it into the timestamp, stream and
@@ -40,12 +50,17 @@ func (lr *LogReader) Read(p []byte) (int, error) {
 	var (
 		err  error
 		n, w int
+		ts   string
 	)
 
 	ehdr := make([]byte, encodedHeaderLengthBytes)
 	msg := lr.prev
+	partial := true // treat msg as a partial entry until we verify otherwise
 
 	if msg == nil {
+		// we know msg is not a partial entry as we had no bytes left from the previous call
+		partial = false
+
 		// read a header
 		n = 0
 		for n < encodedHeaderLengthBytes {
@@ -63,7 +78,7 @@ func (lr *LogReader) Read(p []byte) (int, error) {
 		}
 
 		// parse header
-		// ts := time.Unix(0, int64(binary.LittleEndian.Uint64(h[:8])))
+		ts = time.Unix(0, int64(binary.LittleEndian.Uint64(hdr[:8]))).Format(RFC3339NanoFixed)
 		s := binary.LittleEndian.Uint16(hdr[8:10])
 		// stream := int((s&streamFlag) >> 3)
 		size := int(s >> 4)
@@ -89,6 +104,11 @@ func (lr *LogReader) Read(p []byte) (int, error) {
 		// copy what we can and save the rest for the next call
 		lr.prev = msg[len(p):]
 		msg = msg[:len(p)]
+	}
+
+	// add timestamp if enabled
+	if lr.ts && !partial {
+		msg = append([]byte(ts+" "), msg...)
 	}
 
 	// write the log message

@@ -363,8 +363,13 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	// containers with DataVersion > 0 will use updated output logging on the backend
 	if container.DataVersion > 0 {
+		ts := false
+		if params.Timestamp != nil {
+			ts = *params.Timestamp
+		}
+
 		// wrap the reader in a LogReader to deserialize persisted containerVM output
-		reader = iolog.NewLogReader(reader)
+		reader = iolog.NewLogReader(reader, ts)
 	}
 
 	detachableOut := NewFlushingReader(reader)
@@ -416,6 +421,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		ProcessConfig:   &models.ProcessConfig{},
 		VolumeConfig:    make([]*models.VolumeConfig, 0),
 		Endpoints:       make([]*models.EndpointConfig, 0),
+		DataVersion:     int64(container.DataVersion),
 	}
 
 	// Populate volume information

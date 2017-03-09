@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 1-08 - Docker Logs
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Install VIC with version to Test Server  7315
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
@@ -27,10 +27,58 @@ Grep Logs And Count Lines
     ${linecount}=  Get Line Count  ${output}
     Should Be Equal As Integers  ${linecount}  ${total}
 
+Install VIC with version to Test Server
+  [Arguments]  ${version}=7315
+  Log To Console  \nDownloading vic ${version} from bintray...
+  ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
+  ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
+  Set Environment Variable  TEST_TIMEOUT  20m0s
+  Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}
+  Set Environment Variable  INITIAL-VERSION  ${version}
+  Run  rm -rf vic.tar.gz vic
+
+Upgrade
+  ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+  Should Contain  ${output}  Completed successfully
+  Should Not Contain  ${output}  Rolling back upgrade
+  Should Be Equal As Integers  ${rc}  0
+
+Check Upgraded Version
+  ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
+  @{vers}=  Split String  ${output}
+  ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+  Should Contain  ${output}  Completed successfully
+  Should Contain  ${output}  @{vers}[2]
+  Should Not Contain  ${output}  %{INITIAL-VERSION}
+  Should Be Equal As Integers  ${rc}  0
+  Log  ${output}
+  Get Docker Params  ${output}  ${true}
+
 *** Test Cases ***
-Docker logs with tail
+# This test happens first because the rest of the tests need the latest VCH after the upgrade step
+Docker logs backward compatibility
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox sh -c "echo These pretzels are making me thirsty"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${id1}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  These pretzels are making me thirsty
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${id1}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  vSphere Integrated Containers does not yet support '--timestamps'
+    Upgrade
+    Check Upgraded Version
+    ${rc}  ${id2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox sh -c "echo Whats the deeeal with Ovaltine?"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${id2}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Whats the deeeal with Ovaltine?
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${id1}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  container ${id1} does not support '--timestamps'
+
+Docker logs with tail
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox sh -c 'seq 1 5000'
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
@@ -144,13 +192,13 @@ Docker logs with timestamps and since certain time
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
-	Run  Sleep 6, wait for container to finish
+    Run  Sleep 6, wait for container to finish
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --since=1s ${containerID}
-	Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  vSphere Integrated Containers does not yet support '--since'
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  container ${containerID} does not support '--since'
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${containerID}
-	Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  vSphere Integrated Containers does not yet support '--timestamps'
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  container ${containerID} does not support '--timestamps'
 
 Docker logs with no flags
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -163,3 +211,4 @@ Docker logs non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error: No such container: fakeContainer
+

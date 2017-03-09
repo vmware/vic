@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1747,7 +1747,7 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 	}
 
 	unsupported := func(opt string) (int64, int64, error) {
-		return 0, 0, fmt.Errorf("%s does not yet support '--%s'", ProductName(), opt)
+		return 0, 0, fmt.Errorf("container %s does not support '--%s'", vc.ContainerID, opt)
 	}
 
 	tailLines := int64(-1)
@@ -1768,8 +1768,20 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 		since = time.Unix(s, n)
 	}
 
+	// TODO(jzt): this should not require an extra call to the portlayer. We should
+	// update container.DataVersion when we hydrate the container cache at VCH startup
+	// see https://github.com/vmware/vic/issues/4194
 	if config.Timestamps {
-		return unsupported("timestamps")
+		// check container DataVersion to make sure it's supported
+		params := containers.NewGetContainerInfoParams()
+		params.SetID(vc.ContainerID)
+		info, err := PortLayerClient().Containers.GetContainerInfo(params)
+		if err != nil {
+			return 0, 0, err
+		}
+		if info.Payload.DataVersion == 0 {
+			return unsupported("timestamps")
+		}
 	}
 
 	if config.Since != "" {
