@@ -243,8 +243,10 @@ func attachCase(t *testing.T, runblock bool) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:       false,
-				Attach:    true,
+				Tty:    false,
+				Attach: true,
+				Active: true,
+
 				OpenStdin: true,
 				RunBlock:  runblock,
 				Cmd: executor.Cmd{
@@ -345,8 +347,10 @@ func TestAttachTTY(t *testing.T) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:       true,
-				Attach:    true,
+				Tty:    true,
+				Attach: true,
+				Active: true,
+
 				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
@@ -442,8 +446,10 @@ func TestAttachMultiple(t *testing.T) {
 					ID:   "tee1",
 					Name: "tether_test_session",
 				},
-				Tty:       false,
-				Attach:    true,
+				Tty:    false,
+				Attach: true,
+				Active: true,
+
 				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
@@ -458,8 +464,10 @@ func TestAttachMultiple(t *testing.T) {
 					ID:   "tee2",
 					Name: "tether_test_session2",
 				},
-				Tty:       false,
-				Attach:    true,
+				Tty:    false,
+				Attach: true,
+				Active: true,
+
 				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
@@ -474,8 +482,10 @@ func TestAttachMultiple(t *testing.T) {
 					ID:   "tee3",
 					Name: "tether_test_session2",
 				},
-				Tty:       false,
-				Attach:    false,
+				Tty:    false,
+				Attach: false,
+				Active: true,
+
 				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
@@ -606,6 +616,7 @@ func TestAttachInvalid(t *testing.T) {
 				},
 				Tty:       false,
 				Attach:    true,
+				Active:    true,
 				OpenStdin: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
@@ -740,8 +751,10 @@ func TestReattach(t *testing.T) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:       false,
-				Attach:    true,
+				Tty:    false,
+				Attach: true,
+				Active: true,
+
 				RunBlock:  true,
 				OpenStdin: true,
 				Cmd: executor.Cmd{

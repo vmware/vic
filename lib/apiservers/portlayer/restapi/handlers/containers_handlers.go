@@ -114,6 +114,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 					Args: append([]string{params.CreateConfig.Path}, params.CreateConfig.Args...),
 				},
 				StopSignal: params.CreateConfig.StopSignal,
+				Active:     true,
 			},
 		},
 		Key:      pem.EncodeToMemory(&privateKeyBlock),

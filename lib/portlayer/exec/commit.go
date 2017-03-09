@@ -165,6 +165,14 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 				}
 				return err
 			}
+
+			// trigger a configuration reload in the container if needed
+			if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
+				err = h.startGuestProgram(ctx, "reload", "")
+				if err != nil {
+					// NOTE: not sure how to handle this error - the change is already applied, it's just not picked up in the container
+				}
+			}
 		}
 	}
 

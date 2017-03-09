@@ -76,6 +76,9 @@ type Handle struct {
 	// desired state
 	targetState State
 
+	// should this change trigger a reload in the target container
+	reload bool
+
 	// allow for passing outside of the process
 	key string
 }
@@ -126,6 +129,10 @@ func (h *Handle) TargetState() State {
 
 func (h *Handle) SetTargetState(s State) {
 	h.targetState = s
+}
+
+func (h *Handle) Reload() {
+	h.reload = true
 }
 
 // GetHandle finds and returns the handle that is referred by key

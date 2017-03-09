@@ -131,7 +131,7 @@ func TestSetIpAddress(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg, mocker)
+	tthr, _, _ := StartTether(t, &cfg, mocker)
 
 	defer func() {
 		// prevent indefinite wait in tether - normally session exit would trigger this

@@ -46,6 +46,9 @@ type ExecutorConfig struct {
 	// These are keyed by session ID
 	Sessions map[string]*SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
 
+	// Execs is the set of non-persistent sessions hosted by this executor
+	Execs map[string]*SessionConfig `vic:"0.1" scope:"read-only,non-persistent" key:"execs"`
+
 	// Maps the mount name to the detail mount specification
 	Mounts map[string]executor.MountSpec `vic:"0.1" scope:"read-only" key:"mounts"`
 
@@ -88,6 +91,9 @@ type SessionConfig struct {
 	// Delay launching the Cmd until an attach request comes
 	RunBlock bool `vic:"0.1" scope:"read-only" key:"runblock"`
 
+	// Should this config be activated or not
+	Active bool `vic:"0.1" scope:"read-only" key:"active"`
+
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
 
@@ -111,11 +117,19 @@ type SessionConfig struct {
 	StdoutPipe io.ReadCloser  `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	StderrPipe io.ReadCloser  `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
-	wait *sync.WaitGroup `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-
 	// Blocks launching the process.
 	// The channel contains no value; we’re only interested in its closed property.
 	ClearToLaunch chan struct{} `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
+	wait *sync.WaitGroup
+
+	// record the config prefix associated with this session - allows partial encoding
+	// without hardcoding the sessions parent in the config.
+	// This is basically a workaround for:
+	// a. not having integrated Exec sessions in to the Sessions map
+	// b. having only an implementation of CalculateKeys that requires a prefix instead
+	//    of performing a search
+	extraconfigKey string
 }
 
 type NetworkEndpoint struct {
