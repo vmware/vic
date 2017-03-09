@@ -40,13 +40,13 @@ func (s State) String() string {
 	return ""
 }
 
-// EnableFirewall enables the ruleset on the target, allowing VIC backchannel traffic
+// EnableFirewallRuleset enables the ruleset on the target, allowing VIC backchannel traffic
 func (d *Dispatcher) EnableFirewallRuleset() error {
 	defer trace.End(trace.Begin(""))
 	return d.modifyFirewall(enable)
 }
 
-// DisableFirewall disables the ruleset on the target, denying VIC backchannel traffic
+// DisableFirewallRuleset disables the ruleset on the target, denying VIC backchannel traffic
 func (d *Dispatcher) DisableFirewallRuleset() error {
 	defer trace.End(trace.Begin(""))
 	return d.modifyFirewall(disable)
