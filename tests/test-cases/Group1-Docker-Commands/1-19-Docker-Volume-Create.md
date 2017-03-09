@@ -33,7 +33,7 @@ Error response from daemon: A volume named test already exists. Choose a differe
 ```
 * Step 5 should result in error with the following error message:  
 ```
-Error looking up volume plugin fakeDriver: plugin not found
+error looking up volume plugin fakeDriver: plugin not found
 ```
 * Step 6 should result in error with the following message:  
 ```

@@ -182,7 +182,7 @@ Change Log Level On Server
 Add Vsphere License
     [Tags]  secret
     [Arguments]  ${license}
-    ${out}=  Run  govc license.add ${license} 
+    ${out}=  Run  govc license.add ${license}
     Should Contain  ${out}  Key:
 
 Assign Vsphere License
@@ -198,3 +198,20 @@ Add Host To VCenter
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  OK
     \   Return From Keyword If  ${status}
     Fail  Failed to add the host to the VC in 3 attempts
+
+Get Host Firewall Enabled
+    ${output}=  Run  govc host.esxcli network firewall get
+    Should Contain  ${output}  Enabled
+    @{output}=  Split To Lines  ${output}
+    :FOR  ${line}  IN  @{output}
+    \   Run Keyword If  "Enabled" in '''${line}'''  Set Test Variable  ${out}  ${line}
+    ${enabled}=  Fetch From Right  ${out}  :
+    ${enabled}=  Strip String  ${enabled}
+    Return From Keyword If  '${enabled}' == 'false'  ${false}
+    Return From Keyword If  '${enabled}' == 'true'  ${true}
+
+Enable Host Firewall
+    Run  govc host.esxcli network firewall set --enabled true
+
+Disable Host Firewall
+    Run  govc host.esxcli network firewall set --enabled false

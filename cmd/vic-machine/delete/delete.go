@@ -168,7 +168,11 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 		return errors.New("delete failed")
 	}
 
-	log.Infof("Completed successfully")
+	log.Info("----------")
+	log.Info("Firewall rules on the target were NOT modified")
+	log.Info("To modify firewall rules see vic-machine update firewall --help")
+	log.Info("----------")
+	log.Info("Completed successfully")
 
 	return nil
 }

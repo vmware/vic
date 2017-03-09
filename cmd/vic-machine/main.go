@@ -29,6 +29,7 @@ import (
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
+	"github.com/vmware/vic/cmd/vic-machine/update"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/version"
@@ -51,6 +52,7 @@ func main() {
 	list := list.NewList()
 	upgrade := upgrade.NewUpgrade()
 	debug := debug.NewDebug()
+	updateFw := update.NewUpdateFw()
 	app.Commands = []cli.Command{
 		{
 			Name:   "create",
@@ -92,6 +94,18 @@ func main() {
 			Usage:  "Debug VCH",
 			Action: debug.Run,
 			Flags:  debug.Flags(),
+		},
+		{
+			Name:  "update",
+			Usage: "Modify configuration",
+			Subcommands: []cli.Command{
+				{
+					Name:   "firewall",
+					Usage:  "Modify host firewall",
+					Action: updateFw.Run,
+					Flags:  updateFw.Flags(),
+				},
+			},
 		},
 	}
 
