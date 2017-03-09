@@ -147,6 +147,7 @@ func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCr
 		Subnet:      subnet,
 		IPAM:        pools,
 		Annotations: make(map[string]string),
+		Internal:    nc.Internal,
 	}
 
 	// Marshal and encode the labels for transport and storage in the portlayer
@@ -474,7 +475,10 @@ func (n *network) IPv6Enabled() bool {
 }
 
 func (n *network) Internal() bool {
-	return false
+	n.Lock()
+	defer n.Unlock()
+
+	return n.cfg.Internal
 }
 
 // Labels decodes and unmarshals the stored blob of network labels.

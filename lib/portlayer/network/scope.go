@@ -42,6 +42,7 @@ type Scope struct {
 	builtin     bool
 	network     object.NetworkReference
 	annotations map[string]string
+	internal    bool
 }
 
 func newScope(id uid.UID, scopeType string, network object.NetworkReference, scopeData *ScopeData) *Scope {
@@ -55,6 +56,7 @@ func newScope(id uid.UID, scopeType string, network object.NetworkReference, sco
 		network:     network,
 		containers:  make(map[uid.UID]*Container),
 		annotations: make(map[string]string),
+		internal:    scopeData.Internal,
 	}
 }
 
@@ -84,6 +86,13 @@ func (s *Scope) Type() string {
 	defer s.RUnlock()
 
 	return s.scopeType
+}
+
+func (s *Scope) Internal() bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.internal
 }
 
 func (s *Scope) Network() object.NetworkReference {
@@ -318,6 +327,7 @@ type scopeJSON struct {
 	Builtin     bool
 	Pools       []*ip.Range
 	Annotations map[string]string
+	Internal    bool
 }
 
 func (s *Scope) MarshalJSON() ([]byte, error) {
@@ -334,6 +344,7 @@ func (s *Scope) MarshalJSON() ([]byte, error) {
 		Builtin:     s.builtin,
 		Pools:       s.pools(),
 		Annotations: s.annotations,
+		Internal:    s.internal,
 	})
 }
 
@@ -371,6 +382,8 @@ func (s *Scope) UnmarshalJSON(data []byte) error {
 		ns.annotations[k] = v
 	}
 
+	ns.internal = sj.Internal
+
 	s.swap(&ns)
 
 	return nil
@@ -389,4 +402,5 @@ func (s *Scope) swap(other *Scope) {
 	s.containers, other.containers = other.containers, s.containers
 	s.network, other.network = other.network, s.network
 	s.annotations, other.annotations = other.annotations, s.annotations
+	s.internal, other.internal = other.internal, s.internal
 }
