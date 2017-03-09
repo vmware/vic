@@ -3,6 +3,7 @@
 * [Introduction](README.md)
 * [Overview of vSphere Integrated Containers Engine For Container Application Developers](overview_of_vic_engine.md)
 * [Supported Docker Commands](container_operations.md)
+  * [Supported Docker Compose File Options](docker_compose_file_options.md)
 * [Use and Limitations of Containers in vSphere Integrated Containers Engine](container_limitations.md)
 * [Obtain a VCH](obtain_vch.md)
 * [Using Volumes with vSphere Integrated Containers Engine](using_volumes_with_vic.md)
