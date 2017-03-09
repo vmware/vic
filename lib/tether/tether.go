@@ -242,7 +242,7 @@ func (t *tether) setMounts() error {
 			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
 
 		case "nfs":
-			t.ops.MountFileSystem(context.Background(), v.Source, v.Path, v.Mode)
+			t.ops.MountTarget(context.Background(), v.Source, v.Path, v.Mode)
 
 		default:
 			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
