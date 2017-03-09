@@ -190,3 +190,11 @@ Assign Vsphere License
     [Arguments]  ${license}  ${host}
     ${out}=  Run  govc license.assign -host ${host} ${license}
     Should Contain  ${out}  Key:
+
+Add Host To VCenter
+    [Arguments]  ${host}  ${user}  ${dc}  ${pw}
+    :FOR  ${idx}  IN RANGE  1  4
+    \   ${out}=  Run  govc cluster.add -hostname=${host} -username=${user} -dc=${dc} -password=${pw} -noverify=true
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  OK
+    \   Return From Keyword If  ${status}
+    Fail  Failed to add the host to the VC in 3 attempts
