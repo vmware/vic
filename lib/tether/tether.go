@@ -254,6 +254,11 @@ func (t *tether) initializeSessions() error {
 			session.Lock()
 			defer session.Unlock()
 
+			if session.wait != nil {
+				log.Warnf("Session %s already initialized", id)
+				return nil
+			}
+
 			if session.RunBlock {
 				log.Infof("Session %s wants attach capabilities. Creating its channel", id)
 				session.ClearToLaunch = make(chan struct{})
