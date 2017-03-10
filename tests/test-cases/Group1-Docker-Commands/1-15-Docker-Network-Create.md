@@ -17,6 +17,8 @@ This test requires that a vSphere server is running and available
 4. Issue docker network inspect -f '{{.Labels}}' label-network to the VIC appliance
 5. Issue docker network create test-network to the VIC appliance
 6. Issue docker network create -d overlay test-network2 to the VIC appliance
+7. Issue docker network create --internal internal-network
+8. Issue docker network inspect -f '{{.Internal}}' internal-network
 
 #Expected Outcome:
 * Step 2 should complete successfully and a new network should be created named test-network
@@ -30,6 +32,8 @@ Error response from daemon: network with name test-network already exists
 ```
 Error response from daemon: failed to parse pool request for address space "GlobalDefault" pool "" subpool "": cannot find address space GlobalDefault (most likely the backing datastore is not configured)
 ```
+* Step 7 should return without an error
+* Step 8's output should be equal to 'true'
 
 #Possible Problems:
 None
