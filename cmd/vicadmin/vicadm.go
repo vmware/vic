@@ -324,10 +324,14 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 			continue
 		}
 
-		logname, err := child.Name(ctx)
+		logname, err := child.VMPathName(ctx)
 		if err != nil {
-			log.Errorf("Unable to get the vm name for %s: %s", child.Reference(), err)
+			log.Errorf("Unable to get the vm path name for %s: %s", child.Reference(), err)
 			continue
+		}
+		if logname != "" {
+			names := strings.Split(logname, " ")
+			logname = names[len(names)-1]
 		}
 
 		if self != nil && child.Reference().String() == self.Reference().String() {
