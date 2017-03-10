@@ -58,6 +58,9 @@ const (
 
 	vmNotSuspendedKey = "msg.suspend.powerOff.notsuspended"
 	vmPoweringOffKey  = "msg.rpc.error.poweringoff"
+
+	maxVMNameLength = 80
+	shortIDLen      = 12
 )
 
 func (s State) String() string {
@@ -638,6 +641,31 @@ func (c *Container) OnEvent(e events.Event) {
 			log.Errorf("Event driven container update failed for %s with %s", c, err)
 		}
 	}
+// Update the VM display name on vSphere UI
+func (c *Container) UpdateDisplayName(ctx context.Context, newName string) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
+	if c.vm == nil {
+		return NotFoundError{}
+	}
+
+	shortID := c.ExecConfig.ID[:shortIDLen]
+	nameMaxLen := maxVMNameLength - len(shortID)
+	prettyName := newName
+	if len(prettyName) > nameMaxLen-1 {
+		prettyName = prettyName[:nameMaxLen-1]
+	}
+
+	fullName := fmt.Sprintf("%s-%s", prettyName, shortID)
+
+	_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		return c.vm.Rename(ctx, fullName)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // get the containerVMs from infrastructure for this resource pool

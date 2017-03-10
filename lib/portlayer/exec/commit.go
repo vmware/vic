@@ -28,10 +28,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/stringid"
 )
-
-const maxVMNameLength = 80
 
 // Commit executes the requires steps on the handle
 func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
