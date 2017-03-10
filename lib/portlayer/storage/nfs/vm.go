@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	// TODO: pick potentially more sane defaults for these values
-	nfsMountOptions = "rw,noatime,vers=3,rsize=131072,wsize=131072,hard,proto=tcp,timeo=600,retrans=5,sec=sys,mountvers=3,mountproto=tcp,local_lock=none"
+	nfsMountOptions = "rw,noatime,vers=3,rsize=131072,wsize=131072,hard,proto=tcp,timeo=600,sec=sys,mountvers=3,mountproto=tcp,local_lock=none"
 )
 
 func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
