@@ -15,6 +15,7 @@
 package nfs
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -109,7 +110,11 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	}
 
 	u, _ := v.Service.URL()
-	u.Scheme = "nfs"
+	if u.Scheme != "nfs" {
+		op.Errorf("URL from nfs mount target had scheme (%s) instead of nfs for volume store (%s)", u.Scheme, v.Name)
+		return nil, fmt.Errorf("Unexpected scheme (%s) for volume store (%s)", u.Scheme, v.Name)
+	}
+
 	vol, err := storage.NewVolume(v.SelfLink, ID, info, NewVolume(u, v.volDirPath(ID)))
 	if err != nil {
 		return nil, err
