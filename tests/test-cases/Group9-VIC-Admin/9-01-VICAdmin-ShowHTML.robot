@@ -107,7 +107,6 @@ Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    ${vmName}=  Get VM display name  ${container}
     Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
 
