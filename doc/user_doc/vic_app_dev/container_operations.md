@@ -47,7 +47,7 @@
 |`cp`|[Copy files or folders between a container and the local filesystem](https://docs.docker.com/engine/reference/commandline/cp/)|No|
 |`create`|[Create a container](https://docs.docker.com/engine/reference/commandline/create/)|Yes. <br>`--cpuset-cpus`in Docker specifies CPUs the container is allowed to use during execution (0-3, 0,1). In vSphere Integrated Containers Engine, this parameter specifies the number of virtual CPUs to allocate to the container VM. Minimum CPU count is 1, maximum is unlimited. Default is 2.<br>`--ip` allows you to set a static IP on the container. By default, the virtual container host  manages the container IP.<br>`--memory` Minimum memory is 512MB, maximum unlimited. If unspecified, default is 2GB. Supports the `--attach`, `--cpuset-cpus`,`--env`, `--ip`, `--memory`, `--interactive`, `--link`, `--label`, `--network`, `--tty`, and `--volume` options.|
 |`diff`|[Inspect changes on a container's filesystem](https://docs.docker.com/engine/reference/commandline/diff/)|No|
-|`events`|[Get real time events from the server](https://docs.docker.com/engine/reference/commandline/events/)|Yes. Supports passive Docker events for containers and images. Does not yet support events for volumes or networks.|
+|`events`|[Get real time events from the server](https://docs.docker.com/engine/reference/commandline/events/)|Yes. Supports passive Docker events for containers and images. When you perform `docker stop`, regular Docker reports the `kill > die > stop` events, however vSphere Integrated Containers Engine reports `die > stop`. Regular Docker reports the name of the image for any container operation, however vSphere Integrated Containers Engine reports `image=sha256:<hashtag>`. Does not yet support events for volumes or networks.|
 |`exec`|[Run a command in a running container](https://docs.docker.com/engine/reference/commandline/exec/)|No|
 |`export`|[Export a container](https://docs.docker.com/engine/reference/commandline/export/)|No|
 |`kill`|[Kill a running container](https://docs.docker.com/engine/reference/commandline/kill/)|Yes. Docker must wait for the container to shut down.|
@@ -116,24 +116,24 @@ For information about Docker Compose file support, see [Supported Docker Compose
 | **Command** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
 | `build`  | [Build or rebuild service](https://docs.docker.com/compose/reference/build/)  | No. Depends on `docker build`.|
-| `bundle`  | [Generate a Distributed Application Bundle (DAB) from the Compose file](https://docs.docker.com/compose/reference/bundle/)| No|
+| `bundle`  | [Generate a Distributed Application Bundle (DAB) from the Compose file](https://docs.docker.com/compose/reference/bundle/)| No |
 | `config`  | [Validate and view the compose file](https://docs.docker.com/compose/reference/config/)  | Yes  |
 | `create`  | [Create services](https://docs.docker.com/compose/reference/create/)  | Yes  |
 | `down`  | [Stop and remove containers, networks, images, and volumes](https://docs.docker.com/compose/reference/down/)  | Yes  |
-| `events`  |[Receive real time events from containers](https://docs.docker.com/compose/reference/events/)  | No. Depends on `docker events`.|
+| `events`  |[Receive real time events from containers](https://docs.docker.com/compose/reference/events/)  | Yes. Supports passive Docker events for containers and images. When you perform `docker compose stop`, regular Docker Compose reports the `kill > die > stop` events, however vSphere Integrated Containers Engine reports `die > stop`. Regular Docker Compose reports the name of the image for any container operation, however vSphere Integrated Containers Engine reports `image=sha256:<hashtag>`. Does not yet support events for volumes or networks.|
 | `exec`  | [Run commands in services](https://docs.docker.com/compose/reference/exec/) | No. Depends on `docker exec`. |
 | `help`  | [Get help on a command](https://docs.docker.com/compose/reference/help/)  | Yes  |
 | `kill`  | [Kill containers](https://docs.docker.com/compose/reference/kill/)  | No, but `docker kill` works. |
 | `logs`  | [View output from containers](https://docs.docker.com/compose/reference/logs/)  | Yes |
 | `pause`  | [Pause services](https://docs.docker.com/compose/reference/pause/)  | No. Depends on `docker pause`.  |
 | `port`  | [Print the public port for a port binding](https://docs.docker.com/compose/reference/port/)  | Yes |
-| `ps`  | [List containers](https://docs.docker.com/compose/reference/ps/)  | No. Depends on `docker ps --filter`.  |
+| `ps`  | [List containers](https://docs.docker.com/compose/reference/ps/)  |Yes |
 | `pull`  | [Pulls service images](https://docs.docker.com/compose/reference/pull/)  | Yes  |
 | `push`  | [Pushes images for service](https://docs.docker.com/compose/reference/push/)  | No. Depends on `docker push`  |
 | `restart`  |	[Restart services](https://docs.docker.com/compose/reference/restart/)  | Yes  |
 | `rm`  | [Remove stopped containers](https://docs.docker.com/compose/reference/rm/)  | Yes  |
 | `run`  | [Run a one-off command](https://docs.docker.com/compose/reference/run/)  | Yes  |
-| `scale`  | [Set number of containers for a service](https://docs.docker.com/compose/reference/scale/)  | No. Depends on `docker ps --filter`. |
+| `scale`  | [Set number of containers for a service](https://docs.docker.com/compose/reference/scale/)  | Yes |
 | `start`  | [Start services](https://docs.docker.com/compose/reference/start/)  | Yes  |
 | `stop`  | [Stop services](https://docs.docker.com/compose/reference/stop/)  | Yes  |
 | `unpause`  | [Unpause services](https://docs.docker.com/compose/reference/unpause/)  | No. Depends on `docker unpause`.  |

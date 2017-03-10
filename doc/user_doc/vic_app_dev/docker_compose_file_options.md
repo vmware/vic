@@ -45,6 +45,11 @@ This topic provides information about the Docker Compose file options that vSphe
 |`link_local_ips` |[List of link-local IPs](https://docs.docker.com/compose/compose-file/compose-file-v2/#linklocalips) | No. Depends on `docker run --link-local-ip` |
 |`pid` |[Sets PID mode](https://docs.docker.com/compose/compose-file/compose-file-v2/#pid) | No. Depends on `docker run --pid`. |
 |`ports` |[Expose ports](https://docs.docker.com/compose/compose-file/compose-file-v2/#ports)| Yes |
+|`security-opt` |[Override the default labeling scheme for containers](https://docs.docker.com/compose/compose-file/compose-file-v2/#securityopt) | No. This option only applies to Windows containers, which vSphere Integrated Containers Engine does not support. |
+|`stop-signal` |[Sets an alternative signal to stop the container.](https://docs.docker.com/compose/compose-file/compose-file-v2/#stopsignal) | Yes |
+|`stop-grace-period` |[Specify how long to wait stopping a container](https://docs.docker.com/compose/compose-file/compose-file-v2/#stopgraceperiod) | No |
+|`sysctls` |[Kernel parameters to set in the container](https://docs.docker.com/compose/compose-file/compose-file-v2/#sysctls) | No |
+|`ulimits` |[Override the default ulimits for a container](https://docs.docker.com/compose/compose-file/compose-file-v2/#ulimits) | No |
 |`userns_mode` |[Disables the user namespace](https://docs.docker.com/compose/compose-file/compose-file-v2/#usernsmode) | No |
 |`volumes`,`volume_driver` |[xxx](https://docs.docker.com/compose/compose-file/compose-file-v2/#volumes-volumedriver) | Yes |
 |`volumes_from` |[Mount volumes from another service or container](https://docs.docker.com/compose/compose-file/compose-file-v2/#volumesfrom)| No |
