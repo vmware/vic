@@ -62,8 +62,9 @@ type Validator struct {
 }
 
 const (
-	GoodStatus = template.HTML(`<i class="icon-ok"></i>`)
-	BadStatus  = template.HTML(`<i class="icon-attention"></i>`)
+	GoodStatus     = template.HTML(`<i class="icon-ok"></i>`)
+	BadStatus      = template.HTML(`<i class="icon-attention"></i>`)
+	DefaultVCHName = `VCH`
 )
 
 func GetMgmtIP() net.IPNet {
@@ -112,11 +113,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	log.Infof("Setting version to %s", v.Version)
 
 	// VCH Name
-	name, err := VCHName(ctx, sess)
-	if err != nil {
-		log.Errorf("Failed to get VCH name: %s", err)
-	}
-	v.Hostname = name
+	v.Hostname = VCHName(ctx, sess)
 
 	// System time
 	v.SystemTime = time.Now().Format(time.UnixDate)
@@ -207,7 +204,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	}
 
-	err = v.QueryDatastore(ctx, vch, sess)
+	err := v.QueryDatastore(ctx, vch, sess)
 	if err != nil {
 		log.Errorf("Had a problem querying the datastores: %s", err.Error())
 	}
@@ -215,28 +212,26 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	return v
 }
 
-func VCHName(ctx context.Context, sess *session.Session) (string, error) {
+func VCHName(ctx context.Context, sess *session.Session) string {
 	defer trace.End(trace.Begin(""))
-
-	var vchName string
 
 	self, err := guest.GetSelf(ctx, sess)
 	if err != nil {
 		log.Errorf("Unable to get VCH name due to unknown self-reference: %s", err)
 		log.Infof("Setting the VCH name to VCH")
-		return fmt.Sprintf("VCH"), err
+		return DefaultVCHName
 	}
 
 	self2 := vm.NewVirtualMachineFromVM(ctx, sess, self)
-	vchName, err = self2.Name(ctx)
+	vchName, err := self2.Name(ctx)
 	if err != nil {
 		log.Errorf("Unable to get VCH name: %s", err)
 		log.Infof("Setting the VCH name to VCH")
-		return fmt.Sprintf("VCH"), err
+		return DefaultVCHName
 	}
 
 	log.Infof("Setting the VCH name to %s", vchName)
-	return vchName, nil
+	return vchName
 }
 
 type dsList []mo.Datastore
