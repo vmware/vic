@@ -637,7 +637,7 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
-	if err := os.MkdirAll(target, 0600); err != nil {
+	if err := os.MkdirAll(target, 0644); err != nil {
 		// same as MountFileSystem error for consistency
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
@@ -676,14 +676,15 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", source.String(), target)))
 
-	if err := os.MkdirAll(target, 0600); err != nil {
+	if err := os.MkdirAll(target, 0644); err != nil {
 		// same as MountLabel error for consistency
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
-	if err := Sys.Syscall.Mount(source.String(), target, "nfs", 0, mountOptions); err != nil {
-		detail := fmt.Sprintf("mounting %s on %s failed: %s", source.String(), target, err)
-		return errors.New(detail)
+	rawSource := source.Hostname() + ":/" + source.Path
+	if err := Sys.Syscall.Mount(rawSource, target, "nfs", 0, mountOptions); err != nil {
+		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
+		return err
 	}
 
 	return nil
