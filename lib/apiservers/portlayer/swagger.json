@@ -2376,6 +2376,9 @@
 					"additionalProperties": {
 						"type": "string"
 					}
+				},
+				"internal": {
+					"type": "boolean"
 				}
 			}
 		},

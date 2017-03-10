@@ -48,12 +48,9 @@ Test
     Should Be Empty  ${out}
 
     Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
+    Add Host To VCenter  ${esx1-ip}  root  ha-datacenter  e2eFunctionalTest
+    Add Host To VCenter  ${esx2-ip}  root  ha-datacenter  e2eFunctionalTest
+    Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
 
     Create A Distributed Switch  ha-datacenter
 

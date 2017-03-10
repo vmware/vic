@@ -19,7 +19,8 @@ This test requires that a vSphere server is running and available
 6. Issue docker info command, grab the resource pool CPU/mem usage, add a running container to the resource pool, docker info, check the resource pool CPU/mem usage values are updated
 
 #Expected Outcome:
-* VIC appliance should respond with a properly formatted info response, no errors should be seen. Step 3 should result in additional debug information being returned as well.
+* In Step 2, the VIC appliance should respond with a properly formatted info response without errors. Supported volume drivers should be present in the Plugins section.
+* Step 3 should result in additional debug information being returned as well.
 * Verify in step 4 that the correct number of containers is reported.
 * Verify in step 5 that docker info reports the latest resource pool CPU and memory limits.
 * Verify in step 6 that docker info reports the latest resource pool CPU and memory usages

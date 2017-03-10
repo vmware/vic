@@ -113,3 +113,23 @@ Connect containers to multiple networks non-overlapping
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross2-container3
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 0 packets received, 100% packet loss
+
+Connect containers to an internal network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create --internal internal-net
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net internal-net busybox ping -c1 www.google.com
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Network is unreachable
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create public-net
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net internal-net --net public-net busybox ping -c2 www.google.com
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --net internal-net busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${containerID}  internal-net
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net internal-net busybox ping -c2 ${ip}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received

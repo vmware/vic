@@ -498,6 +498,7 @@ type ScopeData struct {
 	DNS         []net.IP
 	Pools       []string
 	Annotations map[string]string
+	Internal    bool
 }
 
 func (c *Context) NewScope(ctx context.Context, scopeData *ScopeData) (*Scope, error) {
@@ -726,9 +727,14 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		copy(ne.Network.Nameservers, s.dns)
 
 		// mark the external network as default
-		if !defaultMarked && e.Scope().Type() == constants.ExternalScopeType {
+		scope := e.Scope()
+		if !defaultMarked && scope.Type() == constants.ExternalScopeType {
 			defaultMarked = true
 			ne.Network.Default = true
+		}
+
+		if scope.Internal() {
+			ne.Network.Default = false
 		}
 
 		// dns lookup aliases
@@ -788,6 +794,12 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	if !defaultMarked {
 		defaultMarked = true
 		for _, ne := range h.ExecConfig.Networks {
+
+			if s, ok := c.scopes[ne.Network.Name]; ok && s.Internal() {
+				log.Debugf("not setting internal network %s as default", ne.Network.Name)
+				continue
+			}
+
 			ne.Network.Default = true
 			break
 		}

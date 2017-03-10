@@ -76,7 +76,7 @@ Docker volume create already named volume
 Docker volume create volume with bad driver
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create -d fakeDriver --name=test2
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error looking up volume plugin fakeDriver: plugin not found
+    Should Contain  ${output}  error looking up volume plugin fakeDriver: plugin not found
 
 Docker volume create with bad volumestore
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test3 --opt VolumeStore=fakeStore
