@@ -20,7 +20,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
 ${yml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5000:5000"\n${SPACE}${SPACE}depends_on:\n${SPACE}${SPACE}- redis\n${SPACE}redis:\n${SPACE}${SPACE}image: redis\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5001:5001"
-${link-yml}  version: "2"\nservices:\n${SPACE}redis:\n${SPACE}${SPACE}image: redis:alpine\n${SPACE}${SPACE}container_name: redis\n${SPACE}${SPACE}ports: ["6379"]\n${SPACE}web:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: a.b.c\n${SPACE}${SPACE}links:\n${SPACE}${SPACE}- redis:aaa\n${SPACE}${SPACE}command: ["ping", "aaa"]
+${link-yml}  version: "2"\nservices:\n${SPACE}redis1:\n${SPACE}${SPACE}image: redis:alpine\n${SPACE}${SPACE}container_name: redis1\n${SPACE}${SPACE}ports: ["6379"]\n${SPACE}web1:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: a.b.c\n${SPACE}${SPACE}links:\n${SPACE}${SPACE}- redis1:aaa\n${SPACE}${SPACE}command: ["ping", "aaa"]
 
 *** Test Cases ***
 Compose basic
@@ -74,4 +74,4 @@ Compose Up with link
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file link-compose.yml logs
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING aaa
-    Should Not Container  ${output}  bad address 'aaa'
+    Should Not Contain  ${output}  bad address 'aaa'
