@@ -366,6 +366,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/gizak/termui",
+			"repository": "https://github.com/gizak/termui",
+			"vcs": "git",
+			"revision": "798ffb9cbbe4073ef1f88e6069ca4a2c6aa6676b",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/go-check/check",
 			"repository": "https://github.com/go-check/check",
 			"vcs": "git",
@@ -679,11 +687,36 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/maruel/panicparse/stack",
+			"repository": "https://github.com/maruel/panicparse",
+			"vcs": "git",
+			"revision": "25bcac0d793cf4109483505a0d66e066a3a90a80",
+			"branch": "master",
+			"path": "/stack",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mattn/go-runewidth",
+			"repository": "https://github.com/mattn/go-runewidth",
+			"vcs": "git",
+			"revision": "14207d285c6c197daabb5c9793d63e7af9ab2d50",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/miekg/dns",
 			"repository": "https://github.com/miekg/dns",
 			"vcs": "git",
 			"revision": "ca336a1f95a6b89be9c250df26c7a41742eb4a6f",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/mitchellh/go-wordwrap",
+			"repository": "https://github.com/mitchellh/go-wordwrap",
+			"vcs": "git",
+			"revision": "ad45545899c7b13c020ea92b2072220eefad42b8",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/mitchellh/mapstructure",
@@ -707,6 +740,14 @@
 			"vcs": "",
 			"revision": "9af2ba0e24214bac003821f4a501b131b2e04c75",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/nsf/termbox-go",
+			"repository": "https://github.com/nsf/termbox-go",
+			"vcs": "git",
+			"revision": "91bae1bb5fa9ee504905ecbe7043fa30e92feaa3",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/opencontainers/runc/libcontainer",
