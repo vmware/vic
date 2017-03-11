@@ -907,7 +907,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		NetworkName: cc.HostConfig.NetworkMode.NetworkName(),
 	}
 
-	// Docker support link for bridge network and user defined network, we should handle that
+	// Docker supports link for bridge network and user defined network, we should handle that
 	if len(cc.HostConfig.Links) > 0 {
 		nc.Aliases = append(nc.Aliases, cc.HostConfig.Links...)
 	}
