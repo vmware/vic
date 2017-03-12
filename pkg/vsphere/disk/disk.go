@@ -199,7 +199,10 @@ func (d *VirtualDisk) MountPath() (string, error) {
 
 func (d *VirtualDisk) DiskPath() url.URL {
 
-	return url.URL{Path: d.DatastoreURI}
+	return url.URL{
+		Scheme: "ds",
+		Path:   d.DatastoreURI,
+	}
 }
 
 func (d *VirtualDisk) Mounted() bool {
