@@ -47,7 +47,9 @@ var (
 )
 
 const (
-	pciDevPath = "/sys/bus/pci/devices"
+	pciDevPath         = "/sys/bus/pci/devices"
+	nfsFileSystemType  = "nfs"
+	ext4FileSystemType = "ext4"
 )
 
 type BaseOperations struct {
@@ -662,7 +664,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		return errors.New(detail)
 	}
 
-	if err := Sys.Syscall.Mount(label, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
+	if err := Sys.Syscall.Mount(label, target, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
 		// consistent with MountFileSystem
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
 		return errors.New(detail)
@@ -682,7 +684,7 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	}
 
 	rawSource := source.Hostname() + ":/" + source.Path
-	if err := Sys.Syscall.Mount(rawSource, target, "nfs", 0, mountOptions); err != nil {
+	if err := Sys.Syscall.Mount(rawSource, target, nfsFileSystemType, 0, mountOptions); err != nil {
 		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
 		return err
 	}

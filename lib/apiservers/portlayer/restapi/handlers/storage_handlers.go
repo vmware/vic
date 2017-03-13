@@ -43,6 +43,11 @@ type StorageHandlersImpl struct {
 	volumeCache *spl.VolumeLookupCache
 }
 
+const (
+	nfsScheme = "nfs"
+	dsScheme  = "ds"
+)
+
 // Configure assigns functions to all the storage api handlers
 func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	var err error
@@ -102,7 +107,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 	// Each volume store name maps to a datastore + path, which can be referred to by the name.
 	for name, dsurl := range spl.Config.VolumeLocations {
 		switch dsurl.Scheme {
-		case "nfs":
+		case nfsScheme:
 			uid := nfs.DefaultUID
 
 			if dsurl.User != nil && dsurl.User.Username() != "" {
@@ -119,7 +124,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 				return err
 			}
 
-		case "ds":
+		case dsScheme:
 			ds, err := datastore.NewHelperFromURL(op, handlerCtx.Session, dsurl)
 			if err != nil {
 				return fmt.Errorf("cannot find datastores: %s", err)
