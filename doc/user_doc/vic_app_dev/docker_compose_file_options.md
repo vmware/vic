@@ -33,7 +33,7 @@ This topic provides information about the Docker Compose file options that vSphe
 |`group_add` |[Specify additional groups for the user inside the container](https://docs.docker.com/compose/compose-file/compose-file-v2/#groupadd)| Yes |
 |`healthcheck` |[Check container health](https://docs.docker.com/compose/compose-file/compose-file-v2/#healthcheck) | No. Depends on `docker run --health-cmd`.|
 |`image` |[Specify container image](https://docs.docker.com/compose/compose-file/compose-file-v2/#image)| Yes |
-|`isolation` |[xxx](https://docs.docker.com/compose/compose-file/compose-file-v2/#isolation) | No. Depends on `docker run --isolation`.|
+|`isolation` |[Specify isolation technology](https://docs.docker.com/compose/compose-file/compose-file-v2/#isolation) | No. Depends on `docker run --isolation`.|
 |`labels` |[Add metadata by using labels](https://docs.docker.com/compose/compose-file/compose-file-v2/#labels)| Yes |
 |`links` |[Link to containers in another service](https://docs.docker.com/compose/compose-file/compose-file-v2/#links)| Yes |
 |`logging`, `log_driver`, `log_opt` |[Logging configuration](https://docs.docker.com/compose/compose-file/compose-file-v2/#logging) | No. Depends on `docker run --log-driver` and `--log-opt`.|
@@ -60,7 +60,14 @@ This topic provides information about the Docker Compose file options that vSphe
 <a id="volume"></a>
 ## Volume Configuration Options ##
 
-vSphere Integrated Containers 0.9 does not support any volume configuration options, pending the implementation of shared volume support.
+NOTE: vSphere Integrated Containers 0.9 does support shared volumes. You can use these options for containers that do not share volumes. 
+
+| **Option** | **Compose File Reference** | **Supported** |
+| --- | --- | --- |
+|`driver` | [Specify driver to use for this volume](https://docs.docker.com/compose/compose-file/compose-file-v2/#driver) | Yes |
+|`driver_opts` | [Specify options to pass to the driver for this volume](https://docs.docker.com/compose/compose-file/compose-file-v2/#driveropts) | Yes |
+|`labels` | [Add metadata to containers](https://docs.docker.com/compose/compose-file/compose-file-v2/#labels-1) | Yes |
+|`external` | [Specify that volume has been created outside of Compose](https://docs.docker.com/compose/compose-file/compose-file-v2/#external) | Yes |
 
 <a id="network"></a>
 ## Network Configuration Options ##
