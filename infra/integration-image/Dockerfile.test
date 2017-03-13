@@ -16,6 +16,7 @@ RUN pip install robotframework
 RUN pip install robotframework-sshlibrary
 RUN pip install robotframework-httplibrary
 RUN pip install requests
+RUN pip install dbbot
 
 RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/bin
 RUN mv /usr/bin/docker /usr/bin/docker1.11
@@ -34,12 +35,12 @@ RUN chmod +x /usr/local/bin/govc
 RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
 RUN install -t /usr/local/bin drone
 
-Run apt-get install sshpass
+RUN apt-get install sshpass
 
-Run apt-get install -yq ant openjdk-7-jdk
-
-Run apt-get install unzip
-Run apt-get install zip
+RUN apt-get install -yq ant openjdk-7-jdk
+RUN apt-get install -yq rpcbind nfs-common
+RUN apt-get install unzip
+RUN apt-get install zip
 
 RUN curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
 RUN chmod +x /usr/local/bin/docker-compose

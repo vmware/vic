@@ -5,7 +5,7 @@ clone:
 
 build:
   integration-test:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.20}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
     pull: true
     environment:
       BIN: bin
@@ -33,4 +33,3 @@ build:
     commands:
       - tests/integration-test.sh
       #- pybot tests/test-cases/Group1-Docker-Commands/1-13-Docker-Version.robot
-      
