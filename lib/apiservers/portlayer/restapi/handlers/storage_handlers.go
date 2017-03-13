@@ -505,9 +505,9 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	}
 
 	switch volume.Device.DiskPath().Scheme {
-	case "nfs":
+	case nfsScheme:
 		actualHandle, err = nfs.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
-	case "ds":
+	case dsScheme:
 		actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
 	default:
 		err = fmt.Errorf("unknown scheme (%s) for Volume (%s)", volume.Device.DiskPath().Scheme, *volume)
