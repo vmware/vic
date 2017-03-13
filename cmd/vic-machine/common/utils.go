@@ -16,7 +16,9 @@ package common
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -46,7 +48,7 @@ func LogErrorIfAny(clic *cli.Context, err error) error {
 
 // CheckUnsupportedChars returns an error if string contains special characters
 func CheckUnsupportedChars(s string) error {
-	return checkUnsupportedChars(s, reUnsupp)
+	return checkUnsupportedChars(s, reUnsuppDatastore)
 }
 
 // CheckUnsupportedCharsDatastore returns an error if a datastore string contains special characters
@@ -57,8 +59,30 @@ func CheckUnsupportedCharsDatastore(s string) error {
 func checkUnsupportedChars(s string, re *regexp.Regexp) error {
 	st := []byte(s)
 	var v []int
+	//this is validation step for characters in a datastore URI
 	if v = re.FindIndex(st); v == nil {
 		return nil
 	}
 	return fmt.Errorf("unsupported character %q in %q", s[v[0]:v[1]], s)
+}
+
+// CheckNFSURlValidation is used to validate propernfs arguments to the --volume-store flag and avoid checking inputs for datastore restricted characters if a url is provided
+func CheckURLValidation(input string) *url.URL {
+	parts := strings.Split(input, ":")
+	rawURL := strings.Join(parts[0:len(parts)-1], ":")
+
+	if len(parts) < 2 {
+		return nil
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil
+	}
+
+	// at the very lease, these fields must exist for a good input to exist for an nfs share
+	if u.Host == "" || u.Scheme == "" || u.Path == "" {
+		return nil
+	}
+	return u
 }

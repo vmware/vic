@@ -882,14 +882,25 @@ func (c *Create) processVolumeStores() error {
 	defer trace.End(trace.Begin(""))
 	c.VolumeLocations = make(map[string]string)
 	for _, arg := range c.volumeStores {
-		if err := common.CheckUnsupportedCharsDatastore(arg); err != nil {
-			return fmt.Errorf("--volume-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err)
+		splitMeta := strings.Split(arg, ":")
+		if len(splitMeta) < 1 {
+			return errors.New("volume store input must be in format datastore/path:label or <nfs://<user>:<password>@<host>/<url-path>:label")
 		}
-		splitMeta := strings.SplitN(arg, ":", 2)
-		if len(splitMeta) != 2 {
-			return errors.New("Volume store input must be in format datastore/path:label")
+
+		u := common.CheckURLValidation(arg)
+		if u != nil {
+			if u.Scheme != "nfs" {
+				return fmt.Errorf("parsed url for option --volume-store does not have scheme 'nfs',  valid inputs are datastore/path:label or <nfs://<user>:<password>@<host>/<share point path>:label")
+			}
 		}
-		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
+
+		if err := common.CheckUnsupportedChars(arg); err != nil && u == nil {
+			return fmt.Errorf("--volume-store contains unsupported characters for datastore target: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err)
+		}
+
+		lastIndex := len(splitMeta)
+		reconstructedTarget := strings.Join(splitMeta[0:lastIndex-1], ":")
+		c.VolumeLocations[splitMeta[lastIndex-1]] = reconstructedTarget
 	}
 
 	return nil

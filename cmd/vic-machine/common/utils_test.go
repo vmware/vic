@@ -55,7 +55,6 @@ func TestCheckUnsupportedchars(t *testing.T) {
 
 	for _, test := range tests {
 		err := CheckUnsupportedChars(test.S)
-
 		if err != nil {
 			if test.valid {
 				t.Errorf("got %q, expected pass for %q", err, test.S)
@@ -118,5 +117,68 @@ func TestCheckUnsupportedCharsDatastore(t *testing.T) {
 			continue
 		}
 		t.Errorf("got %q, expected error for %q", err, test.S)
+	}
+}
+
+func TestCheckURLValidationOutputParity(t *testing.T) {
+	tests := []struct {
+		S     string
+		valid bool
+	}{
+		{"nfs://127.0.0.1:/my/data/here:labels", true},
+		{"NotAGoodScheme://127.0.0.1:/not/my/server:moreLabels", true},
+		{"not a URL", false},
+		{"127.0.0.1:/schemeless/url:importantTarget", false},
+		{"//127.0.0.1/schemeless/url:importantTarget", false},
+		{"Blargh://127.0.0.1/schemeless/url:importantTarget", true},
+		{"Blargh://bob:pass@127.0.0.1/schemed/url:importantTarget", true},
+		{"Blargh://jim:@127.0.0.1/schemed/url:importantTarget", true},
+	}
+
+	for _, test := range tests {
+		url := CheckURLValidation(test.S)
+
+		if test.valid {
+			if url == nil {
+				t.Errorf("Test URL (%s) was parsed as NIL when it should not have", test.S)
+				t.Fail()
+			}
+		} else {
+			if url != nil {
+				t.Errorf("Test URL (%s) was parsed as a URL when NIL should have been returned. output: (%#v)", test.S, url)
+				t.Fail()
+			}
+		}
+	}
+}
+
+func TestCheckURLValidationOutputCorrectness(t *testing.T) {
+
+	testRawURL := "blargh://jim:@127.0.0.1/great/path:importantTarget"
+	u := CheckURLValidation(testRawURL)
+
+	correctScheme := "blargh"
+	correctUser := "jim"
+	correctHost := "127.0.0.1"
+	correctPath := "/great/path"
+
+	if u.Scheme != correctScheme {
+		t.Errorf("expected scheme (%s), but got scheme (%s)", correctScheme, u.Scheme)
+		t.Fail()
+	}
+
+	if u.User.Username() != correctUser {
+		t.Errorf("expected user (%s), but got user (%s)", correctUser, u.User.Username())
+		t.Fail()
+	}
+
+	if u.Hostname() != correctHost {
+		t.Errorf("expected host (%s), but got host (%s)", correctHost, u.Hostname())
+		t.Fail()
+	}
+
+	if u.Path != correctPath {
+		t.Errorf("expected path (%s), but got path (%s)", correctPath, u.Path)
+		t.Fail()
 	}
 }

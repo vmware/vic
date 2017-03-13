@@ -57,18 +57,56 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	}
 
 	// TODO: add volume locations
-	for label, volDSpath := range input.VolumeLocations {
-		dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
-		v.NoteIssue(err)
+	for label, volPath := range input.VolumeLocations {
+		nfsURL, nfsErr := NFSHelper(volPath)
+		if nfsURL != nil && nfsErr == nil {
+			conf.VolumeLocations[label] = nfsURL
+			continue
+		}
+
+		dsURL, _, dsErr := v.DatastoreHelper(ctx, volPath, label, "--volume-store")
+
+		// if both validations return error then the input cannot be used as a volumestore.
+		if nfsErr != nil && dsErr != nil {
+			v.NoteIssue(nfsErr)
+			v.NoteIssue(dsErr)
+		}
+
 		if dsURL != nil {
 			conf.VolumeLocations[label] = dsURL
 		}
 	}
 }
 
+// NFSHelper is used to construct a potential nfs target. If a valid NFS target cannot be contsructed a nil pointer will be returned.
+func NFSHelper(rawPath string) (*url.URL, error) {
+	// NOTE: issues from this function will need to be noted at the end of the datastore validation attempt. since we have multiple acceptable input formats now.
+	// NOTE: USER is checked at portlayer configuration time, since we cannot validate whether one is needed or not during vic-machine create time.
+
+	u, err := url.Parse(rawPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// XXX: the below cases indicate a successful url parsing path, and should be accounted for in the error output from the validator
+	// at a minimum we expect a proper scheme, a host, and a path. without these a nfs store is not identifiable and able to be targeted
+	if u.Scheme != "nfs" {
+		return u, fmt.Errorf("volume store target (%s) needs to have scheme 'nfs' if it is intended as an nfs volume-store. format: <nfs://<user>:<password>@<host>/<share point path>:label", rawPath)
+	}
+
+	if u.Host == "" {
+		return u, fmt.Errorf("volume store target (%s) is missing the host field. format: <nfs://<user>:<password>@<host>/<share point path>:label", rawPath)
+	}
+
+	if u.Path == "" {
+		return u, fmt.Errorf("volume store target (%s) is missing the path field. format: <nfs://<user>:<password>@<host>/<share point path>:label", rawPath)
+	}
+
+	return u, nil
+}
+
 func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
 	defer trace.End(trace.Begin(path))
-
 	dsURL, err := url.Parse(path)
 	if err != nil {
 		return nil, nil, errors.Errorf("error parsing datastore path: %s", err)
