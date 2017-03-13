@@ -160,7 +160,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 
 	sub := fmt.Sprintf("%s(%p)", "netCtx", netctx)
 	topic := events.NewEventType(events.ContainerEvent{}).Topic()
-	em.Subscribe(topic, sub, func(ie events.Event) {
+	s := em.Subscribe(topic, sub, func(ie events.Event) {
 		handleEvent(netctx, ie)
 	})
 
@@ -170,6 +170,8 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 		}
 	}()
 
+	s.Suspend(true)
+	defer s.Resume()
 	for _, c := range exec.Containers.Containers(nil) {
 		log.Debugf("adding container %s", c.ExecConfig.ID)
 		h := c.NewHandle(ctx)

@@ -26,9 +26,12 @@ import (
 )
 
 type Manager struct {
-	cos  collectorCache
-	subs subscriberCache
+	cos    collectorCache
+	subs   subscriberCache
+	eventQ chan events.Event
 }
+
+const eventQSize = 1000
 
 type collectorCache struct {
 	mu sync.RWMutex
@@ -39,7 +42,7 @@ type collectorCache struct {
 type subscriberCache struct {
 	mu sync.RWMutex
 
-	subscribers map[string]map[string]func(events.Event)
+	subscribers map[string]map[string]Subscriber
 }
 
 func NewEventManager(collectors ...collector.Collector) *Manager {
@@ -48,14 +51,32 @@ func NewEventManager(collectors ...collector.Collector) *Manager {
 			collectors: make(map[string]collector.Collector),
 		},
 		subs: subscriberCache{
-			subscribers: make(map[string]map[string]func(events.Event)),
+			subscribers: make(map[string]map[string]Subscriber),
 		},
+		eventQ: make(chan events.Event, eventQSize),
 	}
 
 	// register any collectors provided
 	for i := range collectors {
 		mgr.RegisterCollector(collectors[i])
 	}
+
+	// event processor routine
+	go func() {
+		for e := range mgr.eventQ {
+			// subscribers for this event
+			mgr.subs.mu.RLock()
+			subs := mgr.subs.subscribers[e.Topic()]
+			mgr.subs.mu.RUnlock()
+
+			log.Debugf("Found %d subscribers to %s: %s", len(subs), e.Topic(), e.Message())
+
+			for sub, s := range subs {
+				log.Debugf("Event manager calling back to %s", sub)
+				s.onEvent(e)
+			}
+		}
+	}()
 
 	return mgr
 }
@@ -85,15 +106,17 @@ func (mgr *Manager) Collectors() map[string]collector.Collector {
 }
 
 // Subscribe to the event manager for callback
-func (mgr *Manager) Subscribe(eventTopic string, caller string, callback func(events.Event)) {
+func (mgr *Manager) Subscribe(eventTopic string, caller string, callback func(events.Event)) Subscriber {
 	defer trace.End(trace.Begin(fmt.Sprintf("%s:%s", eventTopic, caller)))
 	mgr.subs.mu.Lock()
 	defer mgr.subs.mu.Unlock()
 
 	if _, ok := mgr.subs.subscribers[eventTopic]; !ok {
-		mgr.subs.subscribers[eventTopic] = make(map[string]func(events.Event))
+		mgr.subs.subscribers[eventTopic] = make(map[string]Subscriber)
 	}
-	mgr.subs.subscribers[eventTopic][caller] = callback
+	s := newSubscriber(eventTopic, caller, callback)
+	mgr.subs.subscribers[eventTopic][caller] = s
+	return s
 }
 
 // Unsubscribe from callbacks
@@ -106,14 +129,14 @@ func (mgr *Manager) Unsubscribe(eventTopic string, caller string) {
 	}
 }
 
-func (mgr *Manager) Subscribers() map[string]map[string]func(events.Event) {
+func (mgr *Manager) Subscribers() map[string]map[string]Subscriber {
 	mgr.subs.mu.RLock()
 	defer mgr.subs.mu.RUnlock()
-	s := make(map[string]map[string]func(events.Event))
+	s := make(map[string]map[string]Subscriber)
 	for i, m := range mgr.subs.subscribers {
 
 		if _, ok := s[i]; !ok {
-			s[i] = make(map[string]func(events.Event))
+			s[i] = make(map[string]Subscriber)
 		}
 
 		for k, v := range m {
@@ -136,19 +159,5 @@ func (mgr *Manager) Subscribed() int {
 
 // Publish events to subscribers
 func (mgr *Manager) Publish(e events.Event) {
-	// TODO: this will not block, but might still want to consider
-	// a timeout for the callback
-	go func() {
-		// subscribers for this event
-		mgr.subs.mu.RLock()
-		subs := mgr.subs.subscribers[e.Topic()]
-		mgr.subs.mu.RUnlock()
-
-		log.Debugf("Found %d subscribers to %s: %s", len(subs), e.Topic(), e.Message())
-
-		for sub, f := range subs {
-			log.Debugf("Event manager calling back to %s", sub)
-			f(e)
-		}
-	}()
+	mgr.eventQ <- e
 }
