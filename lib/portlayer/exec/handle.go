@@ -290,6 +290,11 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		Metadata: config.Metadata,
 	}
 
+	// if not vsan
+	if dsType, _ := sess.Datastore.Type(ctx); dsType != types.HostFileSystemVolumeFileSystemTypeVsan {
+		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), config.Metadata.ID, config.Metadata.ID)
+	}
+
 	// log only core portions
 	s := specconfig
 	log.Debugf("id: %s, name: %s, cpu: %d, mem: %d, parent: %s, os: %s, path: %s", s.ID, s.Name, s.NumCPUs, s.MemoryMB, s.ParentImageID, s.BootMediaPath, s.VMPathName)
