@@ -45,6 +45,21 @@ func Mkdev(majorNumber int, minorNumber int) int {
 	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
 }
 
+// ReloadConfig signals the current process, which triggers the signal handler
+// to reload the config.
+func ReloadConfig() error {
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	if err = p.Signal(syscall.SIGHUP); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // childReaper is used to handle events from child processes, including child exit.
 // If running as pid=1 then this means it handles zombie process reaping for orphaned children
 // as well as direct child processes.

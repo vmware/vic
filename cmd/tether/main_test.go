@@ -25,7 +25,9 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -114,4 +116,40 @@ func testSetup(t *testing.T) (string, *Mocker) {
 
 func testTeardown(t *testing.T, mocker *Mocker) {
 	tetherTestTeardown(t, mocker)
+}
+
+type mockery struct {
+	reloaded chan bool
+}
+
+func (m *mockery) Reload() {
+	m.reloaded <- true
+}
+
+func (m *mockery) Start() error {
+	return nil
+}
+
+func (m *mockery) Stop() error {
+	return nil
+}
+
+func (m *mockery) Register(name string, config tether.Extension) {
+}
+
+// Test reloading via signal helper
+func TestReload(t *testing.T) {
+	m := &mockery{make(chan bool)}
+	tthr = m
+
+	startSignalHandler()
+
+	if !assert.NoError(t, tether.ReloadConfig()) {
+		return
+	}
+
+	// check the started channel is closed (which gets closed on reconfig)
+	if !assert.True(t, <-m.reloaded) {
+		return
+	}
 }

@@ -184,6 +184,8 @@ func (t *Toolbox) containerStartCommand(r *toolbox.VixMsgStartProgramRequest) (i
 	switch r.ProgramPath {
 	case "kill":
 		return -1, t.kill(r.Arguments)
+	case "reload":
+		return -1, ReloadConfig()
 	default:
 		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
 	}
