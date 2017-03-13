@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -201,7 +201,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 		}
 	}
 
-	progress.Message(progressOutput, "", "Digest: "+ic.ImageManifest.Digest)
+	progress.Message(progressOutput, "", "Digest: "+ic.ManifestDigest)
 
 	if layerCount > 0 {
 		progress.Message(progressOutput, "", "Status: Downloaded newer image for "+ic.Image+":"+ic.Tag)

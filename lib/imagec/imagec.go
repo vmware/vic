@@ -30,6 +30,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/distribution/manifest/schema2"
 	docker "github.com/docker/docker/image"
 	dockerLayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -94,7 +95,15 @@ type Options struct {
 	InsecureSkipVerify bool
 	InsecureAllowHTTP  bool
 
-	ImageManifest *Manifest
+	// Get both schema 1 and schema 2 manifests.  Schema 1 is used to get history
+	// and was imageC implementation predated schema 2.  Schema 2 is used to
+	// calculate digest.
+	ImageManifestSchema1 *Manifest
+	ImageManifestSchema2 *schema2.DeserializedManifest
+
+	//Digest of manifest schema 2 or schema 1; therefore, it may not match hash
+	//of the above manifest.
+	ManifestDigest string
 
 	// RegistryCAs will not be modified by imagec
 	RegistryCAs *x509.CertPool
@@ -211,13 +220,13 @@ func DestinationDirectory(options Options) string {
 
 // LayersToDownload creates a slice of ImageWithMeta for the layers that need to be downloaded
 func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
-	images := make([]*ImageWithMeta, len(ic.ImageManifest.FSLayers))
+	images := make([]*ImageWithMeta, len(ic.ImageManifestSchema1.FSLayers))
 
-	manifest := ic.ImageManifest
+	manifest := ic.ImageManifestSchema1
 	v1 := docker.V1Image{}
 
 	// iterate from parent to children
-	for i := len(ic.ImageManifest.History) - 1; i >= 0; i-- {
+	for i := len(ic.ImageManifestSchema1.History) - 1; i >= 0; i-- {
 		history := manifest.History[i]
 		layer := manifest.FSLayers[i]
 
@@ -346,7 +355,7 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 		return *image, nil
 	}
 
-	manifest := ic.ImageManifest
+	manifest := ic.ImageManifestSchema1
 	image := docker.V1Image{}
 	rootFS := docker.NewRootFS()
 	history := make([]docker.History, 0, len(images))
@@ -412,7 +421,7 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 		ImageID: sum,
 		// TODO: this will change when issue 1186 is
 		// implemented -- only populate the digests when pulled by digest
-		Digests:   []string{manifest.Digest},
+		Digests:   []string{ic.ManifestDigest},
 		Tags:      []string{ic.Tag},
 		Name:      manifest.Name,
 		DiffIDs:   diffIDs,
@@ -488,8 +497,8 @@ func (ic *ImageC) PullImage() error {
 
 	progress.Message(ic.progressOutput, "", "Pulling from "+ic.Image)
 
-	// Get the manifest
-	manifest, err := FetchImageManifest(ctx, ic.Options, ic.progressOutput)
+	// Get the schema1 manifest
+	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		log.Infof(err.Error())
 		switch err := err.(type) {
@@ -502,7 +511,24 @@ func (ic *ImageC) PullImage() error {
 		}
 	}
 
-	ic.ImageManifest = manifest
+	schema1, ok := manifest.(*Manifest)
+	if !ok {
+		return fmt.Errorf("Error pulling manifest schema 1")
+	}
+
+	ic.ImageManifestSchema1 = schema1
+	ic.ManifestDigest = digest
+
+	manifest, digest, err = FetchImageManifest(ctx, ic.Options, 2, ic.progressOutput)
+	if err == nil {
+		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
+			ic.ImageManifestSchema2 = schema2
+
+			//Override the manifest digest as Docker uses schema 2
+			ic.ManifestDigest = digest
+		}
+	}
+
 	layers, err := ic.LayersToDownload()
 	if err != nil {
 		return err
