@@ -20,6 +20,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
 ${yml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5000:5000"\n${SPACE}${SPACE}depends_on:\n${SPACE}${SPACE}- redis\n${SPACE}redis:\n${SPACE}${SPACE}image: redis\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5001:5001"
+${link-yml}  version: "2"\nservices:\n${SPACE}redis1:\n${SPACE}${SPACE}image: redis:alpine\n${SPACE}${SPACE}container_name: redis1\n${SPACE}${SPACE}ports: ["6379"]\n${SPACE}web1:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: a.b.c\n${SPACE}${SPACE}links:\n${SPACE}${SPACE}- redis1:aaa\n${SPACE}${SPACE}command: ["ping", "aaa"]
 
 *** Test Cases ***
 Compose basic
@@ -64,3 +65,13 @@ Compose Up while another container is running (ps filtering related)
     ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} -f basic-compose.yml up -d
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
+
+Compose Up with link
+    Run  echo '${link-yml}' > link-compose.yml
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file link-compose.yml up -d
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file link-compose.yml logs
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  PING aaa
+    Should Not Contain  ${output}  bad address 'aaa'
