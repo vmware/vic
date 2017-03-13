@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"os"
 	"os/user"
 	"path"
@@ -636,7 +637,8 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
-	if err := os.MkdirAll(target, 0600); err != nil {
+	if err := os.MkdirAll(target, 0644); err != nil {
+		// same as MountFileSystem error for consistency
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
@@ -661,8 +663,28 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 	}
 
 	if err := Sys.Syscall.Mount(label, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
+		// consistent with MountFileSystem
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
 		return errors.New(detail)
+	}
+
+	return nil
+}
+
+// MountTarget performs a mount based on the target path from the source url
+// This assumes that the source url is valid and available.
+func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", source.String(), target)))
+
+	if err := os.MkdirAll(target, 0644); err != nil {
+		// same as MountLabel error for consistency
+		return fmt.Errorf("unable to create mount point %s: %s", target, err)
+	}
+
+	rawSource := source.Hostname() + ":/" + source.Path
+	if err := Sys.Syscall.Mount(rawSource, target, "nfs", 0, mountOptions); err != nil {
+		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
+		return err
 	}
 
 	return nil
