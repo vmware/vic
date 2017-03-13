@@ -120,6 +120,7 @@ func TestMain(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()
+	TestNFSHelperOutputParity(t)
 
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
@@ -723,4 +724,34 @@ func TestValidateWithESX(t *testing.T) {
 
 	simulator.Map.Remove(esx.Datacenter.Reference()) // goodnight now.
 	validator.suggestDatacenter()
+}
+
+func TestNFSHelperOutputParity(t *testing.T) {
+	tests := []struct {
+		S     string
+		valid bool
+	}{
+		{"nfs://127.0.0.1:/my/data/here", true},
+		{"NotAGoodScheme://127.0.0.1:/not/my/server", false},
+		{"not a URL", false},
+		{"127.0.0.1:/schemeless/url", false},
+		{"//127.0.0.1/schemeless/url", false},
+		{"Blargh://127.0.0.1/schemeless/url", false},
+		{"Blargh://bob:pass@127.0.0.1/schemed/url", false},
+		{"Blargh://jim:@127.0.0.1/schemed/url", false},
+		{"nfs://jim:@127.0.0.1/schemed/url", true},
+		{"datastore1", false},
+		{"nfs://127.0.0.1/some/path", true},
+	}
+
+	for _, test := range tests {
+		url, err := NFSHelper(test.S)
+
+		if test.valid {
+			assert.Nil(t, err, "")
+			assert.NotNil(t, url, "")
+		} else {
+			assert.NotNil(t, err, "")
+		}
+	}
 }

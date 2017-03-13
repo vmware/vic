@@ -265,6 +265,11 @@ func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostD
 func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 	for _, url := range conf.VolumeLocations {
+
+		if url.Scheme != "ds" {
+			continue
+		}
+
 		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
 		if err != nil {
 			return errors.Errorf("Could not retrieve datastore with host %q due to error %s", url.Host, err)
@@ -304,6 +309,10 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 
 	log.Infoln("Removing volume stores")
 	for label, url := range conf.VolumeLocations {
+		if url.Scheme != "ds" {
+			continue
+		}
+
 		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
 		dsURL, err := datastore.ToURL(url.Path)
 		if err != nil {
