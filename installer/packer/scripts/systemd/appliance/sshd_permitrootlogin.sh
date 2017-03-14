@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/bash
 # Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,5 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Set up HGFS generic mount point
-mkdir -p /mnt/hgfs
+# remove all default settings
+sed -i "/^PermitRootLogin.*/d" /etc/ssh/sshd_config
+
+# fetch user setting
+PERMIT=$(ovfenv --key appliance.permit_root_login)
+
+# currently only accepts True as yes
+if [ ${PERMIT,,} == "true" ]; then
+  echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+else
+  echo "PermitRootLogin no" >> /etc/ssh/sshd_config
+fi
