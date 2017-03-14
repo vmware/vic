@@ -70,9 +70,10 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 	defer trace.End(trace.Begin("configure session log writer"))
 
 	if t.logging {
-		detail := "unable to log more than one session concurrently"
+		detail := "unable to log more than one session concurrently to persistent logging"
 		log.Warn(detail)
-		return nil, nil, nil
+		// use multi-writer so it's still viable for attach
+		return dio.MultiWriter(), dio.MultiWriter(), nil
 	}
 
 	t.logging = true

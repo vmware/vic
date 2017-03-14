@@ -15,6 +15,9 @@
 package container
 
 import (
+	"sync"
+
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 )
 
@@ -25,11 +28,48 @@ type VicContainer struct {
 	ContainerID string
 	Config      *containertypes.Config //Working copy of config (with overrides from container create)
 	HostConfig  *containertypes.HostConfig
+
+	m     sync.RWMutex
+	execs map[string]*types.ExecConfig
 }
 
 // NewVicContainer returns a reference to a new VicContainer
 func NewVicContainer() *VicContainer {
 	return &VicContainer{
 		Config: &containertypes.Config{},
+		execs:  make(map[string]*types.ExecConfig),
 	}
+}
+
+// Add adds a new exec configuration to the container.
+func (v *VicContainer) Add(id string, Config *types.ExecConfig) {
+	v.m.Lock()
+	v.execs[id] = Config
+	v.m.Unlock()
+}
+
+// Get returns an exec configuration by its id.
+func (v *VicContainer) Get(id string) *types.ExecConfig {
+	v.m.RLock()
+	res := v.execs[id]
+	v.m.RUnlock()
+	return res
+}
+
+// Delete removes an exec configuration from the container.
+func (v *VicContainer) Delete(id string) {
+	v.m.Lock()
+	delete(v.execs, id)
+	v.m.Unlock()
+}
+
+// List returns the list of exec ids in the container.
+func (v *VicContainer) List() []string {
+	var IDs []string
+	v.m.RLock()
+	for id := range v.execs {
+		IDs = append(IDs, id)
+	}
+	v.m.RUnlock()
+	return IDs
 }

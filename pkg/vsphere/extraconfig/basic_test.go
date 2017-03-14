@@ -85,6 +85,16 @@ type SessionConfig struct {
 	Tty bool `vic:"0.1" scope:"hidden" key:"tty"`
 }
 
+type ExecutorConfigPointersVisible struct {
+	Sessions map[string]*VisibleSessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
+}
+
+type VisibleSessionConfig struct {
+	Cmd Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
+
+	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
+}
+
 // [END] SLIMMED VERSION of github.com/vmware/vic/lib/metadata
 
 // make it verbose during testing
@@ -367,6 +377,38 @@ func TestInheritenceOfNonPersistence(t *testing.T) {
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
+	Decode(MapSource(encoded), &decoded)
+
+	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")
+}
+
+func TestInheritenceOfNonPersistenceWithPointer(t *testing.T) {
+
+	type Persistence struct {
+		ExecutorConfigPointersVisible `vic:"0.1" scope:"read-only,non-persistent" key:"pointers"`
+	}
+
+	Struct := Persistence{
+		ExecutorConfigPointersVisible: ExecutorConfigPointersVisible{
+			Sessions: map[string]*VisibleSessionConfig{
+				"primary": &VisibleSessionConfig{
+					Tty: true,
+				},
+			},
+		},
+	}
+
+	encoded := map[string]string{}
+	filterSink := ScopeFilterSink(NonPersistent|Hidden, MapSink(encoded))
+	Encode(filterSink, Struct)
+
+	expected := map[string]string{
+		visibleRONonpersistent("pointers/sessions"):                             "primary",
+		visibleRONonpersistent("pointers/sessions" + Separator + "primary/tty"): "true",
+	}
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+
+	var decoded Persistence
 	Decode(MapSource(encoded), &decoded)
 
 	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")

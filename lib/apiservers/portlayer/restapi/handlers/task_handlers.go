@@ -52,16 +52,17 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 		return tasks.NewJoinInternalServerError().WithPayload(err)
 	}
 
-	op.Debugf("Path: %#v", params.Config.Path)
-	op.Debugf("WorkingDir: %#v", params.Config.WorkingDir)
-	op.Debugf("OpenStdin: %#v", params.Config.OpenStdin)
-
 	// TODO: ensure uniqueness of ID - this is already an issue with containercreate now we're not using it as
 	// the VM name and cannot rely on vSphere for uniqueness guarantee
 	id := params.Config.ID
 	if id == "" {
 		id = uid.New().String()
 	}
+
+	op.Debugf("ID: %#v", id)
+	op.Debugf("Path: %#v", params.Config.Path)
+	op.Debugf("WorkingDir: %#v", params.Config.WorkingDir)
+	op.Debugf("OpenStdin: %#v", params.Config.OpenStdin)
 
 	sessionConfig := &executor.SessionConfig{
 		Common: executor.Common{
@@ -88,6 +89,7 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 		)
 	}
 	res := &models.TaskJoinResponse{
+		ID:     id,
 		Handle: exec.ReferenceFromHandle(handleprime),
 	}
 	return tasks.NewJoinOK().WithPayload(res)

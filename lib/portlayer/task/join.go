@@ -41,7 +41,7 @@ func Join(op *trace.Operation, h interface{}, task *executor.SessionConfig) (int
 		tasks = handle.ExecConfig.Sessions
 
 	} else {
-		op.Debugf("Task configuration applies to ephemeral set")
+		op.Debugf("Task join configuration applies to ephemeral set")
 		if handle.ExecConfig.Execs == nil {
 			handle.ExecConfig.Execs = make(map[string]*executor.SessionConfig)
 		}
@@ -55,6 +55,8 @@ func Join(op *trace.Operation, h interface{}, task *executor.SessionConfig) (int
 	if ok {
 		return nil, fmt.Errorf("task ID collides: %s", task.ID)
 	}
+
+	op.Debugf("Adding task (%s): %s", task.Cmd.Path, task.ID)
 
 	tasks[task.ID] = task
 	handle.Reload()

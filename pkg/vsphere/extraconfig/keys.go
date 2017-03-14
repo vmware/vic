@@ -328,6 +328,23 @@ func addPrefixToKey(header, prefix, key string) string {
 	return fmt.Sprintf(header+"%c%s%s", separator, modifiedPrefix, base)
 }
 
+// appendToPrefix will join the value to the prefix with the separator (if any) while ensuring that
+// any suffixes are moved to the end of the key
+func appendToPrefix(prefix, separator, value string) string {
+	// strip any existing suffix from the prefix - it'll be re-added if still applicable
+	index := strings.Index(prefix, suffixSeparator)
+	suffix := ""
+	if index != -1 {
+		suffix = prefix[index:]
+		prefix = prefix[:index]
+	}
+
+	// suffix wil still include the suffix separator if present
+	key := fmt.Sprintf("%s%s%s%s", prefix, separator, value, suffix)
+
+	return key
+}
+
 func calculateKeys(v reflect.Value, field string, prefix string) []string {
 	log.Debugf("v=%#v, field=%#v, prefix=%#v", v, field, prefix)
 	if v.Kind() == reflect.Ptr {

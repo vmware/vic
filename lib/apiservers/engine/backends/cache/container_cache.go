@@ -19,6 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/truncindex"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -28,9 +29,10 @@ import (
 type CCache struct {
 	m sync.RWMutex
 
-	idIndex          *truncindex.TruncIndex
-	containersByID   map[string]*container.VicContainer
-	containersByName map[string]*container.VicContainer
+	idIndex            *truncindex.TruncIndex
+	containersByID     map[string]*container.VicContainer
+	containersByName   map[string]*container.VicContainer
+	containersByExecID map[string]*container.VicContainer
 }
 
 var containerCache *CCache
@@ -40,6 +42,8 @@ func init() {
 		idIndex:          truncindex.NewTruncIndex([]string{}),
 		containersByID:   make(map[string]*container.VicContainer),
 		containersByName: make(map[string]*container.VicContainer),
+
+		containersByExecID: make(map[string]*container.VicContainer),
 	}
 }
 
@@ -98,4 +102,32 @@ func (cc *CCache) DeleteContainer(nameOrID string) {
 	if err := cc.idIndex.Delete(container.ContainerID); err != nil {
 		log.Warnf("Error deleting ID from index: %s", err)
 	}
+
+	// remove exec references
+	for _, id := range container.List() {
+		container.Delete(id)
+	}
+}
+
+func (cc *CCache) AddExecToContainer(container *container.VicContainer, eid string, config *types.ExecConfig) {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	// ignore if we already have it
+	if _, ok := cc.containersByExecID[eid]; ok {
+		return
+	}
+
+	container.Add(eid, config)
+	cc.containersByExecID[eid] = container
+}
+
+func (cc *CCache) GetContainerFromExec(eid string) *container.VicContainer {
+	cc.m.RLock()
+	defer cc.m.RUnlock()
+
+	if container, exist := cc.containersByExecID[eid]; exist {
+		return container
+	}
+	return nil
 }

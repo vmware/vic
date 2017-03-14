@@ -43,7 +43,7 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 
 	task := taskS
 	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-		op.Debugf("Task configuration applies to ephemeral set")
+		op.Debugf("Task bind configuration applies to ephemeral set")
 		task = taskE
 
 		// TODO: add check for container version - if the tether doesn't support reload/exec then
@@ -54,6 +54,8 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 	if task == nil {
 		return nil, fmt.Errorf("Cannot modify task %s in current state", id)
 	}
+
+	op.Debugf("Toggling active state of task %s (%s): %t", id, task.Cmd.Path, active)
 
 	task.Active = active
 	handle.Reload()
