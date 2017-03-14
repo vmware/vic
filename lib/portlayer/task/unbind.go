@@ -15,14 +15,12 @@
 package task
 
 import (
-	"context"
-
 	"github.com/vmware/vic/pkg/trace"
 )
 
 // Unbind disables launching of the process in the container
-func Unbind(ctx context.Context, h interface{}, id string) (interface{}, error) {
+func Unbind(op *trace.Operation, h interface{}, id string) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
-	return toggleActive(ctx, h, id, false)
+	return toggleActive(op, h, id, false)
 }

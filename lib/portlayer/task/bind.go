@@ -15,14 +15,12 @@
 package task
 
 import (
-	"context"
-
 	"github.com/vmware/vic/pkg/trace"
 )
 
 // Bind enables launching of the process in the container
-func Bind(ctx context.Context, h interface{}, id string) (interface{}, error) {
+func Bind(op *trace.Operation, h interface{}, id string) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
-	return toggleActive(ctx, h, id, true)
+	return toggleActive(op, h, id, true)
 }

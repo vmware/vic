@@ -15,18 +15,15 @@
 package task
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // Toggle launching of the process in the container
-func toggleActive(ctx context.Context, h interface{}, id string, active bool) (interface{}, error) {
+func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
 	handle, ok := h.(*exec.Handle)
@@ -34,19 +31,28 @@ func toggleActive(ctx context.Context, h interface{}, id string, active bool) (i
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
 
-	// if the container isn't running then this is a persistent change
-	tasks := handle.ExecConfig.Sessions
+	stasks := handle.ExecConfig.Sessions
+	etasks := handle.ExecConfig.Execs
+
+	taskS, okS := stasks[id]
+	taskE, okE := etasks[id]
+
+	if !okS && !okE {
+		return nil, fmt.Errorf("unknown task ID: %s", id)
+	}
+
+	task := taskS
 	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-		log.Debug("Task configuration applies to ephemeral set")
-		tasks = handle.ExecConfig.Execs
+		op.Debugf("Task configuration applies to ephemeral set")
+		task = taskE
 
 		// TODO: add check for container version - if the tether doesn't support reload/exec then
 		// this should fail
 	}
 
-	task, ok := tasks[id]
-	if !ok {
-		return nil, fmt.Errorf("unknown persistent task ID: %s", id)
+	// if no task has been bound to the
+	if task == nil {
+		return nil, fmt.Errorf("Cannot modify task %s in current state", id)
 	}
 
 	task.Active = active

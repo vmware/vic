@@ -54,6 +54,7 @@ var portlayerhandlers = []handler{
 	&handlers.LoggingHandlersImpl{},
 	&handlers.KvHandlersImpl{},
 	&handlers.EventsHandlerImpl{},
+	&handlers.TaskHandlersImpl{},
 }
 
 var apiServers []*graceful.Server

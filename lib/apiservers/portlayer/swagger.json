@@ -1122,8 +1122,7 @@
 				"produces": [
 					"application/octet-stream"
 				],
-				"parameters": [
-				],
+				"parameters": [],
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -1513,6 +1512,190 @@
 					},
 					"default": {
 						"description": "Error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
+		"/tasks": {
+			"post": {
+				"description": "Initiates an task join operation",
+				"summary": "Initiates an task join operation",
+				"operationId": "Join",
+				"tags": [
+					"tasks"
+				],
+				"consumes": [
+					"application/json",
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/TaskJoinConfig"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/TaskJoinResponse"
+						}
+					},
+					"404": {
+						"description": "not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Join of task failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
+			"delete": {
+				"description": "Initiates an task remove operation",
+				"summary": "Initiates an task remove operation",
+				"operationId": "Remove",
+				"tags": [
+					"tasks"
+				],
+				"consumes": [
+					"application/json",
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/TaskRemoveConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/TaskRemoveResponse"
+						}
+					},
+					"404": {
+						"description": "not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Removal of task failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
+		"/tasks/binding": {
+			"post": {
+				"description": "Activate a task that exists within the context of the provided handle",
+				"summary": "Activate an existing task",
+				"operationId": "Bind",
+				"tags": [
+					"tasks"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/TaskBindConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/TaskBindResponse"
+						}
+					},
+					"404": {
+						"description": "No such task",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Activating task failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
+			"delete": {
+				"description": "Deactivate a task that exists within the context of the provided handle",
+				"summary": "Deactivate an existing task",
+				"operationId": "Unbind",
+				"tags": [
+					"tasks"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/TaskUnbindConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/TaskUnbindResponse"
+						}
+					},
+					"404": {
+						"description": "No such task",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Deactivating task failed",
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
@@ -2463,44 +2646,8 @@
 					"type": "integer",
 					"format": "int64"
 				},
-				"path": {
-					"type": "string"
-				},
-				"args": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				},
-				"workingDir": {
-					"type": "string"
-				},
-				"env": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				},
 				"networkDisabled": {
 					"type": "boolean"
-				},
-				"attach": {
-					"type": "boolean",
-					"default": false,
-					"x-nullable": false
-				},
-				"openStdin": {
-					"type": "boolean",
-					"default": false,
-					"x-nullable": false
-				},
-				"tty": {
-					"type": "boolean",
-					"default": false,
-					"x-nullable": false
-				},
-				"stopSignal": {
-					"type": "string"
 				},
 				"annotations": {
 					"type": "object",
@@ -3079,6 +3226,205 @@
 			"properties": {
 				"handle": {
 					"type": "object"
+				}
+			}
+		},
+		"TaskJoinConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"path"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				},
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"path": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"args": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"workingDir": {
+					"type": "string"
+				},
+				"env": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"user": {
+					"type": "string"
+				},
+				"attach": {
+					"type": "boolean",
+					"default": true,
+					"x-nullable": false
+				},
+				"openStdin": {
+					"type": "boolean",
+					"default": false,
+					"x-nullable": false
+				},
+				"tty": {
+					"type": "boolean",
+					"default": false,
+					"x-nullable": false
+				},
+				"stopSignal": {
+					"type": "string"
+				}
+			}
+		},
+		"TaskBindConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"id"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"TaskUnbindConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"id"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"TaskRemoveConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"id"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"TaskJoinResponse": {
+			"type": "object",
+			"required": [
+				"handle",
+				"id"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				},
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				}
+			}
+		},
+		"TaskBindResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"TaskUnbindResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"TaskRemoveResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"TaskInspectResponse": {
+			"type": "object",
+			"required": [
+				"id"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"running": {
+					"type": "boolean",
+					"x-nullable": false
+				},
+				"exitCode": {
+					"type": "integer",
+					"x-nullable": false
+				},
+				"processConfig": {
+					"$ref": "#/definitions/ProcessConfig"
+				},
+				"openStdin": {
+					"type": "boolean",
+					"default": false,
+					"x-nullable": false
+				},
+				"openStderr": {
+					"type": "boolean",
+					"default": false,
+					"x-nullable": false
+				},
+				"openStdout": {
+					"type": "boolean",
+					"default": false,
+					"x-nullable": false
+				},
+				"containerId": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"pid": {
+					"type": "integer",
+					"x-nullable": false
 				}
 			}
 		}

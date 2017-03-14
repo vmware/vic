@@ -234,7 +234,7 @@ func (h *Handle) Close() {
 //
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
-func Create(ctx context.Context, sess *session.Session, config *ContainerCreateConfig) (*Handle, error) {
+func Create(ctx context.Context, vmomiSession *session.Session, config *ContainerCreateConfig) (*Handle, error) {
 	defer trace.End(trace.Begin("Handle.Create"))
 
 	h := &Handle{
@@ -282,7 +282,7 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 
 		ParentImageID: config.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
-		VMPathName:    fmt.Sprintf("[%s]", sess.Datastore.Name()),
+		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
 
 		ImageStoreName: config.ImageStoreName,
 		ImageStorePath: &Config.ImageStores[0],
@@ -312,7 +312,7 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 	}
 
 	// Create a linux guest
-	linux, err := guest.NewLinuxGuest(ctx, sess, specconfig)
+	linux, err := guest.NewLinuxGuest(ctx, vmomiSession, specconfig)
 	if err != nil {
 		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
 		return nil, err

@@ -15,18 +15,15 @@
 package task
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // Remove the task configuration from the containerVM config
-func Remove(ctx context.Context, h interface{}, id string) (interface{}, error) {
+func Remove(op *trace.Operation, h interface{}, id string) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
 	handle, ok := h.(*exec.Handle)
@@ -34,19 +31,28 @@ func Remove(ctx context.Context, h interface{}, id string) (interface{}, error) 
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
 
-	// if the container isn't running then this is a persistent change
-	tasks := handle.ExecConfig.Sessions
-	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-		log.Debug("Task configuration applies to ephemeral set")
-		tasks = handle.ExecConfig.Execs
+	stasks := handle.ExecConfig.Sessions
+	etasks := handle.ExecConfig.Execs
+
+	_, okS := stasks[id]
+	_, okE := etasks[id]
+
+	if !okS && !okE {
+		return nil, fmt.Errorf("unknown task ID: %s", id)
 	}
 
-	_, ok = tasks[id]
-	if !ok {
-		// TODO: the whole model is idempotent, so this isn't really an error, however it should return
-		// an indication that no change was required.
-		// Until we have a means of differentiating, we'll still return an error
-		return nil, fmt.Errorf("unknown task ID: %s", id)
+	tasks := stasks
+	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
+		op.Debugf("Task configuration applies to ephemeral set")
+		tasks = etasks
+
+		// TODO: add check for container version - if the tether doesn't support reload/exec then
+		// this should fail
+	}
+
+	// if no task has been bound to the
+	if _, ok := tasks[id]; !ok {
+		return nil, fmt.Errorf("Cannot modify task %s in current state", id)
 	}
 
 	delete(tasks, id)

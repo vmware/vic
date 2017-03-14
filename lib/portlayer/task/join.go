@@ -15,19 +15,16 @@
 package task
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // Join adds the task configuration to the containerVM config
-func Join(ctx context.Context, h interface{}, task *executor.SessionConfig) (interface{}, error) {
+func Join(op *trace.Operation, h interface{}, task *executor.SessionConfig) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
 	handle, ok := h.(*exec.Handle)
@@ -36,9 +33,18 @@ func Join(ctx context.Context, h interface{}, task *executor.SessionConfig) (int
 	}
 
 	// if the container isn't running then this is a persistent change
-	tasks := handle.ExecConfig.Sessions
-	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-		log.Debug("Task configuration applies to ephemeral set")
+	var tasks map[string]*executor.SessionConfig
+	if handle.Runtime == nil || handle.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+		if handle.ExecConfig.Sessions == nil {
+			handle.ExecConfig.Sessions = make(map[string]*executor.SessionConfig)
+		}
+		tasks = handle.ExecConfig.Sessions
+
+	} else {
+		op.Debugf("Task configuration applies to ephemeral set")
+		if handle.ExecConfig.Execs == nil {
+			handle.ExecConfig.Execs = make(map[string]*executor.SessionConfig)
+		}
 		tasks = handle.ExecConfig.Execs
 
 		// TODO: add check for container version - if the tether doesn't support reload/exec then
