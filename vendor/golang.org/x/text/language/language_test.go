@@ -7,6 +7,8 @@ package language
 import (
 	"reflect"
 	"testing"
+
+	"golang.org/x/text/internal/testtext"
 )
 
 func TestTagSize(t *testing.T) {
@@ -69,7 +71,7 @@ func TestMakeString(t *testing.T) {
 		// The bytes to string conversion as used in remakeString
 		// occasionally measures as more than one alloc, breaking this test.
 		// To alleviate this we set the number of runs to more than 1.
-		if n := testing.AllocsPerRun(8, id.remakeString); n > 1 {
+		if n := testtext.AllocsPerRun(8, id.remakeString); n > 1 {
 			t.Errorf("%d: # allocs got %.1f; want <= 1", i, n)
 		}
 	}
@@ -89,11 +91,11 @@ func TestCompactIndex(t *testing.T) {
 		{"ca-ES-valencia-u-co-phonebk", 1, true},
 		{"ca-ES-valencia-u-co-phonebk-va-posix", 0, false},
 		{"x-klingon", 0, false},
-		{"en-US", 227, true},
+		{"en-US", 229, true},
 		{"en-US-u-va-posix", 2, true},
-		{"en", 131, true},
-		{"en-u-co-phonebk", 131, true},
-		{"en-001", 132, true},
+		{"en", 133, true},
+		{"en-u-co-phonebk", 133, true},
+		{"en-001", 134, true},
 		{"sh", 0, false}, // We don't normalize.
 	}
 	for _, tt := range tests {
@@ -172,7 +174,7 @@ func TestScript(t *testing.T) {
 		{"cmn", "Hans", Low},
 		{"ru", "Cyrl", High},
 		{"ru-RU", "Cyrl", High},
-		{"yue", "Zzzz", No},
+		{"yue", "Hant", Low},
 		{"x-abc", "Zzzz", Low},
 		{"und-zyyy", "Zyyy", Exact},
 	}
@@ -226,17 +228,17 @@ func TestRegion(t *testing.T) {
 		{"en-US", "US", Exact},
 		{"cmn", "CN", Low},
 		{"ru", "RU", Low},
-		{"yue", "ZZ", No},
+		{"yue", "HK", Low},
 		{"x-abc", "ZZ", Low},
 	}
 	for i, tt := range tests {
 		loc, _ := Raw.Parse(tt.loc)
 		reg, conf := loc.Region()
 		if reg.String() != tt.reg {
-			t.Errorf("%d: region was %s; want %s", i, reg, tt.reg)
+			t.Errorf("%d:%s: region was %s; want %s", i, tt.loc, reg, tt.reg)
 		}
 		if conf != tt.conf {
-			t.Errorf("%d: confidence was %d; want %d", i, conf, tt.conf)
+			t.Errorf("%d:%s: confidence was %d; want %d", i, tt.loc, conf, tt.conf)
 		}
 	}
 }
