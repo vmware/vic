@@ -35,6 +35,7 @@ import (
 
 const (
 	volumeRoot = "volumes"
+	dsScheme   = "ds"
 )
 
 func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
@@ -266,7 +267,8 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 	defer trace.End(trace.Begin(""))
 	for _, url := range conf.VolumeLocations {
 
-		if url.Scheme != "ds" {
+		// NFS volumestores need only make it into the config of the vch
+		if url.Scheme != dsScheme {
 			continue
 		}
 
@@ -303,13 +305,16 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 		for label, url := range conf.VolumeLocations {
 			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
 		}
-		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI or supplied nfs targets to delete content you do not wish to keep.\n%s", volumeStores.String())
 		return 0
 	}
 
 	log.Infoln("Removing volume stores")
 	for label, url := range conf.VolumeLocations {
-		if url.Scheme != "ds" {
+
+		// NOTE: We cannot remove nfs VolumeStores at vic-machine delete time. We are not guaranteed to be on the correct network for any of the nfs stores.
+		if url.Scheme != dsScheme {
+			log.Warnf("Cannot delete VolumeStore (%s). It may not be reachable by vic-machine and has been skipped by the delete process.", url.String())
 			continue
 		}
 

@@ -31,6 +31,10 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
+const (
+	nfsScheme = "nfs"
+)
+
 func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
@@ -90,7 +94,7 @@ func NFSHelper(rawPath string) (*url.URL, error) {
 
 	// XXX: the below cases indicate a successful url parsing path, and should be accounted for in the error output from the validator
 	// at a minimum we expect a proper scheme, a host, and a path. without these a nfs store is not identifiable and able to be targeted
-	if u.Scheme != "nfs" {
+	if u.Scheme != nfsScheme {
 		return u, fmt.Errorf("volume store target (%s) needs to have scheme 'nfs' if it is intended as an nfs volume-store. format: <nfs://<user>:<password>@<host>/<share point path>:label", rawPath)
 	}
 
