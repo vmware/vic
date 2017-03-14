@@ -291,9 +291,19 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	}
 
 	// if not vsan
-	if dsType, _ := sess.Datastore.Type(ctx); dsType != types.HostFileSystemVolumeFileSystemTypeVsan {
+	if dsType, _ := sess.Datastore.Type(ctx); dsType == types.HostFileSystemVolumeFileSystemTypeVsan {
+		log.Debugf("this is on vsan")
+		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), config.Metadata.ID, config.Metadata.ID)
+	} else {
+		log.Debugf("this is not on vsan")
+		//specconfig.VMPathName = fmt.Sprintf("[%s]", sess.Datastore.Name())
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), config.Metadata.ID, config.Metadata.ID)
 	}
+
+	shortID := specconfig.ID[:11]
+	specconfig.VMFullName = fmt.Sprintf("%s-%s", specconfig.Name, shortID)
+
+	log.Debugf("the specconfig is: %+v", specconfig)
 
 	// log only core portions
 	s := specconfig

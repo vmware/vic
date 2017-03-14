@@ -93,9 +93,9 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		// processing
 		h.Spec = nil
 
-		c.m.Lock()
-		err = c.UpdateDisplayName(ctx, c.ExecConfig.Name)
-		c.m.Unlock()
+		//c.m.Lock()
+		//err = c.UpdateDisplayName(ctx, c.ExecConfig.Name)
+		//c.m.Unlock()
 
 	}
 

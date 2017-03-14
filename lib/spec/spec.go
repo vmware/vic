@@ -25,7 +25,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"fmt"
 )
 
 // NilSlot is an invalid PCI slot number
@@ -89,11 +88,13 @@ type VirtualMachineConfigSpec struct {
 func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, config *VirtualMachineConfigSpecConfig) (*VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(config.ID))
 
-	//config.VMFullName = config.ID
-	config.VMFullName = fmt.Sprint("%s-%s", config.Name,config.ID[0:11])
+	////config.VMFullName = config.ID
+	//shortID := config.ID[:11]
+	//config.VMFullName = fmt.Sprintf("%s-%s", config.Name, shortID)
 
 	s := &types.VirtualMachineConfigSpec{
-		Name: config.ID,
+		//Name: config.ID,
+		Name: config.VMFullName,
 		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: config.VMPathName,

@@ -324,15 +324,16 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 			continue
 		}
 
-		logname, err := child.VMPathName(ctx)
+		//logname, err := child.VMPathName(ctx)
+		logname, err := child.Name(ctx)
 		if err != nil {
 			log.Errorf("Unable to get the vm path name for %s: %s", child.Reference(), err)
 			continue
 		}
-		if logname != "" {
-			names := strings.Split(logname, " ")
-			logname = names[len(names)-1]
-		}
+		//if logname != "" {
+		//	names := strings.Split(logname, " ")
+		//	logname = names[len(names)-1]
+		//}
 
 		if self != nil && child.Reference().String() == self.Reference().String() {
 			// FIXME: until #2630 is addressed, and we confirm this filters secrets from appliance vmware.log as well,
