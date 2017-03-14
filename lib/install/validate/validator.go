@@ -64,6 +64,10 @@ type Validator struct {
 	allowEmptyDC         bool
 }
 
+const (
+	dsScheme = "ds"
+)
+
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -559,6 +563,10 @@ func (v *Validator) getAllDatastores(ctx context.Context, conf *config.VirtualCo
 		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
 	}
 	for _, u := range conf.VolumeLocations {
+		//skip non datastore volume stores
+		if u.Scheme != dsScheme {
+			continue
+		}
 		datastoreSet = v.getDatastore(ctx, u, datastoreSet)
 	}
 	return datastoreSet
