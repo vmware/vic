@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,6 @@ import (
 	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/diag"
 )
 
 const (
@@ -366,7 +365,7 @@ func (c *Create) Flags() []cli.Flag {
 		},
 		cli.StringSliceFlag{
 			Name:   "organization",
-			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQND if provided.",
+			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQDN if provided.",
 			Value:  &c.org,
 			Hidden: true,
 		},
@@ -986,14 +985,18 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 		return certs, nil, err
 	}
 
-	// We just do a direct equality check here - trying to be clever is liable to lead to hard
-	// to diagnose errors
-	if cert.Leaf.Subject.CommonName != c.cname {
-		log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
-		if c.Debug.Debug > 2 {
-			log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
+	if cert.Leaf == nil {
+		log.Warnf("Failed to load x509 leaf: Unable to confirm server certificate cname matches provided cname %q. Continuing...", c.cname)
+	} else {
+		// We just do a direct equality check here - trying to be clever is liable to lead to hard
+		// to diagnose errors
+		if cert.Leaf.Subject.CommonName != c.cname {
+			log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
+			if c.Debug.Debug > 2 {
+				log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
+			}
+			return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.certPath)
 		}
-		return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.certPath)
 	}
 
 	log.Infof("Loaded server certificate %s", scert)
@@ -1326,15 +1329,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		return errors.New("invalid CLI arguments")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
-	defer cancel()
-	defer func() {
-		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
-			//context deadline exceeded, replace returned error message
-			err = errors.Errorf("Create timed out: if slow connection, increase timeout with --timeout")
-		}
-	}()
-
+	// all these operations will be executed without timeout
+	ctx := context.Background()
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
 		log.Error("Create cannot continue: failed to create validator")
@@ -1355,6 +1351,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	vConfig.HTTPProxy = c.HTTPProxy
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
+	vConfig.Timeout = c.Data.Timeout
+
 	// separate initial validation from dispatch of creation task
 	log.Info("")
 
@@ -1365,36 +1363,27 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	// vic-init will try to reach out to the vSphere target.
-	log.Info("Checking VCH connectivity with vSphere target")
-	vch, err := executor.NewVCHFromComputePath(c.Data.ComputeResourcePath, c.Data.DisplayName, validator)
-	if err != nil {
-		log.Warningf("Failed to get Virtual Container Host %s. Error: %v", c.Data.DisplayName, err)
-	} else {
-		// Checking access to vSphere API
-		if cd, err := executor.CheckAccessToVCAPI(ctx, vch, vchConfig.Target); err == nil {
-			code := int(cd)
-			if code > 0 {
-				log.Warningf("vSphere API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-			} else {
-				log.Infof("vSphere API Test: %s %s", vchConfig.Target, diag.UserReadableVCAPITestDescription(code))
-			}
-		} else {
-			log.Warningf("Could not run VCH vSphere API target check due to %v", err)
+	// timeoout start to work from here, to make sure user does not wait forever
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
+	defer func() {
+		if ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Creating VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", c.Timeout)
 		}
-	}
+	}()
 
-	// check the docker endpoint is responsive
-	log.Info("Checking Docker API endpoint")
-	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
+	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
 		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert)
-		msg := fmt.Sprintf("Docker API endpoint check failed: %s", err)
-		log.Info(msg)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
-		log.Infof("\t\tRun command: %s", cmd)
+		if cmd != "" {
+			log.Infof("\t\tRun command: %s", cmd)
+		} else {
+			log.Infof("\t\tRun %s inspect to find API connection command and run the command if ip address is ready", clic.App.Name)
+		}
 		log.Info("\t\tIf command succeeds, VCH is started. If command fails, VCH failed to install - see documentation for troubleshooting.")
-		return fmt.Errorf(msg)
+		return err
 	}
 
 	log.Infof("Initialization of appliance successful")

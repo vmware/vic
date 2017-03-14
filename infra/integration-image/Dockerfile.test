@@ -2,7 +2,7 @@
 #docker build -t vic-test -f Dockerfile.test .
 #docker tag vic-test vmware-docker-ci-repo.bintray.io/integration/vic-test:1.x
 #docker push vmware-docker-ci-repo.bintray.io/integration/vic-test
-FROM golang:1.7
+FROM golang:1.8
 
 RUN apt-get update
 RUN apt-get install -y jq time
@@ -16,6 +16,7 @@ RUN pip install robotframework
 RUN pip install robotframework-sshlibrary
 RUN pip install robotframework-httplibrary
 RUN pip install requests
+RUN pip install dbbot
 
 RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/bin
 RUN mv /usr/bin/docker /usr/bin/docker1.11
@@ -28,20 +29,20 @@ RUN mv /usr/bin/docker /usr/bin/docker1.13
 
 RUN ln -s /usr/bin/docker1.11 /usr/bin/docker
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.12.1/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.13.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
 RUN chmod +x /usr/local/bin/govc
 
 RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
 RUN install -t /usr/local/bin drone
 
-Run apt-get install sshpass
+RUN apt-get install sshpass
 
-Run apt-get install -yq ant openjdk-7-jdk
+RUN apt-get install -yq ant openjdk-7-jdk
+RUN apt-get install -yq rpcbind nfs-common
+RUN apt-get install unzip
+RUN apt-get install zip
 
-Run apt-get install unzip
-Run apt-get install zip
-
-RUN curl -L https://github.com/docker/compose/releases/download/1.8.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+RUN curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
 RUN chmod +x /usr/local/bin/docker-compose
 
 COPY vmware-ovftool /usr/lib/vmware-ovftool
@@ -51,3 +52,5 @@ RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_a
 RUN  dpkg -i wget_1.18-2ubuntu1_amd64.deb
 
 RUN apt-get install -y bzip2
+
+RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux_amd64.zip && unzip packer_0.12.2_linux_amd64.zip -d /usr/bin

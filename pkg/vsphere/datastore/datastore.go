@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,23 +81,31 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 	return d, nil
 }
 
+func NewHelperFromURL(ctx context.Context, s *session.Session, u *url.URL) (*Helper, error) {
+	fm := object.NewFileManager(s.Vim25())
+	vsDs, err := s.Finder.DatastoreOrDefault(ctx, u.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	d := &Helper{
+		ds:      vsDs,
+		s:       s,
+		fm:      fm,
+		RootURL: u.Path,
+	}
+
+	return d, nil
+}
+
 // GetDatastores returns a map of datastores given a map of names and urls
 func GetDatastores(ctx context.Context, s *session.Session, dsURLs map[string]*url.URL) (map[string]*Helper, error) {
 	stores := make(map[string]*Helper)
 
-	fm := object.NewFileManager(s.Vim25())
 	for name, dsURL := range dsURLs {
-
-		vsDs, err := s.Finder.DatastoreOrDefault(ctx, dsURL.Host)
+		d, err := NewHelperFromURL(ctx, s, dsURL)
 		if err != nil {
 			return nil, err
-		}
-
-		d := &Helper{
-			ds:      vsDs,
-			s:       s,
-			fm:      fm,
-			RootURL: dsURL.Path,
 		}
 
 		stores[name] = d
@@ -244,9 +252,7 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 func (d *Helper) Rm(ctx context.Context, pth string) error {
 	f := path.Join(d.RootURL, pth)
 	log.Infof("Removing %s", pth)
-	return tasks.Wait(context.TODO(), func(ctx context.Context) (tasks.Task, error) {
-		return d.fm.DeleteDatastoreFile(ctx, f, d.s.Datacenter)
-	})
+	return d.ds.NewFileManager(d.s.Datacenter, true).Delete(ctx, f) // TODO: NewHelper should create the DatastoreFileManager
 }
 
 func (d *Helper) IsVSAN(ctx context.Context) bool {

@@ -149,8 +149,8 @@ func (t *attachServerSSH) start() error {
 
 	if t.Enabled() {
 		err := fmt.Errorf("attach server is already enabled")
-		log.Error(err)
-		return err
+		log.Warn(err)
+		return nil
 	}
 
 	// don't assume that the key hasn't changed
@@ -318,7 +318,7 @@ func (t *attachServerSSH) run() error {
 					}
 					t.conn.conn, err = rawConnectionFromSerial()
 					if err != nil {
-						detail := fmt.Errorf("failed to create raw connection raw connection: %s", err)
+						detail := fmt.Errorf("failed to create raw connection: %s", err)
 						log.Error(detail)
 						return detail
 					}

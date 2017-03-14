@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -141,9 +141,10 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			s.ChangeVersion = h.Config.ChangeVersion
 			log.Debugf("ChangeVersion is %s", s.ChangeVersion)
 
-			// nilify ExtraConfig if vm is running
-			if h.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-				log.Debugf("Nilifying ExtraConfig as we are running")
+			// nilify ExtraConfig if container configuration is migrated
+			// in this case, VCH and container are in different version. Migrated configuration cannot be written back to old container, to avoid data loss in old version's container
+			if h.Migrated {
+				log.Debugf("Nilifying ExtraConfig as configuration of container %s is migrated", h.ExecConfig.ID)
 				s.ExtraConfig = nil
 			}
 

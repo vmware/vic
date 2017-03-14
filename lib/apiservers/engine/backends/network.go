@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 package backends
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -139,11 +141,22 @@ func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCr
 	}
 
 	cfg := &models.ScopeConfig{
-		Gateway:   gateway,
-		Name:      nc.Name,
-		ScopeType: nc.Driver,
-		Subnet:    subnet,
-		IPAM:      pools,
+		Gateway:     gateway,
+		Name:        nc.Name,
+		ScopeType:   nc.Driver,
+		Subnet:      subnet,
+		IPAM:        pools,
+		Annotations: make(map[string]string),
+		Internal:    nc.Internal,
+	}
+
+	// Marshal and encode the labels for transport and storage in the portlayer
+	if labelsBytes, err := json.Marshal(nc.Labels); err == nil {
+		encodedLabels := base64.StdEncoding.EncodeToString(labelsBytes)
+		cfg.Annotations[annotationKeyLabels] = encodedLabels
+	} else {
+		log.Errorf("error marshaling labels: %s", err)
+		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("unable to marshal labels: %s", err), http.StatusInternalServerError)
 	}
 
 	created, err := PortLayerClient().Scopes.CreateScope(scopes.NewCreateScopeParamsWithContext(ctx).WithConfig(cfg))
@@ -159,9 +172,9 @@ func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCr
 			return nil, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 	}
-	
+
 	ncResponse := &types.NetworkCreateResponse{
-		ID: created.Payload.ID,
+		ID:      created.Payload.ID,
 		Warning: "",
 	}
 
@@ -462,11 +475,35 @@ func (n *network) IPv6Enabled() bool {
 }
 
 func (n *network) Internal() bool {
-	return false
+	n.Lock()
+	defer n.Unlock()
+
+	return n.cfg.Internal
 }
 
+// Labels decodes and unmarshals the stored blob of network labels.
 func (n *network) Labels() map[string]string {
-	return make(map[string]string)
+	n.Lock()
+	defer n.Unlock()
+
+	labels := make(map[string]string)
+	if n.cfg.Annotations == nil {
+		return labels
+	}
+
+	// Look for the Docker-specific annotation (label) blob and process it for the output
+	if encodedLabels, ok := n.cfg.Annotations[annotationKeyLabels]; ok {
+
+		if labelsBytes, decodeErr := base64.StdEncoding.DecodeString(encodedLabels); decodeErr == nil {
+			if unmarshalErr := json.Unmarshal(labelsBytes, &labels); unmarshalErr != nil {
+				log.Errorf("error unmarshaling labels: %s", unmarshalErr)
+			}
+		} else {
+			log.Errorf("error decoding label blob: %s", decodeErr)
+		}
+	}
+
+	return labels
 }
 
 func (n *network) Attachable() bool {

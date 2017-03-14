@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,7 +114,11 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		return nil, fmt.Errorf("default bridge network %s not present in config", ctx.config.BridgeNetwork)
 	}
 
-	s, err := ctx.newScope(n.Type, n.Name, nil, nil, nil, nil)
+	scopeData := &ScopeData{
+		ScopeType: n.Type,
+		Name:      n.Name,
+	}
+	s, err := ctx.newScope(scopeData)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +137,17 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		}
 
 		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
-		s, err := ctx.newScope(n.Type, nn, &subnet, n.Gateway.IP, n.Nameservers, pools)
+
+		scopeData = &ScopeData{
+			ScopeType: n.Type,
+			Name:      nn,
+			Subnet:    &subnet,
+			Gateway:   n.Gateway.IP,
+			DNS:       n.Nameservers,
+			Pools:     pools,
+		}
+
+		s, err := ctx.newScope(scopeData)
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +162,7 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 			log.Warnf("error listing scopes from key value store: %s", err)
 		} else {
 			for k, v := range values {
-				s := newScope(uid.NilUID, "", "", nil, nil, nil, nil)
+				s := newScope(uid.NilUID, "", nil, &ScopeData{})
 				if err := s.UnmarshalJSON(v); err != nil {
 					log.Warnf("error loading scope data from key %s, skipping: %s", k, err)
 					continue
@@ -310,18 +324,22 @@ func (c *Context) addScope(s *Scope) error {
 	return nil
 }
 
-func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string, network object.NetworkReference) (*Scope, error) {
+func (c *Context) newScopeCommon(id uid.UID, scopeType string, network object.NetworkReference, scopeData *ScopeData) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
 
-	newScope := newScope(id, name, scopeType, subnet, gateway, dns, network)
-	newScope.spaces = make([]*AddressSpace, len(pools))
-	for i, p := range pools {
+	newScope := newScope(id, scopeType, network, scopeData)
+	newScope.spaces = make([]*AddressSpace, len(scopeData.Pools))
+	for i, p := range scopeData.Pools {
 		r := ip.ParseRange(p)
 		if r == nil {
-			return nil, fmt.Errorf("invalid pool %s specified for scope %s", p, name)
+			return nil, fmt.Errorf("invalid pool %s specified for scope %s", p, scopeData.Name)
 		}
 
 		newScope.spaces[i] = NewAddressSpaceFromRange(r.FirstIP, r.LastIP)
+	}
+
+	for k, v := range scopeData.Annotations {
+		newScope.annotations[k] = v
 	}
 
 	if err := c.addScope(newScope); err != nil {
@@ -331,23 +349,23 @@ func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net
 	return newScope, nil
 }
 
-func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (newScope *Scope, err error) {
+func (c *Context) newBridgeScope(id uid.UID, scopeData *ScopeData) (newScope *Scope, err error) {
 	defer trace.End(trace.Begin(""))
 	bnPG, ok := c.config.PortGroups[c.config.BridgeNetwork]
 	if !ok || bnPG == nil {
 		return nil, fmt.Errorf("bridge network not set")
 	}
 
-	if ip.IsUnspecifiedSubnet(subnet) {
+	if ip.IsUnspecifiedSubnet(scopeData.Subnet) {
 		// get the next available subnet from the default bridge pool
 		var err error
-		subnet, err = c.defaultBridgePool.NextIP4Net(c.defaultBridgeMask)
+		scopeData.Subnet, err = c.defaultBridgePool.NextIP4Net(c.defaultBridgeMask)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	s, err := c.newScopeCommon(id, name, constants.BridgeScopeType, subnet, gateway, dns, pools, bnPG)
+	s, err := c.newScopeCommon(id, constants.BridgeScopeType, bnPG, scopeData)
 	if err != nil {
 		return nil, err
 	}
@@ -362,29 +380,30 @@ func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gat
 	return s, nil
 }
 
-func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
+func (c *Context) newExternalScope(id uid.UID, scopeData *ScopeData) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
+
 	// ipam cannot be specified without gateway and subnet
-	if len(pools) > 0 {
-		if ip.IsUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
+	if len(scopeData.Pools) > 0 {
+		if ip.IsUnspecifiedSubnet(scopeData.Subnet) || scopeData.Gateway.IsUnspecified() {
 			return nil, fmt.Errorf("ipam cannot be specified without gateway and subnet for external network")
 		}
 	}
 
-	if !ip.IsUnspecifiedSubnet(subnet) {
+	if !ip.IsUnspecifiedSubnet(scopeData.Subnet) {
 		// cannot overlap with the default bridge pool
-		if c.defaultBridgePool.Network.Contains(subnet.IP) ||
-			c.defaultBridgePool.Network.Contains(highestIP4(subnet)) {
+		if c.defaultBridgePool.Network.Contains(scopeData.Subnet.IP) ||
+			c.defaultBridgePool.Network.Contains(highestIP4(scopeData.Subnet)) {
 			return nil, fmt.Errorf("external network cannot overlap with default bridge network")
 		}
 	}
 
-	pg := c.config.PortGroups[name]
+	pg := c.config.PortGroups[scopeData.Name]
 	if pg == nil {
-		return nil, fmt.Errorf("no network info for external scope %s", name)
+		return nil, fmt.Errorf("no network info for external scope %s", scopeData.Name)
 	}
 
-	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, pools, pg)
+	return c.newScopeCommon(id, constants.ExternalScopeType, pg, scopeData)
 }
 
 func (c *Context) reserveSubnet(subnet *net.IPNet) (*AddressSpace, bool, error) {
@@ -470,13 +489,25 @@ func scopeKey(sn string) string {
 	return fmt.Sprintf("context.scopes.%s", sn)
 }
 
-func (c *Context) NewScope(ctx context.Context, scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
+// ScopeData holds fields used to create a new scope
+type ScopeData struct {
+	ScopeType   string
+	Name        string
+	Subnet      *net.IPNet
+	Gateway     net.IP
+	DNS         []net.IP
+	Pools       []string
+	Annotations map[string]string
+	Internal    bool
+}
+
+func (c *Context) NewScope(ctx context.Context, scopeData *ScopeData) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
 
 	c.Lock()
 	defer c.Unlock()
 
-	s, err := c.newScope(scopeType, name, subnet, gateway, dns, pools)
+	s, err := c.newScope(scopeData)
 	if err != nil {
 		return nil, err
 	}
@@ -502,28 +533,28 @@ func (c *Context) NewScope(ctx context.Context, scopeType, name string, subnet *
 	return s, nil
 }
 
-func (c *Context) newScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
+func (c *Context) newScope(scopeData *ScopeData) (*Scope, error) {
 	// sanity checks
-	if name == "" {
+	if scopeData.Name == "" {
 		return nil, fmt.Errorf("scope name must not be empty")
 	}
 
-	if gateway == nil {
-		gateway = net.IPv4(0, 0, 0, 0)
+	if scopeData.Gateway == nil {
+		scopeData.Gateway = net.IPv4(0, 0, 0, 0)
 	}
 
-	if _, ok := c.scopes[name]; ok {
-		return nil, DuplicateResourceError{resID: name}
+	if _, ok := c.scopes[scopeData.Name]; ok {
+		return nil, DuplicateResourceError{resID: scopeData.Name}
 	}
 
 	var s *Scope
 	var err error
-	switch scopeType {
+	switch scopeData.ScopeType {
 	case constants.BridgeScopeType:
-		s, err = c.newBridgeScope(uid.New(), name, subnet, gateway, dns, pools)
+		s, err = c.newBridgeScope(uid.New(), scopeData)
 
 	case constants.ExternalScopeType:
-		s, err = c.newExternalScope(uid.New(), name, subnet, gateway, dns, pools)
+		s, err = c.newExternalScope(uid.New(), scopeData)
 
 	default:
 		return nil, fmt.Errorf("scope type not supported")
@@ -696,9 +727,14 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		copy(ne.Network.Nameservers, s.dns)
 
 		// mark the external network as default
-		if !defaultMarked && e.Scope().Type() == constants.ExternalScopeType {
+		scope := e.Scope()
+		if !defaultMarked && scope.Type() == constants.ExternalScopeType {
 			defaultMarked = true
 			ne.Network.Default = true
+		}
+
+		if scope.Internal() {
+			ne.Network.Default = false
 		}
 
 		// dns lookup aliases
@@ -758,6 +794,12 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	if !defaultMarked {
 		defaultMarked = true
 		for _, ne := range h.ExecConfig.Networks {
+
+			if s, ok := c.scopes[ne.Network.Name]; ok && s.Internal() {
+				log.Debugf("not setting internal network %s as default", ne.Network.Name)
+				continue
+			}
+
 			ne.Network.Default = true
 			break
 		}

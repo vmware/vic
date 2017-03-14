@@ -22,10 +22,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -296,25 +296,21 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 func (c *Container) Refresh(ctx context.Context) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	return c.refresh(ctx)
+}
+
+func (c *Container) refresh(ctx context.Context) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
 	// c.Config is nil if this is a create operation
 	if c.Config != nil {
 		log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
 	}
 
-	base, err := c.updates(ctx)
-	if err != nil {
-		log.Errorf("Unable to update container %s", c.ExecConfig.ID)
-		return err
-	}
-
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	// copy over the new state
-	c.containerBase = *base
-	log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
-
-	return nil
+	return c.containerBase.refresh(ctx)
 }
 
 // Refresh updates config and runtime info, holding a lock only while swapping
@@ -510,9 +506,11 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		c.updateState(existingState)
 		return err
 	}
-	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
-	// how widely it's used but couldn't - will ask around.
-	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
+
+	ds, err := sess.Finder.Datastore(ctx, url.Host)
+	if err != nil {
+		return err
+	}
 
 	//removes the vm from vsphere, but detaches the disks first
 	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
@@ -539,18 +537,107 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	}
 
 	// remove from datastore
-	fm := object.NewFileManager(c.vm.Client.Client)
+	fm := ds.NewFileManager(sess.Datacenter, true)
 
-	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
-	}); err != nil {
+	if err = fm.Delete(ctx, url.Path); err != nil {
 		// at this phase error doesn't matter. Just log it.
-		log.Debugf("Failed to delete %s, %s", dsPath, err)
+		log.Debugf("Failed to delete %s, %s", url, err)
 	}
 
 	//remove container from cache
 	Containers.Remove(c.ExecConfig.ID)
+	publishContainerEvent(c.ExecConfig.ID, time.Now(), events.ContainerRemoved)
+
 	return nil
+}
+
+// eventedState will determine the target container
+// state based on the current container state and the vsphere event
+func eventedState(e string, current State) State {
+	switch e {
+	case events.ContainerPoweredOn:
+		// are we in the process of starting
+		if current != StateStarting {
+			return StateRunning
+		}
+	case events.ContainerPoweredOff:
+		// are we in the process of stopping
+		if current != StateStopping {
+			return StateStopped
+		}
+	case events.ContainerSuspended:
+		// are we in the process of suspending
+		if current != StateSuspending {
+			return StateSuspended
+		}
+	case events.ContainerRemoved:
+		if current != StateRemoving {
+			return StateRemoved
+		}
+	}
+	return current
+}
+
+func (c *Container) OnEvent(e events.Event) {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	if c.vm == nil {
+		return
+	}
+
+	newState := eventedState(e.String(), c.state)
+	// do we have a state change
+	if newState != c.state {
+		switch newState {
+		case StateStopping,
+			StateRunning,
+			StateStopped,
+			StateSuspended:
+
+			// container state has changed so we need to update the container attributes
+			ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+			defer cancel()
+
+			if err := c.refresh(ctx); err != nil {
+				log.Errorf("Event driven container update failed: %s", err)
+			}
+
+			c.updateState(newState)
+			if newState == StateStopped {
+				c.onStop()
+			}
+			log.Debugf("Container(%s) state set to %s via event activity", c, newState)
+		case StateRemoved:
+			log.Debugf("Container(%s) %s via event activity", c, newState)
+			if c.vm != nil && c.vm.IsFixing() {
+				// is fixing vm, which will be registered back soon, so do not remove from containers cache
+				log.Debugf("Container(%s) %s is being fixed", c.ExecConfig.ID)
+				break
+			}
+
+			Containers.Remove(c.ExecConfig.ID)
+			c.vm = nil
+		default:
+			return
+		}
+
+		// regardless of update success failure publish the container event
+		publishContainerEvent(c.ExecConfig.ID, e.Created(), e.String())
+		return
+	}
+
+	switch e.String() {
+	case events.ContainerRelocated:
+		// container relocated so we need to update the container attributes
+		ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+		defer cancel()
+
+		err := c.refresh(ctx)
+		if err != nil {
+			log.Errorf("Event driven container update failed for %s with %s", c, err)
+		}
+	}
 }
 
 // get the containerVMs from infrastructure for this resource pool

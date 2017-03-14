@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -186,9 +186,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 		}
 	}
 
-	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
 	s := h.Spec.Spec()
-	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
+	// if runtime is nil, should be fresh container create
+	if h.Runtime == nil || h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff || h.TargetState() == StateStopped {
+		extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
+		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
+	} else {
+		extraconfig.Encode(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig)
+		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
+	}
 
 	if err := Commit(ctx, sess, h, waitTime); err != nil {
 		return err

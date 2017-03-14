@@ -1,15 +1,16 @@
 <!doctype>
 <html>
 <head>
-    <title><%=webpackConfig.metadata.title%></title>
+    <title>vSphere Integrated Containers</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Relative paths are required to keep plugin compatible with Flex and HTML clients -->
-    <link rel="stylesheet" href="../../assets/css/default.css" media="screen" />
-
     <!-- ** web-platform.js must be included before any other view code ** -->
     <script src="../js/web-platform.js"></script>
 
-    <base href="<%= webpackConfig.metadata.baseUrl %>">
+    <!-- Relative paths are required to keep plugin compatible with Flex and HTML clients -->
+    <link rel="stylesheet" href="../../assets/css/default.css" media="screen" />
+    <link rel="stylesheet" href="clarity-ui.min.css" />
+
+    <base href="APP_BASE_URL">
 </head>
 <body>
 

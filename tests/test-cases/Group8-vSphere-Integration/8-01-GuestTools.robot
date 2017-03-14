@@ -1,3 +1,17 @@
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
 *** Settings ***
 Documentation  Test 8-01 - Verify VM guest tools integration
 Resource  ../../resources/Util.robot
@@ -24,8 +38,11 @@ Verify container VM guest IP is reported
     ${name}=  Generate Random String  15
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.ip ${name}-*
+    ${rc}  ${ip}=  Run And Return Rc And Output  govc vm.ip ${name}-*
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Guest.Net[].IpAddress[]
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${ip}
 
 Stop container VM using guest shutdown
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox

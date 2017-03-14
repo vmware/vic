@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,30 +30,41 @@ import (
 type Scope struct {
 	sync.RWMutex
 
-	id         uid.UID
-	name       string
-	scopeType  string
-	subnet     *net.IPNet
-	gateway    net.IP
-	dns        []net.IP
-	containers map[uid.UID]*Container
-	endpoints  []*Endpoint
-	spaces     []*AddressSpace
-	builtin    bool
-	network    object.NetworkReference
+	id          uid.UID
+	name        string
+	scopeType   string
+	subnet      *net.IPNet
+	gateway     net.IP
+	dns         []net.IP
+	containers  map[uid.UID]*Container
+	endpoints   []*Endpoint
+	spaces      []*AddressSpace
+	builtin     bool
+	network     object.NetworkReference
+	annotations map[string]string
+	internal    bool
 }
 
-func newScope(id uid.UID, name string, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, network object.NetworkReference) *Scope {
+func newScope(id uid.UID, scopeType string, network object.NetworkReference, scopeData *ScopeData) *Scope {
 	return &Scope{
-		id:         id,
-		name:       name,
-		scopeType:  scopeType,
-		subnet:     subnet,
-		gateway:    gateway,
-		dns:        dns,
-		network:    network,
-		containers: make(map[uid.UID]*Container),
+		id:          id,
+		name:        scopeData.Name,
+		scopeType:   scopeType,
+		subnet:      scopeData.Subnet,
+		gateway:     scopeData.Gateway,
+		dns:         scopeData.DNS,
+		network:     network,
+		containers:  make(map[uid.UID]*Container),
+		annotations: make(map[string]string),
+		internal:    scopeData.Internal,
 	}
+}
+
+func (s *Scope) Annotations() map[string]string {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.annotations
 }
 
 func (s *Scope) Name() string {
@@ -75,6 +86,13 @@ func (s *Scope) Type() string {
 	defer s.RUnlock()
 
 	return s.scopeType
+}
+
+func (s *Scope) Internal() bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.internal
 }
 
 func (s *Scope) Network() object.NetworkReference {
@@ -300,14 +318,16 @@ func (s *Scope) Refresh(h *exec.Handle) error {
 }
 
 type scopeJSON struct {
-	ID      uid.UID
-	Name    string
-	Type    string
-	Subnet  *net.IPNet
-	Gateway net.IP
-	DNS     []net.IP
-	Builtin bool
-	Pools   []*ip.Range
+	ID          uid.UID
+	Name        string
+	Type        string
+	Subnet      *net.IPNet
+	Gateway     net.IP
+	DNS         []net.IP
+	Builtin     bool
+	Pools       []*ip.Range
+	Annotations map[string]string
+	Internal    bool
 }
 
 func (s *Scope) MarshalJSON() ([]byte, error) {
@@ -315,14 +335,16 @@ func (s *Scope) MarshalJSON() ([]byte, error) {
 	defer s.RUnlock()
 
 	return json.Marshal(&scopeJSON{
-		ID:      s.id,
-		Name:    s.name,
-		Type:    s.scopeType,
-		Subnet:  s.subnet,
-		Gateway: s.gateway,
-		DNS:     s.dns,
-		Builtin: s.builtin,
-		Pools:   s.pools(),
+		ID:          s.id,
+		Name:        s.name,
+		Type:        s.scopeType,
+		Subnet:      s.subnet,
+		Gateway:     s.gateway,
+		DNS:         s.dns,
+		Builtin:     s.builtin,
+		Pools:       s.pools(),
+		Annotations: s.annotations,
+		Internal:    s.internal,
 	})
 }
 
@@ -336,7 +358,8 @@ func (s *Scope) UnmarshalJSON(data []byte) error {
 	}
 
 	ns := Scope{
-		containers: make(map[uid.UID]*Container),
+		containers:  make(map[uid.UID]*Container),
+		annotations: make(map[string]string),
 	}
 	ns.id = sj.ID
 	ns.name = sj.Name
@@ -355,6 +378,12 @@ func (s *Scope) UnmarshalJSON(data []byte) error {
 		ns.spaces[i] = sp
 	}
 
+	for k, v := range sj.Annotations {
+		ns.annotations[k] = v
+	}
+
+	ns.internal = sj.Internal
+
 	s.swap(&ns)
 
 	return nil
@@ -372,4 +401,6 @@ func (s *Scope) swap(other *Scope) {
 	s.endpoints, other.endpoints = other.endpoints, s.endpoints
 	s.containers, other.containers = other.containers, s.containers
 	s.network, other.network = other.network, s.network
+	s.annotations, other.annotations = other.annotations, s.annotations
+	s.internal, other.internal = other.internal, s.internal
 }

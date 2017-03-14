@@ -16,18 +16,24 @@ package migration
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/manager"
 	_ "github.com/vmware/vic/lib/migration/plugins"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // MigrateApplianceConfigure migrate VCH appliance configuration, including guestinfo, keyvaluestore, or any other configuration related change.
 //
-// Note: Input map conf is VCH appliance guestinfo map, and returned map is the new guestinfo. Any other changes should be made in plugin.
-// If there is error returned, returned map might have half-migrated value
+// Note: Input map conf is VCH appliance guestinfo map, and returned map is the new guestinfo.
+// Returns false without error means no need to migrate, and returned map is the copy of input map
+// If there is error returned, returns true and half-migrated value
 func MigrateApplianceConfig(ctx context.Context, s *session.Session, conf map[string]string) (map[string]string, bool, error) {
 	return migrateConfig(ctx, s, conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
@@ -35,23 +41,31 @@ func MigrateApplianceConfig(ctx context.Context, s *session.Session, conf map[st
 // MigrateContainerConfigure migrate container configuration
 //
 // Note: Migrated data will be returned in map, and input object is not changed.
-// If there is error returned, returned map might have half-migrated value.
+// Returns false without error means no need to migrate, and returned map is the copy of input map
+// If there is error returned, returns true and half-migrated value
 func MigrateContainerConfig(conf map[string]string) (map[string]string, bool, error) {
 	return migrateConfig(nil, nil, conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
-// IsContainerDataOlder returns true if input container config is older than latest version. If error happens, always returns false
-func IsContainerDataOlder(conf map[string]string) (bool, error) {
-	return isDataOlder(conf, manager.ContainerConfigure, manager.ContainerVersionKey)
+// ContainerDataIsOlder returns true if input container config is older than latest version. If error happens, always returns false
+func ContainerDataIsOlder(conf map[string]string) (bool, error) {
+	return dataIsOlder(conf, manager.ContainerConfigure, manager.ContainerVersionKey)
 }
 
-// IsApplianceDataOlder returns true if input appliance config is older than latest version. If error happens, always returns false
-func IsApplianceDataOlder(conf map[string]string) (bool, error) {
-	return isDataOlder(conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
+// ApplianceDataIsOlder returns true if input appliance config is older than latest version. If error happens, always returns false
+func ApplianceDataIsOlder(conf map[string]string) (bool, error) {
+	return dataIsOlder(conf, manager.ApplianceConfigure, manager.ApplianceVersionKey)
 }
 
-// isDataOlder returns true if data is older than latest. If error happens, always returns false
-func isDataOlder(data map[string]string, target string, verKey string) (bool, error) {
+// ContainerDataVersion returns container data version
+func ContainerDataVersion(conf map[string]string) (int, error) {
+	return getCurrentID(conf, manager.ContainerVersionKey)
+}
+
+// dataIsOlder returns true if data is older than latest. If error happens, always returns false
+func dataIsOlder(data map[string]string, target string, verKey string) (bool, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("target: %s, version key: %s", target, verKey)))
+
 	var currentID int
 	var err error
 
@@ -63,7 +77,13 @@ func isDataOlder(data map[string]string, target string, verKey string) (bool, er
 }
 
 func migrateConfig(ctx context.Context, s *session.Session, data map[string]string, target string, verKey string) (map[string]string, bool, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("target: %s, version key: %s", target, verKey)))
+
 	dst := make(map[string]string)
+	for k, v := range data {
+		dst[k] = v
+	}
+
 	if len(data) == 0 {
 		return dst, false, nil
 	}
@@ -74,20 +94,19 @@ func migrateConfig(ctx context.Context, s *session.Session, data map[string]stri
 	if currentID, err = getCurrentID(data, verKey); err != nil {
 		return dst, false, err
 	}
-
-	for k, v := range data {
-		dst[k] = v
+	latestVer := manager.Migrator.LatestVersion(target)
+	if latestVer <= currentID {
+		log.Debugf("No new plugin available, no need to migrate")
+		return dst, false, nil
 	}
 
-	latestID, err := manager.Migrator.Migrate(ctx, s, target, currentID, dst)
-	if latestID == currentID {
-		return dst, false, err
-	}
-	dst[verKey] = strconv.Itoa(latestID)
+	_, err = manager.Migrator.Migrate(ctx, s, target, currentID, dst)
+	dst[verKey] = strconv.Itoa(version.MaxPluginVersion)
 	return dst, true, err
 }
 
 func getCurrentID(data map[string]string, verKey string) (int, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("version key: %s", verKey)))
 	var currentID int
 	var err error
 	strID := data[verKey]

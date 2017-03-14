@@ -17,6 +17,7 @@
 nightly_list_var="5-1-Distributed-Switch \
 5-2-Cluster \
 5-3-Enhanced-Linked-Mode \
+5-4-High-Availability \
 5-5-Heterogenous-ESXi \
 5-6-1-VSAN-Simple \
 5-6-2-VSAN-Complex \
@@ -39,18 +40,54 @@ rm -rf bin 60 65
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
 buildNumber=${input:4}
 
-echo "Downloading bintray file $input"
-wget https://vmware.bintray.com/vic-repo/$input.tar.gz
+n=0
+   until [ $n -ge 5 ]
+   do
+      echo "Retry.. $n"
+      echo "Downloading bintray file $input"
+      wget https://vmware.bintray.com/vic-repo/$input.tar.gz
+      if [ -f "$input.tar.gz" ]
+      then
+      echo "File found.."
+      break
+      else
+      echo "File NOT found"
+      fi
+      n=$[$n+1]
+      sleep 15
+   done
 
-mkdir bin
+n=0
+   until [ $n -ge 5 ]
+   do
+      mkdir bin
+      echo "Extracting .tar.gz"
+      tar xvzf $input.tar.gz -C bin/ --strip 1
+      if [ -f "bin/vic-machine-linux" ]
+      then
+      echo "tar extraction complete.."
+      canContinue="Yes"
+      break
+      else
+      echo "tar extraction failed"     
+      canContinue="No"
+      rm -rf bin
+      fi
+      n=$[$n+1]
+      sleep 15
+   done
 
-echo "Extracting .tar.gz"
-tar xvzf $input.tar.gz -C bin/ --strip 1
+if [ $canContinue = "No" ] 
+then
+echo "Tarball extraction failed..quitting the run"
+break
+else
+echo "Tarball extraction passed, Running nightlies test.."
 
 echo "Deleting .tar.gz vic file"
 rm $input.tar.gz
 
-DATE=`date +%m_%d_%H_%M`
+DATE=`date +%m_%d_%H_%M_`
 
 nightlystatus=()
 count=0
@@ -94,8 +131,7 @@ for i in $nightly_list_var; do
 done
 
 # Setting the NSX test status to Not Implemented.
-nightlystatus[6]="Not Implemented"
-nightlystatus[21]="Not Implemented"
+nightlystatus[23]="TODO"
 
 for i in "${nightlystatus[@]}" 
 do
@@ -113,7 +149,7 @@ done
 
 echo "Global Nightly Test Status $buildStatus"
 
-drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $input_$DATE" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $DATE$input" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
 rm nightly_mail.html
 
@@ -167,7 +203,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
@@ -201,7 +237,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$input_$DATE.zip?authuser=1</a>
+                        <a href='https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1'>https://storage.cloud.google.com/vic-ci-logs/functional_logs_$DATE$input.zip?authuser=1</a>
                       </td>
                     </tr>
                   </table>
@@ -220,3 +256,4 @@ EOT
 
 # Emails an HTML report of the test run results using SendMail.
 sendmail -t < nightly_mail.html
+fi

@@ -17,11 +17,17 @@ package extraconfig
 import (
 	"testing"
 
+	"strings"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func visibleRO(key string) string {
 	return calculateKey([]string{"read-only"}, "", key)
+}
+
+func visibleRONonpersistent(key string) string {
+	return calculateKey([]string{"read-only", "non-persistent"}, "", key)
 }
 
 func visibleRW(key string) string {
@@ -122,7 +128,23 @@ func TestSecret(t *testing.T) {
 
 	key := calculateKey(scopes, DefaultGuestInfoPrefix+".a.b", "c")
 
-	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c@secret", key, "Key should have secret suffix")
+	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c"+suffixSeparator+secretSuffix, key, "Key should have secret suffix")
+}
+
+func TestNonpersistent(t *testing.T) {
+	scopes := []string{"non-persistent", "read-write"}
+
+	key := calculateKey(scopes, DefaultGuestInfoPrefix+".a.b", "c")
+
+	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c"+suffixSeparator+nonpersistentSuffix, key, "Key should have non-persistent suffix")
+}
+
+func TestMultipleSuffixes(t *testing.T) {
+	scopes := []string{"non-persistent", "secret", "read-write"}
+
+	key := calculateKey(scopes, DefaultGuestInfoPrefix+".a.b", "c")
+
+	assert.True(t, strings.Contains(key, suffixSeparator+secretSuffix) && strings.Contains(key, suffixSeparator+nonpersistentSuffix), "Key should contain both secret and non-persistent suffix")
 }
 
 func TestCalculateKeys(t *testing.T) {
@@ -179,27 +201,27 @@ func TestCalculateKeys(t *testing.T) {
 		},
 		{
 			"ExecutorConfig.Sessions.*",
-			[]string{"executorconfig/sessions|Session1"},
+			[]string{"executorconfig/sessions" + Separator + "Session1"},
 		},
 		{
 			"ExecutorConfig.Sessions.Session1.Cmd.Args",
-			[]string{"executorconfig/sessions|Session1/cmd/args"},
+			[]string{"executorconfig/sessions" + Separator + "Session1/cmd/args"},
 		},
 		{
 			"ExecutorConfig.Sessions.*.Cmd.Args.*",
-			[]string{"executorconfig/sessions|Session1/cmd/args~"},
+			[]string{"executorconfig/sessions" + Separator + "Session1/cmd/args~"},
 		},
 		{
 			"ExecutorConfig.Sessions.*.Cmd.Args.0",
-			[]string{"executorconfig/sessions|Session1/cmd/args~"},
+			[]string{"executorconfig/sessions" + Separator + "Session1/cmd/args~"},
 		},
 		{
 			"Array.0.I",
-			[]string{visibleRW("array|0/I")},
+			[]string{visibleRW("array" + Separator + "0/I")},
 		},
 		{
 			"Array.*",
-			[]string{visibleRW("array|0")},
+			[]string{visibleRW("array" + Separator + "0")},
 		},
 		{
 			"Ptr.I",

@@ -41,6 +41,7 @@ groups:
   docs:
     users:
       - stuclem
+      - mdubya66
     conditions:
       files:
         include:
@@ -78,6 +79,15 @@ groups:
           - "cmd/toolbox/*"
           - "pkg/vsphere/toolbox/*"
 
+  unified-installer:
+    users:
+      - frapposelli
+      - maplain
+    conditions:
+      files:
+        include:
+          - "installer/*"
+
   docker-persona:
     users:
       - sflxn
@@ -94,6 +104,7 @@ groups:
   install:
     users:
       - emlin
+      - andrewtchin
     conditions:
       files:
         include:
@@ -193,6 +204,7 @@ groups:
   ui:
     users:
       - jooskim
+      - jak-atx
     conditions:
       files:
         include:
@@ -214,3 +226,14 @@ groups:
       files:
         include:
           - ".pullapprove.yml"
+
+  drone:
+    users:
+      - jakedsouza
+      - rajanashok
+      - mhagen-vmware
+    conditions:
+      files:
+        include:
+          - ".drone.yml"
+          - ".drone.sec"

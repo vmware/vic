@@ -31,7 +31,7 @@ var (
 	State       string
 
 	// MaxPluginVersion must be increased to add new plugin and make sure the new plugin version is same to this value
-	MaxPluginVersion = 0
+	MaxPluginVersion = 1
 
 	v bool
 )
@@ -39,7 +39,7 @@ var (
 const (
 	DockerAPIVersion     = "1.25"
 	DockerDefaultVersion = "1.25"
-	DockerMinimumVersion = "1.23"
+	DockerMinimumVersion = "1.19"
 )
 
 type Build struct {

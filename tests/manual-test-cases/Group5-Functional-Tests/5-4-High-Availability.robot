@@ -1,3 +1,17 @@
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
 *** Settings ***
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
@@ -12,7 +26,7 @@ Test
 
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
-    
+
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 
     Log To Console  Create a datacenter on the VC
@@ -50,11 +64,11 @@ Test
     Log To Console  Enable HA on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled -ha-enabled /ha-datacenter/host/cls
     Should Be Empty  ${out}
-    
+
     ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Append To List  ${list}  ${name}
 
-    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store cls
+    ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
     Should Be Empty  ${out}
 
     Log To Console  Deploy VIC to the VC cluster
@@ -71,6 +85,26 @@ Test
 
     Run Regression Tests
 
+    # have a few containers running and stopped for when we
+    # shut down the host and HA brings it up again
+    # make sure we have busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+
+    @{running}=  Create List
+    :FOR  ${index}  IN RANGE  3
+    \     ${rc}  ${c}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
+    \     Should Be Equal As Integers  ${rc}  0
+    \     Append To List  ${running}  ${c}
+
+    @{stopped}=  Create List
+    :FOR  ${index}  IN RANGE  3
+    \     ${rc}  ${c}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox ls
+    \     Should Be Equal As Integers  ${rc}  0
+    \     Append To List  ${stopped}  ${c}
+
+    Sleep  2 minutes
+
     ${output}=  Run  govc vm.info %{VCH-NAME}/%{VCH-NAME}
     @{output}=  Split To Lines  ${output}
     ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
@@ -82,7 +116,24 @@ Test
     Close connection
 
     # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
-    Sleep  2 minutes
+    Sleep  4 minutes
     Run VIC Machine Inspect Command
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    # check running containers are still running
+    :FOR  ${c}  IN  @{running}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format '{{.State.Status}}' ${c}
+    \     Should Be Equal As Integers  ${rc}  0
+    \     Should Be Equal  ${output}  running
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     Should Be Equal As Integers  ${rc}  0
+
+    # check stopped containers are still stopped
+    :FOR  ${c}  IN  @{stopped}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format '{{.State.Status}}' ${c}
+    \     Should Be Equal As Integers  ${rc}  0
+    \     Should Be Equal  ${output}  exited
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     Should Be Equal As Integers  ${rc}  0
+
     Run Regression Tests

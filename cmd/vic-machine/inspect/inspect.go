@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -139,7 +139,6 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		log.Error(err)
 		return errors.New("inspect failed")
 	}
-	executor.InitDiagnosticLogs(vchConfig)
 
 	installerVer := version.GetBuild()
 

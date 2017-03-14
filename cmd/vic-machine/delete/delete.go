@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -155,13 +155,12 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	installerBuild := version.GetBuild()
 	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
 		if !d.Data.Force {
-			log.Errorf("VCH version %q is different than installer version %s. Specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
+			log.Errorf("VCH version %q is different than installer version %s. Upgrade VCH before deleting or specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 			return errors.New("delete failed")
 		}
 
 		log.Warnf("VCH version %q is different than installer version %s. Force delete will attempt to remove everything related to the installed VCH", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
-	executor.InitDiagnosticLogs(vchConfig)
 
 	if err = executor.DeleteVCH(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
@@ -169,7 +168,11 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 		return errors.New("delete failed")
 	}
 
-	log.Infof("Completed successfully")
+	log.Info("----------")
+	log.Info("If firewall changes were made for VIC during install, they were not reverted during delete")
+	log.Info("To modify firewall rules see vic-machine update firewall --help")
+	log.Info("----------")
+	log.Info("Completed successfully")
 
 	return nil
 }

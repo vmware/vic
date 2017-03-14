@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 	handler.handlerCtx = handlerCtx
 }
 
-func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.IP, dns []net.IP, err error) {
+func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.IP, dns []net.IP, annotations map[string]string, err error) {
 	if cfg.Subnet != "" {
 		if _, subnet, err = net.ParseCIDR(cfg.Subnet); err != nil {
 			return
@@ -75,6 +75,14 @@ func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.I
 		if dns[i] == nil {
 			err = fmt.Errorf("invalid dns entry")
 			return
+		}
+	}
+
+	// Parse annotations
+	if len(cfg.Annotations) > 0 {
+		annotations = make(map[string]string)
+		for k, v := range cfg.Annotations {
+			annotations[k] = v
 		}
 	}
 
@@ -109,13 +117,24 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 			&models.Error{Message: "cannot create external networks"})
 	}
 
-	subnet, gateway, dns, err := parseScopeConfig(cfg)
+	subnet, gateway, dns, annotations, err := parseScopeConfig(cfg)
 	if err != nil {
 		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(
 			errorPayload(err))
 	}
 
-	s, err := handler.netCtx.NewScope(context.Background(), cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
+	scopeData := &network.ScopeData{
+		ScopeType:   cfg.ScopeType,
+		Name:        cfg.Name,
+		Subnet:      subnet,
+		Gateway:     gateway,
+		DNS:         dns,
+		Pools:       cfg.IPAM,
+		Annotations: annotations,
+		Internal:    cfg.Internal,
+	}
+
+	s, err := handler.netCtx.NewScope(context.Background(), scopeData)
 	if _, ok := err.(network.DuplicateResourceError); ok {
 		return scopes.NewCreateScopeConflict()
 	}
@@ -329,6 +348,7 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 		ScopeType: scope.Type(),
 		Subnet:    subnet,
 		Gateway:   gateway,
+		Internal:  scope.Internal(),
 	}
 
 	var pools []string
@@ -345,6 +365,12 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	sc.Endpoints = make([]*models.EndpointConfig, len(eps))
 	for i, e := range eps {
 		sc.Endpoints[i] = toEndpointConfig(e)
+	}
+
+	sc.Annotations = make(map[string]string)
+	annotations := scope.Annotations()
+	for k, v := range annotations {
+		sc.Annotations[k] = v
 	}
 
 	return sc

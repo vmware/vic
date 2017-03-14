@@ -14,39 +14,55 @@
  limitations under the License.
 */
 
-import { NgModule } from '@angular/core';
+import { NgModule, ErrorHandler } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
 import { HttpModule } from '@angular/http';
 
 import { ClarityModule } from 'clarity-angular';
 
-import { AppComponent } from './app.component';
-import { AppRoutingModule } from './app-routing.module';
-import { VicSummaryPortletComponent } from './summary-portlet/summary-portlet.component';
+import {
+    Globals,
+    GlobalsService,
+    I18nService,
+    RefreshService,
+    AppAlertComponent,
+    AppAlertService
+} from './shared/index';
+import { ActionDevService } from './services/action-dev.service';
+import { DataPropertyService } from './services/data-property.service';
+import { AppErrorHandler } from './shared/appErrorHandler';
+
+import { AppRoutingModule, routedComponents } from './app-routing.module';
 import { VchPortletComponent } from './summary-portlet/vch-portlet/vch-portlet.component';
 import { ContainerPortletComponent } from './summary-portlet/container-portlet/container-portlet.component';
-
-import { DataPropertyService } from './data-property-service/data-property.service';
+import { AppComponent } from './app.component';
 
 @NgModule({
     imports: [
         BrowserModule,
-        FormsModule,
         AppRoutingModule,
         HttpModule,
-        ClarityModule
+        ClarityModule.forRoot()
     ],
     declarations: [
         AppComponent,
-        VicSummaryPortletComponent,
+        AppAlertComponent,
+        routedComponents,
         VchPortletComponent,
         ContainerPortletComponent
     ],
     providers: [
-        DataPropertyService
+        ActionDevService,
+        AppAlertService,
+        AppErrorHandler,
+        Globals,
+        GlobalsService,
+        I18nService,
+        RefreshService,
+        DataPropertyService,
+        { provide: ErrorHandler, useClass: AppErrorHandler }
     ],
-    bootstrap: [ AppComponent ]
+    bootstrap: [AppComponent]
 })
 export class AppModule {
 

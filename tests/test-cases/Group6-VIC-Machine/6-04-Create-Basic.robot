@@ -1,3 +1,17 @@
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
 *** Settings ***
 Documentation  Test 6-04 - Verify vic-machine create basic use cases
 Resource  ../../resources/Util.robot
@@ -193,105 +207,18 @@ Create VCH - Existing RP on ESX
 Create VCH - Existing vApp on vCenter
     Pass execution  Test not implemented
 
-Create VCH - defaults with --no-tls
-    ${status}=  Get State Of Github Issue  3063
-
-    Set Test Environment Variables
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tls
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}
-
-
-    Run Regression Tests
-    Cleanup VIC Appliance On Test Server
-
-Create VCH - force accept target thumbprint
-    Set Test Environment Variables
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
-    # Test that --force without --thumbprint accepts the --target thumbprint
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}
-
-    Run Regression Tests
-    Cleanup VIC Appliance On Test Server
-
-Create VCH - Specified keys
-    Pass execution  Test not implemented until vic-machine can poll status correctly
-
-Create VCH - Invalid keys
-    ${domain}=  Get Environment Variable  DOMAIN  ''
-    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
-
-    Set Test Environment Variables
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-
-    # Invalid server key
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/ca.pem" --cert="./%{VCH-NAME}/server-cert.pem" --key="./%{VCH-NAME}/ca.pem"
-    Should Contain  ${output}  found a certificate rather than a key in the PEM for the private key
-
-    # Invalid server cert
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/ca.pem" --cert="./%{VCH-NAME}/server-key.pem" --key="./%{VCH-NAME}/server-key.pem"
-    Should Contain  ${output}  did find a private key; PEM inputs may have been switched
-
-    # Invalid CA
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --tls-ca="./%{VCH-NAME}/key.pem" --cert="./%{VCH-NAME}/server-cert.pem" --key="./%{VCH-NAME}/server-key.pem"
-    Should Contain  ${output}  Unable to load certificate authority data
-
-    Cleanup VIC Appliance On Test Server
-
-Create VCH - Reuse keys
-    ${domain}=  Get Environment Variable  DOMAIN  ''
-    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
-
-    Set Test Environment Variables
-
-    # use one install to generate certificates
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}
-
-    # remove the initial deployment
-    ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --name=%{VCH-NAME} --force
-    Should Contain  ${ret}  Completed successfully
-
-    # deploy using the same name - should reuse certificates
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-    Should Contain  ${output}  Installer completed successfully
-
-    Should Contain  ${output}  Loaded server certificate
-    Should Contain  ${output}  Loaded CA with default name from certificate path
-    Should Contain  ${output}  Loaded client certificate with default name from certificate path
-
-    Cleanup VIC Appliance On Test Server
-
 Basic timeout
-    ${status}=  Get State Of Github Issue  3241
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-04-Create-Basic.robot needs to be updated now that Issue #3241 has been resolved
-    Log  Issue \#3241 is blocking implementation  WARN
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-#    Set Test Environment Variables
-#    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-#    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-#
-#    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --timeout 30s ${vicmachinetls} --public-network-ip=172.16.5.5/24 --public-network-gateway=172.16.5.1/24
-#    Should Contain  ${output}  Create timed out
-#
-#    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
-#    Should Contain  ${ret}  Completed successfully
-#    ${out}=  Run  govc ls vm
-#    Should Not Contain  ${out}  %{VCH-NAME}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --timeout 1s ${vicmachinetls}
+    Should Contain  ${output}  Creating VCH exceeded time limit
+
+    ${ret}=  Run  bin/vic-machine-linux delete --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+    Should Contain  ${ret}  Completed successfully
+    ${out}=  Run  govc ls vm
+    Should Not Contain  ${out}  %{VCH-NAME}
 
 Basic VCH resource config
     Pass execution  Test not implemented

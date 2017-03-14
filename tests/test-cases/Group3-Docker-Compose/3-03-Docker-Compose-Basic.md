@@ -13,15 +13,21 @@ This test requires that a vSphere server is running and available
 #Test Steps:
 1. Create a compose file that includes a basic python server and redis server
 2. Deploy VIC appliance to the vSphere server
-3. Issue:  
-```DOCKER_HOST=<VCH IP> docker-compose up```
+3. Create a basic compose yml file
+4. Issue DOCKER_HOST=<VCH IP> docker-compose create
+5. Issue DOCKER_HOST=<VCH IP> docker-compose start
+6. Issue DOCKER_HOST=<VCH IP> docker-compose logs
+7. Issue DOCKER_HOST=<VCH IP> docker-compose stop
+8. Issue DOCKER_HOST=<VCH IP> docker-compose up -d
+9. Issue DOCKER_HOST=<VCH IP> docker-compose kill redis
+10. Issue DOCKER_HOST=<VCH IP> docker-compose down
+11. Issue DOCKER_HOST=<VCH IP> docker run -d busybox /bin/top
+12. Issue DOCKER_HOST=<VCH IP> docker-compose up -d
+13. Create compose file with link
+14. Issue  DOCKER_HOST=<VCH IP> docker-compose up -d
 
 #Expected Outcome:
-* Docker compose should return with success and the server should be running.
-* The server should report the following output:
-```
-The server is now ready to accept connections
-```
+* Step 4-14 should result in no error
 
 #Possible Problems:
 None

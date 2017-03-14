@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,8 @@ const (
 	ID = "{id}"
 	// Name is the container name of the VM
 	Name = "{name}"
+	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
+	CreatingVCH = "CreatingVCH"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image
@@ -212,6 +214,21 @@ func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectRefe
 	if moref != nil {
 		t.ExecutorConfig.ID = moref.String()
 	}
+}
+
+// SetIsCreating sets the ID of the VCH to a constant if creating is true, to identify the creating VCH VM before the VM moref can be set into this property
+// Reset the property back to empty string if creating is false
+func (t *VirtualContainerHostConfigSpec) SetIsCreating(creating bool) {
+	if creating {
+		t.ExecutorConfig.ID = CreatingVCH
+	} else {
+		t.ExecutorConfig.ID = ""
+	}
+}
+
+// IsCreating is checking if this configuration is for one creating VCH VM
+func (t *VirtualContainerHostConfigSpec) IsCreating() bool {
+	return t.ExecutorConfig.ID == CreatingVCH
 }
 
 // AddNetwork adds a network that will be configured on the appliance VM

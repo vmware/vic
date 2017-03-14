@@ -1108,6 +1108,35 @@
 				}
 			}
 		},
+		"/events": {
+			"get": {
+				"description": "Gets portlayer events",
+				"summary": "Gets portlayer events",
+				"operationId": "GetEvents",
+				"tags": [
+					"events"
+				],
+				"consumes": [
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/octet-stream"
+				],
+				"parameters": [
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"format": "binary"
+						}
+					},
+					"500": {
+						"description": "Failed to get events"
+					}
+				}
+			}
+		},
 		"/containers": {
 			"post": {
 				"description": "Initiates a container create operation",
@@ -2341,6 +2370,15 @@
 					"items": {
 						"$ref": "#/definitions/EndpointConfig"
 					}
+				},
+				"annotations": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
+				},
+				"internal": {
+					"type": "boolean"
 				}
 			}
 		},
@@ -2687,6 +2725,10 @@
 					"items": {
 						"$ref": "#/definitions/EndpointConfig"
 					}
+				},
+				"dataVersion": {
+					"type": "integer",
+					"format": "int64"
 				}
 			}
 		},

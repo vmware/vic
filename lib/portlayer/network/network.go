@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -160,7 +160,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 
 	sub := fmt.Sprintf("%s(%p)", "netCtx", netctx)
 	topic := events.NewEventType(events.ContainerEvent{}).Topic()
-	em.Subscribe(topic, sub, func(ie events.Event) {
+	s := em.Subscribe(topic, sub, func(ie events.Event) {
 		handleEvent(netctx, ie)
 	})
 
@@ -170,6 +170,8 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 		}
 	}()
 
+	s.Suspend(true)
+	defer s.Resume()
 	for _, c := range exec.Containers.Containers(nil) {
 		log.Debugf("adding container %s", c.ExecConfig.ID)
 		h := c.NewHandle(ctx)
@@ -195,7 +197,16 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 			}
 
 			log.Debugf("adding scope %s", n)
-			if _, err = netctx.newScope(ne.Network.Type, n, &ne.Network.Gateway, ne.Network.Gateway.IP, ne.Network.Nameservers, pools); err != nil {
+
+			scopeData := &ScopeData{
+				ScopeType: ne.Network.Type,
+				Name:      n,
+				Subnet:    &ne.Network.Gateway,
+				Gateway:   ne.Network.Gateway.IP,
+				DNS:       ne.Network.Nameservers,
+				Pools:     pools,
+			}
+			if _, err = netctx.newScope(scopeData); err != nil {
 				return err
 			}
 		}

@@ -17,6 +17,7 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -44,6 +45,7 @@ type ICache struct {
 	iDIndex     *truncindex.TruncIndex
 	cacheByID   map[string]*metadata.ImageConfig
 	cacheByName map[string]*metadata.ImageConfig
+	dirty       bool
 
 	client *client.PortLayer
 }
@@ -67,7 +69,7 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created.Unix() < r[j].Creat
 
 func init() {
 	imageCache = &ICache{
-		iDIndex:     truncindex.NewTruncIndex([]string{}),
+		iDIndex:     truncindex.NewTruncIndex(nil),
 		cacheByID:   make(map[string]*metadata.ImageConfig),
 		cacheByName: make(map[string]*metadata.ImageConfig),
 	}
@@ -213,7 +215,7 @@ func prefixImageID(imageID string) string {
 }
 
 // Add adds an image to the image cache
-func (ic *ICache) Add(imageConfig *metadata.ImageConfig) {
+func (ic *ICache) Add(imageConfig *metadata.ImageConfig) error {
 	defer trace.End(trace.Begin(""))
 
 	ic.m.Lock()
@@ -222,27 +224,36 @@ func (ic *ICache) Add(imageConfig *metadata.ImageConfig) {
 	// Normalize the name stored in imageConfig using Docker's reference code
 	ref, err := reference.WithName(imageConfig.Name)
 	if err != nil {
-		log.Errorf("Tried to create reference from %s: %s", imageConfig.Name, err.Error())
-		return
+		return fmt.Errorf("error trying to create reference from %s: %s", imageConfig.Name, err)
 	}
 
 	imageID := prefixImageID(imageConfig.ImageID)
-	ic.iDIndex.Add(imageConfig.ImageID)
+	err = ic.iDIndex.Add(imageConfig.ImageID)
+	if err != nil && !os.IsExist(err) {
+		return fmt.Errorf("error adding image %s to index: %s", imageID, err)
+	}
+
+	err = nil
+
 	ic.cacheByID[imageID] = imageConfig
+	ic.dirty = true
 
 	for _, tag := range imageConfig.Tags {
 		ref, err = reference.WithTag(ref, tag)
 		if err != nil {
-			log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, tag, err.Error())
-			return
+			return fmt.Errorf("error trying to create tagged reference from %s and tag %s: %s", imageConfig.Name, tag, err)
 		}
+
 		ic.cacheByName[imageConfig.Reference] = imageConfig
 	}
+
+	return nil
 }
 
 // RemoveImageByConfig removes image from the cache.
 func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
 	defer trace.End(trace.Begin(""))
+
 	ic.m.Lock()
 	defer ic.m.Unlock()
 
@@ -254,17 +265,10 @@ func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
 	}
 
 	prefixedID := prefixImageID(imageConfig.ImageID)
-	if _, ok := ic.cacheByID[prefixedID]; ok {
-		delete(ic.cacheByID, prefixedID)
-	} else {
-		log.Debugf("Not found in cache by id: %s", prefixedID)
-	}
+	delete(ic.cacheByID, prefixedID)
+	delete(ic.cacheByName, imageConfig.Reference)
 
-	if _, ok := ic.cacheByName[imageConfig.Reference]; ok {
-		delete(ic.cacheByName, imageConfig.Reference)
-	} else {
-		log.Debugf("Not found in cache by name: %s", imageConfig.Reference)
-	}
+	ic.dirty = true
 }
 
 // Save will persist the image cache to the portlayer k/v store
@@ -272,6 +276,10 @@ func (ic *ICache) Save() error {
 	defer trace.End(trace.Begin(""))
 	ic.m.Lock()
 	defer ic.m.Unlock()
+
+	if !ic.dirty {
+		return nil
+	}
 
 	m := struct {
 		IDIndex     *truncindex.TruncIndex
@@ -294,6 +302,8 @@ func (ic *ICache) Save() error {
 		log.Errorf("Unable to save image cache: %s", err.Error())
 		return err
 	}
+
+	ic.dirty = false
 
 	return nil
 }

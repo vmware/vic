@@ -95,6 +95,9 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
+		// instantiate the container cache now
+		NewContainerCache()
+
 		// create the event manager &  register the existing collector
 		Config.EventManager = event.NewEventManager(ec)
 
@@ -105,10 +108,11 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			},
 		)
 		// subscribe the exec layer to the event stream for Vm events
-		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", eventCallback)
-
-		// instantiate the container cache now
-		NewContainerCache()
+		vmSub := Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", func(e events.Event) {
+			if c := Containers.Container(e.Reference()); c != nil {
+				c.OnEvent(e)
+			}
+		})
 
 		// Grab the AboutInfo about our host environment
 		about := sess.Vim25().ServiceContent.About
@@ -127,73 +131,14 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		log.Debugf("VCH limits - %d Mhz, %d MB", Config.VCHMhz, Config.VCHMemoryLimit)
 
 		// sync container cache
+		vmSub.Suspend(true)
+		defer vmSub.Resume()
 		if err = Containers.sync(ctx, sess); err != nil {
 			return
 		}
 	})
+
 	return initializer.err
-}
-
-// eventCallback will process events
-func eventCallback(ie events.Event) {
-	// grab the container from the cache
-	container := Containers.Container(ie.Reference())
-	if container != nil {
-		newState := eventedState(ie.String(), container.CurrentState())
-		// do we have a state change
-		if newState != container.CurrentState() {
-			switch newState {
-			case StateStopping,
-				StateRunning,
-				StateStopped,
-				StateSuspended:
-
-				// container state has changed so we need to update the container attributes
-				// we'll do this in a go routine to avoid blocking
-				go func() {
-					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
-					defer cancel()
-
-					err := container.Refresh(ctx)
-					if err != nil {
-						log.Errorf("Event driven container update failed: %s", err.Error())
-					}
-					container.SetState(newState)
-					if newState == StateStopped {
-						container.onStop()
-					}
-					log.Debugf("Container(%s) state set to %s via event activity", container, newState)
-					// regardless of update success failure publish the container event
-					publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
-				}()
-			case StateRemoved:
-				log.Debugf("Container(%s) %s via event activity", container, newState)
-				if container.vm != nil && container.vm.IsFixing() {
-					// is fixing vm, which will be registered back soon, so do not remove from containers cache
-					log.Debugf("Container(%s) %s is being fixed", container.ExecConfig.ID)
-					break
-				}
-				Containers.Remove(container.ExecConfig.ID)
-				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
-			}
-		} else {
-			switch ie.String() {
-			case events.ContainerRelocated:
-				// container relocated so we need to update the container attributes
-				// we'll do this in a go routine to avoid blocking
-				go func() {
-					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
-					defer cancel()
-
-					err := container.Refresh(ctx)
-					if err != nil {
-						log.Errorf("Event driven container update failed for %s with %s", container, err.Error())
-					}
-				}()
-			}
-		}
-		return
-	}
 }
 
 // listens migrated events and connects the file backed serial ports
@@ -284,33 +229,6 @@ func hostEventCallback(ctx context.Context, ie events.Event) {
 		}
 
 	}
-}
-
-// eventedState will determine the target container
-// state based on the current container state and the vsphere event
-func eventedState(e string, current State) State {
-	switch e {
-	case events.ContainerPoweredOn:
-		// are we in the process of starting
-		if current != StateStarting {
-			return StateRunning
-		}
-	case events.ContainerPoweredOff:
-		// are we in the process of stopping
-		if current != StateStopping {
-			return StateStopped
-		}
-	case events.ContainerSuspended:
-		// are we in the process of suspending
-		if current != StateSuspending {
-			return StateSuspended
-		}
-	case events.ContainerRemoved:
-		if current != StateRemoving {
-			return StateRemoved
-		}
-	}
-	return current
 }
 
 // publishContainerEvent will publish a ContainerEvent to the vic event stream

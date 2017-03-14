@@ -17,19 +17,29 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
+import { APP_CONFIG }  from './shared/index';
+import { AppRoutingComponent } from './app-routing.component';
 import { VicSummaryPortletComponent } from './summary-portlet/summary-portlet.component';
+import { VicSummaryViewComponent } from './summary-view/summary-view.component';
 
 const appRoutes: Routes = [
-    {
-        path: 'portlet',
-        component: VicSummaryPortletComponent
-    },
-    // todo: come up with a default behavior
-    {
-        path: '',
-        redirectTo: 'portlet',
-        pathMatch: 'full'
-    }
+    { path: 'index.html', component: AppRoutingComponent },
+    { path: 'portlet', component: VicSummaryPortletComponent },
+    { path: 'portlet/:id', component: VicSummaryPortletComponent },
+    { path: 'summary-view', component: VicSummaryViewComponent },
+    { path: 'summary-view/:id', component: VicSummaryViewComponent }
+];
+
+export const extensionToRoutes = {};
+extensionToRoutes[APP_CONFIG.packageName + '.objectView.summaryView'] = '/objectViewSummary';
+extensionToRoutes[APP_CONFIG.packageName + '.objectView.monitorView'] = '/objectViewMonitor';
+extensionToRoutes[APP_CONFIG.packageName + '.objectView.vchView'] = '/objectViewVch';
+extensionToRoutes[APP_CONFIG.packageName + '.objectView.containerView'] = '/objectViewContainer';
+
+export const routedComponents = [
+    AppRoutingComponent,
+    VicSummaryPortletComponent,
+    VicSummaryViewComponent
 ];
 
 @NgModule({

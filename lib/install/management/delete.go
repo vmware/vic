@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -120,14 +120,14 @@ func (d *Dispatcher) getComputeResource(vmm *vm.VirtualMachine, conf *config.Vir
 	return rp, nil
 }
 
-func (d *Dispatcher) getImageDatastore(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*object.Datastore, error) {
+func (d *Dispatcher) getImageDatastore(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, force bool) (*object.Datastore, error) {
 	var err error
-	if len(conf.ImageStores) == 0 {
-		if !d.force {
+	if conf == nil || len(conf.ImageStores) == 0 {
+		if !force {
 			err = errors.Errorf("Cannot find image stores from configuration")
 			return nil, err
 		}
-		log.Warnf("Cannot find image stores from configuration, attempting to delete from vm datastore")
+		log.Debugf("Cannot find image stores from configuration; attempting to find from vm datastore")
 		dss, err := vmm.DatastoreReference(d.ctx)
 		if err != nil {
 			return nil, errors.Errorf("Failed to query vm datastore: %s", err)
@@ -164,7 +164,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	if children, err = d.parentResourcepool.GetChildrenVMs(d.ctx, d.session); err != nil {
 		return err
 	}
-	if d.session.Datastore, err = d.getImageDatastore(vmm, conf); err != nil {
+	if d.session.Datastore, err = d.getImageDatastore(vmm, conf, d.force); err != nil {
 		return err
 	}
 

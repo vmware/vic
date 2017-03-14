@@ -1,7 +1,13 @@
 # After any change to this file you MUST regenerate and checkin
 # a .drone.sec even if no secrets were changed. The secrets file is tied
-# to a specific .drone.yml so artifacts will not be uploaded to Bintray
-# in following builds without an updated .drone.sec
+# to a specific .drone.yml so artifacts will not be uploaded to (OR DOWNLOADED
+# FROM) Bintray in following builds without an updated .drone.sec
+#
+# When you are ready to submit a pull request, you must regenerate .drone.sec for the vmware/vic repo:
+#
+# $ drone -s https://ci.vmware.run -t ${DRONE_TOKEN} secure --in "secrets.yml" --out ".drone.sec" --repo vmware/vic --yaml ".drone.yml"
+#
+# The secrets file is in google drive.  Ask mhaggen for access.
 ---
 clone:
   path: github.com/vmware/vic
@@ -9,7 +15,7 @@ clone:
 
 build:
   prevent-concurrent-builds:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.18}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
     pull: true
     environment:
       BIN: bin
@@ -22,7 +28,7 @@ build:
       - tests/wait_until_previous_builds_complete.sh
 
   vic:
-    image: golang:1.7
+    image: golang:1.8
     pull: true
     environment:
       BIN: bin
@@ -42,13 +48,14 @@ build:
       - make mark
       - ls vendor/github.com/vmware/govmomi/vim25/methods
       - ls vendor/github.com/vmware/govmomi/vim25/types
-      - export VIC_ESX_URL_ARRAY=`tests/get_test_url.sh`
+      - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
       - make -j3 test
       - make sincemark
 
   integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.18}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
     pull: true
+    privileged: true
     environment:
       BIN: bin
       GOPATH: /drone
@@ -62,6 +69,7 @@ build:
       TEST_PASSWORD:  $$TEST_PASSWORD
       TEST_DATASTORE: $$TEST_DATASTORE
       TEST_TIMEOUT: $$TEST_TIMEOUT
+      REPORTING_SERVER_URL: $$REPORTING_SERVER_URL
       WINDOWS_URL:  $$WINDOWS_URL
       WINDOWS_USERNAME:  $$WINDOWS_USERNAME
       WINDOWS_PASSWORD:  $$WINDOWS_PASSWORD
@@ -82,7 +90,7 @@ build:
       success: true
 
   vicui:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.18}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
     pull: true
     environment:
       BIN: bin
@@ -120,7 +128,7 @@ build:
       success: true
 
   bundle:
-    image: golang:1.7
+    image: golang:1.8
     pull: true
     environment:
       BIN: bin
@@ -181,6 +189,7 @@ publish:
   coverage:
     server: https://coverage.vmware.run
     token: $$GITHUB_AUTOMATION_API_KEY
+    include: .+\\.out$
     when:
       repo: vmware/vic
       branch: master

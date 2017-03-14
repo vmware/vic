@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -32,12 +33,22 @@ import (
 var tthr tether.Tether
 
 func init() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP)
+
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())
 
 	// use the same logger for trace and other logging
 	trace.Logger = log.StandardLogger()
 	log.SetLevel(log.DebugLevel)
+
+	go func() {
+		for _ = range sigs {
+			log.Infof("Got A HUP signal! Reloading tether...")
+			tthr.Reload()
+		}
+	}()
 }
 
 func main() {

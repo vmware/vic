@@ -172,7 +172,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 		log.Errorf("List cannot continue - target validation failed: %s", err)
 		return errors.New("list failed")
 	}
-	_, err = validator.ValidateCompute(ctx, l.Data)
+	_, err = validator.ValidateCompute(ctx, l.Data, false)
 	if err != nil {
 		log.Errorf("List cannot continue - compute resource validation failed: %s", err)
 		return errors.New("list failed")

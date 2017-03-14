@@ -1,3 +1,17 @@
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
 *** Settings ***
 Documentation  Test 6-07 - Verify vic-machine create network function
 Resource  ../../resources/Util.robot
@@ -94,6 +108,112 @@ Management network - valid
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Connectivity Bridge to Public
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${out}=  Run  govc host.portgroup.remove bridge
+    ${out}=  Run  govc host.portgroup.remove vm-network
+
+    Log To Console  Create a public portgroup.
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN vm-network
+
+    Log To Console  Create a bridge portgroup.
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
+
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --no-tlsverify
+
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    Log To Console  Creating public container.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p1 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    Log To Console  Starting public container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start p1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    Log To Console  Creating bridge container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    Log To Console  Starting bridge container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start b1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    Log To Console  Getting IP for public container
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
+
+    Log To Console  Pinging from bridge to public container.
+    ${id}=  Run  docker %{VCH-PARAMS} run -d busybox ping -c 30 ${ip}
+
+    Log To Console  Attach to running container.
+    ${out}=  Run  docker %{VCH-PARAMS} attach ${id}
+
+    Should Contain  ${out}  64 bytes from ${ip}
+    Log To Console  Ping test succeeded.
+
+    Cleanup VIC Appliance On Test Server
+
+Connectivity Bridge to Management
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${out}=  Run  govc host.portgroup.remove bridge
+    ${out}=  Run  govc host.portgroup.remove management
+
+    Log To Console  Create a bridge portgroup
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
+
+    Log To Console  Create a management portgroup.
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN management
+
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --container-network management --container-network vm-network --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify
+
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    Log To Console  Creating management container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=management --name m1 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    Log To Console  Starting management container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start m1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    Log To Console  Creating bridge container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    Log To Console  Starting bridge container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start b1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    Log To Console  Getting IP for management container
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' m1
+
+    Log To Console  Pinging from bridge to management container.
+    ${id}=  Run  docker %{VCH-PARAMS} run -d busybox ping -c 30 ${ip}
+
+    Log To Console  Attach to running container.
+    ${out}=  Run  docker %{VCH-PARAMS} attach ${id}
+
+    Should Contain  ${out}  100% packet loss
+    Log To Console  Ping test succeeded.
+
     Cleanup VIC Appliance On Test Server
 
 Bridge network - vCenter none

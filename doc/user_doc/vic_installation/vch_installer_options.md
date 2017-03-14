@@ -33,11 +33,14 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
 - If the target ESXi host is not managed by vCenter Server, provide the address of the ESXi host.<pre>--target <i>esxi_host_address</i></pre>
 - If the target ESXi host is managed by vCenter Server, or if you are deploying to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
-- You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
+- You can include the user name and password in the target URL. If you are deploying a VCH on vCenter Server, specify the username for an account that has the Administrator role on that vCenter Server instance. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
 
   Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>'<i>vcenter_or_esxi_usern@me</i>':'<i>p@ssword</i>'@<i>vcenter_or_esxi_address</i></pre>
   
   If you do not include the user name in the target URL, you must specify the `user` option. If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
+
+  You can configure a VCH so that it uses a non-administrator account for post-deployment operations by specifying the [`--ops-user`](#--ops-user) option. 
+
 - If you are deploying a VCH on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. 
 
   <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
@@ -59,7 +62,9 @@ Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes
 
 <pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
 
-You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
+You can specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
+
+You can configure a VCH so that it uses a non-administrator account for post-deployment operations by specifying the [`--ops-user`](#--ops-user) option.
 
 ### `--password` ###
 
@@ -359,11 +364,15 @@ If you specify an invalid port group name, `vic-machine create` fails and sugges
 
 The `bridge-network` option is **optional** when you are deploying a VCH to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the VCH. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the VCH.
 
-<pre>--bridge-network <i>distributed_port_group_name</i></pre>
+<pre>--bridge-network <i>port_group_name</i></pre>
 
 Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--bridge-network '<i>port group name</i>'</pre>
+
+If you intend to use the [`--ops-user`](#ops-user) option to use different user accounts for deployment and operation of the VCH, you must place the bridge network port group in a network folder that has the `Read-Only` role with propagation enabled. For more information about the requirements when using `--ops-user`, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md). If the port group is located in a network folder, include the full inventory path to the port group when you specify the `--bridge-network` option.
+
+<pre>--bridge-network '<i>datacenter</i>/network/<i>network_folder</i>/<i>port_group_name</i>'</pre>
 
 For information about how to specify a range of IP addresses for additional bridge networks, see [`bridge-network-range`](#bridge-range) in Advanced Networking Options.
 
@@ -461,6 +470,10 @@ If you do not specify `--container-network`, or if you deploy containers that do
 Wrap the port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
 <pre>--container-network '<i>port group name</i>':<i>container port group name</i></pre>
+
+If you intend to use the [`--ops-user`](#ops-user) option to use different user accounts for deployment and operation of the VCH, you must place any container network port groups in a network folder that has the `Read-Only` role with propagation enabled. For more information about the requirements when using `--ops-user`, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md). If a port group is located in a network folder, include the full inventory path to the port group when you specify the `--container-network` option.
+
+<pre>--container-network '<i>datacenter</i>/network/<i>network_folder</i>/<i>port_group_name</i>':container_port _group_name</i></pre>
 
 <a name="deployment"></a>
 ## Additional Deployment Options ##
@@ -628,7 +641,7 @@ Short name: None
 
 A vSphere user account with which the VCH runs after deployment. Because deploying a VCH requires greater levels of permissions than running a VCH, you can configure a VCH so that it uses different user accounts for deployment and for operation. In this way, you can limit the day-to-day operation of a VCH to an account that does not have full administrator permissions on the target vCenter Server.
 
-If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+If not specified, the VCH runs with the vSphere Administrator credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
 
 <pre>--ops-user <i>user_name</i></pre>
 
@@ -636,13 +649,15 @@ Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes
 
 <pre>--ops-user '<i>user_n@me</i>'</pre>
 
+The user account that you specify in `--ops-user` must exist before you deploy the VCH. For information about the permissions that the `--ops-user` account requires, see [Use Different User Accounts for VCH Deployment and Operation](set_up_ops_user.md).
+
 ### `--ops-password` ###
 
 Short name: None
 
 The password or token for the operations user that you specify in `--ops-user`.
  
-If not specified, the VCH runs with the credentials with which you deploy the VCH, that you specify in either `--target` or `--user`.
+If not specified, `vic-machine create` prompts you to enter the password for the `--ops-user` account.
 
 <pre>--ops-password <i>password</i></pre>
 
@@ -656,7 +671,7 @@ Wrap the password in single quotes (') on Mac OS and Linux and in double quotes 
 
 You can specify a static IP address for the VCH endpoint VM on each of the client, public, and management networks. DHCP is used for the endpoint VM for any network on which you do not specify a static IP address.
 
-To specify a static IP address for the endpoint VM on the client, public, or management network, you provide an IP address in the `client/public/management-network-ip` option. If you set a static IP address, you must also provide a gateway address. You can optionally specify one or more DNS server addresses.
+To specify a static IP address for the endpoint VM on the client, public, or management network, you provide an IP address in the `client/public/management-network-ip` option. If you set a static IP address, you can optionally provide gateway addresses and specify one or more DNS server addresses.
 
 ### `--dns-server` ###
 
@@ -679,10 +694,9 @@ Short name: None
 
 A static IP address for the VCH endpoint VM on the public, client, or management network. 
 
-You specify a static IP address for the endpoint VM on the public, client, or management networks by using the `--public/client/management-network-ip` options. If you set a static IP address for the endpoint VM on any of the networks, you must specify a corresponding gateway address by using the `--public/client/management-network-gateway` option. 
+You specify a static IP address for the endpoint VM on the public, client, or management networks by using the `--public/client/management-network-ip` options. If you set a static IP address for the endpoint VM on the public network, you must specify a corresponding gateway address by using the `--public-network-gateway` option. If the management and client networks are L2 adjacent to their gateways, you do not need to specify the gateway for those networks.
 
-- You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks 
-- s a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
+- You can only specify one static IP address on a given port group. If more than one of the client, public, or management networks share a port group, you can only specify a static IP address on one of those networks. All of the networks that share that port group use the IP address that you specify. 
 - If either of the client or management networks shares a port group with the public network, you can only specify a static IP address on the public network.
 - If either or both of the client or management networks do not use the same port group as the public network, you can specify a static IP address for the endpoint VM on those networks by using `--client-network-ip` or `--management-network-ip`, or both. In this case, you must specify a corresponding gateway address by using `client/management-network-gateway`. 
 - If the client and management networks both use the same port group, and the public network does not use that port group, you can set a static IP address for the endpoint VM on either or both of the client and management networks.
@@ -691,13 +705,12 @@ You specify a static IP address for the endpoint VM on the public, client, or ma
   **IMPORTANT**: If the client network shares a port group with the public network you cannot set a static IP address for the endpoint VM on the client network. To assign a static IP address to the endpoint VM you must set a static IP address on the public network by using the `--public-network-ip` option. In this case, `vic-machine create` uses the public network IP address as the Common Name with which to auto-generate trusted CA certificates, in the same way as it would for the client network.
 
 - If you do not specify an IP address for the endpoint VM on a given network, `vic-machine create` uses DHCP to obtain an IP address for the endpoint VM on that network.
--  When you specify an address, `vic-machine create` uses the netmask from the gateway.
 
-You can specify addresses as IPv4 addresses. Do not use CIDR notation.
+You specify addresses as IPv4 addresses with a network mask.
 
-<pre>--public-network-ip 192.168.X.N
---management-network-ip 192.168.Y.N
---client-network-ip 192.168.Z.N
+<pre>--public-network-ip 192.168.X.N/24
+--management-network-ip 192.168.Y.N/24
+--client-network-ip 192.168.Z.N/24
 </pre>
 
 You can also specify addresses as resolvable FQDNs.
@@ -711,28 +724,22 @@ You can also specify addresses as resolvable FQDNs.
 
 Short name: None
 
-The gateway to use if you use `--public/client/management-network-ip` to specify a static IP address for the VCH endpoint VM on the public, client, or management networks. If you specify a static IP address on any network, you must specify a gateway by using the `--public/client/management-network-gateway` options. 
+The gateway to use if you use `--public/client/management-network-ip` to specify a static IP address for the VCH endpoint VM on the public, client, or management networks. If you specify a static IP address on the public network, you must specify a gateway by using the `--public-network-gateway` option. If the management and client networks are L2 adjacent to their gateways, you do not need to specify the gateway for those networks.
 
-You specify the public network gateway address in CIDR format.
+You specify gateway addresses as IP addresses without a network mask.
 
-<pre>--public-network-gateway 192.168.X.1/24</pre>
+<pre>--public-network-gateway 192.168.X.1</pre>
 
-**IMPORTANT**: Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
+The default route for the VCH endpoint VM is always on the public network. As a consequence, if you specify a static IP address on either of the management or client networks and those networks are not L2 adjacent to their gateways, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:).
 
-The default route for the VCH endpoint VM is always on the public network. As a consequence, if you specify a static IP address on either of the management or client networks, you must specify the routing destination for those networks in the `--management-network-gateway` and `--client-network-gateway` options. You specify the routing destination or destinations in a comma-separated list, with the address of the gateway separated from the routing destinations by a colon (:). You specify the gateway addresses in CIDR format:
-
-<pre>--management-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
-<i>routing_destination_2</i>/<i>subnet_mask</i>:
-<i>gateway_address</i>/<i>subnet_mask</i></pre>
-<pre>--client-network-gateway <i>routing_destination_1</i>/<i>subnet_mask</i>,
-<i>routing_destination_2</i>/<i>subnet_mask</i>:
-<i>gateway_address</i>/<i>subnet_mask</i>
-</pre>
+<pre>--management-network-gateway <i>routing_destination_1</i>,
+<i>routing_destination_2</i>:<i>gateway_address</i></pre>
+<pre>--client-network-gateway <i>routing_destination_1</i>,
+<i>routing_destination_2</i>:<i>gateway_address</i></pre>
 
 In the following example, `--management-network-gateway` informs the VCH that it can reach all of the vSphere management endoints that are in the ranges 192.168.3.0-255 and 192.168.128.0-192.168.131.255 by sending packets to the gateway at 192.168.2.1. Ensure that the address ranges that you specify include all of the systems that will connect to this VCH instance. 
 
-<pre>--management-network-gateway 192.168.3.0/24,192.168.128.0/22:192.168.2.1/24
-</pre>
+<pre>--management-network-gateway 192.168.3.0,192.168.128.0:192.168.2.1</pre>
 
 
 <a name="adv-container-net"></a>
@@ -877,7 +884,7 @@ Short name: `--bnr`
 
 The range of IP addresses that additional bridge networks can use when container application developers use `docker network create` to create new bridge networks. If you do not specify the `bridge-network-range` option, the IP range for bridge networks is 172.16.0.0/12.
 
-When you specify the bridge network IP range, you specify the IP range as a CIDR. The smallest subnet that you can specify is /16.
+When you specify the bridge network IP range, you specify the IP range as a CIDR. The smallest subnet that you can specify is /16. If you specify an invalid value for `--bridge-network-range`, `vic-machine create` fails with an error.
 
 <pre>--bridge-network-range 192.168.100.0/16</pre>
 

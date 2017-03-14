@@ -18,17 +18,32 @@
 
 import { async, TestBed, ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
+import { HttpModule } from '@angular/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Observable, Subject, BehaviorSubject } from 'rxjs/Rx';
+import { Observable, Subject } from 'rxjs/Rx';
+
+import {
+    AppAlertComponent,
+    AppAlertService,
+    Globals,
+    GlobalsService,
+    I18nService,
+    RefreshService
+} from '../shared/index';
+import { ActionDevService } from '../services/action-dev.service';
+import { DataPropertyService } from '../services/data-property.service';
+import { AppErrorHandler } from '../shared/appErrorHandler';
+
+import { ClarityModule } from 'clarity-angular';
 
 import { VicSummaryPortletComponent } from './summary-portlet.component';
 import { VchPortletComponent } from './vch-portlet/vch-portlet.component';
 import { ContainerPortletComponent } from './container-portlet/container-portlet.component';
-import { DataPropertyService } from '../data-property-service/data-property.service';
-import { VirtualMachine, VM_PROPERTIES_TO_EXTRACT } from '../vm.interface';
+import { VirtualMachine } from '../vm.interface';
+import { VM_PROPERTIES_TO_EXTRACT } from '../vm.constants';
+import { JASMINE_TIMEOUT } from '../testing/jasmine.constants';
 
-describe('VCH Component Unit Test', () => {
+describe('VIC Summary Portlet Components', () => {
     let fixture: ComponentFixture<VicSummaryPortletComponent>;
     let compInstance: VicSummaryPortletComponent;
     let svc: DataPropertyService;
@@ -45,16 +60,11 @@ describe('VCH Component Unit Test', () => {
     };
 
     class DpServiceStub {
-        private results: BehaviorSubject<VirtualMachine> = new BehaviorSubject<VirtualMachine>(null);
+        private vmInfoSource: Subject<VirtualMachine> = new Subject<VirtualMachine>();
+        public vmInfo$: Observable<VirtualMachine> = this.vmInfoSource.asObservable();
 
-        getCurrent(): VirtualMachine {
-            return this.results.getValue();
-        }
-
-        fetch(): Observable<VirtualMachine> {
-            this.results.next(<VirtualMachine>defaultVmObj);
-
-            return this.results;
+        fetchVmInfo(): void {
+            this.vmInfoSource.next(<VirtualMachine>defaultVmObj);
         }
     };
 
@@ -75,7 +85,12 @@ describe('VCH Component Unit Test', () => {
             providers: [
                 { provide: DataPropertyService, useClass: DpServiceStub },
                 { provide: ActivatedRoute, useClass: ActivatedRouteStub },
-                { provide: Router, useClass: RouterStub }
+                { provide: Router, useClass: RouterStub },
+                Globals,
+                GlobalsService,
+                RefreshService,
+                I18nService,
+                AppAlertService
             ],
             declarations: [
                 VicSummaryPortletComponent,
@@ -83,13 +98,15 @@ describe('VCH Component Unit Test', () => {
                 ContainerPortletComponent
             ],
             imports: [
-                FormsModule
+                HttpModule,
+                ClarityModule
             ]
         })
         .compileComponents();
     }));
 
     beforeEach(() => {
+        jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
         fixture = TestBed.createComponent<VicSummaryPortletComponent>(VicSummaryPortletComponent);
         compInstance = fixture.componentInstance;
         svc = fixture.debugElement.injector.get(DataPropertyService);
@@ -106,7 +123,8 @@ describe('VCH Component Unit Test', () => {
             container_name: 'fcv',
             isVCH: false,
             isContainer: true,
-            image_name: 'busybox'
+            image_name: 'busybox',
+            is_testing: true
         });
 
         fixture.detectChanges();
@@ -124,7 +142,8 @@ describe('VCH Component Unit Test', () => {
             isVCH: false,
             isContainer: true,
             image_name: 'nginx',
-            portmapping: '8081:80/tcp'
+            portmapping: '8081:80/tcp',
+            is_testing: true
         });
 
         fixture.detectChanges();
@@ -142,7 +161,8 @@ describe('VCH Component Unit Test', () => {
             isVCH: true,
             isContainer: false,
             dockerEndpoint: 'DOCKER_HOST=tcp://1.2.3.4:2376',
-            dockerLog: 'https://1.2.3.4:2378'
+            dockerLog: 'https://1.2.3.4:2378',
+            is_testing: true
         });
 
         fixture.detectChanges();
@@ -160,7 +180,8 @@ describe('VCH Component Unit Test', () => {
             isContainer: false,
             dockerEndpoint: '-',
             dockerLog: '-',
-            powerState: 'poweredOff'
+            powerState: 'poweredOff',
+            is_testing: true
         });
 
         fixture.detectChanges();

@@ -89,9 +89,34 @@ func TestDelete(t *testing.T) {
 		createAppliance(ctx, validator.Session, conf, installSettings, false, t)
 
 		testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
+		//		testUpgrade(input.ComputeResourcePath, input.DisplayName, validator, installSettings, t) TODO: does not implement: CreateSnapshot_Task
 		testDeleteVCH(validator, conf, t)
 
 		testDeleteDatastoreFiles(validator, t)
+	}
+}
+
+func testUpgrade(computePath string, name string, v *validate.Validator, settings *data.InstallerData, t *testing.T) {
+	// TODO: add tests for rollback after snapshot func is added in vcsim
+	d := &Dispatcher{
+		session: v.Session,
+		ctx:     v.Context,
+		isVC:    v.Session.IsVC(),
+		force:   false,
+	}
+	vch, err := d.NewVCHFromComputePath(computePath, name, v)
+	if err != nil {
+		t.Errorf("Failed to get VCH: %s", err)
+		return
+	}
+	t.Logf("Got VCH %s, path %s", vch, path.Dir(vch.InventoryPath))
+	conf, err := d.GetVCHConfig(vch)
+	if err != nil {
+
+		t.Errorf("Failed to get vch configuration: %s", err)
+	}
+	if err := d.Upgrade(vch, conf, settings); err != nil {
+		t.Errorf("Failed to upgrade: %s", err)
 	}
 }
 
@@ -254,7 +279,8 @@ func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
 		return
 	}
 
-	if err = d.deleteFilesIteratively(m, ds, ds.Path("Test")); err != nil {
+	fm := ds.NewFileManager(d.session.Datacenter, true)
+	if err = d.deleteFilesIteratively(fm, ds, ds.Path("Test")); err != nil {
 		t.Errorf("Failed to delete recursively: %s", err)
 	}
 

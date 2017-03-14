@@ -21,14 +21,13 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 const (
-	linuxGuestID = "other3xLinux64Guest"
-
 	scsiBusNumber = 0
 	scsiKey       = 100
 	ideKey        = 200
@@ -69,7 +68,8 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	s.AddVirtualCdrom(cdrom)
 
 	// Set the guest id
-	s.GuestId = linuxGuestID
+	s.GuestId = string(types.VirtualMachineGuestOsIdentifierOtherGuest64)
+	s.AlternateGuestName = constants.DefaultAltContainerGuestName()
 
 	return &LinuxGuestType{
 		VirtualMachineConfigSpec: s,

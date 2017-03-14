@@ -39,7 +39,7 @@ HEADER[2]="^\/\/$"
 ERR=false
 FAIL=false
 
-for file in $(git ls-files | grep -e "\.go$" -e "Makefile$" -e "\.sh$" -e "\.bash$" | grep -v vendor/); do
+for file in $(git ls-files | grep -e "\.go$" -e "Makefile$" -e "\.sh$" -e "\.bash$" -e "\.robot$" | grep -v vendor/); do
   echo -n "Header check: $file... "
   # get the file extension / type
   ext=${file##*.}

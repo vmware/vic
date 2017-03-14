@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
@@ -29,6 +30,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
 	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/nfs"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -40,6 +42,11 @@ type StorageHandlersImpl struct {
 	imageCache  *spl.NameLookupCache
 	volumeCache *spl.VolumeLookupCache
 }
+
+const (
+	nfsScheme = "nfs"
+	dsScheme  = "ds"
+)
 
 // Configure assigns functions to all the storage api handlers
 func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
@@ -68,27 +75,9 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	// expensive metadata lookups.
 	h.imageCache = spl.NewLookupCache(ds)
 
-	// Get the datastores for volumes.
-	// Each volume store name maps to a datastore + path, which can be referred to by the name.
-	dstores, err := datastore.GetDatastores(op, handlerCtx.Session, spl.Config.VolumeLocations)
-	if err != nil {
-		log.Panicf("Cannot find datastores: %s", err)
-	}
-
-	h.volumeCache = spl.NewVolumeLookupCache(op)
-
-	// Add datastores to the vsphere volume store impl
-	for volStoreName, volDatastore := range dstores {
-		log.Infof("Adding volume store %s (%s)", volStoreName, volDatastore.RootURL)
-
-		vs, err := vsphere.NewVolumeStore(op, volStoreName, handlerCtx.Session, volDatastore)
-		if err != nil {
-			log.Errorf("Cannot instantiate the volume store: %s", err)
-		}
-
-		if _, err = h.volumeCache.AddStore(op, volStoreName, vs); err != nil {
-			op.Errorf("volume addition error %s", err)
-		}
+	// add the volume stores
+	if err = h.configureVolumeStores(op, handlerCtx); err != nil {
+		log.Panicf("Cannot instantiate volume stores: %s", err.Error())
 	}
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(h.CreateImageStore)
@@ -104,6 +93,59 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(h.VolumeJoin)
 	api.StorageListVolumesHandler = storage.ListVolumesHandlerFunc(h.VolumesList)
 	api.StorageGetVolumeHandler = storage.GetVolumeHandlerFunc(h.GetVolume)
+}
+
+func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) error {
+	var (
+		vs  spl.VolumeStorer
+		err error
+	)
+
+	h.volumeCache = spl.NewVolumeLookupCache(op)
+
+	// Configure the datastores
+	// Each volume store name maps to a datastore + path, which can be referred to by the name.
+	for name, dsurl := range spl.Config.VolumeLocations {
+		switch dsurl.Scheme {
+		case nfsScheme:
+			uid := nfs.DefaultUID
+
+			if dsurl.User != nil && dsurl.User.Username() != "" {
+				uid, err = strconv.Atoi(dsurl.User.Username())
+				if err != nil {
+					return err
+				}
+			}
+
+			// XXX replace with the vch name
+			mnt := nfs.NewMount(dsurl, "vic", uint32(uid), uint32(uid))
+			vs, err = nfs.NewVolumeStore(op, name, mnt)
+			if err != nil {
+				return err
+			}
+
+		case dsScheme:
+			ds, err := datastore.NewHelperFromURL(op, handlerCtx.Session, dsurl)
+			if err != nil {
+				return fmt.Errorf("cannot find datastores: %s", err)
+			}
+
+			vs, err = vsphere.NewVolumeStore(op, name, handlerCtx.Session, ds)
+			if err != nil {
+				return fmt.Errorf("cannot instantiate the volume store: %s", err)
+			}
+
+		default:
+			return fmt.Errorf("unknown scheme for %s", dsurl.String())
+		}
+
+		op.Infof("Adding volume store %s (%s)", name, dsurl.String())
+		if _, err = h.volumeCache.AddStore(op, name, vs); err != nil {
+			return fmt.Errorf("volume addition error %s", err)
+		}
+	}
+
+	return nil
 }
 
 // CreateImageStore creates a new image store
@@ -454,7 +496,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	//Note: Name should already be populated by now.
 	volume, err := h.volumeCache.VolumeGet(op, params.Name)
 	if err != nil {
-		log.Errorf("Volumes: StorageHandler : %#v", err)
+		op.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    http.StatusInternalServerError,
@@ -462,9 +504,17 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		})
 	}
 
-	actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	switch volume.Device.DiskPath().Scheme {
+	case nfsScheme:
+		actualHandle, err = nfs.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	case dsScheme:
+		actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	default:
+		err = fmt.Errorf("unknown scheme (%s) for Volume (%s)", volume.Device.DiskPath().Scheme, *volume)
+	}
+
 	if err != nil {
-		log.Errorf("Volumes: StorageHandler : %#v", err)
+		op.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    http.StatusInternalServerError,
@@ -472,7 +522,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		})
 	}
 
-	log.Infof("volume %s has been joined to a container", volume.ID)
+	op.Infof("volume %s has been joined to a container", volume.ID)
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }
 

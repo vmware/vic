@@ -179,58 +179,6 @@ Image files
 
 
 
-TLS Auth
-=======
-
-## Create VCH - defaults with --no-tls
-1. Issue the following command:
-```
-vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
-    --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso \
-    --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true \
-    --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} \
-    --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} \
-    --volume-store=%{TEST_DATASTORE}/test:${vol}
-```
-2. Run regression tests
-
-### Expected Outcome
-* Deployment succeeds
-* Regression tests pass
-
-
-## Create VCH - force accept target thumbprint
-1. Issue the following command:
-```
-vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" \
-    --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} \
-    --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-```
-2. Run regression tests
-
-### Expected Outcome
-* Deployment succeed
-* Regression test pass
-
-
-## Create VCH - Specified keys
-1. Generate key/cert files
-2. Specify key, cert files during creation
-
-### Expected Outcome
-* Command should succeed,
-* Docker is accessed through tls connection, and the key/cert previous generated can be used to access docker
-* Regression test pass
-
-
-## Create VCH - Invalid keys
-1. Specify key, cert files with mal-format files
-
-### Expected Outcome
-* Command fail for wrong key/cert file
-
-
-
 Timeout
 =======
 
@@ -240,6 +188,17 @@ Timeout
 ### Expected Outcome
 * Command fail for timeout error #1557
 
+
+Short time creation
+===================
+
+# Stop VCH creation immediately
+=============================
+1. Interrupt creation process after 2s, 
+2. Delete the VCH
+
+### Expected Outcome
+* Delete should succeed
 
 
 Appliance size

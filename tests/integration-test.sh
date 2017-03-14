@@ -29,7 +29,7 @@ elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); t
 elif (echo $buildinfo | grep -q "\[specific ci="); then
     buildtype=$(echo $buildinfo | grep "\[specific ci=")
     testsuite=$(echo $buildtype | awk -v FS="(=|])" '{print $2}')
-    pybot --removekeywords TAG:secret --suite $testsuite tests/test-cases
+    pybot --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
     pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
 fi
@@ -39,7 +39,7 @@ rc="$?"
 timestamp=$(date +%s)
 outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
-zip -9 $outfile output.xml log.html package.list *container-logs.zip *.log
+zip -9 $outfile output.xml log.html report.html package.list *container-logs.zip *.log
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"
@@ -53,9 +53,14 @@ echo "[GSUtil]" >> $botofile
 echo "content_language = en" >> $botofile
 echo "default_project_id = $GS_PROJECT_ID" >> $botofile
 
+
 if [ -f "$outfile" ]; then
   gsutil cp $outfile gs://vic-ci-logs
+  source "$(dirname "${BASH_SOURCE[0]}")/save-test-results.sh"
+
   echo "----------------------------------------------"
+  echo "View test logs:"
+  echo "https://vic-logs.vcna.io/$DRONE_BUILD_NUMBER/"
   echo "Download test logs:"
   echo "https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
   echo "----------------------------------------------"

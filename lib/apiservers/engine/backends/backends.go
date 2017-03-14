@@ -26,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/daemon/events"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
 
@@ -62,6 +63,8 @@ var (
 
 	insecureRegistries []string
 	RegistryCertPool   *x509.CertPool
+
+	eventService      *events.Events
 )
 
 func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec, insecureRegs []url.URL) error {
@@ -114,6 +117,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	if len(insecureRegistries) > 0 {
 		serviceOptions.InsecureRegistries = insecureRegistries
 	}
+
+	eventService = events.New()
 
 	return nil
 }
@@ -333,4 +338,8 @@ func loadRegistryCACerts() {
 	RegistryCertPool = rootCertPool
 
 	log.Debugf("Loaded %d CAs for registries from config", len(rootCertPool.Subjects()))
+}
+
+func EventService() *events.Events {
+	return eventService
 }

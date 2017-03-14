@@ -13,28 +13,54 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
+const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
     devtool: 'inline-source-map',
-    verbose: true,
+    context: path.resolve(__dirname, '../'),
+    entry: './config/karma-entry.ts',
     resolve: {
-        extensions: ['', '.ts', '.js', '.scss', '.html'],
-        modulesDirectories: ['node_modules', 'src']
+        extensions: ['.ts', '.js', '.scss', '.html'],
+        modules: ['node_modules', 'src']
     },
+    plugins: [
+        new webpack.ContextReplacementPlugin(
+            /angular(\\|\/)core(\\|\/)(esm(\\|\/)src|src)(\\|\/)linker/,
+            __dirname
+        )
+    ],
     module: {
-        loaders: [
+        rules: [
             {
                 test: /\.ts$/,
-                loaders: ['awesome-typescript-loader?sourceMap=false&inlineSourceMap=true', 'angular2-template-loader']
+                loaders: [
+                    'awesome-typescript-loader?sourceMap=false&inlineSourceMap=true',
+                    'angular2-template-loader'
+                ]
             },
-            {test: /\.json$/, loader: 'json-loader'},
-            {test: /\.html$/, loader: 'html-loader'},
-            {test: /\.scss$/, loaders: ['to-string-loader', 'css-loader', 'sass-loader']},
-            {test: /\.css$/, loaders: ['to-string-loader', 'css-loader']}
-        ],
-        postLoaders: [
+            {
+                test: /\.html$/,
+                loader: 'html-loader'
+            },
+            {
+                test: /\.scss$/,
+                use: [
+                    'to-string-loader',
+                    'css-loader',
+                    'sass-loader'
+                ]
+            },
+            {
+                test: /\.css$/,
+                loaders: [
+                    'to-string-loader',
+                    'css-loader'
+                ]
+            },
             {
                 test: /\.ts$/,
+                enforce: 'post',
                 loader: 'istanbul-instrumenter-loader',
                 exclude: [
                     'node_modules',

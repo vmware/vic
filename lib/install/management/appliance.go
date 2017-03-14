@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/docker/docker/opts"
 	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/opts"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -47,6 +47,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -81,7 +82,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
 
 	// if the moref of the target matches where we expect to find it for a VCH, run with it
-	if remoteConf.ExecutorConfig.ID == vm.Reference().String() {
+	if remoteConf.ExecutorConfig.ID == vm.Reference().String() || remoteConf.IsCreating() {
 		return true, nil
 	}
 
@@ -290,6 +291,9 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	var devices object.VirtualDeviceList
 	var err error
 
+	// set to creating VCH
+	conf.SetIsCreating(true)
+
 	cfg, err := d.encodeConfig(conf)
 	if err != nil {
 		return nil, err
@@ -297,11 +301,12 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
-			Name:     conf.Name,
-			GuestId:  "other3xLinux64Guest",
-			Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:  int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB: vConf.ApplianceSize.Memory.Limit,
+			Name:               conf.Name,
+			GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+			AlternateGuestName: constants.DefaultAltVCHGuestName(),
+			Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+			NumCPUs:            int32(vConf.ApplianceSize.CPU.Limit),
+			MemoryMB:           vConf.ApplianceSize.Memory.Limit,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
 			ExtraConfig: append(vmomi.OptionValueFromMap(cfg), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
@@ -444,6 +449,14 @@ func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, 
 	return []types.BaseVirtualDevice{serial}, nil
 }
 
+func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) {
+	if conf.HostCertificate != nil {
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
+	} else {
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
+	}
+}
+
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
@@ -498,12 +511,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 	log.Debugf("vm folder name: %q", d.vmPathName)
 	log.Debugf("vm inventory path: %q", vm2.InventoryPath)
-
-	conf.AddComponent("vicadmin", &executor.SessionConfig{
-		User:  "vicadmin",
-		Group: "vicadmin",
-		Cmd: executor.Cmd{
-			Path: "/sbin/vicadmin",
+	
+	vicadmin := executor.Cmd {
+		Path: "/sbin/vicadmin",
 			Args: []string{
 				"/sbin/vicadmin",
 				"--dc=" + settings.DatacenterName,
@@ -515,16 +525,24 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"GOTRACEBACK=all",
 			},
 			Dir: "/home/vicadmin",
-		},
+		
+	}
+	if settings.HTTPProxy != nil {
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+	}
+	if settings.HTTPSProxy != nil {
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+	}
+
+	conf.AddComponent("vicadmin", &executor.SessionConfig{
+		User:  "vicadmin",
+		Group: "vicadmin",
+		Cmd: vicadmin,
 		Restart: true,
 	},
 	)
 
-	if conf.HostCertificate != nil {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
-	} else {
-		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
-	}
+	d.setDockerPort(conf, settings)
 
 	personality := executor.Cmd{
 		Path: "/sbin/docker-engine-server",
@@ -627,9 +645,10 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 	var err error
 
 	spec := &types.VirtualMachineConfigSpec{
-		Name:    conf.Name,
-		GuestId: "other3xLinux64Guest",
-		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+		Name:               conf.Name,
+		GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
+		AlternateGuestName: constants.DefaultAltVCHGuestName(),
+		Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
 	// create new devices
@@ -754,7 +773,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 				}
 
 				if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
-					log.Debug("Unable add CAs from config to validation pool")
+					log.Warn("Unable add CAs from config to validation pool")
 				}
 
 				// tr.TLSClientConfig.ClientCAs = pool
@@ -777,20 +796,26 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 				cip := net.ParseIP(d.HostIP)
 				if err != nil {
-					log.Debugf("Unable to process client ip address: %s", err)
+					log.Debugf("Unable to process Docker API host address from %q: %s", d.HostIP, err)
 					tlsErrExpected = true
 					return
 				}
 
-				// find the name to use and override the IP
+				// find the name to use and override the IP if found
 				addr, err := addrToUse([]net.IP{cip}, cert, conf.CertificateAuthorities)
 				if err != nil {
-					log.Warn("Unable to determine address to use with remote certificate, skipping API liveliness checks")
-					tlsErrExpected = true
-					return
+					log.Debugf("Unable to determine address to use with remote certificate, checking SANs")
+					addr, _ = viableHostAddress([]net.IP{cip}, cert, conf.CertificateAuthorities)
+					log.Debugf("Using host address: %s", addr)
 				}
-
-				d.HostIP = addr
+				if addr != "" {
+					d.HostIP = addr
+				} else {
+					log.Debug("Failed to find a viable address for Docker API from certificates")
+					// Server certificate won't validate since we don't have a hostname
+					tlsErrExpected = true
+				}
+				log.Debugf("Host address set to: %q", d.HostIP)
 			}()
 		}
 
@@ -895,9 +920,25 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 				case x509.UnknownAuthorityError:
 					// This will occur if the server certificate was signed by a CA that is not the one used for client authentication
 					// and does not have a trusted root registered on the system running vic-machine
-					// This is a legitimate deployment so no error, but definitely requires a warning.
-					log.Warnf("Unable to verify server certificate with configured CAs: %s", neterr.Error())
-					return nil
+					msg := fmt.Sprintf("Unable to validate server certificate with configured CAs (unknown CA): %s", neterr.Error())
+					if tlsErrExpected {
+						// Legitimate deployment so no error, but definitely requires a warning.
+						log.Warn(msg)
+						return nil
+					}
+					// TLS error not expected, the validation failure is a problem
+					log.Error(msg)
+					return neterr
+
+				case x509.HostnameError:
+					// e.g. "doesn't contain any IP SANs"
+					msg := fmt.Sprintf("Server certificate hostname doesn't match: %s", neterr.Error())
+					if tlsErrExpected {
+						log.Warn(msg)
+						return nil
+					}
+					log.Error(msg)
+					return neterr
 
 				default:
 					log.Debugf("Unhandled net error type: %#v", neterr)
@@ -947,7 +988,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		log.Debugf("Obtained IP address for client interface: %q", d.HostIP)
+		log.Infof("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 
@@ -994,4 +1035,40 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	return fmt.Errorf("Failed to get IP address information from appliance: %s", updateErr)
+}
+
+// CheckServiceReady checks if service is launched correctly, including ip address, service initialization, VC connection and Docker API
+// Should expand this method for any more VCH service checking
+func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
+	oldCtx := d.ctx
+	d.ctx = ctx
+	defer func() {
+		d.ctx = oldCtx
+	}()
+
+	if err := d.ensureApplianceInitializes(conf); err != nil {
+		return err
+	}
+
+	// vic-init will try to reach out to the vSphere target.
+	log.Info("Checking VCH connectivity with vSphere target")
+	// Checking access to vSphere API
+	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target); err == nil {
+		code := int(cd)
+		if code > 0 {
+			log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		} else {
+			log.Infof("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
+		}
+	} else {
+		log.Warningf("Could not run VCH vSphere API target check due to %v but the VCH may still function normally", err)
+	}
+
+	if err := d.CheckDockerAPI(conf, clientCert); err != nil {
+		err = errors.Errorf("Docker API endpoint check failed: %s", err)
+		// log with info cause this might not be an error
+		log.Info(err.Error())
+		return err
+	}
+	return nil
 }

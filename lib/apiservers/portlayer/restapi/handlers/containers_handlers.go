@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -360,6 +361,17 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		return containers.NewGetContainerLogsInternalServerError()
 	}
 
+	// containers with DataVersion > 0 will use updated output logging on the backend
+	if container.DataVersion > 0 {
+		ts := false
+		if params.Timestamp != nil {
+			ts = *params.Timestamp
+		}
+
+		// wrap the reader in a LogReader to deserialize persisted containerVM output
+		reader = iolog.NewLogReader(reader, ts)
+	}
+
 	detachableOut := NewFlushingReader(reader)
 
 	return NewContainerOutputHandler("logs").WithPayload(detachableOut, params.ID)
@@ -409,6 +421,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		ProcessConfig:   &models.ProcessConfig{},
 		VolumeConfig:    make([]*models.VolumeConfig, 0),
 		Endpoints:       make([]*models.EndpointConfig, 0),
+		DataVersion:     int64(container.DataVersion),
 	}
 
 	// Populate volume information
@@ -422,8 +435,15 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = ccid
 
-	s := container.State().String()
-	info.ContainerConfig.State = s
+	var state string
+	if container.MigrationError != nil {
+		state = "error"
+		info.ProcessConfig.ErrorMsg = fmt.Sprintf("Migration failed: %s", container.MigrationError.Error())
+		info.ProcessConfig.Status = state
+	} else {
+		state = container.State().String()
+	}
+	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
 	info.ContainerConfig.CreateTime = container.ExecConfig.CreateTime

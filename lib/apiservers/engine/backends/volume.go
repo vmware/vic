@@ -53,6 +53,13 @@ var validDriverOptsKeys = map[string]struct{}{
 	DriverArgImageKey:     {},
 }
 
+// Volume drivers currently supported. "local" is the default driver supplied by the client
+// and is equivalent to "vsphere" for our implementation.
+var supportedVolDrivers = map[string]struct{}{
+	"vsphere": struct{}{},
+	"local":   struct{}{},
+}
+
 //Validation pattern for Volume Names
 var volumeNameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
 
@@ -344,11 +351,8 @@ func extractDockerMetadata(metadataMap map[string]string) (*volumeMetadata, erro
 // Utility Functions
 
 func newVolumeCreateReq(name, driverName string, volumeData, labels map[string]string) (*models.VolumeRequest, error) {
-	defaultDriver := driverName == "local"
-	vsphereDriver := driverName == "vsphere"
-
-	if !defaultDriver && !vsphereDriver {
-		return nil, fmt.Errorf("Error looking up volume plugin %s: plugin not found", driverName)
+	if _, ok := supportedVolDrivers[driverName]; !ok {
+		return nil, fmt.Errorf("error looking up volume plugin %s: plugin not found", driverName)
 	}
 
 	if !volumeNameRegex.Match([]byte(name)) && name != "" {

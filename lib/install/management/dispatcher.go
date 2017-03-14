@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,14 +85,14 @@ func NewDispatcher(ctx context.Context, s *session.Session, conf *config.Virtual
 		force:   force,
 	}
 	if conf != nil {
-		e.InitDiagnosticLogs(conf)
+		e.InitDiagnosticLogsFromConf(conf)
 	}
 	return e
 }
 
-// Get the current log header LineEnd of the hostd/vpxd logs.
+// Get the current log header LineEnd of the hostd/vpxd logs based on VCH configuration
 // With this we avoid collecting log file data that existed prior to install.
-func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigSpec) {
+func (d *Dispatcher) InitDiagnosticLogsFromConf(conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	if d.isVC {
@@ -101,35 +101,35 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigS
 	}
 
 	var err error
+	// try best to get datastore and cluster, but do not return for any error. The least is to collect VC log only
 	if d.session.Datastore == nil {
-		if len(conf.ImageStores) == 0 {
-			log.Errorf("Image datastore is empty")
-			return
-
+		if len(conf.ImageStores) > 0 {
+			if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
+				log.Debugf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
+			} else {
+				log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
+			}
+		} else {
+			log.Debugf("Image datastore is empty")
 		}
-		if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
-			log.Errorf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
-			return
-		}
-		log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
 	}
 	// find the host(s) attached to given storage
 	if d.session.Cluster == nil {
 		if len(conf.ComputeResources) > 0 {
 			rp := compute.NewResourcePool(d.ctx, d.session, conf.ComputeResources[0])
 			if d.session.Cluster, err = rp.GetCluster(d.ctx); err != nil {
-				log.Errorf("Unable to get cluster for given resource pool %s: %s", conf.ComputeResources[0], err)
-				return
+				log.Debugf("Unable to get cluster for given resource pool %s: %s", conf.ComputeResources[0], err)
 			}
 		} else {
-			log.Errorf("Compute resource is empty")
-			return
+			log.Debugf("Compute resource is empty")
 		}
 	}
-	hosts, err := d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
-	if err != nil {
-		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
-		return
+	var hosts []*object.HostSystem
+	if d.session.Datastore != nil {
+		hosts, err = d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
+		if err != nil {
+			log.Debugf("Unable to get the list of hosts attached to given storage: %s", err)
+		}
 	}
 
 	if d.session.Host == nil {
@@ -154,6 +154,56 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigS
 	m := diagnostic.NewDiagnosticManager(d.session)
 
 	for k, l := range diagnosticLogs {
+		if l == nil {
+			continue
+		}
+		// get LineEnd without any LineText
+		h, err := m.BrowseLog(d.ctx, l.host, l.key, math.MaxInt32, 0)
+		if err != nil {
+			log.Warnf("Disabling %s %s collection (%s)", k, l.name, err)
+			diagnosticLogs[k] = nil
+			continue
+		}
+
+		l.start = h.LineEnd
+	}
+}
+
+// Get the current log header LineEnd of the hostd/vpxd logs based on vch VM hardwares, cause VCH configuration might not be available at this time
+// With this we avoid collecting log file data that existed prior to install.
+func (d *Dispatcher) InitDiagnosticLogsFromVCH(vch *vm.VirtualMachine) {
+	defer trace.End(trace.Begin(""))
+
+	if d.isVC {
+		diagnosticLogs[d.session.ServiceContent.About.InstanceUuid] =
+			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
+	}
+
+	var err error
+	// where the VM is running
+	ds, err := d.getImageDatastore(vch, nil, true)
+	if err != nil {
+		log.Debugf("Failure finding image store from VCH VM %s: %s", vch.Reference(), err.Error())
+	}
+	var hosts []*object.HostSystem
+	if ds != nil {
+		hosts, err = ds.AttachedClusterHosts(d.ctx, d.session.Cluster)
+		if err != nil {
+			log.Debugf("Unable to get the list of hosts attached to given storage: %s", err)
+		}
+	}
+
+	for _, host := range hosts {
+		diagnosticLogs[host.Reference().Value] =
+			&diagnosticLog{"hostd", "hostd.log", 0, host, false}
+	}
+
+	m := diagnostic.NewDiagnosticManager(d.session)
+
+	for k, l := range diagnosticLogs {
+		if l == nil {
+			continue
+		}
 		// get LineEnd without any LineText
 		h, err := m.BrowseLog(d.ctx, l.host, l.key, math.MaxInt32, 0)
 
@@ -256,23 +306,27 @@ func (d *Dispatcher) CheckAccessToVCAPI(ctx context.Context, vch *vm.VirtualMach
 	return pm.StartProgram(ctx, &auth, &spec)
 }
 
-// given a set of IP addresses this will determine what address, if any, can be used to
-// connect to the host certificate
-// if none can be found, will return empty string and an err
+// addrToUse given candidateIPs, determines an address in cert that resolves to
+// a candidateIP - this address can be used as the remote address to connect to with
+// cert to ensure that certificate validation is successful
+// if none can be found, return empty string and an err
 func addrToUse(candidateIPs []net.IP, cert *x509.Certificate, cas []byte) (string, error) {
 	if cert == nil {
 		return "", errors.New("unable to determine suitable address with nil certificate")
 	}
 
-	log.Debug("Loading CAs for client auth")
-	pool := x509.NewCertPool()
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		log.Warnf("Failed to load system cert pool: %s. Using empty pool.", err)
+		pool = x509.NewCertPool()
+	}
 	pool.AppendCertsFromPEM(cas)
 
 	// update target to use FQDN
 	for _, ip := range candidateIPs {
 		names, err := net.LookupAddr(ip.String())
 		if err != nil {
-			log.Debugf("Unable to perform reverse lookup of IP address: %s", err)
+			log.Debugf("Unable to perform reverse lookup of IP address %s: %s", ip, err)
 		}
 
 		// check all the returned names, and lastly the raw IP
@@ -285,12 +339,12 @@ func addrToUse(candidateIPs []net.IP, cert *x509.Certificate, cas []byte) (strin
 			_, err := cert.Verify(opts)
 			if err == nil {
 				// this identifier will work
-				log.Debugf("Matched %s for use against host certificate", n)
+				log.Debugf("Matched %q for use against host certificate", n)
 				// trim '.' fqdn suffix if fqdn
 				return strings.TrimSuffix(n, "."), nil
 			}
 
-			log.Debugf("Checked %s, no match for host cert", n)
+			log.Debugf("Checked %q, no match for host certificate", n)
 		}
 	}
 
@@ -325,11 +379,14 @@ func viableHostAddress(candidateIPs []net.IP, cert *x509.Certificate, cas []byte
 	// turn the DNS names into IPs
 	for _, n := range dnsnames {
 		// see which resolve from here
-		ips, _ := net.LookupIP(n)
-		if len(ips) == 0 {
+		ips, err := net.LookupIP(n)
+		if err != nil {
+			log.Debugf("Unable to perform IP lookup of %q: %s", n, err)
+		}
+		// Allow wildcard names for later validation
+		if len(ips) == 0 && !strings.HasPrefix(n, "*") {
 			log.Debugf("Discarding name from viable set: %s", n)
 			continue
-
 		}
 
 		candidateIPs = append(candidateIPs, ips...)

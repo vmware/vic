@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,8 +44,9 @@ import (
 	"github.com/vmware/vic/pkg/version"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/go-units"
 )
@@ -144,6 +145,18 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	} else {
 		customInfo := [2]string{volumeStoresID, volumeStoreString}
 		info.SystemStatus = append(info.SystemStatus, customInfo)
+
+		// Show a list of supported volume drivers if there's at least one volume
+		// store configured for the VCH. "local" is excluded because it's the default
+		// driver supplied by the Docker client and is equivalent to "vsphere" in
+		// our implementation.
+		if len(volumeStoreString) > 0 {
+			for driver := range supportedVolDrivers {
+				if driver != "local" {
+					info.Plugins.Volume = append(info.Plugins.Volume, driver)
+				}
+			}
+		}
 	}
 
 	if s.systemProxy.PingPortlayer() {
@@ -247,12 +260,16 @@ func (s *System) SystemDiskUsage() (*types.DiskUsage, error) {
 	return nil, fmt.Errorf("%s does not yet implement SystemDiskUsage", ProductName())
 }
 
-func (s *System) SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{}) {
-	return make([]events.Message, 0, 0), make(chan interface{})
+func (s *System) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]eventtypes.Message, chan interface{}) {
+	defer trace.End(trace.Begin(""))
+
+	ef := events.NewFilter(filter)
+	return EventService().SubscribeTopic(since, until, ef)
 }
 
-func (s *System) UnsubscribeFromEvents(chan interface{}) {
-
+func (s *System) UnsubscribeFromEvents(listener chan interface{}) {
+	defer trace.End(trace.Begin(""))
+	EventService().Evict(listener)
 }
 
 func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {

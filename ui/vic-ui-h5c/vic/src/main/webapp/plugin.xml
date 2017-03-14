@@ -19,36 +19,85 @@
       <dependency type="css" uri="vic/assets/css/plugin-icons.css" />
    </dependencies>
 
-   <templateInstance id="com.vmware.vic.viewTemplateInstance">
-       <templateId>vsphere.core.inventory.objectViewTemplate</templateId>
-       <variable name="namespace" value="com.vmware.vic.objectView"/>
-       <variable name="objectType" value="vic:dashboard"/>
-       <excludedExtension>com.vmware.vic.objectView.related</excludedExtension>
-   </templateInstance>
-
    <templateInstance id="com.vmware.vic.objectView.lists.allDashboards">
        <templateId>vsphere.core.inventorylist.objectCollectionTemplate</templateId>
-       <variable name="namespace" value="com.vmware.vic.objectView"/>
+       <variable name="namespace" value="com.vmware.vic.objectView_collection"/>
        <variable name="title" value="vSphere Integrated Containers"/>
-       <variable name="icon" value="#{addIcon}"/>
-       <variable name="objectType" value="vic:dashboard"/>
+       <variable name="icon" value="#{viinventory.vic.icon}"/>
+       <variable name="objectType" value="vic:Root"/>
        <variable name="listViewId" value="com.vmware.vic.objectView.list"/>
        <variable name="parentUid" value="vsphere.core.navigator.viInventoryLists"/>
    </templateInstance>
 
-   <!-- <extension id="com.vmware.vic.objectView.summaryView">
+   <templateInstance id="com.vmware.vic.viewTemplateInstance">
+       <templateId>vsphere.core.inventory.objectViewTemplate</templateId>
+       <variable name="namespace" value="com.vmware.vic.objectView"/>
+       <variable name="objectType" value="vic:Root"/>
+       <excludedExtension>com.vmware.vic.objectView.related</excludedExtension>
+   </templateInstance>
+
+   <extension id="com.vmware.vic.objectView.lists.rootColumns">
+      <extendedPoint>com.vmware.vic.objectView.list.columns</extendedPoint>
+      <object>
+         <items>
+            <com.vmware.ui.lists.ColumnContainer>
+               <uid>com.vmware.vic.objectView.column.name</uid>
+               <dataInfo>
+                  <com.vmware.ui.lists.ColumnDataSourceInfo>
+                     <headerText>Name</headerText>
+                     <requestedProperties>
+                        <String>name</String>
+                     </requestedProperties>
+                     <sortProperty>name</sortProperty>
+                     <exportProperty>name</exportProperty>
+                  </com.vmware.ui.lists.ColumnDataSourceInfo>
+                  <com.vmware.ui.lists.ColumnDataSourceInfo>
+                     <headerText># of VCH VMs</headerText>
+                     <requestedProperties>
+                        <String>vchVmsLen</String>
+                     </requestedProperties>
+                     <sortProperty>vchVmsLen</sortProperty>
+                     <exportProperty>vchVmsLen</exportProperty>
+                  </com.vmware.ui.lists.ColumnDataSourceInfo>
+                  <com.vmware.ui.lists.ColumnDataSourceInfo>
+                     <headerText># of Container VMs</headerText>
+                     <requestedProperties>
+                        <String>containerVmsLen</String>
+                     </requestedProperties>
+                     <sortProperty>containerVmsLen</sortProperty>
+                     <exportProperty>containerVmsLen</exportProperty>
+                  </com.vmware.ui.lists.ColumnDataSourceInfo>
+               </dataInfo>
+            </com.vmware.ui.lists.ColumnContainer>
+         </items>
+      </object>
+   </extension>
+
+   <extension id="com.vmware.samples.chassisa.iconLabelSpecCollection">
+      <extendedPoint>vise.inventory.representationspecs</extendedPoint>
+      <object>
+         <objectType>vic:Root</objectType>
+         <specCollection>
+            <com.vmware.ui.objectrepresentation.model.IconLabelSpec>
+               <iconId>#{vic-root-icon}</iconId>
+            </com.vmware.ui.objectrepresentation.model.IconLabelSpec>
+         </specCollection>
+      </object>
+   </extension>
+
+   <extension id="com.vmware.vic.objectView.summaryView">
        <extendedPoint>com.vmware.vic.objectView.summaryViews</extendedPoint>
        <object>
-           <name>SUMMARY</name>
+           <name>Summary</name>
            <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">
                <object>
                    <root>
-                       <url>/vsphere-client/chassisa/resources/chassis-summary.html</url>
+                       <url>/vsphere-client/vic/resources/build-dev/index.html?view=summary-view</url>
                    </root>
                </object>
            </componentClass>
        </object>
-   </extension> -->
+   </extension>
 
    <extension id="com.vmware.vic.homeShortcut">
        <extendedPoint>vise.home.shortcuts</extendedPoint>
@@ -56,7 +105,7 @@
            <name>vSphere Integrated Containers</name>
            <categoryUid>vsphere.core.controlcenter.inventoriesCategory</categoryUid>
            <icon>#{home.shortcut.icon}</icon>
-           <targetViewUid>com.vmware.vic.objectView.domainView</targetViewUid>
+           <targetViewUid>com.vmware.vic.objectView_collection.domainView</targetViewUid>
        </object>
    </extension>
 
@@ -67,7 +116,7 @@
          <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">
             <object>
                <root>
-                  <url>/vsphere-client/vic/resources/build-dev</url>
+                  <url>/vsphere-client/vic/resources/build-dev/index.html?view=portlet</url>
                </root>
             </object>
          </componentClass>
@@ -98,7 +147,7 @@
          <componentClass className="com.vmware.vsphere.client.htmlbridge.HtmlView">
             <object>
                <root>
-                  <url>/vsphere-client/vic/resources/build-dev</url>
+                  <url>/vsphere-client/vic/resources/build-dev/index.html?view=portlet</url>
                </root>
             </object>
          </componentClass>

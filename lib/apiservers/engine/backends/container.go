@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	dnetwork "github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
@@ -305,6 +306,10 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 	log.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
 		container.Name, container.ContainerID, container.Config, container.HostConfig)
 
+	// Add create event
+	actor := CreateContainerEventActorWithAttributes(container, map[string]string{})
+	EventService().Log("create", eventtypes.ContainerEventType, actor)
+
 	return containertypes.ContainerCreateCreatedBody{ID: id}, nil
 }
 
@@ -369,6 +374,12 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 	}
 
 	err := c.containerProxy.Signal(vc, sig)
+	if err == nil {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"signal": fmt.Sprintf("%d", sig)})
+
+		EventService().Log("kill", eventtypes.ContainerEventType, actor)
+
+	}
 
 	return err
 }
@@ -400,7 +411,17 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	plHeight := int32(height)
 	plWidth := int32(width)
 
-	return c.containerProxy.Resize(vc, plHeight, plWidth)
+	var err error
+	if err = c.containerProxy.Resize(vc, plHeight, plWidth); err == nil {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
+			"height": fmt.Sprintf("%d", height),
+			"width":  fmt.Sprintf("%d", width),
+		})
+
+		EventService().Log("resize", eventtypes.ContainerEventType, actor)
+	}
+
+	return err
 }
 
 // ContainerRestart stops and starts a container. It attempts to
@@ -432,6 +453,9 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
 	}
 
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log("restart", eventtypes.ContainerEventType, actor)
+
 	return nil
 }
 
@@ -457,8 +481,18 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 	// Use the force and stop the container first
 	secs := 0
+
 	if config.ForceRemove {
 		c.containerProxy.Stop(vc, name, &secs, true)
+	} else {
+		state, err := c.containerProxy.State(vc)
+		if err != nil {
+			return err
+		}
+		// force stop if container state is error to make sure container is deletable later
+		if state.Status == ContainerError {
+			c.containerProxy.Stop(vc, name, &secs, true)
+		}
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -512,12 +546,12 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 				// port bindings were cleaned up by another operation.
 				continue
 			}
-			running, err := c.containerProxy.IsRunning(cc)
+			state, err := c.containerProxy.State(cc)
 			if err != nil {
 				return fmt.Errorf("Failed to get container %q power state: %s",
 					mappedCtr, err)
 			}
-			if running {
+			if state.Running {
 				log.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
 				continue
 			}
@@ -921,6 +955,10 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
+
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log("stop", eventtypes.ContainerEventType, actor)
+
 	return nil
 }
 
@@ -1332,6 +1370,12 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log("attach", eventtypes.ContainerEventType, actor)
+	defer func() {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+		EventService().Log("detach", eventtypes.ContainerEventType, actor)
+	}()
 	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
@@ -1618,6 +1662,7 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.Config.OpenStdin = config.Config.OpenStdin
 	vc.Config.StdinOnce = config.Config.StdinOnce
 	vc.Config.StopSignal = config.Config.StopSignal
+	vc.Config.Volumes = config.Config.Volumes
 	vc.HostConfig = config.HostConfig
 }
 
@@ -1702,7 +1747,7 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 	}
 
 	unsupported := func(opt string) (int64, int64, error) {
-		return 0, 0, fmt.Errorf("%s does not yet support '--%s'", ProductName(), opt)
+		return 0, 0, fmt.Errorf("container %s does not support '--%s'", vc.ContainerID, opt)
 	}
 
 	tailLines := int64(-1)
@@ -1723,8 +1768,20 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 		since = time.Unix(s, n)
 	}
 
+	// TODO(jzt): this should not require an extra call to the portlayer. We should
+	// update container.DataVersion when we hydrate the container cache at VCH startup
+	// see https://github.com/vmware/vic/issues/4194
 	if config.Timestamps {
-		return unsupported("timestamps")
+		// check container DataVersion to make sure it's supported
+		params := containers.NewGetContainerInfoParams()
+		params.SetID(vc.ContainerID)
+		info, err := PortLayerClient().Containers.GetContainerInfo(params)
+		if err != nil {
+			return 0, 0, err
+		}
+		if info.Payload.DataVersion == 0 {
+			return unsupported("timestamps")
+		}
 	}
 
 	if config.Since != "" {
@@ -1732,4 +1789,21 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 	}
 
 	return tailLines, since.Unix(), nil
+}
+
+func CreateContainerEventActorWithAttributes(vc *viccontainer.VicContainer, attributes map[string]string) eventtypes.Actor {
+	if vc.Config != nil {
+		for k, v := range vc.Config.Labels {
+			attributes[k] = v
+		}
+	}
+	if vc.Config.Image != "" {
+		attributes["image"] = vc.Config.Image
+	}
+	attributes["name"] = strings.TrimLeft(vc.Name, "/")
+
+	return eventtypes.Actor{
+		ID:         vc.ContainerID,
+		Attributes: attributes,
+	}
 }

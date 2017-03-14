@@ -41,6 +41,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -50,15 +51,15 @@ import (
 	"github.com/google/uuid"
 	httpclient "github.com/mreiferson/go-httpclient"
 
-	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/api/errors"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	dnetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/go-connections/nat"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/go-connections/nat"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -86,7 +87,7 @@ type VicContainerProxy interface {
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
-	IsRunning(vc *viccontainer.VicContainer) (bool, error)
+	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
@@ -122,6 +123,11 @@ const (
 	DriverArgFlagKey      = "flags"
 	DriverArgContainerKey = "container"
 	DriverArgImageKey     = "image"
+
+	ContainerRunning = "running"
+	ContainerError   = "error"
+	ContainerStopped = "stopped"
+	ContainerExited  = "exited"
 )
 
 // NewContainerProxy creates a new ContainerProxy
@@ -476,12 +482,13 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	// we have a container on the PL side lets check the state before proceeding
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
 	// TODO: can be replaced with simple cache check once power events are propagated to persona
-	running, err := c.IsRunning(vc)
+	state, err := c.State(vc)
 	if err != nil && IsNotFoundError(err) {
 		cache.ContainerCache().DeleteContainer(vc.ContainerID)
 		return err
 	}
-	if !running {
+	// attempt to stop container if status is running or broken
+	if !state.Running && state.Status != ContainerError {
 		return nil
 	}
 
@@ -536,33 +543,31 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	return nil
 }
 
-// IsRunning returns true if the given container is running
-func (c *ContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) {
+// State returns container state
+func (c *ContainerProxy) State(vc *viccontainer.VicContainer) (*types.ContainerState, error) {
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return false, InternalServerError("ContainerProxy.IsRunning failed to get a portlayer client")
+		return nil, InternalServerError("ContainerProxy.State failed to get a portlayer client")
 	}
 
 	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
-			return false, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
+			return nil, NotFoundError(vc.Name)
 		case *containers.GetContainerInfoInternalServerError:
-			return false, InternalServerError(err.Payload.Message)
+			return nil, InternalServerError(err.Payload.Message)
 		default:
-			return false, InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
+			return nil, InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
 	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, c.portlayerName)
 	if err != nil {
-		log.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
-		return false, err
+		return nil, err
 	}
-
-	return inspectJSON.State.Running, nil
+	return inspectJSON.State, nil
 }
 
 func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (
@@ -625,11 +630,14 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		return InternalServerError("Signal failed to create a portlayer client")
 	}
 
-	if running, err := c.IsRunning(vc); !running && err == nil {
+	if state, err := c.State(vc); !state.Running && err == nil {
 		return fmt.Errorf("%s is not running", vc.ContainerID)
 	}
 
-	// If request wasn't for sigkill, we simply pass on the signal to the container
+	// If Docker CLI sends sig == 0, we use sigkill
+	if sig == 0 {
+		sig = uint64(syscall.SIGKILL)
+	}
 	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(sig))
 	if _, err := client.Containers.ContainerSignal(params); err != nil {
 		switch err := err.(type) {
@@ -642,7 +650,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 		}
 	}
 
-	if running, err := c.IsRunning(vc); !running && err == nil {
+	if state, err := c.State(vc); !state.Running && err == nil {
 		// unmap ports
 		if err = UnmapPorts(vc.HostConfig); err != nil {
 			return err
@@ -899,8 +907,8 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		NetworkName: cc.HostConfig.NetworkMode.NetworkName(),
 	}
 
-	// Docker copies Links to NetworkConfig only if it is a UserDefined network, handle that
-	if !cc.HostConfig.NetworkMode.IsUserDefined() && len(cc.HostConfig.Links) > 0 {
+	// Docker supports link for bridge network and user defined network, we should handle that
+	if len(cc.HostConfig.Links) > 0 {
 		nc.Aliases = append(nc.Aliases, cc.HostConfig.Links...)
 	}
 
@@ -1095,10 +1103,10 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		containerState.Status = strings.ToLower(info.ContainerConfig.State)
 
 		// https://github.com/docker/docker/blob/master/container/state.go#L77
-		if containerState.Status == "stopped" {
-			containerState.Status = "exited"
+		if containerState.Status == ContainerStopped {
+			containerState.Status = ContainerExited
 		}
-		if containerState.Status == "running" {
+		if containerState.Status == ContainerRunning {
 			containerState.Running = true
 		}
 
@@ -1267,12 +1275,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 		container.StopSignal = imageConfig.ContainerConfig.StopSignal // Signal to stop a container
 
 		container.OnBuild = imageConfig.ContainerConfig.OnBuild // ONBUILD metadata that were defined on the image Dockerfile
-
-		// Fill in information about the container's volumes
-		// FIXME:  Why does types.ContainerJSON have Mounts and also ContainerConfig,
-		// which also has Volumes?  Assuming this is a copy from image's container
-		// config till we figure this out.
-		container.Volumes = imageConfig.ContainerConfig.Volumes
 	}
 
 	// Pull labels from the annotation

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,18 +29,26 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 	defer trace.End(trace.Begin("vsphere.VolumeJoin"))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
-		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.ExecConfig.ID)
+		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec config", volume.ID, handle.ExecConfig.ID)
 	}
 
-	newMountSpec := executor.MountSpec{
-		Source: url.URL{
-			Scheme: "label",
-			Path:   volume.Label,
-		},
-		Path: mountPath,
-		Mode: diskOpts["Mode"],
-	}
+	//constuct MountSpec for the tether
+	mountSpec := createMountSpec(volume, mountPath, diskOpts)
 
+	//append a device addition spec change to the container config
+	diskDevice := createVolumeVirtualDisk(volume)
+	config := createDeviceConfigSpec(diskDevice)
+	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
+
+	if handle.ExecConfig.Mounts == nil {
+		handle.ExecConfig.Mounts = make(map[string]executor.MountSpec)
+	}
+	handle.ExecConfig.Mounts[volume.ID] = mountSpec
+
+	return handle, nil
+}
+
+func createVolumeVirtualDisk(volume *storage.Volume) *types.VirtualDisk {
 	unitNumber := int32(-1)
 	diskDevice := &types.VirtualDisk{
 		CapacityInKB: 0,
@@ -56,18 +64,27 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 			},
 		},
 	}
+	return diskDevice
+}
 
+func createDeviceConfigSpec(diskDevice *types.VirtualDisk) *types.VirtualDeviceConfigSpec {
 	config := &types.VirtualDeviceConfigSpec{
 		Device:        diskDevice,
 		Operation:     types.VirtualDeviceConfigSpecOperationAdd,
 		FileOperation: "", //blank for existing disk
 	}
+	return config
+}
 
-	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
-	if handle.ExecConfig.Mounts == nil {
-		handle.ExecConfig.Mounts = make(map[string]executor.MountSpec)
+func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[string]string) executor.MountSpec {
+	deviceMode := diskOpts["Mode"]
+	newMountSpec := executor.MountSpec{
+		Source: url.URL{
+			Scheme: "label",
+			Path:   volume.Label,
+		},
+		Path: mountPath,
+		Mode: deviceMode,
 	}
-	handle.ExecConfig.Mounts[volume.ID] = newMountSpec
-
-	return handle, nil
+	return newMountSpec
 }

@@ -1,3 +1,17 @@
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
 *** Settings ***
 Documentation  This resource contains any keywords dealing with operations being performed on a Vsphere instance, mostly govc wrappers
 
@@ -168,7 +182,7 @@ Change Log Level On Server
 Add Vsphere License
     [Tags]  secret
     [Arguments]  ${license}
-    ${out}=  Run  govc license.add ${license} 
+    ${out}=  Run  govc license.add ${license}
     Should Contain  ${out}  Key:
 
 Assign Vsphere License
@@ -176,3 +190,28 @@ Assign Vsphere License
     [Arguments]  ${license}  ${host}
     ${out}=  Run  govc license.assign -host ${host} ${license}
     Should Contain  ${out}  Key:
+
+Add Host To VCenter
+    [Arguments]  ${host}  ${user}  ${dc}  ${pw}
+    :FOR  ${idx}  IN RANGE  1  4
+    \   ${out}=  Run  govc cluster.add -hostname=${host} -username=${user} -dc=${dc} -password=${pw} -noverify=true
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  OK
+    \   Return From Keyword If  ${status}
+    Fail  Failed to add the host to the VC in 3 attempts
+
+Get Host Firewall Enabled
+    ${output}=  Run  govc host.esxcli network firewall get
+    Should Contain  ${output}  Enabled
+    @{output}=  Split To Lines  ${output}
+    :FOR  ${line}  IN  @{output}
+    \   Run Keyword If  "Enabled" in '''${line}'''  Set Test Variable  ${out}  ${line}
+    ${enabled}=  Fetch From Right  ${out}  :
+    ${enabled}=  Strip String  ${enabled}
+    Return From Keyword If  '${enabled}' == 'false'  ${false}
+    Return From Keyword If  '${enabled}' == 'true'  ${true}
+
+Enable Host Firewall
+    Run  govc host.esxcli network firewall set --enabled true
+
+Disable Host Firewall
+    Run  govc host.esxcli network firewall set --enabled false

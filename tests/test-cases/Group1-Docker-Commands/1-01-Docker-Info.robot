@@ -1,3 +1,17 @@
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
 *** Settings ***
 Documentation  Test 1-01 - Docker Info
 Resource  ../../resources/Util.robot
@@ -49,10 +63,12 @@ Set resource pool CPU and mem limits
 
 *** Test Cases ***
 Basic Info
-    Log To Console  \nRunning docker info command...
-    ${output}=  Run  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  vSphere
+    ${volpluginline}=  Get Lines Containing String  ${output}  Volume:
+    Should Contain  ${volpluginline}  vsphere
 
 Debug Info
     ${status}=  Get State Of Github Issue  780
@@ -114,7 +130,19 @@ Check updated resource pool CPU and memory usages
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-    Sleep  10s  wait for vsphere stats update
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+
+    Sleep  60s  wait for vsphere stats update
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
     Should Be Equal As Integers  ${rc}  0
