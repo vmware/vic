@@ -14,6 +14,15 @@
 # limitations under the License.
 
 # Install sudo and ESX-optimized kernel
-tdnf --assumeyes install sudo linux-esx docker
+tdnf install -y sudo linux-esx rsync lvm2 docker gawk parted
+
 # Install Docker Compose
 curl -L "https://github.com/docker/compose/releases/download/1.11.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+# Remove unused packages
+tdnf remove -y cloud-init
+
+# Create directory to host VMware-specific scripts
+mkdir /etc/vmware
+mkdir "/usr/lib/systemd/system/getty@tty2.service.d"

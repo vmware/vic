@@ -1,0 +1,12 @@
+[Unit]
+Description=Repartition Data Disk
+Requires=dev-disk-by\x2dpath-pci\x2d0000:00:10.0\x2dscsi\x2d0:0:1:0\x2dpart1.device
+After=dev-disk-by\x2dpath-pci\x2d0000:00:10.0\x2dscsi\x2d0:0:1:0\x2dpart1.device
+Before=resizefs.service
+
+[Service]
+Type=oneshot
+ExecStart=/etc/vmware/resize_data_volume.sh repartition
+
+[Install]
+WantedBy=resizefs.service
