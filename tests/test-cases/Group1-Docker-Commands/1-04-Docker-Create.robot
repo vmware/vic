@@ -181,11 +181,13 @@ Create a container and check the VM display name and datastore folder name
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --name busy3 busybox
     Should Be Equal As Integers  ${rc}  0
     ${vmName}=  Get VM display name  ${id}
-    ${shortID}=  Get Substring  ${id}  0  12
-    Should Be Equal  ${vmName}  busy3-${shortID}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${vmName}*
-    Should Be Equal As Integers  ${rc}  0
-    Should contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${vmName}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${vmname}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  ${vmName}
+    # For non-vSAN setup, the datastore folder name should be containerID; however, for vSAN setup, the datastore folder name should be containerName-containerShortID
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  ${id}

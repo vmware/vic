@@ -15,9 +15,8 @@
 package spec
 
 import (
-	"net/url"
-
 	"context"
+	"net/url"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
@@ -88,12 +87,7 @@ type VirtualMachineConfigSpec struct {
 func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, config *VirtualMachineConfigSpecConfig) (*VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(config.ID))
 
-	////config.VMFullName = config.ID
-	//shortID := config.ID[:11]
-	//config.VMFullName = fmt.Sprintf("%s-%s", config.Name, shortID)
-
 	s := &types.VirtualMachineConfigSpec{
-		//Name: config.ID,
 		Name: config.VMFullName,
 		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{

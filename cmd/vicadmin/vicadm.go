@@ -325,7 +325,6 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 			continue
 		}
 
-		//logname, err = child.Name(ctx)
 		ec, err := child.FetchExtraConfig(ctx)
 		if err != nil {
 			log.Errorf("Unable to fetch the vm ExtraConfig for %s: %s", child.Reference(), err)

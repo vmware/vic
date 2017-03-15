@@ -15,10 +15,9 @@
 package util
 
 import (
+	"fmt"
 	"net/url"
 	"os"
-
-	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 )
