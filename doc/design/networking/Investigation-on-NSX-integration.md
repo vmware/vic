@@ -42,7 +42,7 @@ In the following example, we see that :
   * containerVM5 and containerVM6 are in bridge network `network-b`
     (note that adding containerVM5 to both network `network-a` and network `network-b` are not supported on current VIC yet.)
 
-![An Example of How We Apply Security Group on Container Networks] (pics/example-SG-vs-network.png)
+![An Example of How We Apply Security Group on Container Networks](pics/example-SG-vs-network.png)
 
 Let us use this example to explain the workflow.
 
@@ -50,7 +50,7 @@ Let us use this example to explain the workflow.
 We assume vSphere admin already has NSX installed and configured on vCenter. That means there is an NSX logical switch created by the admin, which automatically creates a port group on distributed switch.
 So this port group can be used as a bridge network for `vic-machine create`
 
-![Distributed Switch with logic switch added] (pics/dswitch.png)
+![Distributed Switch with logic switch added](pics/dswitch.png)
 
 ### Create VCH 
 Specifying 'bridge-network' as the port group 'vxw-dvs-55-virtualwire-1-sid-5000-logical-switch-1'.
@@ -59,7 +59,7 @@ Specifying 'bridge-network' as the port group 'vxw-dvs-55-virtualwire-1-sid-5000
   * NSX manager creates these security policies shown in the following picture
   * NSX manager applies security policy `<vch name>-SP-0` on security group `<vch name>-SG-VCH`
 
-  ![Security policies] (pics/security-policies.png)
+  ![Security policies](pics/security-policies.png)
 
 ### docker run --name=containerVM1 <image name>
   * VIC create containerVM1
@@ -95,7 +95,7 @@ The result we get :
   * containerVMs in the network can connect to their gateway at VCH
 
 ## NSX Manager API:
-![Code flow to use NSX Manager API] (pics/with-nsx.png)
+![Code flow to use NSX Manager API](pics/with-nsx.png)
 
 ### API endpoint
 https://{nsxmanager's hostname or IP}/api 
