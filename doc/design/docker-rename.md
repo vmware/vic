@@ -10,14 +10,14 @@ Rename involves the containerVM’s display name and the name of the datastore f
 
 - We use `containerName-containerShortID` to assemble the VM display name. We do not use containerName-containerID in order to avoid the scenario wherein the containerName gets truncated to satisfy the maximum length of a VM display name in vSphere. In addition, we use the `containerID` to set the name of the datastore folder, thus there is no need to worry about the VM display name and datastore folder name being inconsistent. 
 
-- VM creation: 
+- VM configuration during creation: 
 
   - vSAN: Since vSAN requires the VM display name to be the same as the datastore folder name during VM creation, we set both the VM display name and the datastore folder name to `containerName-containerShortID` during VM creation.
   - Non-vSAN: We set the VM display name to `containerName-containerShortID` and set the datastore folder name to `containeriD`.
+  - VM guestinfo: We replace `guestinfo.vice./common/name` with `common/name` in the `ExtraConfig` of a containerVM and set the scope of `common/name` to `hidden`. Then when `docker rename` is called after the VM is created, we can update the `common/name` with the new name. By doing this, we can persist the new name for a running containerVM.  
 
 - Docker support for rename: When a customer calls `docker rename`, we update the VM display name to the new name in both the docker persona and the portlayer. 
-
-  - VM guestinfo: We replace `guestinfo.vice./common/name` with `common/name` in the `ExtraConfig` of a containerVM and set the scope of `common/name` to `hidden`. When `docker rename` is called, we update the `common/name` with the new name. By doing this, we can persist the new name for a running containerVM.  
+  
   - Network: 
 
     - Network alias should be updated.
