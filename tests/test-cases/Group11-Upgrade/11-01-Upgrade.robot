@@ -103,9 +103,12 @@ Run Docker Checks
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Exited (0)
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info *-%{ID1}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  vch-restart-tes-%{ID1}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/*-%{ID1}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  vch-restart-tes-%{ID1}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info *-%{ID1}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  vch-restart-tes-%{ID1}
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls |grep *-%{ID1}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  vch-restart-tes-%{ID1}

@@ -74,7 +74,6 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-				log.Errorf("failed when creating the VM")
 				return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
 			})
 		}
