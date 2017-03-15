@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -382,7 +382,7 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 			if !found {
 				panic(fmt.Sprintf("could not find map key %s", s[0]))
 			}
-			prefix = fmt.Sprintf("%s%s%s", prefix, Separator, s[0])
+			prefix = appendToPrefix(prefix, Separator, s[0])
 		case reflect.Array, reflect.Slice:
 			i, err := strconv.Atoi(s[0])
 			if err != nil {
@@ -390,11 +390,11 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 			}
 			switch v.Type().Elem().Kind() {
 			case reflect.Struct:
-				prefix = fmt.Sprintf("%s%s%d", prefix, Separator, i)
+				prefix = appendToPrefix(prefix, Separator, fmt.Sprintf("%d", i))
 			case reflect.Uint8:
 				return []string{prefix}
 			default:
-				return []string{fmt.Sprintf("%s~", prefix)}
+				prefix = appendToPrefix(prefix, "", "~")
 			}
 			v = v.Index(i)
 		case reflect.Struct:
@@ -416,20 +416,20 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 	case reflect.Map:
 		for _, k := range v.MapKeys() {
 			sk := k.Convert(reflect.TypeOf(""))
-			prefix := fmt.Sprintf("%s%s%s", prefix, Separator, sk.String())
+			prefix := appendToPrefix(prefix, Separator, sk.String())
 			out = append(out, calculateKeys(v.MapIndex(k), field, prefix)...)
 		}
 	case reflect.Array, reflect.Slice:
 		switch v.Type().Elem().Kind() {
 		case reflect.Struct:
 			for i := 0; i < v.Len(); i++ {
-				prefix := fmt.Sprintf("%s%s%d", prefix, Separator, i)
+				prefix := appendToPrefix(prefix, Separator, fmt.Sprintf("%d", i))
 				out = append(out, calculateKeys(v.Index(i), field, prefix)...)
 			}
 		case reflect.Uint8:
 			return []string{prefix}
 		default:
-			return []string{fmt.Sprintf("%s~", prefix)}
+			return []string{appendToPrefix(prefix, "", "~")}
 		}
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {

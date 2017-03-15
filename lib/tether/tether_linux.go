@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,21 @@ const (
 // Mkdev will hopefully get rolled into go.sys at some point
 func Mkdev(majorNumber int, minorNumber int) int {
 	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
+}
+
+// ReloadConfig signals the current process, which triggers the signal handler
+// to reload the config.
+func ReloadConfig() error {
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	if err = p.Signal(syscall.SIGHUP); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // childReaper is used to handle events from child processes, including child exit.

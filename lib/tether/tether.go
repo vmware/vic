@@ -319,9 +319,10 @@ func (t *tether) reloadExtensions() error {
 
 func (t *tether) processSessions() error {
 	type results struct {
-		id   string
-		path string
-		err  error
+		id    string
+		path  string
+		err   error
+		fatal bool
 	}
 
 	// so that we can launch multiple sessions in parallel
@@ -329,15 +330,18 @@ func (t *tether) processSessions() error {
 	// to collect the errors back from them
 	resultsCh := make(chan results, len(t.config.Sessions))
 
-	maps := []map[string]*SessionConfig{
-		t.config.Sessions,
-		t.config.Execs,
+	maps := []struct {
+		sessions map[string]*SessionConfig
+		fatal    bool
+	}{
+		{t.config.Sessions, true},
+		{t.config.Execs, false},
 	}
 
 	// we need to iterate over both sessions and execs
 	for _, m := range maps {
 		// process the sessions and launch if needed
-		for id, session := range m {
+		for id, session := range m.sessions {
 			session.Lock()
 
 			log.Debugf("Processing config for session %s", id)
@@ -382,9 +386,10 @@ func (t *tether) processSessions() error {
 				go func(session *SessionConfig) {
 					defer wg.Done()
 					resultsCh <- results{
-						id:   session.ID,
-						path: session.Cmd.Path,
-						err:  t.launch(session),
+						id:    session.ID,
+						path:  session.Cmd.Path,
+						err:   t.launch(session),
+						fatal: m.fatal,
 					}
 				}(session)
 
@@ -401,7 +406,13 @@ func (t *tether) processSessions() error {
 	for result := range resultsCh {
 		if result.err != nil {
 			detail := fmt.Errorf("failed to launch %s for %s: %s", result.path, result.id, result.err)
-			return detail
+			if result.fatal {
+				log.Error(detail)
+				return detail
+			}
+
+			log.Warn(detail)
+			return nil
 		}
 	}
 	return nil
