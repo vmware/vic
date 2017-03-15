@@ -279,7 +279,7 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 			return errors.Errorf("Could not create volume store due to error: %s", err)
 		}
 		// FIXME: (GitHub Issue #1301) this is not valid URL syntax and should be translated appropriately when time allows
-		url.Path = nds.RootURL
+		url.Path = nds.DatastorePath.String()
 	}
 	return nil
 }

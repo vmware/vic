@@ -47,7 +47,7 @@ type Helper struct {
 	fm *object.FileManager
 
 	// The datastore url (including root) in "[dsname] /path" format.
-	RootURL string
+	DatastorePath object.DatastorePath
 }
 
 // NewDatastore returns a Datastore.
@@ -73,11 +73,11 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 		return nil, err
 	}
 
-	if d.RootURL == "" {
+	if d.DatastorePath.Path == "" {
 		return nil, fmt.Errorf("failed to create root directory")
 	}
 
-	log.Infof("Datastore path is %s", d.RootURL)
+	log.Infof("Datastore path is %s", d.DatastorePath.String())
 	return d, nil
 }
 
@@ -89,11 +89,12 @@ func NewHelperFromURL(ctx context.Context, s *session.Session, u *url.URL) (*Hel
 	}
 
 	d := &Helper{
-		ds:      vsDs,
-		s:       s,
-		fm:      fm,
-		RootURL: u.Path,
+		ds: vsDs,
+		s:  s,
+		fm: fm,
 	}
+
+	d.DatastorePath.FromString(u.Path)
 
 	return d, nil
 }
@@ -144,7 +145,7 @@ func mkdir(ctx context.Context, sess *session.Session, fm *object.FileManager, c
 
 // Mkdir creates directories.
 func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
-	return mkdir(ctx, d.s, d.fm, createParentDirectories, path.Join(d.RootURL, path.Join(dirs...)))
+	return mkdir(ctx, d.s, d.fm, createParentDirectories, path.Join(d.DatastorePath.String(), path.Join(dirs...)))
 }
 
 // Ls returns a list of dirents at the given path (relative to root)
@@ -176,7 +177,7 @@ func (d *Helper) Ls(ctx context.Context, p string) (*types.HostDatastoreBrowserS
 		return nil, err
 	}
 
-	task, err := b.SearchDatastore(ctx, path.Join(d.RootURL, p), &spec)
+	task, err := b.SearchDatastore(ctx, path.Join(d.DatastorePath.String(), p), &spec)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +202,7 @@ func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatast
 		return nil, err
 	}
 
-	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.RootURL, p), spec)
+	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.DatastorePath.String(), p), spec)
 	if err != nil {
 		return nil, err
 	}
@@ -216,16 +217,16 @@ func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatast
 }
 
 func (d *Helper) Upload(ctx context.Context, r io.Reader, pth string) error {
-	return d.ds.Upload(ctx, r, path.Join(d.rootDir(), pth), &soap.DefaultUpload)
+	return d.ds.Upload(ctx, r, path.Join(d.DatastorePath.Path, pth), &soap.DefaultUpload)
 }
 
 func (d *Helper) Download(ctx context.Context, pth string) (io.ReadCloser, error) {
-	rc, _, err := d.ds.Download(ctx, path.Join(d.rootDir(), pth), &soap.DefaultDownload)
+	rc, _, err := d.ds.Download(ctx, path.Join(d.DatastorePath.Path, pth), &soap.DefaultDownload)
 	return rc, err
 }
 
 func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, error) {
-	i, err := d.ds.Stat(ctx, path.Join(d.rootDir(), pth))
+	i, err := d.ds.Stat(ctx, path.Join(d.DatastorePath.Path, pth))
 	if err != nil {
 		switch err.(type) {
 		case object.DatastoreNoSuchDirectoryError:
@@ -239,8 +240,8 @@ func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, erro
 }
 
 func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
-	from := path.Join(d.RootURL, fromPath)
-	to := path.Join(d.RootURL, toPath)
+	from := path.Join(d.DatastorePath.String(), fromPath)
+	to := path.Join(d.DatastorePath.String(), toPath)
 	log.Infof("Moving %s to %s", from, to)
 	err := tasks.Wait(ctx, func(context.Context) (tasks.Task, error) {
 		return d.fm.MoveDatastoreFile(ctx, from, d.s.Datacenter, to, d.s.Datacenter, true)
@@ -250,7 +251,7 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 }
 
 func (d *Helper) Rm(ctx context.Context, pth string) error {
-	f := path.Join(d.RootURL, pth)
+	f := path.Join(d.DatastorePath.String(), pth)
 	log.Infof("Removing %s", pth)
 	return d.ds.NewFileManager(d.s.Datacenter, true).Delete(ctx, f) // TODO: NewHelper should create the DatastoreFileManager
 }
@@ -319,13 +320,8 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 		log.Infof("datastore root %s already exists", rooturl)
 	}
 
-	d.RootURL = rooturl
+	d.DatastorePath.FromString(rooturl)
 	return nil
-}
-
-// Return the root of the datastore path (without the [datastore] portion)
-func (d *Helper) rootDir() string {
-	return strings.SplitN(d.RootURL, " ", 2)[1]
 }
 
 // Parse the datastore format ([datastore1] /path/to/thing) to groups.
