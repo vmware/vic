@@ -314,6 +314,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 
 	log.Infof("Found %d candidate VMs in resource pool %s for log collection", len(children), ref.String())
 
+	var logname string
 	logfiles := []logfile{}
 	for _, child := range children {
 		path, err := child.DSPath(ctx)
@@ -324,16 +325,26 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 			continue
 		}
 
-		//logname, err := child.VMPathName(ctx)
-		logname, err := child.Name(ctx)
+		//logname, err = child.Name(ctx)
+		ec, err := child.FetchExtraConfig(ctx)
 		if err != nil {
-			log.Errorf("Unable to get the vm path name for %s: %s", child.Reference(), err)
-			continue
+			log.Errorf("Unable to fetch the vm ExtraConfig for %s: %s", child.Reference(), err)
+
+			logname, err = child.Name(ctx)
+			if err != nil {
+				log.Errorf("Unable to get the vm name for %s: %s", child.Reference(), err)
+				continue
+			}
+		} else {
+			// for the appliance VM, id is in guestinfo.vice./init/common/id;
+			// however, this is not problematic since we don't collect these logs for the appliance VM
+			logname = ec["guestinfo.vice./common/id"]
+			if logname == "" {
+				log.Infof("Skipping collection for appliance VM")
+				continue
+			}
 		}
-		//if logname != "" {
-		//	names := strings.Split(logname, " ")
-		//	logname = names[len(names)-1]
-		//}
+		log.Infof("Setting logname to %s", logname)
 
 		if self != nil && child.Reference().String() == self.Reference().String() {
 			// FIXME: until #2630 is addressed, and we confirm this filters secrets from appliance vmware.log as well,

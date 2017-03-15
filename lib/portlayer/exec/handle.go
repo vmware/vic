@@ -291,14 +291,9 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		Metadata: config.Metadata,
 	}
 
-	// if not vsan
+	// if not vsan, set the datastore folder name to containerID
 	if dsType, _ := sess.Datastore.Type(ctx); dsType != types.HostFileSystemVolumeFileSystemTypeVsan {
-		log.Debugf("this is not on vsan")
-		//specconfig.VMPathName = fmt.Sprintf("[%s] %s", sess.Datastore.Name(), specconfig.ID)
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), specconfig.ID, specconfig.ID)
-	} else {
-		log.Debugf("this is on vsan")
-		specconfig.VMPathName = fmt.Sprintf("[%s]", sess.Datastore.Name())
 	}
 
 	specconfig.VMFullName = util.DisplayName(specconfig.ID, specconfig.Name)

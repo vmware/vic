@@ -88,8 +88,7 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
 
-    ${containerShortID}=  Get container shortID  ${container}
-    Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${containerShortID}
+    Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${container}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  0

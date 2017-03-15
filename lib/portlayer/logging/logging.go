@@ -151,6 +151,7 @@ func Join(h interface{}) (interface{}, error) {
 	for _, logFile := range []string{"tether.debug", "output.log"} {
 		filename := fmt.Sprintf("%s/%s", logFilePath, logFile)
 		log.Infof("set log file name to: %s", filename)
+
 		// Debug and log serial ports - backed by datastore file
 		serial := &types.VirtualSerialPort{
 			VirtualDevice: types.VirtualDevice{
