@@ -119,3 +119,16 @@ Pull image by multiple tags
     ${id1}=  Get From List  ${words1}  2
     ${id2}=  Get From List  ${words2}  2
     Should Be Equal  ${id1}  ${id2}
+
+Issue docker pull on digest outputted by previous pull
+    ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox | grep Digest | awk '{print $2}'
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Be Empty  ${output}
+    ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox@${output}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Downloaded
+    

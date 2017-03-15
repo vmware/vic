@@ -24,10 +24,11 @@ This test requires that a vSphere server is running and available
 11. Issue DOCKER_HOST=<VCH IP> docker run -d busybox /bin/top
 12. Issue DOCKER_HOST=<VCH IP> docker-compose up -d
 13. Create compose file with link
-14. Issue  DOCKER_HOST=<VCH IP> docker-compose up -d
+14. Issue DOCKER_HOST=<VCH IP> docker-compose up -d
+15. Issue DOCKER_HOST=<VCH IP> docker-compose bundle
 
 #Expected Outcome:
-* Step 4-14 should result in no error
+* Step 4-15 should result in no error
 
 #Possible Problems:
 None

@@ -75,3 +75,11 @@ Compose Up with link
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING aaa
     Should Not Contain  ${output}  bad address 'aaa'
+
+Compose bundle creation
+    ${rc}  Run And Return Rc  docker-compose %{VCH-PARAMS} --file basic-compose.yml pull
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml bundle
+    Log  ${output}
+    Should Contain  ${output}  Wrote bundle
+    Should Be Equal As Integers  ${rc}  0

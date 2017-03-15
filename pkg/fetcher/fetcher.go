@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ const (
 
 // Fetcher interface
 type Fetcher interface {
-	Fetch(ctx context.Context, url *url.URL, toFile bool, po progress.Output, id ...string) (string, error)
+	Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Header, toFile bool, po progress.Output, id ...string) (string, error)
 	FetchAuthToken(url *url.URL) (*Token, error)
 
 	Head(url *url.URL) (http.Header, error)
@@ -119,7 +119,8 @@ func NewURLFetcher(options Options) Fetcher {
 }
 
 // Fetch fetches from a url and stores its content in a temporary file.
-func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, toFile bool, po progress.Output, ids ...string) (string, error) {
+//	hdrs is optional.
+func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, reqHdrs *http.Header, toFile bool, po progress.Output, ids ...string) (string, error) {
 	defer trace.End(trace.Begin(url.String()))
 
 	// extract ID from ids. Existence of an ID enables progress reporting
@@ -137,9 +138,9 @@ func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, toFile bool, po pr
 	var retries int
 	for {
 		if toFile {
-			data, err = u.fetchToFile(ctx, url, ID, po)
+			data, err = u.fetchToFile(ctx, url, reqHdrs, ID, po)
 		} else {
-			data, err = u.fetchToString(ctx, url, ID)
+			data, err = u.fetchToString(ctx, url, reqHdrs, ID)
 		}
 		if err == nil {
 			return data, nil
@@ -196,7 +197,7 @@ func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, toFile bool, po pr
 func (u *URLFetcher) FetchAuthToken(url *url.URL) (*Token, error) {
 	defer trace.End(trace.Begin(url.String()))
 
-	data, err := u.Fetch(context.Background(), url, false, nil)
+	data, err := u.Fetch(context.Background(), url, nil, false, nil)
 	if err != nil {
 		log.Errorf("Download failed: %v", err)
 		return nil, err
@@ -219,7 +220,7 @@ func (u *URLFetcher) FetchAuthToken(url *url.URL) (*Token, error) {
 	return token, nil
 }
 
-func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (io.ReadCloser, http.Header, error) {
+func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, reqHdrs *http.Header, ID string) (io.ReadCloser, http.Header, error) {
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
@@ -230,6 +231,15 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (io.Rea
 	u.setAuthToken(req)
 
 	u.setUserAgent(req)
+
+	// Add optional request headers
+	if reqHdrs != nil {
+		for k, values := range *reqHdrs {
+			for _, v := range values {
+				req.Header.Add(k, v)
+			}
+		}
+	}
 
 	res, err := ctxhttp.Do(ctx, u.client, req)
 	if err != nil {
@@ -279,8 +289,8 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (io.Rea
 }
 
 // fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
-func (u *URLFetcher) fetchToFile(ctx context.Context, url *url.URL, ID string, po progress.Output) (string, error) {
-	rdr, hdrs, err := u.fetch(ctx, url, ID)
+func (u *URLFetcher) fetchToFile(ctx context.Context, url *url.URL, reqHdrs *http.Header, ID string, po progress.Output) (string, error) {
+	rdr, hdrs, err := u.fetch(ctx, url, reqHdrs, ID)
 	if err != nil {
 		return "", err
 	}
@@ -325,8 +335,8 @@ func (u *URLFetcher) fetchToFile(ctx context.Context, url *url.URL, ID string, p
 }
 
 // fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
-func (u *URLFetcher) fetchToString(ctx context.Context, url *url.URL, ID string) (string, error) {
-	rdr, _, err := u.fetch(ctx, url, ID)
+func (u *URLFetcher) fetchToString(ctx context.Context, url *url.URL, reqHdrs *http.Header, ID string) (string, error) {
+	rdr, _, err := u.fetch(ctx, url, reqHdrs, ID)
 	if err != nil {
 		log.Errorf("Fetch (%s) to string error: %s", url.String(), err)
 		return "", err
