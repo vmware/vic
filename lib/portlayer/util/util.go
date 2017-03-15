@@ -18,12 +18,17 @@ import (
 	"net/url"
 	"os"
 
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 )
 
 const (
 	// XXX leaving this as http for now.  We probably want to make this unix://
 	scheme = "http://"
+
+	maxVMNameLength = 80
+	shortIDLen      = 12
 )
 
 var (
@@ -52,4 +57,16 @@ func ServiceURL(serviceName string) *url.URL {
 	}
 
 	return s
+}
+
+// Update the VM display name on vSphere UI
+func DisplayName(id, name string) string {
+	shortID := id[:shortIDLen]
+	nameMaxLen := maxVMNameLength - len(shortID)
+	prettyName := name
+	if len(prettyName) > nameMaxLen-1 {
+		prettyName = prettyName[:nameMaxLen-1]
+	}
+
+	return fmt.Sprintf("%s-%s", prettyName, shortID)
 }

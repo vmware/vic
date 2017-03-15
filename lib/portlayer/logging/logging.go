@@ -135,12 +135,22 @@ func Join(h interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
 
+	var logFilePath string
+
 	VMPathName := handle.Spec.VMPathName()
 	VMName := handle.Spec.Spec().Name
+	VMID := handle.Spec.ID()
+	dsName := handle.Spec.Datastore.Name()
+
+	if dsType, _ := handle.Spec.Datastore.Type(context.Background()); dsType == types.HostFileSystemVolumeFileSystemTypeVsan {
+		logFilePath = fmt.Sprintf("%s/%s", VMPathName, VMName)
+	} else {
+		logFilePath = fmt.Sprintf("[%s] %s", dsName, VMID)
+	}
 
 	for _, logFile := range []string{"tether.debug", "output.log"} {
-		filename := fmt.Sprintf("%s/%s/%s", VMPathName, VMName, logFile)
-
+		filename := fmt.Sprintf("%s/%s", logFilePath, logFile)
+		log.Infof("set log file name to: %s", filename)
 		// Debug and log serial ports - backed by datastore file
 		serial := &types.VirtualSerialPort{
 			VirtualDevice: types.VirtualDevice{

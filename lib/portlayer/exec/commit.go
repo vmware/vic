@@ -74,6 +74,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+				log.Errorf("failed when creating the VM")
 				return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
 			})
 		}
@@ -92,11 +93,6 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		// clear the spec as we've acted on it - this prevents a reconfigure from occurring in follow-on
 		// processing
 		h.Spec = nil
-
-		//c.m.Lock()
-		//err = c.UpdateDisplayName(ctx, c.ExecConfig.Name)
-		//c.m.Unlock()
-
 	}
 
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig

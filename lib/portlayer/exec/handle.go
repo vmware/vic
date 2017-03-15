@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -291,17 +292,16 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	}
 
 	// if not vsan
-	if dsType, _ := sess.Datastore.Type(ctx); dsType == types.HostFileSystemVolumeFileSystemTypeVsan {
-		log.Debugf("this is on vsan")
-		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), config.Metadata.ID, config.Metadata.ID)
-	} else {
+	if dsType, _ := sess.Datastore.Type(ctx); dsType != types.HostFileSystemVolumeFileSystemTypeVsan {
 		log.Debugf("this is not on vsan")
-		//specconfig.VMPathName = fmt.Sprintf("[%s]", sess.Datastore.Name())
-		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), config.Metadata.ID, config.Metadata.ID)
+		//specconfig.VMPathName = fmt.Sprintf("[%s] %s", sess.Datastore.Name(), specconfig.ID)
+		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), specconfig.ID, specconfig.ID)
+	} else {
+		log.Debugf("this is on vsan")
+		specconfig.VMPathName = fmt.Sprintf("[%s]", sess.Datastore.Name())
 	}
 
-	shortID := specconfig.ID[:11]
-	specconfig.VMFullName = fmt.Sprintf("%s-%s", specconfig.Name, shortID)
+	specconfig.VMFullName = util.DisplayName(specconfig.ID, specconfig.Name)
 
 	log.Debugf("the specconfig is: %+v", specconfig)
 
