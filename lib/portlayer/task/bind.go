@@ -20,7 +20,7 @@ import (
 
 // Bind enables launching of the process in the container
 func Bind(op *trace.Operation, h interface{}, id string) (interface{}, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(id))
 
 	return toggleActive(op, h, id, true)
 }

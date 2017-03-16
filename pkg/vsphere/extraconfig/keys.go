@@ -71,7 +71,16 @@ var Unbounded = recursion{depth: -1, follow: true}
 // calculateScope returns the uint representation of scope tag
 func calculateScope(scopes []string) uint {
 	var scope uint
-	if len(scopes) == 0 || (len(scopes) == 1 && scopes[0] == "") {
+
+	empty := true
+	for i := range scopes {
+		if scopes[i] != "" {
+			empty = false
+			break
+		}
+	}
+
+	if empty {
 		return Hidden | ReadOnly
 	}
 
