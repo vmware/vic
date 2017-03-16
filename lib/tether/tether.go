@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -236,12 +236,17 @@ func (t *tether) setNetworks() error {
 
 func (t *tether) setMounts() error {
 	for k, v := range t.config.Mounts {
-		if v.Source.Scheme != "label" {
+		switch v.Source.Scheme {
+		case "label":
+			// this could block indefinitely while waiting for a volume to present
+			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
+
+		case "nfs":
+			t.ops.MountTarget(context.Background(), v.Source, v.Path, v.Mode)
+
+		default:
 			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
 		}
-
-		// this could block indefinitely while waiting for a volume to present
-		t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
 	}
 	return nil
 }

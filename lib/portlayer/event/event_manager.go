@@ -29,13 +29,13 @@ type EventManager interface {
 	Collectors() map[string]collector.Collector
 
 	// Subscribe for event callbacks
-	Subscribe(eventTopic string, caller string, callback func(events.Event))
+	Subscribe(eventTopic string, caller string, callback func(events.Event)) Subscriber
 
 	// Unsubscribe from event callbacks
 	Unsubscribe(eventTopic string, caller string)
 
 	// Subscribers will return the subscriber map
-	Subscribers() map[string]map[string]func(events.Event)
+	Subscribers() map[string]map[string]Subscriber
 
 	// Subscribed returns subscriber count
 	Subscribed() int

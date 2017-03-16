@@ -2725,6 +2725,10 @@
 					"items": {
 						"$ref": "#/definitions/EndpointConfig"
 					}
+				},
+				"dataVersion": {
+					"type": "integer",
+					"format": "int64"
 				}
 			}
 		},

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -259,12 +259,14 @@ func TestFetchImageManifest(t *testing.T) {
 	ic.Options.Destination = dir
 
 	ctx := context.TODO()
-	manifest, err := FetchImageManifest(ctx, ic.Options, ic.progressOutput)
+	manifest, _, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	if manifest.FSLayers[0].BlobSum != DigestSHA256EmptyData {
-		t.Errorf("Returned manifest %#v is different than expected", manifest)
+	if schema1, ok := manifest.(*Manifest); ok {
+		if schema1.FSLayers[0].BlobSum != DigestSHA256EmptyData {
+			t.Errorf("Returned manifest %#v is different than expected", manifest)
+		}
 	}
 }
 
@@ -503,7 +505,7 @@ func TestFetchScenarios(t *testing.T) {
 
 	ic.Options.Token = nil
 	// try without token, response will miss www-authenticate so we will retry (and fail eventually)
-	_, err = FetchImageManifest(ctx, ic.Options, ic.progressOutput)
+	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err == nil {
 		t.Errorf("Condition didn't fail (testing failure)")
 	}
@@ -511,7 +513,7 @@ func TestFetchScenarios(t *testing.T) {
 	// set the www-authenticate
 	wwwAuthenticate = true
 	// try without token, response will carry a valid www-authenticate so we won't retry
-	_, err = FetchImageManifest(ctx, ic.Options, ic.progressOutput)
+	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		// we should get a DNR error
 		if _, isDNR := err.(urlfetcher.DoNotRetry); !isDNR {
@@ -526,7 +528,7 @@ func TestFetchScenarios(t *testing.T) {
 	// enable invalid token test
 	invalidToken = true
 	// valid token but faulty hub, we should retry but eventually fail
-	_, err = FetchImageManifest(ctx, ic.Options, ic.progressOutput)
+	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err == nil {
 		t.Errorf("Condition didn't fail (testing failure)")
 	}
@@ -535,7 +537,7 @@ func TestFetchScenarios(t *testing.T) {
 	// enable insufficient_scope test
 	insufficientScope = true
 	// valid token but image is missing we shouldn't retry
-	_, err = FetchImageManifest(ctx, ic.Options, ic.progressOutput)
+	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		// we should get a ImageNotFoundError
 		if _, imageErr := err.(urlfetcher.ImageNotFoundError); !imageErr {
@@ -545,7 +547,7 @@ func TestFetchScenarios(t *testing.T) {
 	insufficientScope = false
 
 	// valid token, existing image, correct header. We should succeed
-	_, err = FetchImageManifest(ctx, ic.Options, ic.progressOutput)
+	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

@@ -1,4 +1,4 @@
-// Copyright 2017 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,11 @@ type StorageHandlersImpl struct {
 	imageCache  *spl.NameLookupCache
 	volumeCache *spl.VolumeLookupCache
 }
+
+const (
+	nfsScheme = "nfs"
+	dsScheme  = "ds"
+)
 
 // Configure assigns functions to all the storage api handlers
 func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
@@ -102,7 +107,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 	// Each volume store name maps to a datastore + path, which can be referred to by the name.
 	for name, dsurl := range spl.Config.VolumeLocations {
 		switch dsurl.Scheme {
-		case "nfs":
+		case nfsScheme:
 			uid := nfs.DefaultUID
 
 			if dsurl.User != nil && dsurl.User.Username() != "" {
@@ -119,7 +124,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 				return err
 			}
 
-		case "ds":
+		case dsScheme:
 			ds, err := datastore.NewHelperFromURL(op, handlerCtx.Session, dsurl)
 			if err != nil {
 				return fmt.Errorf("cannot find datastores: %s", err)
@@ -491,7 +496,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	//Note: Name should already be populated by now.
 	volume, err := h.volumeCache.VolumeGet(op, params.Name)
 	if err != nil {
-		log.Errorf("Volumes: StorageHandler : %#v", err)
+		op.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    http.StatusInternalServerError,
@@ -499,9 +504,17 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		})
 	}
 
-	actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	switch volume.Device.DiskPath().Scheme {
+	case nfsScheme:
+		actualHandle, err = nfs.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	case dsScheme:
+		actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	default:
+		err = fmt.Errorf("unknown scheme (%s) for Volume (%s)", volume.Device.DiskPath().Scheme, *volume)
+	}
+
 	if err != nil {
-		log.Errorf("Volumes: StorageHandler : %#v", err)
+		op.Errorf("Volumes: StorageHandler : %#v", err)
 
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    http.StatusInternalServerError,
@@ -509,7 +522,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 		})
 	}
 
-	log.Infof("volume %s has been joined to a container", volume.ID)
+	op.Infof("volume %s has been joined to a container", volume.ID)
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }
 

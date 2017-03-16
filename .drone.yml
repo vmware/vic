@@ -15,7 +15,7 @@ clone:
 
 build:
   prevent-concurrent-builds:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.20}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
     pull: true
     environment:
       BIN: bin
@@ -53,8 +53,9 @@ build:
       - make sincemark
 
   integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.20}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
     pull: true
+    privileged: true
     environment:
       BIN: bin
       GOPATH: /drone
@@ -68,6 +69,7 @@ build:
       TEST_PASSWORD:  $$TEST_PASSWORD
       TEST_DATASTORE: $$TEST_DATASTORE
       TEST_TIMEOUT: $$TEST_TIMEOUT
+      REPORTING_SERVER_URL: $$REPORTING_SERVER_URL
       WINDOWS_URL:  $$WINDOWS_URL
       WINDOWS_USERNAME:  $$WINDOWS_USERNAME
       WINDOWS_PASSWORD:  $$WINDOWS_PASSWORD
@@ -88,7 +90,7 @@ build:
       success: true
 
   vicui:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.20}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
     pull: true
     environment:
       BIN: bin

@@ -72,3 +72,6 @@ Compose Voting App
     Log  ${out}
     Should Not Be Empty  ${out}
     Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  wget %{VCH-IP}:5000
+    Should Be Equal As Integers  ${rc}  0

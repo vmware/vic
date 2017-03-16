@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -29,6 +30,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	ddigest "github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/manifest/schema2"
 	dlayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
@@ -38,9 +41,11 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
-// (1024 NULL bytes)
-const DigestSHA256EmptyTar = string(dlayer.DigestSHA256EmptyTar)
+const (
+	// DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
+	// (1024 NULL bytes)
+	DigestSHA256EmptyTar = string(dlayer.DigestSHA256EmptyTar)
+)
 
 // FSLayer is a container struct for BlobSums defined in an image manifest
 type FSLayer struct {
@@ -204,7 +209,7 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 	ctx, cancel := context.WithTimeout(ctx, options.Timeout)
 	defer cancel()
 
-	imageFileName, err := fetcher.Fetch(ctx, url, true, progressOutput, image.String())
+	imageFileName, err := fetcher.Fetch(ctx, url, nil, true, progressOutput, image.String())
 	if err != nil {
 		return diffID, err
 	}
@@ -310,12 +315,16 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 }
 
 // FetchImageManifest fetches the image manifest file
-func FetchImageManifest(ctx context.Context, options Options, progressOutput progress.Output) (*Manifest, error) {
+func FetchImageManifest(ctx context.Context, options Options, schemaVersion int, progressOutput progress.Output) (interface{}, string, error) {
 	defer trace.End(trace.Begin(options.Image + "/" + options.Tag))
+
+	if schemaVersion != 1 && schemaVersion != 2 {
+		return nil, "", fmt.Errorf("Unknown schema version %d requested!", schemaVersion)
+	}
 
 	url, err := url.Parse(options.Registry)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	url.Path = path.Join(url.Path, options.Image, "manifests", options.Tag)
 
@@ -330,9 +339,15 @@ func FetchImageManifest(ctx context.Context, options Options, progressOutput pro
 		RootCAs:            options.RegistryCAs,
 	})
 
-	manifestFileName, err := fetcher.Fetch(ctx, url, true, progressOutput)
+	reqHeaders := make(http.Header)
+	if schemaVersion == 2 {
+		reqHeaders.Add("Accept", schema2.MediaTypeManifest)
+		reqHeaders.Add("Accept", schema1.MediaTypeManifest)
+	}
+
+	manifestFileName, err := fetcher.Fetch(ctx, url, &reqHeaders, true, progressOutput)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Cleanup function for the error case
@@ -342,48 +357,77 @@ func FetchImageManifest(ctx context.Context, options Options, progressOutput pro
 		}
 	}()
 
+	switch schemaVersion {
+	case 1: //schema 1, signed manifest
+		return decodeManifestSchema1(manifestFileName, options)
+	case 2: //schema 2
+		return decodeManifestSchema2(manifestFileName, options)
+	}
+
+	//We shouldn't really get here
+	return nil, "", fmt.Errorf("Unknown schema version %d requested!", schemaVersion)
+}
+
+// decodeManifestSchema1() reads a manifest schema 1 and creates an imageC
+// defined Manifest structure and returns the digest of the manifest as a string.
+// For historical reason, we did not use the Docker's defined schema1.Manifest
+// instead of our own and probably should do so in the future.
+func decodeManifestSchema1(filename string, options Options) (interface{}, string, error) {
 	// Read the entire file into []byte for json.Unmarshal
-	content, err := ioutil.ReadFile(manifestFileName)
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	manifest := &Manifest{}
 
 	err = json.Unmarshal(content, manifest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if manifest.Name != options.Image {
-		return nil, fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.Image, manifest.Name)
+		return nil, "", fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.Image, manifest.Name)
 	}
 
 	if manifest.Tag != options.Tag {
-		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.Tag, manifest.Tag)
+		return nil, "", fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.Tag, manifest.Tag)
 	}
 
 	digest, err := getManifestDigest(content)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	manifest.Digest = digest
 
-	// Ensure the parent directory exists
-	destination := DestinationDirectory(options)
-	err = os.MkdirAll(destination, 0755) /* #nosec */
+	return manifest, digest, nil
+}
+
+// decodeManifestSchema2() reads a manifest schema 2 and creates a Docker
+// defined Manifest structure and returns the digest of the manifest as a string.
+func decodeManifestSchema2(filename string, options Options) (interface{}, string, error) {
+	// Read the entire file into []byte for json.Unmarshal
+	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	// Move(rename) the temporary file to its final destination
-	err = os.Rename(string(manifestFileName), path.Join(destination, "manifest.json"))
+	manifest := &schema2.DeserializedManifest{}
+
+	err = json.Unmarshal(content, manifest)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return manifest, nil
+	_, canonical, err := manifest.Payload()
+	if err != nil {
+		return nil, "", err
+	}
+
+	digest := ddigest.FromBytes(canonical)
+
+	return manifest, string(digest), nil
 }
 
 func getManifestDigest(content []byte) (string, error) {

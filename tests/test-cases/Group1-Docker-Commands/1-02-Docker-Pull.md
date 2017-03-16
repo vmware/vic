@@ -30,6 +30,7 @@ This test requires that an vSphere server is running and available.
 12. Issue a docker pull command for each of two images that share layers
 13. Issue docker images, rmi ubuntu, pull ubuntu, docker images commands
 14. Issue docker pull command for the same image using multiple tags
+18. Issue docker pull on digest outputted by previous pull
 
 #Expected Outcome:
 VIC appliance should respond with a properly formatted pull response to each command issued to it. No errors should be seen, except in the case of step 7, 8 and 9. In step 13, the image ID and size for ubuntu should match before and after removing and re-pulling the image.
