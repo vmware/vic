@@ -318,7 +318,7 @@ func (t *attachServerSSH) run() error {
 					}
 					t.conn.conn, err = rawConnectionFromSerial()
 					if err != nil {
-						detail := fmt.Errorf("failed to create raw connection raw connection: %s", err)
+						detail := fmt.Errorf("failed to create raw connection: %s", err)
 						log.Error(detail)
 						return detail
 					}

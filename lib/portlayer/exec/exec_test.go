@@ -91,7 +91,11 @@ func TestVMRemovedEventCallback(t *testing.T) {
 	mgr := event.NewEventManager()
 	Config.EventManager = mgr
 	// subscribe the exec layer to the event stream for Vm events
-	mgr.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "testing", eventCallback)
+	mgr.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "testing", func(e events.Event) {
+		if c := Containers.Container(e.Reference()); c != nil {
+			c.OnEvent(e)
+		}
+	})
 
 	// create new running container and place in cache
 	id := "123439"
@@ -104,6 +108,7 @@ func TestVMRemovedEventCallback(t *testing.T) {
 	time.Sleep(time.Millisecond * 30)
 	assert.True(t, Containers.Container(id) == nil, "Container should be removed")
 
+	addTestVM(container)
 	Containers.put(container)
 	container.vm.EnterFixingState()
 	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)

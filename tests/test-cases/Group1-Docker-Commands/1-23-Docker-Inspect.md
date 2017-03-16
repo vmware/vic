@@ -30,6 +30,7 @@ This test requires that a vSphere server is running and available
 17. Issue docker inspect fake to the VIC appliance
 18. Issue docker create -v /var/lib/test busybox
 19. Issue docker inspect -f {{.Config.Volumes}} <containerID>
+20. Issue docker inspect busybox -f '{{.RepoDigest}}'
 
 #Expected Outcome:
 * Step 3,4,7,8 should result in success and a properly formatted JSON response
@@ -48,6 +49,7 @@ Error: No such image: <containerID>
 Error: No such image or container: fake
 ```
 * Step 19 should result in the map returned containing /var/lib/test
+* Step 20 should result in a valid digest, previously cached
 
 #Possible Problems:
 None

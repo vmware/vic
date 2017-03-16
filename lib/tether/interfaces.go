@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package tether
 import (
 	"context"
 	"io"
+	"net/url"
 
 	"github.com/vmware/vic/pkg/dio"
 )
@@ -35,6 +36,7 @@ type Operations interface {
 	SetupFirewall() error
 	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(ctx context.Context, label, target string) error
+	MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error
 	Fork() error
 	// Returns two DynamicMultiWriters for stdout and stderr
 	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error)

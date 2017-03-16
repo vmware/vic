@@ -82,6 +82,7 @@ Flags:
 
 var (
 	fetchRoot    string   // where the current session started
+	rootRepoURL  string   // the url of the repo from which the root comes from
 	fetchedToday []string // packages fetched during this session
 )
 
@@ -133,12 +134,8 @@ func fetchRecursive(m *vendor.Manifest, fullPath string, level int) error {
 	}
 
 	// Finally, check if we already vendored a subpackage and remove it
-	parentOfRoot := false
 	for _, subp := range m.GetSubpackages(path) {
-		if contains(subp.Importpath, fetchRoot) {
-			// Through dependencies we ended up fetching a parent of the starting package
-			parentOfRoot = true // use the requested tag/branch/revision
-		} else {
+		if !contains(subp.Importpath, fetchRoot) { // ignore parents of the root
 			ignore := false
 			for _, d := range fetchedToday {
 				if contains(d, subp.Importpath) {
@@ -164,8 +161,12 @@ func fetchRecursive(m *vendor.Manifest, fullPath string, level int) error {
 		return err
 	}
 
+	if level == 0 {
+		rootRepoURL = repo.URL()
+	}
+
 	var wc vendor.WorkingCopy
-	if level == 0 || parentOfRoot {
+	if repo.URL() == rootRepoURL {
 		wc, err = GlobalDownloader.Get(repo, branch, tag, revision)
 	} else {
 		wc, err = GlobalDownloader.Get(repo, "", "", "")
@@ -229,7 +230,7 @@ func fetchRecursive(m *vendor.Manifest, fullPath string, level int) error {
 			return fmt.Errorf("unable to derive the root repo import path")
 		}
 		rootRepoPath := strings.TrimRight(strings.TrimSuffix(dep.Importpath, dep.Path), "/")
-		deps, err := vendor.ParseImports(src, wc.Dir(), rootRepoPath)
+		deps, err := vendor.ParseImports(src, wc.Dir(), rootRepoPath, tests, all)
 		if err != nil {
 			return fmt.Errorf("failed to parse imports: %s", err)
 		}

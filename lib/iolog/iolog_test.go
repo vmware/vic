@@ -34,11 +34,12 @@ type TestReadCloser struct {
 type testClock struct{}
 
 func (testClock) Now() time.Time {
-	return time.Unix(191193300, 0).UTC()
+	return time.Unix(191193300, 0)
 }
 
 var (
-	tc testClock
+	tc         testClock
+	expectedTs = tc.Now().UTC().Format(RFC3339NanoFixed)
 )
 
 func TestWriteEntry(t *testing.T) {
@@ -96,7 +97,7 @@ func TestWriteReadLargeEntry(t *testing.T) {
 	var in bytes.Buffer
 	w := NewLogWriter(&in, tc)
 	rc := &TestReadCloser{Buffer: &in}
-	r := NewLogReader(rc)
+	r := NewLogReader(rc, false)
 
 	rand.Seed(time.Now().Unix())
 	data := make([]byte, 32*1024)
@@ -192,6 +193,56 @@ func TestSplit(t *testing.T) {
 		msg := entry[encodedHeaderLengthBytes:]
 		if size != len(msg) {
 			t.Errorf("Expected msg size %d, got %d", len(msg), size)
+		}
+	}
+}
+
+func TestTimestamps(t *testing.T) {
+	var in bytes.Buffer
+	w := NewLogWriter(&in, tc)
+	rc := &TestReadCloser{Buffer: &in}
+	r := NewLogReader(rc, true) // enable timestamp output
+
+	msgs := []string{
+		"Jerry, it’s Frank Costanza. Steinbrenner’s here. George is dead. Call me back.\n",
+		"When you look annoyed all the time, people think that you’re busy.\n",
+		"You put the balm on? Who told you to put the balm on? I didn't tell you to put the balm on. Why'd you put the balm on?\n",
+		"At the Festivus dinner, you gather your family around and you tell them all the ways they have disappointed you over the past year.\n",
+	}
+
+	for _, msg := range msgs {
+		n, err := w.Write([]byte(msg))
+		if n != len(msg) {
+			t.Errorf("Wrote %d bytes, expected to write %d", n, len(msg))
+		}
+		if err != nil {
+			t.Errorf("Error writing message: %s", err)
+		}
+	}
+	w.Close()
+
+	tslen := len(expectedTs)
+	results := [][]byte{}
+	for _, m := range msgs {
+		msg := make([]byte, len(m)+tslen+1) // we need room for the message, the timestamp, and a space
+		_, err := r.Read(msg)
+		if err != nil && err != io.EOF {
+			t.Errorf("Error reading message: %s", err)
+		}
+		results = append(results, msg)
+	}
+
+	if len(results) != len(msgs) {
+		t.Errorf("Expected results of size %d, got %d", len(msgs), len(results))
+	}
+	for i, result := range results {
+		ts := string(result[:tslen])
+		msg := result[tslen+1:]
+		if string(ts) != expectedTs {
+			t.Errorf("Expected timestamp %s, got %s", expectedTs, ts)
+		}
+		if string(msg) != msgs[i] {
+			t.Errorf("Expected result %s, got %s", msgs[i], string(msg))
 		}
 	}
 }
