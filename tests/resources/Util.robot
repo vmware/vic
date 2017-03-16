@@ -27,3 +27,4 @@ Resource  Drone-Util.robot
 Resource  Github-Util.robot
 Resource  Harbor-Util.robot
 Resource  Docker-Util.robot
+Resource  Admiral-Util.robot
