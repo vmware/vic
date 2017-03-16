@@ -51,7 +51,7 @@ This topic provides information about the Docker Compose file options that vSphe
 |`sysctls` |[Kernel parameters to set in the container](https://docs.docker.com/compose/compose-file/compose-file-v2/#sysctls) | No |
 |`ulimits` |[Override the default ulimits for a container](https://docs.docker.com/compose/compose-file/compose-file-v2/#ulimits) | No |
 |`userns_mode` |[Disables the user namespace](https://docs.docker.com/compose/compose-file/compose-file-v2/#usernsmode) | No |
-|`volumes`,`volume_driver` |[xxx](https://docs.docker.com/compose/compose-file/compose-file-v2/#volumes-volumedriver) | Yes |
+|`volumes`,`volume_driver` |[Mount paths or named volumes](https://docs.docker.com/compose/compose-file/compose-file-v2/#volumes-volumedriver) | Yes |
 |`volumes_from` |[Mount volumes from another service or container](https://docs.docker.com/compose/compose-file/compose-file-v2/#volumesfrom)| No |
 
 
@@ -60,7 +60,7 @@ This topic provides information about the Docker Compose file options that vSphe
 <a id="volume"></a>
 ## Volume Configuration Options ##
 
-NOTE: vSphere Integrated Containers 0.9 does support shared volumes. You can use these options for containers that do not share volumes. 
+NOTE: vSphere Integrated Containers 0.9 does not support shared volumes. You can use these options for containers that do not share volumes. 
 
 | **Option** | **Compose File Reference** | **Supported** |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ NOTE: vSphere Integrated Containers 0.9 does support shared volumes. You can use
 |`driver` | [Specify driver to use for this network](https://docs.docker.com/compose/compose-file/compose-file-v2/#driver-1) | Yes |
 |`driver_opts` | [Specify options to pass to the driver for this network](https://docs.docker.com/compose/compose-file/compose-file-v2/#driveropts-1) | No |
 |`enable_ipv6` | [Enables IPv6](https://docs.docker.com/compose/compose-file/compose-file-v2/#enableipv6) | No. vSphere Integrated Containers Engine does not support IPv6. |
-|`ipam`| [Specify custom IPAM configuration](https://docs.docker.com/compose/compose-file/compose-file-v2/#ipam) | No. Depends on `docker network create --ipam`. |
+|`ipam`| [Specify custom IPAM configuration](https://docs.docker.com/compose/compose-file/compose-file-v2/#ipam) | Yes |
 |`internal` | [Create an externally isolated overlay network](https://docs.docker.com/compose/compose-file/compose-file-v2/#internal) | No. Depends on `docker network create --internal`.|
 |`labels` | [Add metadata to containers](https://docs.docker.com/compose/compose-file/compose-file-v2/#labels-2) | No. Depends on `docker network --label`. |
 |`external` | [Specify that network has been created outside of Compose](https://docs.docker.com/compose/compose-file/compose-file-v2/#external-1) | Yes |

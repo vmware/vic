@@ -32,7 +32,7 @@
 |`images`|[Images](https://docs.docker.com/engine/reference/commandline/images/)|Yes. Supports `--filter`, `--no-trunc`, and `--quiet`|
 |`import`|[Import the contents from a tarball to create a filesystem image](https://docs.docker.com/engine/reference/commandline/import/)|No|
 |`load`|[Load an image from a tar archive or STDIN](https://docs.docker.com/engine/reference/commandline/load/)|No|
-|`rmi`|[Remove a Docker image](https://docs.docker.com/engine/reference/commandline/rmi/)|Yes. Does not yet support `tag` or `untag` operations, or any options.|
+|`rmi`|[Remove a Docker image](https://docs.docker.com/engine/reference/commandline/rmi/)|Yes|
 |`save`|[Save images](https://docs.docker.com/engine/reference/commandline/save/)|No|
 |`tag`|[Tag an image into a repository](https://docs.docker.com/engine/reference/commandline/tag/)|Yes|
 
@@ -57,7 +57,7 @@
 |`ps`|[Show running containers](https://docs.docker.com/engine/reference/commandline/ps/)|Yes. Supports the `-a/--all`, `-f/--filter`, `--no-trunc`, and `-q/--quiet` options. Filtering by network name is supported, but filtering by network ID is not supported.|
 |`rename`|[Rename a container](https://docs.docker.com/engine/reference/commandline/rename/)|No|
 |`restart`|[Restart a container](https://docs.docker.com/engine/reference/commandline/restart/)|Yes|
-|`rm`|[Remove a container](https://docs.docker.com/engine/reference/commandline/rm/)|Yes. Removes associated anonymous and regular volumes. Supports the `--force` option and the `name` parameter.  `docker rm -v` and `docker rm -f` are not supported. To view volumes attached to a container that is removed, use `docker volume ls` and `docker volume inspect <id>`. If you continually invoke `docker create` to make more anonymous volumes, those volumes are left behind after each subsequent removal of that container.|
+|`rm`|[Remove a container](https://docs.docker.com/engine/reference/commandline/rm/)|Yes. Removes associated anonymous and regular volumes. Supports the `--force` option and the `name` parameter.  Does not support `docker rm -v`. To view volumes attached to a container that is removed, use `docker volume ls` and `docker volume inspect <id>`. If you continually invoke `docker create` to make more anonymous volumes, those volumes are left behind after each subsequent removal of that container.|
 |`run`|[Run a command in a new container](https://docs.docker.com/engine/reference/commandline/run/)|<a id="docker_run"></a>Yes. Supports container search by using prettyname-ID with `docker run --name`. Supports the `--detach`, `--detach-keys`, and `--dns` options.<br> Supports mapping a random host port to the container when the host port is not specified. <br>Supports running images from private and custom registries.<br>`docker run --net=host` is not supported. You can specify a container network by using the [`--container-network` option](../vic_installation/vch_installer_options.html#container-network) when you deploy a virtual container host.|
 |`start`|[Start a container](https://docs.docker.com/engine/reference/commandline/start/)|Yes|
 |`stats`|[Get container stats based on resource usage](https://docs.docker.com/engine/reference/commandline/stats/)|No|
@@ -100,7 +100,7 @@ For more information about volume operations with vSphere Integrated Containers 
 | **Command** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
 |`volume create`|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)|Yes|
-|`volume inspect`|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes. Use with docker compose.|
+|`volume inspect`|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes|
 |`volume ls`|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/)|Yes|
 |`volume rm`|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/)|Yes|
 
@@ -120,7 +120,7 @@ For information about Docker Compose file support, see [Supported Docker Compose
 | `config`  | [Validate and view the compose file](https://docs.docker.com/compose/reference/config/)  | Yes  |
 | `create`  | [Create services](https://docs.docker.com/compose/reference/create/)  | Yes  |
 | `down`  | [Stop and remove containers, networks, images, and volumes](https://docs.docker.com/compose/reference/down/)  | Yes  |
-| `events`  |[Receive real time events from containers](https://docs.docker.com/compose/reference/events/)  | Yes. Supports passive Docker events for containers and images. When you perform `docker compose stop`, regular Docker Compose reports the `kill > die > stop` events, however vSphere Integrated Containers Engine reports `die > stop`. Regular Docker Compose reports the name of the image for any container operation, however vSphere Integrated Containers Engine reports `image=sha256:<hashtag>`. Does not yet support events for volumes or networks.|
+| `events`  |[Receive real time events from containers](https://docs.docker.com/compose/reference/events/)  | Yes. Supports passive Docker events for containers and images. Does not yet support events for volumes or networks.|
 | `exec`  | [Run commands in services](https://docs.docker.com/compose/reference/exec/) | No. Depends on `docker exec`. |
 | `help`  | [Get help on a command](https://docs.docker.com/compose/reference/help/)  | Yes  |
 | `kill`  | [Kill containers](https://docs.docker.com/compose/reference/kill/)  | No, but `docker kill` works. |
