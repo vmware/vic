@@ -32,94 +32,94 @@ let localStorage = window.localStorage;
 // -------------- Tests ----------------
 
 describe("Globals tests", () => {
-   let globals: Globals;
+      let globals: Globals;
 
-   describe("when WEB_PLATFORM is defined", () => {
-      beforeEach(() => {
-         jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
-         window.parent["WEB_PLATFORM"] = globalStub.webPlatform;
-         globals = new Globals();
+      describe("when WEB_PLATFORM is defined", () => {
+            jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
+            beforeEach(() => {
+                  window.parent["WEB_PLATFORM"] = globalStub.webPlatform;
+                  globals = new Globals();
+            });
+
+            it("initializes globals.webPlatform to WEB_PLATFORM", () => {
+                  expect(globals.webPlatform).toBe(globalStub.webPlatform);
+            });
       });
 
-      it("initializes globals.webPlatform to WEB_PLATFORM", () => {
-         expect(globals.webPlatform).toBe(globalStub.webPlatform);
-      });
-   });
+      describe("when WEB_PLATFORM is not defined", () => {
+            beforeEach(() => {
+                  window.parent["WEB_PLATFORM"] = undefined;
+                  globals = new Globals();
+            });
 
-   describe("when WEB_PLATFORM is not defined", () => {
-      beforeEach(() => {
-         window.parent["WEB_PLATFORM"] = undefined;
-         globals = new Globals();
+            it("initializes globals.webPlatform for Flex Client 6.0", () => {
+                  expect(globals.webPlatform.getClientType()).toBe("flex");
+                  expect(globals.webPlatform.getClientVersion()).toBe("6.0");
+                  expect(globals.webPlatform.getRootPath()).toBe("/vsphere-client");
+            });
       });
-
-      it("initializes globals.webPlatform for Flex Client 6.0", () => {
-         expect(globals.webPlatform.getClientType()).toBe("flex");
-         expect(globals.webPlatform.getClientVersion()).toBe("6.0");
-         expect(globals.webPlatform.getRootPath()).toBe("/vsphere-client");
-      });
-   });
 });
 
 describe("GlobalsService tests", () => {
 
-   beforeEach(() => {
-      TestBed.configureTestingModule({
-         imports: [ ],
-         providers: [ GlobalsService,
-            { provide: Globals, useValue: globalStub }]
-      });
-   });
-   describe("when pluginMode is true", () => {
       beforeEach(() => {
-         globalsService = initGlobalService(true);
+            TestBed.configureTestingModule({
+                  imports: [],
+                  providers: [GlobalsService,
+                        { provide: Globals, useValue: globalStub }]
+            });
+      });
+      describe("when pluginMode is true", () => {
+            beforeEach(() => {
+                  globalsService = initGlobalService(true);
+            });
+
+            it("has sideNav false and cannot change it", () => {
+                  expect(globalsService.showSidenav()).not.toBeTruthy();
+                  globalsService.toggleSidenav();
+                  expect(globalsService.showSidenav()).not.toBeTruthy();
+            });
+
+            it("has liveData true and cannot change it", () => {
+                  expect(globalsService.useLiveData()).toBeTruthy();
+                  globalsService.toggleLiveData();
+                  expect(globalsService.useLiveData()).toBeTruthy();
+            });
+
+            it("returns the current WEB_PLATFORM object", () => {
+                  expect(globalsService.getWebPlatform()).toEqual(globalStub.webPlatform);
+            });
+
+            it("returns empty http headers", () => {
+                  expect(globalsService.getHttpHeaders()).toEqual({});
+            });
       });
 
-      it ("has sideNav false and cannot change it", ()  => {
-         expect(globalsService.showSidenav()).not.toBeTruthy();
-         globalsService.toggleSidenav();
-         expect(globalsService.showSidenav()).not.toBeTruthy();
-      });
+      describe("when pluginMode is false", () => {
+            beforeEach(() => {
+                  // Ignore localStorage
+                  spyOn(localStorage, "getItem").and.returnValue("");
 
-      it ("has liveData true and cannot change it", ()  => {
-         expect(globalsService.useLiveData()).toBeTruthy();
-         globalsService.toggleLiveData();
-         expect(globalsService.useLiveData()).toBeTruthy();
-      });
+                  globalsService = initGlobalService(false);
+                  spyOn(globalsService, "getClientId").and.returnValue("someClientId");
+            });
 
-      it ("returns the current WEB_PLATFORM object", ()  => {
-         expect(globalsService.getWebPlatform()).toEqual(globalStub.webPlatform);
-      });
+            it("starts with sideNav false and can change it", () => {
+                  expect(globalsService.showSidenav()).not.toBeTruthy();
+                  globalsService.toggleSidenav();
+                  expect(globalsService.showSidenav()).toBeTruthy();
+            });
 
-      it ("returns empty http headers", ()  => {
-         expect(globalsService.getHttpHeaders()).toEqual({});
-      });
-   });
+            it("starts with liveData false and can change it", () => {
+                  expect(globalsService.useLiveData()).not.toBeTruthy();
+                  globalsService.toggleLiveData();
+                  expect(globalsService.useLiveData()).toBeTruthy();
+            });
 
-   describe("when pluginMode is false", () => {
-      beforeEach(() => {
-         // Ignore localStorage
-         spyOn(localStorage, "getItem").and.returnValue("");
-
-         globalsService = initGlobalService(false);
-         spyOn(globalsService, "getClientId").and.returnValue("someClientId");
+            it("returns http headers for liveData", () => {
+                  spyOn(globalsService, "useLiveData").and.returnValue(true);
+                  let headers = globalsService.getHttpHeaders().headers;
+                  expect(headers.get("webClientSessionId")).toEqual("someClientId");
+            });
       });
-
-      it ("starts with sideNav false and can change it", ()  => {
-         expect(globalsService.showSidenav()).not.toBeTruthy();
-         globalsService.toggleSidenav();
-         expect(globalsService.showSidenav()).toBeTruthy();
-      });
-
-      it ("starts with liveData false and can change it", ()  => {
-         expect(globalsService.useLiveData()).not.toBeTruthy();
-         globalsService.toggleLiveData();
-         expect(globalsService.useLiveData()).toBeTruthy();
-      });
-
-      it ("returns http headers for liveData", ()  => {
-         spyOn(globalsService, "useLiveData").and.returnValue(true);
-         let headers = globalsService.getHttpHeaders().headers;
-         expect(headers.get("webClientSessionId")).toEqual("someClientId");
-      });
-   });
 });
