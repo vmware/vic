@@ -291,8 +291,14 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		Metadata: config.Metadata,
 	}
 
+	dsType, err := sess.Datastore.Type(ctx)
+	if err != nil {
+		log.Errorf("Failed to check datastore type during create of %s: %s", config.Metadata.ID, err)
+		return nil, err
+	}
+
 	// if not vsan, set the datastore folder name to containerID
-	if dsType, _ := sess.Datastore.Type(ctx); dsType != types.HostFileSystemVolumeFileSystemTypeVsan {
+	if dsType != types.HostFileSystemVolumeFileSystemTypeVsan {
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", sess.Datastore.Name(), specconfig.ID, specconfig.ID)
 	}
 

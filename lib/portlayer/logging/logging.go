@@ -142,10 +142,14 @@ func Join(h interface{}) (interface{}, error) {
 	VMID := handle.Spec.ID()
 	dsName := handle.Spec.Datastore.Name()
 
-	if dsType, _ := handle.Spec.Datastore.Type(context.Background()); dsType == types.HostFileSystemVolumeFileSystemTypeVsan {
+	dsType, err := handle.Spec.Datastore.Type(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check datastore type for %s: %s", VMID, err)
+	}
+
+	logFilePath = fmt.Sprintf("[%s] %s", dsName, VMID)
+	if dsType == types.HostFileSystemVolumeFileSystemTypeVsan {
 		logFilePath = fmt.Sprintf("%s/%s", VMPathName, VMName)
-	} else {
-		logFilePath = fmt.Sprintf("[%s] %s", dsName, VMID)
 	}
 
 	for _, logFile := range []string{"tether.debug", "output.log"} {

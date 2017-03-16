@@ -222,8 +222,8 @@ func VCHName(ctx context.Context, sess *session.Session) string {
 		return DefaultVCHName
 	}
 
-	self2 := vm.NewVirtualMachineFromVM(ctx, sess, self)
-	vchName, err := self2.Name(ctx)
+	newVM := vm.NewVirtualMachineFromVM(ctx, sess, self)
+	vchName, err := newVM.Name(ctx)
 	if err != nil {
 		log.Errorf("Unable to get VCH name: %s", err)
 		log.Infof("Setting the VCH name to VCH")

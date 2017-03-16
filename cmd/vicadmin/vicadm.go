@@ -53,6 +53,8 @@ import (
 )
 
 const (
+	containerIdInExtraConfig = "guestinfo.vice./common/id"
+
 	timeout = time.Duration(2 * time.Second)
 )
 
@@ -337,7 +339,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 		} else {
 			// for the appliance VM, id is in guestinfo.vice./init/common/id;
 			// however, this is not problematic since we don't collect these logs for the appliance VM
-			logname = ec["guestinfo.vice./common/id"]
+			logname = ec[containerIdInExtraConfig]
 			if logname == "" {
 				log.Infof("Skipping collection for appliance VM")
 				continue
