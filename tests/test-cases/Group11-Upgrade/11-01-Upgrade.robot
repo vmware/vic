@@ -109,7 +109,7 @@ Run Docker Checks
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info *-%{ID1}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  vch-restart-tes-%{ID1}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls |grep *-%{ID1}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -ds %{TEST_DATASTORE} |grep *-%{ID1}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  vch-restart-tes-%{ID1}
 
