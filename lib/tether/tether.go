@@ -275,6 +275,7 @@ func (t *tether) initializeSessions() error {
 					log.Warnf("Session %s already initialized", id)
 					return nil
 				}
+				log.Debugf("Initializing session %s", id)
 
 				if session.RunBlock {
 					log.Infof("Session %s wants attach capabilities. Creating its channel", id)
@@ -339,7 +340,9 @@ func (t *tether) processSessions() error {
 	}
 
 	// we need to iterate over both sessions and execs
-	for _, m := range maps {
+	for i := range maps {
+		m := maps[i]
+
 		// process the sessions and launch if needed
 		for id, session := range m.sessions {
 			session.Lock()
@@ -372,6 +375,7 @@ func (t *tether) processSessions() error {
 			if proc == nil || session.Restart {
 				if proc == nil {
 					log.Infof("Launching process for session %s", id)
+					log.Debugf("Launch failures are fatal: %t", m.fatal)
 				} else {
 					session.Diagnostics.ResurrectionCount++
 
@@ -566,13 +570,15 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 func (t *tether) launch(session *SessionConfig) error {
 	defer trace.End(trace.Begin("launching session " + session.ID))
 
-	// encode the result whether success or error
-	defer func() {
-		extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0])
-	}()
-
 	session.Lock()
 	defer session.Unlock()
+
+	// encode the result whether success or error
+	defer func() {
+		prefix := extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0]
+		log.Debugf("Encoding result of launch for session %s under key: %s", session.ID, prefix)
+		extraconfig.EncodeWithPrefix(t.sink, session, prefix)
+	}()
 
 	// Special case here because UID/GID lookup need to be done
 	// on the appliance...

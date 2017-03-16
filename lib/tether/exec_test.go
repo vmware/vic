@@ -107,16 +107,143 @@ func TestExec(t *testing.T) {
 	// trigger tether reload
 	tthr.Reload()
 
-	// update config - into existing data
-	extraconfig.Decode(src, &result)
-
-	for result.Execs["touch"].Started != "true" {
-		// update config - into existing data
-		extraconfig.Decode(src, &result)
-	}
+	<-mocker.Reloaded
 
 	// block until tether exits - exit within test timeout is a pass given the pairing of processes in the test
 	<-mocker.Cleaned
+}
+
+func TestMissingBinaryNonFatal(t *testing.T) {
+	_, mocker := testSetup(t)
+
+	defer testTeardown(t, mocker)
+
+	dir, err := ioutil.TempDir("", "tetherTestExec")
+	if !assert.Nil(t, err, "Unable to create temp file") {
+		t.FailNow()
+	}
+
+	flagFile := path.Join(dir, "flagfile")
+	defer os.RemoveAll(flagFile)
+
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
+			ID:   "primary",
+			Name: "tether_test_executor",
+		},
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
+
+		Sessions: map[string]*executor.SessionConfig{
+			"primary": {
+				Common: executor.Common{
+					ID:   "primary",
+					Name: "tether_test_session",
+				},
+				Tty:       true,
+				Active:    true,
+				OpenStdin: true,
+
+				Cmd: executor.Cmd{
+					// test abs path
+					Path: "/bin/bash",
+					Args: []string{"/bin/bash", "-c", fmt.Sprintf("until /usr/bin/test -e %s;do /bin/sleep 0.1;done", flagFile)},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+	}
+
+	tthr, src, sink := StartTether(t, &cfg, mocker)
+
+	<-mocker.Started
+
+	// at this point the primary process should be up and running, so grab the pid
+	extraconfig.Decode(src, &cfg)
+
+	for cfg.Sessions["primary"].Started != "true" {
+		time.Sleep(time.Second)
+		extraconfig.Decode(src, &cfg)
+	}
+
+	// configure a command to kill the primary
+	cfg.Execs = map[string]*executor.SessionConfig{
+		"nonfatal": {
+			Common: executor.Common{
+				ID:   "nonfatal",
+				Name: "nonfatal_exec_session",
+			},
+			Tty:    false,
+			Active: true,
+
+			Cmd: executor.Cmd{
+				// test abs path
+				Path: "/not/there",
+				Args: []string{"/not/there"},
+				Env:  []string{},
+				Dir:  "/",
+			},
+		},
+	}
+
+	// update the active config
+	extraconfig.Encode(sink, cfg)
+
+	// trigger tether reload
+	tthr.Reload()
+
+	// wait for the reload to be processed
+	<-mocker.Reloaded
+
+	for cfg.Execs["nonfatal"].Started == "" {
+		time.Sleep(time.Second)
+		extraconfig.Decode(src, &cfg)
+	}
+
+	// reconfigure the missing process to make it inactive
+	cfg.Execs["nonfatal"].Active = false
+
+	// configure a command to kill the primary
+	cfg.Execs["touch"] = &executor.SessionConfig{
+		Common: executor.Common{
+			ID:   "touch",
+			Name: "tether_test_session",
+		},
+		Tty:    false,
+		Active: true,
+
+		Cmd: executor.Cmd{
+			// test abs path
+			Path: "/bin/touch",
+			Args: []string{"touch", flagFile},
+			Env:  []string{},
+			Dir:  "/",
+		},
+		ExitStatus: -1,
+	}
+
+	// update the active config
+	extraconfig.Encode(sink, cfg)
+
+	// trigger tether reload
+	tthr.Reload()
+
+	// block until tether exits - exit within test timeout is a pass given the pairing of processes in the test
+	<-mocker.Cleaned
+
+	// update config - into existing data
+	extraconfig.Decode(src, &cfg)
+
+	// check that nonfatal error was as expected
+	status := cfg.Execs["nonfatal"].Started
+	assert.Equal(t, "stat /not/there: no such file or directory", status, "Expected nonfatal status to have a command not found error message")
+	status = cfg.Execs["touch"].Started
+	assert.Equal(t, "true", status, "Expected touch status to be clean")
+	exit := cfg.Execs["touch"].ExitStatus
+	assert.Equal(t, 0, exit, "Expected touch exit status to be success")
+
 }
 
 func TestExecHalt(t *testing.T) {

@@ -46,6 +46,8 @@ type Mocker struct {
 	Started chan bool
 	// allow tests to tell when the tether has finished
 	Cleaned chan bool
+	// allow tests to wait for a reload to complete
+	Reloaded chan bool
 
 	// debug output gets logged here
 	LogWriter io.Writer
@@ -82,6 +84,7 @@ func (t *Mocker) Stop() error {
 		recover()
 	}()
 	close(t.Started)
+	close(t.Reloaded)
 	return nil
 }
 
@@ -93,6 +96,7 @@ func (t *Mocker) Reload(config *ExecutorConfig) error {
 		recover()
 	}()
 
+	t.Reloaded <- true
 	close(t.Started)
 	return nil
 }
@@ -259,6 +263,7 @@ func testSetup(t *testing.T) (string, *Mocker) {
 	mocker := Mocker{
 		Started:    make(chan bool, 0),
 		Cleaned:    make(chan bool, 0),
+		Reloaded:   make(chan bool, 100),
 		Interfaces: make(map[string]netlink.Link, 0),
 	}
 
