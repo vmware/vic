@@ -102,7 +102,7 @@ func TestRestartImageStore(t *testing.T) {
 	}
 
 	// Check we didn't create a new UUID directory (relevant if vsan)
-	if !assert.Equal(t, origVsStore.ds.DatastorePath, restartedVsStore.ds.DatastorePath) {
+	if !assert.Equal(t, origVsStore.ds.RootURL, restartedVsStore.ds.RootURL) {
 		return
 	}
 
@@ -505,7 +505,7 @@ func TestInProgressCleanup(t *testing.T) {
 	}
 
 	// nuke the done file.
-	rm(t, client, path.Join(vsStore.ds.DatastorePath.String(), vsStore.imageDirPath("testStore", imageID), manifest))
+	rm(t, client, path.Join(vsStore.ds.RootURL.String(), vsStore.imageDirPath("testStore", imageID), manifest))
 
 	// ensure GetImage doesn't find this image now
 	if _, err = vsStore.GetImage(op, storeURL, imageID); !assert.Error(t, err) {

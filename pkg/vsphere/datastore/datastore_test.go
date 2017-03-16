@@ -49,7 +49,7 @@ func TestDatastoreGetDatastores(t *testing.T) {
 
 	inMap := make(map[string]*url.URL)
 
-	p, err := url.Parse(ds.DatastorePath.String())
+	p, err := url.Parse(ds.RootURL.String())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -80,7 +80,7 @@ func TestDatastoreRestart(t *testing.T) {
 	defer cleanupfunc()
 
 	// Create a nested dir in the root and use that as the datastore
-	nestedRoot := path.Join(ds.DatastorePath.Path, "foo")
+	nestedRoot := path.Join(ds.RootURL.Path, "foo")
 	ds, err := NewHelper(ctx, ds.s, ds.s.Datastore, nestedRoot)
 	if !assert.NoError(t, err) {
 		return
@@ -110,7 +110,7 @@ func TestDatastoreRestart(t *testing.T) {
 		return
 	}
 
-	assert.NotEmpty(t, ds.DatastorePath)
+	assert.NotEmpty(t, ds.RootURL)
 }
 
 func TestDatastoreCreateDir(t *testing.T) {

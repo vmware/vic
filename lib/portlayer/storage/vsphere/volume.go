@@ -83,7 +83,7 @@ func (v *VolumeStore) volMetadataDirPath(ID string) string {
 // Returns the path to the vmdk itself (in datastore URL format)
 func (v *VolumeStore) volDiskDsURL(ID string) (string, error) {
 	// XXX this could be hidden in a helper.  We shouldn't use rooturl outside the datastore struct
-	return path.Join(v.ds.DatastorePath.String(), v.volDirPath(ID), ID+".vmdk"), nil
+	return path.Join(v.ds.RootURL.String(), v.volDirPath(ID), ID+".vmdk"), nil
 }
 
 func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
