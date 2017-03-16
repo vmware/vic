@@ -53,9 +53,8 @@ import (
 )
 
 const (
-	containerIdInExtraConfig = "guestinfo.vice./common/id"
-
-	timeout = time.Duration(2 * time.Second)
+	containerIDInExtraConfig = "guestinfo.vice./common/id"
+	timeout                  = time.Duration(2 * time.Second)
 )
 
 type serverCertificate struct {
@@ -187,7 +186,7 @@ func newBytesEntry(name string, b []byte) entry {
 
 type versionReader string
 
-func (path versionReader) open() (entry,error) {
+func (path versionReader) open() (entry, error) {
 	defer trace.End(trace.Begin(string(path)))
 	return newBytesEntry(string(path), []byte(version.Version)), nil
 }
@@ -339,7 +338,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 		} else {
 			// for the appliance VM, id is in guestinfo.vice./init/common/id;
 			// however, this is not problematic since we don't collect these logs for the appliance VM
-			logname = ec[containerIdInExtraConfig]
+			logname = ec[containerIDInExtraConfig]
 			if logname == "" {
 				log.Infof("Skipping collection for appliance VM")
 				continue
