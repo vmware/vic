@@ -1,11 +1,10 @@
-# Install the vSphere Integrated Containers Engine Plug-In on a vCenter Server Appliance Without Access to a Web Server #
+# Install the Flex Plug-In on a vCenter Server Appliance Without Access to a Web Server #
 
-If you are running the vCenter Server Appliance and you do not have access to a Web server, you can manually install the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
+If you are running the vCenter Server Appliance and you do not have access to a Web server, you can install the Flex-based vSphere Web Client plug-in for vSphere Integrated Containers Engine by running an installation script.
 
 **Prerequisites**
 
-- You deployed at least one virtual container host (VCH) to a vCenter Server Appliance instance.
-- If you deployed the VCH to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client to view the vSphere Web Client plug-in for vSphere Integrated Containers Engine. vSphere Integrated Containers Engine does not currently provide a plug-in for the new HTML5 vSphere Client.
+You deployed at least one virtual container host (VCH) to a vCenter Server Appliance instance.
 
 **Procedure**
 

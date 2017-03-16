@@ -1,17 +1,16 @@
-# Install the vSphere Integrated Containers Engine Plug-In on vCenter Server for Windows Without Access to a Web Server #
+# Install the Flex Plug-In on vCenter Server for Windows Without Access to a Web Server #
 
-You can install the vSphere Web Client plug-in for vSphere Integrated Containers Engine on a vCenter Server instance for Windows that does not have access to a Web Server.
+You can install the Flex-based vSphere Web Client plug-in for vSphere Integrated Containers Engine on a vCenter Server instance for Windows that does not have access to a Web Server.
 
 **Prerequisites**
 
 - You deployed at least one virtual container host (VCH) to a vCenter Server instance that runs on Windows.
-- You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the VCH, download and unpack the vSphere Integrated Containers Engine package on a Windows system. For example, download the package to the system on which vCenter Server is running.
-- If you deployed the VCH to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client to view the vSphere Web Client plug-in for vSphere Integrated Containers Engine. vSphere Integrated Containers Engine does not currently provide a plug-in for the new HTML5 vSphere Client.
+- You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the VCH, download and unpack the vSphere Integrated Containers Engine package on a Windows system. For example, download the package to the Windows system on which vCenter Server is running.
 
 **Procedure**
 
 1. On the Windows system on which you have downloaded and unpacked vSphere Integrated Containers Engine, navigate to the folder that contains the `vic-machine` utility and open the `ui` folder.
-2. Copy the <code>com.vmware.vicui.Vicui-<i>version</i></code> folder into the folder on the vCenter Server system that contains the vSphere Web Client packages.
+2. Copy the <code>com.vmware.vic-<i>version</i></code> folder into the folder on the vCenter Server system that contains the vSphere Web Client packages.
   
   - Source location on `vic-machine` system: <pre><i>vic_unpack_dir</i>\vic\ui\vsphere-client-serenity</pre>
   - Destination location on vCenter Server Windows system: <pre><i>instl_dir</i>\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-client-serenity</pre>
