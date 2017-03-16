@@ -639,6 +639,12 @@ func (c *Create) processCertificates() error {
 		}
 	}
 
+	if c.cname != "" {
+		if cnameIP, _, _ := net.ParseCIDR(c.cname); cnameIP != nil {
+			c.cname = cnameIP.String()
+		}
+	}
+
 	// load what certificates we can
 	cas, keypair, err := c.loadCertificates()
 	if err != nil {
