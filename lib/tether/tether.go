@@ -61,7 +61,7 @@ type tether struct {
 	ops Operations
 
 	// the reload channel is used to block reloading of the config
-	reload chan bool
+	reload chan struct{}
 
 	// config holds the main configuration for the executor
 	config *ExecutorConfig
@@ -83,7 +83,7 @@ func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &tether{
 		ops:    ops,
-		reload: make(chan bool, 1),
+		reload: make(chan struct{}, 1),
 		config: &ExecutorConfig{
 			pids: make(map[int]*SessionConfig),
 		},
@@ -127,7 +127,7 @@ func (t *tether) setup() error {
 		log.SetOutput(out)
 	}
 
-	t.reload = make(chan bool, 1)
+	t.reload = make(chan struct{}, 1)
 	t.config = &ExecutorConfig{
 		pids: make(map[int]*SessionConfig),
 	}
@@ -357,7 +357,7 @@ func (t *tether) processSessions() error {
 	// so that we can launch multiple sessions in parallel
 	var wg sync.WaitGroup
 	// to collect the errors back from them
-	resultsCh := make(chan results, len(t.config.Sessions))
+	resultsCh := make(chan results, len(t.config.Sessions)+len(t.config.Execs))
 
 	maps := []struct {
 		sessions map[string]*SessionConfig
@@ -461,7 +461,7 @@ func (t *tether) Start() error {
 	defer t.cleanup()
 
 	// initial entry, so seed this
-	t.reload <- true
+	t.reload <- struct{}{}
 	for range t.reload {
 		log.Info("Loading main configuration")
 
@@ -498,6 +498,8 @@ func (t *tether) Start() error {
 			return err
 		}
 
+		// Danger, Will Robinson! There is a strict ordering here.
+		// We need to start attach server first so that it can unblock the session
 		if err := t.reloadExtensions(); err != nil {
 			log.Error(err)
 			return err
@@ -530,7 +532,7 @@ func (t *tether) Stop() error {
 func (t *tether) Reload() {
 	log.Infof("Reload triggered")
 
-	t.reload <- true
+	t.reload <- struct{}{}
 }
 
 func (t *tether) Register(name string, extension Extension) {
@@ -624,6 +626,9 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Cmd.Stdout = nil
 	session.Cmd.Stderr = nil
 
+	// Set StopTime to its default value
+	session.StopTime = 0
+
 	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir)
 	if err != nil {
 		log.Errorf("Path lookup failed for %s: %s", session.Cmd.Path, err)
@@ -635,13 +640,13 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// block until we have a connection
 	if session.RunBlock && session.ClearToLaunch != nil {
-		log.Debugf("Waiting clear signal to launch %s", session.ID)
+		log.Infof("Waiting clear signal to launch %s", session.ID)
 		select {
 		case <-t.ctx.Done():
 			log.Warnf("Waiting to launch %s canceled, bailing out", session.ID)
 			return nil
 		case <-session.ClearToLaunch:
-			log.Debugf("Received the clear signal to launch %s", session.ID)
+			log.Infof("Received the clear signal to launch %s", session.ID)
 		}
 	}
 
@@ -763,7 +768,7 @@ func (t *tether) forkHandler() {
 
 		// trigger a reload of the configuration
 		log.Info("Triggering reload of config after fork")
-		t.reload <- true
+		t.reload <- struct{}{}
 	}
 }
 

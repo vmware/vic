@@ -55,7 +55,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -223,10 +222,6 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
 	defer trace.End(trace.Begin(name))
 
-	if !config.Detach {
-		return "", fmt.Errorf("%s only supports detached exec commands at this time", ProductName())
-	}
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -239,33 +234,14 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		return "", InternalServerError(err.Error())
 	}
 
-	joinconfig := &models.TaskJoinConfig{
-		Handle:    handle,
-		Path:      config.Cmd[0],
-		Args:      config.Cmd[1:],
-		Env:       config.Env,
-		User:      config.User,
-		Attach:    config.AttachStdin || config.AttachStdout || config.AttachStderr,
-		OpenStdin: config.AttachStdin,
-		Tty:       config.Tty,
-	}
-	log.Debugf("JoinConfig: %#v", joinconfig)
-
-	// obtain a portlayer client
-	client := c.containerProxy.Client()
-
-	// call Join with JoinParams
-	joinparams := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
-	resp, err := client.Tasks.Join(joinparams)
+	handleprime, eid, err := c.containerProxy.CreateExecTask(handle, config)
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
-	eid := resp.Payload.ID
 
-	handle = resp.Payload.Handle.(string)
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	err = c.containerProxy.CommitContainerHandle(handleprime, id, 0)
 	if err != nil {
-		return "", InternalServerError(err.Error())
+		return "", err
 	}
 
 	// associate newly created exec task with container
@@ -334,17 +310,22 @@ func (c *Container) ContainerExecResize(name string, height, width int) error {
 	if vc == nil {
 		return NotFoundError(name)
 	}
-	/*
-		// portlayer client
-		client := c.containerProxy.Client()
 
-		resizeParams := containers.NewExecResizeParamsWithContext(ctx).WithHeight(int32(height)).WithWidth(int32(width)).WithID(vc.ContainerID).WithEid(name)
-		_, err := client.Containers.ExecResize(resizeParams)
-		if err != nil {
-			return InternalServerError(err.Error())
-		}
-	*/
-	return nil
+	// Call the port layer to resize
+	plHeight := int32(height)
+	plWidth := int32(width)
+
+	var err error
+	if err = c.containerProxy.Resize(name, plHeight, plWidth); err == nil {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
+			"height": fmt.Sprintf("%d", height),
+			"width":  fmt.Sprintf("%d", width),
+		})
+
+		EventService().Log(containerResizeEvent, eventtypes.ContainerEventType, actor)
+	}
+
+	return err
 }
 
 // ContainerExecStart starts a previously set up exec instance. The
@@ -381,8 +362,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 	handle = resp.Payload.Handle.(string)
 
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
-	if err != nil {
+	if err := c.containerProxy.BindInteraction(handle, name); err != nil {
 		return InternalServerError(err.Error())
 	}
 
@@ -395,6 +375,33 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(event, eventtypes.ContainerEventType, actor)
+
+	ca := &backend.ContainerAttachConfig{
+		UseStdin:  ec.OpenStdin,
+		UseStdout: ec.OpenStdout,
+		UseStderr: ec.OpenStderr,
+	}
+
+	if ec.Tty {
+		ca.UseStderr = false
+	}
+
+	// FIXME(caglar10ur): should call unbind?
+	// docker run -d busybox /bin/top
+	// docker exec -it {name} /bin/ash
+	//   - Detach
+	//   - Exit
+	err = c.containerProxy.AttachStreams(context.Background(), vc, eid, stdin, stdout, stderr, ca)
+	if err != nil {
+		if _, ok := err.(DetachError); ok {
+			log.Infof("Detach detected, tearing down connection")
+
+			if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
+				return err
+			}
+		}
+		return err
+	}
 
 	return nil
 }
@@ -603,7 +610,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	plWidth := int32(width)
 
 	var err error
-	if err = c.containerProxy.Resize(vc, plHeight, plWidth); err == nil {
+	if err = c.containerProxy.Resize(vc.ContainerID, plHeight, plWidth); err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),
@@ -1567,37 +1574,13 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 	}
 	id := vc.ContainerID
 
-	client := c.containerProxy.Client()
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		return err
 	}
 
-	bind, err := client.Interaction.InteractionBind(interaction.NewInteractionBindParamsWithContext(ctx).
-		WithConfig(&models.InteractionBindConfig{
-			Handle: handle,
-		}))
-	if err != nil {
-		return InternalServerError(err.Error())
-	}
-	handle, ok := bind.Payload.Handle.(string)
-	if !ok {
-		return InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
-	}
-
-	// commit the handle; this will reconfigure the vm
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
-	if err != nil {
-		switch err := err.(type) {
-		case *containers.CommitNotFound:
-			return NotFoundError(name)
-		case *containers.CommitConflict:
-			return ConflictError(err.Error())
-		case *containers.CommitDefault:
-			return InternalServerError(err.Payload.Message)
-		default:
-			return InternalServerError(err.Error())
-		}
+	if err := c.containerProxy.BindInteraction(handle, name); err != nil {
+		return err
 	}
 
 	clStdin, clStdout, clStderr, err := ca.GetStreams()
@@ -1608,17 +1591,22 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 
 	if !vc.Config.Tty && ca.MuxStreams {
 		// replace the stdout/stderr with Docker's multiplex stream
-		if ca.UseStdout {
+		if ca.UseStderr {
 			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
 		}
-		if ca.UseStderr {
+		if ca.UseStdout {
 			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
 		}
 	}
 
+	if vc.Config.Tty {
+		ca.UseStderr = false
+	}
+
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+
+	err = c.containerProxy.AttachStreams(context.Background(), vc, "", clStdin, clStdout, clStderr, ca)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
 			// fire detach event
@@ -1626,38 +1614,14 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
 			log.Infof("Detach detected, tearing down connection")
-			client = c.containerProxy.Client()
-			handle, err = c.Handle(id, name)
+
+			handle, err := c.Handle(id, name)
 			if err != nil {
 				return err
 			}
 
-			unbind, err := client.Interaction.InteractionUnbind(interaction.NewInteractionUnbindParamsWithContext(ctx).
-				WithConfig(&models.InteractionUnbindConfig{
-					Handle: handle,
-				}))
-			if err != nil {
-				return InternalServerError(err.Error())
-			}
-
-			handle, ok = unbind.Payload.Handle.(string)
-			if !ok {
-				return InternalServerError("type assertion failed")
-			}
-
-			// commit the handle; this will reconfigure the vm
-			_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
-			if err != nil {
-				switch err := err.(type) {
-				case *containers.CommitNotFound:
-					return NotFoundError(name)
-				case *containers.CommitConflict:
-					return ConflictError(err.Error())
-				case *containers.CommitDefault:
-					return InternalServerError(err.Payload.Message)
-				default:
-					return InternalServerError(err.Error())
-				}
+			if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
+				return err
 			}
 		}
 		return err

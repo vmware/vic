@@ -156,7 +156,7 @@ func (c *containerBase) startGuestProgram(ctx context.Context, name string, args
 		return NotYetExistError{c.ExecConfig.ID}
 	}
 
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+	defer trace.End(trace.Begin(c.ExecConfig.ID + ":" + name))
 	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
 	m, err := o.ProcessManager(ctx)
 	if err != nil {

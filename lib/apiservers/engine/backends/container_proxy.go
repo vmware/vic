@@ -81,10 +81,15 @@ import (
 type VicContainerProxy interface {
 	CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
 	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
+	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
+
+	BindInteraction(handle string, name string) error
+	UnbindInteraction(handle string, name string) error
+
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
@@ -93,9 +98,9 @@ type VicContainerProxy interface {
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
-	Resize(vc *viccontainer.VicContainer, height, width int32) error
+	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
-	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
+	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -249,6 +254,40 @@ func (c *ContainerProxy) CreateContainerTask(handle, id string, config types.Con
 	}
 
 	return handle, nil
+}
+
+func (c *ContainerProxy) CreateExecTask(handle string, config *types.ExecConfig) (string, string, error) {
+	defer trace.End(trace.Begin(""))
+
+	if c.client == nil {
+		return "", "", InternalServerError("ContainerProxy.CreateExecTask failed to create a portlayer client")
+	}
+
+	joinconfig := &models.TaskJoinConfig{
+		Handle:    handle,
+		Path:      config.Cmd[0],
+		Args:      config.Cmd[1:],
+		Env:       config.Env,
+		User:      config.User,
+		Attach:    config.AttachStdin || config.AttachStdout || config.AttachStderr,
+		OpenStdin: config.AttachStdin,
+		Tty:       config.Tty,
+	}
+
+	// call Join with JoinParams
+	joinparams := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
+	resp, err := c.client.Tasks.Join(joinparams)
+	if err != nil {
+		return "", "", InternalServerError(err.Error())
+	}
+	eid := resp.Payload.ID
+
+	handleprime, ok := resp.Payload.Handle.(string)
+	if !ok {
+		return "", "", InternalServerError(fmt.Sprintf("Type assertion failed on handle from task bind %#+v", handleprime))
+	}
+
+	return handleprime, eid, nil
 }
 
 // AddContainerToScope adds a container, referenced by handle, to a scope.
@@ -437,6 +476,54 @@ func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.C
 	}
 
 	return handle, nil
+}
+
+// BindInteraction enables interaction capabilies
+func (c *ContainerProxy) BindInteraction(handle string, name string) error {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
+	}
+
+	bind, err := c.client.Interaction.InteractionBind(
+		interaction.NewInteractionBindParamsWithContext(ctx).
+			WithConfig(&models.InteractionBindConfig{
+				Handle: handle,
+			}))
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+	handle, ok := bind.Payload.Handle.(string)
+	if !ok {
+		return InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return c.CommitContainerHandle(handle, name, 0)
+}
+
+// UnbindInteraction disables interaction capabilies
+func (c *ContainerProxy) UnbindInteraction(handle string, name string) error {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
+	}
+
+	unbind, err := c.client.Interaction.InteractionUnbind(
+		interaction.NewInteractionUnbindParamsWithContext(ctx).
+			WithConfig(&models.InteractionUnbindConfig{
+				Handle: handle,
+			}))
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+	handle, ok := unbind.Payload.Handle.(string)
+	if !ok {
+		return InternalServerError("type assertion failed")
+	}
+
+	return c.CommitContainerHandle(handle, name, 0)
 }
 
 // CommitContainerHandle commits any changes to container handle.
@@ -809,8 +896,8 @@ func (c *ContainerProxy) createNewAttachClientWithTimeouts(connectTimeout, respo
 	return plClient, transport
 }
 
-func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int32) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+func (c *ContainerProxy) Resize(id string, height, width int32) error {
+	defer trace.End(trace.Begin(id))
 
 	if c.client == nil {
 		return derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy failed to create a portlayer client"),
@@ -818,14 +905,14 @@ func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int
 	}
 
 	plResizeParam := interaction.NewContainerResizeParamsWithContext(ctx).
-		WithID(vc.ContainerID).
+		WithID(id).
 		WithHeight(height).
 		WithWidth(width)
 
 	_, err := c.client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
 		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-			return ResourceNotFoundError(vc.ContainerID, "interaction connection")
+			return ResourceNotFoundError(id, "interaction connection")
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -838,7 +925,7 @@ func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int
 // AttachStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
 // clStdin, clStdout, clStderr are the hijacked connection
-func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
+func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
 	// Cancel will close the child connections.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -864,7 +951,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := copyStdIn(ctx, plClient, vc, clStdin, keys)
+			err := copyStdIn(ctx, plClient, vc, eid, clStdin, keys)
 			if err != nil {
 				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err.Error())
 			} else {
@@ -874,11 +961,13 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 			// no need to take action if we are canceled
 			// as that means error happened somewhere else
 			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
+				log.Infof("returning from stdin as context canceled by someone else")
 				return
 			}
-			cancel()
-
+			// cancel other for the detach case
+			if _, ok := err.(DetachError); ok {
+				cancel()
+			}
 			errors <- err
 		}()
 	}
@@ -887,7 +976,8 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, clStdout)
+
+			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, eid, clStdout)
 			if err != nil {
 				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err.Error())
 			} else {
@@ -897,11 +987,10 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 			// no need to take action if we are canceled
 			// as that means error happened somewhere else
 			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdout as context canceled somewhere else")
+				log.Infof("returning from stdout as context canceled by someone else")
 				return
 			}
 			cancel()
-
 			errors <- err
 		}()
 	}
@@ -910,7 +999,8 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := copyStdErr(ctx, plClient, vc, clStderr)
+
+			err := copyStdErr(ctx, plClient, vc, eid, clStderr)
 			if err != nil {
 				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err.Error())
 			} else {
@@ -920,10 +1010,10 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 			// no need to take action if we are canceled
 			// as that means error happened somewhere else
 			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stderr as context canceled somewhere else")
+				log.Infof("returning from stderr as context canceled by someone else")
 				return
 			}
-			cancel()
+			//cancel()
 
 			errors <- err
 		}()
@@ -1637,7 +1727,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 // ContainerAttach() Utility Functions
 //------------------------------------
 
-func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
+func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
 	defer stdinWriter.Close()
@@ -1672,16 +1762,20 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		}
 	}()
 
+	id := vc.ContainerID
+	if eid != "" {
+		id = eid
+	}
 	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
 	// to set the stdin is synchronous so we need to run in a goroutine
-	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(id)
 	setStdinParams = setStdinParams.WithRawStream(stdinReader)
 
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
 	if vc.Config.StdinOnce && !vc.Config.Tty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
 		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
-		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(id)
 		_, err := pl.Interaction.ContainerCloseStdin(params)
 		if err != nil {
 			log.Errorf("CloseStdin failed with %s", err)
@@ -1692,11 +1786,16 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	if detach {
 		return DetachError{}
 	}
+
 	return err
 }
 
-func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.Duration, vc *viccontainer.VicContainer, clStdout io.Writer) error {
+func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.Duration, vc *viccontainer.VicContainer, eid string, clStdout io.Writer) error {
 	id := vc.ContainerID
+	if eid != "" {
+		id = eid
+	}
+
 	//Calculate how much time to let portlayer attempt
 	plAttemptTimeout := attemptTimeout - attachPLAttemptDiff //assumes personality deadline longer than portlayer's deadline
 	plAttemptDeadline := time.Now().Add(plAttemptTimeout)
@@ -1719,14 +1818,17 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.D
 	return nil
 }
 
-func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStderr io.Writer) error {
-	name := vc.ContainerID
-	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(name)
+func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, eid string, clStderr io.Writer) error {
+	id := vc.ContainerID
+	if eid != "" {
+		id = eid
+	}
 
+	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(id)
 	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
-			ResourceNotFoundError(name, "interaction connection")
+			ResourceNotFoundError(id, "interaction connection")
 		}
 
 		return InternalServerError(err.Error())

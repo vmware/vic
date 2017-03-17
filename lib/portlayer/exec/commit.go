@@ -172,6 +172,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 				if err != nil {
 					// NOTE: not sure how to handle this error - the change is already applied, it's just not picked up in the container
 				}
+				h.reload = false
 			}
 		}
 	}

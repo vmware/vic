@@ -65,6 +65,8 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 	op.Debugf("Path: %#v", params.Config.Path)
 	op.Debugf("WorkingDir: %#v", params.Config.WorkingDir)
 	op.Debugf("OpenStdin: %#v", params.Config.OpenStdin)
+	op.Debugf("Attach: %#v", params.Config.Attach)
+
 	op.Debugf("User: %s", params.Config.User)
 
 	sessionConfig := &executor.SessionConfig{

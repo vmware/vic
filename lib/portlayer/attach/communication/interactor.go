@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package attach
+package communication
 
 import (
 	"fmt"
 	"io"
 
-	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
@@ -29,7 +28,8 @@ const (
 	attachChannelType = "attach"
 )
 
-type SessionInteraction interface {
+// SessionInteractor defines the interaction interface
+type SessionInteractor interface {
 	// Send specific signal
 	Signal(signal ssh.Signal) error
 	// Stdout stream
@@ -44,60 +44,47 @@ type SessionInteraction interface {
 	Resize(cols, rows, widthpx, heightpx uint32) error
 
 	CloseStdin() error
+
+	Ping() error
+	Unblock() error
 }
 
-type attachSSH struct {
-	client *ssh.Client
-
-	channel  ssh.Channel
-	requests <-chan *ssh.Request
+// interaction implements SessionInteractor using SSH
+type interaction struct {
+	channel ssh.Channel
 }
 
-func SSHls(client *ssh.Client) ([]string, error) {
+// ContainerIDs asks the ids of the containers on the other hand and return them to the caller
+func ContainerIDs(conn ssh.Conn) ([]string, error) {
 	defer trace.End(trace.Begin(""))
 
-	ok, reply, err := client.SendRequest(msgs.ContainersReq, true, nil)
+	ok, reply, err := conn.SendRequest(msgs.ContainersReq, true, nil)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("failed to get container IDs from remote: %s", err)
 	}
 
 	ids := msgs.ContainersMsg{}
-
 	if err = ids.Unmarshal(reply); err != nil {
-		log.Debugf("raw IDs response: %+v", reply)
 		return nil, fmt.Errorf("failed to unmarshal ids from remote: %s", err)
 	}
 
 	return ids.IDs, nil
 }
 
-// SSHAttach returns a stream connection to the requested session
-// The ssh client is assumed to be connected to the Executor hosting the session
-func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
-	defer trace.End(trace.Begin(""))
+// NewSSHInteraction returns a stream connection to the requested session
+// The ssh conn is assumed to be connected to the Executor hosting the session
+func NewSSHInteraction(conn ssh.Conn, id string) (SessionInteractor, error) {
+	defer trace.End(trace.Begin(id))
 
-	sessionSSH := &attachSSH{
-		client: client,
-	}
-
-	var err error
-	sessionSSH.channel, sessionSSH.requests, err = client.OpenChannel(attachChannelType, []byte(id))
+	channel, _, err := conn.OpenChannel(attachChannelType, []byte(id))
 	if err != nil {
 		return nil, err
 	}
 
-	// we have to handle incoming requests to the client on this channel but we don't support any currently
-	go func() {
-		for req := range sessionSSH.requests {
-			// default, preserving OpenSSH behaviour
-			req.Reply(false, nil)
-		}
-	}()
-
-	return sessionSSH, nil
+	return &interaction{channel: channel}, nil
 }
 
-func (t *attachSSH) Signal(signal ssh.Signal) error {
+func (t *interaction) Signal(signal ssh.Signal) error {
 	defer trace.End(trace.Begin(""))
 
 	msg := msgs.SignalMsg{Signal: signal}
@@ -113,7 +100,7 @@ func (t *attachSSH) Signal(signal ssh.Signal) error {
 	return nil
 }
 
-func (t *attachSSH) CloseStdin() error {
+func (t *interaction) CloseStdin() error {
 	defer trace.End(trace.Begin(""))
 
 	ok, err := t.channel.SendRequest(msgs.CloseStdinReq, true, nil)
@@ -128,32 +115,32 @@ func (t *attachSSH) CloseStdin() error {
 	return nil
 }
 
-func (t *attachSSH) Stdout() io.Reader {
+func (t *interaction) Stdout() io.Reader {
 	defer trace.End(trace.Begin(""))
 
 	return t.channel
 }
 
-func (t *attachSSH) Stderr() io.Reader {
+func (t *interaction) Stderr() io.Reader {
 	defer trace.End(trace.Begin(""))
 
 	return t.channel.Stderr()
 }
 
-func (t *attachSSH) Stdin() io.WriteCloser {
+func (t *interaction) Stdin() io.WriteCloser {
 	defer trace.End(trace.Begin(""))
 
 	return t.channel
 }
 
-func (t *attachSSH) Close() error {
+func (t *interaction) Close() error {
 	defer trace.End(trace.Begin(""))
 
 	return t.channel.Close()
 }
 
 // Resize resizes the terminal.
-func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
+func (t *interaction) Resize(cols, rows, widthpx, heightpx uint32) error {
 	defer trace.End(trace.Begin(""))
 
 	msg := msgs.WindowChangeMsg{
@@ -170,5 +157,29 @@ func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
 	if err != nil {
 		return fmt.Errorf("resize error: %s", err)
 	}
+	return nil
+}
+
+// Ping checks the liveleness of the connection
+func (t *interaction) Ping() error {
+	defer trace.End(trace.Begin(""))
+
+	ok, err := t.channel.SendRequest(msgs.PingReq, true, []byte(msgs.PingMsg))
+	if !ok || err != nil {
+		return fmt.Errorf("failed to ping the other side: %s", err)
+	}
+
+	return nil
+}
+
+// Unblock sends an unblock msg
+func (t *interaction) Unblock() error {
+	defer trace.End(trace.Begin(""))
+
+	ok, err := t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg))
+	if !ok || err != nil {
+		return fmt.Errorf("failed to unblock the other side: %s", err)
+	}
+
 	return nil
 }

@@ -241,7 +241,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 
 	// re-calculate the key based on the scope and prefix
 	if key = calculateKey(scope, prefix, key); key == "" {
-		log.Warnf("Skipping %s (unknown scope %s)", field.Name, scopes)
+		log.Debugf("Skipping %s (unknown scope %s)", field.Name, scopes)
 		return "", skip
 	}
 

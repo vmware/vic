@@ -76,6 +76,13 @@ var (
 	}
 )
 
+// PingMsg
+const PingReq = "ping"
+const PingMsg = "Ping"
+
+const UnblockReq = "unblock"
+const UnblockMsg = "Unblock"
+
 // SignalMsg
 const SignalReq = "signal"
 

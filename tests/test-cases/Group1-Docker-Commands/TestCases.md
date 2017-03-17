@@ -70,3 +70,5 @@ Group 1 - Docker Commands
 -
 [Test 1-36 - Docker Rename](1-36-Docker-Rename.md)
 -
+[Test 1-37 - Docker Exec](1-36-Docker-Exec.md)
+-

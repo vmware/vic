@@ -59,6 +59,12 @@ type attachServerSSH struct {
 		conn net.Conn
 	}
 
+	// we pass serverConn to the channelMux goroutine so we need to lock it
+	serverConn struct {
+		sync.Mutex
+		*ssh.ServerConn
+	}
+
 	config    *tether.ExecutorConfig
 	sshConfig *ssh.ServerConfig
 
@@ -68,9 +74,6 @@ type attachServerSSH struct {
 	// between run() and stop()
 	ctx    context.Context
 	cancel context.CancelFunc
-
-	// Used for ordering events between global mux and channel mux
-	askedAndAnswered chan struct{}
 
 	// INTERNAL: must set by testAttachServer only
 	testing bool
@@ -148,6 +151,23 @@ func (t *attachServerSSH) start() error {
 	}
 
 	if t.Enabled() {
+		t.serverConn.Lock()
+		if t.serverConn.ServerConn != nil {
+			msg := msgs.ContainersMsg{
+				IDs: t.sessions(),
+			}
+			payload := msg.Marshal()
+
+			ok, _, err := t.serverConn.SendRequest(msgs.ContainersReq, true, payload)
+			if !ok || err != nil {
+				log.Errorf("failed to send container ids: %s, %t", err, ok)
+			}
+			t.serverConn.Unlock()
+
+			return nil
+		}
+		t.serverConn.Unlock()
+
 		err := fmt.Errorf("attach server is already enabled")
 		log.Warn(err)
 		return nil
@@ -284,11 +304,6 @@ func backchannel(ctx context.Context, conn net.Conn) error {
 func (t *attachServerSSH) run() error {
 	defer trace.End(trace.Begin("main attach server loop"))
 
-	// we pass serverConn to the channelMux goroutine so we need to lock it
-	var serverConn struct {
-		sync.Mutex
-		*ssh.ServerConn
-	}
 	var established bool
 
 	var chans <-chan ssh.NewChannel
@@ -296,9 +311,9 @@ func (t *attachServerSSH) run() error {
 	var err error
 
 	for t.Enabled() {
-		serverConn.Lock()
-		established = serverConn.ServerConn != nil
-		serverConn.Unlock()
+		t.serverConn.Lock()
+		established = t.serverConn.ServerConn != nil
+		t.serverConn.Unlock()
 
 		// keep waiting for the connection to establish
 		for !established && t.Enabled() {
@@ -333,10 +348,10 @@ func (t *attachServerSSH) run() error {
 				}
 
 				// create the SSH server using underlying t.conn
-				serverConn.Lock()
-				defer serverConn.Unlock()
+				t.serverConn.Lock()
+				defer t.serverConn.Unlock()
 
-				serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(t.conn.conn, t.sshConfig)
+				t.serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(t.conn.conn, t.sshConfig)
 				if err != nil {
 					detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
 					log.Error(detail)
@@ -351,12 +366,12 @@ func (t *attachServerSSH) run() error {
 		defer func() {
 			log.Debugf("cleanup on connection")
 
-			serverConn.Lock()
-			defer serverConn.Unlock()
+			t.serverConn.Lock()
+			defer t.serverConn.Unlock()
 
-			if serverConn.ServerConn != nil {
+			if t.serverConn.ServerConn != nil {
 				log.Debugf("closing underlying connection")
-				serverConn.Close()
+				t.serverConn.Close()
 			}
 		}()
 
@@ -386,10 +401,13 @@ func (t *attachServerSSH) run() error {
 			sessionid := string(bytes)
 			session, ok := t.config.Sessions[sessionid]
 			if !ok {
-				detail := fmt.Sprintf("session %s is invalid", sessionid)
-				attachchan.Reject(ssh.Prohibited, detail)
-				log.Error(detail)
-				continue
+				session, ok = t.config.Execs[sessionid]
+				if !ok {
+					detail := fmt.Sprintf("session %s is invalid", sessionid)
+					attachchan.Reject(ssh.Prohibited, detail)
+					log.Error(detail)
+					continue
+				}
 			}
 
 			channel, requests, err := attachchan.Accept()
@@ -419,9 +437,13 @@ func (t *attachServerSSH) run() error {
 
 				channel.Close()
 
-				serverConn.Lock()
-				serverConn.ServerConn = nil
-				serverConn.Unlock()
+				t.serverConn.Lock()
+				// set serverConn to nil if not an exec session
+				if _, ok = t.config.Sessions[sessionid]; ok {
+					log.Debugf("Setting serverConn to nil")
+					t.serverConn.ServerConn = nil
+				}
+				t.serverConn.Unlock()
 			}
 
 			detach := cleanup
@@ -445,30 +467,40 @@ func (t *attachServerSSH) run() error {
 			log.Debugf("reader/writers bound for channel for %s", sessionid)
 
 			go t.channelMux(requests, session, detach)
-
-			if session.RunBlock && session.ClearToLaunch != nil && session.Started != "true" {
-				log.Debugf("Unblocking the launch of %s", sessionid)
-				// make sure that portlayer received the container id back
-				session.ClearToLaunch <- <-t.askedAndAnswered
-				log.Debugf("Unblocked the launch of %s", sessionid)
-			}
 		}
 		log.Info("Incoming attach channel closed")
 	}
 	return nil
 }
 
+func (t *attachServerSSH) sessions() []string {
+	defer trace.End(trace.Begin(""))
+
+	var keys []string
+
+	for k, v := range t.config.Sessions {
+		if v.Active && v.StopTime == 0 {
+			keys = append(keys, k)
+		}
+	}
+
+	for k, v := range t.config.Execs {
+		if v.Active && v.StopTime == 0 {
+			log.Debugf("Adding %s to keys %t", v.ID, v.Active)
+
+			keys = append(keys, k)
+		}
+	}
+
+	log.Debugf("Returning %d keys", len(keys))
+	return keys
+}
+
 func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 	defer trace.End(trace.Begin("attach server global request handler"))
 
-	// to make sure we close the channel once
-	var once sync.Once
-
-	// ContainersReq will close this channel
-	t.askedAndAnswered = make(chan struct{})
-
+	var pendingFn func()
 	for req := range reqchan {
-		var pendingFn func()
 		var payload []byte
 		ok := true
 
@@ -476,21 +508,10 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 
 		switch req.Type {
 		case msgs.ContainersReq:
-			keys := make([]string, len(t.config.Sessions))
-			i := 0
-			for k := range t.config.Sessions {
-				keys[i] = k
-				i++
+			msg := msgs.ContainersMsg{
+				IDs: t.sessions(),
 			}
-			msg := msgs.ContainersMsg{IDs: keys}
 			payload = msg.Marshal()
-
-			// unblock ^ (above)
-			pendingFn = func() {
-				once.Do(func() {
-					close(t.askedAndAnswered)
-				})
-			}
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
@@ -524,10 +545,35 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 	// cleanup function passed by the caller
 	defer cleanup()
 
+	// to make sure we close the channel once
+	var once sync.Once
+
 	for req := range in {
 		ok := true
 
 		switch req.Type {
+		case msgs.PingReq:
+			log.Infof("Received PingReq for %s", session.ID)
+
+			if string(req.Payload) != msgs.PingMsg {
+				log.Infof("Received corrupted PingReq for %s", session.ID)
+				ok = false
+			}
+		case msgs.UnblockReq:
+			log.Infof("Received UnblockReq for %s", session.ID)
+
+			// unblock ^ (above)
+			pendingFn = func() {
+				once.Do(func() {
+					if session.RunBlock && session.ClearToLaunch != nil && session.Started != "true" {
+						log.Infof("Unblocking the launch of %s", session.Common.ID)
+						// make sure that portlayer received the container id back
+						session.ClearToLaunch <- struct{}{}
+						log.Infof("Unblocked the launch of %s", session.Common.ID)
+					}
+				})
+			}
+
 		case msgs.WindowChangeReq:
 			session.Lock()
 			pty := session.Pty
@@ -555,8 +601,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 			}
 		default:
 			ok = false
-			err := fmt.Errorf("ssh request type %s is not supported", req.Type)
-			log.Error(err.Error())
+			log.Error(fmt.Sprintf("ssh request type %s is not supported", req.Type))
 		}
 
 		// payload is ignored on channel specific replies.  The ok is passed, however.
@@ -574,7 +619,6 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 			pendingFn = nil
 		}
 	}
-
 }
 
 // The syscall struct

@@ -36,7 +36,9 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/attach"
+
+	"github.com/vmware/vic/lib/portlayer/attach/communication"
+
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/serial"
 )
@@ -285,11 +287,12 @@ func attachCase(t *testing.T, runblock bool) {
 
 	attachClient := ssh.NewClient(sshConn, chans, reqs)
 
+	_, err = communication.ContainerIDs(attachClient)
+	assert.NoError(t, err)
+	sshSession, err := communication.NewSSHInteraction(attachClient, cfg.ID)
 	if runblock {
-		_, err = attach.SSHls(attachClient)
-		assert.NoError(t, err)
+		sshSession.Unblock()
 	}
-	sshSession, err := attach.SSHAttach(attachClient, cfg.ID)
 	assert.NoError(t, err)
 
 	stdout := sshSession.Stdout()
@@ -388,7 +391,7 @@ func TestAttachTTY(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := attach.SSHAttach(client, cfg.ID)
+	session, err := communication.NewSSHInteraction(client, cfg.ID)
 	assert.NoError(t, err)
 
 	stdout := session.Stdout()
@@ -527,7 +530,7 @@ func TestAttachMultiple(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	ids, err := attach.SSHls(client)
+	ids, err := communication.ContainerIDs(client)
 	assert.NoError(t, err)
 
 	// there's no ordering guarantee in the returned ids
@@ -542,10 +545,10 @@ func TestAttachMultiple(t *testing.T) {
 		}
 	}
 
-	sessionA, err := attach.SSHAttach(client, "tee1")
+	sessionA, err := communication.NewSSHInteraction(client, "tee1")
 	assert.NoError(t, err)
 
-	sessionB, err := attach.SSHAttach(client, "tee2")
+	sessionB, err := communication.NewSSHInteraction(client, "tee2")
 	assert.NoError(t, err)
 
 	stdoutA := sessionA.Stdout()
@@ -654,7 +657,7 @@ func TestAttachInvalid(t *testing.T) {
 
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	_, err = attach.SSHAttach(client, "invalid")
+	_, err = communication.NewSSHInteraction(client, "invalid")
 	tthr.Stop()
 	if err == nil {
 		t.Errorf("Expected to fail on attempt to attach to invalid session")
@@ -672,7 +675,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 	defer testTeardown(t)
 
 	// Start the PL attach server
-	testServer := attach.NewAttachServer("", 8080)
+	testServer := communication.NewAttachServer("", 8080)
 	assert.NoError(t, testServer.Start())
 	defer testServer.Stop()
 
@@ -710,7 +713,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 		return
 	}
 
-	var pty attach.SessionInteraction
+	var pty communication.SessionInteractor
 	pty, err = testServer.Get(context.Background(), "attach", 600*time.Second)
 	if !assert.NoError(t, err) {
 		return
@@ -791,7 +794,7 @@ func TestReattach(t *testing.T) {
 	assert.NoError(t, err)
 	defer sshConn.Close()
 
-	var sshSession attach.SessionInteraction
+	var sshSession communication.SessionInteractor
 	done := make(chan bool)
 	buf := &bytes.Buffer{}
 	testBytes := []byte("\x1b[32mhello world\x1b[39m!\n")
@@ -802,11 +805,13 @@ func TestReattach(t *testing.T) {
 			t.Errorf("Failed to get ssh.NewClient")
 		}
 
-		_, err = attach.SSHls(attachClient)
+		_, err = communication.ContainerIDs(attachClient)
 		assert.NoError(t, err)
 
-		sshSession, err = attach.SSHAttach(attachClient, cfg.ID)
+		sshSession, err = communication.NewSSHInteraction(attachClient, cfg.ID)
 		assert.NoError(t, err)
+
+		sshSession.Unblock()
 
 		stdout := sshSession.Stdout()
 

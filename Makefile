@@ -446,7 +446,7 @@ distro: all
 
 clean:
 	@echo removing binaries
-	@rm -fr $(BIN)
+	@rm -rf $(BIN)/*
 	@echo removing Go object files
 	@$(GO) clean
 
@@ -467,7 +467,7 @@ clean:
 	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
 
 # removes the yum cache as well as the generated binaries
-distclean:
+distclean: clean
 	@echo removing binaries
 	@rm -fr $(BIN)
 

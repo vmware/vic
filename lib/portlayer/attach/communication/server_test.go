@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package attach
+package communication
 
 import (
 	"net"
@@ -35,9 +35,9 @@ import (
 // Start the server, make 200 client connections, test they connect, then Stop.
 func TestAttachStartStop(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	s := NewAttachServer("", 0)
+	s := NewServer("", 0)
 
-	wg := &sync.WaitGroup{}
+	var wg sync.WaitGroup
 
 	dial := func() {
 		defer wg.Done()
@@ -82,32 +82,33 @@ func TestAttachStartStop(t *testing.T) {
 	}
 	assert.NoError(t, s.Stop())
 
-	_, err := net.Dial("tcp", s.l.Addr().String())
+	_, err := net.Dial("tcp", s.Addr())
 	assert.Error(t, err)
 }
 
 func TestAttachSshSession(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 
-	s := NewAttachServer("", 0)
+	s := NewServer("", 0)
 	assert.NoError(t, s.Start(true))
 	defer s.Stop()
 
 	expectedID := "foo"
 
 	// This should block until the ssh server returns its container ID
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
-		_, err := s.connServer.Get(context.Background(), expectedID, 5*time.Second)
+		_, err := s.c.Interaction(context.Background(), expectedID, 5*time.Second)
 		if !assert.NoError(t, err) {
 			return
 		}
 	}()
 
 	// Dial the attach server.  This is a TCP client
-	networkClientCon, err := net.Dial("tcp", s.l.Addr().String())
+	networkClientCon, err := net.Dial("tcp", s.Addr())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -150,7 +151,13 @@ func TestAttachSshSession(t *testing.T) {
 		defer wg.Done()
 		for ch := range chans {
 			assert.Equal(t, ch.ChannelType(), attachChannelType)
-			_, _, _ = ch.Accept()
+			_, reqs, _ = ch.Accept()
+			for req := range reqs {
+				if req.Type == msgs.PingReq {
+					req.Reply(true, nil)
+					break
+				}
+			}
 			break
 		}
 	}()

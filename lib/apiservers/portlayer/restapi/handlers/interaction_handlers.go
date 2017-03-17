@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/interaction"
 	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/lib/portlayer/attach/communication"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
@@ -34,7 +35,7 @@ import (
 
 // InteractionHandlersImpl is the receiver for all of the interaction handler methods
 type InteractionHandlersImpl struct {
-	attachServer *attach.Server
+	server *communication.Server
 }
 
 const (
@@ -59,9 +60,8 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 
 	api.InteractionContainerCloseStdinHandler = interaction.ContainerCloseStdinHandlerFunc(i.ContainerCloseStdinHandler)
 
-	i.attachServer = attach.NewAttachServer(constants.ManagementHostName, constants.AttachServerPort)
-
-	if err := i.attachServer.Start(false); err != nil {
+	i.server = communication.NewServer("localhost", constants.AttachServerPort)
+	if err := i.server.Start(false); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)
 	}
 }
@@ -143,7 +143,7 @@ func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUn
 // ContainerResizeHandler calls resize
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
 	// See whether there is an active session to the container
-	session, err := i.attachServer.Get(context.Background(), params.ID, 0)
+	session, err := i.server.Interaction(context.Background(), params.ID, 0)
 	if err != nil {
 		// just note the warning and return, resize requires an active connection
 		log.Warnf("No resize connection found (id: %s): %s", params.ID, err)
@@ -187,7 +187,7 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		timeout = interactionTimeout
 	}
 
-	session, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	session, err := i.server.Interaction(context.Background(), params.ID, timeout)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
@@ -196,13 +196,6 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		}
 		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
 	}
-	// Remove the connection from the map
-	defer func() {
-		// io.EOF is expected if the channel is already closed so ignore it
-		if err := i.attachServer.Remove(params.ID); err != nil && err != io.EOF {
-			log.Errorf("Removing the connection from the map failed with %s", err)
-		}
-	}()
 
 	detachableIn := NewFlushingReaderWithInitBytes(params.RawStream, []byte(attachStdinInitString))
 	_, err = io.Copy(session.Stdin(), detachableIn)
@@ -238,7 +231,7 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 func (i *InteractionHandlersImpl) ContainerCloseStdinHandler(params interaction.ContainerCloseStdinParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	session, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
+	session, err := i.server.Interaction(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
@@ -279,7 +272,7 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 		timeout = interactionTimeout
 	}
 
-	session, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	session, err := i.server.Interaction(context.Background(), params.ID, timeout)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
@@ -323,7 +316,7 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 		timeout = interactionTimeout
 	}
 
-	session, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	session, err := i.server.Interaction(context.Background(), params.ID, timeout)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
