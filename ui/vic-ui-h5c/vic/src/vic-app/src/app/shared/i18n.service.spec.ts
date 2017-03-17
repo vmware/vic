@@ -23,8 +23,8 @@ let i18nService: I18nService;
 // Note: we don't really need to test initLocale() which is only for dev mode
 
 describe("I18Service tests", () => {
+   jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
    beforeEach(() => {
-      jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
       i18nService = new I18nService(null, null, null);
    });
    it ("interpolates messages correctly", () => {
