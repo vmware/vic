@@ -1,6 +1,6 @@
 # Install the Flex Plug-In on a vCenter Server Appliance by Using a Web Server #
 
-If you are running the vCenter Server Appliance 6.0 or 6.5, you can use a Web server to host the Flex-based vSphere Web Client plug-in for vSphere Integrated Containers Engine.
+If you are running the vCenter Server Appliance 6.0 or 6.5, you can use a Web server to host the Flex-based vSphere Web Client plug-in for vSphere Integrated Containers.
 
 **Prerequisites**
 
@@ -43,4 +43,4 @@ If you are running the vCenter Server Appliance 6.0 or 6.5, you can use a Web se
 
 **What to Do Next**
 
-Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the vSphere Integrated Containers Engine Plug-In](plugin_verify_deployment.md).
+Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the Flex Plug-In](plugin_verify_deployment.md).

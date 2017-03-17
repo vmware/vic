@@ -39,7 +39,17 @@ HEADER[2]="^\/\/$"
 ERR=false
 FAIL=false
 
-for file in $(git ls-files | grep -e "\.go$" -e "Makefile$" -e "\.sh$" -e "\.bash$" -e "\.robot$" | grep -v vendor/); do
+all-files() {
+    git ls-files |\
+        # Check .go files, Makefile, sh files, bash files, and robot files
+        grep -e "\.go$" -e "Makefile$" -e "\.sh$" -e "\.bash$" -e "\.robot$" |\
+            # Ignore vendor/
+        grep -v vendor/ |\
+            # Ignore files marked as deleted in git
+        grep -v "$(git status -s | grep -e "^\sD" | cut -d' ' -f3)"
+}
+
+for file in $(all-files); do
   echo -n "Header check: $file... "
   # get the file extension / type
   ext=${file##*.}
