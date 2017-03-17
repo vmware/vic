@@ -334,6 +334,7 @@ Create a Simple VC Cluster
     Should Be Empty  ${out}
 
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_URL  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
