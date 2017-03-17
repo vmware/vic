@@ -111,7 +111,7 @@ func (v *ImageStore) imageDiskPath(storeName, imageName string) string {
 
 // Returns the path to the vmdk itself in datastore url format
 func (v *ImageStore) imageDiskDSPath(storeName, imageName string) string {
-	return path.Join(v.ds.RootURL, v.imageDiskPath(storeName, imageName))
+	return path.Join(v.ds.RootURL.String(), v.imageDiskPath(storeName, imageName))
 }
 
 // Returns the path to the metadata directory for an image

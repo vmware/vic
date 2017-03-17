@@ -68,9 +68,9 @@ func DSsetup(t *testing.T) (context.Context, *Helper, func()) {
 	}
 
 	f := func() {
-		log.Infof("Removing test root %s", ds.RootURL)
+		log.Infof("Removing test root %s", ds.RootURL.String())
 		err := tasks.Wait(ctx, func(context.Context) (tasks.Task, error) {
-			return ds.fm.DeleteDatastoreFile(ctx, ds.RootURL, sess.Datacenter)
+			return ds.fm.DeleteDatastoreFile(ctx, ds.RootURL.String(), sess.Datacenter)
 		})
 
 		if err != nil {
