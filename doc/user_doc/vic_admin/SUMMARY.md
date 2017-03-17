@@ -13,7 +13,6 @@
    * [Upgrade VCHs](upgrade_vch.md)
      * [VCH Upgrade Options](upgrade_vch_options.md)
    * [Upgrade the HTML5 Plug-In](upgrade_h5_plugin.md)
-   * [Upgrade the Flex Plug-In](upgrade_ui_plugin.md)
 * [Access the vSphere Integrated Containers View](access_h5_ui.md)
 * [Find VCH Information in the vSphere Web Client](vch_portlet_ui.md)
 * [Find Container Information in the vSphere Web Client](container_portlet_ui.md)
