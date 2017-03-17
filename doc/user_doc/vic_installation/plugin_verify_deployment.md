@@ -1,6 +1,6 @@
 # Verify the Deployment of the Flex Plug-In #
 
-After you have installed the Flex-based plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.
+After you have installed the Flex-based plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the Flex-based vSphere Web Client.
 
 **Prerequisites**
 
