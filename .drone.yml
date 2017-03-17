@@ -191,6 +191,6 @@ publish:
     token: $$GITHUB_AUTOMATION_API_KEY
     include: /drone/src/github.com/vmware/vic/.cover/cover.out
     when:
-#      repo: vmware/vic
-#      branch: master
-#      success: true
+      repo: vmware/vic
+      branch: master
+      success: true
