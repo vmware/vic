@@ -42,4 +42,4 @@ If you are running the vCenter Server Appliance 6.0 or 6.5 and you do not have a
 
 **What to Do Next**
 
-Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the vSphere Integrated Containers Plug-In](plugin_verify_deployment.md).
+Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the Flex Plug-In](plugin_verify_deployment.md).

@@ -27,4 +27,4 @@ If you are running vCenter Server 6.0 or 6.5 on Windows, you can use a Web serve
 
 **What to Do Next**
 
-Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the vSphere Integrated Containers Plug-In](plugin_verify_deployment.md).
+Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the Flex Plug-In](plugin_verify_deployment.md).
