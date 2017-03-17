@@ -108,6 +108,11 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	}
 
 	rp := compute.NewResourcePool(d.ctx, d.session, vchPool.Reference())
+
+	if d.session.Cluster, err = rp.GetCluster(d.ctx); err != nil {
+		log.Debugf("Unable to get the cluster for the VCH's resource pool: %s", err)
+	}
+
 	var vmm *vm.VirtualMachine
 	if vmm, err = rp.GetChildVM(d.ctx, d.session, name); err != nil {
 		log.Errorf("Failed to get VCH VM: %s", err)
