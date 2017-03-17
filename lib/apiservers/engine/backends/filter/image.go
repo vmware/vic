@@ -101,6 +101,11 @@ func IncludeImage(imgFilters filters.Args, listContext *ImageListContext) Filter
 		refs := cache.RepositoryCache().References(listContext.ID)
 		// reference filters
 		refFilters := imgFilters.Get("reference")
+
+		// reset the tags / digests
+		listContext.Tags = nil
+		listContext.Digests = nil
+
 		// iterate of reporsitory references and filters
 		for _, ref := range refs {
 			for _, rf := range refFilters {
@@ -108,7 +113,6 @@ func IncludeImage(imgFilters filters.Args, listContext *ImageListContext) Filter
 				matchRef, _ := path.Match(rf, ref.String())
 				// match on repo only ie. busybox
 				matchName, _ := path.Match(rf, ref.Name())
-
 				// if either matched then add to tag / digest
 				if matchRef || matchName {
 					if _, ok := ref.(reference.Canonical); ok {
@@ -124,7 +128,7 @@ func IncludeImage(imgFilters filters.Args, listContext *ImageListContext) Filter
 		if len(listContext.Tags) == 0 && len(listContext.Digests) == 0 {
 			return ExcludeAction
 		}
-	}
 
+	}
 	return IncludeAction
 }
