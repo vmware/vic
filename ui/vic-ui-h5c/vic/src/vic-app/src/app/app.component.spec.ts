@@ -42,6 +42,7 @@ import { JASMINE_TIMEOUT } from './testing/jasmine.constants';
 describe('VIC UI Unit Tests', () => {
   let fixture: ComponentFixture<AppComponent>;
   let appInstance: AppComponent;
+  jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
 
     beforeEach(async(() => {
       TestBed.configureTestingModule({
@@ -71,7 +72,6 @@ describe('VIC UI Unit Tests', () => {
     }));
 
     beforeEach(() => {
-      jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
       fixture = TestBed.createComponent<AppComponent>(AppComponent);
       appInstance = fixture.componentInstance;
     });

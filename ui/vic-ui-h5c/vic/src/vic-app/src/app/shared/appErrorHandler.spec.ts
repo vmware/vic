@@ -27,9 +27,9 @@ describe("AppErrorHandler tests", () => {
    let appErrorHandler: AppErrorHandler;
    let errorFromServer = "some error message\nsome more lines";
    let errorToDisplay = "some error message";
+   jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
 
    beforeEach(() => {
-      jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
       appErrorHandler = new AppErrorHandler(null);
    });
 

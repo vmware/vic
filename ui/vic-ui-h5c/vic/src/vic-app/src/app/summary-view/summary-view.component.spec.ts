@@ -40,6 +40,7 @@ describe('VIC object view: Summary tab', () => {
     let dpService: DataPropertyService;
     let globalService: GlobalsService;
     let refreshService: RefreshService;
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
 
     class DpServiceStub {
         private vicObjectSource = new Subject<any>();
@@ -72,7 +73,6 @@ describe('VIC object view: Summary tab', () => {
     }));
 
     beforeEach(() => {
-        jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
         fixture = TestBed.createComponent(VicSummaryViewComponent);
         compInstance = fixture.componentInstance;
         dpService = fixture.debugElement.injector.get(DataPropertyService);
