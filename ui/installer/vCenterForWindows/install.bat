@@ -52,11 +52,17 @@ IF /I %vic_ui_host_url% NEQ NOURL (
     )
 )
 
+IF %target_vc_version% EQU 6.5 (
+    SET plugin_binary_folder=plugin-packages
+) ELSE (
+    SET plugin_binary_folder=vsphere-client-serenity
+)
+
 IF EXIST _scratch_flags.txt (
     DEL _scratch_flags.txt
 )
 
-cd ..\vsphere-client-serenity
+cd ..\%plugin_binary_folder%
 FOR /D %%i IN (*) DO (
     IF /I %vic_ui_host_url%==NOURL (
         "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" -o " --name \"" -v "/pluginPackage/@name" -o "\" --version " -v "/pluginPackage/@version" -o " --summary \"" -v "/pluginPackage/@description" -o "\" --company \"" -v "/pluginPackage/@vendor" -o "\" --url NOURL" -n %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
@@ -85,16 +91,23 @@ ECHO.
 
 IF /I %vic_ui_host_url% EQU NOURL (
     ECHO =============================
-    ECHO ** NEXT STEP for vCenter 6.5 users **
-    ECHO To install plugin for vSphere Client, or HTML5 Client, copy the com.vmware.vic.* folder from \ui\plugin-packages to %VMWARE_CFG_DIR%\vsphere-ui\vc-packages\vsphere-client-serenity.
-    ECHO To install plugin for vSphere Web Client, or Flex Client, copy the com.vmware.vic* folder from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. Create any missing folders in between if necessary.
-    ECHO.
-    ECHO ** NEXT STEP for vCenter 6.0 users **
-    ECHO With the current version of VIC running on vCenter for Windows, the com.vmware.vic.* folder needs to be manually copied from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. If you have not done so, please copy it now.
-    ECHO.
-    ECHO ** NEXT STEP for vCenter 5.5 users **
-    ECHO VIC UI may run on a vCenter 5.5 setup, but is NOT officially supported. Use it at your own risk. To proceed, copy the com.vmware.vic.* folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead.
-    ECHO.
-    ECHO Once you've copied the folder, log out of vSphere Web Client and then log back in.
+    IF %target_vc_version% EQU 6.5 (
+        ECHO ** If you are installing the plugin for the vSphere Web Client (Flex Client) **
+        ECHO To finish installation, copy the com.vmware.vic* folder from \ui\%plugin_binary_folder% to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\%plugin_binary_folder%. Create any missing folders in between if necessary.
+        ECHO Once all done, log out of vSphere Web Client and then log back in.
+        ECHO.
+        ECHO ** WARNING: If you are installing the plugin for the vSphere Client (H5 Client) **
+        ECHO The plugin won't install correctly without a web server for the vSphere Client at this moment.
+        ECHO Please see issue #4279 (https://github.com/vmware/vic/issues/4279)
+    ) ELSE (
+        IF %target_vc_version% EQU 6.0 (
+            ECHO ** NEXT STEP for vCenter 6.0 users **
+            ECHO With the current version of VIC running on vCenter for Windows, the com.vmware.vic.* folder needs to be manually copied from \ui\%plugin_binary_folder% to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\%plugin_binary_folder%. If you have not done so, please copy it now.
+        ) ELSE (
+            ECHO ** NEXT STEP for vCenter 5.5 users **
+            ECHO VIC UI may run on a vCenter 5.5 setup, but is NOT officially supported. Use it at your own risk. To proceed, copy the com.vmware.vic.* folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\%plugin_binary_folder% instead.
+        )
+        ECHO Once all done, log out of vSphere Web Client and then log back in.
+    )
     ECHO =============================
 )
