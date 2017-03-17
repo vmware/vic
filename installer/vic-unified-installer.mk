@@ -46,7 +46,7 @@ ova-release: $(ovfenv) $(vic-ova-ui)
 			-var 'esx_host=$(PACKER_ESX_HOST)'\
 			-var 'remote_username=$(PACKER_USERNAME)'\
 			-var 'remote_password=$(PACKER_PASSWORD)'\
-			--on-error=abort packer-vic.json
+			packer-vic.json
 	@echo adding proper vic OVF file...
 	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
 	@echo rebuilding OVF manifest...
@@ -55,6 +55,25 @@ ova-release: $(ovfenv) $(vic-ova-ui)
 	@$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-1.1.0-$(REV).ova
 	@echo cleaning packer directory...
 	@cd $(BASE_DIR)installer/packer && $(RM) -rf vic
+
+ova-debug: $(ovfenv) $(vic-ova-ui)
+	@echo building vic-unified-installer OVA using packer...
+	cd $(BASE_DIR)installer/packer && PACKER_LOG=1 $(PACKER) build \
+			-only=ova-release \
+			-var 'iso_sha1sum=$(PHOTON_ISO_SHA1SUM)'\
+			-var 'iso_file=$(PHOTON_ISO)'\
+			-var 'esx_host=$(PACKER_ESX_HOST)'\
+			-var 'remote_username=$(PACKER_USERNAME)'\
+			-var 'remote_password=$(PACKER_PASSWORD)'\
+			--on-error=abort packer-vic.json
+	@echo adding proper vic OVF file...
+	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
+	@echo rebuilding OVF manifest...
+	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && $(SHA256SUM) --tag * | $(SED) s/SHA256\ \(/SHA256\(/ > vic.mf
+	@echo packaging OVA...
+	$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-1.1.0-$(REV).ova
+	@echo cleaning packer directory...
+	cd $(BASE_DIR)installer/packer && $(RM) -rf vic
 
 vagrant-local: $(ovfenv) $(vic-ova-ui)
 	@echo building vic-unified-installer Vagrant box using packer...
