@@ -36,7 +36,7 @@ You deploy a VCH using the CLI installer, then access VCH endpoints remotely thr
 
 ## vSphere Web Client Plugin
 
-You can monitor VCHs and container VMs by using the vSphere Integrated Containers Engine plug-in for the vSphere Web Client
+You can monitor VCHs and container VMs by using the vSphere Integrated Containers plug-in for the vSphere Web Client
 
 ## Docker Client
 
