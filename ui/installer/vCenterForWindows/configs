@@ -9,3 +9,6 @@ SET vic_ui_host_url=NOURL
 REM If line 11 starts with "https", enter the SHA-1 thumbprint of the web server hosting the zip files
 REM The fingerprint should be in the format of A0:B1:C2:... In case you retrieved the fingerprint from Google Chrome make sure to replace spaces with colons (:)
 SET vic_ui_host_thumbprint=
+
+REM If you are installing the Flex plugin for vSphere Web Client, please update the value to 6.0, otherwise please leave the value as-is
+SET target_vc_version=6.5

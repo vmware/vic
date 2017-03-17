@@ -1,18 +1,18 @@
-# Install the vSphere Integrated Containers Engine Plug-In on a vCenter Server Appliance Without Access to a Web Server #
+# Install the Flex Plug-In on a vCenter Server Appliance Without Access to a Web Server #
 
-If you are running the vCenter Server Appliance and you do not have access to a Web server, you can manually install the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
+If you are running the vCenter Server Appliance 6.0 or 6.5 and you do not have access to a Web server, you can install the Flex-based vSphere Web Client plug-in for vSphere Integrated Containers Engine by running an installation script.
 
 **Prerequisites**
 
 - You deployed at least one virtual container host (VCH) to a vCenter Server Appliance instance.
-- If you deployed the VCH to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client to view the vSphere Web Client plug-in for vSphere Integrated Containers Engine. vSphere Integrated Containers Engine does not currently provide a plug-in for the new HTML5 vSphere Client.
+- Go to the vCenter Server Appliance Management Interface (VAMI) at https://<i>vcsa_address</i>:5480, click **Access**, and make sure that Bash Shell is enabled.
 
 **Procedure**
 
-1. On the system on which you run `vic-machine`, open the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/configs</code> file in a text editor.
+1. On the system on which you have downloaded and unpacked vSphere Integrated Containers Engine, open the `/vic/ui/VCSA/configs` file in a text editor.
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in. <pre>VCENTER_IP="<i>vcenter_server_address</i>"</pre>
 6. Save and close the `configs` file.
-7. (Optional) If you run `vic-machine` on a Windows system, open  the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/install.sh</code> file in a text editor and point `PLUGIN_MANAGER_BIN` to the Windows UI executable.
+7. (Optional)  If you unpacked vSphere Integrated Containers Engine on a Windows system, open  the `/vic/ui/VCSA/install.sh` file in a text editor and point `PLUGIN_MANAGER_BIN` to the Windows UI executable.
 
    Before:
      <pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
@@ -25,7 +25,7 @@ If you are running the vCenter Server Appliance and you do not have access to a 
       else
        PLUGIN_MANAGER_BIN="../../vic-ui-windows"</pre>
 
-7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>, and run the installer.
+7. Open a command prompt, navigate to `/vic/ui/VCSA`, and run the installer.
    <pre>./install.sh</pre>
     - Make sure that `install.sh` is executable by running `chmod` before you run it.
     - On Windows systems, run `install.sh` in a UNIX shell that supports SSH and SCP, for example Cygwyn or Git Bash. Do not use Windows 10 native Bash.
@@ -41,4 +41,5 @@ If you are running the vCenter Server Appliance and you do not have access to a 
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.
 
 **What to Do Next**
+
 Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the vSphere Integrated Containers Engine Plug-In](plugin_verify_deployment.md).

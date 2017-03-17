@@ -50,6 +50,7 @@ describe('VIC Summary Portlet Components', () => {
     const defaultVmObj = {
         powerState: 'poweredOn'
     };
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
 
     const getVirtualMachineStub: Function = (obj: any): VirtualMachine => {
         let cloned = JSON.parse(JSON.stringify(defaultVmObj));
@@ -106,7 +107,6 @@ describe('VIC Summary Portlet Components', () => {
     }));
 
     beforeEach(() => {
-        jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
         fixture = TestBed.createComponent<VicSummaryPortletComponent>(VicSummaryPortletComponent);
         compInstance = fixture.componentInstance;
         svc = fixture.debugElement.injector.get(DataPropertyService);

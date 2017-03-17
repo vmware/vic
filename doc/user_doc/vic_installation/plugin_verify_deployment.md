@@ -1,13 +1,12 @@
-# Verify the Deployment of the vSphere Integrated Containers Engine Plug-In #
+# Verify the Deployment of the Flex Plug-In #
 
-After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.
+After you have installed the Flex-based plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the Flex-based vSphere Web Client.
 
 **Prerequisites**
 
 - You deployed a virtual container host (VCH).
 - You installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
 - You logged out of the vSphere Web Client after deploying the plug-in, and logged back in.
-- If you deployed the VCH to a vCenter Server 6.5 instance, use the Flash-based vSphere Web Client to view the vSphere Web Client plug-in for vSphere Integrated Containers Engine. vSphere Integrated Containers Engine does not currently provide a plug-in for the new HTML5 vSphere Client.
 
 **Procedure**
 
@@ -25,4 +24,4 @@ Information about the VCH appears in the VCH portlet in the **Summary** tab:
 
 **What to Do Next**
 
-If the VCH portlet still does not appear in the **Summary** tab for the VCH endpoint VM, restart the vSphere Web Client service. For instructions about how to restart the vSphere Web Client service, see [vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md).
+If the VCH portlet still does not appear in the **Summary** tab for the VCH endpoint VM, restart the vSphere Web Client service. For instructions about how to restart the vSphere Web Client service, see [vSphere Integrated Containers Engine Plug-In Does Not Appear](ts_ui_not_appearing.md).

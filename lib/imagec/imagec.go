@@ -289,11 +289,21 @@ func updateRepositoryCache(ic *ImageC) error {
 			return fmt.Errorf("ImageID not found by LayerID(%s) in RepositoryCache", imageLayerID)
 		}
 	}
-	// AddReference will add the tag / digest as appropriate and will persist
-	// to the portlayer k/v
+	// AddReference will add the repo:tag to the repositoryCache and save to the portLayer
 	err = repoCache.AddReference(ref, ic.ImageID, true, imageLayerID, true)
 	if err != nil {
 		return fmt.Errorf("Unable to Add Image Reference(%s): %s", ref.String(), err.Error())
+	}
+
+	dig, err := reference.ParseNamed(fmt.Sprintf("%s@%s", ref.Name(), ic.ManifestDigest))
+	if err != nil {
+		return fmt.Errorf("Unable to parse digest: %s", err.Error())
+	}
+
+	// AddReference will add the digest and persist to the portLayer
+	err = repoCache.AddReference(dig, ic.ImageID, true, imageLayerID, true)
+	if err != nil {
+		return fmt.Errorf("Unable to Add Image Digest(%s): %s", dig.String(), err.Error())
 	}
 
 	return nil
