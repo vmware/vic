@@ -1,6 +1,6 @@
 # Install the HTML5 Plug-In on a vCenter Server Appliance #
 
-If you are running version 6.5 of the vCenter Server Appliance, you can install the HTML5 vSphere Client plug-in for vSphere Integrated Containers Engine.
+If you are running version 6.5 of the vCenter Server Appliance, you can install the HTML5 vSphere Client plug-in for vSphere Integrated Containers.
 
 **Prerequisites**
 
@@ -47,4 +47,4 @@ The **vSphere Integrated Containers** icon should appear in the Inventories sect
 
 **What to Do Next**
 
-If the vSphere Integrated Containers icon does not appear in the **Home** view, restart the vSphere Client service. For instructions about how to restart the vSphere Client service, see [vSphere Integrated Containers Engine Plug-In Does Not Appear](ts_ui_not_appearing.md).
+If the vSphere Integrated Containers icon does not appear in the **Home** view, restart the vSphere Client service. For instructions about how to restart the vSphere Client service, see [vSphere Integrated Containers Plug-In Does Not Appear](ts_ui_not_appearing.md).

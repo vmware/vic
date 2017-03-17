@@ -1,6 +1,6 @@
 # Installing the vSphere Client Plug-Ins #
 
-vSphere Integrated Containers Engine provides two UI plug-ins for vSphere:
+vSphere Integrated Containers provides two UI plug-ins for vSphere:
 
 - A basic Flex-based plug-in that adds information about virtual container hosts (VCHs) and container VMs in the Flex-based vSphere Web Client. You can install the plug-in either on a vCenter Server instance that runs on Windows, or on a vCenter Server Appliance. The basic plug-in works with the Flex-based vSphere Web Client for both vSphere 6.0 and 6.5.
 - An HTML5 plug-in with more complete functionality for the HTML5 vSphere Client. The HTML5 vSphere Client is only available with vSphere 6.5. You can deploy the HTML5 plug-in to a vCenter Server Appliance or a vCenter Server instance that runs on Windows, if that instance has access to a Web server. You cannot deploy the HTML5 plug-in to a vCenter Server instance on Windows that does not have access to a Web server.  
