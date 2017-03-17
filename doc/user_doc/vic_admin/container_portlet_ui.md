@@ -1,4 +1,4 @@
-# Find Container Information in the vSphere Web Client #
+# Find Container Information in the vSphere Client #
 
 After you have installed either or both of the plug-ins for vSphere Integrated Containers, you can find information about the container VMs that are running in virtual container hosts (VCHs).
 
