@@ -189,7 +189,7 @@ publish:
   coverage:
     server: https://coverage.vmware.run
     token: $$GITHUB_AUTOMATION_API_KEY
-    include: .+\\.out$
+    include: /drone/src/github.com/vmware/vic/.cover/cover.out
     when:
       repo: vmware/vic
       branch: master
