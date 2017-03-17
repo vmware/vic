@@ -1,6 +1,6 @@
-# vSphere Integrated Containers Engine Plug-In Does Not Appear #
+# vSphere Integrated Containers Plug-In Does Not Appear #
 
-After you have installed either of the HTML5 or Flex-based plug-ins for vSphere Integrated Containers Engine, the plug-ins do not appear in the HTML5 vSphere Client or the Flex-based vSphere Web Client.
+After you have installed either of the HTML5 or Flex-based plug-ins for vSphere Integrated Containers, the plug-ins do not appear in the HTML5 vSphere Client or the Flex-based vSphere Web Client.
 
 ## Problem ##
 
@@ -8,8 +8,8 @@ The UI plug-in installer reported success, but the plug-in does not appear in th
 
 ## Cause ##
 
-- If a previous attempt at installing the vSphere Integrated Containers Engine plug-in failed, the failed installation state is retained in the client cache.
-- You installed a new version of the vSphere Integrated Containers Engine plug-in that has the same version number as the previous version, for example a hot patch.
+- If a previous attempt at installing the vSphere Integrated Containers plug-in failed, the failed installation state is retained in the client cache.
+- You installed a new version of the vSphere Integrated Containers plug-in that has the same version number as the previous version, for example a hot patch.
 
 ## Solution ##
 
