@@ -1022,8 +1022,9 @@ func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig
 	// user
 	config.User = cc.Config.User
 
-	// attach
-	config.Attach = cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr
+	// attach.  Always set to true otherwise we cannot attach later.
+	// this tells portlayer container is attachable.
+	config.Attach = true
 
 	// openstdin
 	config.OpenStdin = cc.Config.OpenStdin
