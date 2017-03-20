@@ -33,9 +33,6 @@ import (
 var tthr tether.Tether
 
 func init() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP)
-
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(viclog.NewTextFormatter())
 
@@ -43,12 +40,10 @@ func init() {
 	trace.Logger = log.StandardLogger()
 	log.SetLevel(log.DebugLevel)
 
-	go func() {
-		for _ = range sigs {
-			log.Infof("Got A HUP signal! Reloading tether...")
-			tthr.Reload()
-		}
-	}()
+	// init and start the signal handler
+	if err := startSignalHandler(); err != nil {
+		log.Error(err)
+	}
 }
 
 func main() {
@@ -155,4 +150,23 @@ func halt() {
 
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+}
+
+func startSignalHandler() error {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP)
+
+	go func() {
+		for s := range sigs {
+			switch s {
+			case syscall.SIGHUP:
+				log.Infof("Reloading tether configuration")
+				tthr.Reload()
+			default:
+				log.Infof("%s signal not defined", s.String())
+			}
+		}
+	}()
+
+	return nil
 }

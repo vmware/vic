@@ -405,6 +405,16 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
 }
 
+func (c *Container) ReloadConfig(ctx context.Context) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
+	if c.vm == nil {
+		return fmt.Errorf("vm not set")
+	}
+
+	return c.startGuestProgram(ctx, "reload", "")
+}
+
 func (c *Container) onStop() {
 	lf := c.logFollowers
 	c.logFollowers = nil
