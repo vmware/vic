@@ -505,7 +505,7 @@ func TestInProgressCleanup(t *testing.T) {
 	}
 
 	// nuke the done file.
-	rm(t, client, path.Join(vsStore.ds.RootURL, vsStore.imageDirPath("testStore", imageID), manifest))
+	rm(t, client, path.Join(vsStore.ds.RootURL.String(), vsStore.imageDirPath("testStore", imageID), manifest))
 
 	// ensure GetImage doesn't find this image now
 	if _, err = vsStore.GetImage(op, storeURL, imageID); !assert.Error(t, err) {

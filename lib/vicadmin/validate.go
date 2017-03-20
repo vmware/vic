@@ -180,7 +180,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	nwErrors := []error{}
 
 	for _, host := range hosts {
-		conn, err := net.Dial("tcp", host)
+		conn, err := net.DialTimeout("tcp", host, time.Minute/2)
 		if err != nil {
 			nwErrors = append(nwErrors, err)
 		} else {
