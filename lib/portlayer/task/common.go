@@ -50,7 +50,7 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 		// this should fail
 	}
 
-	// if no task has been bound to the
+	// if no task has been joined that can be manipulated in the container's current state
 	if task == nil {
 		return nil, fmt.Errorf("Cannot modify task %s in current state", id)
 	}

@@ -39,10 +39,9 @@ var containerCache *CCache
 
 func init() {
 	containerCache = &CCache{
-		idIndex:          truncindex.NewTruncIndex([]string{}),
-		containersByID:   make(map[string]*container.VicContainer),
-		containersByName: make(map[string]*container.VicContainer),
-
+		idIndex:            truncindex.NewTruncIndex([]string{}),
+		containersByID:     make(map[string]*container.VicContainer),
+		containersByName:   make(map[string]*container.VicContainer),
 		containersByExecID: make(map[string]*container.VicContainer),
 	}
 }

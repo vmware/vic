@@ -55,7 +55,9 @@ func GuestInfoSinkWithPrefix(prefix string) (DataSink, error) {
 
 		log.Debugf("GuestInfoSink: setting key: %s, value: %#v", key, value)
 		err := guestinfo.SetString(key, value)
-		log.Debugf("GuestInfoSink: error: %#v", err)
+		if err != nil {
+			log.Errorf("GuestInfoSink: error: %#v", err)
+		}
 		return err
 	}, nil
 }

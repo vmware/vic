@@ -40,10 +40,8 @@ func init() {
 	trace.Logger = log.StandardLogger()
 	log.SetLevel(log.DebugLevel)
 
-	// init and start the signal handler
-	if err := startSignalHandler(); err != nil {
-		log.Error(err)
-	}
+	// init and start the HUP handler
+	startSignalHandler()
 }
 
 func main() {
@@ -152,7 +150,7 @@ func halt() {
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 }
 
-func startSignalHandler() error {
+func startSignalHandler() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGHUP)
 
@@ -167,6 +165,4 @@ func startSignalHandler() error {
 			}
 		}
 	}()
-
-	return nil
 }
