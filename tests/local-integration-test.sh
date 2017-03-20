@@ -57,7 +57,7 @@ clone:
 
 build:
   integration-test:
-    image: vmware-docker-ci-repo.bintray.io/integration/vic-test:1.20
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.22
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN
