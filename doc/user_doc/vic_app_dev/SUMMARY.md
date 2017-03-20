@@ -13,6 +13,5 @@
 * [Creating a Containerized Application](creating_containerized_app_with_vic.md)
   * [Constraints of Using vSphere Integrated Containers Engine to Build Applications](constraints_using_vic.md)
   * [Example of Building an Application with vSphere Integrated Containers Engine](build_app_with_vic.md)
-* [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md)
 * [Default Volume Store Error](ts_volume_store_error.md)
 * [Send Documentation Feedback](feedback.md)

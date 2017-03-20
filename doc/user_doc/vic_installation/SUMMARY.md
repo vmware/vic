@@ -31,5 +31,4 @@
   * [VCH Deployment Fails with Docker API Endpoint Check Failed Error](ts_docker_api_check_error.md)
   * [VCH Deployment Fails with Error About No Single Host Being Able to Access All Datastores](ts_datastore_access_error.md)
   * [Plug-In Does Not Appear](ts_ui_not_appearing.md)
-  * [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md)
 * [Send Documentation Feedback](feedback.md)

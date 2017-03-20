@@ -24,7 +24,7 @@ After you have deployed a virtual container host (VCH), you can verify the deplo
 
 3.  Run the `docker info` command to confirm that you can connect to the VCH.<pre>docker -H <i>vch_address</i>:2376 --tls info</pre>
 
-     You should see confirmation that the Storage Driver is ``` vSphere Integrated Containers Backend Engine```. If the connection fails with a Docker API version error, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
+     You should see confirmation that the Storage Driver is ``` vSphere Integrated Containers Backend Engine```.
 
 1.  Pull a Docker container image into the VCH, for example, the `BusyBox` container.<pre>docker -H <i>vch_address</i>:2376 --tls pull busybox</pre>
 1. View the container image files in the vSphere Web Client or vSphere Client.
