@@ -626,6 +626,18 @@ func (c *Container) OnEvent(e events.Event) {
 		publishContainerEvent(c.ExecConfig.ID, e.Created(), e.String())
 		return
 	}
+
+	switch e.String() {
+	case events.ContainerRelocated:
+		// container relocated so we need to update the container attributes
+		ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+		defer cancel()
+
+		err := c.refresh(ctx)
+		if err != nil {
+			log.Errorf("Event driven container update failed for %s with %s", c, err)
+		}
+	}
 }
 
 // get the containerVMs from infrastructure for this resource pool

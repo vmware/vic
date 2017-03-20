@@ -27,6 +27,7 @@ const (
 	ContainerStopped       = "Stopped"
 	ContainerMigrated      = "Migrated"
 	ContainerMigratedByDrs = "MigratedByDrs"
+	ContainerRelocated     = "Relocated"
 )
 
 type ContainerEvent struct {

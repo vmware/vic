@@ -43,6 +43,8 @@ func NewVMEvent(be types.BaseEvent) *VMEvent {
 		ee = events.ContainerMigrated
 	case *types.DrsVmMigratedEvent:
 		ee = events.ContainerMigratedByDrs
+	case *types.VmRelocatedEvent:
+		ee = events.ContainerRelocated
 	default:
 		panic("Unknown event")
 	}
