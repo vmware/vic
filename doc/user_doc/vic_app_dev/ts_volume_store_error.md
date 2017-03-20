@@ -13,6 +13,6 @@ By default, vic-machine create does not create a volume store when you or the vS
 
 ## Solution
 
-Deploy a VCH by using the `vic-machine create --volume-store` option to create a VCH with a volume store named `default`. See `--volume-store` in VCH Deployment Options and [Specify One or More Volume Stores](vch_installer_examples.md#volume-stores) in Advanced Examples of Deploying a VCH in *vSphere Integrated Containers Installation*.
+Deploy a VCH by using the `vic-machine create --volume-store` option to create a VCH with a volume store named `default`. See `--volume-store` in VCH Deployment Options and [Specify Volume Stores](../vic_installation/vch_installer_examples.html#volume-stores) in Advanced Examples of Deploying a VCH in *vSphere Integrated Containers Installation*.
 
 Use `docker volume inspect` to get information about the volume. 
