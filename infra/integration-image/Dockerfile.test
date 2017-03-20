@@ -1,7 +1,7 @@
-#docker login
-#docker build -t vic-test -f Dockerfile.test .
-#docker tag vic-test vmware-docker-ci-repo.bintray.io/integration/vic-test:1.x
-#docker push vmware-docker-ci-repo.bintray.io/integration/vic-test
+#docker build --no-cache -t vic-test -f Dockerfile.test .
+#docker tag vic-test gcr.io/eminent-nation-87317/vic-integration-test:1.x
+#login to vic gloud project
+#gcloud docker -- push gcr.io/eminent-nation-87317/vic-integration-test:1.x
 FROM golang:1.8
 
 RUN apt-get update
@@ -54,3 +54,6 @@ RUN  dpkg -i wget_1.18-2ubuntu1_amd64.deb
 RUN apt-get install -y bzip2
 
 RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux_amd64.zip && unzip packer_0.12.2_linux_amd64.zip -d /usr/bin
+
+RUN curl -sL https://deb.nodesource.com/setup_7.x | bash -
+RUN apt-get install -y nodejs

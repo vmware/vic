@@ -15,7 +15,7 @@ clone:
 
 build:
   prevent-concurrent-builds:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.22}
     pull: true
     environment:
       BIN: bin
@@ -53,7 +53,7 @@ build:
       - make sincemark
 
   integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.22}
     pull: true
     privileged: true
     environment:
@@ -90,7 +90,7 @@ build:
       success: true
 
   vicui:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.22}
     pull: true
     environment:
       BIN: bin
@@ -115,8 +115,6 @@ build:
       - mv ./$VICUI_SOURCE_PATH/new_plugin-package.xml ./$VICUI_SOURCE_PATH/plugin-package.xml
       - mv ./$VICUI_H5_UI_PATH/new_plugin-package.xml ./$VICUI_H5_UI_PATH/plugin-package.xml
       - mv ./$VICUI_H5_SERVICE_PATH/src/main/resources/new_configs.properties ./$VICUI_H5_SERVICE_PATH/src/main/resources/configs.properties
-      - curl -sL https://deb.nodesource.com/setup_7.x | bash -
-      - apt-get install -yq nodejs
       - wget -nv $BINTRAY_DOWNLOAD_PATH$SDK_PACKAGE_ARCHIVE -O /tmp/$SDK_PACKAGE_ARCHIVE
       - wget -nv $BINTRAY_DOWNLOAD_PATH$UI_INSTALLER_WIN_UTILS_ARCHIVE -O /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE
       - tar --warning=no-unknown-keyword -xzf /tmp/$SDK_PACKAGE_ARCHIVE -C /tmp/
