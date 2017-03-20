@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package telnetlib
+package telnet
 
 import (
 	"bytes"
@@ -74,7 +74,7 @@ type cmd struct {
 	called bool
 }
 
-func (d *cmd) mockCmdHandler(w io.Writer, b []byte, tc *TelnetConn) {
+func (d *cmd) mockCmdHandler(w io.Writer, b []byte, tc *Conn) {
 	d.called = true
 	d.cmdBuf = b
 }
@@ -138,7 +138,7 @@ func TestFSM(t *testing.T) {
 			called: false,
 		}
 		dummyConn := newMockConn(inBuf, outBuf)
-		fsm := newTelnetFSM()
+		fsm := newFSM()
 		opts := connOpts{
 			conn:        dummyConn,
 			fsm:         fsm,
@@ -146,7 +146,7 @@ func TestFSM(t *testing.T) {
 			dataHandler: defaultDataHandlerFunc,
 			optCallback: optPtr.optCallback,
 		}
-		tc := newTelnetConn(opts)
+		tc := newConn(&opts)
 		go tc.dataHandlerWrapper(tc.handlerWriter, tc.dataRW)
 		assert.Equal(t, fsm.curState, dataState)
 

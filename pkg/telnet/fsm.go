@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package telnetlib
+package telnet
 
 import log "github.com/Sirupsen/logrus"
 
@@ -27,19 +27,19 @@ const (
 	errorState
 )
 
-type telnetFSM struct {
+type fsm struct {
 	curState state
-	tc       *TelnetConn
+	tc       *Conn
 }
 
-func newTelnetFSM() *telnetFSM {
-	f := &telnetFSM{
+func newFSM() *fsm {
+	f := &fsm{
 		curState: dataState,
 	}
 	return f
 }
 
-func (fsm *telnetFSM) start() {
+func (fsm *fsm) start() {
 	defer func() {
 		log.Infof("FSM closed")
 	}()
@@ -47,7 +47,7 @@ func (fsm *telnetFSM) start() {
 		b := make([]byte, 4096)
 		n, err := fsm.readFromRawConnection(b)
 		if n > 0 {
-			log.Debugf("read %d bytes from the TCP Connection %v", n, b[:n])
+			log.Infof("(vspc) fsm read %d bytes from the containerVM: %v", n, b[:n])
 			for i := 0; i < n; i++ {
 				ch := b[i]
 				ns := fsm.nextState(ch)
@@ -62,12 +62,12 @@ func (fsm *telnetFSM) start() {
 	}
 }
 
-func (fsm *telnetFSM) readFromRawConnection(b []byte) (int, error) {
+func (fsm *fsm) readFromRawConnection(b []byte) (int, error) {
 	return fsm.tc.conn.Read(b)
 }
 
 // this function returns what the next state is and performs the appropriate action
-func (fsm *telnetFSM) nextState(ch byte) state {
+func (fsm *fsm) nextState(ch byte) state {
 	var nextState state
 	b := []byte{ch}
 	switch fsm.curState {
@@ -101,7 +101,7 @@ func (fsm *telnetFSM) nextState(ch byte) state {
 		fsm.tc.cmdBuffer.WriteByte(ch)
 		opt := ch
 		cmd := fsm.tc.cmdBuffer.Bytes()[0]
-		fsm.tc.optionCallback(cmd, opt)
+		fsm.tc.optCallback(cmd, opt)
 		fsm.tc.cmdBuffer.Reset()
 		nextState = dataState
 	case subnegState:

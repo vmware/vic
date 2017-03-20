@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package telnetlib
+package telnet
 
 import (
 	"fmt"
@@ -23,17 +23,17 @@ import (
 )
 
 // DataHandlerFunc is the callback function in the event of receiving data from the telnet client
-type DataHandlerFunc func(w io.Writer, data []byte, tc *TelnetConn)
+type DataHandlerFunc func(w io.Writer, data []byte, tc *Conn)
 
 // CmdHandlerFunc is the callback function in the event of receiving a command from the telnet client
-type CmdHandlerFunc func(w io.Writer, cmd []byte, tc *TelnetConn)
+type CmdHandlerFunc func(w io.Writer, cmd []byte, tc *Conn)
 
-var defaultDataHandlerFunc = func(w io.Writer, data []byte, tc *TelnetConn) {}
+var defaultDataHandlerFunc = func(w io.Writer, data []byte, tc *Conn) {}
 
-var defaultCmdHandlerFunc = func(w io.Writer, cmd []byte, tc *TelnetConn) {}
+var defaultCmdHandlerFunc = func(w io.Writer, cmd []byte, tc *Conn) {}
 
-// TelnetOpts is the telnet server constructor options
-type TelnetOpts struct {
+// ServerOpts is the telnet server constructor options
+type ServerOpts struct {
 	Addr        string
 	ServerOpts  []byte
 	ClientOpts  []byte
@@ -41,8 +41,8 @@ type TelnetOpts struct {
 	CmdHandler  CmdHandlerFunc
 }
 
-// TelnetServer is the struct representing the telnet server
-type TelnetServer struct {
+// Server is the struct representing the telnet server
+type Server struct {
 	ServerOptions map[byte]bool
 	ClientOptions map[byte]bool
 	DataHandler   DataHandlerFunc
@@ -50,9 +50,9 @@ type TelnetServer struct {
 	ln            net.Listener
 }
 
-// NewTelnetServer is the constructor of the telnet server
-func NewTelnetServer(opts TelnetOpts) *TelnetServer {
-	ts := new(TelnetServer)
+// NewServer is the constructor of the telnet server
+func NewServer(opts ServerOpts) *Server {
+	ts := new(Server)
 	ts.ClientOptions = make(map[byte]bool)
 	ts.ServerOptions = make(map[byte]bool)
 	for _, v := range opts.ServerOpts {
@@ -79,7 +79,7 @@ func NewTelnetServer(opts TelnetOpts) *TelnetServer {
 }
 
 // Accept accepts a connection and returns the Telnet connection
-func (ts *TelnetServer) Accept() (*TelnetConn, error) {
+func (ts *Server) Accept() (*Conn, error) {
 	conn, _ := ts.ln.Accept()
 	log.Info("connection received")
 	opts := connOpts{
@@ -88,9 +88,9 @@ func (ts *TelnetServer) Accept() (*TelnetConn, error) {
 		dataHandler: ts.DataHandler,
 		serverOpts:  ts.ServerOptions,
 		clientOpts:  ts.ClientOptions,
-		fsm:         newTelnetFSM(),
+		fsm:         newFSM(),
 	}
-	tc := newTelnetConn(opts)
+	tc := newConn(&opts)
 	go tc.writeLoop()
 	go tc.dataHandlerWrapper(tc.handlerWriter, tc.dataRW)
 	go tc.fsm.start()
