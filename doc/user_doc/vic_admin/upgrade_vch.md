@@ -59,4 +59,4 @@ During the upgrade process, `vic-machine upgrade` performs the following operati
 
 **What to Do Next**
 
-[Upgrade the HTML5 vSphere Integrated Containers Plug-In](upgrade_h5_plugin.md).
+[Upgrade the HTML5 vSphere Client Plug-In](upgrade_h5_plugin.md).
