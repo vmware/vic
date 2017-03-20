@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -207,6 +207,12 @@ func testNewVCHFromCompute(computePath string, name string, v *validate.Validato
 		t.Errorf("Failed to get VCH: %s", err)
 		return
 	}
+
+	if d.session.Cluster == nil {
+		t.Errorf("Failed to set cluster: %s", err)
+		return
+	}
+
 	t.Logf("Got VCH %s, path %s", vch, path.Dir(vch.InventoryPath))
 }
 
