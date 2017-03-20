@@ -66,3 +66,29 @@ Create A New Project
     Select Checkbox  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
     Click Button  Save
     Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div.each-tab-pane > div > div.table-body-container > table  ${name}
+
+Create A New User
+    [Arguments]  ${name}  ${email}  ${fullName}  ${password}
+    Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
+    Click Element  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
+    Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
+    Click Element  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
+    
+    Wait Until Element Is Visible  username
+    Wait Until Element Is Visible  email
+    Wait Until Element Is Visible  fullName
+    Wait Until Element Is Visible  password
+    Wait Until Element Is Visible  confirmPassword
+    
+    Input Text  username  ${name}
+    Input Text  email  ${email}
+    Input Text  fullName  ${fullName}
+    Input Text  password  ${password}
+    Input Text  confirmPassword  ${password}
+    
+    Sleep  1
+    Click Button  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
+     
+    Wait Until Page Contains  New user added successfully.
+    Click Button  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
+    
