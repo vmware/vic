@@ -70,8 +70,10 @@ Create A New Project
 Create A New User
     [Arguments]  ${name}  ${email}  ${fullName}  ${password}
     Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
+    Wait Until Element Is Enabled  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
     Click Element  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
     Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
+    Wait Until Element Is Enabled  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
     Click Element  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
     
     Wait Until Element Is Visible  username
@@ -91,4 +93,20 @@ Create A New User
      
     Wait Until Page Contains  New user added successfully.
     Click Button  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
+    Sleep  1
+
+Toggle Admin Priviledges For User
+    [Arguments]  ${username}
+    Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > ul > li:nth-child(1) > navigation-header > ul > li:nth-child(3) > a
+    Wait Until Element Is Enabled  css=#bs-harbor-navbar-collapse-1 > ul > li:nth-child(1) > navigation-header > ul > li:nth-child(3) > a
+    Click Link  css=#bs-harbor-navbar-collapse-1 > ul > li:nth-child(1) > navigation-header > ul > li:nth-child(3) > a
     
+    Table Should Contain  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > list-user > div > div > div.pane > div.sub-pane > div.table-body-container > table  ${username}
+    
+    ${rowNum}=  Get Matching Xpath Count  xpath=/html/body/div[1]/div/div/div/list-user/div/div/div[2]/div[1]/div[2]/table/tbody/tr[1]
+    :FOR  ${idx}  IN RANGE  1  ${rowNum}
+    \   ${status}=  Run Keyword And Return Status  Table Row Should Contain  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > list-user > div > div > div.pane > div.sub-pane > div.table-body-container > table  ${idx}  ${username}
+    \   Run Keyword If  ${status}  Set Test Variable  ROW_NUMBER  ${idx}
+    \   Exit For Loop If  ${status}
+    
+    Click Element  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > list-user > div > div > div.pane > div.sub-pane > div.table-body-container > table > tbody > tr:nth-child(${ROW_NUMBER}) > td:nth-child(4) > toggle-admin > button.btn.btn-danger.ng-binding

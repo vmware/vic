@@ -26,13 +26,15 @@ Suite Teardown  19-1-Teardown
     Install VIC Appliance To Test Server  vol=default --insecure-registry %{HARBOR_IP}
 
 19-1-Teardown
-    Cleanup VIC Appliance On Test Server
-    ${out}=  Run  govc vm.destroy 19-1-harbor
-    Nimbus Cleanup  ${list}
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+    ${out}=  Run Keyword And Continue On Failure  Run  govc vm.destroy 19-1-harbor
+    Run Keyword And Continue On Failure  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 Test
     Log Into Harbor  user=admin
+    Create A New User  user1  user1@email.com  user1  Password123
+    Create A New User  user2  user2@email.com  user2  Password123 
     Create A New Project  vic-harbor
     Close All Browsers
     Restart Docker With Insecure Registry Option
