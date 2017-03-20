@@ -59,4 +59,4 @@ During the upgrade process, `vic-machine upgrade` performs the following operati
 
 **What to Do Next**
 
-If the new version of vSphere Integrated Containers Engine includes new versions of the client plug-ins, upgrade the client plug-ins. For information about upgrading the plug-ins, see [Upgrade the HTML5 vSphere Integrated Containers Plug-In](upgrade_h5_plugin.md) and [Upgrade the Flex-Based vSphere Integrated Containers Plug-In](upgrade_ui_plugin.md).
+[Upgrade the HTML5 vSphere Integrated Containers Plug-In](upgrade_h5_plugin.md).
