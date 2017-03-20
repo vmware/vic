@@ -121,6 +121,7 @@ groups:
   config:
     users:
       - emlin
+      - hickeng
     conditions:
       files:
         include:
