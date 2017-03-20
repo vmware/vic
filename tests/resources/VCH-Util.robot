@@ -187,7 +187,7 @@ Gather Logs From Test Server
     Remove File  vic-admin-cookies
     ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware.log
     Should Contain  ${out}  OK
-    ${out}=  Run  sshpass -p %{TEST_PASSWORD} scp %{TEST_USERNAME}@%{TEST_URL}:/var/log/vmkernel.log ./vmkernel.log
+    Run  govc logs -log=vmkernel -n=10000 > vmkernel.log
 
 Check For The Proper Log Files
     [Arguments]  ${container}
