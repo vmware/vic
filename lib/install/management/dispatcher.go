@@ -113,6 +113,7 @@ func (d *Dispatcher) InitDiagnosticLogsFromConf(conf *config.VirtualContainerHos
 			log.Debugf("Image datastore is empty")
 		}
 	}
+
 	// find the host(s) attached to given storage
 	if d.session.Cluster == nil {
 		if len(conf.ComputeResources) > 0 {
@@ -124,8 +125,9 @@ func (d *Dispatcher) InitDiagnosticLogsFromConf(conf *config.VirtualContainerHos
 			log.Debugf("Compute resource is empty")
 		}
 	}
+
 	var hosts []*object.HostSystem
-	if d.session.Datastore != nil {
+	if d.session.Datastore != nil && d.session.Cluster != nil {
 		hosts, err = d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
 		if err != nil {
 			log.Debugf("Unable to get the list of hosts attached to given storage: %s", err)
@@ -185,8 +187,9 @@ func (d *Dispatcher) InitDiagnosticLogsFromVCH(vch *vm.VirtualMachine) {
 	if err != nil {
 		log.Debugf("Failure finding image store from VCH VM %s: %s", vch.Reference(), err.Error())
 	}
+
 	var hosts []*object.HostSystem
-	if ds != nil {
+	if ds != nil && d.session.Cluster != nil {
 		hosts, err = ds.AttachedClusterHosts(d.ctx, d.session.Cluster)
 		if err != nil {
 			log.Debugf("Unable to get the list of hosts attached to given storage: %s", err)

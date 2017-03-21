@@ -170,10 +170,6 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 			*types.DrsVmMigratedEvent,
 			*types.VmRelocatedEvent:
 			event = NewVMEvent(page[i])
-		case *types.EnteringMaintenanceModeEvent,
-			*types.EnteredMaintenanceModeEvent,
-			*types.ExitMaintenanceModeEvent:
-			event = NewHostEvent(page[i])
 		}
 
 		if event != nil {

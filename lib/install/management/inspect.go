@@ -86,7 +86,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 			log.Warnf("Unable to identify address acceptable to host certificate")
 		}
 	} else {
-		log.Debugf("Failed to load host cert: %s", err)
+		log.Debugf("No host certificates provided")
 	}
 
 	d.ShowVCH(conf, "", "", "", "")
