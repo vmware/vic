@@ -117,3 +117,82 @@ Create Self Signed Cert
 Get Harbor Self Signed Cert
     ${out}=  Run  wget --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
     Move File  getcert  ca.crt
+
+Delete a user
+    [Arguments]  ${user}=%{TEST_USERNAME}
+    Click Link  Admin Options
+    Wait Until Element Is Visible  css=span.glyphicon-trash
+    Wait Until Element Is Enabled  css=span.glyphicon-trash
+    Click Link  xpath=//td[text()='${user}']/../td[last()]/a
+    Wait Until Element Is Visible  css=div.modal.fade.in > div > div > div:nth-child(2)
+    Wait Until Element Contains  css=div.modal.fade.in > div > div > div:nth-child(2)  Are you sure to delete the user "${user}" ?
+    Wait Until Element Is Enabled  css=div.modal.fade.in > div > div > div:nth-child(3) > button
+    Click Button  css=div.modal.fade.in > div > div > div:nth-child(3) > button
+    Sleep  1
+    Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  css=div.table-body-container > table  ${user} 
+
+Add a user to a project
+    # role should be one of the strings : 'Project Admin'/'Developer'/'Guest'
+    [Arguments]  ${user}=%{TEST_USERNAME}  ${project}=%{TEST_PROJECT}  ${role}=%{TEST_USER_ROLE}
+    Click Link  Projects
+    Wait Until Element Is Visible  css=button.btn-success:nth-child(2)
+    Wait Until Element Is Enabled  css=button.btn-success:nth-child(2)
+    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Click Link  xpath=//td/a[text()='${project}']
+    Wait Until Element Is Visible  xpath=//a[@tag='users']
+    Wait Until Element Is Enabled  xpath=//a[@tag='users']
+    Click Link  Users
+    Wait Until Element Is Visible  css=button.btn-success
+    Wait Until Element Is Enabled  css=button.btn-success
+    Click Button  css=button.btn-success
+    Wait Until Element Is Visible  uUsername
+    Wait Until Element Is Enabled  uUsername
+    Input Text  uUsername  ${user}
+    Wait Until Element Is Visible  xpath=//span[contains(., '${role}')]/input
+    Wait Until Element Is Enabled  xpath=//span[contains(., '${role}')]/input
+    Select Checkbox  xpath=//span[contains(., '${role}')]/input
+    Click Button  btnSave
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=div.sub-pane > div:nth-child(2) > table  ${user}
+
+Remove a user from a project
+    [Arguments]  ${user}=%{TEST_USERNAME}  ${project}=%{TEST_PROJECT} 
+    Click Link  Projects
+    Wait Until Element Is Visible  css=button.btn-success:nth-child(2)
+    Wait Until Element Is Enabled  css=button.btn-success:nth-child(2)
+    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Click Link  xpath=//td/a[text()='${project}']
+    Wait Until Element Is Visible  xpath=//a[@tag='users']
+    Wait Until Element Is Enabled  xpath=//a[@tag='users']
+    Click Link  Users
+    Wait Until Element Is Visible  xpath=//td[text()='${user}']/../td[last()]/a[last()]
+    Wait Until Element Is Enabled  xpath=//td[text()='${user}']/../td[last()]/a[last()]
+    Click Link  xpath=//td[text()='${user}']/../td[last()]/a[last()]
+    Sleep  1
+    Wait Until Keyword Succeeds  5x  1  Page Should Not Contain  ${user}
+
+Change a user's role in a project
+    [Arguments]  ${user}=%{TEST_USERNAME}  ${project}=%{TEST_PROJECT}  ${role}=%{TEST_USER_ROLE}
+    Click Link  Projects
+    Wait Until Element Is Visible  css=button.btn-success:nth-child(2)
+    Wait Until Element Is Enabled  css=button.btn-success:nth-child(2)
+    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Click Link  xpath=//td/a[text()='${project}']
+    Wait Until Element Is Visible  xpath=//a[@tag='users']
+    Wait Until Element Is Enabled  xpath=//a[@tag='users']
+    Click Link  Users
+    Wait Until Element Is Visible  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Wait Until Element Is Enabled  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Wait Until Element Is Visible  xpath=//td[text()='${user}']/../td[last()]/a[1]/span[@title='Edit']
+    Click Link  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Wait Until Element Is Visible  css=select.form-control
+    Wait Until Element Is Enabled  css=select.form-control
+    Wait Until Element Is Visible  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Wait Until Element Is Enabled  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Wait Until Element Is Visible  xpath=//td[text()='${user}']/../td[last()]/a[1]/span[@title='Confirm']
+    Select From List By Label  css=select  ${role}
+    Wait Until Element Is Visible  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Wait Until Element Is Enabled  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Click Link  xpath=//td[text()='${user}']/../td[last()]/a[1]
+    Sleep  1
+    Wait Until Element Is Visible  xpath=//td[text()='${user}']/../td[last()]/a[1]/span[@title='Edit']
+    Wait Until Keyword Succeeds  5x  1  Page Should Contain Element  //td[text()='${user}']/../td[2]/switch-role/ng-switch/span[text()='${role}']
