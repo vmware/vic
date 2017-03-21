@@ -7,7 +7,7 @@
 #
 # $ drone -s https://ci.vmware.run -t ${DRONE_TOKEN} secure --in "secrets.yml" --out ".drone.sec" --repo vmware/vic --yaml ".drone.yml"
 #
-# The secrets file is in google drive.  Ask mhaggen for access.
+# The secrets file is in our local git repo.  Ask mhagen for access.
 ---
 clone:
   path: github.com/vmware/vic
@@ -46,8 +46,9 @@ build:
       - make -j3 all
       - make sincemark
       - make mark
-      - ls vendor/github.com/vmware/govmomi/vim25/methods
-      - ls vendor/github.com/vmware/govmomi/vim25/types
+      - echo `ls vendor/github.com/vmware/govmomi/vim25/methods`
+      - echo `ls vendor/github.com/vmware/govmomi/vim25/types`
+      - echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`
       - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
       - make -j3 test
       - make sincemark
