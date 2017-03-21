@@ -7,7 +7,7 @@
 #
 # $ drone -s https://ci.vmware.run -t ${DRONE_TOKEN} secure --in "secrets.yml" --out ".drone.sec" --repo vmware/vic --yaml ".drone.yml"
 #
-# The secrets file is in google drive.  Ask mhagen for access.
+# The secrets file is in our local git repo.  Ask mhagen for access.
 ---
 clone:
   path: github.com/vmware/vic
