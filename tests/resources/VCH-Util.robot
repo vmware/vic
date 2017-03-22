@@ -93,8 +93,8 @@ Parse Environment Variables
 Get Docker Params
     # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
     [Arguments]  ${output}  ${certs}
-    @{output}=  Split To Lines  ${output}
-    :FOR  ${item}  IN  @{output}
+    @{output_lines}=  Split To Lines  ${output}
+    :FOR  ${item}  IN  @{output_lines}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  DOCKER_HOST=
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
 
@@ -111,12 +111,12 @@ Get Docker Params
     Set Environment Variable  VCH-IP  ${ip}
     Set Environment Variable  VCH-PORT  ${port}
 
-    :FOR  ${index}  ${item}  IN ENUMERATE  @{output}
+    :FOR  ${index}  ${item}  IN ENUMERATE  @{output_lines}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Published ports can be reached at
     \   ${idx} =  Evaluate  ${index} + 1
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output_lines}[${idx}]
 
     ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}  ${SPACE}  1
     ${ext-ip} =  Strip String  ${ext-ip}
@@ -127,6 +127,54 @@ Get Docker Params
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
     Run Keyword If  ${port} == 2375  Set Environment Variable  VCH-PARAMS  -H ${dockerHost}
+
+    Get Compose Params  ${output}  ${certs}  ${dockerHost}
+
+Get Compose Params
+    [Arguments]  ${output}  ${certs}  ${dockerHost}
+    @{output_lines}=  Split To Lines  ${output}
+
+    # Check if certs is enabled.  Cannot trust ${certs} as some vic-machine tests bypasses
+    # this variable and ${cert} will be true. 
+    Set Suite Variable  ${cert_line}  "empty"
+    Set Suite Variable  ${certs_enabled}  ${false}
+    :FOR  ${item}  IN  @{output_lines}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Environment saved in
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${cert_line}  ${item}
+
+    Log To Console  cert_line=${cert_line}
+    #${cert_enabled}=  Run Keyword And Return  ${True}  Variable Should Exist  ${cert_line}
+    #${len}=  Get Length  ${cert_line}
+    #${certs_enabled}=  Run Keyword And Return If  ${cert_line} <> ""  Variable Should 
+    #Run Keyword If  ${len} > 0  Set Suite Variable  ${certs_enabled}  ${True}
+    Run Keyword If  'empty' not in '${cert_line}'  Set Suite Variable  ${certs_enabled}  ${True}
+    Log to Console  certs_enabled=${certs_enabled}
+
+    # Set environment variables if certs not used to create the VCH.  This is NOT the recommended
+    # approach to running compose.  There will be security warnings in the logs and some compose
+    # operations may not work properly because certs == false currently means we install with
+    # --no-tlsverify. Add CURL_CA_BUNDLE for a workaround in compose tests.  If we change
+    # certs == false to install with --no-tls, then we need to change this again.
+    #
+    # Long story short, run compose tests with certs = true for best results.
+    Run Keyword If  ${certs_enabled} <> ${True}  Set Environment Variable  COMPOSE-PARAMS  -H ${dockerHost} --tls
+    Run Keyword If  ${certs_enabled} <> ${True}  Set Environment Variable  CURL_CA_BUNDLE  ${EMPTY}
+    Return From Keyword If  ${certs_enabled} == ${false}
+
+    Log To Console  Getting Compose Params and Certs=${certs_enabled}
+    Remove Environment Variable  CURL_CA_BUNDLE
+    Set Environment Variable  COMPOSE-PARAMS  -H ${dockerHost}
+
+    # If certs is used, extract the cert params from vic-machine output
+    @{certparts}=  Split String  ${cert_line}  in
+    ${cert_envfile}=  Strip String  @{certparts}[1]
+    @{certpath_parts}=  Split String  ${cert_envfile}  /
+    ${cert_path}=  Strip String  @{certpath_parts}[0]
+
+    # Set environment variables for docker-compose.  Also assumes DOCKER_TLS_VERIFY is set earlier!
+    Run Keyword If  ${certs_enabled} == ${True}  Set Environment Variable  COMPOSE_TLS_VERSION  TLSv1_2
+    Run Keyword If  ${certs_enabled} == ${True}  Set Environment Variable  DOCKER_CERT_PATH  ./${cert_path}
+
 
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
