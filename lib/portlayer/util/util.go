@@ -20,14 +20,13 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/lib/portlayer/constants"
 )
 
 const (
 	// XXX leaving this as http for now.  We probably want to make this unix://
 	scheme = "http://"
-
-	maxVMNameLength = 80
-	shortIDLen      = 12
 )
 
 var (
@@ -60,8 +59,8 @@ func ServiceURL(serviceName string) *url.URL {
 
 // Update the VM display name on vSphere UI
 func DisplayName(id, name string) string {
-	shortID := id[:shortIDLen]
-	nameMaxLen := maxVMNameLength - len(shortID)
+	shortID := id[:constants.ShortIDLen]
+	nameMaxLen := constants.MaxVMNameLength - len(shortID)
 	prettyName := name
 	if len(prettyName) > nameMaxLen-1 {
 		prettyName = prettyName[:nameMaxLen-1]

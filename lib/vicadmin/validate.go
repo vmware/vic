@@ -111,7 +111,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.Version = version.Version
 	}
 	log.Infof("Setting version to %s", v.Version)
-	
+
 	if err := v.SetVCHName(ctx, sess); err != nil {
 		log.Errorf("Failed to obtain VCH name: %s", err)
 	}

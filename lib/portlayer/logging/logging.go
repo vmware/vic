@@ -21,6 +21,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"strings"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
@@ -139,12 +141,12 @@ func Join(h interface{}) (interface{}, error) {
 
 	VMPathName := handle.Spec.VMPathName()
 	VMName := handle.Spec.Spec().Name
-	VMID := handle.Spec.ID()
-	dsName := handle.Spec.Datastore.Name()
 
-	logFilePath = fmt.Sprintf("[%s] %s", dsName, VMID)
-	if handle.Spec.Session.IsVSAN(context.Background()) {
-		logFilePath = fmt.Sprintf("%s/%s", VMPathName, VMName)
+	logFilePath = fmt.Sprintf("%s/%s", VMPathName, VMName)
+	// on non-vsan setup, VMPathName is set to "[datastore_name] containerID/containerID.vmx"
+	if strings.Contains(VMPathName, "vmx") {
+		idx := strings.LastIndex(VMPathName, "/")
+		logFilePath = VMPathName[:idx]
 	}
 
 	for _, logFile := range []string{"tether.debug", "output.log"} {
