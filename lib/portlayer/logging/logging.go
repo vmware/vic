@@ -144,7 +144,7 @@ func Join(h interface{}) (interface{}, error) {
 
 	logFilePath = fmt.Sprintf("%s/%s", VMPathName, VMName)
 	// on non-vsan setup, VMPathName is set to "[datastore_name] containerID/containerID.vmx"
-	if strings.Contains(VMPathName, "vmx") {
+	if strings.HasSuffix(VMPathName, ".vmx") {
 		idx := strings.LastIndex(VMPathName, "/")
 		logFilePath = VMPathName[:idx]
 	}
