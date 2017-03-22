@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/vmware/govmomi"
@@ -119,6 +120,7 @@ func TestSearchIndexFindChild(t *testing.T) {
 
 	for _, path := range tests {
 		parent := root
+		ipath := []string{""}
 
 		for _, name := range path {
 			ref, err := si.FindChild(ctx, parent, name)
@@ -131,6 +133,17 @@ func TestSearchIndexFindChild(t *testing.T) {
 			}
 
 			parent = ref.Reference()
+
+			ipath = append(ipath, name)
+
+			iref, err := si.FindByInventoryPath(ctx, strings.Join(ipath, "/"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if iref.Reference() != ref.Reference() {
+				t.Errorf("%s != %s", iref, ref)
+			}
 		}
 	}
 
@@ -151,5 +164,16 @@ func TestSearchIndexFindChild(t *testing.T) {
 
 	if _, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound); !ok {
 		t.Error("expected ManagedObjectNotFound fault")
+	}
+
+	for _, path := range []string{"", "/", "/enoent"} {
+		ref, err := si.FindByInventoryPath(ctx, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if ref != nil {
+			t.Error("unexpected match")
+		}
 	}
 }

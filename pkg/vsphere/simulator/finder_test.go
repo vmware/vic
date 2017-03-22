@@ -105,12 +105,18 @@ func TestFinderVPX(t *testing.T) {
 		{"ResourcePoolList", "/DC0/host/*/*", m.Host + m.Cluster},
 		{"ResourcePoolList", "/DC0/host/DC0_H0/Resources", 1},
 		{"ResourcePoolList", "/F1/DC2/host/F1/DC2_C0/Resources", 1},
-		{"ResourcePoolList", "Resources", m.Host + m.Cluster}, // find . -type ResourcePool -name Resources
+		{"ResourcePoolList", "Resources", m.Host + m.Cluster},                // find . -type ResourcePool -name Resources
+		{"ResourcePoolList", "/F1/DC2/...", m.Pool + m.Host + 1},             // find $path -type ResourcePool
+		{"ResourcePoolList", "/F1/DC2/host/...", m.Pool + m.Host + 1},        // find $path -type ResourcePool
+		{"ResourcePoolList", "/F1/DC2/host/F1/...", m.Pool + m.Host + 1},     // find $path -type ResourcePool
+		{"ResourcePoolList", "/F1/DC2/host/F1/DC2_C0/...", m.Pool + 1},       // find $path -type ResourcePool
+		{"ResourcePoolList", "/F1/DC2/host/F1/DC2_C0/Resources/...", m.Pool}, // find $path -type ResourcePool
 		{"ResourcePoolList", "F0/DC1_C0", 1},
-		{"ResourcePoolList", "DC1_C0_RP1", 1}, // find . -type ResourcePool -name DC1_C0_RP1
-		{"", "", 0},                           // unset Datacenter
-		{"DatacenterList", "*", m.Datacenter}, // find . -type Datacenter
-		{"DatacenterList", "DC2", 1},          // find . -type Datacenter -name DC2
+		{"ResourcePoolList", "DC1_C0_RP1", 1},     // find . -type ResourcePool -name DC1_C0_RP1
+		{"", "", 0},                               // unset Datacenter
+		{"DatacenterList", "*", m.Datacenter},     // find . -type Datacenter
+		{"DatacenterList", "./...", m.Datacenter}, // find . -type Datacenter
+		{"DatacenterList", "DC2", 1},              // find . -type Datacenter -name DC2
 		{"DatacenterList", "/*", m.Datacenter - m.Folder},
 		{"DatacenterList", "/*/*", m.Folder},
 		{"DatastoreList", "/F1/DC2/datastore/F1/LocalDS_0", 1},
