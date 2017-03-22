@@ -14,11 +14,8 @@
 # limitations under the License.
 set -euf -o pipefail
 
-# TODO(frapposelli): Parametrize download url
-curl -L "http://192.168.90.1:8000/installer.tgz" | tar xz -C /var/tmp
-
-# TODO(frapposelli): Parametrize file name
-tar xvfz /var/tmp/harbor-offline-installer-dev.tgz -C /var/tmp
+# Download Build
+curl -L "https://storage.googleapis.com/harbor-dev-builds/harbor-offline-installer-dev.tgz" | tar xz -C /var/tmp
 
 # Start docker service
 systemctl start docker.service 
