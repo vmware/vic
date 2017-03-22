@@ -1575,10 +1575,10 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 
 	if !vc.Config.Tty && ca.MuxStreams {
 		// replace the stdout/stderr with Docker's multiplex stream
-		if ca.UseStdout {
+		if ca.UseStderr {
 			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
 		}
-		if ca.UseStderr {
+		if ca.UseStdout {
 			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
 		}
 	}
