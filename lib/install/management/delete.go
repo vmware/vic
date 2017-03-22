@@ -173,11 +173,11 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	for _, child := range children {
 		//Leave VCH appliance there until everything else is removed, cause it has VCH configuration. Then user could retry delete in case of any failure.
 		ok, err := d.isVCH(child)
-		if ok {
-			continue
-		}
 		if err != nil {
 			errs = append(errs, err.Error())
+			continue
+		}
+		if ok {
 			continue
 		}
 

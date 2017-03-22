@@ -51,6 +51,11 @@ Set Test Environment Variables
     Run Keyword If  ${status}  Set Environment Variable  HOST_TYPE  ESXi
     Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
 
+    ${about}=  Run  govc datastore.info %{TEST_DATASTORE} |grep 'Type'
+    ${status}=  Run Keyword And Return Status  Should Contain  ${about}  vsan
+    Run Keyword If  ${status}  Set Environment Variable  DATASTORE_TYPE  VSAN
+    Run Keyword Unless  ${status}  Set Environment Variable  DATASTORE_TYPE  Non_VSAN
+
     # set the TLS config options suitable for vic-machine in this env
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  $domain == ''  Set Suite Variable  ${vicmachinetls}  --no-tlsverify
@@ -146,6 +151,7 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
+    Log To Console  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
     ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
@@ -157,7 +163,7 @@ Run VIC Machine Command
 Run Secret VIC Machine Delete Command
     [Tags]  secret
     [Arguments]  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --force --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     [Return]  ${rc}  ${output}
 
 Run Secret VIC Machine Inspect Command
@@ -179,7 +185,7 @@ Run VIC Machine Inspect Command
     Get Docker Params  ${output}  ${true}
 
 Gather Logs From Test Server
-    [Tags]  secret
+    #[Tags]  secret
     ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
     ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs.zip

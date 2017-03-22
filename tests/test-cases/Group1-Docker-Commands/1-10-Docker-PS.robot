@@ -149,8 +149,10 @@ Docker ps Remove container OOB
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Wait Until VM Is Destroyed  "lolo*"
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}  -aq
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep ${container} | xargs -n1 govc datastore.rm
-    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls | grep "lolo*" | xargs -n1 govc datastore.rm
+    Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Run And Return Rc And Output  govc datastore.ls | grep ${container} | xargs -n1 govc datastore.rm
+    Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Be Equal As Integers  ${rc}  0
 
 Docker ps last container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -l

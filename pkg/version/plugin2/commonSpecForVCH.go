@@ -118,7 +118,6 @@ func (p *AddCommonSpecForVCH) Migrate(ctx context.Context, s *session.Session, d
 
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), newStruct)
-	log.Debugf("The newStruct is %+v", newStruct)
 
 	for k, v := range cfg {
 		log.Debugf("New data: %s:%s", k, v)
