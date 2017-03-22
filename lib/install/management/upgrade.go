@@ -316,6 +316,7 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 		// reset service started attribute
 		for _, sess := range conf.ExecutorConfig.Sessions {
 			sess.Started = ""
+			sess.Active = true
 		}
 		cfg := make(map[string]string)
 		extraconfig.Encode(extraconfig.MapSink(cfg), conf)
