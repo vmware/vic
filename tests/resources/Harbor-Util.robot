@@ -14,7 +14,6 @@
 
 *** Settings ***
 Documentation  This resource provides any keywords related to the Harbor private registry appliance
-Library  Selenium2Library
 
 *** Variables ***
 ${HARBOR_SHORT_VERSION}  0.5.0
@@ -22,10 +21,10 @@ ${HARBOR_VERSION}  harbor_0.5.0-9e4c90e
 
 *** Keywords ***
 Install Harbor To Test Server
-    [Arguments]  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=%{TEST_DATASTORE}  ${network}=%{BRIDGE_NETWORK}  ${name}=harbor  ${protocol}=http
+    [Arguments]  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=%{TEST_DATASTORE}  ${network}=%{BRIDGE_NETWORK}  ${name}=harbor  ${protocol}=http  ${verify}=false
     ${out}=  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
     ${out}=  Run  ovftool ${HARBOR_VERSION}.ova ${HARBOR_VERSION}.ovf
-    ${out}=  Run  ovftool --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:verify_remote_cert=false --prop:protocol=${protocol} ${HARBOR_VERSION}.ovf 'vi://${user}:${password}@${host}'
+    ${out}=  Run  ovftool --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ovf 'vi://${user}:${password}@${host}'
     ${out}=  Split To Lines  ${out}
 
     :FOR  ${line}  IN  @{out}
@@ -39,6 +38,7 @@ Install Harbor To Test Server
 Restart Docker With Insecure Registry Option
     # Requires you to edit /etc/systemd/system/docker.service.d/overlay.conf or docker.conf to be:
     # ExecStart=/bin/bash -c "usr/bin/docker daemon -H fd:// -s overlay $DOCKER_OPTS --insecure-registry=`cat /tmp/harbor`"
+    # Requires passwordless sudo as well
     ${out}=  Run  sudo service docker stop
     ${out}=  Run  echo %{HARBOR_IP} > /tmp/harbor
     ${out}=  Run  sudo service docker start
@@ -110,3 +110,10 @@ Toggle Admin Priviledges For User
     \   Exit For Loop If  ${status}
     
     Click Element  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > list-user > div > div > div.pane > div.sub-pane > div.table-body-container > table > tbody > tr:nth-child(${ROW_NUMBER}) > td:nth-child(4) > toggle-admin > button.btn.btn-danger.ng-binding
+
+Create Self Signed Cert
+    ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
+
+Get Harbor Self Signed Cert
+    ${out}=  Run  wget --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
+    Move File  getcert  ca.crt
