@@ -62,8 +62,7 @@ Get VM display name
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Get Substring  ${name}  1
     ${shortID}=  Get container shortID  ${id}
-    ${vmName}=  Catenate  SEPARATOR=-  ${name}  ${shortID}
-    [Return]  ${vmName}
+    [Return]  ${name}-${shortID}
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox

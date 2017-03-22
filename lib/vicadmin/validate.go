@@ -111,9 +111,10 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.Version = version.Version
 	}
 	log.Infof("Setting version to %s", v.Version)
-
-	// VCH Name
-	v.Hostname = VCHName(ctx, sess)
+	
+	if err := v.SetVCHName(ctx, sess); err != nil {
+		log.Errorf("Failed to obtain VCH name: %s", err)
+	}
 
 	// System time
 	v.SystemTime = time.Now().Format(time.UnixDate)
@@ -212,34 +213,40 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	return v
 }
 
-// Obtain the VCH name from vsphere
-func VCHName(ctx context.Context, sess *session.Session) string {
-	defer trace.End(trace.Begin(""))
-
-	self, err := guest.GetSelf(ctx, sess)
-	if err != nil {
-		log.Errorf("Unable to get VCH name due to unknown self-reference: %s", err)
-		log.Infof("Setting the VCH name to %s", DefaultVCHName)
-		return DefaultVCHName
-	}
-
-	newVM := vm.NewVirtualMachineFromVM(ctx, sess, self)
-	vchName, err := newVM.Name(ctx)
-	if err != nil {
-		log.Errorf("Unable to get VCH name: %s", err)
-		log.Infof("Setting the VCH name to %s", DefaultVCHName)
-		return DefaultVCHName
-	}
-
-	log.Infof("Setting the VCH name to %s", vchName)
-	return vchName
-}
-
 type dsList []mo.Datastore
 
 func (d dsList) Len() int           { return len(d) }
 func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
+
+// Obtain the VCH name from vsphere
+func (v *Validator) SetVCHName(ctx context.Context, sess *session.Session) error {
+	defer trace.End(trace.Begin(""))
+
+	var err error
+
+	if sess == nil {
+		v.Hostname = DefaultVCHName
+		return fmt.Errorf("session is nil")
+	}
+
+	self, err := guest.GetSelf(ctx, sess)
+	if err != nil {
+		v.Hostname = DefaultVCHName
+		return fmt.Errorf("unknown self-reference: %s", err)
+	}
+
+	newVM := vm.NewVirtualMachineFromVM(ctx, sess, self)
+	vchName, err := newVM.Name(ctx)
+	if err != nil {
+		v.Hostname = DefaultVCHName
+		return err
+	}
+
+	v.Hostname = vchName
+	log.Infof("Setting the VCH name to %s", vchName)
+	return nil
+}
 
 func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) error {
 	if sess == nil {
