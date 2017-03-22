@@ -191,6 +191,11 @@
       "script": "scripts/provision_admiral.sh"
     },
     {
+      "type": "file",
+      "source": "scripts/systemd/admiral/admiral.service",
+      "destination": "/usr/lib/systemd/system/admiral.service"
+    },
+    {
       "type": "shell",
       "script": "scripts/provision_harbor.sh"
     },
