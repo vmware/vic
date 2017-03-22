@@ -45,6 +45,7 @@ Suite Setup  19-4-Setup
 
 *** Test Cases ***
 Pos001
+    Open Browser  http://%{HARBOR_IP}/
     Log Into Harbor  user=admin
     Create A New User  user1  user1@email.com  user1  Password123
     Create A New User  user2  user2@email.com  user2  Password123 
