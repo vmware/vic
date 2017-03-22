@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -166,8 +166,12 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 
 	var key string
 	var scopes []string
+	var scope uint
 
 	fdepth := depth
+
+	prefixScopes := calculateScopeFromKey(prefix)
+	prefixScope := calculateScope(prefixScopes)
 
 	// do we have DefaultTagName?
 	if tags.Get(DefaultTagName) != "" {
@@ -211,7 +215,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 		}
 	} else {
 		log.Debugf("%s not tagged - inheriting parent scope", field.Name)
-		scopes = calculateScopeFromKey(prefix)
+		scopes = prefixScopes
 	}
 
 	if key == "" {
@@ -219,8 +223,15 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 		key = field.Name
 	}
 
+	scope = calculateScope(scopes)
+
+	// non-persistent is inherited, even if other scopes are specified
+	if prefixScope&NonPersistent != 0 {
+		scope |= NonPersistent
+	}
+
 	// re-calculate the key based on the scope and prefix
-	if key = calculateKey(scopes, prefix, key); key == "" {
+	if key = calculateKey(scope, prefix, key); key == "" {
 		log.Warnf("Skipping %s (unknown scope %s)", field.Name, scopes)
 		return "", skip
 	}
@@ -229,8 +240,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 }
 
 // calculateKey calculates the key based on the scope and current prefix
-func calculateKey(scopes []string, prefix string, key string) string {
-	scope := calculateScope(scopes)
+func calculateKey(scope uint, prefix string, key string) string {
 	if scope&Invalid != 0 {
 		log.Debugf("invalid scope")
 		return ""
@@ -318,6 +328,23 @@ func addPrefixToKey(header, prefix, key string) string {
 	return fmt.Sprintf(header+"%c%s%s", separator, modifiedPrefix, base)
 }
 
+// appendToPrefix will join the value to the prefix with the separator (if any) while ensuring that
+// any suffixes are moved to the end of the key
+func appendToPrefix(prefix, separator, value string) string {
+	// strip any existing suffix from the prefix - it'll be re-added if still applicable
+	index := strings.Index(prefix, suffixSeparator)
+	suffix := ""
+	if index != -1 {
+		suffix = prefix[index:]
+		prefix = prefix[:index]
+	}
+
+	// suffix wil still include the suffix separator if present
+	key := fmt.Sprintf("%s%s%s%s", prefix, separator, value, suffix)
+
+	return key
+}
+
 func calculateKeys(v reflect.Value, field string, prefix string) []string {
 	log.Debugf("v=%#v, field=%#v, prefix=%#v", v, field, prefix)
 	if v.Kind() == reflect.Ptr {
@@ -355,7 +382,7 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 			if !found {
 				panic(fmt.Sprintf("could not find map key %s", s[0]))
 			}
-			prefix = fmt.Sprintf("%s%s%s", prefix, Separator, s[0])
+			prefix = appendToPrefix(prefix, Separator, s[0])
 		case reflect.Array, reflect.Slice:
 			i, err := strconv.Atoi(s[0])
 			if err != nil {
@@ -363,11 +390,11 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 			}
 			switch v.Type().Elem().Kind() {
 			case reflect.Struct:
-				prefix = fmt.Sprintf("%s%s%d", prefix, Separator, i)
+				prefix = appendToPrefix(prefix, Separator, fmt.Sprintf("%d", i))
 			case reflect.Uint8:
 				return []string{prefix}
 			default:
-				return []string{fmt.Sprintf("%s~", prefix)}
+				prefix = appendToPrefix(prefix, "", "~")
 			}
 			v = v.Index(i)
 		case reflect.Struct:
@@ -389,20 +416,20 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 	case reflect.Map:
 		for _, k := range v.MapKeys() {
 			sk := k.Convert(reflect.TypeOf(""))
-			prefix := fmt.Sprintf("%s%s%s", prefix, Separator, sk.String())
+			prefix := appendToPrefix(prefix, Separator, sk.String())
 			out = append(out, calculateKeys(v.MapIndex(k), field, prefix)...)
 		}
 	case reflect.Array, reflect.Slice:
 		switch v.Type().Elem().Kind() {
 		case reflect.Struct:
 			for i := 0; i < v.Len(); i++ {
-				prefix := fmt.Sprintf("%s%s%d", prefix, Separator, i)
+				prefix := appendToPrefix(prefix, Separator, fmt.Sprintf("%d", i))
 				out = append(out, calculateKeys(v.Index(i), field, prefix)...)
 			}
 		case reflect.Uint8:
 			return []string{prefix}
 		default:
-			return []string{fmt.Sprintf("%s~", prefix)}
+			return []string{appendToPrefix(prefix, "", "~")}
 		}
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {

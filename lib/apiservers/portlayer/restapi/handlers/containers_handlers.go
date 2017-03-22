@@ -74,10 +74,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	ctx := context.Background()
 
-	log.Debugf("Path: %#v", params.CreateConfig.Path)
-	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
-	log.Debugf("OpenStdin: %#v", params.CreateConfig.OpenStdin)
-
 	id := uid.New().String()
 
 	// Init key for tether
@@ -98,27 +94,9 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		},
 		CreateTime: time.Now().UTC().Unix(),
 		Version:    version.GetBuild(),
-		Sessions: map[string]*executor.SessionConfig{
-			id: {
-				Common: executor.Common{
-					ID:   id,
-					Name: params.CreateConfig.Name,
-				},
-				Tty:       params.CreateConfig.Tty,
-				Attach:    params.CreateConfig.Attach,
-				OpenStdin: params.CreateConfig.OpenStdin,
-				Cmd: executor.Cmd{
-					Env:  params.CreateConfig.Env,
-					Dir:  params.CreateConfig.WorkingDir,
-					Path: params.CreateConfig.Path,
-					Args: append([]string{params.CreateConfig.Path}, params.CreateConfig.Args...),
-				},
-				StopSignal: params.CreateConfig.StopSignal,
-			},
-		},
-		Key:      pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:  params.CreateConfig.Image,
-		RepoName: params.CreateConfig.RepoName,
+		Key:        pem.EncodeToMemory(&privateKeyBlock),
+		LayerID:    params.CreateConfig.Image,
+		RepoName:   params.CreateConfig.RepoName,
 	}
 
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {

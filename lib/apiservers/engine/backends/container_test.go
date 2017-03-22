@@ -213,6 +213,15 @@ func (m *MockContainerProxy) CreateContainerHandle(imageID string, config types.
 	return m.mockCreateHandleData[respIdx].retID, m.mockCreateHandleData[respIdx].retHandle, m.mockCreateHandleData[respIdx].retErr
 }
 
+func (m *MockContainerProxy) CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error) {
+	respIdx := m.mockRespIndices[0]
+
+	if respIdx >= len(m.mockCreateHandleData) {
+		return "", nil
+	}
+	return m.mockCreateHandleData[respIdx].retHandle, m.mockCreateHandleData[respIdx].retErr
+}
+
 func (m *MockContainerProxy) AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error) {
 	respIdx := m.mockRespIndices[1]
 

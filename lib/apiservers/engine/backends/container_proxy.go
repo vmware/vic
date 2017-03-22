@@ -70,6 +70,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/logging"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
@@ -79,6 +80,7 @@ import (
 // VicContainerProxy interface
 type VicContainerProxy interface {
 	CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error)
+	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
@@ -201,6 +203,46 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 	h := createResults.Payload.Handle
 
 	return id, h, nil
+}
+
+// CreateContainerTask sets the primary command to run in the container
+//
+// returns:
+//	(containerHandle, error)
+func (c *ContainerProxy) CreateContainerTask(handle, id string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(""))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.CreateContainerTask failed to create a portlayer client")
+	}
+
+	plTaskParams := dockerContainerCreateParamsToTask(id, config)
+	plTaskParams.Config.Handle = handle
+
+	responseJoin, err := c.client.Tasks.Join(plTaskParams)
+	if err != nil {
+		log.Errorf("Unable to join primary task to container: %+v", err)
+		return "", InternalServerError(err.Error())
+	}
+
+	handle, ok := responseJoin.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed on handle from task join: %#+v", handle))
+	}
+
+	plBindParams := tasks.NewBindParamsWithContext(ctx).WithConfig(&models.TaskBindConfig{Handle: handle, ID: id})
+	responseBind, err := c.client.Tasks.Bind(plBindParams)
+	if err != nil {
+		log.Errorf("Unable to bind primary task to container: %+v", err)
+		return "", InternalServerError(err.Error())
+	}
+
+	handle, ok = responseBind.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed on handle from task bind %#+v", handle))
+	}
+
+	return handle, nil
 }
 
 // AddContainerToScope adds a container, referenced by handle, to a scope.
@@ -832,20 +874,14 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 // Utility Functions
 //----------
 
-func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
-	config := &models.ContainerCreateConfig{}
-
-	config.NumCpus = cc.HostConfig.CPUCount
-	config.MemoryMB = cc.HostConfig.Memory
-
-	// Image
-	config.Image = layerID
-
-	// Repo Requested
-	config.RepoName = cc.Config.Image
+func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig) *tasks.JoinParams {
+	config := &models.TaskJoinConfig{}
 
 	var path string
 	var args []string
+
+	// we explicitly specify the ID for the primary task so that it's the same as the containerID
+	config.ID = id
 
 	// Expand cmd into entrypoint and args
 	cmd := strslice.StrSlice(cc.Config.Cmd)
@@ -854,9 +890,6 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	} else {
 		path, args = cmd[0], cmd[1:]
 	}
-
-	//copy friendly name
-	config.Name = cc.Name
 
 	// copy the path
 	config.Path = path
@@ -868,12 +901,6 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	// copy the env array
 	config.Env = make([]string, len(cc.Config.Env))
 	copy(config.Env, cc.Config.Env)
-
-	// image store
-	config.ImageStore = &models.ImageStore{Name: imageStore}
-
-	// network
-	config.NetworkDisabled = cc.Config.NetworkDisabled
 
 	// working dir
 	config.WorkingDir = cc.Config.WorkingDir
@@ -889,6 +916,32 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 
 	// container stop signal
 	config.StopSignal = cc.Config.StopSignal
+
+	log.Debugf("dockerContainerCreateParamsToTask = %+v", config)
+
+	return tasks.NewJoinParamsWithContext(ctx).WithConfig(config)
+}
+
+func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
+	config := &models.ContainerCreateConfig{}
+
+	config.NumCpus = cc.HostConfig.CPUCount
+	config.MemoryMB = cc.HostConfig.Memory
+
+	// Image
+	config.Image = layerID
+
+	// Repo Requested
+	config.RepoName = cc.Config.Image
+
+	//copy friendly name
+	config.Name = cc.Name
+
+	// image store
+	config.ImageStore = &models.ImageStore{Name: imageStore}
+
+	// network
+	config.NetworkDisabled = cc.Config.NetworkDisabled
 
 	// Stuff the Docker labels into VIC container annotations
 	annotationsFromLabels(config, cc.Config.Labels)

@@ -52,7 +52,9 @@ func TestRestart(t *testing.T) {
 					ID:   "pathlookup",
 					Name: "tether_test_session",
 				},
-				Tty: false,
+				Tty:    false,
+				Active: true,
+
 				Cmd: executor.Cmd{
 					// test relative path
 					Path: "date",

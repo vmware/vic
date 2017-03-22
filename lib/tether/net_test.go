@@ -33,7 +33,7 @@ func TestSetHostname(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg, mocker)
+	tthr, _, _ := StartTether(t, &cfg, mocker)
 
 	<-mocker.Started
 
@@ -60,7 +60,7 @@ func TestNoNetwork(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg, mocker)
+	tthr, _, _ := StartTether(t, &cfg, mocker)
 
 	<-mocker.Started
 

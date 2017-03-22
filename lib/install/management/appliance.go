@@ -539,6 +539,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		Group: "vicadmin",
 		Cmd: vicadmin,
 		Restart: true,
+		Active: true,
 	},
 	)
 
@@ -570,6 +571,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		// Group: "nobody",
 		Cmd:     personality,
 		Restart: true,
+		Active: true,
 	},
 	)
 
@@ -591,6 +593,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			},
 		},
 		Restart: true,
+		Active: true,
 	},
 	)
 
