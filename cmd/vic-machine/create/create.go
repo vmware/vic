@@ -902,11 +902,12 @@ func (c *Create) processRegistries() error {
 
 	// load a list of insecure registries
 	for _, registry := range c.insecureRegistries {
-		url, err := url.Parse(registry)
+		regurl, err := validate.ParseURL(registry)
+
 		if err != nil {
 			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
 		}
-		c.InsecureRegistries = append(c.InsecureRegistries, *url)
+		c.InsecureRegistries = append(c.InsecureRegistries, *regurl)
 	}
 
 	return nil
