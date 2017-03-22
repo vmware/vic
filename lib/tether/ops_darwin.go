@@ -98,22 +98,78 @@ func (t *BaseOperations) Cleanup() error {
 
 // Need to put this here because Windows does not
 // support SysProcAttr.Credential
-func getUserSysProcAttr(uname string) *syscall.SysProcAttr {
-	uinfo, err := user.Lookup(uname)
-	if err != nil {
-		detail := fmt.Sprintf("Unable to find user %s: %s", uname, err)
-		log.Error(detail)
-		return nil
-	} else {
-		u, _ := strconv.Atoi(uinfo.Uid)
-		g, _ := strconv.Atoi(uinfo.Gid)
-		// Unfortunately lookup GID by name is currently unsupported in Go.
-		return &syscall.SysProcAttr{
-			Credential: &syscall.Credential{
-				Uid: uint32(u),
-				Gid: uint32(g),
-			},
-			Setsid: true,
+func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
+	if len(uid) == 0 && len(gid) == 0 {
+		log.Debugf("no user id or group id specified")
+		return nil, nil
+	}
+
+	var suid, sgid int
+	var suidErr, sgidErr error
+
+	var fuid, fgid int
+	var fuidErr, fgidErr error
+
+	var uinfo *user.User
+	var ginfo *user.Group
+
+	if len(uid) > 0 {
+		suid, suidErr = strconv.Atoi(uid)
+		// lookup username
+		uinfo, fuidErr = user.Lookup(uid)
+		if fuidErr == nil {
+			log.Debugf("User %s is found", uid)
+			fuid, _ = strconv.Atoi(uinfo.Uid)
+			fgid, _ = strconv.Atoi(uinfo.Gid)
 		}
 	}
+	if len(gid) > 0 {
+		sgid, sgidErr = strconv.Atoi(gid)
+
+		// lookup groupname
+		ginfo, fgidErr = user.LookupGroup(gid)
+		// if found groupname, override user group
+		if fgidErr == nil {
+			log.Debugf("Group %s is found", gid)
+			fgid, _ = strconv.Atoi(ginfo.Gid)
+		}
+	}
+
+	// lookup user failed
+	if fuidErr != nil {
+		if suidErr != nil {
+			// failed to loopup username, and user is not number
+			detail := fmt.Sprintf("unable to find user %s: %s", uid, fuidErr)
+			return nil, errors.New(detail)
+		}
+		// user set user id must be inside valid uid range.
+		if suid < minID || suid > maxID {
+			detail := fmt.Sprintf("user id %s is invalid", uid)
+			return nil, errors.New(detail)
+		}
+		fuid = suid
+	}
+
+	// lookup group failed
+	if fgidErr != nil {
+		if sgidErr != nil {
+			// failed to loopup groupname, and user is not number
+			detail := fmt.Sprintf("unable to find group %s: %s", gid, fgidErr)
+			return nil, errors.New(detail)
+		}
+		// user set group id must be inside valid uid range.
+		if sgid < minID || sgid > maxID {
+			detail := fmt.Sprintf("group id %s is invalid", gid)
+			return nil, errors.New(detail)
+		}
+		fgid = sgid
+	}
+	log.Debugf("set user to %s:%s", fuid, fgid)
+	return &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uint32(fuid),
+			Gid: uint32(fgid),
+		},
+		Setsid: true,
+	}, nil
 }

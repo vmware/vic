@@ -19,10 +19,14 @@ package tether
 import (
 	"errors"
 	"fmt"
+	"os/user"
 	"path"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -178,5 +182,62 @@ func TestSlotToPciPath(t *testing.T) {
 		if p != te.p {
 			t.Fatalf("slotToPCIPath(%d) => (%#v, %#v), want (%s, nil)", te.slot, p, err, te.p)
 		}
+	}
+}
+
+func TestGetUserSysProcAttr(t *testing.T) {
+	curr, err := user.Current()
+	if err != nil {
+		t.Logf("Failed to get current user, skip test")
+		return
+	}
+	currUID, _ := strconv.Atoi(curr.Uid)
+	currGID, _ := strconv.Atoi(curr.Gid)
+
+	moreThanMax := strconv.Itoa(1 << 33)
+	lessThanMin := "-100"
+
+	var tests = []struct {
+		uid  string
+		gid  string
+		ruid int
+		rgid int
+		err  error
+	}{
+		{"", "", 0, 0, nil},
+		{"notexist", "notexist", 0, 0, errors.New("unable to find user notexist")},
+		{"notexist", curr.Gid, 0, 0, errors.New("unable to find user notexist")},
+		{"", "notexist", 0, 0, errors.New("unable to find group notexist")},
+		{"0", "notexist", 0, 0, errors.New("unable to find group notexist")},
+		{curr.Uid, "notexist", 0, 0, errors.New("unable to find group notexist")},
+		{"2000000", "notexist", 0, 0, errors.New("unable to find group notexist")},
+		{curr.Username, "notexist", 0, 0, errors.New("unable to find group notexist")},
+		{curr.Username, "0", currUID, 0, nil},
+		{curr.Uid, "1000", currUID, 1000, nil},
+		{curr.Uid, curr.Gid, currUID, currGID, nil},
+		{"root", curr.Gid, 0, currGID, nil},
+		{"root", "root", 0, 0, nil},
+		{moreThanMax, "root", 0, 0, fmt.Errorf("user id %s is invalid", moreThanMax)},
+		{curr.Username, moreThanMax, 0, 0, fmt.Errorf("group id %s is invalid", moreThanMax)},
+		{lessThanMin, "root", 0, 0, fmt.Errorf("user id %s is invalid", lessThanMin)},
+		{curr.Username, lessThanMin, 0, 0, fmt.Errorf("group id %s is invalid", lessThanMin)},
+	}
+	for _, test := range tests {
+		t.Logf("uid: %s, gid: %s", test.uid, test.gid)
+		user, err := getUserSysProcAttr(test.uid, test.gid)
+		if err != nil {
+			assert.True(t, test.err != nil, fmt.Sprintf("Should not have error %s", err))
+			if !strings.Contains(err.Error(), test.err.Error()) {
+				assert.True(t, false, fmt.Sprintf("error message mismatch, expected %s, actual %s", test.err, err.Error()))
+			}
+			continue
+		}
+		assert.True(t, test.err == nil, fmt.Sprintf("didn't get expected error: %s", test.err))
+		if user == nil {
+			assert.True(t, (test.ruid == 0 && test.rgid == 0), "returned user is nil, but expect not nil result: %d:%d", test.ruid, test.rgid)
+			continue
+		}
+		assert.Equal(t, test.ruid, int(user.Credential.Uid), "returned user id mismatch")
+		assert.Equal(t, test.rgid, int(user.Credential.Gid), "returned group id mismatch")
 	}
 }

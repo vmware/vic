@@ -47,6 +47,10 @@ const (
 
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
+
+	// min/max user or group id, this is to keep consistent with docker
+	minID = 0
+	maxID = 1<<31 - 1
 )
 
 var Sys = system.New()
@@ -580,10 +584,14 @@ func (t *tether) launch(session *SessionConfig) error {
 		extraconfig.EncodeWithPrefix(t.sink, session, prefix)
 	}()
 
-	// Special case here because UID/GID lookup need to be done
-	// on the appliance...
-	if len(session.User) > 0 {
-		session.Cmd.SysProcAttr = getUserSysProcAttr(session.User)
+	if len(session.User) > 0 || len(session.Group) > 0 {
+		user, err := getUserSysProcAttr(session.User, session.Group)
+		if err != nil {
+			log.Errorf("user lookup failed %s:%s, %s", session.User, session.Group, err)
+			session.Started = err.Error()
+			return err
+		}
+		session.Cmd.SysProcAttr = user
 	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)

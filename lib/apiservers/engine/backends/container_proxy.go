@@ -909,6 +909,9 @@ func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig
 	// working dir
 	config.WorkingDir = cc.Config.WorkingDir
 
+	// user
+	config.User = cc.Config.User
+
 	// attach
 	config.Attach = cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr
 
@@ -1312,6 +1315,8 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	if info.ProcessConfig.WorkingDir != nil {
 		container.WorkingDir = *info.ProcessConfig.WorkingDir // Current directory (PWD) in the command will be launched
 	}
+
+	container.User = info.ProcessConfig.User
 
 	// Fill in information about the container network
 	if info.Endpoints == nil {
