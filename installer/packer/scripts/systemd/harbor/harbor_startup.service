@@ -1,7 +1,8 @@
 [Unit]
 Description=Harbor
 After=docker.service systemd-networkd.service systemd-resolved.service
-Requires=docker.service 
+Before=harbor.service
+Requires=docker.service
 Documentation=http://github.com/vmware/harbor
 
 [Service]
@@ -11,4 +12,3 @@ ExecStart=/usr/bin/python /data/harbor/prepare --conf /data/harbor/harbor.cfg --
 
 [Install]
 WantedBy=multi-user.target
-Also=harbor.service
