@@ -173,6 +173,16 @@
       "destination": "/etc/vmware/network-config.sh"
     },
     {
+      "type": "file",
+      "source": "scripts/systemd/harbor/harbor_startup.service",
+      "destination": "/usr/lib/systemd/system/harbor_startup.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/harbor/harbor.service",
+      "destination": "/usr/lib/systemd/system/harbor.service"
+    },
+    {
       "type": "shell",
       "inline": ["sed -i '/linux/ s/$/ net.ifnames=0/' /boot/grub2/grub.cfg"]
     },

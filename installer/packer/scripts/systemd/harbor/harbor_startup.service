@@ -1,0 +1,14 @@
+[Unit]
+Description=Harbor
+After=docker.service systemd-networkd.service systemd-resolved.service
+Requires=docker.service 
+Documentation=http://github.com/vmware/harbor
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/bash /etc/vmware/harbor/configure_harbor.sh
+ExecStart=/usr/bin/python /data/harbor/prepare --conf /data/harbor/harbor.cfg --with-notary
+
+[Install]
+WantedBy=multi-user.target
+Also=harbor.service
