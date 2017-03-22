@@ -20,7 +20,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/fs"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
 type FilesystemType uint8
@@ -49,7 +51,10 @@ func FilesystemTypeToFilesystem(fstype FilesystemType) Filesystem {
 // mounted), and other configuration.
 type VirtualDisk struct {
 	// The URI in the datastore this disk can be found with
-	DatastoreURI string
+	DatastoreURI *object.DatastorePath
+
+	// The URI in the datastore to the parent of this disk
+	ParentDatastoreURI *object.DatastorePath
 
 	// The device node the disk is attached to
 	DevicePath string
@@ -68,8 +73,13 @@ func NewVirtualDisk(DatastoreURI string) (*VirtualDisk, error) {
 		return nil, err
 	}
 
+	dspth, err := datastore.DatastorePathFromString(DatastoreURI)
+	if err != nil {
+		return nil, err
+	}
+
 	d := &VirtualDisk{
-		DatastoreURI: DatastoreURI,
+		DatastoreURI: dspth,
 		// We only support ext4 for now
 		fs: FilesystemTypeToFilesystem(Ext4),
 	}
@@ -201,7 +211,7 @@ func (d *VirtualDisk) DiskPath() url.URL {
 
 	return url.URL{
 		Scheme: "ds",
-		Path:   d.DatastoreURI,
+		Path:   d.DatastoreURI.String(),
 	}
 }
 

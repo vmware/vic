@@ -16,6 +16,7 @@ package datastore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -322,6 +323,15 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 
 	d.RootURL.FromString(rooturl)
 	return nil
+}
+
+func DatastorePathFromString(dsp string) (*object.DatastorePath, error) {
+	var p object.DatastorePath
+	if !p.FromString(dsp) {
+		return nil, errors.New(dsp + " not a datastore path")
+	}
+
+	return &p, nil
 }
 
 // Parse the datastore format ([datastore1] /path/to/thing) to groups.

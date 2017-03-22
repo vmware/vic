@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -93,22 +94,21 @@ func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 	// ensure we abide by max attached disks limits
 	m.maxAttached <- true
 
-	d, err := NewVirtualDisk(newDiskURI)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
 	spec := m.createDiskSpec(newDiskURI, parentURI, capacity, flags)
 
 	op.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
 
-	err = m.Attach(op, spec)
-	if err != nil {
+	if err := m.Attach(op, spec); err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	op.Debugf("Mapping vmdk to pci device %s", newDiskURI)
 	devicePath, err := m.devicePathByURI(op, newDiskURI)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	d, err := NewVirtualDisk(newDiskURI)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -125,6 +125,15 @@ func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 		return nil, errors.Trace(err)
 	}
 
+	var ppth *object.DatastorePath
+	if parentURI != "" {
+		ppth, err = datastore.DatastorePathFromString(parentURI)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	d.ParentDatastoreURI = ppth
 	d.setAttached(blockDev)
 
 	return d, nil
@@ -193,7 +202,7 @@ func (m *Manager) Create(op trace.Operation, newDiskURI string,
 
 	op.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
 	err = tasks.Wait(op, func(ctx context.Context) (tasks.Task, error) {
-		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
+		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI.String(), nil, spec)
 	})
 
 	if err != nil {
@@ -201,6 +210,37 @@ func (m *Manager) Create(op trace.Operation, newDiskURI string,
 	}
 
 	return d, nil
+}
+
+// Gets a disk given a datastore path URI to the vmdk
+func (m *Manager) Get(op trace.Operation, diskURI string) (*VirtualDisk, error) {
+	defer trace.End(trace.Begin(diskURI))
+
+	dsk, err := NewVirtualDisk(diskURI)
+	if err != nil {
+		return nil, err
+	}
+
+	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
+
+	info, err := vdm.QueryVirtualDiskInfo(op, diskURI, nil, true)
+	if err != nil {
+		op.Errorf("error querying parents (%s): %s", diskURI, err.Error())
+		return nil, err
+	}
+
+	// the last elem in the info list is the disk we just looked up.
+	p := info[len(info)-1]
+
+	if p.Parent != "" {
+		ppth, err := datastore.DatastorePathFromString(p.Parent)
+		if err != nil {
+			return nil, err
+		}
+		dsk.ParentDatastoreURI = ppth
+	}
+
+	return dsk, nil
 }
 
 // TODO(FA) this doesn't work since delta disks get set with `deletable =
@@ -281,7 +321,7 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 		return errors.Trace(err)
 	}
 
-	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI)
+	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
 	if err != nil {
 		return errors.Trace(err)
 	}

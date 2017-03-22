@@ -22,6 +22,8 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/pkg/archive"
 
@@ -53,14 +55,6 @@ type ImageStore struct {
 	s *session.Session
 
 	ds *datastore.Helper
-
-	// Parent relationships
-	// This will go away when First Class Disk support is added to vsphere.
-	// Currently, we can't get a disk spec for a disk outside of creating the
-	// disk (and the spec).  This spec has the parent relationship for the
-	// disk.  So, for now, persist this data in the datastore and look it up
-	// when we need it.
-	parents *parentM
 }
 
 func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
@@ -135,13 +129,6 @@ func (v *ImageStore) CreateImageStore(op trace.Operation, storeName string) (*ur
 		return nil, err
 	}
 
-	if v.parents == nil {
-		pm, err := restoreParentMap(op, v.ds, storeName)
-		if err != nil {
-			return nil, err
-		}
-		v.parents = pm
-	}
 	return u, nil
 }
 
@@ -170,18 +157,10 @@ func (v *ImageStore) GetImageStore(op trace.Operation, storeName string) (*url.U
 		return nil, fmt.Errorf("Stat error:  path doesn't exist (%s)", p)
 	}
 
-	if v.parents == nil {
-		// This is startup.  Look for image directories without manifest files and
-		// nuke them.
-		if err := v.cleanup(op, u); err != nil {
-			return nil, err
-		}
-
-		pm, err := restoreParentMap(op, v.ds, storeName)
-		if err != nil {
-			return nil, err
-		}
-		v.parents = pm
+	// This is startup.  Look for image directories without manifest files and
+	// nuke them.
+	if err := v.cleanup(op, u); err != nil {
+		return nil, err
 	}
 
 	return u, nil
@@ -230,6 +209,7 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 		return nil, err
 	}
 
+	var dsk *disk.VirtualDisk
 	// If this is scratch, then it's the root of the image store.  All images
 	// will be descended from this created and prepared fs.
 	if ID == portlayer.Scratch.ID {
@@ -243,17 +223,10 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 			return nil, fmt.Errorf("parent ID is empty")
 		}
 
-		// persist the relationship
-		v.parents.Add(ID, parent.ID)
-
-		if err := v.parents.Save(op); err != nil {
+		dsk, err = v.writeImage(op, storeName, parent.ID, ID, meta, sum, r)
+		if err != nil {
 			return nil, err
 		}
-
-		if err := v.writeImage(op, storeName, parent.ID, ID, meta, sum, r); err != nil {
-			return nil, err
-		}
-
 	}
 
 	newImage := &portlayer.Image{
@@ -262,6 +235,7 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 		ParentLink: parent.SelfLink,
 		Store:      parent.Store,
 		Metadata:   meta,
+		Disk:       dsk,
 	}
 
 	return newImage, nil
@@ -292,20 +266,20 @@ func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdis
 // If everything matches, move the tmp vmdk to ID.vmdk.  The unwind path is a
 // bit convoluted here;  we need to clean up on the way out in the error case
 func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID string, meta map[string][]byte,
-	sum string, r io.Reader) error {
+	sum string, r io.Reader) (*disk.VirtualDisk, error) {
 
 	// Create a temp image directory in the store.
 	imageDir := v.imageDirPath(storeName, ID)
 	_, err := v.ds.Mkdir(op, true, imageDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
 	err = writeMetadata(op, v.ds, metaDataDir, meta)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// datastore path to the parent
@@ -327,17 +301,17 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	// Create the disk
 	vmdisk, err = v.dm.CreateAndAttach(op, diskDsURI, parentDiskDsURI, 0, os.O_RDWR)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// tmp dir to mount the disk
 	dir, err := ioutil.TempDir("", "mnt-"+ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer os.RemoveAll(dir)
 
 	if err := vmdisk.Mount(dir, nil); err != nil {
-		return err
+		return nil, err
 	}
 
 	h := sha256.New()
@@ -346,7 +320,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	// Untar the archive
 	var n int64
 	if n, err = archive.ApplyLayer(dir, t); err != nil {
-		return err
+		return nil, err
 	}
 
 	op.Debugf("%s wrote %d bytes", ID, n)
@@ -354,15 +328,15 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	actualSum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 	if actualSum != sum {
 		err = fmt.Errorf("Failed to validate image checksum. Expected %s, got %s", sum, actualSum)
-		return err
+		return nil, err
 	}
 
 	if err = vmdisk.Unmount(); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err = v.dm.Detach(op, vmdisk); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Write our own bookkeeping manifest file to the image's directory.  We
@@ -376,10 +350,10 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	// with atomic operations.  Touching an empty file seems to work well
 	// enough.
 	if err = v.writeManifest(op, storeName, ID, nil); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return vmdisk, nil
 }
 
 func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
@@ -441,7 +415,6 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 }
 
 func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*portlayer.Image, error) {
-
 	defer trace.End(trace.Begin(store.String()))
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
@@ -464,26 +437,34 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 		return nil, err
 	}
 
-	var s = *store
-	var parentURL *url.URL
+	diskDsURI := v.imageDiskDSPath(storeName, ID)
 
-	parentID := v.parents.Get(ID)
-	if parentID != "" {
-		parentURL, _ = util.ImageURL(storeName, parentID)
+	var s = *store
+
+	dsk, err := v.dm.Get(op, diskDsURI)
+	if err != nil {
+		return nil, err
+	}
+
+	var parentURL *url.URL
+	if dsk.ParentDatastoreURI != nil {
+		_, vmdk := filepath.Split(dsk.ParentDatastoreURI.Path)
+		parentURL, err = util.ImageURL(storeName, strings.Split(vmdk, ".")[0])
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	newImage := &portlayer.Image{
-		ID:       ID,
-		SelfLink: imageURL,
-		// We're relying on the parent map for this since we don't currently have a
-		// way to get the disk's spec.  See VIC #482 for details.  Parent:
-		// parent.SelfLink,
+		ID:         ID,
+		SelfLink:   imageURL,
 		Store:      &s,
 		ParentLink: parentURL,
 		Metadata:   meta,
+		Disk:       dsk,
 	}
 
-	op.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent())
+	op.Debugf("GetImage(%s) has parent %s", newImage.SelfLink, newImage.Parent())
 	return newImage, nil
 }
 
