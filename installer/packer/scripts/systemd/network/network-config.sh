@@ -13,15 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-mask2cdr ()
-{
+mask2cdr () {
   set -- 0^^^128^192^224^240^248^252^254^ ${#1} ${1##*255.} 
   set -- $(( ($2 - ${#3})*2 )) ${1%%${3%%.*}*} 
   echo $(( $1 + (${#2}/4) )) 
 }
 
+fqdn=$(ovfenv --key network.fqdn)
 network_address=$(ovfenv --key network.ip0)
 network_conf_file=/etc/systemd/network/09-vic.network
+
+# Set hostname
+[[ x$fqdn != "x" ]] && ( hostnamectl set-hostname $fqdn )
 
 if [[ x$network_address != "x" ]]; then
   # If IP is configured via OVF environment, we create a file for systemd-networkd to parse

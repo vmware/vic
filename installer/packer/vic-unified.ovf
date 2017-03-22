@@ -242,9 +242,9 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <Label>3.5. Domain Search Path</Label>
         <Description>The domain search path (comma or space separated domain names) for this VM. Leave blank if DHCP is desired.</Description>
       </Property>
-      <Property ovf:key="domain" ovf:type="string" ovf:userConfigurable="true">
-        <Label>3.6. Domain Name</Label>
-        <Description>The domain name of this VM. Leave blank if DHCP is desired.</Description>
+      <Property ovf:key="fqdn" ovf:type="string" ovf:userConfigurable="true" ovf:value="localhost.localdomain">
+        <Label>3.6. FQDN</Label>
+        <Description>The fully qualified domain name of this VM. Leave blank if DHCP is desired.</Description>
       </Property>
     </ProductSection>
     <ProductSection ovf:class="harbor" ovf:required="false">
