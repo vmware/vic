@@ -29,7 +29,6 @@ Install VIC with version to Test Server
 	Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}
     Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
     Set Environment Variable  INITIAL-VERSION  ${version}
-    Set Environment Variable  DOCKER_API_VERSION  1.23
 
 Clean up VIC Appliance And Local Binary
     Cleanup VIC Appliance On Test Server
@@ -126,10 +125,12 @@ Run Docker Checks
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${vmName}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  ${vmName}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls |grep ${vmName}
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  ${vmName}
-
+    ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls |grep ${vmName}
+    Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Run And Return Rc And Output  govc datastore.ls |grep ${id}
+    Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Contain  ${output}  ${id}
 
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
@@ -182,7 +183,6 @@ Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  upgrade
 
 Upgrade VCH
-    Set Environment Variable  DOCKER_API_VERSION  1.23
     Create Docker Containers
     Log To Console  \nUpgrading VCH...
 
