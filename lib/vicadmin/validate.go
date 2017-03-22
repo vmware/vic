@@ -212,6 +212,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	return v
 }
 
+// Obtain the VCH name from vsphere
 func VCHName(ctx context.Context, sess *session.Session) string {
 	defer trace.End(trace.Begin(""))
 
