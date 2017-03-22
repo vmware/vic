@@ -219,7 +219,7 @@ func VCHName(ctx context.Context, sess *session.Session) string {
 	self, err := guest.GetSelf(ctx, sess)
 	if err != nil {
 		log.Errorf("Unable to get VCH name due to unknown self-reference: %s", err)
-		log.Infof("Setting the VCH name to VCH")
+		log.Infof("Setting the VCH name to %s", DefaultVCHName)
 		return DefaultVCHName
 	}
 
@@ -227,7 +227,7 @@ func VCHName(ctx context.Context, sess *session.Session) string {
 	vchName, err := newVM.Name(ctx)
 	if err != nil {
 		log.Errorf("Unable to get VCH name: %s", err)
-		log.Infof("Setting the VCH name to VCH")
+		log.Infof("Setting the VCH name to %s", DefaultVCHName)
 		return DefaultVCHName
 	}
 
