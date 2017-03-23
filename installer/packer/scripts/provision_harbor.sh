@@ -55,6 +55,7 @@ for _, s in enumerate(dataMap["services"]):
         dataMap["services"][s]["volumes"][kvol] = vol.replace("./common", "{0}/common".format(dir), 1)
 f.seek(0)
 yaml.dump(dataMap, f, default_flow_style=False)
+f.truncate()
 f.close()
 END
 }
