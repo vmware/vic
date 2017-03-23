@@ -21,6 +21,7 @@ import (
 
 	nfsClient "github.com/fdawg4l/go-nfs-client/nfs"
 	"github.com/fdawg4l/go-nfs-client/nfs/rpc"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 

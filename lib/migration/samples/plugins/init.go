@@ -17,6 +17,7 @@ package plugins
 // import all plugin packages here to register plugins
 
 import (
+	// imported for the side effect
 	_ "github.com/vmware/vic/lib/migration/samples/plugins/plugin1"
 	_ "github.com/vmware/vic/lib/migration/samples/plugins/plugin2"
 )

@@ -196,30 +196,26 @@ whitespace:
 	@infra/scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
-golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'" | sh -c "! grep -v 'error strings should not be capitalized'"
+golintf = $(GOLINT) $(1) | sh -c "! grep -v 'lib/apiservers/portlayer/restapi/operations'" | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'" | sh -c "! grep -v 'error strings should not be capitalized'"
 
 golint: $(GOLINT)
 	@echo checking go lint...
 	@$(call golintf,github.com/vmware/vic/cmd/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
-	@$(call golintf,github.com/vmware/vic/lib/install/...)
-	@$(call golintf,github.com/vmware/vic/lib/portlayer/...)
-	@$(call golintf,github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers/...)
-	@$(call golintf,github.com/vmware/vic/lib/apiservers/engine/backends/...)
+	@$(call golintf,github.com/vmware/vic/lib/...)
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...
 gopath:
 	@echo -n $(GOPATH)
 
-$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*") $(PORTLAYER_DEPS)
+goimports: $(GOIMPORTS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -local github.com/vmware -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
-	@touch $@
 
 gofmt:
 	@echo checking gofmt...
-	@gofmt -l -s $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+	@! gofmt -d -e -s $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor) 2>&1 | egrep -v '^$$'
 
 misspell: $(MISSPELL)
 	@echo checking misspell...
@@ -228,6 +224,8 @@ misspell: $(MISSPELL)
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+#   one day we will enable shadow check
+#	@$(GO) tool vet -all -shadow -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 gas: $(GAS)
 	@echo checking security problems

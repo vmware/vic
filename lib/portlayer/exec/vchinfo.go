@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 )

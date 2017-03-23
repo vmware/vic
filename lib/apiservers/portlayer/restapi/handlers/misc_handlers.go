@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/go-openapi/runtime/middleware"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/misc"

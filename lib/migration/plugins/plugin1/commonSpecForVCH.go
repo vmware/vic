@@ -21,6 +21,7 @@ import (
 	"github.com/vmware/vic/lib/migration/manager"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"

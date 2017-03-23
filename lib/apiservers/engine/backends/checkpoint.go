@@ -15,26 +15,26 @@
 package backends
 
 import (
-    "fmt"
-    
-    "github.com/docker/docker/api/types"
+	"fmt"
+
+	"github.com/docker/docker/api/types"
 )
 
 type Checkpoint struct {
 }
 
 func NewCheckpointBackend() *Checkpoint {
-    return &Checkpoint{}
+	return &Checkpoint{}
 }
 
 func (c *Checkpoint) CheckpointCreate(container string, config types.CheckpointCreateOptions) error {
-	return fmt.Errorf("%s does not yet implement checkpointing", ProductName())   
+	return fmt.Errorf("%s does not yet implement checkpointing", ProductName())
 }
 
 func (c *Checkpoint) CheckpointDelete(container string, config types.CheckpointDeleteOptions) error {
-    return fmt.Errorf("%s does not yet implement checkpointing", ProductName())   
+	return fmt.Errorf("%s does not yet implement checkpointing", ProductName())
 }
 
 func (c *Checkpoint) CheckpointList(container string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
-    return nil, fmt.Errorf("%s does not yet implement checkpointing", ProductName())   
+	return nil, fmt.Errorf("%s does not yet implement checkpointing", ProductName())
 }

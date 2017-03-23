@@ -35,6 +35,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/go-openapi/runtime"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"

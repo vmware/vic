@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/docker/docker/image"
 	"github.com/docker/docker/api/types/container"
+	v1 "github.com/docker/docker/image"
 
 	"github.com/stretchr/testify/assert"
 

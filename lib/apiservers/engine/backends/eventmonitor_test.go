@@ -15,122 +15,123 @@
 package backends
 
 import (
-    "encoding/json"
-    "fmt"
-    "io"
+	"encoding/json"
+	"fmt"
+	"io"
 	"testing"
-    "time"
+	"time"
 
 	"golang.org/x/net/context"
 
-	plevents "github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/stretchr/testify/assert"
+
+	plevents "github.com/vmware/vic/lib/portlayer/event/events"
 )
 
 type MockEventProxy struct {
-    MockEvents  []plevents.BaseEvent
-    Delay       time.Duration
+	MockEvents []plevents.BaseEvent
+	Delay      time.Duration
 }
 
 type MockEventPublisher struct {
-    MockEventChan   chan plevents.BaseEvent
+	MockEventChan chan plevents.BaseEvent
 }
 
 func (ep *MockEventProxy) StreamEvents(ctx context.Context, out io.Writer) error {
-    encoder := json.NewEncoder(out)
-    if encoder == nil {
-        return fmt.Errorf("Failed to create a json encoder")
-    }
+	encoder := json.NewEncoder(out)
+	if encoder == nil {
+		return fmt.Errorf("Failed to create a json encoder")
+	}
 
-    for _, event := range ep.MockEvents {
-        if err := encoder.Encode(event); err != nil {
-            return err
-        }
+	for _, event := range ep.MockEvents {
+		if err := encoder.Encode(event); err != nil {
+			return err
+		}
 
-        time.Sleep(ep.Delay)
-    }
+		time.Sleep(ep.Delay)
+	}
 
-    return nil
+	return nil
 }
 
 func (p *MockEventPublisher) PublishEvent(event plevents.BaseEvent) {
-    if (p.MockEventChan != nil) {
-        p.MockEventChan <- event
-    }
+	if p.MockEventChan != nil {
+		p.MockEventChan <- event
+	}
 }
 
 func TestStartStopMonitor(t *testing.T) {
-    proxy := MockEventProxy{
-        MockEvents: []plevents.BaseEvent{
-            {
-                Event: plevents.ContainerCreated,
-                Ref: "abc",
-            },
-            {
-                Event: plevents.ContainerStarted,
-                Ref: "abc",
-            },
-            {
-                Event: plevents.ContainerStopped,
-                Ref: "abc",
-            },           
-        },
-        Delay: 1*time.Second,
-    }
-    publisher := MockEventPublisher{
-        MockEventChan: make(chan plevents.BaseEvent, 3),
-    }
-    monitor := NewPortlayerEventMonitor(&proxy, &publisher)
+	proxy := MockEventProxy{
+		MockEvents: []plevents.BaseEvent{
+			{
+				Event: plevents.ContainerCreated,
+				Ref:   "abc",
+			},
+			{
+				Event: plevents.ContainerStarted,
+				Ref:   "abc",
+			},
+			{
+				Event: plevents.ContainerStopped,
+				Ref:   "abc",
+			},
+		},
+		Delay: 1 * time.Second,
+	}
+	publisher := MockEventPublisher{
+		MockEventChan: make(chan plevents.BaseEvent, 3),
+	}
+	monitor := NewPortlayerEventMonitor(&proxy, &publisher)
 
-    var err error
+	var err error
 
-    // The actual tests
-    err = monitor.Start()
-    assert.Nil(t, err, "Expected monitor start to succeed, but received: %#v", err)
+	// The actual tests
+	err = monitor.Start()
+	assert.Nil(t, err, "Expected monitor start to succeed, but received: %#v", err)
 
-    err = monitor.Start()
-    assert.NotEqual(t, err, nil, "Expected error but received nil on double start")
-    if err != nil {
-        assert.Contains(t, err.Error(), "Already started", "Expected already started error but received: %s", err)
-    }
+	err = monitor.Start()
+	assert.NotEqual(t, err, nil, "Expected error but received nil on double start")
+	if err != nil {
+		assert.Contains(t, err.Error(), "Already started", "Expected already started error but received: %s", err)
+	}
 
-    monitor.Stop()
+	monitor.Stop()
 }
 
 func TestEventMonitor(t *testing.T) {
-   proxy := MockEventProxy{
-        MockEvents: []plevents.BaseEvent{
-            {
-                Event: plevents.ContainerCreated,
-                Ref: "abc",
-            },
-            {
-                Event: plevents.ContainerStarted,
-                Ref: "abc",
-            },
-            {
-                Event: plevents.ContainerStopped,
-                Ref: "abc",
-            },           
-        },
-        Delay: 0,
-    }
-    publisher := MockEventPublisher{
-        MockEventChan: make(chan plevents.BaseEvent, 3),
-    }
-    monitor := NewPortlayerEventMonitor(&proxy, &publisher)
+	proxy := MockEventProxy{
+		MockEvents: []plevents.BaseEvent{
+			{
+				Event: plevents.ContainerCreated,
+				Ref:   "abc",
+			},
+			{
+				Event: plevents.ContainerStarted,
+				Ref:   "abc",
+			},
+			{
+				Event: plevents.ContainerStopped,
+				Ref:   "abc",
+			},
+		},
+		Delay: 0,
+	}
+	publisher := MockEventPublisher{
+		MockEventChan: make(chan plevents.BaseEvent, 3),
+	}
+	monitor := NewPortlayerEventMonitor(&proxy, &publisher)
 
-    var err error
+	var err error
 
-    // The actual tests
-    err = monitor.Start()
-    assert.Nil(t, err, "Expected monitor start to succeed, but received: %#v", err)
+	// The actual tests
+	err = monitor.Start()
+	assert.Nil(t, err, "Expected monitor start to succeed, but received: %#v", err)
 
-    time.Sleep(1*time.Second)
+	time.Sleep(1 * time.Second)
 
-    count := len(publisher.MockEventChan)
-    for i := 0; i<count; i++ {
-        event := <- publisher.MockEventChan
-        assert.Equal(t, event.Event, proxy.MockEvents[i].Event, "Expected to find event %s but found %s", proxy.MockEvents[i].Event, event.Event)
-    }
+	count := len(publisher.MockEventChan)
+	for i := 0; i < count; i++ {
+		event := <-publisher.MockEventChan
+		assert.Equal(t, event.Event, proxy.MockEvents[i].Event, "Expected to find event %s but found %s", proxy.MockEvents[i].Event, event.Event)
+	}
 }
