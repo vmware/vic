@@ -58,6 +58,7 @@ func (d *dsBackend) Save(ctx context.Context, r io.Reader, path string) error {
 	}
 
 	// we will reattempt the move since it might take some time for the upload to replicate before presenting on VSAN.
+	// XXX: This is a workaround until the VSAN fixes the bug where they return a successful upload before replication finishes.
 	if err := retry.Do(moveOperation, isFileFault); err != nil {
 		log.Debugf("failed to move file (%s) to (%s) after attempting to recover from a FileNotFoundFault with error (%s) during a kv store save operation.", tmpfile, path, err.Error())
 		return err
