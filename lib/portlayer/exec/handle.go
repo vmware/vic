@@ -136,14 +136,17 @@ func (h *Handle) Reload() {
 	h.reload = true
 }
 
+// Rename updates the container name in ExecConfig as well as the vSphere display name
 func (h *Handle) Rename(newName string) *Handle {
 	defer trace.End(trace.Begin(""))
 
-	h.ExecConfig.CommonSpecForVM.Name = newName
+	h.ExecConfig.Name = newName
 
-	shortID := h.ExecConfig.ID[:12]
-	prettyName := newName
-	h.Spec.Spec().Name = fmt.Sprintf("%s-%s", prettyName, shortID)
+	s := &spec.VirtualMachineConfigSpecConfig{
+		ID: h.ExecConfig.ID,
+		Name: newName,
+	}
+	h.Spec.Spec().Name = util.DisplayName(s)
 
 	return h
 }

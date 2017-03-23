@@ -41,8 +41,8 @@ import (
 )
 
 const (
-	containerWaitTimeout = 3 * time.Minute
-	supportVersionForRename = 2supportVersionForRename = 2
+	containerWaitTimeout    = 3 * time.Minute
+	supportVersionForRename = 2
 )
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
@@ -416,11 +416,6 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 	// rename on container version < supportVersionForRename is not supported
 	if container.ExecConfig.Version == nil || container.ExecConfig.Version.PluginVersion < supportVersionForRename {
 		return containers.NewContainerRenameInternalServerError().WithPayload(&models.Error{Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name)})
-	}
-
-	// rename on running containers is not supported
-	if container.CurrentState().String() != "Stopped" {
-		return containers.NewContainerRenameInternalServerError().WithPayload(&models.Error{Message: fmt.Sprintf("rename is only supported on stopped containers")})
 	}
 
 	h = h.Rename(params.Name)

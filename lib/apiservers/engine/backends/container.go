@@ -574,13 +574,6 @@ func (c *Container) ContainerPause(name string) error {
 	return fmt.Errorf("%s does not yet implement ContainerPause", ProductName())
 }
 
-// ContainerRename changes the name of a container, using the oldName
-// to find the container. An error is returned if newName is already
-// reserved.
-func (c *Container) ContainerRename(oldName, newName string) error {
-	return fmt.Errorf("%s does not yet implement ContainerRename", ProductName())
-}
-
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
 func (c *Container) ContainerResize(name string, height, width int) error {
