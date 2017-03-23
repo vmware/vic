@@ -26,8 +26,8 @@ systemctl daemon-reload
 systemctl enable docker.service
 systemctl enable data.mount repartition.service resizefs.service getty@tty2.service
 systemctl enable chrootpwd.service sshd_permitrootlogin.service vic-appliance.target
-systemctl enable ovf-network.service harbor_startup
-
+systemctl enable ovf-network.service
+systemctl enable harbor_startup.service harbor.service
 
 # Clean up temporary directories
 rm -rf /var/tmp/*
