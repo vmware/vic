@@ -25,7 +25,7 @@ import (
 
 // Join adds the task configuration to the containerVM config
 func Join(op *trace.Operation, h interface{}, task *executor.SessionConfig) (interface{}, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(task.ID))
 
 	handle, ok := h.(*exec.Handle)
 	if !ok {

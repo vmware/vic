@@ -24,7 +24,7 @@ import (
 
 // Remove the task configuration from the containerVM config
 func Remove(op *trace.Operation, h interface{}, id string) (interface{}, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(id))
 
 	handle, ok := h.(*exec.Handle)
 	if !ok {

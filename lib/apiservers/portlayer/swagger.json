@@ -1520,6 +1520,51 @@
 			}
 		},
 		"/tasks": {
+			"get": {
+				"description": "Initiates an task inspect operation",
+				"summary": "Initiates an task inspect operation",
+				"operationId": "Inspect",
+				"tags": [
+					"tasks"
+				],
+				"consumes": [
+					"application/json",
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/TaskInspectConfig"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/TaskInspectResponse"
+						}
+					},
+					"404": {
+						"description": "not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Join of task failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
 			"post": {
 				"description": "Initiates an task join operation",
 				"summary": "Initiates an task join operation",
@@ -3333,6 +3378,22 @@
 				}
 			}
 		},
+		"TaskInspectConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"id"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
 		"TaskJoinResponse": {
 			"type": "object",
 			"required": [
@@ -3418,9 +3479,13 @@
 					"default": false,
 					"x-nullable": false
 				},
-				"containerId": {
-					"type": "string",
+				"tty": {
+					"type": "boolean",
+					"default": false,
 					"x-nullable": false
+				},
+				"user": {
+					"type": "string"
 				},
 				"pid": {
 					"type": "integer",

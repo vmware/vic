@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/truncindex"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -108,7 +107,7 @@ func (cc *CCache) DeleteContainer(nameOrID string) {
 	}
 }
 
-func (cc *CCache) AddExecToContainer(container *container.VicContainer, eid string, config *types.ExecConfig) {
+func (cc *CCache) AddExecToContainer(container *container.VicContainer, eid string) {
 	cc.m.Lock()
 	defer cc.m.Unlock()
 
@@ -117,7 +116,7 @@ func (cc *CCache) AddExecToContainer(container *container.VicContainer, eid stri
 		return
 	}
 
-	container.Add(eid, config)
+	container.Add(eid)
 	cc.containersByExecID[eid] = container
 }
 

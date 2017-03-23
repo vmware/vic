@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package container
 import (
 	"sync"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 )
 
@@ -30,30 +29,22 @@ type VicContainer struct {
 	HostConfig  *containertypes.HostConfig
 
 	m     sync.RWMutex
-	execs map[string]*types.ExecConfig
+	execs map[string]struct{}
 }
 
 // NewVicContainer returns a reference to a new VicContainer
 func NewVicContainer() *VicContainer {
 	return &VicContainer{
 		Config: &containertypes.Config{},
-		execs:  make(map[string]*types.ExecConfig),
+		execs:  make(map[string]struct{}),
 	}
 }
 
 // Add adds a new exec configuration to the container.
-func (v *VicContainer) Add(id string, Config *types.ExecConfig) {
+func (v *VicContainer) Add(id string) {
 	v.m.Lock()
-	v.execs[id] = Config
+	v.execs[id] = struct{}{}
 	v.m.Unlock()
-}
-
-// Get returns an exec configuration by its id.
-func (v *VicContainer) Get(id string) *types.ExecConfig {
-	v.m.RLock()
-	res := v.execs[id]
-	v.m.RUnlock()
-	return res
 }
 
 // Delete removes an exec configuration from the container.
