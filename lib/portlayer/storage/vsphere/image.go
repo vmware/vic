@@ -27,6 +27,7 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
@@ -104,8 +105,11 @@ func (v *ImageStore) imageDiskPath(storeName, imageName string) string {
 }
 
 // Returns the path to the vmdk itself in datastore url format
-func (v *ImageStore) imageDiskDSPath(storeName, imageName string) string {
-	return path.Join(v.ds.RootURL.String(), v.imageDiskPath(storeName, imageName))
+func (v *ImageStore) imageDiskDSPath(storeName, imageName string) *object.DatastorePath {
+	return &object.DatastorePath{
+		Datastore: v.ds.RootURL.Datastore,
+		Path:      path.Join(v.ds.RootURL.Path, v.imageDiskPath(storeName, imageName)),
+	}
 }
 
 // Returns the path to the metadata directory for an image
@@ -391,7 +395,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	}()
 
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(op, imageDiskDsURI, "", size, os.O_RDWR)
+	vmdisk, err = v.dm.CreateAndAttach(op, imageDiskDsURI, nil, size, os.O_RDWR)
 	if err != nil {
 		op.Errorf("CreateAndAttach(%s) error: %s", imageDiskDsURI, err)
 		return err

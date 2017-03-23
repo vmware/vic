@@ -22,7 +22,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/fs"
-	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
 type FilesystemType uint8
@@ -68,18 +67,13 @@ type VirtualDisk struct {
 	fs Filesystem
 }
 
-func NewVirtualDisk(DatastoreURI string) (*VirtualDisk, error) {
-	if err := VerifyDatastoreDiskURI(DatastoreURI); err != nil {
-		return nil, err
-	}
-
-	dspth, err := datastore.DatastorePathFromString(DatastoreURI)
-	if err != nil {
+func NewVirtualDisk(DatastoreURI *object.DatastorePath) (*VirtualDisk, error) {
+	if err := VerifyDatastoreDiskURI(DatastoreURI.String()); err != nil {
 		return nil, err
 	}
 
 	d := &VirtualDisk{
-		DatastoreURI: dspth,
+		DatastoreURI: DatastoreURI,
 		// We only support ext4 for now
 		fs: FilesystemTypeToFilesystem(Ext4),
 	}

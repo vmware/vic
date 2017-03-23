@@ -83,13 +83,11 @@ func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, err
 }
 
 // CreateAndAttach creates a new vmdk child from parent of the given size.
-// Returns a VirtualDisk corresponding to the created and attached disk.  The
-// newDiskURI and parentURI are both Datastore URI paths in the form of
-// [datastoreN] /path/to/disk.vmdk.
+// Returns a VirtualDisk corresponding to the created and attached disk.
 func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
-	parentURI string,
+	parentURI *object.DatastorePath,
 	capacity int64, flags int) (*VirtualDisk, error) {
-	defer trace.End(trace.Begin(newDiskURI))
+	defer trace.End(trace.Begin(newDiskURI.String()))
 
 	// ensure we abide by max attached disks limits
 	m.maxAttached <- true
@@ -125,27 +123,19 @@ func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 		return nil, errors.Trace(err)
 	}
 
-	var ppth *object.DatastorePath
-	if parentURI != "" {
-		ppth, err = datastore.DatastorePathFromString(parentURI)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	d.ParentDatastoreURI = ppth
+	d.ParentDatastoreURI = parentURI
 	d.setAttached(blockDev)
 
 	return d, nil
 }
 
-func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, flags int) *types.VirtualDisk {
+func (m *Manager) createDiskSpec(childURI, parentURI *object.DatastorePath, capacity int64, flags int) *types.VirtualDisk {
 	// TODO: migrate this method to govmomi CreateDisk method
 	backing := &types.VirtualDiskFlatVer2BackingInfo{
 		DiskMode:        string(types.VirtualDiskModeIndependent_persistent),
 		ThinProvisioned: types.NewBool(true),
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			FileName: childURI,
+			FileName: childURI.String(),
 		},
 	}
 
@@ -154,10 +144,10 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 		capacity = 0
 	}
 
-	if parentURI != "" {
+	if parentURI != nil {
 		backing.Parent = &types.VirtualDiskFlatVer2BackingInfo{
 			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-				FileName: parentURI,
+				FileName: parentURI.String(),
 			},
 		}
 	}
@@ -179,10 +169,10 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 }
 
 // Create creates a disk without a parent (and doesn't attach it).
-func (m *Manager) Create(op trace.Operation, newDiskURI string,
+func (m *Manager) Create(op trace.Operation, newDiskURI *object.DatastorePath,
 	capacityKB int64) (*VirtualDisk, error) {
 
-	defer trace.End(trace.Begin(newDiskURI))
+	defer trace.End(trace.Begin(newDiskURI.String()))
 
 	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
 
@@ -213,8 +203,8 @@ func (m *Manager) Create(op trace.Operation, newDiskURI string,
 }
 
 // Gets a disk given a datastore path URI to the vmdk
-func (m *Manager) Get(op trace.Operation, diskURI string) (*VirtualDisk, error) {
-	defer trace.End(trace.Begin(diskURI))
+func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath) (*VirtualDisk, error) {
+	defer trace.End(trace.Begin(diskURI.String()))
 
 	dsk, err := NewVirtualDisk(diskURI)
 	if err != nil {
@@ -223,7 +213,7 @@ func (m *Manager) Get(op trace.Operation, diskURI string) (*VirtualDisk, error) 
 
 	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
 
-	info, err := vdm.QueryVirtualDiskInfo(op, diskURI, nil, true)
+	info, err := vdm.QueryVirtualDiskInfo(op, diskURI.String(), nil, true)
 	if err != nil {
 		op.Errorf("error querying parents (%s): %s", diskURI, err.Error())
 		return nil, err
@@ -384,10 +374,10 @@ func (m *Manager) detachAll(op trace.Operation) error {
 	return err
 }
 
-func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI string) (string, error) {
-	disk, err := findDiskByFilename(op, m.vm, datastoreURI)
+func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.DatastorePath) (string, error) {
+	disk, err := findDiskByFilename(op, m.vm, datastoreURI.String())
 	if err != nil {
-		op.Errorf("findDisk failed for %s with %s", datastoreURI, errors.ErrorStack(err))
+		op.Errorf("findDisk failed for %s with %s", datastoreURI.String(), errors.ErrorStack(err))
 		return "", errors.Trace(err)
 	}
 
