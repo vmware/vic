@@ -19,9 +19,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
 	"os"
 
+	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/govmomi/vim25/soap"
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
@@ -47,11 +51,18 @@ func (d *dsBackend) Save(ctx context.Context, r io.Reader, path string) error {
 	if err := d.ds.Upload(ctx, r, tmpfile); err != nil {
 		return err
 	}
+	log.Debugf("kv store upload of file (%s) was successful", tmpfile)
 
-	if err := d.ds.Mv(ctx, tmpfile, path); err != nil {
-		return err
+	moveOperation := func() error {
+		return d.ds.Mv(ctx, tmpfile, path)
 	}
 
+	// we will reattempt the move since it might take some time for the upload to replicate before presenting on VSAN.
+	// XXX: This is a workaround until the VSAN fixes the bug where they return a successful upload before replication finishes.
+	if err := retry.Do(moveOperation, isFileFault); err != nil {
+		log.Debugf("failed to move file (%s) to (%s) after attempting to recover from a FileNotFoundFault with error (%s) during a kv store save operation.", tmpfile, path, err.Error())
+		return err
+	}
 	return nil
 }
 
@@ -70,6 +81,19 @@ func (d *dsBackend) Load(ctx context.Context, path string) (io.ReadCloser, error
 	if err != nil {
 		return nil, toOsError(err)
 	}
+	log.Debugf("kv store download of file (%s) was successful", path)
 
 	return rc, err
+}
+
+func isFileFault(err error) bool {
+	if soap.IsVimFault(err) {
+		switch soap.ToVimFault(err).(type) {
+		case *types.FileNotFound:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
