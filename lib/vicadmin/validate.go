@@ -64,7 +64,7 @@ type Validator struct {
 const (
 	GoodStatus     = template.HTML(`<i class="icon-ok"></i>`)
 	BadStatus      = template.HTML(`<i class="icon-attention"></i>`)
-	DefaultVCHName = `VCH`
+	DefaultVCHName = ` `
 )
 
 func GetMgmtIP() net.IPNet {
