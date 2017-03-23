@@ -166,6 +166,14 @@ groups:
           - "lib/portlayer/store/*"
 
 
+  package-kv-store:
+    users:
+      - fdawg4l
+    conditions:
+      files:
+        include:
+          - "pkg/kvstore/*"
+
   port-layer-network:
     users:
       - hmahmood
