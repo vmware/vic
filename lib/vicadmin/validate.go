@@ -15,17 +15,15 @@
 package vicadmin
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net"
-	"os"
 	"path"
 	"sort"
 	"strings"
 	"time"
-
-	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
@@ -36,11 +34,13 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 type Validator struct {
@@ -62,8 +62,9 @@ type Validator struct {
 }
 
 const (
-	GoodStatus = template.HTML(`<i class="icon-ok"></i>`)
-	BadStatus  = template.HTML(`<i class="icon-attention"></i>`)
+	GoodStatus     = template.HTML(`<i class="icon-ok"></i>`)
+	BadStatus      = template.HTML(`<i class="icon-attention"></i>`)
+	DefaultVCHName = ` `
 )
 
 func GetMgmtIP() net.IPNet {
@@ -111,14 +112,9 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 	log.Infof("Setting version to %s", v.Version)
 
-	// VCH Name
-	var err error
-	v.Hostname, err = os.Hostname()
-	if err != nil {
-		v.Hostname = "VCH"
+	if err := v.GetVCHName(ctx, sess); err != nil {
+		log.Errorf("Failed to obtain the VCH name: %s", err)
 	}
-
-	log.Infof("Setting hostname to %s", v.Hostname)
 
 	// System time
 	v.SystemTime = time.Now().Format(time.UnixDate)
@@ -209,7 +205,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	}
 
-	err = v.QueryDatastore(ctx, vch, sess)
+	err := v.QueryDatastore(ctx, vch, sess)
 	if err != nil {
 		log.Errorf("Had a problem querying the datastores: %s", err.Error())
 	}
@@ -222,6 +218,35 @@ type dsList []mo.Datastore
 func (d dsList) Len() int           { return len(d) }
 func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
+
+// Obtain the VCH name from vsphere
+func (v *Validator) GetVCHName(ctx context.Context, sess *session.Session) error {
+	defer trace.End(trace.Begin(""))
+
+	var err error
+
+	if sess == nil {
+		v.Hostname = DefaultVCHName
+		return fmt.Errorf("session is nil")
+	}
+
+	self, err := guest.GetSelf(ctx, sess)
+	if err != nil {
+		v.Hostname = DefaultVCHName
+		return fmt.Errorf("unknown self-reference: %s", err)
+	}
+
+	newVM := vm.NewVirtualMachineFromVM(ctx, sess, self)
+	vchName, err := newVM.Name(ctx)
+	if err != nil {
+		v.Hostname = DefaultVCHName
+		return err
+	}
+
+	v.Hostname = vchName
+	log.Infof("Setting the VCH name to %s", vchName)
+	return nil
+}
 
 func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) error {
 	if sess == nil {

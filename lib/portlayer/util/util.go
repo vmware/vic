@@ -15,10 +15,14 @@
 package util
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/spec"
 )
 
 const (
@@ -52,4 +56,17 @@ func ServiceURL(serviceName string) *url.URL {
 	}
 
 	return s
+}
+
+// Update the VM display name on vSphere UI
+func DisplayName(config *spec.VirtualMachineConfigSpecConfig) string {
+
+	shortID := config.ID[:constants.ShortIDLen]
+	nameMaxLen := constants.MaxVMNameLength - len(shortID)
+	prettyName := config.Name
+	if len(prettyName) > nameMaxLen-1 {
+		prettyName = prettyName[:nameMaxLen-1]
+	}
+
+	return fmt.Sprintf("%s-%s", prettyName, shortID)
 }

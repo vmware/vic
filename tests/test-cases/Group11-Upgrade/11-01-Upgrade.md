@@ -17,9 +17,13 @@ This test requires that a vSphere server is running and available
 7. Roll back to the previous version
 8. Upgrade again to the upgraded version
 9. Check the previous created container and image are still there
+10. Check the previous created container's display name and datastore folder name
+11. Check the display name and datastore folder name of a new container created after VCH upgrade
 
 #Expected Outcome:
 * Step 5 should fail with timeout
+* Step 10 should show that both the container's display name and datastore folder name are containerName-containerID
+* Step 11 should show that (1) on a non-vsan setup, the container's display name is containerName-containerShortID while the datastore folder name is containerID, or (2) on a vsan setup, both the container's display name and datastore folder name are containerName-containerShortID 
 * All other steps should result in success
 
 #Possible Problems:

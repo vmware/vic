@@ -37,7 +37,7 @@ func TestPathLookup(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "pathlookup",
 			Name: "tether_test_executor",
 		},
@@ -77,7 +77,7 @@ func TestRelativePath(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "relpath",
 			Name: "tether_test_executor",
 		},
@@ -117,7 +117,7 @@ func TestAbsPath(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "abspath",
 			Name: "tether_test_executor",
 		},
@@ -175,7 +175,7 @@ func TestHalt(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "abspath",
 			Name: "tether_test_executor",
 		},
@@ -251,7 +251,7 @@ func TestMissingBinary(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "missing",
 			Name: "tether_test_executor",
 		},
@@ -300,7 +300,7 @@ func TestMissingRelativeBinary(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "missing",
 			Name: "tether_test_executor",
 		},

@@ -21,12 +21,13 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Check That VM Is Removed
     [Arguments]  ${container}
+    ${id}=  Get container shortID  ${container}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc ls %{VCH-NAME}/vm
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  ${container}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  ${id}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc ls vm
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  ${container}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  ${id}
 
 Check That Datastore Is Cleaned
     [Arguments]  ${container}

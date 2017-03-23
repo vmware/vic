@@ -51,6 +51,19 @@ Get Container IP
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
 
+Get container shortID
+    [Arguments]  ${id}
+    ${shortID}=  Get Substring  ${id}  0  12
+    [Return]  ${shortID}
+
+Get VM display name
+    [Arguments]  ${id}
+    ${rc}  ${name}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format='{{.Name}}' ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${name}=  Get Substring  ${name}  1
+    ${shortID}=  Get container shortID  ${id}
+    [Return]  ${name}-${shortID}
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -74,7 +87,8 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
 
-    Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${container}
+    ${vmName}=  Get VM Display Name  ${container}
+    Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${vmName}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  0

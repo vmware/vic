@@ -31,7 +31,7 @@ var (
 	State       string
 
 	// MaxPluginVersion must be increased to add new plugin and make sure the new plugin version is same to this value
-	MaxPluginVersion = 1
+	MaxPluginVersion = 2
 
 	v bool
 )

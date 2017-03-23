@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -289,6 +290,13 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 
 		Metadata: config.Metadata,
 	}
+
+	// if not vsan, set the datastore folder name to containerID
+	if !vmomiSession.IsVSAN(ctx) {
+		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
+	}
+
+	specconfig.VMFullName = util.DisplayName(specconfig)
 
 	// log only core portions
 	s := specconfig

@@ -42,7 +42,7 @@ func TestExec(t *testing.T) {
 	defer os.RemoveAll(flagFile)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "primary",
 			Name: "tether_test_executor",
 		},
@@ -127,7 +127,7 @@ func TestMissingBinaryNonFatal(t *testing.T) {
 	defer os.RemoveAll(flagFile)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "primary",
 			Name: "tether_test_executor",
 		},
@@ -260,7 +260,7 @@ func TestExecHalt(t *testing.T) {
 	defer os.RemoveAll(flagFile)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "primary",
 			Name: "tether_test_executor",
 		},

@@ -29,9 +29,13 @@ const (
 	ExternalScopeType = "external"
 	// DefaultBridgeRange is the default pool for bridge networks
 	DefaultBridgeRange = "172.16.0.0/12"
+	// Constants for assemble the VM display name on vSphere
+	MaxVMNameLength = 80
+	ShortIDLen      = 12
 	// vSphere Display name for the VCH's Guest Name and for VAC support
-	defaultAltVCHGuestName = "Photon - VCH"
+	defaultAltVCHGuestName       = "Photon - VCH"
 	defaultAltContainerGuestName = "Photon - Container"
+
 )
 
 func DefaultAltVCHGuestName() string {

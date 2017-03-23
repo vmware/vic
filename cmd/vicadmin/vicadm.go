@@ -185,7 +185,7 @@ func newBytesEntry(name string, b []byte) entry {
 
 type versionReader string
 
-func (path versionReader) open() (entry,error) {
+func (path versionReader) open() (entry, error) {
 	defer trace.End(trace.Begin(string(path)))
 	return newBytesEntry(string(path), []byte(version.Version)), nil
 }

@@ -51,6 +51,11 @@ Set Test Environment Variables
     Run Keyword If  ${status}  Set Environment Variable  HOST_TYPE  ESXi
     Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
 
+    ${about}=  Run  govc datastore.info %{TEST_DATASTORE} | grep 'Type'
+    ${status}=  Run Keyword And Return Status  Should Contain  ${about}  vsan
+    Run Keyword If  ${status}  Set Environment Variable  DATASTORE_TYPE  VSAN
+    Run Keyword Unless  ${status}  Set Environment Variable  DATASTORE_TYPE  Non_VSAN
+
     # set the TLS config options suitable for vic-machine in this env
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  $domain == ''  Set Suite Variable  ${vicmachinetls}  --no-tlsverify

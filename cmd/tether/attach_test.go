@@ -232,7 +232,7 @@ func attachCase(t *testing.T, runblock bool) {
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attach",
 			Name: "tether_test_executor",
 		},
@@ -336,7 +336,7 @@ func TestAttachTTY(t *testing.T) {
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attach",
 			Name: "tether_test_executor",
 		},
@@ -435,7 +435,7 @@ func TestAttachMultiple(t *testing.T) {
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "tee1",
 			Name: "tether_test_executor",
 		},
@@ -603,7 +603,7 @@ func TestAttachInvalid(t *testing.T) {
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attachinvalid",
 			Name: "tether_test_executor",
 		},
@@ -740,7 +740,7 @@ func TestReattach(t *testing.T) {
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attach",
 			Name: "tether_test_executor",
 		},
