@@ -91,12 +91,6 @@ Get VM IP
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
 
-Get VM Name
-    [Arguments]  ${vm}
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Variable  ${vm}/${vm}
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Variable  ${vm}
-    [Return]  ${ret}
-
 Get VM Host Name
     [Arguments]  ${vm}
     ${out}=  Run  govc vm.info ${vm}
