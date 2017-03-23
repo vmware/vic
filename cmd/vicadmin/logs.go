@@ -175,7 +175,7 @@ func configureReaders() map[string]entryReader {
 		"dmesg":        commandReader("/bin/journalctl --dmesg --no-pager"),
 		"sys-block":    commandReader("ls -l /sys/block/"),
 		// To check version
-		"VERSION":      versionReader("version"),
+		"VERSION": versionReader("version"),
 	}
 
 	// add the pprof collection

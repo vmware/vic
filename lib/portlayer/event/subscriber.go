@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/portlayer/event/events"
 )
 

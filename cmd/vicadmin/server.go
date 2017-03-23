@@ -50,8 +50,8 @@ type server struct {
 
 // LoginPageData contains items needed to render the login page template
 type LoginPageData struct {
-	Hostname   string
-	SystemTime string
+	Hostname     string
+	SystemTime   string
 	InvalidLogin string
 }
 
@@ -296,8 +296,8 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 				hostName = "VCH"
 			}
 			loginPageData := &LoginPageData{
-				Hostname:   hostName,
-				SystemTime: time.Now().Format(time.UnixDate),
+				Hostname:     hostName,
+				SystemTime:   time.Now().Format(time.UnixDate),
 				InvalidLogin: invalidLoginMessage,
 			}
 
@@ -362,8 +362,8 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		hostName = "VCH"
 	}
 	loginPageData := &LoginPageData{
-		Hostname:   hostName,
-		SystemTime: time.Now().Format(time.UnixDate),
+		Hostname:     hostName,
+		SystemTime:   time.Now().Format(time.UnixDate),
 		InvalidLogin: invalidLoginMessage,
 	}
 

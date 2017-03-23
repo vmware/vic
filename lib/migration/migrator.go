@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/manager"
+	// imported for the side effect
 	_ "github.com/vmware/vic/lib/migration/plugins"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"

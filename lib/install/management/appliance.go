@@ -511,21 +511,20 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 	log.Debugf("vm folder name: %q", d.vmPathName)
 	log.Debugf("vm inventory path: %q", vm2.InventoryPath)
-	
-	vicadmin := executor.Cmd {
+
+	vicadmin := executor.Cmd{
 		Path: "/sbin/vicadmin",
-			Args: []string{
-				"/sbin/vicadmin",
-				"--dc=" + settings.DatacenterName,
-				"--pool=" + settings.ResourcePoolPath,
-				"--cluster=" + settings.ClusterPath,
-			},
-			Env: []string{
-				"PATH=/sbin:/bin",
-				"GOTRACEBACK=all",
-			},
-			Dir: "/home/vicadmin",
-		
+		Args: []string{
+			"/sbin/vicadmin",
+			"--dc=" + settings.DatacenterName,
+			"--pool=" + settings.ResourcePoolPath,
+			"--cluster=" + settings.ClusterPath,
+		},
+		Env: []string{
+			"PATH=/sbin:/bin",
+			"GOTRACEBACK=all",
+		},
+		Dir: "/home/vicadmin",
 	}
 	if settings.HTTPProxy != nil {
 		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
@@ -535,11 +534,11 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	conf.AddComponent("vicadmin", &executor.SessionConfig{
-		User:  "vicadmin",
-		Group: "vicadmin",
-		Cmd: vicadmin,
+		User:    "vicadmin",
+		Group:   "vicadmin",
+		Cmd:     vicadmin,
 		Restart: true,
-		Active: true,
+		Active:  true,
 	},
 	)
 
@@ -571,7 +570,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		// Group: "nobody",
 		Cmd:     personality,
 		Restart: true,
-		Active: true,
+		Active:  true,
 	},
 	)
 
@@ -593,7 +592,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			},
 		},
 		Restart: true,
-		Active: true,
+		Active:  true,
 	},
 	)
 

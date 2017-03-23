@@ -24,16 +24,16 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
-	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/middleware"
+	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/server/router/checkpoint"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
+	"github.com/docker/docker/api/server/router/plugin"
 	"github.com/docker/docker/api/server/router/swarm"
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
-	"github.com/docker/docker/api/server/router/checkpoint"
-	"github.com/docker/docker/api/server/router/plugin"
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/pkg/listeners"
 	"github.com/docker/docker/pkg/signal"
@@ -46,8 +46,8 @@ import (
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/version"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 type CliOptions struct {
@@ -232,9 +232,9 @@ func startServer() *apiserver.Server {
 	}
 
 	api := apiserver.New(serverConfig)
-	mw := middleware.NewVersionMiddleware(	version.DockerAPIVersion,
-											version.DockerDefaultVersion,
-											version.DockerMinimumVersion)
+	mw := middleware.NewVersionMiddleware(version.DockerAPIVersion,
+		version.DockerDefaultVersion,
+		version.DockerMinimumVersion)
 	api.UseMiddleware(mw)
 	fullserver := fmt.Sprintf("%s:%d", addr, *cli.serverPort)
 	l, err := listeners.Init(cli.proto, fullserver, "", serverConfig.TLSConfig)

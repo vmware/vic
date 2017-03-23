@@ -15,11 +15,13 @@
 package pprof
 
 import (
-	"errors"
+
+	// imported for the side effect
 	_ "expvar"
 	"fmt"
 	"net"
 	"net/http"
+	// imported for the side effect
 	_ "net/http/pprof"
 	"net/url"
 
@@ -87,7 +89,7 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 func StartPprof(name string, component PprofPort) error {
 	url := GetPprofEndpoint(component)
 	if url == nil {
-		err := errors.New(fmt.Sprintf("Unable to get pprof endpoint for %s.", name))
+		err := fmt.Errorf("Unable to get pprof endpoint for %s.", name)
 		log.Error(err.Error())
 		return err
 	}

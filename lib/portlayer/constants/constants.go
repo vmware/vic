@@ -35,7 +35,6 @@ const (
 	// vSphere Display name for the VCH's Guest Name and for VAC support
 	defaultAltVCHGuestName       = "Photon - VCH"
 	defaultAltContainerGuestName = "Photon - Container"
-
 )
 
 func DefaultAltVCHGuestName() string {

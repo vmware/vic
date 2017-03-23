@@ -391,7 +391,7 @@ func TestInheritenceOfNonPersistenceWithPointer(t *testing.T) {
 	Struct := Persistence{
 		ExecutorConfigPointersVisible: ExecutorConfigPointersVisible{
 			Sessions: map[string]*VisibleSessionConfig{
-				"primary": &VisibleSessionConfig{
+				"primary": {
 					Tty: true,
 				},
 			},

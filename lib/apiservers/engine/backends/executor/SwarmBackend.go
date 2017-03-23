@@ -15,9 +15,9 @@
 package executor
 
 import (
+	"fmt"
 	"io"
 	"time"
-	"fmt"
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types"

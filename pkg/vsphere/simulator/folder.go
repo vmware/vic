@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"

@@ -49,11 +49,11 @@ func TestMigrateConfigure(t *testing.T) {
 	conf := &config.VirtualContainerHostConfigSpec{
 		ExecutorConfig: executor.ExecutorConfig{
 			Sessions: map[string]*executor.SessionConfig{
-				"abc": &executor.SessionConfig{
+				"abc": {
 					Attach:     true,
 					StopSignal: "2",
 				},
-				"def": &executor.SessionConfig{
+				"def": {
 					Attach:     false,
 					StopSignal: "10",
 				},
@@ -78,7 +78,7 @@ func TestMigrateConfigure(t *testing.T) {
 
 	// check new data
 	var found bool
-	for k, _ := range newData {
+	for k := range newData {
 		if strings.Contains(k, "stopSignal") {
 			assert.Fail(t, "key %s still exists in migrated data", k)
 		}
@@ -90,7 +90,7 @@ func TestMigrateConfigure(t *testing.T) {
 
 	// verify old data
 	found = false
-	for k, _ := range mapData {
+	for k := range mapData {
 		if strings.Contains(k, "stopSignal") {
 			found = true
 		}
@@ -114,11 +114,11 @@ func TestIsDataOlder(t *testing.T) {
 	conf := &config.VirtualContainerHostConfigSpec{
 		ExecutorConfig: executor.ExecutorConfig{
 			Sessions: map[string]*executor.SessionConfig{
-				"abc": &executor.SessionConfig{
+				"abc": {
 					Attach:     true,
 					StopSignal: "2",
 				},
-				"def": &executor.SessionConfig{
+				"def": {
 					Attach:     false,
 					StopSignal: "10",
 				},
