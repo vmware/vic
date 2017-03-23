@@ -1,0 +1,16 @@
+[Unit]
+Description=Admiral is a highly scalable and very lightweight Container Management platform for deploying and managing container based applications.
+Documentation=https://github.com/vmware/admiral
+After=docker.service systemd-networkd.service systemd-resolved.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+ExecStartPre=-/usr/local/bin/docker rm vic-admiral
+ExecStart=/usr/local/bin/docker run -d -p 8282:8282 --name vic-admiral --log-driver=json-file --log-opt max-size=1g --log-opt max-file=10 vmware/admiral:dev
+ExecStop=/usr/local/bin/docker stop vic-admiral
+
+[Install]
+WantedBy=multi-user.target
