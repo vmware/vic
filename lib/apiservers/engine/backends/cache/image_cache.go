@@ -155,6 +155,10 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 		return copyImageConfig(config), nil
 	}
 
+	//if i := RepositoryCache().GetImageID(strings.Split(idOrRef, ":")[0]); i != "" {
+	//	idOrRef = i
+	//}
+
 	// get the full image ID if supplied a prefix
 	if id, err := ic.iDIndex.Get(idOrRef); err == nil {
 		idOrRef = id
