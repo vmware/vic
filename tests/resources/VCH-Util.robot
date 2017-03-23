@@ -93,10 +93,6 @@ Get Docker Params
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  DOCKER_HOST=
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
 
-    :FOR  ${item}  IN  @{output}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Environment saved in
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${cert_line}  ${item}
-
     # Ensure we start from a clean slate with docker env vars
     Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
 
@@ -109,12 +105,6 @@ Get Docker Params
     ${port}=  Strip String  @{hostParts}[1]
     Set Environment Variable  VCH-IP  ${ip}
     Set Environment Variable  VCH-PORT  ${port}
-
-    # Create params for docker-compose
-    @{certparts}=  Split String  ${cert_line}  in
-    ${cert_envfile}=  Strip String  @{certparts}[1]
-    @{certpath_parts}=  Split String  ${cert_envfile}  /
-    ${cert_path}=  Strip String  @{certpath_parts}[0]
 
     :FOR  ${index}  ${item}  IN ENUMERATE  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
@@ -132,11 +122,6 @@ Get Docker Params
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
     Run Keyword If  ${port} == 2375  Set Environment Variable  VCH-PARAMS  -H ${dockerHost}
-
-    # Set environment variables for docker-compose.  Also assumes DOCKER_TLS_VERIFY is set earlier!
-    Run Keyword If  ${certs} == ${True}  Set Environment Variable  COMPOSE_TLS_VERSION  TLSv1_2
-    Run Keyword If  ${certs} == ${True}  Set Environment Variable  DOCKER_CERT_PATH  ./${cert_path}
-    Set Environment Variable  COMPOSE-PARAMS  -H ${dockerHost}
 
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
