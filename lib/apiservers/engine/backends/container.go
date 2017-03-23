@@ -490,7 +490,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 
 	// Add create event
 	actor := CreateContainerEventActorWithAttributes(container, map[string]string{})
-	EventService().Log("create", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerCreateEvent, eventtypes.ContainerEventType, actor)
 
 	return containertypes.ContainerCreateCreatedBody{ID: id}, nil
 }
@@ -562,7 +562,7 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 	if err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"signal": fmt.Sprintf("%d", sig)})
 
-		EventService().Log("kill", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerKillEvent, eventtypes.ContainerEventType, actor)
 
 	}
 
@@ -603,7 +603,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 			"width":  fmt.Sprintf("%d", width),
 		})
 
-		EventService().Log("resize", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerResizeEvent, eventtypes.ContainerEventType, actor)
 	}
 
 	return err
@@ -639,7 +639,7 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log("restart", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerRestartEvent, eventtypes.ContainerEventType, actor)
 
 	return nil
 }
@@ -878,6 +878,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		}
 	}
 
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
 	return nil
 }
 
@@ -1142,7 +1144,7 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log("stop", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerStopEvent, eventtypes.ContainerEventType, actor)
 
 	return nil
 }
@@ -1556,10 +1558,10 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log("attach", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
 	defer func() {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log("detach", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 	}()
 	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 	if err != nil {
