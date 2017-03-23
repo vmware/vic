@@ -21,10 +21,23 @@ ${HARBOR_VERSION}  harbor_0.5.0-9e4c90e
 
 *** Keywords ***
 Install Harbor To Test Server
-    [Arguments]  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=%{TEST_DATASTORE}  ${network}=%{BRIDGE_NETWORK}  ${name}=harbor  ${protocol}=http  ${verify}=false
+    [Arguments]  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${network}=%{BRIDGE_NETWORK}  ${name}=harbor  ${protocol}=http  ${verify}=false
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
+
+    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    ${len}=  Get Length  ${URLs}
+    ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
+
+    Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
+    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+
+    Log To Console  Downloading Harbor OVA...
     ${out}=  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
+    Log To Console  Generating OVF file...
     ${out}=  Run  ovftool ${HARBOR_VERSION}.ova ${HARBOR_VERSION}.ovf
-    ${out}=  Run  ovftool --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ovf 'vi://${user}:${password}@${host}'
+    Log To Console  Installing Harbor into test server...
+    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ovf 'vi://${user}:${password}@${host}'
     ${out}=  Split To Lines  ${out}
 
     :FOR  ${line}  IN  @{out}
@@ -38,10 +51,10 @@ Install Harbor To Test Server
 Restart Docker With Insecure Registry Option
     # Requires you to edit /etc/systemd/system/docker.service.d/overlay.conf or docker.conf to be:
     # ExecStart=/bin/bash -c "usr/bin/docker daemon -H fd:// -s overlay $DOCKER_OPTS --insecure-registry=`cat /tmp/harbor`"
-    # Requires passwordless sudo as well
-    ${out}=  Run  sudo service docker stop
+    # Requires to be run as root
+    ${out}=  Run  service docker stop
     ${out}=  Run  echo %{HARBOR_IP} > /tmp/harbor
-    ${out}=  Run  sudo service docker start
+    ${out}=  Run  service docker start
 
 Log Into Harbor
     [Arguments]  ${user}=%{TEST_USERNAME}  ${pw}=%{TEST_PASSWORD}
@@ -54,7 +67,7 @@ Log Into Harbor
     Wait Until Page Contains  My Projects:
 
 Create A New Project
-    [Arguments]  ${name}
+    [Arguments]  ${name}  ${public}=${true}
     Click Link  Projects
     Wait Until Element Is Visible  css=button.btn-success:nth-child(2)
     Wait Until Element Is Enabled  css=button.btn-success:nth-child(2)
@@ -65,7 +78,7 @@ Create A New Project
     Wait Until Element Is Visible  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
     Wait Until Element Is Enabled  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
     Sleep  1
-    Select Checkbox  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
+    Run Keyword If  ${public}  Select Checkbox  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
     Click Button  Save
     Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div.each-tab-pane > div > div.table-body-container > table  ${name}
 
@@ -113,13 +126,15 @@ Toggle Admin Priviledges For User
     
     Click Element  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > list-user > div > div > div.pane > div.sub-pane > div.table-body-container > table > tbody > tr:nth-child(${ROW_NUMBER}) > td:nth-child(4) > toggle-admin > button.btn.btn-danger.ng-binding
 
-<<<<<<< a3e50b39979a8a15e6cfcd7f184016dfab7fffef
 Create Self Signed Cert
     ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
 
-Get Harbor Self Signed Cert
+Install Harbor Self Signed Cert
     ${out}=  Run  wget --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
-    Move File  getcert  ca.crt
+    ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
+    Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
+    ${out}=  Run  systemctl deamon-reload
+    ${out}=  Run  systemctl restart docker
 
 Delete A User
     [Arguments]  ${user}=%{TEST_USERNAME}
