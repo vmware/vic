@@ -25,79 +25,87 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/pkg/telnet"
+	"github.com/vmware/vic/pkg/trace"
 )
 
-// Handler is the handler struct for the vspc
-type Handler struct {
+// handler is the handler struct for the vspc
+type handler struct {
 	vspc *Vspc
 }
 
-// DataHdlr is the telnet data handler
-func (h *Handler) DataHdlr(w io.Writer, b []byte, tc *telnet.Conn) {
-	vm, exists := h.vspc.vmFromTelnetConn(tc)
+// dataHdlr is the telnet data handler
+func (h *handler) dataHdlr(w io.Writer, b []byte, tc *telnet.Conn) {
+	cvm, exists := h.vspc.cvmFromTelnetConn(tc)
 	if !exists {
 		log.Errorf("vspc datahandler cannot find the vm with the provided data")
 	}
-	vm.remoteConn.Write(b)
+	cvm.remoteConn.Write(b)
 }
 
 // CmdHdlr is the telnet command handler
-func (h *Handler) CmdHdlr(w io.Writer, b []byte, tc *telnet.Conn) {
-	if isKnownSuboptions(b) {
+func (h *handler) cmdHdlr(w io.Writer, b []byte, tc *telnet.Conn) {
+	switch {
+	case isKnownSuboptions(b):
 		log.Infof("vspc received KNOWN-SUBOPTIONS command")
-		h.HandleKnownSuboptions(w, b)
-	} else if isDoProxy(b) {
+		h.knownSuboptions(w, b)
+	case isDoProxy(b):
 		log.Infof("vspc received DO-PROXY command")
-		h.HandleDoProxy(w, b)
-	} else if isVmotionBegin(b) {
+		h.doProxy(w, b)
+	case isVmotionBegin(b):
 		log.Infof("vspc received VMOTION-BEGIN command")
-		h.HandleVmotionBegin(w, tc, b)
-	} else if isVmotionPeer(b) {
+		h.vmotionBegin(w, tc, b)
+	case isVmotionPeer(b):
 		log.Infof("vspc received VMOTION-PEER command")
-		h.HandleVmotionPeer(w, b)
-	} else if isVMUUID(b) {
+		h.vmotionPeer(w, b)
+	case isVMUUID(b):
 		log.Infof("vspc received VMUUID command")
-		h.HandleVMUUID(w, tc, b)
-	} else if isVmotionComplete(b) {
+		h.cVMUUID(w, tc, b)
+	case isVmotionComplete(b):
 		log.Infof("vspc received VMOTION-COMPLETE command")
-		h.HandleVmotionComplete(w, tc, b)
-	} else if isVmotionAbort(b) {
+		h.vmotionComplete(w, tc, b)
+	case isVmotionAbort(b):
 		log.Infof("vspc received VMOTION-ABORT command")
-		h.HandleVmotionAbort(w, b)
+		h.vmotionAbort(w, tc, b)
+	default:
+		// log an error here. this should never happen. all commands should be handled appropriately
+		log.Errorf("(vspc) received unexpected command")
 	}
 }
 
-// HandleVMUUID handles the telnet vm-uuid response
-func (h *Handler) HandleVMUUID(w io.Writer, tc *telnet.Conn, b []byte) {
+// handleVMUUID handles the telnet vm-uuid response
+func (h *handler) cVMUUID(w io.Writer, tc *telnet.Conn, b []byte) {
+	defer trace.End(trace.Begin("handling VMUUID"))
+
 	vmuuid := strings.Replace(string(b[3:len(b)-1]), " ", "", -1)
 	log.Infof("vmuuid of the connected containerVM: %s", vmuuid)
 	// check if there exists another vm with the same vmuuid
-	vm, exists := h.vspc.getVM(vmuuid)
-	if !exists || !vm.isInVMotion() {
+	cvm, exists := h.vspc.cVM(vmuuid)
+	if !exists || !cvm.isInVMotion() {
 		// create a new vm associated with this telnet connection
-		vm = NewVM(tc)
+		cvm = newCVM(tc)
 		log.Infof("attempting to connect to the attach server")
 		remoteConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", h.vspc.attachSrvrAddr, h.vspc.attachSrvrPort))
 		if err != nil {
 			log.Errorf("cannot connect to the attach-server: %v", err)
 		}
-		vm.remoteConn = remoteConn
-		vm.vmUUID = vmuuid
-		h.vspc.addVM(vmuuid, vm)
+		cvm.remoteConn = remoteConn
+		cvm.vmUUID = vmuuid
+		h.vspc.addCVM(vmuuid, cvm)
 		// relay Reads from the remote system connection to the telnet connection associated with this vm
-		go h.vspc.relayReads(vm, remoteConn)
+		go h.vspc.relayReads(cvm, remoteConn)
 	} else { //the vm existed before and was shut down or vmotioned
-		log.Infof("established second serial-port telnet connection with vm (vmuuid: %s)", vm.vmUUID)
-		vm.Lock()
-		defer vm.Unlock()
-		vm.prevContainerConn = vm.containerConn
-		vm.containerConn = tc
+		log.Infof("established second serial-port telnet connection with vm (vmuuid: %s)", cvm.vmUUID)
+		cvm.Lock()
+		defer cvm.Unlock()
+		cvm.prevContainerConn = cvm.containerConn
+		cvm.containerConn = tc
 	}
 }
 
-// HandleKnownSuboptions handles the known suboptions telnet command
-func (h *Handler) HandleKnownSuboptions(w io.Writer, b []byte) {
-	log.Infof("handling KNOWN-SUBOPTIONS")
+// handleKnownSuboptions handles the known suboptions telnet command
+func (h *handler) knownSuboptions(w io.Writer, b []byte) {
+	defer trace.End(trace.Begin("handling KNOWN-SUBOPTIONS"))
+
 	var resp []byte
 	suboptions := b[3 : len(b)-1]
 	resp = append(resp, []byte{telnet.Iac, telnet.Sb, VmwareExt, KnownSuboptions2}...)
@@ -111,26 +119,28 @@ func (h *Handler) HandleKnownSuboptions(w io.Writer, b []byte) {
 	w.Write(resp)
 }
 
-// HandleDoProxy handles the DO-PROXY telnet command
-func (h *Handler) HandleDoProxy(w io.Writer, b []byte) {
-	log.Infof("handling DO-PROXY")
+// handleDoProxy handles the DO-PROXY telnet command
+func (h *handler) doProxy(w io.Writer, b []byte) {
+	defer trace.End(trace.Begin("handling DO-PROXY"))
+
 	var resp []byte
 	resp = append(resp, []byte{telnet.Iac, telnet.Sb, VmwareExt, WillProxy, telnet.Iac, telnet.Se}...)
 	log.Debugf("response to DO-PROXY: %v", resp)
 	w.Write(resp)
 }
 
-// HandleVmotionBegin handles the VMOTION-BEGIN telnet command
-func (h *Handler) HandleVmotionBegin(w io.Writer, tc *telnet.Conn, b []byte) {
-	if vm, exists := h.vspc.vmFromTelnetConn(tc); exists {
-		vm.Lock()
-		vm.inVmotion = true
-		vm.Unlock()
+// handleVmotionBegin handles the VMOTION-BEGIN telnet command
+func (h *handler) vmotionBegin(w io.Writer, tc *telnet.Conn, b []byte) {
+	defer trace.End(trace.Begin("handling VMOTION-BEGIN"))
+
+	if cvm, exists := h.vspc.cvmFromTelnetConn(tc); exists {
+		cvm.Lock()
+		cvm.inVmotion = true
+		cvm.Unlock()
 		ch := make(chan struct{})
-		vm.vmotionStarted <- ch
+		cvm.vmotionStartedChan <- ch
 		<-ch
 	}
-	log.Infof("handling VMOTION-BEGIN")
 	seq := b[3 : len(b)-1]
 	var escapedSeq []byte
 	for _, v := range seq {
@@ -158,9 +168,10 @@ func (h *Handler) HandleVmotionBegin(w io.Writer, tc *telnet.Conn, b []byte) {
 	w.Write(resp)
 }
 
-// HandleVmotionPeer handles the VMOTION-PEER telnet command
-func (h *Handler) HandleVmotionPeer(w io.Writer, b []byte) {
-	log.Infof("Handling VMOTION-PEER")
+// handleVmotionPeer handles the VMOTION-PEER telnet command
+func (h *handler) vmotionPeer(w io.Writer, b []byte) {
+	defer trace.End(trace.Begin("handling VMOTION-PEER"))
+
 	// cookie is the sequence + secret
 	cookie := b[3 : len(b)-1]
 	var resp []byte
@@ -171,25 +182,33 @@ func (h *Handler) HandleVmotionPeer(w io.Writer, b []byte) {
 	w.Write(resp)
 }
 
-// HandleVmotionComplete handles the VMOTION-Complete telnet command
-func (h *Handler) HandleVmotionComplete(w io.Writer, tc *telnet.Conn, b []byte) {
-	log.Infof("handling VMOTION-COMPLETE")
-	if vm, exists := h.vspc.vmFromTelnetConn(tc); exists {
-		vm.Lock()
-		vm.prevContainerConn = nil
-		vm.inVmotion = false
-		vm.Unlock()
+// handleVmotionComplete handles the VMOTION-Complete telnet command
+func (h *handler) vmotionComplete(w io.Writer, tc *telnet.Conn, b []byte) {
+	defer trace.End(trace.Begin("handling VMOTION-COMPLETE"))
+
+	if cvm, exists := h.vspc.cvmFromTelnetConn(tc); exists {
+		cvm.Lock()
+		cvm.prevContainerConn = nil
+		cvm.inVmotion = false
+		cvm.Unlock()
 		ch := make(chan struct{})
-		vm.vmotionCompleted <- ch
+		cvm.vmotionCompletedChan <- ch
 		<-ch
 		log.Info("vMotion completed successfully")
 	} else {
-		log.Errorf("couldnt find previous information of vm after vmotion (vmuuid: %s)", vm.vmUUID)
+		log.Errorf("couldnt find previous information of vm after vmotion (vmuuid: %s)", cvm.vmUUID)
 	}
 
 }
 
-// HandleVmotionAbort handles the VMOTION-abort telnet command
-func (h *Handler) HandleVmotionAbort(w io.Writer, b []byte) {
+// handleVmotionAbort handles the VMOTION-abort telnet command
+func (h *handler) vmotionAbort(w io.Writer, tc *telnet.Conn, b []byte) {
+	defer trace.End(trace.Begin("handling VMOTION-ABORT"))
+
 	log.Errorf("vMotion failed")
+	if cvm, exists := h.vspc.cvmFromTelnetConn(tc); exists {
+		cvm.Lock()
+		cvm.inVmotion = false
+		cvm.Unlock()
+	}
 }

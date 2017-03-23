@@ -17,13 +17,15 @@ package vspc
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/telnet"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 /* Vsphere telnet extension constants */
@@ -56,8 +58,8 @@ const (
 )
 const remoteConnReadDeadline = 1 * time.Second
 
-// VM is a struct that represents a VM
-type VM struct {
+// cVM is a struct that represents the state of the containerVM
+type cVM struct {
 	sync.Mutex
 	// this is the current connection between the vspc and the containerVM serial port
 	containerConn *telnet.Conn
@@ -72,31 +74,31 @@ type VM struct {
 	// this is the connection between the vspc and the attach-server
 	remoteConn net.Conn
 
-	vmUUID           string
-	vmotionStarted   chan chan struct{}
-	vmotionCompleted chan chan struct{}
+	vmUUID               string
+	vmotionStartedChan   chan chan struct{}
+	vmotionCompletedChan chan chan struct{}
 }
 
-// NewVM is the constructor of the VM
-func NewVM(tc *telnet.Conn) *VM {
-	return &VM{
-		containerConn:    tc,
-		inVmotion:        false,
-		vmotionStarted:   make(chan chan struct{}),
-		vmotionCompleted: make(chan chan struct{}),
+// newCVM is the constructor of the VM
+func newCVM(tc *telnet.Conn) *cVM {
+	return &cVM{
+		containerConn:        tc,
+		inVmotion:            false,
+		vmotionStartedChan:   make(chan chan struct{}),
+		vmotionCompletedChan: make(chan chan struct{}),
 	}
 }
 
-func (vm *VM) isInVMotion() bool {
-	vm.Lock()
-	defer vm.Unlock()
-	return vm.inVmotion
+func (cvm *cVM) isInVMotion() bool {
+	cvm.Lock()
+	defer cvm.Unlock()
+	return cvm.inVmotion
 }
 
 // Vspc is all the vspc singletons
 type Vspc struct {
-	vmManagerMu *sync.Mutex
-	vmManager   map[string]*VM
+	vmManagerMu sync.Mutex
+	vmManager   map[string]*cVM
 
 	*telnet.Server
 
@@ -107,33 +109,66 @@ type Vspc struct {
 }
 
 // NewVspc is the constructor
-func NewVspc(address string, port uint, attachSrvrAddr string, attachSrvrPort uint, ch chan bool) *Vspc {
-	vspc := &Vspc{
-		vmManagerMu: new(sync.Mutex),
-		vmManager:   make(map[string]*VM),
+func NewVspc() *Vspc {
+	defer trace.End(trace.Begin("new vspc"))
 
-		attachSrvrAddr: attachSrvrAddr,
-		attachSrvrPort: attachSrvrPort,
-
-		doneCh: ch,
+	vchIP, err := lookupVCHIP()
+	if err != nil {
+		log.Fatalf("cannot retrieve vch-endpoint ip: %v", err)
 	}
-	hdlr := Handler{vspc}
+	address := vchIP.String()
+	port := constants.SerialOverLANPort
+
+	vspc := &Vspc{
+		vmManager: make(map[string]*cVM),
+
+		attachSrvrAddr: "127.0.0.1",
+		attachSrvrPort: constants.AttachServerPort,
+
+		doneCh: make(chan bool),
+	}
+	hdlr := handler{vspc}
 	opts := telnet.ServerOpts{
 		Addr:        fmt.Sprintf("%s:%d", address, port),
 		ServerOpts:  []byte{telnet.Binary, telnet.Sga, telnet.Echo},
 		ClientOpts:  []byte{telnet.Binary, telnet.Sga, VmwareExt},
-		DataHandler: hdlr.DataHdlr,
-		CmdHandler:  hdlr.CmdHdlr,
+		DataHandler: hdlr.dataHdlr,
+		CmdHandler:  hdlr.cmdHdlr,
 	}
 	vspc.Server = telnet.NewServer(opts)
-	go vspc.monitorVMConnections()
 	return vspc
 }
 
-// getVM returns the VM struct from its uuid
-func (vspc *Vspc) getVM(uuid string) (*VM, bool) {
+// Start starts the vspc server
+func (vspc *Vspc) Start() {
+	defer trace.End(trace.Begin("start vspc"))
+
+	go func() {
+		for {
+			_, err := vspc.Accept()
+			if err != nil {
+				log.Errorf("vSPC cannot accept connections: %v", err)
+				log.Errorf("vSPC exiting...")
+				return
+			}
+		}
+	}()
+	go vspc.monitorVMConnections()
+	log.Infof("vSPC started...")
+}
+
+// Stop stops the vspc server
+func (vspc *Vspc) Stop() {
+	defer trace.End(trace.Begin("stop vspc"))
+
+	vspc.doneCh <- true
+}
+
+// cVM returns the VM struct from its uuid
+func (vspc *Vspc) cVM(uuid string) (*cVM, bool) {
 	vspc.vmManagerMu.Lock()
 	defer vspc.vmManagerMu.Unlock()
+
 	if vm, ok := vspc.vmManager[uuid]; ok {
 		return vm, true
 	}
@@ -141,23 +176,24 @@ func (vspc *Vspc) getVM(uuid string) (*VM, bool) {
 }
 
 // addVM adds a VM to the map
-func (vspc *Vspc) addVM(uuid string, vm *VM) {
+func (vspc *Vspc) addCVM(uuid string, cvm *cVM) {
 	vspc.vmManagerMu.Lock()
 	defer vspc.vmManagerMu.Unlock()
-	vspc.vmManager[uuid] = vm
+
+	vspc.vmManager[uuid] = cvm
 }
 
 // relayReads reads from the AttachServer connection and relays the data to the telnet connection
-func (vspc *Vspc) relayReads(containervm *VM, conn net.Conn) {
+func (vspc *Vspc) relayReads(containervm *cVM, conn net.Conn) {
 	vmotion := false
 	var tmpBuf bytes.Buffer
 	for {
 		select {
-		case ch := <-containervm.vmotionStarted:
+		case ch := <-containervm.vmotionStartedChan:
 			vmotion = true
 			ch <- struct{}{}
 			log.Infof("vspc started to buffer data coming from the remote system")
-		case ch := <-containervm.vmotionCompleted:
+		case ch := <-containervm.vmotionCompletedChan:
 			vmotion = false
 			ch <- struct{}{}
 			log.Infof("vspc stopped buffering data coming from the remote system")
@@ -170,7 +206,8 @@ func (vspc *Vspc) relayReads(containervm *VM, conn net.Conn) {
 				log.Debugf("vspc read %d bytes from the  remote system connection", n)
 				if !vmotion {
 					if tmpBuf.Len() > 0 {
-						buf, err := ioutil.ReadAll(&tmpBuf)
+						buf := tmpBuf.Bytes()
+						tmpBuf.Reset()
 						if err != nil {
 							log.Errorf("read error from vspc temporary buffer: %v", err)
 						}
@@ -200,7 +237,7 @@ func (vspc *Vspc) relayReads(containervm *VM, conn net.Conn) {
 	}
 }
 
-func (vspc *Vspc) vmFromTelnetConn(tc *telnet.Conn) (*VM, bool) {
+func (vspc *Vspc) cvmFromTelnetConn(tc *telnet.Conn) (*cVM, bool) {
 	vspc.vmManagerMu.Lock()
 	defer vspc.vmManagerMu.Unlock()
 	for _, v := range vspc.vmManager {

@@ -99,29 +99,29 @@ type testSample struct {
 }
 
 var samples = []testSample{
-	testSample{
+	{
 		inputSeq: []byte{10, 20, 5, 12, 34, 125, 98},
 		expState: []state{0, 0, 0, 0, 0, 0, 0},
 		expOpt:   []*opt{nil, nil, nil, nil, nil, nil, nil},
 		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, nil},
 	},
-	testSample{
+	{
 		inputSeq: []byte{Iac, Do, Echo, 10, 20, Iac, Will, Sga},
 		expState: []state{cmdState, optionNegotiationState, dataState, dataState, dataState, cmdState, optionNegotiationState, dataState},
-		expOpt:   []*opt{nil, nil, &opt{Do, Echo, true}, nil, nil, nil, nil, &opt{Will, Sga, true}},
+		expOpt:   []*opt{nil, nil, {Do, Echo, true}, nil, nil, nil, nil, {Will, Sga, true}},
 		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, nil, nil},
 	},
-	testSample{
+	{
 		inputSeq: []byte{10, 20, Iac, Ayt, 5, Iac, Ao},
 		expState: []state{dataState, dataState, cmdState, dataState, dataState, cmdState, dataState},
 		expOpt:   []*opt{nil, nil, nil, nil, nil, nil, nil},
-		expCmd:   []*cmd{nil, nil, nil, &cmd{[]byte{Ayt}, true}, nil, nil, &cmd{[]byte{Ao}, true}},
+		expCmd:   []*cmd{nil, nil, nil, {[]byte{Ayt}, true}, nil, nil, {[]byte{Ao}, true}},
 	},
-	testSample{
+	{
 		inputSeq: []byte{10, Iac, Sb, 5, 12, Iac, Se},
 		expState: []state{dataState, cmdState, subnegState, subnegState, subnegState, subnegEndState, dataState},
 		expOpt:   []*opt{nil, nil, nil, nil, nil, nil, nil},
-		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, &cmd{[]byte{Sb, 5, 12, Se}, true}},
+		expCmd:   []*cmd{nil, nil, nil, nil, nil, nil, {[]byte{Sb, 5, 12, Se}, true}},
 	},
 }
 
