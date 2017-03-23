@@ -187,9 +187,32 @@ func NewContainerBackend() *Container {
 
 // docker's container.execBackend
 
+func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResponse, error) {
+	// obtain a portlayer client
+	client := c.containerProxy.Client()
+
+	handle, err := c.Handle(cid, cname)
+	if err != nil {
+		return nil, err
+	}
+
+	// inspect the Task to obtain ProcessConfig
+	config := &models.TaskInspectConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+	params := tasks.NewInspectParamsWithContext(ctx).WithConfig(config)
+	resp, err := client.Tasks.Inspect(params)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Payload, nil
+
+}
+
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -213,24 +236,18 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		OpenStdin: config.AttachStdin,
 		Tty:       config.Tty,
 	}
-
 	log.Debugf("JoinConfig: %#v", joinconfig)
 
-	// portlayer client
+	// obtain a portlayer client
 	client := c.containerProxy.Client()
-	params := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
-	resp, err := client.Tasks.Join(params)
+
+	// call Join with JoinParams
+	joinparams := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
+	resp, err := client.Tasks.Join(joinparams)
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
-
-	// Add create event
-	event := "exec_create: " + joinconfig.Path + " " + strings.Join(joinconfig.Args, " ")
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(event, eventtypes.ContainerEventType, actor)
-
 	eid := resp.Payload.ID
-	cache.ContainerCache().AddExecToContainer(vc, eid, config)
 
 	handle = resp.Payload.Handle.(string)
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
@@ -238,46 +255,64 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 		return "", InternalServerError(err.Error())
 	}
 
+	// associate newly created exec task with container
+	cache.ContainerCache().AddExecToContainer(vc, eid)
+
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+
+	// exec_create event
+	event := "exec_create: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log(event, eventtypes.ContainerEventType, actor)
+
 	return eid, nil
 }
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
-func (c *Container) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
-	defer trace.End(trace.Begin(""))
-
-	// FIXME(caglar10ur)
+func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, error) {
+	defer trace.End(trace.Begin(eid))
 
 	// Look up the container name in the metadata cache to get long ID
-	vc := cache.ContainerCache().GetContainerFromExec(id)
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return nil, NotFoundError(id)
+		return nil, NotFoundError(eid)
+	}
+	id := vc.ContainerID
+	name := vc.Name
+
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return nil, InternalServerError(err.Error())
 	}
 
-	/*
-		// portlayer client
-		client := c.containerProxy.Client()
-
-		inspectParams := containers.NewExecInspectParamsWithContext(ctx).WithID(vc.ContainerID).WithEid(id)
-		_, err := client.Containers.ExecInspect(inspectParams)
-		if err != nil {
-			return nil, InternalServerError(err.Error())
-		}
-	*/
-
-	exit := 0
+	exit := int(ec.ExitCode)
 	return &backend.ExecInspect{
-		Running:  false,
+		ID:       ec.ID,
+		Running:  ec.Running,
 		ExitCode: &exit,
+		ProcessConfig: &backend.ExecProcessConfig{
+			Tty:        ec.Tty,
+			Entrypoint: ec.ProcessConfig.ExecPath,
+			Arguments:  ec.ProcessConfig.ExecArgs,
+			User:       ec.User,
+		},
+		OpenStdin:   ec.OpenStdin,
+		OpenStdout:  ec.OpenStdout,
+		OpenStderr:  ec.OpenStderr,
+		ContainerID: vc.ContainerID,
+		Pid:         int(ec.Pid),
 	}, nil
-
 }
 
 // ContainerExecResize changes the size of the TTY of the process
 // running in the exec with the given name to the given height and
 // width.
 func (c *Container) ContainerExecResize(name string, height, width int) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(name))
 
 	// FIXME(caglar10ur)
 
@@ -301,15 +336,16 @@ func (c *Container) ContainerExecResize(name string, height, width int) error {
 
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
-func (c *Container) ContainerExecStart(ctx context.Context, name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
-	defer trace.End(trace.Begin(""))
+func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
+	defer trace.End(trace.Begin(eid))
 
 	// Look up the container name in the metadata cache to get long ID
-	vc := cache.ContainerCache().GetContainerFromExec(name)
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return NotFoundError(name)
+		return NotFoundError(eid)
 	}
 	id := vc.ContainerID
+	name := vc.Name
 
 	handle, err := c.Handle(id, name)
 	if err != nil {
@@ -318,28 +354,34 @@ func (c *Container) ContainerExecStart(ctx context.Context, name string, stdin i
 
 	bindconfig := &models.TaskBindConfig{
 		Handle: handle,
-		ID:     name,
+		ID:     eid,
 	}
 
-	// portlayer client
+	// obtain a portlayer client
 	client := c.containerProxy.Client()
-	params := tasks.NewBindParamsWithContext(ctx).WithConfig(bindconfig)
-	resp, err := client.Tasks.Bind(params)
+
+	// call Bind with bindparams
+	bindparams := tasks.NewBindParamsWithContext(ctx).WithConfig(bindconfig)
+	resp, err := client.Tasks.Bind(bindparams)
 	if err != nil {
 		return InternalServerError(err.Error())
 	}
-
-	// FIXME(caglar10ur): requires exec config
-	//event := "exec_start: " + ec.Entrypoint + " " + strings.Join(ec.Args, " ")
-	event := "exec_start: "
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(event, eventtypes.ContainerEventType, actor)
-
 	handle = resp.Payload.Handle.(string)
+
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		return InternalServerError(err.Error())
 	}
+
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+
+	// exec_start event
+	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log(event, eventtypes.ContainerEventType, actor)
 
 	return nil
 }
@@ -347,6 +389,8 @@ func (c *Container) ContainerExecStart(ctx context.Context, name string, stdin i
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
 func (c *Container) ExecExists(name string) (bool, error) {
+	defer trace.End(trace.Begin(name))
+
 	vc := cache.ContainerCache().GetContainerFromExec(name)
 	if vc == nil {
 		return false, NotFoundError(name)

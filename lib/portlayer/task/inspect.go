@@ -18,12 +18,13 @@ import (
 	"fmt"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// Toggle launching of the process in the container
-func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (interface{}, error) {
+// Inspect the task configuration from the containerVM config
+func Inspect(op *trace.Operation, h interface{}, id string) (*executor.SessionConfig, error) {
 	defer trace.End(trace.Begin(id))
 
 	handle, ok := h.(*exec.Handle)
@@ -34,31 +35,22 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 	stasks := handle.ExecConfig.Sessions
 	etasks := handle.ExecConfig.Execs
 
-	taskS, okS := stasks[id]
-	taskE, okE := etasks[id]
+	_, okS := stasks[id]
+	_, okE := etasks[id]
 
 	if !okS && !okE {
 		return nil, fmt.Errorf("unknown task ID: %s", id)
 	}
 
-	task := taskS
+	tasks := stasks
 	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-		op.Debugf("Task bind configuration applies to ephemeral set")
-		task = taskE
-
-		// TODO: add check for container version - if the tether doesn't support reload/exec then
-		// this should fail
+		op.Debugf("Task configuration applies to ephemeral set")
+		tasks = etasks
 	}
 
-	// if no task has been joined that can be manipulated in the container's current state
-	if task == nil {
-		return nil, fmt.Errorf("Cannot modify task %s in current state", id)
+	if _, ok := tasks[id]; !ok {
+		return nil, fmt.Errorf("Cannot find task %s", id)
 	}
 
-	op.Debugf("Toggling active state of task %s (%s): %t", id, task.Cmd.Path, active)
-
-	task.Active = active
-	handle.Reload()
-
-	return handle, nil
+	return tasks[id], nil
 }

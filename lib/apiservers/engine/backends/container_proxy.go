@@ -1127,7 +1127,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			MountLabel:      "",
 			ProcessLabel:    "",
 			AppArmorProfile: "",
-			ExecIDs:         nil,
+			ExecIDs:         vc.List(),
 			HostConfig:      hostConfigFromContainerInfo(vc, info, portlayerName),
 			GraphDriver:     types.GraphDriverData{Name: portlayerName},
 			SizeRw:          nil,

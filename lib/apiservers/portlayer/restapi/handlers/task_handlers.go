@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ func (handler *TaskHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Hand
 	api.TasksBindHandler = tasks.BindHandlerFunc(handler.BindHandler)
 	api.TasksUnbindHandler = tasks.UnbindHandlerFunc(handler.UnbindHandler)
 	api.TasksRemoveHandler = tasks.RemoveHandlerFunc(handler.RemoveHandler)
+	api.TasksInspectHandler = tasks.InspectHandlerFunc(handler.InspectHandler)
 }
 
 // JoinHandler calls the Join
@@ -171,4 +172,48 @@ func (handler *TaskHandlersImpl) RemoveHandler(params tasks.RemoveParams) middle
 		Handle: exec.ReferenceFromHandle(handleprime),
 	}
 	return tasks.NewRemoveOK().WithPayload(res)
+}
+
+// InspectHandler calls inspect
+func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "task.Inspect(%s, %s)", params.Config.Handle, params.Config.ID)
+
+	handle := exec.HandleFromInterface(params.Config.Handle)
+	if handle == nil {
+		err := &models.Error{Message: "Failed to get the Handle"}
+		return tasks.NewInspectInternalServerError().WithPayload(err)
+	}
+
+	t, err := task.Inspect(&op, handle, params.Config.ID)
+	if err != nil {
+		log.Errorf("%s", err.Error())
+
+		return tasks.NewInspectInternalServerError().WithPayload(
+			&models.Error{Message: err.Error()},
+		)
+	}
+
+	op.Debugf("ID: %#v", t.ID)
+	op.Debugf("Path: %#v", t.Cmd.Path)
+	op.Debugf("Args: %#v", t.Cmd.Args)
+	op.Debugf("Running: %#v", t.StartTime)
+	op.Debugf("ExitCode: %#v", t.ExitStatus)
+
+	res := &models.TaskInspectResponse{
+		ID:       t.ID,
+		Running:  t.Started != "",
+		ExitCode: int64(t.ExitStatus),
+		ProcessConfig: &models.ProcessConfig{
+			ExecPath: t.Cmd.Path,
+			ExecArgs: t.Cmd.Args,
+		},
+		Tty:        t.Tty,
+		User:       t.User,
+		OpenStdin:  t.OpenStdin,
+		OpenStdout: t.Attach,
+		OpenStderr: t.Attach,
+		Pid:        0,
+	}
+	return tasks.NewInspectOK().WithPayload(res)
 }
