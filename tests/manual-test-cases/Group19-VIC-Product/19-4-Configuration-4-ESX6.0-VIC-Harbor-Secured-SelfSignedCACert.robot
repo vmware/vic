@@ -25,7 +25,7 @@ Suite Teardown  19-4-Teardown
     Set Environment Variable  TEST_URL_ARRAY  ${esx1-ip}
     Set Environment Variable  TEST_USERNAME  root
     Set Environment Variable  TEST_PASSWORD  e2eFunctionalTest
-    Set Environment Variable  BRIDGE_NETWORK  network
+    Set Environment Variable  BRIDGE_NETWORK  'VM Network'
     Set Environment Variable  PUBLIC_NETWORK  'VM Network'
     Set Environment Variable  TEST_DATACENTER  ${SPACE}
     Set Environment Variable  TEST_TIMEOUT  30m
