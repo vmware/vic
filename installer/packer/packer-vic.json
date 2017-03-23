@@ -201,23 +201,8 @@
     },
     {
       "type": "file",
-      "source": "scripts/harbor/harbor-compose.yml",
-      "destination": "/etc/vmware/harbor/harbor-compose.yml"
-    },
-    {
-      "type": "file",
-      "source": "scripts/harbor/harbor-notary-compose.yml",
-      "destination": "/etc/vmware/harbor/harbor-notary-compose.yml"
-    },
-    {
-      "type": "file",
       "source": "scripts/harbor/configure_harbor.sh",
       "destination": "/etc/vmware/harbor/configure_harbor.sh"
-    },
-    {
-      "type": "file",
-      "source": "scripts/harbor/harbor.cfg",
-      "destination": "/data/harbor/harbor.cfg"
     },
     {
       "type": "shell",

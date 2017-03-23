@@ -20,11 +20,16 @@ if [ ${deploy,,} != "true" ]; then
   echo "Not configuring Harbor" && exit 0
 fi
 
-cert_dir=/data/harbor/cert
-flag=/etc/vmware/harbor/cert_gen_type
-cfg=/data/harbor/harbor.cfg
+data_dir=/data/harbor
+conf_dir=/etc/vmware/harbor
 
-ca_download_dir=/data/harbor/ca_download
+harbor_compose_file=${conf_dir}/docker-compose.yml
+
+cert_dir=${data_dir}/cert
+flag=${conf_dir}/cert_gen_type
+cfg=${data_dir}/harbor.cfg
+
+ca_download_dir=${data_dir}/ca_download
 mkdir -p {${cert_dir},${ca_download_dir}}
 
 cert=${cert_dir}/server.crt
@@ -142,6 +147,21 @@ function detectHostname {
   fi
 }
 
+function setPortInYAML {
+FILE="$1" PORT="$2"  python - <<END
+import yaml, os
+port = os.environ['PORT']
+file = os.environ['FILE']
+f = open(file, "r+")
+dataMap = yaml.safe_load(f)
+newports = ['{0}:443'.format(port)]
+dataMap["services"]["proxy"]["ports"] = newports
+f.seek(0)
+yaml.dump(dataMap, f, default_flow_style=False)
+f.close()
+END
+}
+
 attrs=( 
   appliance.email_server 
   appliance.email_server_port 
@@ -175,6 +195,9 @@ fi
 configureHarborCfg ui_url_protocol https
 secure
 
+configureHarborCfg ssl_cert $cert
+configureHarborCfg ssl_cert_key $key
+configureHarborCfg secretkey_path $data_dir
 
 for attr in "${attrs[@]}"
 do
@@ -184,6 +207,4 @@ do
 	configureHarborCfg $(echo ${attr} | cut -d. -f2) "$value"
 done
 
-# TODO(frapposelli): implement correct YAML parsing for port setting
-port=$(ovfenv -k harbor.port)
-sed -i -r "s/      - <PORT>/      - $port:443/" /etc/vmware/harbor/harbor-compose.yml
+setPortInYAML $harbor_compose_file $(ovfenv -k harbor.port)
