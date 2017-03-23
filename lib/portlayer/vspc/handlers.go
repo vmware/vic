@@ -73,7 +73,7 @@ func (h *Handler) HandleVMUUID(w io.Writer, tc *telnet.Conn, b []byte) {
 	log.Infof("vmuuid of the connected containerVM: %s", vmuuid)
 	// check if there exists another vm with the same vmuuid
 	vm, exists := h.vspc.getVM(vmuuid)
-	if !exists {
+	if !exists || !vm.isInVMotion() {
 		// create a new vm associated with this telnet connection
 		vm = NewVM(tc)
 		log.Infof("attempting to connect to the attach server")

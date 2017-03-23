@@ -17,7 +17,6 @@ package vspc
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"sync"
@@ -86,6 +85,12 @@ func NewVM(tc *telnet.Conn) *VM {
 		vmotionStarted:   make(chan chan struct{}),
 		vmotionCompleted: make(chan chan struct{}),
 	}
+}
+
+func (vm *VM) isInVMotion() bool {
+	vm.Lock()
+	defer vm.Unlock()
+	return vm.inVmotion
 }
 
 // Vspc is all the vspc singletons
@@ -159,8 +164,9 @@ func (vspc *Vspc) relayReads(containervm *VM, conn net.Conn) {
 		default:
 			b := make([]byte, 4096)
 			conn.SetReadDeadline(time.Now().Add(remoteConnReadDeadline))
-			n, err := conn.Read(b)
-			if n > 0 {
+			var n int
+			var err error
+			if n, err = conn.Read(b); n > 0 {
 				log.Debugf("vspc read %d bytes from the  remote system connection", n)
 				if !vmotion {
 					if tmpBuf.Len() > 0 {
@@ -183,9 +189,12 @@ func (vspc *Vspc) relayReads(containervm *VM, conn net.Conn) {
 					tmpBuf.Write(b[:n])
 				}
 			}
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				log.Info("remote system connection closed")
-				return
+			// if not timeout error exit this goroutine because connection is closed
+			if err != nil {
+				if err, ok := err.(net.Error); !ok || !err.Timeout() {
+					log.Infof("(vspc) remote system connection closed: %v", err)
+					return
+				}
 			}
 		}
 	}
@@ -215,6 +224,8 @@ func (vspc *Vspc) monitorVMConnections() {
 					vm.Lock()
 					if !vm.inVmotion && vm.containerConn.IsClosed() { // vm just shut down
 						log.Debugf("(vspc) detected closed connection for VM %s", k)
+						log.Debugf("(vspc) closing connection to the AttachServer")
+						vm.remoteConn.Close()
 						log.Debugf("(vspc) deleting vm records from the vm manager %s", k)
 						delete(vspc.vmManager, k)
 					}
