@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package plugin3
+package plugin2
 
 import (
 	"context"
@@ -28,20 +28,24 @@ import (
 )
 
 const (
-	version = 3
-	target  = manager.ContainerConfigure
+	version = 1
+	target  = manager.ApplianceConfigure
 )
 
 func init() {
 	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, version)))
-	if err := manager.Migrator.Register(version, target, &AddCommonSpecForContainer{}); err != nil {
+	if err := manager.Migrator.Register(version, target, &AddCommonSpecForVCH{}); err != nil {
 		log.Errorf("Failed to register plugin %s:%d, %s", target, version, err)
 		panic(err)
 	}
 }
 
 // AddCommonSpecForVM is plugin for vic 0.8.0-GA version upgrade
-type AddCommonSpecForContainer struct {
+type AddCommonSpecForVCH struct {
+}
+
+type VirtualContainerHostConfigSpec struct {
+	ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
 }
 
 type ExecutorConfig struct {
@@ -62,6 +66,10 @@ type Common struct {
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
 }
 
+type UpdatedVCHConfigSpec struct {
+	UpdatedExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
+}
+
 type UpdatedExecutorConfig struct {
 	UpdatedCommon `vic:"0.1" scope:"read-only" key:"common"`
 }
@@ -80,8 +88,8 @@ type UpdatedCommon struct {
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
 }
 
-func (p *AddCommonSpecForContainer) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("AddCommonSpecForContainer version %d", version)))
+func (p *AddCommonSpecForVCH) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("AddCommonSpecForVCH version: %d", version)))
 	if data == nil {
 		return nil
 	}
@@ -91,20 +99,23 @@ func (p *AddCommonSpecForContainer) Migrate(ctx context.Context, s *session.Sess
 		log.Errorf("Migration data format is not map: %+v", data)
 		return nil
 	}
-	oldStruct := &ExecutorConfig{}
+	oldStruct := &VirtualContainerHostConfigSpec{}
 	result := extraconfig.Decode(extraconfig.MapSource(mapData), oldStruct)
 	log.Debugf("The oldStruct is %+v", oldStruct)
 	if result == nil {
 		return &errors.DecodeError{Err: fmt.Errorf("decode oldStruct %+v failed", oldStruct)}
 	}
 
-	newStruct := &UpdatedExecutorConfig{
-		UpdatedCommon: UpdatedCommon{
-			Name:                 oldStruct.Name,
-			ID:                   oldStruct.ID,
-			Notes:                oldStruct.Notes,
-			ExecutionEnvironment: oldStruct.ExecutionEnvironment,
-		}}
+	newStruct := &UpdatedVCHConfigSpec{
+		UpdatedExecutorConfig: UpdatedExecutorConfig{
+			UpdatedCommon: UpdatedCommon{
+				Name:                 oldStruct.Name,
+				ID:                   oldStruct.ID,
+				ExecutionEnvironment: oldStruct.ExecutionEnvironment,
+				Notes:                oldStruct.Notes,
+			},
+		},
+	}
 
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), newStruct)

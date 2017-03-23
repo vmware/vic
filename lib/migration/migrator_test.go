@@ -37,7 +37,7 @@ func setUp() {
 	trace.Logger.Level = log.DebugLevel
 	version.MaxPluginVersion = version.MaxPluginVersion + 1
 
-	if err := manager.Migrator.Register(1, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
+	if err := manager.Migrator.Register(version.MaxPluginVersion, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
 		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, version.MaxPluginVersion, err)
 		panic(err)
 	}
