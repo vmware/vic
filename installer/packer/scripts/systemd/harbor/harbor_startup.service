@@ -1,9 +1,8 @@
 [Unit]
-Description=Harbor
-After=docker.service systemd-networkd.service systemd-resolved.service
-Before=harbor.service
-Requires=docker.service
+Description=Harbor Startup Configuration
 Documentation=http://github.com/vmware/harbor
+After=docker.service data.mount systemd-networkd.service systemd-resolved.service
+Before=harbor.service
 
 [Service]
 Type=oneshot

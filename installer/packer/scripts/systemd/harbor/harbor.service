@@ -1,17 +1,16 @@
 [Unit]
-Description=Harbor
-After=docker.service systemd-networkd.service systemd-resolved.service harbor_startup.service
-Requires=docker.service
+Description=Harbor Container Registry
 Documentation=http://github.com/vmware/harbor
+After=docker.service harbor_startup.service
+Requires=docker.service data.mount
 
 [Service]
 Type=simple
 Restart=on-failure
 RestartSec=5
-# Make sure to remove preexisting stopped container that may be left over by a non-graceful shutdown
-ExecStartPre=-/usr/local/bin/docker-compose -f /etc/vmware/harbor/docker-compose.yml -f /etc/vmware/harbor/docker-compose.notary.yml rm -f
 ExecStart=/usr/local/bin/docker-compose -f /etc/vmware/harbor/docker-compose.yml -f /etc/vmware/harbor/docker-compose.notary.yml up
 ExecStop=/usr/local/bin/docker-compose -f /etc/vmware/harbor/docker-compose.yml -f /etc/vmware/harbor/docker-compose.notary.yml down
+ExecStopPost=/usr/local/bin/docker-compose -f /etc/vmware/harbor/docker-compose.yml -f /etc/vmware/harbor/docker-compose.notary.yml rm -f
 
 [Install]
 WantedBy=multi-user.target

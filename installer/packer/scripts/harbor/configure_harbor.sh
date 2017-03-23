@@ -48,8 +48,7 @@ function configureHarborCfg {
 
   basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-  if [ -n "$cfg_key" ]
-  then
+  if [ -n "$cfg_key" ]; then
     cfg_value=$(echo "$cfg_value" | sed -r -e 's%[\/&%]%\\&%g')
     sed -i -r "s%#?$cfg_key\s*=\s*.*%$cfg_key = $cfg_value%" $cfg
   fi
@@ -179,17 +178,12 @@ ip_address=$(ip addr show dev eth0 | sed -nr 's/.*inet ([^ ]+)\/.*/\1/p')
 
 #Modify hostname
 detectHostname
-if [ -z "$hostname" ]; then
-  echo "Hostname is null, set it to IP"
-  hostname=${ip_address}
-fi
-
-if [ -n ${hostname} ]; then
+if [[ x$hostname != "x" ]]; then
   echo "Hostname: ${hostname}"
   configureHarborCfg "hostname" ${hostname}
 else
-  echo "Failed to get the hostname"
-  exit 1
+  echo "Hostname is null, set it to IP"
+  hostname=${ip_address}
 fi
 
 configureHarborCfg ui_url_protocol https
@@ -201,10 +195,10 @@ configureHarborCfg secretkey_path $data_dir
 
 for attr in "${attrs[@]}"
 do
-	echo "Read attribute using ovfenv: [ $attr ]"
-	value=$(ovfenv -k $attr)
-	
-	configureHarborCfg $(echo ${attr} | cut -d. -f2) "$value"
+  echo "Read attribute using ovfenv: [ $attr ]"
+  value=$(ovfenv -k $attr)
+  
+  configureHarborCfg $(echo ${attr} | cut -d. -f2) "$value"
 done
 
 setPortInYAML $harbor_compose_file $(ovfenv -k harbor.port)
