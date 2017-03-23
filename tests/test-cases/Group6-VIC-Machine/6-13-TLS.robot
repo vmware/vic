@@ -25,7 +25,7 @@ Create VCH - defaults with --no-tls
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tls
     Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
+    Get Docker Params  ${output}  ${false}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
 

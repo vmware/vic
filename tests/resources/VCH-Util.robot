@@ -92,8 +92,6 @@ Get Docker Params
     :FOR  ${item}  IN  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  DOCKER_HOST=
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-
-    :FOR  ${item}  IN  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Environment saved in
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${cert_line}  ${item}
 
