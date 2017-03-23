@@ -157,6 +157,7 @@ newports = ['{0}:443'.format(port)]
 dataMap["services"]["proxy"]["ports"] = newports
 f.seek(0)
 yaml.dump(dataMap, f, default_flow_style=False)
+f.truncate()
 f.close()
 END
 }
