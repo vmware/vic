@@ -22,6 +22,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/spec"
 )
 
 const (
@@ -58,10 +59,11 @@ func ServiceURL(serviceName string) *url.URL {
 }
 
 // Update the VM display name on vSphere UI
-func DisplayName(id, name string) string {
-	shortID := id[:constants.ShortIDLen]
+func DisplayName(config *spec.VirtualMachineConfigSpecConfig) string {
+
+	shortID := config.ID[:constants.ShortIDLen]
 	nameMaxLen := constants.MaxVMNameLength - len(shortID)
-	prettyName := name
+	prettyName := config.Name
 	if len(prettyName) > nameMaxLen-1 {
 		prettyName = prettyName[:nameMaxLen-1]
 	}

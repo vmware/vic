@@ -39,6 +39,7 @@ func setUp() {
 
 	if err := manager.Migrator.Register(1, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
 		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, version.MaxPluginVersion, err)
+		panic(err)
 	}
 }
 

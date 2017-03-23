@@ -296,7 +296,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
 	}
 
-	specconfig.VMFullName = util.DisplayName(specconfig.ID, specconfig.Name)
+	specconfig.VMFullName = util.DisplayName(specconfig)
 
 	// log only core portions
 	s := specconfig

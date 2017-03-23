@@ -107,8 +107,9 @@ Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    Should Contain  ${output}  ${container}/vmware.log
-    Should Contain  ${output}  ${container}/tether.debug
+    ${vmName}=  Get VM Display Name  ${container}
+    Should Contain  ${output}  ${vmName}/vmware.log
+    Should Contain  ${output}  ${vmName}/tether.debug
 
 Get VICAdmin Log
     Login And Save Cookies

@@ -36,6 +36,7 @@ func init() {
 	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, version)))
 	if err := manager.Migrator.Register(version, target, &AddCommonSpecForVCH{}); err != nil {
 		log.Errorf("Failed to register plugin %s:%d, %s", target, version, err)
+		panic(err)
 	}
 }
 

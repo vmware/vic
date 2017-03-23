@@ -112,7 +112,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 	log.Infof("Setting version to %s", v.Version)
 
-	if err := v.SetVCHName(ctx, sess); err != nil {
+	if err := v.GetVCHName(ctx, sess); err != nil {
 		log.Errorf("Failed to obtain the VCH name: %s", err)
 	}
 
@@ -220,7 +220,7 @@ func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
 
 // Obtain the VCH name from vsphere
-func (v *Validator) SetVCHName(ctx context.Context, sess *session.Session) error {
+func (v *Validator) GetVCHName(ctx context.Context, sess *session.Session) error {
 	defer trace.End(trace.Begin(""))
 
 	var err error
