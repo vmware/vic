@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 3-03 - Docker Compose Basic
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  certs=${True}
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
@@ -25,33 +25,35 @@ ${link-yml}  version: "2"\nservices:\n${SPACE}redis1:\n${SPACE}${SPACE}image: re
 *** Test Cases ***
 Compose basic
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
+    # must set CURL_CA_BUNDLE to work around Compose bug https://github.com/docker/compose/issues/3365
+    Set Environment Variable  CURL_CA_BUNDLE  ${EMPTY}
 
     Run  echo '${yml}' > basic-compose.yml
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create vic_default
     Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml create
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml create
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml start
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml start
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml logs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml logs
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml stop
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml stop
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose kill
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml up -d
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} -f basic-compose.yml up -d
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml kill redis
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} -f basic-compose.yml kill redis
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml down
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} -f basic-compose.yml down
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
@@ -60,24 +62,24 @@ Compose Up while another container is running (ps filtering related)
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml up -d
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} -f basic-compose.yml up -d
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
 Compose Up with link
     Run  echo '${link-yml}' > link-compose.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file link-compose.yml up -d
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file link-compose.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file link-compose.yml logs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file link-compose.yml logs
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING aaa
     Should Not Contain  ${output}  bad address 'aaa'
 
 Compose bundle creation
-    ${rc}  Run And Return Rc  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml pull
+    ${rc}  Run And Return Rc  docker-compose %{VCH-PARAMS} --file basic-compose.yml pull
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml bundle
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml bundle
     Log  ${output}
     Should Contain  ${output}  Wrote bundle
     Should Be Equal As Integers  ${rc}  0

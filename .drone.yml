@@ -107,6 +107,7 @@ build:
       ENV_HTML_SDK_HOME: "/tmp/sdk/html-client-sdk"
     commands:
       - make mark
+      - npm install -g yarn > /dev/null
       - version=`$BIN/vic-machine-linux version`
       - version=`echo $version | awk '{print $3}' | awk -F- '{print $1}' | cut -c 2-`
       - sed "s/0.0.1/${version}/" ./$VICUI_SOURCE_PATH/plugin-package.xml > ./$VICUI_SOURCE_PATH/new_plugin-package.xml

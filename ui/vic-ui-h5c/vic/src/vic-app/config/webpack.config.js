@@ -58,7 +58,8 @@ module.exports = function(env) {
                         path.resolve(__dirname, 'node_modules/rxjs'),
                         path.resolve(__dirname, 'node_modules/@angular'),
                         /node_modules\/mutationobserver-shim\/dist/,
-                        /node_modules\/clarity-icons/
+                        /node_modules\/clarity-icons/,
+                        /node_modules\/clarity-angular/
                     ]
                 },
                 {
