@@ -205,22 +205,22 @@ func TestGetUserSysProcAttr(t *testing.T) {
 		err  error
 	}{
 		{"", "", 0, 0, nil},
-		{"notexist", "notexist", 0, 0, errors.New("unable to find user notexist")},
-		{"notexist", curr.Gid, 0, 0, errors.New("unable to find user notexist")},
-		{"", "notexist", 0, 0, errors.New("unable to find group notexist")},
-		{"0", "notexist", 0, 0, errors.New("unable to find group notexist")},
-		{curr.Uid, "notexist", 0, 0, errors.New("unable to find group notexist")},
-		{"2000000", "notexist", 0, 0, errors.New("unable to find group notexist")},
-		{curr.Username, "notexist", 0, 0, errors.New("unable to find group notexist")},
+		{"notexist", "notexist", 0, 0, errors.New("Unable to find user notexist")},
+		{"notexist", curr.Gid, 0, 0, errors.New("Unable to find user notexist")},
+		{"", "notexist", 0, 0, errors.New("Unable to find group notexist")},
+		{"0", "notexist", 0, 0, errors.New("Unable to find group notexist")},
+		{curr.Uid, "notexist", 0, 0, errors.New("Unable to find group notexist")},
+		{"2000000", "notexist", 0, 0, errors.New("Unable to find group notexist")},
+		{curr.Username, "notexist", 0, 0, errors.New("Unable to find group notexist")},
 		{curr.Username, "0", currUID, 0, nil},
 		{curr.Uid, "1000", currUID, 1000, nil},
 		{curr.Uid, curr.Gid, currUID, currGID, nil},
 		{"root", curr.Gid, 0, currGID, nil},
 		{"root", "root", 0, 0, nil},
-		{moreThanMax, "root", 0, 0, fmt.Errorf("user id %s is invalid", moreThanMax)},
-		{curr.Username, moreThanMax, 0, 0, fmt.Errorf("group id %s is invalid", moreThanMax)},
-		{lessThanMin, "root", 0, 0, fmt.Errorf("user id %s is invalid", lessThanMin)},
-		{curr.Username, lessThanMin, 0, 0, fmt.Errorf("group id %s is invalid", lessThanMin)},
+		{moreThanMax, "root", 0, 0, errors.New("Uids and gids must be in range 0-2147483647")},
+		{curr.Username, moreThanMax, 0, 0, errors.New("Uids and gids must be in range 0-2147483647")},
+		{lessThanMin, "root", 0, 0, errors.New("Uids and gids must be in range 0-2147483647")},
+		{curr.Username, lessThanMin, 0, 0, errors.New("Uids and gids must be in range 0-2147483647")},
 	}
 	for _, test := range tests {
 		t.Logf("uid: %s, gid: %s", test.uid, test.gid)

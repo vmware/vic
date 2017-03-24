@@ -20,12 +20,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/user"
-	"strconv"
 	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	dockerUser "github.com/opencontainers/runc/libcontainer/user"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -97,81 +96,57 @@ func (t *BaseOperations) Cleanup() error {
 }
 
 // Need to put this here because Windows does not support SysProcAttr.Credential
-// getUserSysProcAttr will search uid/gid as username and groupname first, if not found and they are numeric id, set to userid and groupid without verify if these ids exist or not
-// if not numeric ids, and not found, return user or group not found error
-// this is same to docker
+// getUserSysProcAttr relies on docker user package to verify user specification
+// Examples of valid user specifications are:
+//     * ""
+//     * "user"
+//     * "uid"
+//     * "user:group"
+//     * "uid:gid
+//     * "user:gid"
+//     * "uid:group"
 func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 	if len(uid) == 0 && len(gid) == 0 {
 		log.Debugf("no user id or group id specified")
 		return nil, nil
 	}
 
-	var suid, sgid int
-	var suidErr, sgidErr error
-
-	var fuid, fgid int
-	var fuidErr, fgidErr error
-
-	var uinfo *user.User
-	var ginfo *user.Group
-
-	if len(uid) > 0 {
-		suid, suidErr = strconv.Atoi(uid)
-		// lookup username
-		uinfo, fuidErr = user.Lookup(uid)
-		if fuidErr == nil {
-			log.Debugf("User %s is found", uid)
-			fuid, _ = strconv.Atoi(uinfo.Uid)
-			fgid, _ = strconv.Atoi(uinfo.Gid)
-		}
-	}
+	user := uid
 	if len(gid) > 0 {
-		sgid, sgidErr = strconv.Atoi(gid)
-
-		// lookup groupname
-		ginfo, fgidErr = user.LookupGroup(gid)
-		// if found groupname, override user group
-		if fgidErr == nil {
-			log.Debugf("Group %s is found", gid)
-			fgid, _ = strconv.Atoi(ginfo.Gid)
-		}
+		user = fmt.Sprintf("%s:%s", uid, gid)
+	}
+	execUser, err := searchUser(user)
+	if err != nil {
+		return nil, err
 	}
 
-	// lookup user failed
-	if fuidErr != nil {
-		if suidErr != nil {
-			// failed to loopup username, and user is not number
-			detail := fmt.Sprintf("unable to find user %s: %s", uid, fuidErr)
-			return nil, errors.New(detail)
-		}
-		// user set user id must be inside valid uid range.
-		if suid < minID || suid > maxID {
-			detail := fmt.Sprintf("user id %s is invalid", uid)
-			return nil, errors.New(detail)
-		}
-		fuid = suid
-	}
-
-	// lookup group failed
-	if fgidErr != nil {
-		if sgidErr != nil {
-			// failed to loopup groupname, and user is not number
-			detail := fmt.Sprintf("unable to find group %s: %s", gid, fgidErr)
-			return nil, errors.New(detail)
-		}
-		// user set group id must be inside valid uid range.
-		if sgid < minID || sgid > maxID {
-			detail := fmt.Sprintf("group id %s is invalid", gid)
-			return nil, errors.New(detail)
-		}
-		fgid = sgid
-	}
-	log.Debugf("set user to %s:%s", fuid, fgid)
-	return &syscall.SysProcAttr{
+	sysProc := &syscall.SysProcAttr{
 		Credential: &syscall.Credential{
-			Uid: uint32(fuid),
-			Gid: uint32(fgid),
+			Uid: uint32(execUser.Uid),
+			Gid: uint32(execUser.Gid),
 		},
 		Setsid: true,
-	}, nil
+	}
+	for _, sgid := range execUser.Sgids {
+		sysProc.Credential.Groups = append(sysProc.Credential.Groups, uint32(sgid))
+	}
+	return sysProc, nil
+}
+
+func searchUser(user string) (*dockerUser.ExecUser, error) {
+	defaultExecUser := dockerUser.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
+
+	passwdPath, err := dockerUser.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+	groupPath, err := dockerUser.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+	return dockerUser.GetExecUserPath(user, &defaultExecUser, passwdPath, groupPath)
 }
