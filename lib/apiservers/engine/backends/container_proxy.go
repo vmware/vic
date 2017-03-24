@@ -93,6 +93,7 @@ type VicContainerProxy interface {
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
+	Rename(vc *viccontainer.VicContainer, newName string) error
 	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
 
 	Handle(id, name string) (string, error)
@@ -873,6 +874,58 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 	log.Infof("No error found. Returning nil...")
 	return nil
 }
+
+// Rename() calls the portlayer's containerRenamehandler to update the container name in the handle,
+// and then calls CommitHandler to commit the new name to vSphere
+func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	var err error
+
+	//retrieve client to portlayer
+	handle, err := c.Handle(vc.ContainerID, vc.Name)
+	if err != nil {
+		return err
+	}
+
+	// Get an API client to the portlayer
+	client := PortLayerClient()
+	if client == nil {
+		err = InternalServerError("wait failed to create a portlayer client")
+		return err
+	}
+
+	// Call the rename functionality in the portlayer.
+	result, err := client.Containers.ContainerRename(containers.NewContainerRenameParamsWithContext(ctx).WithName(newName).WithHandle(handle))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.ContainerRenameNotFound:
+			return NotFoundError(vc.Name)
+		case *containers.ContainerRenameConflict:
+			return derr.NewRequestConflictError(fmt.Errorf("container name collision in portlayer"))
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	h := result.Payload
+
+	// commit handle
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(h))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.CommitNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+		case *containers.CommitDefault:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
+
+	return nil
+}
+
 
 //----------
 // Utility Functions

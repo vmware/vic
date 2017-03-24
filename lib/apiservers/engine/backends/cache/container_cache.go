@@ -15,12 +15,12 @@
 package cache
 
 import (
+	"fmt"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/pkg/truncindex"
-
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
 )
 
@@ -127,5 +127,27 @@ func (cc *CCache) GetContainerFromExec(eid string) *container.VicContainer {
 	if container, exist := cc.containersByExecID[eid]; exist {
 		return container
 	}
+	return nil
+}
+
+func (cc *CCache) UpdateContainerName(oldName, newName string) error {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	container := cc.getContainer(oldName)
+	if container == nil {
+		return fmt.Errorf("no such container: %s", oldName)
+	}
+
+	delete(cc.containersByName, container.Name)
+	if exists := cc.getContainer(newName); exists != nil {
+		err := fmt.Errorf("conflict in container cache. The name %q is already in use by container %s.", newName, exists.ContainerID)
+		log.Errorf("%s", err.Error())
+		return err
+	}
+	container.Name = newName
+	cc.containersByName[newName] = container
+	cc.containersByID[container.ContainerID] = container
+
 	return nil
 }

@@ -136,6 +136,18 @@ func (h *Handle) Reload() {
 	h.reload = true
 }
 
+func (h *Handle) Rename(newName string) *Handle {
+	defer trace.End(trace.Begin(""))
+
+	h.ExecConfig.CommonSpecForVM.Name = newName
+
+	shortID := h.ExecConfig.ID[:12]
+	prettyName := newName
+	h.Spec.Spec().Name = fmt.Sprintf("%s-%s", prettyName, shortID)
+
+	return h
+}
+
 // GetHandle finds and returns the handle that is referred by key
 func GetHandle(key string) *Handle {
 	handlesLock.Lock()

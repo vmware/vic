@@ -1607,6 +1607,57 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 	return nil
 }
 
+// ContainerRename changes the name of a container, using the oldName
+// to find the container. An error is returned if newName is already
+// reserved.
+func (c *Container) ContainerRename(oldName, newName string) error {
+	defer trace.End(trace.Begin(newName))
+
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("neither old nor new names may be empty")
+	}
+
+	var err error
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(oldName)
+	if vc == nil {
+		log.Errorf("Container %s not found", oldName)
+		return NotFoundError(oldName)
+	}
+
+	oldName = vc.Name
+	if oldName == newName {
+		err = fmt.Errorf("renaming a container with the same name as its current name")
+		log.Errorf("%s", err.Error())
+		return err
+	}
+
+	if exists := cache.ContainerCache().GetContainer(newName); exists != nil {
+		err = fmt.Errorf("conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", newName, exists.ContainerID)
+		log.Errorf("%s", err.Error())
+		return derr.NewRequestConflictError(err)
+	}
+
+	if err = c.containerProxy.Rename(vc, newName); err != nil {
+		log.Errorf("Rename error: %s", err)
+		return err
+	}
+
+	// update containerCache
+	if err = cache.ContainerCache().UpdateContainerName(oldName, newName); err != nil {
+		log.Errorf("Failed to update container cache: %s", err)
+		return err
+	}
+
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"newName": fmt.Sprintf("%s", newName)})
+
+	EventService().Log("Rename", eventtypes.ContainerEventType, actor)
+
+	return nil
+}
+
+
 // helper function to format the container name
 // to the docker client approved format
 func clientFriendlyContainerName(name string) string {
