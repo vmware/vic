@@ -4,7 +4,7 @@
     "iso_sha1sum": "",
     "esx_host": "",
     "remote_username": "",
-    "remote_password": "",    
+    "remote_password": "",
     "root_password": "2RQrZ83i79N6szpvZNX6"
   },
   "builders": [
@@ -104,6 +104,16 @@
     },
     {
       "type": "file",
+      "source": "../../bin/ova-webserver",
+      "destination": "/usr/local/bin/ova-webserver"
+    },
+    {
+      "type": "file",
+      "source": "../../bin/vic/",
+      "destination": "/data/fileserver"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/docker.service",
       "destination": "/usr/lib/systemd/system/docker.service"
     },
@@ -189,6 +199,10 @@
     {
       "type": "shell",
       "script": "scripts/provision_admiral.sh"
+    },
+    {
+      "type": "shell",
+      "script": "scripts/provision_fileserver.sh"
     },
     {
       "type": "file",

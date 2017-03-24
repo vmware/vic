@@ -26,8 +26,11 @@ PHOTON_ISO_SHA1SUM := c4c6cb94c261b162e7dac60fdffa96ddb5836d66
 
 ovfenv := $(BIN)/ovfenv
 vic-ova-ui := $(BIN)/vic-ova-ui
+ova-webserver := $(BIN)/ova-webserver
 ovfenv: $(ovfenv)
 vic-ova-ui: $(vic-ova-ui)
+ova-webserver: $(ova-webserver)
+
 
 $(ovfenv): $$(call godeps,installer/ovatools/ovfenv/*.go)
 	@echo building ovfenv linux...
@@ -37,7 +40,7 @@ $(vic-ova-ui): $$(call godeps,installer/ovatools/vic-ova-ui/*.go)
 	@echo building vic-ova-ui
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
 
-ova-release: $(ovfenv) $(vic-ova-ui)
+ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 	@echo building vic-unified-installer OVA using packer...
 	@cd $(BASE_DIR)installer/packer && $(PACKER) build \
 			-only=ova-release \
@@ -82,3 +85,7 @@ vagrant-local: $(ovfenv) $(vic-ova-ui)
 			-var 'iso_sha1sum=$(PHOTON_ISO_SHA1SUM)'\
 			-var 'iso_file=$(PHOTON_ISO)'\
 			--on-error=abort packer-vic.json
+
+$(ova-webserver): $$(call godeps,installer/fileserver/*.go)
+	@echo building ova-webserver
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
