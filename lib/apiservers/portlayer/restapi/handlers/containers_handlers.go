@@ -42,7 +42,7 @@ import (
 
 const (
 	containerWaitTimeout    = 3 * time.Minute
-	supportVersionForRename = 2
+	supportVersionForRename = 3
 )
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
