@@ -50,7 +50,7 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 		return nil, err
 	}
 
-	dm, err := disk.NewDiskManager(op, s)
+	dm, err := disk.NewDiskManager(op, s, DetachAll)
 	if err != nil {
 		return nil, err
 	}

@@ -46,6 +46,8 @@ import (
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, error) {
 	logrus.SetLevel(logrus.DebugLevel)
+	trace.Logger.Level = logrus.DebugLevel
+	DetachAll = false
 
 	client := datastore.Session(context.TODO(), t)
 	if client == nil {
@@ -274,7 +276,10 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 	for _, img := range listedImages {
-		if !assert.Equal(t, expectedImages[img.ID], img) {
+		if !assert.Equal(t, expectedImages[img.ID].Store.String(), img.Store.String()) {
+			return
+		}
+		if !assert.Equal(t, expectedImages[img.ID].SelfLink.String(), img.SelfLink.String()) {
 			return
 		}
 	}
@@ -568,7 +573,9 @@ func tarFiles(files []tarFile) (*bytes.Buffer, error) {
 }
 
 func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, error) {
-	roName := v.imageDiskDSPath("testStore", parent.ID) + "-ro.vmdk"
+	roName := v.imageDiskDSPath("testStore", parent.ID)
+	roName.Path = roName.Path + "-ro.vmdk"
+
 	parentDsURI := v.imageDiskDSPath("testStore", parent.ID)
 
 	op := trace.NewOperation(context.TODO(), "ro")

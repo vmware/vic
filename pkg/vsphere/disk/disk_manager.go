@@ -54,7 +54,7 @@ type Manager struct {
 	reconfig sync.Mutex
 }
 
-func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, error) {
+func NewDiskManager(op trace.Operation, session *session.Session, detachAll bool) (*Manager, error) {
 	vm, err := guest.GetSelf(op, session)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -75,8 +75,10 @@ func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, err
 	}
 
 	// Remove any attached disks
-	if err = d.detachAll(op); err != nil {
-		return nil, err
+	if detachAll {
+		if err = d.detachAll(op); err != nil {
+			return nil, err
+		}
 	}
 
 	return d, nil

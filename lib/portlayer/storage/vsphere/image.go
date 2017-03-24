@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
@@ -40,6 +39,9 @@ import (
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
 var StorageParentDir = "VIC"
+
+// Set to false for unit tests
+var DetachAll = true
 
 const (
 	StorageImageDir  = "images"
@@ -59,7 +61,7 @@ type ImageStore struct {
 }
 
 func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
-	dm, err := disk.NewDiskManager(op, s)
+	dm, err := disk.NewDiskManager(op, s, DetachAll)
 	if err != nil {
 		return nil, err
 	}
@@ -452,8 +454,8 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 
 	var parentURL *url.URL
 	if dsk.ParentDatastoreURI != nil {
-		_, vmdk := filepath.Split(dsk.ParentDatastoreURI.Path)
-		parentURL, err = util.ImageURL(storeName, strings.Split(vmdk, ".")[0])
+		vmdk := path.Base(dsk.ParentDatastoreURI.Path)
+		parentURL, err = util.ImageURL(storeName, strings.TrimSuffix(vmdk, path.Ext(vmdk)))
 		if err != nil {
 			return nil, err
 		}
