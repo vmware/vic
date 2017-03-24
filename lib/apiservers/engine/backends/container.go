@@ -41,6 +41,7 @@ import (
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/utils"
 	gonat "github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
@@ -1608,6 +1609,10 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 
 	if oldName == "" || newName == "" {
 		return fmt.Errorf("neither old nor new names may be empty")
+	}
+
+	if !utils.RestrictedNamePattern.MatchString(newName) {
+		return fmt.Errorf("Invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
 	}
 
 	var err error
