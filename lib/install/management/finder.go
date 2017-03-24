@@ -224,15 +224,27 @@ func (d *Dispatcher) SearchVCHs(computePath string) ([]*vm.VirtualMachine, error
 	return vchs, nil
 }
 
+// searchVCHsFromComputePath searches for VCHs in all child ResourcePools under computePath.
+// The computePath can itself be a ResourcePool, ComputeResource or ClusterComputeResource.
 func (d *Dispatcher) searchVCHsFromComputePath(computePath string) ([]*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(computePath))
 
-	pool, err := d.session.Finder.ResourcePool(d.ctx, computePath)
+	pools, err := d.session.Finder.ResourcePoolList(d.ctx, path.Join(computePath, "..."))
 	if err != nil {
-		err = errors.Errorf("Failed to get resource pool %q: %s", computePath, err)
-		return nil, err
+		if _, ok := err.(*find.NotFoundError); ok {
+			return nil, nil
+		}
 	}
-	return d.searchVCHsPerRP(pool)
+
+	var vchs []*vm.VirtualMachine
+	for _, pool := range pools {
+		children, err := d.getChildVCHs(pool, true)
+		if err != nil {
+			return nil, err
+		}
+		vchs = append(vchs, children...)
+	}
+	return vchs, nil
 }
 
 func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachine, error) {
@@ -254,34 +266,11 @@ func (d *Dispatcher) searchVCHsPerDC(dc *object.Datacenter) ([]*vm.VirtualMachin
 	}
 
 	for _, pool := range pools {
-		chidren, err := d.searchVCHsPerRP(pool)
+		children, err := d.getChildVCHs(pool, true)
 		if err != nil {
 			return nil, err
 		}
-		vchs = append(vchs, chidren...)
-	}
-	return vchs, nil
-}
-
-func (d *Dispatcher) searchVCHsPerRP(pool *object.ResourcePool) ([]*vm.VirtualMachine, error) {
-	defer trace.End(trace.Begin(pool.InventoryPath))
-
-	var pools []*object.ResourcePool
-	pools = append(pools, pool)
-
-	children, err := d.listChildrenPools(pool)
-	if err != nil {
-		err = errors.Errorf("Failed to get children resource pool %q: %s", pool.InventoryPath, err)
-		return nil, err
-	}
-	pools = append(pools, children...)
-	var vchs []*vm.VirtualMachine
-	for _, parent := range pools {
-		chidren, err := d.getChildVCHs(parent, true)
-		if err != nil {
-			return nil, err
-		}
-		vchs = append(vchs, chidren...)
+		vchs = append(vchs, children...)
 	}
 	return vchs, nil
 }
@@ -327,26 +316,4 @@ func (d *Dispatcher) getChildVCHs(pool *object.ResourcePool, searchVapp bool) ([
 		vchs = append(vchs, childVCHs...)
 	}
 	return vchs, nil
-}
-
-func (d *Dispatcher) listChildrenPools(pool *object.ResourcePool) ([]*object.ResourcePool, error) {
-	defer trace.End(trace.Begin(pool.InventoryPath))
-
-	var result []*object.ResourcePool
-	search := path.Join(pool.InventoryPath, "*")
-	pools, err := d.session.Finder.ResourcePoolList(d.ctx, search)
-	if err != nil {
-		if _, ok := err.(*find.NotFoundError); ok {
-			return nil, nil
-		}
-		return nil, err
-	}
-	result = append(result, pools...)
-	for _, pool := range pools {
-		if pools, err = d.listChildrenPools(pool); err != nil {
-			return nil, err
-		}
-		result = append(result, pools...)
-	}
-	return result, nil
 }

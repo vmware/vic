@@ -24,14 +24,16 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 func TestFinder(t *testing.T) {
@@ -84,32 +86,112 @@ func TestFinder(t *testing.T) {
 		if err = createTestData(ctx, validator.Session, prefix); err != nil {
 			t.Errorf("Failed to create test data: %s", err)
 		}
-		// FIXME: ServerFaultCode: no such object: SearchIndex:ha-searchindex
-		//		testSearchVCHs(t, validator)
+
+		found := testSearchVCHs(t, validator, false)
+		if found != 0 {
+			t.Errorf("found %d VCHs, expected %d", found, 0)
+		}
+
+		found = testSearchVCHs(t, validator, true)
+		expect := 1 // 1 VCH per Resource pool
+		if model.Host != 0 {
+			expect *= (model.Host + model.Cluster)
+		}
+		if found != expect {
+			t.Errorf("found %d VCHs, expected %d", found, expect)
+		}
 	}
 }
 
-type testSearchDispatcher struct {
-	*Dispatcher
-}
-
-func (td *testSearchDispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
-	return true, nil
-}
-
-func testSearchVCHs(t *testing.T, v *validate.Validator) {
+func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
 	d := &Dispatcher{
 		session: v.Session,
 		ctx:     v.Context,
 		isVC:    v.Session.IsVC(),
 	}
 
-	td := &testSearchDispatcher{d}
-	vchs, err := td.SearchVCHs("")
+	if expect {
+		// Add guestinfo so isVCH() returns true for all VMs
+		vms, err := d.session.Finder.VirtualMachineList(d.ctx, "/...")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, vm := range vms {
+			ref := vm.Reference()
+			svm := simulator.Map.Get(ref).(*simulator.VirtualMachine)
+
+			svm.Config.ExtraConfig = []types.BaseOptionValue{&types.OptionValue{
+				Key:   extraconfig.DefaultGuestInfoPrefix + "/init/common/id",
+				Value: ref.String(),
+			}}
+		}
+	} else {
+		_, err := d.SearchVCHs("enoent") // NotFound
+		if err != nil {
+			t.Error(err)
+		}
+
+		n, err := d.SearchVCHs("/")
+		if err != nil {
+			t.Error(err)
+		}
+
+		if len(n) != 0 {
+			t.Errorf("unexpected: %d", len(n))
+		}
+	}
+
+	vchs, err := d.SearchVCHs("")
 	if err != nil {
 		t.Errorf("Failed to search vchs: %s", err)
 	}
-	t.Logf("Got %d VCHs", len(vchs))
+	n := len(vchs)
+	t.Logf("Found %d VCHs without a compute-path", n)
+
+	for _, vm := range vchs {
+		// Find with --compute-resource
+		// The VM HostSystem's parent will be a cluster or standalone compute resource
+		host, err := vm.HostSystem(d.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c := property.DefaultCollector(vm.VirtualMachine.Client())
+		var me mo.ManagedEntity
+
+		err = c.RetrieveOne(d.ctx, host.Reference(), []string{"parent"}, &me)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		obj, err := d.session.Finder.Element(d.ctx, *me.Parent)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		name := path.Base(obj.Path)
+
+		paths := []string{
+			obj.Path,                         // "/dc1/cluster1"
+			name,                             // "cluster1"
+			path.Join(".", name),             // "./cluster1"
+			path.Join(obj.Path, "Resources"), // "/dc1/cluster1/Resources"
+		}
+
+		for _, path := range paths {
+			vchs, err := d.SearchVCHs(path)
+			if err != nil {
+				t.Errorf("SearchVCHs(%s): %s", path, err)
+			}
+
+			if len(vchs) != 1 {
+				t.Errorf("Found %d VCHs with compute-path=%s", len(vchs), path)
+			}
+		}
+	}
+
+	return n
 }
 
 func createTestData(ctx context.Context, sess *session.Session, prefix string) error {
