@@ -417,6 +417,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 	if container.ExecConfig.Version == nil || container.ExecConfig.Version.PluginVersion < supportVersionForRename {
 		return containers.NewContainerRenameInternalServerError().WithPayload(&models.Error{Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name)})
 	}
+	log.Infof("The container pluginVersion is: %s", container.ExecConfig.Version.PluginVersion)
 
 	h = h.Rename(params.Name)
 
