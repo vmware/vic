@@ -117,3 +117,11 @@ Run Regression Tests
     Should Not Contain  ${output}  busybox
 
     Scrape Logs For The Password
+
+Launch Container
+    [Arguments]  ${name}  ${network}=default
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} --net ${network} -itd busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${id}=  Get Line  ${output}  -1
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id}  ${network}
+    [Return]  ${id}  ${ip}
