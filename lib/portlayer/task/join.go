@@ -47,8 +47,9 @@ func Join(op *trace.Operation, h interface{}, task *executor.SessionConfig) (int
 		}
 		tasks = handle.ExecConfig.Execs
 
-		// TODO: add check for container version - if the tether doesn't support reload/exec then
-		// this should fail
+		if err := compatible(h); err != nil {
+			return nil, err
+		}
 	}
 
 	_, ok = tasks[task.ID]

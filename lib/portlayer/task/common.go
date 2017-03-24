@@ -22,6 +22,9 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// TasksSupportedVersion is the minimum version that tasks are supported in
+const TasksSupportedVersion = 3
+
 // Toggle launching of the process in the container
 func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (interface{}, error) {
 	defer trace.End(trace.Begin(id))
@@ -46,8 +49,9 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 		op.Debugf("Task bind configuration applies to ephemeral set")
 		task = taskE
 
-		// TODO: add check for container version - if the tether doesn't support reload/exec then
-		// this should fail
+		if err := compatible(handle); err != nil {
+			return nil, err
+		}
 	}
 
 	// if no task has been joined that can be manipulated in the container's current state
@@ -61,4 +65,16 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 	handle.Reload()
 
 	return handle, nil
+}
+
+func compatible(h interface{}) error {
+	if handle, ok := h.(*exec.Handle); ok {
+		if handle.DataVersion < TasksSupportedVersion {
+			return fmt.Errorf("running tasks not supported for this container")
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("Type assertion failed for %#+v", h)
 }

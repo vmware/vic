@@ -46,8 +46,9 @@ func Remove(op *trace.Operation, h interface{}, id string) (interface{}, error) 
 		op.Debugf("Task configuration applies to ephemeral set")
 		tasks = etasks
 
-		// TODO: add check for container version - if the tether doesn't support reload/exec then
-		// this should fail
+		if err := compatible(h); err != nil {
+			return nil, err
+		}
 	}
 
 	// if no task has been bound to the
