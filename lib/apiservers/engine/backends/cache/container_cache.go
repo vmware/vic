@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
 )
