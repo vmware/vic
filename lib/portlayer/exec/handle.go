@@ -143,7 +143,7 @@ func (h *Handle) Rename(newName string) *Handle {
 	h.ExecConfig.Name = newName
 
 	s := &spec.VirtualMachineConfigSpecConfig{
-		ID: h.ExecConfig.ID,
+		ID:   h.ExecConfig.ID,
 		Name: newName,
 	}
 	h.Spec.Spec().Name = util.DisplayName(s)

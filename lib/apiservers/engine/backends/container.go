@@ -1650,7 +1650,6 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 	return nil
 }
 
-
 // helper function to format the container name
 // to the docker client approved format
 func clientFriendlyContainerName(name string) string {
