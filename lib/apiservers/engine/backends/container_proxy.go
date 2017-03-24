@@ -894,7 +894,8 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	}
 
 	// Call the rename functionality in the portlayer.
-	result, err := client.Containers.ContainerRename(containers.NewContainerRenameParamsWithContext(ctx).WithName(newName).WithHandle(handle))
+	renameParams := containers.NewContainerRenameParamsWithContext(ctx).WithName(newName).WithHandle(handle)
+	result, err := client.Containers.ContainerRename(renameParams)
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.ContainerRenameNotFound:

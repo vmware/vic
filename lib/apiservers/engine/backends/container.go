@@ -1614,7 +1614,7 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 	}
 
 	if !utils.RestrictedNamePattern.MatchString(newName) {
-		err := fmt.Errorf("Invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
+		err := fmt.Errorf("invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
 		log.Errorf("%s", err.Error())
 		return err
 	}

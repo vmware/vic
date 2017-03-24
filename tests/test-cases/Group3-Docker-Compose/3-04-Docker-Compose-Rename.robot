@@ -38,7 +38,3 @@ Compose up -d with a new image
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-
