@@ -18,24 +18,6 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-*** Keywords ***
-Verify Container Rename
-    [Arguments]  ${oldname}  ${newname}  ${contID}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${newname}
-    Should Not Contain  ${output}  ${oldname}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Name}}' ${newname}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${newname}
-    ${vmName}=  Get VM display name  ${contID}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${vmName}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  ${vmName}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${vmname}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  ${vmName}
-
 *** Test Cases ***
 Rename a non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename foo bar
