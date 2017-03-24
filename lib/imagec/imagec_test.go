@@ -1,4 +1,3 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -143,14 +142,14 @@ func TestLearnRegistryURL(t *testing.T) {
 	ic.Options.Timeout = DefaultHTTPTimeout
 
 	// should fail
-	_, err := LearnRegistryURL(ic.Options)
+	_, err := LearnRegistryURL(&ic.Options)
 	if err == nil {
 		t.Errorf(err.Error())
 	}
 
 	// should pass
 	ic.Options.InsecureAllowHTTP = true
-	_, err = LearnRegistryURL(ic.Options)
+	_, err = LearnRegistryURL(&ic.Options)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

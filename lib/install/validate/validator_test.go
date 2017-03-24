@@ -40,7 +40,7 @@ type TestValidator struct {
 }
 
 func TestParseURL(t *testing.T) {
-	var hosts = []string {
+	var hosts = []string{
 		"host.domain.com",
 		"host.domain.com:123",
 		"1.2.3.4",
@@ -52,10 +52,10 @@ func TestParseURL(t *testing.T) {
 	for _, urlString := range hosts {
 		u, err := ParseURL(urlString)
 		assert.Nil(t, err)
-		assert.Equal(t, u.String(), "https://" + urlString)
+		assert.Equal(t, u.String(), "https://"+urlString)
 		// Null the scheme
 		u.Scheme = ""
-		assert.Equal(t, u.String(), "//" + urlString)
+		assert.Equal(t, u.String(), "//"+urlString)
 		assert.Equal(t, u.Host, urlString)
 	}
 
@@ -70,11 +70,11 @@ func TestParseURL(t *testing.T) {
 	for i, urlString := range urls {
 		u, err := ParseURL(urlString)
 		assert.Nil(t, err)
-		assert.Equal(t, u.String(), "https://" + urlString)
+		assert.Equal(t, u.String(), "https://"+urlString)
 
 		// Null the scheme
 		u.Scheme = ""
-		assert.Equal(t, u.String(), "//" + urlString)
+		assert.Equal(t, u.String(), "//"+urlString)
 
 		// Check host
 		assert.Equal(t, u.Host, hosts[i])
@@ -82,7 +82,7 @@ func TestParseURL(t *testing.T) {
 		path := fmt.Sprintf("/path%d/test", i)
 		assert.Equal(t, u.Path, path)
 		// Check concatenation
-		assert.Equal(t, u.Host + u.Path, urlString)
+		assert.Equal(t, u.Host+u.Path, urlString)
 	}
 
 	// Add an HTTP scheme to verify that it is preserved
@@ -100,7 +100,7 @@ func TestParseURL(t *testing.T) {
 		assert.Equal(t, u.String(), urlString)
 	}
 
-	var invalidUrls = []string {
+	var invalidUrls = []string{
 		"[2001:db8/path",
 		"1.2.3.4\\path",
 	}

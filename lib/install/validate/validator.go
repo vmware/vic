@@ -15,13 +15,13 @@
 package validate
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
-
-	"context"
 
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
@@ -40,7 +40,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"regexp"
 )
 
 type Validator struct {
