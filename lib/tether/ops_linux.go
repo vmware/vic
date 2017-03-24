@@ -784,8 +784,10 @@ func (t *BaseOperations) Cleanup() error {
 	return nil
 }
 
-// Need to put this here because Windows does not
-// support SysProcAttr.Credential
+// Need to put this here because Windows does not support SysProcAttr.Credential
+// getUserSysProcAttr will search uid/gid as username and groupname first, if not found and they are numeric id, set to userid and groupid without verify if these ids exist or not
+// if not numeric ids, and not found, return user or group not found error
+// this is same to docker
 func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 	if len(uid) == 0 && len(gid) == 0 {
 		log.Debugf("no user id or group id specified")

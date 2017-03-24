@@ -460,7 +460,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		info.ProcessConfig.StartTime = session.StartTime
 		info.ProcessConfig.StopTime = session.StopTime
 
-		if session.User != "" && session.Group != "" {
+		if session.Group != "" {
 			info.ProcessConfig.User = fmt.Sprintf("%s:%s", session.User, session.Group)
 		} else {
 			info.ProcessConfig.User = session.User
