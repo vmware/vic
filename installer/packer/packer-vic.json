@@ -109,7 +109,7 @@
     },
     {
       "type": "file",
-      "source": "../../bin/vic/",
+      "source": "../../bin/vic-engine-bundle/",
       "destination": "/data/fileserver"
     },
     {
