@@ -29,7 +29,7 @@ import com.vmware.vim25.VirtualMachineSummary;
 
 public class ContainerVm extends VicBaseVm {
 	private static final String EXTRACONFIG_CONTAINER_NAME_KEY =
-			"guestinfo.vice./common/name";
+			"common/name";
 	private static final String EXTRACONFIG_IMAGE_NAME_KEY =
 			"guestinfo.vice./repo";
 	private static final String EXTRACONFIG_PORTMAPPING_KEY =
