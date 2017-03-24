@@ -264,3 +264,8 @@ func (r *Registry) SearchIndex() *SearchIndex {
 func (r *Registry) FileManager() *FileManager {
 	return r.Get(r.content().FileManager.Reference()).(*FileManager)
 }
+
+// ViewManager returns the ViewManager singleton
+func (r *Registry) ViewManager() *ViewManager {
+	return r.Get(r.content().ViewManager.Reference()).(*ViewManager)
+}

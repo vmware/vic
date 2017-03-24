@@ -38,6 +38,8 @@ func main() {
 	flag.IntVar(&model.Datastore, "ds", model.Datastore, "Number of local datastores")
 	flag.IntVar(&model.Machine, "vm", model.Machine, "Number of virtual machines per resource pool")
 	flag.IntVar(&model.Pool, "pool", model.Pool, "Number of resource pools per compute resource")
+	flag.IntVar(&model.App, "app", model.App, "Number of virtual apps per compute resource")
+	flag.IntVar(&model.Pod, "pod", model.Pod, "Number of storage pods per datacenter")
 	flag.IntVar(&model.Portgroup, "pg", model.Portgroup, "Number of port groups")
 	flag.IntVar(&model.Folder, "folder", model.Folder, "Number of folders")
 
