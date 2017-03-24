@@ -322,3 +322,52 @@ Cleanup Dangling Containers On Test Server
     \   ${name}=  Fetch From Right  ${vm}  /
     \   ${out}=  Run  govc datastore.rm ${name}
     \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${name}
+
+# VCH upgrade helpers
+Install VIC with version to Test Server
+    [Arguments]  ${version}=7315
+    Log To Console  \nDownloading vic ${version} from bintray...
+    ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
+    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
+    Set Environment Variable  TEST_TIMEOUT  20m0s
+    Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}
+    Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
+    Set Environment Variable  INITIAL-VERSION  ${version}
+
+Clean up VIC Appliance And Local Binary
+    Cleanup VIC Appliance On Test Server
+    Run  rm -rf vic.tar.gz vic
+
+Upgrade
+    Log To Console  \nUpgrading VCH...
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Completed successfully
+    Should Not Contain  ${output}  Rolling back upgrade
+    Should Be Equal As Integers  ${rc}  0
+
+Check Upgraded Version
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
+    @{vers}=  Split String  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  Completed successfully
+    Should Contain  ${output}  @{vers}[2]
+    Should Not Contain  ${output}  %{INITIAL-VERSION}
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Get Docker Params  ${output}  ${true}
+
+Check Original Version
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
+    @{vers}=  Split String  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  Completed successfully
+    Should Contain  ${output}  @{vers}[2]
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Get Docker Params  ${output}  ${true}
+
+Rollback
+     Log To Console  \nTesting rollback...
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --rollback
+    Should Contain  ${output}  Completed successfully
+    Should Be Equal As Integers  ${rc}  0
