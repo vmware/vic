@@ -99,7 +99,7 @@ Get Docker Params
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
 
     # Ensure we start from a clean slate with docker env vars
-    Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
+    Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH  CURL_CA_BUNDLE  COMPOSE_PARAMS  COMPOSE_TLS_VERSION
 
     Parse Environment Variables  ${line}
 
@@ -127,6 +127,28 @@ Get Docker Params
 
     Run Keyword If  ${port} == 2376  Set Environment Variable  VCH-PARAMS  -H ${dockerHost} --tls
     Run Keyword If  ${port} == 2375  Set Environment Variable  VCH-PARAMS  -H ${dockerHost}
+
+    ### Add environment variables for Compose and TLS
+
+    # Check if tls is enable from vic-machine's output and not trust ${certs} which some tests bypasses
+    ${tls_enabled}=  Get Environment Variable  DOCKER_TLS_VERIFY  ${false}
+
+    ### Compose case for no-tlsverify
+
+    # Set environment variables if certs not used to create the VCH.  This is NOT the recommended
+    # approach to running compose.  There will be security warnings in the logs and some compose
+    # operations may not work properly because certs == false currently means we install with
+    # --no-tlsverify. Add CURL_CA_BUNDLE for a workaround in compose tests.  If we change
+    # certs == false to install with --no-tls, then we need to change this again.
+    Run Keyword If  ${tls_enabled} == ${false}  Set Environment Variable  CURL_CA_BUNDLE  ${EMPTY}
+
+    # Get around quirk in compose if no-tlsverify, then CURL_CA_BUNDLE must exist and compose called with --tls
+    Run Keyword If  ${tls_enabled} == ${false}  Set Environment Variable  COMPOSE-PARAMS  -H ${dockerHost} --tls
+
+    ### Compose case for tlsverify (assumes DOCKER_TLS_VERIFY also set)
+
+    Run Keyword If  ${tls_enabled} == ${true}  Set Environment Variable  COMPOSE_TLS_VERSION  TLSv1_2
+    Run Keyword If  ${tls_enabled} == ${true}  Set Environment Variable  COMPOSE-PARAMS  -H ${dockerHost}
 
 Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
