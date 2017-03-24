@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"context"
+	"regexp"
 
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
@@ -154,6 +155,30 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	}
 
 	return v, nil
+}
+
+var schemeMatch = regexp.MustCompile(`^\w+://`)
+
+// Starting from Go 1.8 the URL parser does not
+// work properly with URLs with no Scheme,
+// this function adds "https" as Scheme if necessary
+func ParseURL(s string) (*url.URL, error) {
+	var err error
+	var u *url.URL
+
+	if s != "" {
+		// Default the scheme to https
+		if !schemeMatch.MatchString(s) {
+			s = "https://" + s
+		}
+
+		u, err = url.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return u, nil
 }
 
 func (v *Validator) AllowEmptyDC() {
