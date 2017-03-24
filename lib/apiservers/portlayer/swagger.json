@@ -2680,6 +2680,9 @@
 				"image": {
 					"type": "string"
 				},
+				"layer": {
+					"type": "string"
+				},
 				"repoName": {
 					"type": "string"
 				},
@@ -2931,6 +2934,9 @@
 					"type": "string"
 				},
 				"layerId": {
+					"type": "string"
+				},
+				"imageId": {
 					"type": "string"
 				},
 				"repoName": {

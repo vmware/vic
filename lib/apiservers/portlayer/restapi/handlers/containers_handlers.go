@@ -95,7 +95,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		CreateTime: time.Now().UTC().Unix(),
 		Version:    version.GetBuild(),
 		Key:        pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:    params.CreateConfig.Image,
+		LayerID:    params.CreateConfig.Layer,
+		ImageID:    params.CreateConfig.Image,
 		RepoName:   params.CreateConfig.RepoName,
 	}
 
@@ -109,7 +110,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
 		Metadata:       m,
-		ParentImageID:  params.CreateConfig.Image,
+		ParentImageID:  params.CreateConfig.Layer,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 		Resources: exec.Resources{
 			NumCPUs:  params.CreateConfig.NumCpus,
@@ -423,6 +424,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	}
 	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
+	info.ContainerConfig.ImageID = container.ExecConfig.ImageID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
 	info.ContainerConfig.CreateTime = container.ExecConfig.CreateTime
 	info.ContainerConfig.Names = []string{container.ExecConfig.Name}

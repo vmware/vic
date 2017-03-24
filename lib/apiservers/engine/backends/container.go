@@ -507,9 +507,7 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 		return "", InternalServerError("Failed to create container")
 	}
 
-	imageID := vc.ImageID
-
-	id, h, err := c.containerProxy.CreateContainerHandle(imageID, config)
+	id, h, err := c.containerProxy.CreateContainerHandle(vc, config)
 	if err != nil {
 		return "", err
 	}
@@ -1622,7 +1620,8 @@ func clientFriendlyContainerName(name string) string {
 func createInternalVicContainer(image *metadata.ImageConfig, config *types.ContainerCreateConfig) (*viccontainer.VicContainer, error) {
 	// provide basic container config via the image
 	container := viccontainer.NewVicContainer()
-	container.ImageID = image.ID
+	container.LayerID = image.V1Image.ID // store childmost layer ID to map to the proper vmdk
+	container.ImageID = image.ImageID
 	container.Config = image.Config //Set defaults.  Overrides will get copied below.
 
 	return container, nil

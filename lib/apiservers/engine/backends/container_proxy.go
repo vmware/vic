@@ -79,7 +79,7 @@ import (
 
 // VicContainerProxy interface
 type VicContainerProxy interface {
-	CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error)
+	CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
 	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
@@ -169,15 +169,19 @@ func (c *ContainerProxy) Client() *client.PortLayer {
 //
 // returns:
 //	(containerID, containerHandle, error)
-func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
-	defer trace.End(trace.Begin(imageID))
+func (c *ContainerProxy) CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
+	defer trace.End(trace.Begin(vc.ImageID))
 
 	if c.client == nil {
 		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle failed to create a portlayer client")
 	}
 
-	if imageID == "" {
+	if vc.ImageID == "" {
 		return "", "", NotFoundError("No image specified")
+	}
+
+	if vc.LayerID == "" {
+		return "", "", NotFoundError("No layer specified")
 	}
 
 	// Call the Exec port layer to create the container
@@ -186,11 +190,11 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle got unexpected error getting VCH UUID")
 	}
 
-	plCreateParams := dockerContainerCreateParamsToPortlayer(config, imageID, host)
+	plCreateParams := dockerContainerCreateParamsToPortlayer(config, vc, host)
 	createResults, err := c.client.Containers.Create(plCreateParams)
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
-			cerr := fmt.Errorf("No such image: %s", imageID)
+			cerr := fmt.Errorf("No such image: %s", vc.ImageID)
 			log.Errorf("%s (%s)", cerr, err)
 			return "", "", NotFoundError(cerr.Error())
 		}
@@ -922,14 +926,17 @@ func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig
 	return tasks.NewJoinParamsWithContext(ctx).WithConfig(config)
 }
 
-func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
+func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, vc *viccontainer.VicContainer, imageStore string) *containers.CreateParams {
 	config := &models.ContainerCreateConfig{}
 
 	config.NumCpus = cc.HostConfig.CPUCount
 	config.MemoryMB = cc.HostConfig.Memory
 
-	// Image
-	config.Image = layerID
+	// Layer/vmdk to use
+	config.Layer = vc.LayerID
+
+	// Image ID
+	config.Image = vc.ImageID
 
 	// Repo Requested
 	config.RepoName = cc.Config.Image
@@ -1163,7 +1170,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			containerState.Running = true
 		}
 
-		inspectJSON.Image = info.ContainerConfig.LayerID
+		inspectJSON.Image = info.ContainerConfig.ImageID
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
 		inspectJSON.ID = info.ContainerConfig.ContainerID

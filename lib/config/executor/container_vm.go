@@ -152,6 +152,9 @@ type ExecutorConfig struct {
 	// Layer id that is backing this container VM
 	LayerID string `vic:"0.1" scope:"read-only" key:"layerid"`
 
+	// Image id that is backing this container VM
+	ImageID string `vic:"0.1" scope:"read-only" key:"imageid"`
+
 	// Blob metadata for the caller
 	Annotations map[string]string `vic:"0.1" scope:"hidden" key:"annotations"`
 
