@@ -880,8 +880,6 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
 	defer trace.End(trace.Begin(vc.ContainerID))
 
-	var err error
-
 	//retrieve client to portlayer
 	handle, err := c.Handle(vc.ContainerID, vc.Name)
 	if err != nil {

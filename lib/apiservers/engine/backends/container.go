@@ -1608,14 +1608,16 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 	defer trace.End(trace.Begin(newName))
 
 	if oldName == "" || newName == "" {
-		return fmt.Errorf("neither old nor new names may be empty")
+		err := fmt.Errorf("neither old nor new names may be empty")
+		log.Errorf("%s", err.Error())
+		return err
 	}
 
 	if !utils.RestrictedNamePattern.MatchString(newName) {
-		return fmt.Errorf("Invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
+		err := fmt.Errorf("Invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
+		log.Errorf("%s", err.Error())
+		return err
 	}
-
-	var err error
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(oldName)
@@ -1626,24 +1628,24 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 
 	oldName = vc.Name
 	if oldName == newName {
-		err = fmt.Errorf("renaming a container with the same name as its current name")
+		err := fmt.Errorf("renaming a container with the same name as its current name")
 		log.Errorf("%s", err.Error())
 		return err
 	}
 
 	if exists := cache.ContainerCache().GetContainer(newName); exists != nil {
-		err = fmt.Errorf("conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", newName, exists.ContainerID)
+		err := fmt.Errorf("conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", newName, exists.ContainerID)
 		log.Errorf("%s", err.Error())
 		return derr.NewRequestConflictError(err)
 	}
 
-	if err = c.containerProxy.Rename(vc, newName); err != nil {
+	if err := c.containerProxy.Rename(vc, newName); err != nil {
 		log.Errorf("Rename error: %s", err)
 		return err
 	}
 
 	// update containerCache
-	if err = cache.ContainerCache().UpdateContainerName(oldName, newName); err != nil {
+	if err := cache.ContainerCache().UpdateContainerName(oldName, newName); err != nil {
 		log.Errorf("Failed to update container cache: %s", err)
 		return err
 	}
