@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -53,7 +54,7 @@ type Manager struct {
 	reconfig sync.Mutex
 }
 
-func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, error) {
+func NewDiskManager(op trace.Operation, session *session.Session, detachAll bool) (*Manager, error) {
 	vm, err := guest.GetSelf(op, session)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -74,41 +75,40 @@ func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, err
 	}
 
 	// Remove any attached disks
-	if err = d.detachAll(op); err != nil {
-		return nil, err
+	if detachAll {
+		if err = d.detachAll(op); err != nil {
+			return nil, err
+		}
 	}
 
 	return d, nil
 }
 
 // CreateAndAttach creates a new vmdk child from parent of the given size.
-// Returns a VirtualDisk corresponding to the created and attached disk.  The
-// newDiskURI and parentURI are both Datastore URI paths in the form of
-// [datastoreN] /path/to/disk.vmdk.
+// Returns a VirtualDisk corresponding to the created and attached disk.
 func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
-	parentURI string,
+	parentURI *object.DatastorePath,
 	capacity int64, flags int) (*VirtualDisk, error) {
-	defer trace.End(trace.Begin(newDiskURI))
+	defer trace.End(trace.Begin(newDiskURI.String()))
 
 	// ensure we abide by max attached disks limits
 	m.maxAttached <- true
-
-	d, err := NewVirtualDisk(newDiskURI)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
 
 	spec := m.createDiskSpec(newDiskURI, parentURI, capacity, flags)
 
 	op.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
 
-	err = m.Attach(op, spec)
-	if err != nil {
+	if err := m.Attach(op, spec); err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	op.Debugf("Mapping vmdk to pci device %s", newDiskURI)
 	devicePath, err := m.devicePathByURI(op, newDiskURI)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	d, err := NewVirtualDisk(newDiskURI)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -125,18 +125,19 @@ func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 		return nil, errors.Trace(err)
 	}
 
+	d.ParentDatastoreURI = parentURI
 	d.setAttached(blockDev)
 
 	return d, nil
 }
 
-func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, flags int) *types.VirtualDisk {
+func (m *Manager) createDiskSpec(childURI, parentURI *object.DatastorePath, capacity int64, flags int) *types.VirtualDisk {
 	// TODO: migrate this method to govmomi CreateDisk method
 	backing := &types.VirtualDiskFlatVer2BackingInfo{
 		DiskMode:        string(types.VirtualDiskModeIndependent_persistent),
 		ThinProvisioned: types.NewBool(true),
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			FileName: childURI,
+			FileName: childURI.String(),
 		},
 	}
 
@@ -145,10 +146,10 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 		capacity = 0
 	}
 
-	if parentURI != "" {
+	if parentURI != nil {
 		backing.Parent = &types.VirtualDiskFlatVer2BackingInfo{
 			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-				FileName: parentURI,
+				FileName: parentURI.String(),
 			},
 		}
 	}
@@ -170,10 +171,10 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 }
 
 // Create creates a disk without a parent (and doesn't attach it).
-func (m *Manager) Create(op trace.Operation, newDiskURI string,
+func (m *Manager) Create(op trace.Operation, newDiskURI *object.DatastorePath,
 	capacityKB int64) (*VirtualDisk, error) {
 
-	defer trace.End(trace.Begin(newDiskURI))
+	defer trace.End(trace.Begin(newDiskURI.String()))
 
 	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
 
@@ -193,7 +194,7 @@ func (m *Manager) Create(op trace.Operation, newDiskURI string,
 
 	op.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
 	err = tasks.Wait(op, func(ctx context.Context) (tasks.Task, error) {
-		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
+		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI.String(), nil, spec)
 	})
 
 	if err != nil {
@@ -201,6 +202,37 @@ func (m *Manager) Create(op trace.Operation, newDiskURI string,
 	}
 
 	return d, nil
+}
+
+// Gets a disk given a datastore path URI to the vmdk
+func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath) (*VirtualDisk, error) {
+	defer trace.End(trace.Begin(diskURI.String()))
+
+	dsk, err := NewVirtualDisk(diskURI)
+	if err != nil {
+		return nil, err
+	}
+
+	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
+
+	info, err := vdm.QueryVirtualDiskInfo(op, diskURI.String(), nil, true)
+	if err != nil {
+		op.Errorf("error querying parents (%s): %s", diskURI, err.Error())
+		return nil, err
+	}
+
+	// the last elem in the info list is the disk we just looked up.
+	p := info[len(info)-1]
+
+	if p.Parent != "" {
+		ppth, err := datastore.DatastorePathFromString(p.Parent)
+		if err != nil {
+			return nil, err
+		}
+		dsk.ParentDatastoreURI = ppth
+	}
+
+	return dsk, nil
 }
 
 // TODO(FA) this doesn't work since delta disks get set with `deletable =
@@ -281,7 +313,7 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 		return errors.Trace(err)
 	}
 
-	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI)
+	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -344,10 +376,10 @@ func (m *Manager) detachAll(op trace.Operation) error {
 	return err
 }
 
-func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI string) (string, error) {
-	disk, err := findDiskByFilename(op, m.vm, datastoreURI)
+func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.DatastorePath) (string, error) {
+	disk, err := findDiskByFilename(op, m.vm, datastoreURI.String())
 	if err != nil {
-		op.Errorf("findDisk failed for %s with %s", datastoreURI, errors.ErrorStack(err))
+		op.Errorf("findDisk failed for %s with %s", datastoreURI.String(), errors.ErrorStack(err))
 		return "", errors.Trace(err)
 	}
 

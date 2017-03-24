@@ -41,17 +41,20 @@ func TestCreateFS(t *testing.T) {
 		return
 	}
 
-	imagestore := client.Datastore.Path(datastore.TestName("diskTest"))
+	imagestore := &object.DatastorePath{
+		Datastore: client.Datastore.Name(),
+		Path:      datastore.TestName("diskTest"),
+	}
 
 	fm := object.NewFileManager(client.Vim25())
 
 	// create a directory in the datastore
 	// eat the error because we dont care if it exists
-	fm.MakeDirectory(context.TODO(), imagestore, nil, true)
+	fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
 
 	// Nuke the image store
 	defer func() {
-		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore, nil)
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
 		if err != nil && err.Error() == "can't find the hosting vm" {
 			t.Skip("Skipping: test must be run in a VM")
 		}
@@ -66,7 +69,7 @@ func TestCreateFS(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), "test")
 
-	vdm, err := NewDiskManager(op, client)
+	vdm, err := NewDiskManager(op, client, false)
 	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
@@ -75,7 +78,11 @@ func TestCreateFS(t *testing.T) {
 	}
 
 	diskSize := int64(1 << 10)
-	d, err := vdm.CreateAndAttach(op, path.Join(imagestore, "scratch.vmdk"), "", diskSize, os.O_RDWR)
+	scratch := &object.DatastorePath{
+		Datastore: client.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
+	}
+	d, err := vdm.CreateAndAttach(op, scratch, nil, diskSize, os.O_RDWR)
 	if !assert.NoError(t, err) {
 		return
 	}

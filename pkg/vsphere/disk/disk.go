@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/fs"
 )
 
@@ -49,7 +50,10 @@ func FilesystemTypeToFilesystem(fstype FilesystemType) Filesystem {
 // mounted), and other configuration.
 type VirtualDisk struct {
 	// The URI in the datastore this disk can be found with
-	DatastoreURI string
+	DatastoreURI *object.DatastorePath
+
+	// The URI in the datastore to the parent of this disk
+	ParentDatastoreURI *object.DatastorePath
 
 	// The device node the disk is attached to
 	DevicePath string
@@ -63,8 +67,8 @@ type VirtualDisk struct {
 	fs Filesystem
 }
 
-func NewVirtualDisk(DatastoreURI string) (*VirtualDisk, error) {
-	if err := VerifyDatastoreDiskURI(DatastoreURI); err != nil {
+func NewVirtualDisk(DatastoreURI *object.DatastorePath) (*VirtualDisk, error) {
+	if err := VerifyDatastoreDiskURI(DatastoreURI.String()); err != nil {
 		return nil, err
 	}
 
@@ -201,7 +205,7 @@ func (d *VirtualDisk) DiskPath() url.URL {
 
 	return url.URL{
 		Scheme: "ds",
-		Path:   d.DatastoreURI,
+		Path:   d.DatastoreURI.String(),
 	}
 }
 

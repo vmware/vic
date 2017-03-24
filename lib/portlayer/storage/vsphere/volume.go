@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -49,7 +50,7 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 		return nil, err
 	}
 
-	dm, err := disk.NewDiskManager(op, s)
+	dm, err := disk.NewDiskManager(op, s, DetachAll)
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +82,11 @@ func (v *VolumeStore) volMetadataDirPath(ID string) string {
 }
 
 // Returns the path to the vmdk itself (in datastore URL format)
-func (v *VolumeStore) volDiskDsURL(ID string) (string, error) {
-	// XXX this could be hidden in a helper.  We shouldn't use rooturl outside the datastore struct
-	return path.Join(v.ds.RootURL.String(), v.volDirPath(ID), ID+".vmdk"), nil
+func (v *VolumeStore) volDiskDsURL(ID string) *object.DatastorePath {
+	return &object.DatastorePath{
+		Datastore: v.ds.RootURL.Datastore,
+		Path:      path.Join(v.ds.RootURL.Path, v.volDirPath(ID), ID+".vmdk"),
+	}
 }
 
 func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
@@ -94,13 +97,10 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	}
 
 	// Get the path to the disk in datastore uri format
-	volDiskDsURL, err := v.volDiskDsURL(ID)
-	if err != nil {
-		return nil, err
-	}
+	volDiskDsURL := v.volDiskDsURL(ID)
 
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(op, volDiskDsURL, "", int64(capacityKB), os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(op, volDiskDsURL, nil, int64(capacityKB), os.O_RDWR)
 	if err != nil {
 		return nil, err
 	}
@@ -160,10 +160,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		ID := file.Path
 
 		// Get the path to the disk in datastore uri format
-		volDiskDsURL, err := v.volDiskDsURL(ID)
-		if err != nil {
-			return nil, err
-		}
+		volDiskDsURL := v.volDiskDsURL(ID)
 
 		dev, err := disk.NewVirtualDisk(volDiskDsURL)
 		if err != nil {

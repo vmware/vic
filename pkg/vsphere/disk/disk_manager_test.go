@@ -43,12 +43,34 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 		Keepalive: time.Duration(5) * time.Minute,
 	}
 
-	s, err := session.NewSession(config).Create(ctx)
+	s := session.NewSession(config)
+
+	_, err := s.Connect(ctx)
+	if err != nil {
+		t.Skip(err.Error())
+		return nil
+	}
+
+	// we're treating this as an atomic behaviour, so log out if we failed
+	defer func() {
+		if err != nil {
+			t.Skip(err.Error())
+			s.Client.Logout(ctx)
+		}
+	}()
+
+	_, err = s.Populate(ctx)
+	if err != nil {
+		t.Skip(err.Error())
+		return nil
+	}
+
 	// Vsan has special UUID / URI handling of top level directories which
 	// we've implemented at another level.  We can't import them here or it'd
 	// be a circular dependency.  Also, we already have tests that test these
 	// cases but from a higher level.
 	if err != nil || s.IsVSAN(ctx) {
+		t.Logf("error: %s", err.Error())
 		t.SkipNow()
 	}
 
@@ -65,16 +87,19 @@ func TestCreateAndDetach(t *testing.T) {
 		return
 	}
 
-	imagestore := client.Datastore.Path(datastore.TestName("diskManagerTest"))
+	imagestore := &object.DatastorePath{
+		Datastore: client.Datastore.Name(),
+		Path:      datastore.TestName("diskManagerTest"),
+	}
 
 	fm := object.NewFileManager(client.Vim25())
 
 	// create a directory in the datastore
 	// eat the error because we dont care if it exists
-	fm.MakeDirectory(context.TODO(), imagestore, nil, true)
+	fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
 
 	op := trace.NewOperation(context.Background(), "test")
-	vdm, err := NewDiskManager(op, client)
+	vdm, err := NewDiskManager(op, client, false)
 	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
@@ -84,7 +109,11 @@ func TestCreateAndDetach(t *testing.T) {
 	}
 
 	diskSize := int64(1 << 10)
-	parent, err := vdm.Create(op, path.Join(imagestore, "scratch.vmdk"), diskSize)
+	scratch := &object.DatastorePath{
+		Datastore: client.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
+	}
+	parent, err := vdm.Create(op, scratch, diskSize)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -97,7 +126,11 @@ func TestCreateAndDetach(t *testing.T) {
 	// Create children which inherit from eachother
 	for i := 0; i < numChildren; i++ {
 
-		p := path.Join(imagestore, fmt.Sprintf("child%d.vmdk", i))
+		p := &object.DatastorePath{
+			Datastore: imagestore.Datastore,
+			Path:      path.Join(imagestore.Path, fmt.Sprintf("child%d.vmdk", i)),
+		}
+
 		child, cerr := vdm.CreateAndAttach(op, p, parent.DatastoreURI, 0, os.O_RDWR)
 		if !assert.NoError(t, cerr) {
 			return
@@ -162,7 +195,7 @@ func TestCreateAndDetach(t *testing.T) {
 
 	// Nuke the image store
 	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, imagestore, nil)
+		return fm.DeleteDatastoreFile(ctx, imagestore.String(), nil)
 	})
 
 	if !assert.NoError(t, err) {
