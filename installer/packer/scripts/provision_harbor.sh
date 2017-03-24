@@ -26,8 +26,8 @@ docker load -i /var/tmp/harbor/harbor.dev.tgz
 
 # Copy configuration data from tarball
 mkdir /etc/vmware/harbor
-cp -pr /var/tmp/harbor/{prepare,common,harbor.cfg} /data/harbor
-cp -p /var/tmp/harbor/{docker-compose.yml,docker-compose.notary.yml} /etc/vmware/harbor
+cp -p /var/tmp/harbor/harbor.cfg /data/harbor
+cp -pr /var/tmp/harbor/{prepare,common,docker-compose.yml,docker-compose.notary.yml} /etc/vmware/harbor
 
 # Stop docker service
 systemctl stop docker.service
@@ -43,16 +43,10 @@ for _, s in enumerate(dataMap["services"]):
   if "restart" in dataMap["services"][s]:
       if "always" in dataMap["services"][s]["restart"]:
         dataMap["services"][s]["restart"] = "on-failure"
-  if "env_file" in dataMap["services"][s]:
-    for kef, ef in enumerate(dataMap["services"][s]["env_file"]):
-      if ef.startswith( './common' ):
-        dataMap["services"][s]["env_file"][kef] = ef.replace("./common", "{0}/common".format(dir), 1)
   if "volumes" in dataMap["services"][s]:
     for kvol, vol in enumerate(dataMap["services"][s]["volumes"]):
       if vol.startswith( '/data' ):
         dataMap["services"][s]["volumes"][kvol] = vol.replace("/data", dir, 1)
-      if vol.startswith( './common' ):
-        dataMap["services"][s]["volumes"][kvol] = vol.replace("./common", "{0}/common".format(dir), 1)
 f.seek(0)
 yaml.dump(dataMap, f, default_flow_style=False)
 f.truncate()

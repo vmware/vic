@@ -9,7 +9,7 @@ Type=simple
 Restart=on-failure
 RestartSec=5
 # TODO(fangyuanl): parametrize the container tag
-ExecStart=/usr/bin/docker run -p 8282:8282 --name vic-admiral --log-driver=json-file --log-opt max-size=1g --log-opt max-file=10 vmware/admiral:dev-vic --sandbox=/data/admiral
+ExecStart=/usr/bin/docker run -p 8282:8282 --name vic-admiral --log-driver=json-file --log-opt max-size=1g --log-opt max-file=10 -v /data/admiral:/sandbox -e XENON_OPTS="--sandbox=/sandbox" vmware/admiral:dev-vic
 ExecStop=/usr/bin/docker stop vic-admiral
 ExecStopPost=/usr/bin/docker rm -f vic-admiral
 

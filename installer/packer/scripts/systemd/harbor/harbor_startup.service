@@ -7,7 +7,7 @@ Before=harbor.service
 [Service]
 Type=oneshot
 ExecStartPre=/usr/bin/bash /etc/vmware/harbor/configure_harbor.sh
-ExecStart=/usr/bin/python /data/harbor/prepare --conf /data/harbor/harbor.cfg --with-notary
+ExecStart=/usr/bin/python /etc/vmware/harbor/prepare --conf /data/harbor/harbor.cfg --with-notary
 
 [Install]
 WantedBy=multi-user.target

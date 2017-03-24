@@ -22,7 +22,7 @@ echo "Docker started"
 # pull admiral image
 echo "Pulling Admiral Docker image.."
 # TODO(lcastellano): parametrize the image name
-docker pull docker.io/vmware/admiral:dev-vic
+docker pull vmware/admiral:dev-vic
 echo "Pulled Admiral image"
 
 # stop docker
