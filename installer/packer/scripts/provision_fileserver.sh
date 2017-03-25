@@ -16,4 +16,6 @@
 # Move zip files to base directory, remove unneeded files from ui/
 cd /data/fileserver
 find . -name "*.zip" | xargs -t -I {} mv {} .
-rm -r ui/
+# TODO(frapposelli): add this again if needed when vic-ui is built as part of 
+# the bundle
+# rm -r ui/

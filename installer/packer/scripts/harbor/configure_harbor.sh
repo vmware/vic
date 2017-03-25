@@ -17,7 +17,9 @@ set -x -euf -o pipefail
 deploy=$(ovfenv -k harbor.deploy)
 
 if [ ${deploy,,} != "true" ]; then
-  echo "Not configuring Harbor" && exit 0
+  echo "Not configuring Harbor and disabling startup"
+  systemctl stop harbor
+  exit 0
 fi
 
 data_dir=/data/harbor
@@ -147,13 +149,14 @@ function detectHostname {
 }
 
 function setPortInYAML {
-FILE="$1" PORT="$2"  python - <<END
+FILE="$1" HPORT="$2" NPORT="$3" python - <<END
 import yaml, os
-port = os.environ['PORT']
+harbor_port = os.environ['HPORT']
+notary_port = os.environ['NPORT']
 file = os.environ['FILE']
 f = open(file, "r+")
 dataMap = yaml.safe_load(f)
-newports = ['{0}:443'.format(port)]
+newports = ['{0}:443'.format(harbor_port),'{0}:4443'.format(notary_port)]
 dataMap["services"]["proxy"]["ports"] = newports
 f.seek(0)
 yaml.dump(dataMap, f, default_flow_style=False)
@@ -181,11 +184,11 @@ ip_address=$(ip addr show dev eth0 | sed -nr 's/.*inet ([^ ]+)\/.*/\1/p')
 detectHostname
 if [[ x$hostname != "x" ]]; then
   echo "Hostname: ${hostname}"
-  configureHarborCfg "hostname" ${hostname}
 else
   echo "Hostname is null, set it to IP"
   hostname=${ip_address}
 fi
+configureHarborCfg "hostname" ${hostname}:$(ovfenv -k harbor.port)
 
 configureHarborCfg ui_url_protocol https
 secure
@@ -202,4 +205,11 @@ do
   configureHarborCfg $(echo ${attr} | cut -d. -f2) "$value"
 done
 
-setPortInYAML $harbor_compose_file $(ovfenv -k harbor.port)
+setPortInYAML $harbor_compose_file $(ovfenv -k harbor.port) $(ovfenv -k harbor.notary_port)
+
+admiral_deploy=$(ovfenv -k admiral.deploy)
+
+if [ ${admiral_deploy,,} == "true" ]; then
+  # If admiral is deployed, configure the integration URL
+  configureHarborCfg admiral_url https://${hostname}:$(ovfenv -k admiral.port)
+fi
