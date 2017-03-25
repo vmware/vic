@@ -74,12 +74,9 @@ Verify Container Rename
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${newname}
     ${vmName}=  Get VM display name  ${contID}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${vmName}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  ${vmName}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${vmname}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${vmname}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${vmName}
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
