@@ -40,6 +40,18 @@ import (
 	eventtypes "github.com/docker/docker/api/types/events"
 )
 
+const (
+	containerDieEvent     = "die"
+	containerStopEvent    = "stop"
+	containerStartEvent   = "start"
+	containerCreateEvent  = "create"
+	containerRestartEvent = "restart"
+	containerAttachEvent  = "attach"
+	containerDetachEvent  = "detach"
+	containerKillEvent    = "kill"
+	containerResizeEvent  = "resize"
+)
+
 // for unit testing purposes
 type eventproxy interface {
 	StreamEvents(ctx context.Context, out io.Writer) error
@@ -198,8 +210,7 @@ func (m *PortlayerEventMonitor) monitor() error {
 }
 
 // publishEvent() translate a portlayer event into a Docker event if the event is for a
-// known container and publishes them to Docker event subscribers.  Currently, it only
-// looks for stopped events.
+// known container and publishes them to Docker event subscribers.
 func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	defer trace.End(trace.Begin(""))
 
@@ -211,6 +222,6 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	if event.Event == plevents.ContainerStopped {
 		log.Debugf("Sending event for continer %s", vc.ContainerID)
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log("die", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
 	}
 }
