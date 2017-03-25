@@ -26,15 +26,15 @@ ${newyml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: ubuntu\
 Compose up -d --force-recreate
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
     Run  echo '${yml}' > compose-rename.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file compose-rename.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d --force-recreate
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file compose-rename.yml up -d --force-recreate
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose up -d with a new image
     Run  echo '${newyml}' > compose-rename.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file compose-rename.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0

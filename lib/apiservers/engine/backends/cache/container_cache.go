@@ -141,7 +141,7 @@ func (cc *CCache) UpdateContainerName(oldName, newName string) error {
 	}
 
 	if exists := cc.getContainer(newName); exists != nil {
-		err := fmt.Errorf("conflict in container cache. The name %q is already in use by container %s.", newName, exists.ContainerID)
+		err := fmt.Errorf("the name %q is already in use by container %s.", newName, exists.ContainerID)
 		log.Errorf("%s", err.Error())
 		return err
 	}
