@@ -24,7 +24,9 @@ ${newyml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: ubuntu\
 
 *** Test Cases ***
 Compose up -d --force-recreate
+    Set Environment Variable  CURL_CA_BUNDLE  ${EMPTY}
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
+    
     Run  echo '${yml}' > compose-rename.yml
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file compose-rename.yml up -d
     Log  ${output}
