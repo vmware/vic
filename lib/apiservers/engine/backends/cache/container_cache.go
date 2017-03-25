@@ -20,6 +20,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/truncindex"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -137,13 +138,13 @@ func (cc *CCache) UpdateContainerName(oldName, newName string) error {
 
 	container := cc.getContainer(oldName)
 	if container == nil {
-		return fmt.Errorf("no such container: %s", oldName)
+		return derr.NewRequestNotFoundError(fmt.Errorf("no such container: %s", oldName))
 	}
 
 	if exists := cc.getContainer(newName); exists != nil {
 		err := fmt.Errorf("the name %q is already in use by container %s.", newName, exists.ContainerID)
 		log.Errorf("%s", err.Error())
-		return err
+		return derr.NewRequestConflictError(err)
 	}
 
 	delete(cc.containersByName, container.Name)

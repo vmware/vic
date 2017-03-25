@@ -883,14 +883,13 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	//retrieve client to portlayer
 	handle, err := c.Handle(vc.ContainerID, vc.Name)
 	if err != nil {
-		return err
+		return InternalServerError(err.Error())
 	}
 
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
-		err = InternalServerError("wait failed to create a portlayer client")
-		return err
+		return InternalServerError("wait failed to create a portlayer client")
 	}
 
 	// Call the rename functionality in the portlayer.
@@ -901,7 +900,7 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 		case *containers.ContainerRenameNotFound:
 			return NotFoundError(vc.Name)
 		case *containers.ContainerRenameConflict:
-			return derr.NewRequestConflictError(fmt.Errorf("container name collision in portlayer"))
+			return ConflictError("container name already exists")
 		default:
 			return InternalServerError(err.Error())
 		}
@@ -914,11 +913,11 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
-		case *containers.CommitDefault:
-			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+			return NotFoundError(err.Payload.Message)
+		case *containers.CommitConflict:
+			return ConflictError(err.Payload.Message)
 		default:
-			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			return InternalServerError(err.Error())
 		}
 	}
 
