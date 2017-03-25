@@ -23,9 +23,6 @@ import (
 	"strings"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
-	dockerUser "github.com/opencontainers/runc/libcontainer/user"
-
 	"github.com/vmware/vic/pkg/trace"
 )
 
