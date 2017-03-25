@@ -18,7 +18,9 @@ deploy=$(ovfenv -k admiral.deploy)
 port=$(ovfenv -k admiral.port)
 
 if [ ${deploy,,} != "true" ]; then
-  echo "Not configuring Admiral" && exit 0
+  echo "Not configuring Admiral and disabling startup"
+  systemctl stop admiral
+  exit 0
 fi
 
 data_dir=/data/admiral
@@ -166,6 +168,7 @@ fi
 # Init certs
 secure
 
+configureAdmiralStart ADMIRAL_DATA_LOCATION $data_dir
 #configureAdmiralStart ADMIRAL_TLS YES
 configureAdmiralStart ADMIRAL_CERT_LOCATION $cert
 configureAdmiralStart ADMIRAL_KEY_LOCATION $key

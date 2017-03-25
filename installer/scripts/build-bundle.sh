@@ -15,7 +15,8 @@
 
 # exit on failure and configure debug, include util functions
 set -e && [ -n "$DEBUG" ] && set -x
-DIR=$(dirname $(readlink -f "$0"))
+readlink=$(type -p greadlink readlink | head -1)
+DIR=$(dirname $($readlink -f "$0"))
 
 function usage() {
     echo "Usage: $0 -o outputfile -b bin_dir" 1>&2
@@ -58,4 +59,4 @@ cp doc/bundle/README $TEMP_DIR
 cp $bin_dir/vic-machine* $TEMP_DIR
 cp $bin_dir/appliance.iso $TEMP_DIR
 cp $bin_dir/bootstrap.iso $TEMP_DIR
-tar czvf $outfile -C $TEMP_DIR .
+tar czvf $outfile -C $TEMP_DIR . >/dev/null 2>&1

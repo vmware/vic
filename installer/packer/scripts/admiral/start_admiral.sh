@@ -17,25 +17,27 @@ set -x -euf -o pipefail
 
 PORT=""
 ADMIRAL_TLS=""
+ADMIRAL_DATA_LOCATION=""
 ADMIRAL_KEY_LOCATION=""
 ADMIRAL_CERT_LOCATION=""
 
 if [ -n $ADMIRAL_TLS ]; then
 	/usr/bin/docker run -d -p ${PORT}:${PORT} \
 	 --name vic-admiral \
+	 -e XENON_OPTS="--sandbox=${ADMIRAL_DATA_LOCATION}"
 	 --log-driver=json-file \
 	 --log-opt max-size=1g \
 	 --log-opt max-file=10 \
-		 vmware/admiral:dev
+		 vmware/admiral:dev-vic
 else
 	/usr/bin/docker run -d -p ${PORT}:${PORT} \
 	 --name vic-admiral \
 	 -e ADMIRAL_PORT=-1 \
-	 -e XENON_OPTS="--securePort=${PORT} --certificateFile=/tmp/server.crt --keyFile=/tmp/server.key --port=-1" \
+	 -e XENON_OPTS="--sandbox=${ADMIRAL_DATA_LOCATION} --securePort=${PORT} --certificateFile=/tmp/server.crt --keyFile=/tmp/server.key --port=-1" \
 	 -v "$ADMIRAL_CERT_LOCATION:/tmp/server.cert" \
 	 -v "$ADMIRAL_KEY_LOCATION:/tmp/server.key" \
 	 --log-driver=json-file \
 	 --log-opt max-size=1g \
 	 --log-opt max-file=10 \
-		 vmware/admiral:dev
+		 vmware/admiral:dev-vic
 fi
