@@ -198,6 +198,15 @@
     },
     {
       "type": "shell",
+      "script": "scripts/provision_harbor.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/harbor/configure_harbor.sh",
+      "destination": "/etc/vmware/harbor/configure_harbor.sh"
+    },
+    {
+      "type": "shell",
       "script": "scripts/provision_admiral.sh"
     },
     {
@@ -206,18 +215,24 @@
     },
     {
       "type": "file",
+      "source": "scripts/systemd/admiral/admiral_startup.service",
+      "destination": "/usr/lib/systemd/system/admiral_startup.service"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/admiral/admiral.service",
       "destination": "/usr/lib/systemd/system/admiral.service"
     },
     {
-      "type": "shell",
-      "script": "scripts/provision_harbor.sh"
+      "type": "file",
+      "source": "scripts/admiral/configure_admiral.sh",
+      "destination": "/etc/vmware/admiral/configure_admiral.sh"
     },
     {
       "type": "file",
-      "source": "scripts/harbor/configure_harbor.sh",
-      "destination": "/etc/vmware/harbor/configure_harbor.sh"
-    },
+      "source": "scripts/admiral/start_admiral.sh",
+      "destination": "/etc/vmware/admiral/start_admiral.sh"
+	},
     {
       "type": "shell",
       "only": ["vagrant-local"],

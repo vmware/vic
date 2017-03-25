@@ -1,17 +1,16 @@
 [Unit]
 Description=Admiral is a highly scalable and very lightweight Container Management platform for deploying and managing container based applications.
 Documentation=https://github.com/vmware/admiral
-After=docker.service data.mount
-Requires=docker.service data.mount
+After=docker.service systemd-networkd.service systemd-resolved.service
+Requires=docker.service
 
 [Service]
 Type=simple
 Restart=on-failure
 RestartSec=5
-# TODO(fangyuanl): parametrize the container tag
-ExecStart=/usr/bin/docker run -p 8282:8282 --name vic-admiral --log-driver=json-file --log-opt max-size=1g --log-opt max-file=10 -v /data/admiral:/sandbox -e XENON_OPTS="--sandbox=/sandbox" vmware/admiral:dev-vic
-ExecStop=/usr/bin/docker stop vic-admiral
-ExecStopPost=/usr/bin/docker rm -f vic-admiral
+ExecStartPre=-/usr/local/bin/docker rm vic-admiral
+ExecStart=/usr/bin/bash /etc/vmware/harbor/start_admiral.sh
+ExecStop=/usr/local/bin/docker stop vic-admiral
 
 [Install]
 WantedBy=multi-user.target
