@@ -37,7 +37,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	// Image Store
 	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastorePath, "", "--image-store")
 
-	if imageDSpath == nil {
+	if err != nil {
 		v.NoteIssue(err)
 		return
 	}
@@ -47,7 +47,6 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 		imageDSpath.Path = input.DisplayName
 	}
 
-	v.NoteIssue(err)
 	if ds != nil {
 		v.SetDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)

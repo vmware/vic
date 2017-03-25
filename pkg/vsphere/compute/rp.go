@@ -15,8 +15,6 @@
 package compute
 
 import (
-	"path"
-
 	log "github.com/Sirupsen/logrus"
 
 	"context"
@@ -47,24 +45,6 @@ func NewResourcePool(ctx context.Context, session *session.Session, moref types.
 		),
 		Session: session,
 	}
-}
-
-func FindResourcePool(ctx context.Context, s *session.Session, name string) (*ResourcePool, error) {
-	var err error
-
-	if name != "" {
-		if !path.IsAbs(name) {
-			name = path.Join(s.Cluster.InventoryPath, "Resources", name)
-		}
-	} else {
-		name = path.Join(s.Cluster.InventoryPath, "Resources")
-	}
-
-	pool, err := s.Finder.ResourcePoolOrDefault(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	return NewResourcePool(ctx, s, pool.Reference()), nil
 }
 
 func (rp *ResourcePool) GetChildrenVMs(ctx context.Context, s *session.Session) ([]*vm.VirtualMachine, error) {
