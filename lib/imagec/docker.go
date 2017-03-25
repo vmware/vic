@@ -1,3 +1,4 @@
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +47,7 @@ const (
 	DigestSHA256EmptyTar = string(dlayer.DigestSHA256EmptyTar)
 )
 
-// FSLayer is a contanseciner struct for BlobSums defined in an image manifest
+// FSLayer is a container struct for BlobSums defined in an image manifest
 type FSLayer struct {
 	// BlobSum is the tarsum of the referenced filesystem image layer
 	BlobSum string `json:"blobSum"`
