@@ -205,7 +205,7 @@ func (m *MockContainerProxy) Handle(id, name string) (string, error) {
 	return "", nil
 }
 
-func (m *MockContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
+func (m *MockContainerProxy) CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
 	respIdx := m.mockRespIndices[0]
 
 	if respIdx >= len(m.mockCreateHandleData) {

@@ -155,12 +155,6 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 		return copyImageConfig(config), nil
 	}
 
-	// let's try to get the image ID from the repocache just in case we have a layer ID
-	// see https://github.com/vmware/vic/issues/4378#issuecomment-289070799
-	if id := RepositoryCache().GetImageID(strings.Split(idOrRef, ":")[0]); id != "" {
-		idOrRef = id
-	}
-
 	// get the full image ID if supplied a prefix
 	if id, err := ic.iDIndex.Get(idOrRef); err == nil {
 		idOrRef = id

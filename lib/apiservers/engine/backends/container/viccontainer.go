@@ -23,7 +23,8 @@ import (
 // VicContainer is VIC's abridged version of Docker's container object.
 type VicContainer struct {
 	Name        string
-	ImageID     string
+	ImageID     string // maps to the image used by this container
+	LayerID     string // child-most layer ID used to find vmdk for this container
 	ContainerID string
 	Config      *containertypes.Config //Working copy of config (with overrides from container create)
 	HostConfig  *containertypes.HostConfig
