@@ -44,6 +44,12 @@ import (
 var (
 	hostnameFile = "/etc/hostname"
 	byLabelDir   = "/dev/disk/by-label"
+
+	defaultExecUser = &dockerUser.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
 )
 
 const (
@@ -795,16 +801,24 @@ func (t *BaseOperations) Cleanup() error {
 //     * "user:gid"
 //     * "uid:group"
 func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
-	if len(uid) == 0 && len(gid) == 0 {
+	if uid == "" && gid == "" {
 		log.Debugf("no user id or group id specified")
 		return nil, nil
 	}
 
 	user := uid
-	if len(gid) > 0 {
+	if gid != "" {
 		user = fmt.Sprintf("%s:%s", uid, gid)
 	}
-	execUser, err := searchUser(user)
+	passwdPath, err := dockerUser.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+	groupPath, err := dockerUser.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+	execUser, err := dockerUser.GetExecUserPath(user, defaultExecUser, passwdPath, groupPath)
 	if err != nil {
 		return nil, err
 	}
@@ -820,22 +834,4 @@ func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 		sysProc.Credential.Groups = append(sysProc.Credential.Groups, uint32(sgid))
 	}
 	return sysProc, nil
-}
-
-func searchUser(user string) (*dockerUser.ExecUser, error) {
-	defaultExecUser := dockerUser.ExecUser{
-		Uid:  syscall.Getuid(),
-		Gid:  syscall.Getgid(),
-		Home: "/",
-	}
-
-	passwdPath, err := dockerUser.GetPasswdPath()
-	if err != nil {
-		return nil, err
-	}
-	groupPath, err := dockerUser.GetGroupPath()
-	if err != nil {
-		return nil, err
-	}
-	return dockerUser.GetExecUserPath(user, &defaultExecUser, passwdPath, groupPath)
 }

@@ -86,15 +86,12 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 	// parsing user
 	if params.Config.User != "" {
 		parts := strings.Split(params.Config.User, ":")
-		var user, group string
 		if len(parts) > 0 {
-			user = parts[0]
+			sessionConfig.User = parts[0]
 		}
 		if len(parts) > 1 {
-			group = parts[1]
+			sessionConfig.Group = parts[1]
 		}
-		sessionConfig.User = user
-		sessionConfig.Group = group
 	}
 
 	handleprime, err := task.Join(&op, handle, sessionConfig)

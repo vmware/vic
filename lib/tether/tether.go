@@ -47,10 +47,6 @@ const (
 
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
-
-	// min/max user or group id, this is to keep consistent with docker
-	minID = 0
-	maxID = 1<<31 - 1
 )
 
 var Sys = system.New()
