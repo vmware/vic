@@ -15,12 +15,14 @@
 *** Settings ***
 Documentation  Test 5-15 - NFS Datastore
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    Create a Simple VC Cluster  datacenter  cls
+    ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
+
+    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
 
     ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 

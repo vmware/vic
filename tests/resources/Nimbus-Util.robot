@@ -18,20 +18,22 @@ Documentation  This resource contains any keywords related to using the Nimbus c
 *** Variables ***
 ${ESX_VERSION}  4564106  #6.5 RTM
 ${VC_VERSION}  4602587   #6.5 RTM
+${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 
 *** Keywords ***
 Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}
+    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
+    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ob-${version}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
+    \   Log To Console  ${out}
     \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
     \   Sleep  5 minutes
 
@@ -48,9 +50,9 @@ Deploy Nimbus ESXi Server
     Remove Environment Variable  GOVC_USERNAME
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
     Should Be Empty  ${out}
-    Disable TLS On ESX Host
+    Run Keyword If  ${tls_disabled}  Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name}
     Close connection
     [Return]  ${user}-${name}  ${ip}
@@ -106,7 +108,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Remove Environment Variable  GOVC_USERNAME
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip1}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
     Should Be Empty  ${out}
     Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name1}
@@ -116,7 +118,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Remove Environment Variable  GOVC_USERNAME
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip2}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
     Should Be Empty  ${out}
     Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name2}
@@ -126,7 +128,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Remove Environment Variable  GOVC_USERNAME
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${ip3}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
     Should Be Empty  ${out}
     Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name3}
@@ -217,8 +219,8 @@ Cleanup Nimbus PXE folder
     Close connection
 
 Nimbus Cleanup
-    [Arguments]  ${vm_list}
-    Run Keyword And Continue On Failure  Gather Logs From Test Server
+    [Arguments]  ${vm_list}  ${collect_log}=True
+    Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
     :FOR  ${item}  IN  @{vm_list}
     \   Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${item}
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -281,21 +283,16 @@ Create a VSAN Cluster
     Gather Host IPs
 
 Create a Simple VC Cluster
-    [Arguments]  ${datacenter}=ha-datacenter  ${cluster}=cls
+    [Arguments]  ${datacenter}=ha-datacenter  ${cluster}=cls  ${esx_number}=3  ${network}=True
     Log To Console  \nStarting simple VC cluster deploy...
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX1}  ${esx1}
-    Set Suite Variable  ${ESX1-IP}  ${esx1-ip}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX2}  ${esx2}
-    Set Suite Variable  ${ESX2-IP}  ${esx2-ip}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX3}  ${esx3}
-    Set Suite Variable  ${ESX3-IP}  ${esx3-ip}
+    ${esx_names}=  Create List
+    ${esx_ips}=  Create List
+    :FOR  ${IDX}  IN RANGE  ${esx_number}
+    \   ${esx}  ${esx_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}  False
+    \   Append To List  ${esx_names}  ${esx}
+    \   Append To List  ${esx_ips}  ${esx_ip}
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${VC}  ${vc}
-    Set Suite Variable  ${VC-IP}  ${vc-ip}
+    ${vc}  ${vc_ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ${datacenter}
@@ -306,13 +303,28 @@ Create a Simple VC Cluster
     Should Be Empty  ${out}
 
     Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
+    :FOR  ${IDX}  IN RANGE  ${esx_number}
+    \   ${out}=  Run  govc cluster.add -hostname=@{esx_ips}[${IDX}] -username=root -dc=${datacenter} -password=${NIMBUS_ESX_PASSWORD} -noverify=true
+    \   Should Contain  ${out}  OK
 
+    Run Keyword If  ${network}  Setup Network For Simple VC Cluster  ${esx_number}  ${datacenter}  ${cluster}
+
+    Log To Console  Enable DRS on the cluster
+    ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
+    Should Be Empty  ${out}
+
+    Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
+    Set Environment Variable  TEST_URL  ${vc_ip}
+    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  TEST_PASSWORD  Admin\!23
+    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_DATACENTER  ${datacenter}
+    Set Environment Variable  TEST_RESOURCE  ${cluster}
+    Set Environment Variable  TEST_TIMEOUT  30m
+    [Return]  @{esx_names}  ${vc}  @{esx_ips}  ${vc_ip}
+
+Setup Network For Simple VC Cluster
+    [Arguments]  ${esx_number}  ${datacenter}  ${cluster}
     Log To Console  Create a distributed switch
     ${out}=  Run  govc dvs.create -dc=${datacenter} test-ds
     Should Contain  ${out}  OK
@@ -329,19 +341,8 @@ Create a Simple VC Cluster
     ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /${datacenter}/host/${cluster}
     Should Contain  ${out}  OK
 
-    Log To Console  Enable DRS on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
-    Should Be Empty  ${out}
-
-    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
-    Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
-    Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    Set Environment Variable  TEST_DATASTORE  datastore1
-    Set Environment Variable  TEST_RESOURCE  ${cluster}
-    Set Environment Variable  TEST_TIMEOUT  30m
-    [Return]  ${esx1}  ${esx2}  ${esx3}  ${vc}  ${vc-ip}
 
 Create A Distributed Switch
     [Arguments]  ${datacenter}  ${dvs}=test-ds
