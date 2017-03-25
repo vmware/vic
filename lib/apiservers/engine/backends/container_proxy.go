@@ -1223,7 +1223,6 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if containerState.Status == ContainerRunning {
 			containerState.Running = true
 		}
-		
 		inspectJSON.Image = info.ContainerConfig.ImageID
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
