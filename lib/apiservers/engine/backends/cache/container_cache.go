@@ -132,6 +132,8 @@ func (cc *CCache) GetContainerFromExec(eid string) *container.VicContainer {
 	return nil
 }
 
+// here we assume that the newName is already reserved by Reservename
+// so no need to check the existence of a container with the new name
 func (cc *CCache) UpdateContainerName(oldName, newName string) error {
 	cc.m.Lock()
 	defer cc.m.Unlock()
@@ -141,12 +143,6 @@ func (cc *CCache) UpdateContainerName(oldName, newName string) error {
 		return derr.NewRequestNotFoundError(fmt.Errorf("no such container: %s", oldName))
 	}
 
-	if exists := cc.getContainer(newName); exists != nil {
-		err := fmt.Errorf("the name %q is already in use by container %s.", newName, exists.ContainerID)
-		log.Errorf("%s", err.Error())
-		return derr.NewRequestConflictError(err)
-	}
-
 	delete(cc.containersByName, container.Name)
 
 	container.Name = newName
@@ -154,4 +150,32 @@ func (cc *CCache) UpdateContainerName(oldName, newName string) error {
 	cc.containersByID[container.ContainerID] = container
 
 	return nil
+}
+
+// reserve the name for container
+func (cc *CCache) ReserveName(container *container.VicContainer, name string) error {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	if _, exist := cc.containersByName[name]; exist {
+		return fmt.Errorf("name is reserved")
+	}
+
+	cc.containersByName[name] = container
+
+	return nil
+}
+
+// release the "reserved" name
+// once released, a name can be reserved again
+func (cc *CCache) ReleaseName(name string) {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	if _, exist := cc.containersByName[name]; !exist {
+		log.Errorf("ReleaseName error: Name %s not found", name)
+		return
+	}
+
+	delete(cc.containersByName, name)
 }

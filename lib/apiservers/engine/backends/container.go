@@ -1639,14 +1639,22 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 		return derr.NewRequestConflictError(err)
 	}
 
+	// reserve the new name in containerCache
+	if err := cache.ContainerCache().ReserveName(vc, newName); err != nil {
+		log.Errorf("%s", err.Error())
+		return fmt.Errorf("Error when allocating new name: %v", err)
+	}
+
 	if err := c.containerProxy.Rename(vc, newName); err != nil {
 		log.Errorf("Rename error: %s", err)
+		cache.ContainerCache().ReleaseName(newName)
 		return err
 	}
 
 	// update containerCache
 	if err := cache.ContainerCache().UpdateContainerName(oldName, newName); err != nil {
 		log.Errorf("Failed to update container cache: %s", err)
+		cache.ContainerCache().ReleaseName(newName)
 		return err
 	}
 
