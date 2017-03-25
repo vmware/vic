@@ -897,10 +897,11 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	result, err := client.Containers.ContainerRename(renameParams)
 	if err != nil {
 		switch err := err.(type) {
+		// Here we don't check the portlayer error type for *containers.ContainerRenameConflict since
+		// (1) we already check that in persona cache for ConflictError and
+		// (2) the container name in portlayer cache will be updated when committing the handle in the next step
 		case *containers.ContainerRenameNotFound:
 			return NotFoundError(vc.Name)
-		case *containers.ContainerRenameConflict:
-			return ConflictError("container name already exists")
 		default:
 			return InternalServerError(err.Error())
 		}
