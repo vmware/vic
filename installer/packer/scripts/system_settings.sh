@@ -29,6 +29,7 @@ systemctl enable chrootpwd.service sshd_permitrootlogin.service vic-appliance.ta
 systemctl enable ovf-network.service
 systemctl enable harbor_startup.service harbor.service
 systemctl enable admiral_startup.service admiral
+systemctl enable fileserver_startup.service fileserver.service
 
 
 # Clean up temporary directories

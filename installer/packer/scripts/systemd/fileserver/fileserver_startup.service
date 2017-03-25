@@ -1,0 +1,12 @@
+[Unit]
+Description=VIC Unified Installer Web Server Startup Configuration
+Documentation=https://github.com/vmware/vic
+After=systemd-networkd.service systemd-resolved.service
+Before=fileserver.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /etc/vmware/fileserver/configure_fileserver.sh
+
+[Install]
+WantedBy=multi-user.target

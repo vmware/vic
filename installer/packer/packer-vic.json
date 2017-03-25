@@ -210,10 +210,6 @@
       "script": "scripts/provision_admiral.sh"
     },
     {
-      "type": "shell",
-      "script": "scripts/provision_fileserver.sh"
-    },
-    {
       "type": "file",
       "source": "scripts/systemd/admiral/admiral_startup.service",
       "destination": "/usr/lib/systemd/system/admiral_startup.service"
@@ -232,7 +228,26 @@
       "type": "file",
       "source": "scripts/admiral/start_admiral.sh",
       "destination": "/etc/vmware/admiral/start_admiral.sh"
-	},
+    },
+    {
+      "type": "shell",
+      "script": "scripts/provision_fileserver.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/fileserver/fileserver_startup.service",
+      "destination": "/usr/lib/systemd/system/fileserver_startup.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/fileserver/fileserver.service",
+      "destination": "/usr/lib/systemd/system/fileserver.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/fileserver/configure_fileserver.sh",
+      "destination": "/etc/vmware/fileserver/configure_fileserver.sh"
+    },
     {
       "type": "shell",
       "only": ["vagrant-local"],
