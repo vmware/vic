@@ -33,6 +33,7 @@ func TestMigrateRegistry(t *testing.T) {
 		{Host: "vic.vmware.com"},
 		{Path: "[1234:1234:0:1234::11]:7000"},
 		{Host: "[1234:1234:0:1234::11]:7000"},
+		{Path: "3.3.3.3/foo/bar"},
 	}
 
 	outConfig := []url.URL{
@@ -43,6 +44,7 @@ func TestMigrateRegistry(t *testing.T) {
 		{Host: "vic.vmware.com"},
 		{Host: "[1234:1234:0:1234::11]:7000"},
 		{Host: "[1234:1234:0:1234::11]:7000"},
+		{Host: "3.3.3.3", Path: "foo/bar"},
 	}
 
 	m := MigrateRegistry{}

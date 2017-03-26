@@ -23,6 +23,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"strings"
+
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/manager"
 	"github.com/vmware/vic/pkg/trace"
@@ -31,7 +33,7 @@ import (
 )
 
 const (
-	version = 3
+	version = 4
 	target  = manager.ApplianceConfigure
 )
 
@@ -90,11 +92,19 @@ func (p *MigrateRegistry) Migrate(ctx context.Context, s *session.Session, data 
 		log.Debugf("Checking insecure registry url: %v", registry.String())
 		if registry.Host == "" {
 			log.Debugf("Fixing insecure registry url: %v", registry.String())
-			// Replace host with path and make path empty
-			registry.Host = registry.Path
-			// we can empty the path since, for a docker registry basepath starts with /v1 or /v2
-			// which is appended by backend
-			registry.Path = ""
+
+			// split host:port/path
+			sp := strings.SplitN(registry.Path, "/", 2)
+
+			// Fix host from the first index of split
+			registry.Host = sp[0]
+			// if a path was present, in the second index of split
+			if len(sp) > 1 {
+				registry.Path = sp[1]
+			} else {
+				// else set path as empty
+				registry.Path = ""
+			}
 		}
 		newVCHSpec.InsecureRegistries = append(newVCHSpec.InsecureRegistries, registry)
 	}
