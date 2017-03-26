@@ -836,7 +836,6 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 
 	var inCtx context.Context
 	var inCancel, cancel func()
-
 	if ca.UseStdin {
 		wg.Add(1)
 		inCtx, inCancel = context.WithCancel(ctx)
@@ -845,16 +844,15 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 
 	if ca.UseStdout {
 		wg.Add(1)
-		ctx, cancel = context.WithCancel(ctx)
-		defer cancel()
 	}
 
 	if ca.UseStderr {
 		wg.Add(1)
-		if cancel == nil {
-			ctx, cancel = context.WithCancel(ctx)
-			defer cancel()
-		}
+	}
+
+	if ca.UseStderr || ca.UseStdout {
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
 	}
 
 	if ca.UseStdin {
@@ -867,8 +865,8 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 				log.Infof("container attach: stdin (%s) done", vc.ContainerID)
 			}
 
-			// close stdout and stderr
-			if cancel != nil {
+			if !vc.Config.StdinOnce || vc.Config.Tty {
+				// close stdout/stderr
 				cancel()
 			}
 
@@ -1681,8 +1679,19 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	defer stdinWriter.Close()
 
 	var detach bool
+	var wg sync.WaitGroup
 
 	go func() {
+		// make sure we get out of io.Copy if context is canceled
+		select {
+		case <-ctx.Done():
+			clStdin.Close()
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		defer stdinReader.Close()
 
 		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
@@ -1708,6 +1717,16 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 				log.Errorf("stdin err: %s", err)
 			}
 		}
+
+		if vc.Config.StdinOnce && !vc.Config.Tty {
+			// Close the stdin connection.  Mimicing Docker's behavior.
+			log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
+			params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+			_, err := pl.Interaction.ContainerCloseStdin(params)
+			if err != nil {
+				log.Errorf("CloseStdin failed with %s", err)
+			}
+		}
 	}()
 
 	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
@@ -1716,20 +1735,12 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	setStdinParams = setStdinParams.WithRawStream(stdinReader)
 
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
-	if vc.Config.StdinOnce && !vc.Config.Tty {
-		// Close the stdin connection.  Mimicing Docker's behavior.
-		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
-		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(vc.ContainerID)
-		_, err := pl.Interaction.ContainerCloseStdin(params)
-		if err != nil {
-			log.Errorf("CloseStdin failed with %s", err)
-		}
-	}
-
+	wg.Wait()
 	// ignore the portlayer error when it is DetachError as that is what we should return to the caller when we detach
 	if detach {
 		return DetachError{}
 	}
+
 	return err
 }
 

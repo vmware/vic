@@ -31,20 +31,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// Connection represents a communication channel initiated by the client TO the
-// client.  The client connects (via TCP) to the server, then the server
-// initiates an SSH connection over the same sock to the client.
-type Connection struct {
-	spty SessionInteraction
-
-	// the container's ID
-	id string
-}
-
 type Connector struct {
-	mutex       sync.RWMutex
-	cond        *sync.Cond
-	connections map[string]*Connection
+	mutex       sync.Mutex
+	connections map[string]*attachSSH
+	gets        []chan struct{}
 
 	listener net.Listener
 	// Quit channel for listener routine
@@ -60,12 +50,11 @@ func NewConnector(listener net.Listener, debug bool) *Connector {
 	defer trace.End(trace.Begin(""))
 
 	connector := &Connector{
-		connections:  make(map[string]*Connection),
+		connections:  make(map[string]*attachSSH),
 		listener:     listener,
 		listenerQuit: make(chan bool),
 		debug:        debug,
 	}
-	connector.cond = sync.NewCond(connector.mutex.RLocker())
 
 	connector.wg.Add(1)
 	go connector.serve()
@@ -82,48 +71,34 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	c.mutex.RLock()
-	conn := c.connections[id]
-	c.mutex.RUnlock()
-	if conn != nil {
-		return conn.spty, nil
-	} else if timeout == 0 {
-		return nil, fmt.Errorf("no such connection")
-	}
-
-	result := make(chan *Connection, 1)
-
-	go func() {
-		ok := false
-		var conn *Connection
-
-		c.mutex.RLock()
-		defer c.mutex.RUnlock()
-
-		for !ok && ctx.Err() == nil {
-			conn, ok = c.connections[id]
-			if ok {
-				result <- conn
+	ch := make(chan struct{}, 1)
+	defer func() {
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
+		// remove ch from waiters
+		for i := range c.gets {
+			if c.gets[i] == ch {
+				c.gets = append(c.gets[:i], c.gets[i+1:]...)
 				return
 			}
-
-			// block until cond is updated
-			log.Infof("attach connector:  Connection not found yet for %s", id)
-			c.cond.Wait()
 		}
-		log.Debugf("attach connector:  Giving up on connection for %s", id)
 	}()
 
-	select {
-	case client := <-result:
-		log.Debugf("attach connector: Found connection for %s: %p", id, client)
-		return client.spty, nil
-	case <-ctx.Done():
-		err := fmt.Errorf("attach connector: Connection not found error for id:%s: %s", id, ctx.Err())
-		log.Error(err)
-		// wake up the result gofunc before returning
-		c.cond.Broadcast()
-		return nil, err
+	for {
+		c.mutex.Lock()
+
+		if conn, ok := c.connections[id]; ok && !conn.IsClosed() {
+			c.mutex.Unlock()
+			return conn, nil
+		}
+
+		c.gets = append(c.gets, ch)
+		c.mutex.Unlock()
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timed out waiting for connection for container %s", id)
+		case <-ch:
+		}
 	}
 }
 
@@ -135,10 +110,8 @@ func (c *Connector) Remove(id string) error {
 
 	var err error
 
-	if c.connections[id] != nil {
-		if c.connections[id].id == id {
-			err = c.connections[id].spty.Close()
-		}
+	if conn := c.connections[id]; conn != nil {
+		err = conn.Close()
 		delete(c.connections, id)
 	}
 	return err
@@ -221,9 +194,9 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		return
 	}
 
-	var si SessionInteraction
+	var si *attachSSH
 	for _, id := range ids {
-		si, err = SSHAttach(client, id)
+		si, err = sshAttach(client, id)
 		if err != nil {
 			log.Errorf("SSH connection could not be established (id=%s): %s", id, errors.ErrorStack(err))
 			return
@@ -232,14 +205,10 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		log.Infof("Established connection with container VM: %s", id)
 
 		c.mutex.Lock()
-		connection := &Connection{
-			spty: si,
-			id:   id,
+		c.connections[id] = si
+		for i := range c.gets {
+			c.gets[i] <- struct{}{}
 		}
-
-		c.connections[connection.id] = connection
-
-		c.cond.Broadcast()
 		c.mutex.Unlock()
 	}
 

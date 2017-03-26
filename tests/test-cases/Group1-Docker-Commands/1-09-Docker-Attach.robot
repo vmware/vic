@@ -83,3 +83,8 @@ Attach to fake container
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${out}  Error: No such container: fakeContainer
+
+Attach with short input
+       ${status}=  Get State Of Github Issue  4166
+       Run Keyword If  '${status}' == 'closed'  Fail  Test 1-09-Docker-Attach.robot needs to be updated now that Issue #4166 has been resolved
+       Log  Issue \#4166 is blocking implementation  WARN

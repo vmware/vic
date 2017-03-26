@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -404,8 +405,9 @@ func (t *attachServerSSH) run() error {
 
 			log.Debugf("Adding [%p] to Outwriter", channel)
 			session.Outwriter.Add(channel)
-			log.Debugf("Adding [%p] to Reader", channel)
-			session.Reader.Add(channel)
+			stdinReader := newStdinReader(channel)
+			log.Debugf("Adding [%p] to Reader", stdinReader)
+			session.Reader.Add(stdinReader)
 
 			// cleanup on detach from the session
 			cleanup := func() {
@@ -414,8 +416,8 @@ func (t *attachServerSSH) run() error {
 				log.Debugf("Removing [%p] from Outwriter", channel)
 				session.Outwriter.Remove(channel)
 
-				log.Debugf("Removing [%p] from Reader", channel)
-				session.Reader.Remove(channel)
+				log.Debugf("Removing [%p] from Reader", stdinReader)
+				session.Reader.Remove(stdinReader)
 
 				channel.Close()
 
@@ -583,4 +585,51 @@ type winsize struct {
 	wsCol    uint16
 	wsXpixel uint16
 	wsYpixel uint16
+}
+
+type stdinReader struct {
+	reader io.ReadCloser
+}
+
+func newStdinReader(channel ssh.Channel) *stdinReader {
+	r, w := io.Pipe()
+	s := &stdinReader{
+		reader: r,
+	}
+
+	go func() {
+		buf := make([]byte, 512)
+		for {
+			r, err := channel.Read(buf)
+			log.Debugf("stdin r=%d, err=%s", r, err)
+			if r > 0 {
+				w.Write(buf[:r])
+			}
+
+			if err != nil {
+				w.CloseWithError(err)
+				return
+			}
+		}
+	}()
+
+	return s
+}
+
+func (r *stdinReader) Read(buf []byte) (int, error) {
+	defer trace.End(trace.Begin(""))
+
+	n, err := r.reader.Read(buf)
+	if err == io.ErrClosedPipe {
+		return n, io.EOF
+	}
+
+	return n, err
+}
+
+func (r *stdinReader) Close() error {
+	defer trace.End(trace.Begin(""))
+
+	r.reader.Close()
+	return nil
 }
