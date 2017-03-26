@@ -20,8 +20,10 @@ import (
 	"github.com/vmware/vic/pkg/version"
 )
 
+/* VCH constants */
 const (
 	SerialOverLANPort  = 2377
+	AttachServerPort   = 2379
 	ManagementHostName = "management.localhost"
 	// BridgeScopeType denotes a scope that is of type bridge
 	BridgeScopeType = "bridge"

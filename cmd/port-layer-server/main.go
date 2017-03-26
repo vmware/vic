@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/dns"
 	"github.com/vmware/vic/lib/pprof"
+	"github.com/vmware/vic/lib/vspc"
 	viclog "github.com/vmware/vic/pkg/log"
 )
 
@@ -91,9 +92,17 @@ func main() {
 
 	defer server.Shutdown()
 
+	vspc := vspc.NewVspc()
+
+	if vspc == nil {
+		log.Fatalln("cannot initialize virtual serial port concentrator")
+	}
+	vspc.Start()
+
 	go func() {
 		<-sig
 
+		vspc.Stop()
 		dnsserver.Stop()
 		restapi.StopAPIServers()
 	}()
