@@ -875,8 +875,8 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 	return nil
 }
 
-// Rename() calls the portlayer's containerRenamehandler to update the container name in the handle,
-// and then calls CommitHandler to commit the new name to vSphere
+// Rename calls the portlayer's RenameContainerHandler to update the container name in the handle,
+// and then commit the new name to vSphere
 func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
 	defer trace.End(trace.Begin(vc.ContainerID))
 

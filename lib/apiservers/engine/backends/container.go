@@ -61,6 +61,7 @@ import (
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
+	"net/http"
 )
 
 // valid filters as of docker commit 49bf474
@@ -1610,13 +1611,13 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 	if oldName == "" || newName == "" {
 		err := fmt.Errorf("neither old nor new names may be empty")
 		log.Errorf("%s", err.Error())
-		return err
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	if !utils.RestrictedNamePattern.MatchString(newName) {
 		err := fmt.Errorf("invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
 		log.Errorf("%s", err.Error())
-		return err
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	// Look up the container name in the metadata cache to get long ID
@@ -1630,7 +1631,7 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 	if oldName == newName {
 		err := fmt.Errorf("renaming a container with the same name as its current name")
 		log.Errorf("%s", err.Error())
-		return err
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	if exists := cache.ContainerCache().GetContainer(newName); exists != nil {
@@ -1642,7 +1643,7 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 	// reserve the new name in containerCache
 	if err := cache.ContainerCache().ReserveName(vc, newName); err != nil {
 		log.Errorf("%s", err.Error())
-		return fmt.Errorf("Error when allocating new name: %v", err)
+		return derr.NewRequestConflictError(err)
 	}
 
 	if err := c.containerProxy.Rename(vc, newName); err != nil {
