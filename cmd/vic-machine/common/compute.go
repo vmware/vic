@@ -39,7 +39,7 @@ func (c *Compute) ComputeFlagsNoName() []cli.Flag {
 		cli.StringFlag{
 			Name:        "compute-resource, r",
 			Value:       "",
-			Usage:       "Compute resource path, e.g. myCluster/Resources/myRP. Default to <default cluster>/Resources",
+			Usage:       "Compute resource path, e.g. myCluster",
 			Destination: &c.ComputeResourcePath,
 		},
 	}

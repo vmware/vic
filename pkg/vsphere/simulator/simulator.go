@@ -278,6 +278,7 @@ func (s *Service) NewServer() *Server {
 	// Using NewUnstartedServer() instead of NewServer(),
 	// for use in main.go, where Start() blocks, we can still set ServiceHostName
 	ts := httptest.NewUnstartedServer(mux)
+	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // we don't need this noise
 
 	u := &url.URL{
 		Scheme: "http",
