@@ -15,14 +15,13 @@
 package validate
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/url"
-	"strings"
-
-	"context"
 	"regexp"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"

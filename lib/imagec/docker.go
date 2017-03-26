@@ -69,10 +69,10 @@ type Manifest struct {
 }
 
 // LearnRegistryURL returns the registry URL after making sure that it responds to queries
-func LearnRegistryURL(options Options) (string, error) {
+func LearnRegistryURL(options *Options) (string, error) {
 	defer trace.End(trace.Begin(options.Registry))
 
-	req := func(schema string) (string, error) {
+	req := func(schema string, skipVerify bool) (string, error) {
 		registry := fmt.Sprintf("%s://%s/v2/", schema, options.Registry)
 
 		url, err := url.Parse(registry)
@@ -85,7 +85,7 @@ func LearnRegistryURL(options Options) (string, error) {
 			Timeout:            options.Timeout,
 			Username:           options.Username,
 			Password:           options.Password,
-			InsecureSkipVerify: options.InsecureSkipVerify,
+			InsecureSkipVerify: skipVerify,
 			RootCAs:            options.RegistryCAs,
 		})
 
@@ -100,13 +100,22 @@ func LearnRegistryURL(options Options) (string, error) {
 		return registry, nil
 	}
 
-	// first try https
 	log.Debugf("Trying https scheme")
-	registry, err := req("https")
+
+	registry, err := req("https", options.InsecureSkipVerify)
+
 	if err != nil && options.InsecureAllowHTTP {
-		// fallback to http if it's allowed
-		log.Debugf("Falling back to http scheme")
-		registry, err = req("http")
+		// try https without verification
+		log.Debugf("Trying https without verification, last error: %+v", err)
+		registry, err = req("https", true)
+		if err == nil {
+			// Success, set InsecureSkipVerify to true
+			options.InsecureSkipVerify = true
+		} else {
+			// try http
+			log.Debugf("Falling back to http")
+			registry, err = req("http", options.InsecureSkipVerify)
+		}
 	}
 
 	return registry, err

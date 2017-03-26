@@ -143,14 +143,14 @@ func TestLearnRegistryURL(t *testing.T) {
 	ic.Options.Timeout = DefaultHTTPTimeout
 
 	// should fail
-	_, err := LearnRegistryURL(ic.Options)
+	_, err := LearnRegistryURL(&ic.Options)
 	if err == nil {
 		t.Errorf(err.Error())
 	}
 
 	// should pass
 	ic.Options.InsecureAllowHTTP = true
-	_, err = LearnRegistryURL(ic.Options)
+	_, err = LearnRegistryURL(&ic.Options)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
