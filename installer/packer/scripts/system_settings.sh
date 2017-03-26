@@ -28,7 +28,7 @@ systemctl enable data.mount repartition.service resizefs.service getty@tty2.serv
 systemctl enable chrootpwd.service sshd_permitrootlogin.service vic-appliance.target
 systemctl enable ovf-network.service
 systemctl enable harbor_startup.service harbor.service
-systemctl enable admiral
+systemctl enable admiral_startup.service admiral
 
 
 # Clean up temporary directories

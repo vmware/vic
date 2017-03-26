@@ -9,7 +9,7 @@ Type=simple
 Restart=on-failure
 RestartSec=5
 ExecStartPre=-/usr/local/bin/docker rm vic-admiral
-ExecStart=/usr/bin/bash /etc/vmware/harbor/start_admiral.sh
+ExecStart=/usr/bin/bash /etc/vmware/admiral/start_admiral.sh
 ExecStop=/usr/local/bin/docker stop vic-admiral
 
 [Install]
