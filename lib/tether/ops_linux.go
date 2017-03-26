@@ -31,7 +31,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
-	dockerUser "github.com/opencontainers/runc/libcontainer/user"
+	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
+	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/dhcp"
@@ -45,7 +46,7 @@ var (
 	hostnameFile = "/etc/hostname"
 	byLabelDir   = "/dev/disk/by-label"
 
-	defaultExecUser = &dockerUser.ExecUser{
+	defaultExecUser = &user.ExecUser{
 		Uid:  syscall.Getuid(),
 		Gid:  syscall.Getgid(),
 		Home: "/",
@@ -806,19 +807,19 @@ func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 		return nil, nil
 	}
 
-	user := uid
+	userGroup := uid
 	if gid != "" {
-		user = fmt.Sprintf("%s:%s", uid, gid)
+		userGroup = fmt.Sprintf("%s:%s", uid, gid)
 	}
-	passwdPath, err := dockerUser.GetPasswdPath()
+	passwdPath, err := user.GetPasswdPath()
 	if err != nil {
 		return nil, err
 	}
-	groupPath, err := dockerUser.GetGroupPath()
+	groupPath, err := user.GetGroupPath()
 	if err != nil {
 		return nil, err
 	}
-	execUser, err := dockerUser.GetExecUserPath(user, defaultExecUser, passwdPath, groupPath)
+	execUser, err := user.GetExecUserPath(userGroup, defaultExecUser, passwdPath, groupPath)
 	if err != nil {
 		return nil, err
 	}

@@ -460,10 +460,9 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		info.ProcessConfig.StartTime = session.StartTime
 		info.ProcessConfig.StopTime = session.StopTime
 
+		info.ProcessConfig.User = session.User
 		if session.Group != "" {
 			info.ProcessConfig.User = fmt.Sprintf("%s:%s", session.User, session.Group)
-		} else {
-			info.ProcessConfig.User = session.User
 		}
 	} else {
 		// log that sessionID is missing and print the ExecConfig
