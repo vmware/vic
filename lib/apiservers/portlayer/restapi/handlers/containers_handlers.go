@@ -411,7 +411,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 
 	if container.ExecConfig.Name == params.Name {
 		err := &models.Error{
-			Message: fmt.Sprintf("renaming a container with the same name as its current name"),
+			Message: fmt.Sprintf("renaming a container with the same name as its current name: %s", params.Name),
 		}
 		return containers.NewContainerRenameInternalServerError().WithPayload(err)
 	}

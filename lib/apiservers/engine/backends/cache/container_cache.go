@@ -159,9 +159,7 @@ func (cc *CCache) ReserveName(container *container.VicContainer, name string) er
 	defer cc.m.Unlock()
 
 	if cont, exist := cc.containersByName[name]; exist {
-		return fmt.Errorf("conflict. The name %q is already in use by container %s. " +
-			"You have to remove (or rename) that container to be able to re use that name.",
-			name, cont.ContainerID)
+		return fmt.Errorf("conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", name, cont.ContainerID)
 	}
 
 	cc.containersByName[name] = container

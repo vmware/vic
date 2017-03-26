@@ -19,6 +19,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -61,7 +62,6 @@ import (
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
-	"net/http"
 )
 
 // valid filters as of docker commit 49bf474
