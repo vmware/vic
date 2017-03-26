@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+mkdir /etc/vmware/admiral
+
 # start docker
 echo "starting Docker .."
 systemctl daemon-reload

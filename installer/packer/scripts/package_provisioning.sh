@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Install sudo and ESX-optimized kernel
-tdnf install -y sudo linux-esx rsync lvm2 docker gawk parted tar
+tdnf install -y sudo linux-esx rsync lvm2 docker gawk parted tar openjre
 
 # Install Docker Compose
 curl -L "https://github.com/docker/compose/releases/download/1.11.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose

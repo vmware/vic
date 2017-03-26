@@ -24,7 +24,7 @@ ADMIRAL_CERT_LOCATION=""
 if [ -n $ADMIRAL_TLS ]; then
 	/usr/bin/docker run -d -p ${PORT}:${PORT} \
 	 --name vic-admiral \
-	 -e XENON_OPTS="--sandbox=${ADMIRAL_DATA_LOCATION}"
+	 -e XENON_OPTS="--sandbox=${ADMIRAL_DATA_LOCATION}" \
 	 --log-driver=json-file \
 	 --log-opt max-size=1g \
 	 --log-opt max-file=10 \
