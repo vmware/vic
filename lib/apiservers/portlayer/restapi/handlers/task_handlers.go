@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"context"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
@@ -64,6 +65,7 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 	op.Debugf("Path: %#v", params.Config.Path)
 	op.Debugf("WorkingDir: %#v", params.Config.WorkingDir)
 	op.Debugf("OpenStdin: %#v", params.Config.OpenStdin)
+	op.Debugf("User: %s", params.Config.User)
 
 	sessionConfig := &executor.SessionConfig{
 		Common: executor.Common{
@@ -79,6 +81,17 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 			Args: append([]string{params.Config.Path}, params.Config.Args...),
 		},
 		StopSignal: params.Config.StopSignal,
+	}
+
+	// parsing user
+	if params.Config.User != "" {
+		parts := strings.Split(params.Config.User, ":")
+		if len(parts) > 0 {
+			sessionConfig.User = parts[0]
+		}
+		if len(parts) > 1 {
+			sessionConfig.Group = parts[1]
+		}
 	}
 
 	handleprime, err := task.Join(&op, handle, sessionConfig)

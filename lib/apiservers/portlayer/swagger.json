@@ -3064,6 +3064,9 @@
 					"x-nullable": true,
 					"type": "string"
 				},
+				"user": {
+					"type": "string"
+				},
 				"env": {
 					"type": "array",
 					"items": {
@@ -3305,6 +3308,9 @@
 					}
 				},
 				"workingDir": {
+					"type": "string"
+				},
+				"user": {
 					"type": "string"
 				},
 				"env": {

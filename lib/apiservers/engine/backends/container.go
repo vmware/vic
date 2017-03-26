@@ -1655,6 +1655,9 @@ func setCreateConfigOptions(config, imageConfig *containertypes.Config) {
 		}
 	}
 
+	if config.User == "" {
+		config.User = imageConfig.User
+	}
 	// set up environment
 	setEnvFromImageConfig(config, imageConfig)
 }
@@ -1813,12 +1816,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 				return InternalServerError("host port ranges are not supported for port bindings")
 			}
 		}
-	}
-
-	// TODO(jzt): users other than root are not currently supported
-	// We should check for USER in config.Config.Env once we support Dockerfiles.
-	if config.Config.User != "" && config.Config.User != "root" {
-		return InternalServerError("Failed to create container - users other than root are not currently supported")
 	}
 
 	// https://github.com/vmware/vic/issues/1378
