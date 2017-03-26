@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package plugin3 Plugin to migrate urls from go1.7 to go1.8
+// Package plugin4 Plugin to migrate urls from go1.7 to go1.8
 // Issue# https://github.com/vmware/vic/issues/4388
-package plugin3
+package plugin4
 
 import (
 	"context"
