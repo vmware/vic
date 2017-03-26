@@ -136,6 +136,21 @@ func (h *Handle) Reload() {
 	h.reload = true
 }
 
+// Rename updates the container name in ExecConfig as well as the vSphere display name
+func (h *Handle) Rename(newName string) *Handle {
+	defer trace.End(trace.Begin(newName))
+
+	h.ExecConfig.Name = newName
+
+	s := &spec.VirtualMachineConfigSpecConfig{
+		ID:   h.ExecConfig.ID,
+		Name: newName,
+	}
+	h.Spec.Spec().Name = util.DisplayName(s)
+
+	return h
+}
+
 // GetHandle finds and returns the handle that is referred by key
 func GetHandle(key string) *Handle {
 	handlesLock.Lock()

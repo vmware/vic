@@ -231,6 +231,16 @@ func (r *Registry) content() types.ServiceContent {
 	return r.Get(serviceInstance).(*ServiceInstance).Content
 }
 
+// IsESX returns true if this Registry maps an ESX model
+func (r *Registry) IsESX() bool {
+	return r.content().About.ApiType == "HostAgent"
+}
+
+// IsVPX returns true if this Registry maps a VPX model
+func (r *Registry) IsVPX() bool {
+	return !r.IsESX()
+}
+
 // SearchIndex returns the SearchIndex singleton
 func (r *Registry) SearchIndex() *SearchIndex {
 	return r.Get(r.content().SearchIndex.Reference()).(*SearchIndex)

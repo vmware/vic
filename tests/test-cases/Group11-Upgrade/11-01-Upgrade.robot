@@ -48,6 +48,23 @@ Run Docker Checks
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Exited (0)
 
+    # Check that rename doesn't work on a container from a VCH that doesn't support rename
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename vch-restart-test1 vch-test2
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  does not support rename
+
+    # Check that rename works on a container from a VCH that supports rename
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name new-vch-cont1 busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${contID}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename new-vch-cont1 new-vch-cont2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Verify Container Rename  new-vch-cont1  new-vch-cont2  ${contID}
+
     # check the display name and datastore folder name of an existing container
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/*-%{ID1}
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0

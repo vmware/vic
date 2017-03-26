@@ -64,6 +64,20 @@ Get VM display name
     ${shortID}=  Get container shortID  ${id}
     [Return]  ${name}-${shortID}
 
+Verify Container Rename
+    [Arguments]  ${oldname}  ${newname}  ${contID}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${newname}
+    Should Not Contain  ${output}  ${oldname}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Name}}' ${newname}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${newname}
+    ${vmName}=  Get VM display name  ${contID}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${vmname}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${vmName}
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0

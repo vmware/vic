@@ -93,6 +93,7 @@ type VicContainerProxy interface {
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
+	Rename(vc *viccontainer.VicContainer, newName string) error
 	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
 
 	Handle(id, name string) (string, error)
@@ -874,6 +875,54 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 	return nil
 }
 
+// Rename calls the portlayer's RenameContainerHandler to update the container name in the handle,
+// and then commit the new name to vSphere
+func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	//retrieve client to portlayer
+	handle, err := c.Handle(vc.ContainerID, vc.Name)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.Rename failed to create a portlayer client")
+	}
+
+	// Call the rename functionality in the portlayer.
+	renameParams := containers.NewContainerRenameParamsWithContext(ctx).WithName(newName).WithHandle(handle)
+	result, err := c.client.Containers.ContainerRename(renameParams)
+	if err != nil {
+		switch err := err.(type) {
+		// Here we don't check the portlayer error type for *containers.ContainerRenameConflict since
+		// (1) we already check that in persona cache for ConflictError and
+		// (2) the container name in portlayer cache will be updated when committing the handle in the next step
+		case *containers.ContainerRenameNotFound:
+			return NotFoundError(vc.Name)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	h := result.Payload
+
+	// commit handle
+	_, err = c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(h))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.CommitNotFound:
+			return NotFoundError(err.Payload.Message)
+		case *containers.CommitConflict:
+			return ConflictError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	return nil
+}
+
 //----------
 // Utility Functions
 //----------
@@ -908,6 +957,9 @@ func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig
 
 	// working dir
 	config.WorkingDir = cc.Config.WorkingDir
+
+	// user
+	config.User = cc.Config.User
 
 	// attach
 	config.Attach = cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr
@@ -1169,7 +1221,6 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if containerState.Status == ContainerRunning {
 			containerState.Running = true
 		}
-
 		inspectJSON.Image = info.ContainerConfig.ImageID
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
@@ -1312,6 +1363,8 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	if info.ProcessConfig.WorkingDir != nil {
 		container.WorkingDir = *info.ProcessConfig.WorkingDir // Current directory (PWD) in the command will be launched
 	}
+
+	container.User = info.ProcessConfig.User
 
 	// Fill in information about the container network
 	if info.Endpoints == nil {
