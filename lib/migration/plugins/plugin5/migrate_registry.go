@@ -14,7 +14,7 @@
 
 // Package plugin4 Plugin to migrate urls from go1.7 to go1.8
 // Issue# https://github.com/vmware/vic/issues/4388
-package plugin4
+package plugin5
 
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	version = 4
+	version = 5
 	target  = manager.ApplianceConfigure
 )
 
