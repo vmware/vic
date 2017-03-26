@@ -1748,6 +1748,63 @@
 				}
 			}
 		},
+		"/containers/{handle}/name": {
+			"patch": {
+				"description": "Rename a container to the new name",
+				"operationId": "ContainerRename",
+				"tags": [
+					"containers"
+				],
+				"consumes": [
+					"application/json",
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "handle",
+						"required": true,
+						"in": "path",
+						"type": "string"
+					},
+					{
+						"name": "name",
+						"in": "query",
+						"type": "string",
+						"description": "New name for the container",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"type": "string"
+						}
+					},
+					"404": {
+						"description": "no such container",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"409": {
+						"description": "conflict, name already assigned",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "server error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
 		"/containers/{id}/signal": {
 			"post": {
 				"description": "Sends a signal to a container by id",

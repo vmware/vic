@@ -15,10 +15,12 @@
 package cache
 
 import (
+	"fmt"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/pkg/truncindex"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -128,4 +130,53 @@ func (cc *CCache) GetContainerFromExec(eid string) *container.VicContainer {
 		return container
 	}
 	return nil
+}
+
+// here we assume that the newName is already reserved by Reservename
+// so no need to check the existence of a container with the new name
+func (cc *CCache) UpdateContainerName(oldName, newName string) error {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	container := cc.getContainer(oldName)
+	if container == nil {
+		return derr.NewRequestNotFoundError(fmt.Errorf("no such container: %s", oldName))
+	}
+
+	delete(cc.containersByName, container.Name)
+
+	container.Name = newName
+	cc.containersByName[newName] = container
+	cc.containersByID[container.ContainerID] = container
+
+	return nil
+}
+
+// ReserveName is used during a container rename operation to prevent concurrent
+// container create/rename operations from grabbing the new name.
+func (cc *CCache) ReserveName(container *container.VicContainer, name string) error {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	if cont, exist := cc.containersByName[name]; exist {
+		return fmt.Errorf("conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", name, cont.ContainerID)
+	}
+
+	cc.containersByName[name] = container
+
+	return nil
+}
+
+// ReleaseName is used during a container rename operation to allow concurrent
+// container create/rename operations to use the name.
+func (cc *CCache) ReleaseName(name string) {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	if _, exist := cc.containersByName[name]; !exist {
+		log.Errorf("ReleaseName error: Name %s not found", name)
+		return
+	}
+
+	delete(cc.containersByName, name)
 }

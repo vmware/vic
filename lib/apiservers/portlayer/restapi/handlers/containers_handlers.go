@@ -40,7 +40,10 @@ import (
 	"github.com/vmware/vic/pkg/version"
 )
 
-const containerWaitTimeout = 3 * time.Minute
+const (
+	containerWaitTimeout = 3 * time.Minute
+	minVersionForRename  = 4
+)
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
 type ContainersHandlersImpl struct {
@@ -60,6 +63,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersContainerSignalHandler = containers.ContainerSignalHandlerFunc(handler.ContainerSignalHandler)
 	api.ContainersGetContainerLogsHandler = containers.GetContainerLogsHandlerFunc(handler.GetContainerLogsHandler)
 	api.ContainersContainerWaitHandler = containers.ContainerWaitHandlerFunc(handler.ContainerWaitHandler)
+	api.ContainersContainerRenameHandler = containers.ContainerRenameHandlerFunc(handler.RenameContainerHandler)
 
 	handler.handlerCtx = handlerCtx
 }
@@ -389,6 +393,41 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 			Message: fmt.Sprintf("ContainerWaitHandler(%s) Error: %s", params.ID, ctx.Err()),
 		})
 	}
+}
+
+func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.ContainerRenameParams) middleware.Responder {
+	defer trace.End(trace.Begin(fmt.Sprintf("Rename container to %s", params.Name)))
+
+	h := exec.GetHandle(params.Handle)
+	if h == nil || h.ExecConfig == nil {
+		return containers.NewContainerRenameNotFound()
+	}
+
+	// get the indicated container for rename
+	container := exec.Containers.Container(h.ExecConfig.ID)
+	if container == nil {
+		return containers.NewContainerRenameNotFound()
+	}
+
+	if container.ExecConfig.Name == params.Name {
+		err := &models.Error{
+			Message: fmt.Sprintf("renaming a container with the same name as its current name: %s", params.Name),
+		}
+		return containers.NewContainerRenameInternalServerError().WithPayload(err)
+	}
+
+	// rename on container version < supportVersionForRename is not supported
+	log.Debugf("The container DataVersion is: %d", h.DataVersion)
+	if h.DataVersion < minVersionForRename {
+		err := &models.Error{
+			Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name),
+		}
+		return containers.NewContainerRenameInternalServerError().WithPayload(err)
+	}
+
+	h = h.Rename(params.Name)
+
+	return containers.NewContainerRenameOK().WithPayload(h.String())
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)

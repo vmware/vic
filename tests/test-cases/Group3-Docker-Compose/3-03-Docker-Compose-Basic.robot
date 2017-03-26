@@ -21,6 +21,8 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Variables ***
 ${yml}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: python:2.7\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5000:5000"\n${SPACE}${SPACE}depends_on:\n${SPACE}${SPACE}- redis\n${SPACE}redis:\n${SPACE}${SPACE}image: redis\n${SPACE}${SPACE}ports:\n${SPACE}${SPACE}- "5001:5001"
 ${link-yml}  version: "2"\nservices:\n${SPACE}redis1:\n${SPACE}${SPACE}image: redis:alpine\n${SPACE}${SPACE}container_name: redis1\n${SPACE}${SPACE}ports: ["6379"]\n${SPACE}web1:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}container_name: a.b.c\n${SPACE}${SPACE}links:\n${SPACE}${SPACE}- redis1:aaa\n${SPACE}${SPACE}command: ["ping", "aaa"]
+${rename-yml-1}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: busybox\n${SPACE}${SPACE}command: ["/bin/top"]
+${rename-yml-2}  version: "2"\nservices:\n${SPACE}web:\n${SPACE}${SPACE}image: ubuntu\n${SPACE}${SPACE}command: ["date"]
 
 *** Test Cases ***
 Compose basic
@@ -82,4 +84,19 @@ Compose bundle creation
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file basic-compose.yml bundle
     Log  ${output}
     Should Contain  ${output}  Wrote bundle
+    Should Be Equal As Integers  ${rc}  0
+
+Compose up -d --force-recreate
+    Run  echo '${rename-yml-1}' > compose-rename.yml
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file compose-rename.yml up -d
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file compose-rename.yml up -d --force-recreate
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+Compose up -d with a new image
+    Run  echo '${rename-yml-2}' > compose-rename.yml
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{VCH-PARAMS} --file compose-rename.yml up -d
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0

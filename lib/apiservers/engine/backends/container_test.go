@@ -331,6 +331,10 @@ func (m *MockContainerProxy) Resize(vc *viccontainer.VicContainer, height, width
 	return nil
 }
 
+func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
+	return nil
+}
+
 func (m *MockContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
 	return nil
 }

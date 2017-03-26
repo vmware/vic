@@ -19,6 +19,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -41,6 +42,7 @@ import (
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/utils"
 	gonat "github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
@@ -572,13 +574,6 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 // ContainerPause pauses a container
 func (c *Container) ContainerPause(name string) error {
 	return fmt.Errorf("%s does not yet implement ContainerPause", ProductName())
-}
-
-// ContainerRename changes the name of a container, using the oldName
-// to find the container. An error is returned if newName is already
-// reserved.
-func (c *Container) ContainerRename(oldName, newName string) error {
-	return fmt.Errorf("%s does not yet implement ContainerRename", ProductName())
 }
 
 // ContainerResize changes the size of the TTY of the process running
@@ -1603,6 +1598,66 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 		}
 		return err
 	}
+
+	return nil
+}
+
+// ContainerRename changes the name of a container, using the oldName
+// to find the container. An error is returned if newName is already
+// reserved.
+func (c *Container) ContainerRename(oldName, newName string) error {
+	defer trace.End(trace.Begin(newName))
+
+	if oldName == "" || newName == "" {
+		err := fmt.Errorf("neither old nor new names may be empty")
+		log.Errorf("%s", err.Error())
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	if !utils.RestrictedNamePattern.MatchString(newName) {
+		err := fmt.Errorf("invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
+		log.Errorf("%s", err.Error())
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(oldName)
+	if vc == nil {
+		log.Errorf("Container %s not found", oldName)
+		return NotFoundError(oldName)
+	}
+
+	oldName = vc.Name
+	if oldName == newName {
+		err := fmt.Errorf("renaming a container with the same name as its current name")
+		log.Errorf("%s", err.Error())
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	// reserve the new name in containerCache
+	if err := cache.ContainerCache().ReserveName(vc, newName); err != nil {
+		log.Errorf("%s", err.Error())
+		return derr.NewRequestConflictError(err)
+	}
+
+	if err := c.containerProxy.Rename(vc, newName); err != nil {
+		log.Errorf("Rename error: %s", err)
+		cache.ContainerCache().ReleaseName(newName)
+		return err
+	}
+
+	// update containerCache
+	if err := cache.ContainerCache().UpdateContainerName(oldName, newName); err != nil {
+		log.Errorf("Failed to update container cache: %s", err)
+		cache.ContainerCache().ReleaseName(newName)
+		return err
+	}
+
+	log.Infof("Container %s renamed to %s", oldName, newName)
+
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"newName": fmt.Sprintf("%s", newName)})
+
+	EventService().Log("Rename", eventtypes.ContainerEventType, actor)
 
 	return nil
 }
