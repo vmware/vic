@@ -42,7 +42,7 @@ import (
 
 const (
 	containerWaitTimeout    = 3 * time.Minute
-	supportVersionForRename = 4
+	minVersionForRename = 4
 )
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
@@ -418,7 +418,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 
 	// rename on container version < supportVersionForRename is not supported
 	log.Debugf("The container DataVersion is: %d", h.DataVersion)
-	if h.DataVersion < supportVersionForRename {
+	if h.DataVersion < minVersionForRename {
 		err := &models.Error{
 			Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name),
 		}

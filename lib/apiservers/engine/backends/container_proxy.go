@@ -886,15 +886,13 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 		return InternalServerError(err.Error())
 	}
 
-	// Get an API client to the portlayer
-	client := PortLayerClient()
-	if client == nil {
-		return InternalServerError("rename failed to create a portlayer client")
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.Rename failed to create a portlayer client")
 	}
 
 	// Call the rename functionality in the portlayer.
 	renameParams := containers.NewContainerRenameParamsWithContext(ctx).WithName(newName).WithHandle(handle)
-	result, err := client.Containers.ContainerRename(renameParams)
+	result, err := c.client.Containers.ContainerRename(renameParams)
 	if err != nil {
 		switch err := err.(type) {
 		// Here we don't check the portlayer error type for *containers.ContainerRenameConflict since
@@ -910,7 +908,7 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	h := result.Payload
 
 	// commit handle
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(h))
+	_, err = c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(h))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
