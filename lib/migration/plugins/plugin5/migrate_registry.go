@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package plugin4 Plugin to migrate urls from go1.7 to go1.8
+// Package plugin5 Plugin to migrate urls from go1.7 to go1.8
 // Issue# https://github.com/vmware/vic/issues/4388
 package plugin5
 
@@ -20,10 +20,9 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
-
-	"strings"
 
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/manager"
