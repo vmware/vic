@@ -1634,12 +1634,6 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
-	if exists := cache.ContainerCache().GetContainer(newName); exists != nil {
-		err := fmt.Errorf("conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", newName, exists.ContainerID)
-		log.Errorf("%s", err.Error())
-		return derr.NewRequestConflictError(err)
-	}
-
 	// reserve the new name in containerCache
 	if err := cache.ContainerCache().ReserveName(vc, newName); err != nil {
 		log.Errorf("%s", err.Error())
@@ -1658,6 +1652,8 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 		cache.ContainerCache().ReleaseName(newName)
 		return err
 	}
+
+	log.Infof("Container %s renamed to %s", oldName, newName)
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"newName": fmt.Sprintf("%s", newName)})
 

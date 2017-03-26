@@ -138,7 +138,7 @@ func (h *Handle) Reload() {
 
 // Rename updates the container name in ExecConfig as well as the vSphere display name
 func (h *Handle) Rename(newName string) *Handle {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(newName))
 
 	h.ExecConfig.Name = newName
 

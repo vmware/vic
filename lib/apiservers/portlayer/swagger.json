@@ -1749,7 +1749,7 @@
 			}
 		},
 		"/containers/{handle}/name": {
-			"put": {
+			"patch": {
 				"description": "Rename a container to the new name",
 				"operationId": "ContainerRename",
 				"tags": [

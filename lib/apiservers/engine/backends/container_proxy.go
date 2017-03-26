@@ -889,7 +889,7 @@ func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) e
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
-		return InternalServerError("wait failed to create a portlayer client")
+		return InternalServerError("rename failed to create a portlayer client")
 	}
 
 	// Call the rename functionality in the portlayer.

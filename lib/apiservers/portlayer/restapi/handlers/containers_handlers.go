@@ -417,7 +417,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 	}
 
 	// rename on container version < supportVersionForRename is not supported
-	log.Infof("The container DataVersion is: %d", h.DataVersion)
+	log.Debugf("The container DataVersion is: %d", h.DataVersion)
 	if h.DataVersion < supportVersionForRename {
 		err := &models.Error{
 			Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name),
