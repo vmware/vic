@@ -19,29 +19,30 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 func TestMigrateRegistry(t *testing.T) {
 
 	inConfig := []url.URL{
-		url.URL{Path: "1.1.1.1:5000"},
-		url.URL{Path: "2.2.2.2"},
-		url.URL{Host: "3.3.3.3:6000"},
-		url.URL{Host: "3.3.3.3"},
-		url.URL{Host: "vic.vmware.com"},
-		url.URL{Path: "[1234:1234:0:1234::11]:7000"},
-		url.URL{Host: "[1234:1234:0:1234::11]:7000"},
+		{Path: "1.1.1.1:5000"},
+		{Path: "2.2.2.2"},
+		{Host: "3.3.3.3:6000"},
+		{Host: "3.3.3.3"},
+		{Host: "vic.vmware.com"},
+		{Path: "[1234:1234:0:1234::11]:7000"},
+		{Host: "[1234:1234:0:1234::11]:7000"},
 	}
 
 	outConfig := []url.URL{
-		url.URL{Host: "1.1.1.1:5000"},
-		url.URL{Host: "2.2.2.2"},
-		url.URL{Host: "3.3.3.3:6000"},
-		url.URL{Host: "3.3.3.3"},
-		url.URL{Host: "vic.vmware.com"},
-		url.URL{Host: "[1234:1234:0:1234::11]:7000"},
-		url.URL{Host: "[1234:1234:0:1234::11]:7000"},
+		{Host: "1.1.1.1:5000"},
+		{Host: "2.2.2.2"},
+		{Host: "3.3.3.3:6000"},
+		{Host: "3.3.3.3"},
+		{Host: "vic.vmware.com"},
+		{Host: "[1234:1234:0:1234::11]:7000"},
+		{Host: "[1234:1234:0:1234::11]:7000"},
 	}
 
 	m := MigrateRegistry{}
