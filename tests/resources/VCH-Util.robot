@@ -325,7 +325,7 @@ Cleanup Dangling Containers On Test Server
 
 # VCH upgrade helpers
 Install VIC with version to Test Server
-    [Arguments]  ${version}=7315  ${insecureregistry}=''
+    [Arguments]  ${version}=7315  ${insecureregistry}=
     Log To Console  \nDownloading vic ${version} from bintray...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
