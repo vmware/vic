@@ -68,3 +68,5 @@ Group 1 - Docker Commands
 -
 [Test 1-35 - Docker Swarm](1-35-Docker-Swarm.md)
 -
+[Test 1-36 - Docker Rename](1-36-Docker-Rename.md)
+-
