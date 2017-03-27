@@ -26,7 +26,7 @@ PHOTON_ISO_SHA1SUM := c4c6cb94c261b162e7dac60fdffa96ddb5836d66
 
 VIC_ENGINE_BUNDLE := $(BIN)/vic-engine-bundle
 
-.PHONY: ova-release ova-debug vagrant-local
+.PHONY: ova-release ova-debug vagrant-local ova-clean
 
 ovfenv := $(BIN)/ovfenv
 vic-ova-ui := $(BIN)/vic-ova-ui
@@ -67,7 +67,7 @@ ova-release: $(vic-machine-tarball) $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 	@echo rebuilding OVF manifest...
 	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && $(SHA256SUM) --tag * | $(SED) s/SHA256\ \(/SHA256\(/ > vic.mf
 	@echo packaging OVA...
-	@$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-1.1.0-$(REV).ova
+	@$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-$(VER)-$(REV).ova
 	@echo cleaning packer directory...
 	@cd $(BASE_DIR)installer/packer && $(RM) -rf vic
 
@@ -87,7 +87,7 @@ ova-debug: $(vic-machine-tarball) $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 	@echo rebuilding OVF manifest...
 	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && $(SHA256SUM) --tag * | $(SED) s/SHA256\ \(/SHA256\(/ > vic.mf
 	@echo packaging OVA...
-	$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-1.1.0-$(REV).ova
+	$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-$(VER)-$(REV).ova
 	@echo cleaning packer directory...
 	cd $(BASE_DIR)installer/packer && $(RM) -rf vic
 
@@ -103,3 +103,7 @@ vagrant-local: $(vic-machine-tarball) $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 $(vic-machine-tarball): installer/scripts/build-bundle.sh
 	@echo building vic-machine tarball
 	@$(TIME) $< -b $(BIN) -o $@
+
+ova-clean:
+	@echo cleaning ova-versions
+	@rm $(BASE_DIR)$(BIN)/vic-*.ova
