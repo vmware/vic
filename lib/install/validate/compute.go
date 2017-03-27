@@ -16,6 +16,7 @@ package validate
 
 import (
 	"context"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -43,6 +44,16 @@ func (v *Validator) compute(ctx context.Context, input *data.Data, conf *config.
 	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
 }
 
+func (v *Validator) inventoryPath(obj object.Reference) string {
+	elt, err := v.Session.Finder.Element(v.Context, obj.Reference())
+	if err != nil {
+		log.Warnf("failed to get inventory path for %s: %s", obj.Reference(), err)
+		return ""
+	}
+
+	return elt.Path
+}
+
 // ResourcePoolHelper finds a resource pool from the input compute path and shows
 // suggestions if unable to do so when the path is ambiguous.
 func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
@@ -62,9 +73,14 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 	pool, err := v.Session.Finder.ResourcePool(ctx, path)
 	if err != nil {
-		log.Debugf("Failed to look up compute resource as absolute path %q: %s", path, err)
-		if _, ok := err.(*find.NotFoundError); !ok {
-			// we return err directly here so we can check the type
+		switch err.(type) {
+		case *find.NotFoundError:
+			// fall through to ComputeResource check
+		case *find.MultipleFoundError:
+			log.Errorf("Failed to use --compute-resource=%q as resource pool: %s", path, err)
+			v.suggestResourcePool(path)
+			return nil, err
+		default:
 			return nil, err
 		}
 	}
@@ -73,10 +89,10 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 	if pool == nil {
 		// check if its a ComputeResource or ClusterComputeResource
-
 		compute, err = v.Session.Finder.ComputeResource(ctx, path)
 		if err != nil {
-			if _, ok := err.(*find.NotFoundError); ok {
+			switch err.(type) {
+			case *find.NotFoundError, *find.MultipleFoundError:
 				v.suggestComputeResource()
 			}
 
@@ -88,6 +104,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 		if err != nil {
 			return nil, err
 		}
+		pool.InventoryPath = v.inventoryPath(pool.Reference())
 	} else {
 		// TODO: add an object.ResourcePool.Owner method (see compute.ResourcePool.GetCluster)
 		var p mo.ResourcePool
@@ -98,6 +115,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 		}
 
 		compute = object.NewComputeResource(pool.Client(), p.Owner)
+		compute.InventoryPath = v.inventoryPath(compute.Reference())
 	}
 
 	// stash the pool for later use
@@ -121,6 +139,18 @@ func (v *Validator) suggestComputeResource() {
 	log.Info("Suggested values for --compute-resource:")
 	for _, c := range compute {
 		log.Infof("  %q", c.Name())
+	}
+}
+
+func (v *Validator) suggestResourcePool(path string) {
+	defer trace.End(trace.Begin(""))
+
+	pools, _ := v.Session.Finder.ResourcePoolList(v.Context, path)
+
+	log.Info("Suggested resource pool values for --compute-resource:")
+	for _, c := range pools {
+		p := strings.TrimPrefix(c.InventoryPath, v.DatacenterPath+"/host/")
+		log.Infof("  %q", p)
 	}
 }
 

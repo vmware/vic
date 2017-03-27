@@ -72,6 +72,7 @@ func (p *ResourcePool) CreateResourcePool(c *types.CreateResourcePool) soap.HasF
 	child := NewResourcePool()
 
 	child.Name = c.Name
+	child.Owner = p.Owner
 	child.Summary.GetResourcePoolSummary().Name = c.Name
 	child.Config.CpuAllocation = c.Spec.CpuAllocation
 	child.Config.MemoryAllocation = c.Spec.MemoryAllocation
