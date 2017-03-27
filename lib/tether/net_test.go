@@ -27,13 +27,13 @@ func TestSetHostname(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "sethostname",
 			Name: "tether_test_executor",
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg, mocker)
+	tthr, _, _ := StartTether(t, &cfg, mocker)
 
 	<-mocker.Started
 
@@ -54,13 +54,13 @@ func TestNoNetwork(t *testing.T) {
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "ipconfig",
 			Name: "tether_test_executor",
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg, mocker)
+	tthr, _, _ := StartTether(t, &cfg, mocker)
 
 	<-mocker.Started
 

@@ -29,8 +29,7 @@ Public network - default
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
-    ${vm}=  Get VM Name  %{VCH-NAME}
-    ${info}=  Get VM Info  ${vm}
+    ${info}=  Get VM Info  %{VCH-NAME}
     Should Contain  ${info}  VM Network
 
     Run Regression Tests

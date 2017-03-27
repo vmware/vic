@@ -45,6 +45,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	}
 
 	// Create the backing store on vsphere
+	DetachAll = false
 	vsVolumeStore, err := NewVolumeStore(op, "testStoreName", client, ds)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vsVolumeStore) {
 		return

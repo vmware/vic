@@ -46,9 +46,11 @@ type Mocker struct {
 	Started chan bool
 	// allow tests to tell when the tether has finished
 	Cleaned chan bool
+	// allow tests to wait for a reload to complete
+	Reloaded chan bool
 
 	// debug output gets logged here
-	LogBuffer bytes.Buffer
+	LogWriter io.Writer
 
 	// session output gets logged here
 	SessionLogBuffer bytes.Buffer
@@ -82,12 +84,19 @@ func (t *Mocker) Stop() error {
 		recover()
 	}()
 	close(t.Started)
+	close(t.Reloaded)
 	return nil
 }
 
 // Reload implements the extension method
 func (t *Mocker) Reload(config *ExecutorConfig) error {
 	// the tether has definitely finished it's startup by the time we hit this
+	defer func() {
+		// if we trigger another Reload we don't want to panic
+		recover()
+	}()
+
+	t.Reloaded <- true
 	close(t.Started)
 	return nil
 }
@@ -101,7 +110,11 @@ func (t *Mocker) Setup(c Config) error {
 }
 
 func (t *Mocker) Log() (io.Writer, error) {
-	return &t.LogBuffer, nil
+	if t.LogWriter != nil {
+		return t.LogWriter, nil
+	}
+
+	return os.Stdout, nil
 }
 
 func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
@@ -191,7 +204,7 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (Tether, extraconfig.DataSource) {
+func StartTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (Tether, extraconfig.DataSource, extraconfig.DataSink) {
 	store := extraconfig.New()
 	sink := store.Put
 	src := store.Get
@@ -209,7 +222,7 @@ func StartTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (Te
 		}
 	}()
 
-	return Tthr, src
+	return Tthr, src, sink
 }
 
 func RunTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (Tether, extraconfig.DataSource, error) {
@@ -250,6 +263,7 @@ func testSetup(t *testing.T) (string, *Mocker) {
 	mocker := Mocker{
 		Started:    make(chan bool, 0),
 		Cleaned:    make(chan bool, 0),
+		Reloaded:   make(chan bool, 100),
 		Interfaces: make(map[string]netlink.Link, 0),
 	}
 

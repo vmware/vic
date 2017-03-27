@@ -66,8 +66,8 @@ public class PropFetcher implements ClientSessionEndListener {
 	private static final Log _logger = LogFactory.getLog(PropFetcher.class);
 	private static VimPortType _vimPort = initializeVimPort();
 	private static final String[] VIC_VM_TYPES = {"isVCH", "isContainer"};
-	private static final String EXTRACONFIG_VCH_PATH = "guestinfo.vice./init/common/name";
-	private static final String EXTRACONFIG_CONTAINER_PATH = "guestinfo.vice./common/name";
+	private static final String EXTRACONFIG_VCH_PATH = "init/common/name";
+	private static final String EXTRACONFIG_CONTAINER_PATH = "common/name";
 	private static final String SERVICE_INSTANCE = "ServiceInstance";
 	private static final Set<String> _thumbprints = new HashSet<String>();
 	private final UserSessionService _userSessionService;

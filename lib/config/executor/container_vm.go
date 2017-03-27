@@ -44,6 +44,21 @@ type Common struct {
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
 }
 
+// Common data (specifically for a containerVM) between managed entities, across execution environments.
+type ExecutorConfigCommon struct {
+	// A reference to the components hosting execution environment, if any
+	ExecutionEnvironment string
+
+	// Unambiguous ID with meaning in the context of its hosting execution environment
+	ID string `vic:"0.1" scope:"read-only" key:"id"`
+
+	// Convenience field to record a human readable name
+	Name string `vic:"0.1" scope:"hidden" key:"name"`
+
+	// Freeform notes related to the entity
+	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
+}
+
 // Diagnostics records some basic control and lifecycle information for diagnostic purposes
 type Diagnostics struct {
 	// Should debugging be enabled on whatever component this is and at what level
@@ -108,7 +123,7 @@ type ContainerVM struct {
 // in that there is no process inherently associated - this is closer to a ThreadPool than a Thread and
 // is the owner of the shared filesystem environment. This is the guest visible complement to ContainerVM.
 type ExecutorConfig struct {
-	Common `vic:"0.1" scope:"read-only" key:"common"`
+	ExecutorConfigCommon `vic:"0.1" scope:"read-only" key:"common"`
 
 	// CreateTime stamp
 	CreateTime int64 `vic:"0.1" scope:"read-write" key:"createtime"`
@@ -119,6 +134,9 @@ type ExecutorConfig struct {
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
 	Sessions map[string]*SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
+
+	// Execs is the set of non-persistent sessions hosted by this executor
+	Execs map[string]*SessionConfig `vic:"0.1" scope:"read-only,non-persistent" key:"execs"`
 
 	// Maps the mount name to the detail mount specification
 	Mounts map[string]MountSpec `vic:"0.1" scope:"read-only" key:"mounts"`
@@ -133,6 +151,9 @@ type ExecutorConfig struct {
 
 	// Layer id that is backing this container VM
 	LayerID string `vic:"0.1" scope:"read-only" key:"layerid"`
+
+	// Image id that is backing this container VM
+	ImageID string `vic:"0.1" scope:"read-only" key:"imageid"`
 
 	// Blob metadata for the caller
 	Annotations map[string]string `vic:"0.1" scope:"hidden" key:"annotations"`
@@ -178,6 +199,9 @@ type SessionConfig struct {
 
 	// Delay launching the Cmd until an attach request comes
 	RunBlock bool `vic:"0.1" scope:"read-only" key:"runblock"`
+
+	// Should this config be activated or not
+	Active bool `vic:"0.1" scope:"read-only" key:"active"`
 
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`

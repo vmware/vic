@@ -32,7 +32,7 @@ var (
 
 func TestToExtraConfig(t *testing.T) {
 	exec := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "deadbeef",
 			Name: "configtest",
 		},

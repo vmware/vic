@@ -15,16 +15,15 @@
 package backends
 
 import (
-    "fmt"
-    "io"
+	"fmt"
+	"io"
 
- 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"golang.org/x/net/context"
 )
 
 type Builder struct {
-
 }
 
 func (b *Builder) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {

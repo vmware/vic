@@ -69,10 +69,11 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	c := serial.GetVirtualDevice().Connectable
 	b := serial.GetVirtualDevice().Backing.(*types.VirtualSerialPortURIBackingInfo)
 
-	serviceURI := fmt.Sprintf("tcp://%s:%d", ip, constants.SerialOverLANPort)
+	serviceURI := fmt.Sprintf("tcp://127.0.0.1:%d", constants.AttachServerPort)
+	proxyURI := fmt.Sprintf("telnet://%s:%d", ip, constants.SerialOverLANPort)
 
-	if b.ServiceURI == serviceURI && c.Connected == connected {
-		log.Debugf("Already in the desired state (connected: %t, serviceURI: %s)", connected, serviceURI)
+	if b.ProxyURI == proxyURI && c.Connected == connected {
+		log.Debugf("Already in the desired state (connected: %t, proxyURI: %s)", connected, proxyURI)
 		return handle, nil
 	}
 
@@ -86,6 +87,9 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 
 	log.Debugf("Setting ServiceURI to %s", serviceURI)
 	b.ServiceURI = serviceURI
+
+	log.Debugf("Setting the ProxyURI to %s", proxyURI)
+	b.ProxyURI = proxyURI
 
 	config := &types.VirtualDeviceConfigSpec{
 		Device:    serial,
@@ -118,8 +122,9 @@ func Join(h interface{}) (interface{}, error) {
 			Backing: &types.VirtualSerialPortURIBackingInfo{
 				VirtualDeviceURIBackingInfo: types.VirtualDeviceURIBackingInfo{
 					Direction: string(types.VirtualDeviceURIBackingOptionDirectionClient),
+					ProxyURI:  fmt.Sprintf("telnet://0.0.0.0:%d", constants.SerialOverLANPort),
 					// Set it to 0.0.0.0 during Join call, VCH IP will be set when we call Bind
-					ServiceURI: fmt.Sprintf("tcp://0.0.0.0:%d", constants.SerialOverLANPort),
+					ServiceURI: fmt.Sprintf("tcp://127.0.0.1:%d", constants.AttachServerPort),
 				},
 			},
 			Connectable: &types.VirtualDeviceConnectInfo{

@@ -28,6 +28,7 @@ import (
 	ui "github.com/gizak/termui"
 
 	"github.com/dustin/go-humanize"
+
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
 	"github.com/vmware/vmw-guestinfo/vmcheck"

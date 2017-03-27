@@ -143,7 +143,7 @@ public class Common {
 		List<OptionValue> ovList = new ArrayList<OptionValue>();
 
 		OptionValue ovContainerNameKey = new OptionValue();
-		ovContainerNameKey.setKey("guestinfo.vice./common/name");
+		ovContainerNameKey.setKey("common/name");
 		ovContainerNameKey.setValue(containerName);
 		ovList.add(ovContainerNameKey);
 

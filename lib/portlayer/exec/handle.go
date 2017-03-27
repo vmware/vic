@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -75,6 +76,9 @@ type Handle struct {
 	Spec *spec.VirtualMachineConfigSpec
 	// desired state
 	targetState State
+
+	// should this change trigger a reload in the target container
+	reload bool
 
 	// allow for passing outside of the process
 	key string
@@ -126,6 +130,25 @@ func (h *Handle) TargetState() State {
 
 func (h *Handle) SetTargetState(s State) {
 	h.targetState = s
+}
+
+func (h *Handle) Reload() {
+	h.reload = true
+}
+
+// Rename updates the container name in ExecConfig as well as the vSphere display name
+func (h *Handle) Rename(newName string) *Handle {
+	defer trace.End(trace.Begin(newName))
+
+	h.ExecConfig.Name = newName
+
+	s := &spec.VirtualMachineConfigSpecConfig{
+		ID:   h.ExecConfig.ID,
+		Name: newName,
+	}
+	h.Spec.Spec().Name = util.DisplayName(s)
+
+	return h
 }
 
 // GetHandle finds and returns the handle that is referred by key
@@ -227,7 +250,7 @@ func (h *Handle) Close() {
 //
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
-func Create(ctx context.Context, sess *session.Session, config *ContainerCreateConfig) (*Handle, error) {
+func Create(ctx context.Context, vmomiSession *session.Session, config *ContainerCreateConfig) (*Handle, error) {
 	defer trace.End(trace.Begin("Handle.Create"))
 
 	h := &Handle{
@@ -275,13 +298,20 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 
 		ParentImageID: config.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
-		VMPathName:    fmt.Sprintf("[%s]", sess.Datastore.Name()),
+		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
 
 		ImageStoreName: config.ImageStoreName,
 		ImageStorePath: &Config.ImageStores[0],
 
 		Metadata: config.Metadata,
 	}
+
+	// if not vsan, set the datastore folder name to containerID
+	if !vmomiSession.IsVSAN(ctx) {
+		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
+	}
+
+	specconfig.VMFullName = util.DisplayName(specconfig)
 
 	// log only core portions
 	s := specconfig
@@ -305,7 +335,7 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 	}
 
 	// Create a linux guest
-	linux, err := guest.NewLinuxGuest(ctx, sess, specconfig)
+	linux, err := guest.NewLinuxGuest(ctx, vmomiSession, specconfig)
 	if err != nil {
 		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
 		return nil, err

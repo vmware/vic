@@ -371,6 +371,7 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	for _, registry := range insecureRegistries {
 		if registry == ref.Hostname() {
 			options.InsecureAllowHTTP = true
+			log.Debugf("PullImage: Matched insecure registry: %s", registry)
 			break
 		}
 	}

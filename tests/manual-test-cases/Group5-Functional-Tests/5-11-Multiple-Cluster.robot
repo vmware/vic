@@ -20,23 +20,25 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    ${esx1}  ${esx4-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx2}  ${esx5-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}
+    ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
+
+    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
 
     Create a Simple VC Cluster  datacenter1  cls1
 
     Log To Console  Create cluster2 on the VC
     ${out}=  Run  govc cluster.create cls2
     Should Be Empty  ${out}
-    ${out}=  Run  govc cluster.add -hostname=${esx4-ip} -username=root -dc=datacenter1 -cluster=cls2 -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=datacenter1 -cluster=cls2 -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
     Log To Console  Create cluster3 on the VC
     ${out}=  Run  govc cluster.create cls3
     Should Be Empty  ${out}
-    ${out}=  Run  govc cluster.add -hostname=${esx5-ip} -username=root -dc=datacenter1 -cluster=cls3 -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=datacenter1 -cluster=cls3 -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
     Install VIC Appliance To Test Server  certs=${false}  vol=default

@@ -161,23 +161,26 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	if err != nil {
 		return err
 	}
+
 	if children, err = d.parentResourcepool.GetChildrenVMs(d.ctx, d.session); err != nil {
 		return err
 	}
+
 	if d.session.Datastore, err = d.getImageDatastore(vmm, conf, d.force); err != nil {
 		return err
 	}
 
 	for _, child := range children {
-		name, err := child.Name(d.ctx)
+		//Leave VCH appliance there until everything else is removed, cause it has VCH configuration. Then user could retry delete in case of any failure.
+		ok, err := d.isVCH(child)
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}
-		//Leave VCH appliance there until everything else is removed, cause it has VCH configuration. Then user could retry delete in case of any failure.
-		if name == conf.Name {
+		if ok {
 			continue
 		}
+
 		if err = d.deleteVM(child, d.force); err != nil {
 			errs = append(errs, err.Error())
 		}

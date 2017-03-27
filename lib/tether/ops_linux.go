@@ -22,7 +22,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -32,6 +31,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
+	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
+	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/dhcp"
@@ -44,6 +45,12 @@ import (
 var (
 	hostnameFile = "/etc/hostname"
 	byLabelDir   = "/dev/disk/by-label"
+
+	defaultExecUser = &user.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
 )
 
 const (
@@ -784,24 +791,48 @@ func (t *BaseOperations) Cleanup() error {
 	return nil
 }
 
-// Need to put this here because Windows does not
-// support SysProcAttr.Credential
-func getUserSysProcAttr(uname string) *syscall.SysProcAttr {
-	uinfo, err := user.Lookup(uname)
-	if err != nil {
-		detail := fmt.Sprintf("Unable to find user %s: %s", uname, err)
-		log.Error(detail)
-		return nil
-	} else {
-		u, _ := strconv.Atoi(uinfo.Uid)
-		g, _ := strconv.Atoi(uinfo.Gid)
-		// Unfortunately lookup GID by name is currently unsupported in Go.
-		return &syscall.SysProcAttr{
-			Credential: &syscall.Credential{
-				Uid: uint32(u),
-				Gid: uint32(g),
-			},
-			Setsid: true,
-		}
+// Need to put this here because Windows does not support SysProcAttr.Credential
+// getUserSysProcAttr relies on docker user package to verify user specification
+// Examples of valid user specifications are:
+//     * ""
+//     * "user"
+//     * "uid"
+//     * "user:group"
+//     * "uid:gid
+//     * "user:gid"
+//     * "uid:group"
+func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
+	if uid == "" && gid == "" {
+		log.Debugf("no user id or group id specified")
+		return nil, nil
 	}
+
+	userGroup := uid
+	if gid != "" {
+		userGroup = fmt.Sprintf("%s:%s", uid, gid)
+	}
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return nil, err
+	}
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return nil, err
+	}
+	execUser, err := user.GetExecUserPath(userGroup, defaultExecUser, passwdPath, groupPath)
+	if err != nil {
+		return nil, err
+	}
+
+	sysProc := &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uint32(execUser.Uid),
+			Gid: uint32(execUser.Gid),
+		},
+		Setsid: true,
+	}
+	for _, sgid := range execUser.Sgids {
+		sysProc.Credential.Groups = append(sysProc.Credential.Groups, uint32(sgid))
+	}
+	return sysProc, nil
 }

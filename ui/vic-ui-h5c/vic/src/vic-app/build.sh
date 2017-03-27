@@ -40,7 +40,7 @@ if [[ -z "$VSPHERE_H5C_SDK_HOME" ]] ; then
     show_error
 fi
 
-npm install
+yarn install
 
 if [[ "$BUILD_MODE" = "prod" ]] ; then
     echo "Building in production mode"

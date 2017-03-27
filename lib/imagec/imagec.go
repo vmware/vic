@@ -477,7 +477,7 @@ func (ic *ImageC) PullImage() error {
 	}
 
 	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
-	ic.Registry, err = LearnRegistryURL(ic.Options)
+	ic.Registry, err = LearnRegistryURL(&ic.Options)
 	if err != nil {
 		log.Errorf("Error while pulling image: %s", err)
 		return err

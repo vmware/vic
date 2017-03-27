@@ -40,7 +40,10 @@ import (
 	"github.com/vmware/vic/pkg/version"
 )
 
-const containerWaitTimeout = 3 * time.Minute
+const (
+	containerWaitTimeout = 3 * time.Minute
+	minVersionForRename  = 4
+)
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
 type ContainersHandlersImpl struct {
@@ -60,6 +63,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersContainerSignalHandler = containers.ContainerSignalHandlerFunc(handler.ContainerSignalHandler)
 	api.ContainersGetContainerLogsHandler = containers.GetContainerLogsHandlerFunc(handler.GetContainerLogsHandler)
 	api.ContainersContainerWaitHandler = containers.ContainerWaitHandlerFunc(handler.ContainerWaitHandler)
+	api.ContainersContainerRenameHandler = containers.ContainerRenameHandlerFunc(handler.RenameContainerHandler)
 
 	handler.handlerCtx = handlerCtx
 }
@@ -73,10 +77,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	session := handler.handlerCtx.Session
 
 	ctx := context.Background()
-
-	log.Debugf("Path: %#v", params.CreateConfig.Path)
-	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
-	log.Debugf("OpenStdin: %#v", params.CreateConfig.OpenStdin)
 
 	id := uid.New().String()
 
@@ -92,33 +92,16 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	}
 
 	m := &executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   id,
 			Name: params.CreateConfig.Name,
 		},
 		CreateTime: time.Now().UTC().Unix(),
 		Version:    version.GetBuild(),
-		Sessions: map[string]*executor.SessionConfig{
-			id: {
-				Common: executor.Common{
-					ID:   id,
-					Name: params.CreateConfig.Name,
-				},
-				Tty:       params.CreateConfig.Tty,
-				Attach:    params.CreateConfig.Attach,
-				OpenStdin: params.CreateConfig.OpenStdin,
-				Cmd: executor.Cmd{
-					Env:  params.CreateConfig.Env,
-					Dir:  params.CreateConfig.WorkingDir,
-					Path: params.CreateConfig.Path,
-					Args: append([]string{params.CreateConfig.Path}, params.CreateConfig.Args...),
-				},
-				StopSignal: params.CreateConfig.StopSignal,
-			},
-		},
-		Key:      pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:  params.CreateConfig.Image,
-		RepoName: params.CreateConfig.RepoName,
+		Key:        pem.EncodeToMemory(&privateKeyBlock),
+		LayerID:    params.CreateConfig.Layer,
+		ImageID:    params.CreateConfig.Image,
+		RepoName:   params.CreateConfig.RepoName,
 	}
 
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
@@ -131,7 +114,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
 		Metadata:       m,
-		ParentImageID:  params.CreateConfig.Image,
+		ParentImageID:  params.CreateConfig.Layer,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 		Resources: exec.Resources{
 			NumCPUs:  params.CreateConfig.NumCpus,
@@ -412,6 +395,41 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 	}
 }
 
+func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.ContainerRenameParams) middleware.Responder {
+	defer trace.End(trace.Begin(fmt.Sprintf("Rename container to %s", params.Name)))
+
+	h := exec.GetHandle(params.Handle)
+	if h == nil || h.ExecConfig == nil {
+		return containers.NewContainerRenameNotFound()
+	}
+
+	// get the indicated container for rename
+	container := exec.Containers.Container(h.ExecConfig.ID)
+	if container == nil {
+		return containers.NewContainerRenameNotFound()
+	}
+
+	if container.ExecConfig.Name == params.Name {
+		err := &models.Error{
+			Message: fmt.Sprintf("renaming a container with the same name as its current name: %s", params.Name),
+		}
+		return containers.NewContainerRenameInternalServerError().WithPayload(err)
+	}
+
+	// rename on container version < supportVersionForRename is not supported
+	log.Debugf("The container DataVersion is: %d", h.DataVersion)
+	if h.DataVersion < minVersionForRename {
+		err := &models.Error{
+			Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name),
+		}
+		return containers.NewContainerRenameInternalServerError().WithPayload(err)
+	}
+
+	h = h.Rename(params.Name)
+
+	return containers.NewContainerRenameOK().WithPayload(h.String())
+}
+
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
 func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.ContainerInfo {
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
@@ -445,6 +463,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	}
 	info.ContainerConfig.State = state
 	info.ContainerConfig.LayerID = container.ExecConfig.LayerID
+	info.ContainerConfig.ImageID = container.ExecConfig.ImageID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
 	info.ContainerConfig.CreateTime = container.ExecConfig.CreateTime
 	info.ContainerConfig.Names = []string{container.ExecConfig.Name}
@@ -480,6 +499,10 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		info.ProcessConfig.StartTime = session.StartTime
 		info.ProcessConfig.StopTime = session.StopTime
 
+		info.ProcessConfig.User = session.User
+		if session.Group != "" {
+			info.ProcessConfig.User = fmt.Sprintf("%s:%s", session.User, session.Group)
+		}
 	} else {
 		// log that sessionID is missing and print the ExecConfig
 		log.Errorf("Session ID is missing from execConfig: %#v", container.ExecConfig)

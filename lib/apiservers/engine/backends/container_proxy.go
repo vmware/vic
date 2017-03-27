@@ -70,6 +70,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/logging"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
@@ -78,7 +79,8 @@ import (
 
 // VicContainerProxy interface
 type VicContainerProxy interface {
-	CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error)
+	CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
+	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
@@ -91,6 +93,7 @@ type VicContainerProxy interface {
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
+	Rename(vc *viccontainer.VicContainer, newName string) error
 	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
 
 	Handle(id, name string) (string, error)
@@ -167,15 +170,19 @@ func (c *ContainerProxy) Client() *client.PortLayer {
 //
 // returns:
 //	(containerID, containerHandle, error)
-func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
-	defer trace.End(trace.Begin(imageID))
+func (c *ContainerProxy) CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
+	defer trace.End(trace.Begin(vc.ImageID))
 
 	if c.client == nil {
 		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle failed to create a portlayer client")
 	}
 
-	if imageID == "" {
+	if vc.ImageID == "" {
 		return "", "", NotFoundError("No image specified")
+	}
+
+	if vc.LayerID == "" {
+		return "", "", NotFoundError("No layer specified")
 	}
 
 	// Call the Exec port layer to create the container
@@ -184,11 +191,11 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle got unexpected error getting VCH UUID")
 	}
 
-	plCreateParams := dockerContainerCreateParamsToPortlayer(config, imageID, host)
+	plCreateParams := dockerContainerCreateParamsToPortlayer(config, vc, host)
 	createResults, err := c.client.Containers.Create(plCreateParams)
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
-			cerr := fmt.Errorf("No such image: %s", imageID)
+			cerr := fmt.Errorf("No such image: %s", vc.ImageID)
 			log.Errorf("%s (%s)", cerr, err)
 			return "", "", NotFoundError(cerr.Error())
 		}
@@ -201,6 +208,46 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 	h := createResults.Payload.Handle
 
 	return id, h, nil
+}
+
+// CreateContainerTask sets the primary command to run in the container
+//
+// returns:
+//	(containerHandle, error)
+func (c *ContainerProxy) CreateContainerTask(handle, id string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(""))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.CreateContainerTask failed to create a portlayer client")
+	}
+
+	plTaskParams := dockerContainerCreateParamsToTask(id, config)
+	plTaskParams.Config.Handle = handle
+
+	responseJoin, err := c.client.Tasks.Join(plTaskParams)
+	if err != nil {
+		log.Errorf("Unable to join primary task to container: %+v", err)
+		return "", InternalServerError(err.Error())
+	}
+
+	handle, ok := responseJoin.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed on handle from task join: %#+v", handle))
+	}
+
+	plBindParams := tasks.NewBindParamsWithContext(ctx).WithConfig(&models.TaskBindConfig{Handle: handle, ID: id})
+	responseBind, err := c.client.Tasks.Bind(plBindParams)
+	if err != nil {
+		log.Errorf("Unable to bind primary task to container: %+v", err)
+		return "", InternalServerError(err.Error())
+	}
+
+	handle, ok = responseBind.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed on handle from task bind %#+v", handle))
+	}
+
+	return handle, nil
 }
 
 // AddContainerToScope adds a container, referenced by handle, to a scope.
@@ -828,24 +875,66 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 	return nil
 }
 
+// Rename calls the portlayer's RenameContainerHandler to update the container name in the handle,
+// and then commit the new name to vSphere
+func (c *ContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	//retrieve client to portlayer
+	handle, err := c.Handle(vc.ContainerID, vc.Name)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.Rename failed to create a portlayer client")
+	}
+
+	// Call the rename functionality in the portlayer.
+	renameParams := containers.NewContainerRenameParamsWithContext(ctx).WithName(newName).WithHandle(handle)
+	result, err := c.client.Containers.ContainerRename(renameParams)
+	if err != nil {
+		switch err := err.(type) {
+		// Here we don't check the portlayer error type for *containers.ContainerRenameConflict since
+		// (1) we already check that in persona cache for ConflictError and
+		// (2) the container name in portlayer cache will be updated when committing the handle in the next step
+		case *containers.ContainerRenameNotFound:
+			return NotFoundError(vc.Name)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	h := result.Payload
+
+	// commit handle
+	_, err = c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(h))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.CommitNotFound:
+			return NotFoundError(err.Payload.Message)
+		case *containers.CommitConflict:
+			return ConflictError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	return nil
+}
+
 //----------
 // Utility Functions
 //----------
 
-func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
-	config := &models.ContainerCreateConfig{}
-
-	config.NumCpus = cc.HostConfig.CPUCount
-	config.MemoryMB = cc.HostConfig.Memory
-
-	// Image
-	config.Image = layerID
-
-	// Repo Requested
-	config.RepoName = cc.Config.Image
+func dockerContainerCreateParamsToTask(id string, cc types.ContainerCreateConfig) *tasks.JoinParams {
+	config := &models.TaskJoinConfig{}
 
 	var path string
 	var args []string
+
+	// we explicitly specify the ID for the primary task so that it's the same as the containerID
+	config.ID = id
 
 	// Expand cmd into entrypoint and args
 	cmd := strslice.StrSlice(cc.Config.Cmd)
@@ -854,9 +943,6 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	} else {
 		path, args = cmd[0], cmd[1:]
 	}
-
-	//copy friendly name
-	config.Name = cc.Name
 
 	// copy the path
 	config.Path = path
@@ -869,14 +955,11 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	config.Env = make([]string, len(cc.Config.Env))
 	copy(config.Env, cc.Config.Env)
 
-	// image store
-	config.ImageStore = &models.ImageStore{Name: imageStore}
-
-	// network
-	config.NetworkDisabled = cc.Config.NetworkDisabled
-
 	// working dir
 	config.WorkingDir = cc.Config.WorkingDir
+
+	// user
+	config.User = cc.Config.User
 
 	// attach
 	config.Attach = cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr
@@ -889,6 +972,35 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 
 	// container stop signal
 	config.StopSignal = cc.Config.StopSignal
+
+	log.Debugf("dockerContainerCreateParamsToTask = %+v", config)
+
+	return tasks.NewJoinParamsWithContext(ctx).WithConfig(config)
+}
+
+func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, vc *viccontainer.VicContainer, imageStore string) *containers.CreateParams {
+	config := &models.ContainerCreateConfig{}
+
+	config.NumCpus = cc.HostConfig.CPUCount
+	config.MemoryMB = cc.HostConfig.Memory
+
+	// Layer/vmdk to use
+	config.Layer = vc.LayerID
+
+	// Image ID
+	config.Image = vc.ImageID
+
+	// Repo Requested
+	config.RepoName = cc.Config.Image
+
+	//copy friendly name
+	config.Name = cc.Name
+
+	// image store
+	config.ImageStore = &models.ImageStore{Name: imageStore}
+
+	// network
+	config.NetworkDisabled = cc.Config.NetworkDisabled
 
 	// Stuff the Docker labels into VIC container annotations
 	annotationsFromLabels(config, cc.Config.Labels)
@@ -1074,7 +1186,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			MountLabel:      "",
 			ProcessLabel:    "",
 			AppArmorProfile: "",
-			ExecIDs:         nil,
+			ExecIDs:         vc.List(),
 			HostConfig:      hostConfigFromContainerInfo(vc, info, portlayerName),
 			GraphDriver:     types.GraphDriverData{Name: portlayerName},
 			SizeRw:          nil,
@@ -1109,8 +1221,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if containerState.Status == ContainerRunning {
 			containerState.Running = true
 		}
-
-		inspectJSON.Image = info.ContainerConfig.LayerID
+		inspectJSON.Image = info.ContainerConfig.ImageID
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)
 		inspectJSON.ID = info.ContainerConfig.ContainerID
@@ -1252,6 +1363,8 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	if info.ProcessConfig.WorkingDir != nil {
 		container.WorkingDir = *info.ProcessConfig.WorkingDir // Current directory (PWD) in the command will be launched
 	}
+
+	container.User = info.ProcessConfig.User
 
 	// Fill in information about the container network
 	if info.Endpoints == nil {

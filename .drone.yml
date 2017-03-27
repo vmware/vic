@@ -7,7 +7,7 @@
 #
 # $ drone -s https://ci.vmware.run -t ${DRONE_TOKEN} secure --in "secrets.yml" --out ".drone.sec" --repo vmware/vic --yaml ".drone.yml"
 #
-# The secrets file is in google drive.  Ask mhaggen for access.
+# The secrets file is in our local git repo.  Ask mhagen for access.
 ---
 clone:
   path: github.com/vmware/vic
@@ -15,7 +15,7 @@ clone:
 
 build:
   prevent-concurrent-builds:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.22}
     pull: true
     environment:
       BIN: bin
@@ -28,7 +28,7 @@ build:
       - tests/wait_until_previous_builds_complete.sh
 
   vic:
-    image: golang:1.8
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.22}
     pull: true
     environment:
       BIN: bin
@@ -41,19 +41,18 @@ build:
       COMMIT: $$COMMIT
     commands:
       - make mark
-      - apt-get update
-      - apt-get install -yq time
       - make -j3 all
       - make sincemark
       - make mark
-      - ls vendor/github.com/vmware/govmomi/vim25/methods
-      - ls vendor/github.com/vmware/govmomi/vim25/types
+      - echo `ls vendor/github.com/vmware/govmomi/vim25/methods`
+      - echo `ls vendor/github.com/vmware/govmomi/vim25/types`
+      - echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`
       - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
       - make -j3 test
       - make sincemark
 
   integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.22}
     pull: true
     privileged: true
     environment:
@@ -90,7 +89,7 @@ build:
       success: true
 
   vicui:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.21}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.22}
     pull: true
     environment:
       BIN: bin
@@ -106,6 +105,7 @@ build:
       ENV_HTML_SDK_HOME: "/tmp/sdk/html-client-sdk"
     commands:
       - make mark
+      - npm install -g yarn > /dev/null
       - version=`$BIN/vic-machine-linux version`
       - version=`echo $version | awk '{print $3}' | awk -F- '{print $1}' | cut -c 2-`
       - sed "s/0.0.1/${version}/" ./$VICUI_SOURCE_PATH/plugin-package.xml > ./$VICUI_SOURCE_PATH/new_plugin-package.xml
@@ -115,8 +115,6 @@ build:
       - mv ./$VICUI_SOURCE_PATH/new_plugin-package.xml ./$VICUI_SOURCE_PATH/plugin-package.xml
       - mv ./$VICUI_H5_UI_PATH/new_plugin-package.xml ./$VICUI_H5_UI_PATH/plugin-package.xml
       - mv ./$VICUI_H5_SERVICE_PATH/src/main/resources/new_configs.properties ./$VICUI_H5_SERVICE_PATH/src/main/resources/configs.properties
-      - curl -sL https://deb.nodesource.com/setup_7.x | bash -
-      - apt-get install -yq nodejs
       - wget -nv $BINTRAY_DOWNLOAD_PATH$SDK_PACKAGE_ARCHIVE -O /tmp/$SDK_PACKAGE_ARCHIVE
       - wget -nv $BINTRAY_DOWNLOAD_PATH$UI_INSTALLER_WIN_UTILS_ARCHIVE -O /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE
       - tar --warning=no-unknown-keyword -xzf /tmp/$SDK_PACKAGE_ARCHIVE -C /tmp/
@@ -189,7 +187,7 @@ publish:
   coverage:
     server: https://coverage.vmware.run
     token: $$GITHUB_AUTOMATION_API_KEY
-    include: .+\\.out$
+    include: /drone/src/github.com/vmware/vic/.cover/cover.out
     when:
       repo: vmware/vic
       branch: master

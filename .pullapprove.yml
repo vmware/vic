@@ -121,6 +121,7 @@ groups:
   config:
     users:
       - emlin
+      - hickeng
     conditions:
       files:
         include:
@@ -164,6 +165,14 @@ groups:
         include:
           - "lib/portlayer/store/*"
 
+
+  package-kv-store:
+    users:
+      - fdawg4l
+    conditions:
+      files:
+        include:
+          - "pkg/kvstore/*"
 
   port-layer-network:
     users:

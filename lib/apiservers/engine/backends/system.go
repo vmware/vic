@@ -288,6 +288,12 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		registryAddress = registryAddress + "/v2/"
 	}
 
+	// TODO(jzt) Ensuring the scheme exists in the url happens at several places in our code.
+	// We should consolidate these into a common method to deal with this.
+	if !strings.HasPrefix(registryAddress, "https://") && !strings.HasPrefix(registryAddress, "http://") {
+		registryAddress = "https://" + registryAddress
+	}
+
 	registryURL, err := url.Parse(registryAddress)
 	if err != nil {
 		msg := fmt.Sprintf("Bad login address: %s", registryAddress)

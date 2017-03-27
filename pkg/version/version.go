@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ var (
 	State       string
 
 	// MaxPluginVersion must be increased to add new plugin and make sure the new plugin version is same to this value
-	MaxPluginVersion = 1
+	MaxPluginVersion = 5
 
 	v bool
 )

@@ -135,6 +135,12 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	return base, nil
 }
 
+func (c *containerBase) ReloadConfig(ctx context.Context) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
+	return c.startGuestProgram(ctx, "reload", "")
+}
+
 func (c *containerBase) startGuestProgram(ctx context.Context, name string, args string) error {
 	// make sure we have vm
 	if c.vm == nil {

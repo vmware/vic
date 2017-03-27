@@ -85,6 +85,16 @@ type SessionConfig struct {
 	Tty bool `vic:"0.1" scope:"hidden" key:"tty"`
 }
 
+type ExecutorConfigPointersVisible struct {
+	Sessions map[string]*VisibleSessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
+}
+
+type VisibleSessionConfig struct {
+	Cmd Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
+
+	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
+}
+
 // [END] SLIMMED VERSION of github.com/vmware/vic/lib/metadata
 
 // make it verbose during testing
@@ -334,6 +344,76 @@ func TestPointer(t *testing.T) {
 	assert.Equal(t, Pointer, decoded, "Encoded and decoded does not match")
 }
 
+func TestInheritenceOfNonPersistence(t *testing.T) {
+	type CommonPersistence struct {
+		ExecutionEnvironment string `vic:"0.1" recurse:"depth=0"`
+
+		ID string `vic:"0.1" scope:"read-only" key:"id"`
+
+		Name string `vic:"0.1" scope:"read-only" key:"name"`
+
+		Notes string `vic:"0.1" scope:"hidden" key:"notes"`
+	}
+
+	type Type struct {
+		Common CommonPersistence `vic:"0.1" scope:"read-write,non-persistent" key:"common"`
+	}
+
+	Struct := Type{
+		Common: CommonPersistence{
+			ID:   "0xDEADBEEF",
+			Name: "Struct",
+		},
+	}
+
+	encoded := map[string]string{}
+	filterSink := ScopeFilterSink(NonPersistent|Hidden, MapSink(encoded))
+	Encode(filterSink, Struct)
+
+	expected := map[string]string{
+		visibleRONonpersistent("common/id"):   "0xDEADBEEF",
+		visibleRONonpersistent("common/name"): "Struct",
+	}
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+
+	var decoded Type
+	Decode(MapSource(encoded), &decoded)
+
+	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")
+}
+
+func TestInheritenceOfNonPersistenceWithPointer(t *testing.T) {
+
+	type Persistence struct {
+		ExecutorConfigPointersVisible `vic:"0.1" scope:"read-only,non-persistent" key:"pointers"`
+	}
+
+	Struct := Persistence{
+		ExecutorConfigPointersVisible: ExecutorConfigPointersVisible{
+			Sessions: map[string]*VisibleSessionConfig{
+				"primary": {
+					Tty: true,
+				},
+			},
+		},
+	}
+
+	encoded := map[string]string{}
+	filterSink := ScopeFilterSink(NonPersistent|Hidden, MapSink(encoded))
+	Encode(filterSink, Struct)
+
+	expected := map[string]string{
+		visibleRONonpersistent("pointers/sessions"):                             "primary",
+		visibleRONonpersistent("pointers/sessions" + Separator + "primary/tty"): "true",
+	}
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+
+	var decoded Persistence
+	Decode(MapSource(encoded), &decoded)
+
+	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")
+}
+
 func TestFilterSink(t *testing.T) {
 	type CommonPersistence struct {
 		ExecutionEnvironment string `vic:"0.1" recurse:"depth=0"`
@@ -346,7 +426,7 @@ func TestFilterSink(t *testing.T) {
 	}
 
 	type Type struct {
-		Common CommonPersistence `vic:"0.1" scope:"non-persistent,read-write" key:"common"`
+		Common CommonPersistence `vic:"0.1" scope:"read-write" key:"common"`
 	}
 
 	Struct := Type{

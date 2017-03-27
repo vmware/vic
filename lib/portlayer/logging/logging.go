@@ -21,6 +21,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"strings"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
@@ -135,11 +137,21 @@ func Join(h interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
 
+	var logFilePath string
+
 	VMPathName := handle.Spec.VMPathName()
 	VMName := handle.Spec.Spec().Name
 
+	logFilePath = fmt.Sprintf("%s/%s", VMPathName, VMName)
+	// on non-vsan setup, VMPathName is set to "[datastore_name] containerID/containerID.vmx"
+	if strings.HasSuffix(VMPathName, ".vmx") {
+		idx := strings.LastIndex(VMPathName, "/")
+		logFilePath = VMPathName[:idx]
+	}
+
 	for _, logFile := range []string{"tether.debug", "output.log"} {
-		filename := fmt.Sprintf("%s/%s/%s", VMPathName, VMName, logFile)
+		filename := fmt.Sprintf("%s/%s", logFilePath, logFile)
+		log.Infof("set log file name to: %s", filename)
 
 		// Debug and log serial ports - backed by datastore file
 		serial := &types.VirtualSerialPort{

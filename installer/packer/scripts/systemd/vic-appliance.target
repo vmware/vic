@@ -1,5 +1,6 @@
 [Unit]
 Description=System customization for VIC(Integrated containers engine on vSphere) based on user provided parameters
+Documentation=https://github.com/vmware/vic/blob/master/doc/bundle/OVA-spec.md
 Wants=chrootpwd.service sshd_permitrootlogin.service data.mount
 After=chrootpwd.service sshd_permitrootlogin.service data.mount
 Before=sshd.service

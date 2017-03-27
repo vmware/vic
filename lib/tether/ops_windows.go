@@ -82,6 +82,6 @@ func (t *BaseOperations) Cleanup() error {
 }
 
 // Uid/Gid is not supported in Windows
-func getUserSysProcAttr(uname string) *syscall.SysProcAttr {
-	return nil
+func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
+	return nil, nil
 }

@@ -1,9 +1,0 @@
-{
-	"title": "Developing Container Applications with VMware vSphere Integrated Containers 0.9",
-        "gitbook": "2.x.x",
-	"pdf": {
-		"headerTemplate": "_TITLE_",
-		"footerTemplate": "_PAGENUM_"
-	}
-
-}

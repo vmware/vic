@@ -35,9 +35,8 @@ Launch Container
 
 Reboot VCH
     Log To Console  Rebooting VCH ...
-    ${vm}=  Get VM Name  %{VCH-NAME}
-    Power Off VM OOB  ${vm}
-    Power On VM OOB  ${vm}
+    Power Off VM OOB  %{VCH-NAME}
+    Power On VM OOB  %{VCH-NAME}
     Log To Console  VCH Powered On
 
 *** Test Cases ***

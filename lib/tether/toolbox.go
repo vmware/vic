@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -184,6 +184,8 @@ func (t *Toolbox) containerStartCommand(r *toolbox.VixMsgStartProgramRequest) (i
 	switch r.ProgramPath {
 	case "kill":
 		return -1, t.kill(r.Arguments)
+	case "reload":
+		return -1, ReloadConfig()
 	default:
 		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
 	}

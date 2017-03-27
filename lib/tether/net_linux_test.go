@@ -74,7 +74,7 @@ func TestSetIpAddress(t *testing.T) {
 	secondIP, _ := netlink.ParseIPNet("172.16.0.10/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
 	cfg := executor.ExecutorConfig{
-		Common: executor.Common{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "ipconfig",
 			Name: "tether_test_executor",
 		},
@@ -131,7 +131,7 @@ func TestSetIpAddress(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg, mocker)
+	tthr, _, _ := StartTether(t, &cfg, mocker)
 
 	defer func() {
 		// prevent indefinite wait in tether - normally session exit would trigger this

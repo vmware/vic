@@ -15,13 +15,14 @@
 package validate
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/url"
+	"path"
+	"regexp"
 	"strings"
-
-	"context"
 
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
@@ -83,7 +84,7 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	tURL := input.URL
 
 	// normalize the path - strip trailing /
-	tURL.Path = strings.TrimSuffix(tURL.Path, "/")
+	input.URL.Path = strings.TrimSuffix(input.URL.Path, "/")
 
 	// default to https scheme
 	if tURL.Scheme == "" {
@@ -123,6 +124,7 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	// if a datacenter was specified, set it
 	v.DatacenterPath = tURL.Path
 	if v.DatacenterPath != "" {
+		v.DatacenterPath = strings.TrimPrefix(v.DatacenterPath, "/")
 		sessionconfig.DatacenterPath = v.DatacenterPath
 		// path needs to be stripped before we can use it as a service url
 		tURL.Path = ""
@@ -142,11 +144,13 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	finder := find.NewFinder(v.Session.Client.Client, false)
 	v.Session.Finder = finder
 
-	v.Session.Populate(ctx)
+	// Intentionally ignore any error returned by Populate
+	_, err = v.Session.Populate(ctx)
+	if err != nil {
+		log.Debugf("new validator Session.Populate: %s", err)
+	}
 
-	// only allow the datacenter to be specified in the target url, if any
-	pElems := strings.Split(v.DatacenterPath, "/")
-	if len(pElems) > 2 {
+	if strings.Contains(sessionconfig.DatacenterPath, "/") {
 		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
 		log.Error(detail)
 		v.suggestDatacenter()
@@ -154,6 +158,30 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	}
 
 	return v, nil
+}
+
+var schemeMatch = regexp.MustCompile(`^\w+://`)
+
+// Starting from Go 1.8 the URL parser does not
+// work properly with URLs with no Scheme,
+// this function adds "https" as Scheme if necessary
+func ParseURL(s string) (*url.URL, error) {
+	var err error
+	var u *url.URL
+
+	if s != "" {
+		// Default the scheme to https
+		if !schemeMatch.MatchString(s) {
+			s = "https://" + s
+		}
+
+		u, err = url.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return u, nil
 }
 
 func (v *Validator) AllowEmptyDC() {
@@ -170,7 +198,7 @@ func (v *Validator) datacenter() error {
 	}
 	var detail string
 	if v.DatacenterPath != "" {
-		detail = fmt.Sprintf("Datacenter %q in --target is not found", strings.TrimPrefix(v.DatacenterPath, "/"))
+		detail = fmt.Sprintf("Datacenter %q in --target is not found", path.Base(v.DatacenterPath))
 	} else {
 		// this means multiple datacenter exists, but user did not specify it in --target
 		detail = "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
@@ -590,90 +618,6 @@ func intersect(one []*object.HostSystem, two []*object.HostSystem) []*object.Hos
 		}
 	}
 	return result
-}
-
-func (v *Validator) computePathToInventoryPath(path string) string {
-	defer trace.End(trace.Begin(path))
-
-	// if it opens with the datacenter prefix the assume it's an absolute
-	if strings.HasPrefix(path, v.DatacenterPath) {
-		log.Debugf("Path is treated as absolute given datacenter prefix %q", v.DatacenterPath)
-		return path
-	}
-
-	parts := []string{
-		v.DatacenterPath, // has leading /
-		"host",
-		"*", // easy for ESX
-		"Resources",
-	}
-
-	// normalize the path - strip leading /
-	path = strings.TrimPrefix(path, "/")
-
-	// if it's vCenter the first element is the cluster or host, then resource pool path
-	if v.IsVC() {
-		pElem := strings.SplitN(path, "/", 2)
-		if pElem[0] != "" {
-			parts[2] = pElem[0]
-		}
-		if len(pElem) > 1 {
-			parts = append(parts, pElem[1])
-		}
-	} else if path != "" {
-		// for ESX, first element is a pool
-		parts = append(parts, path)
-	}
-
-	return strings.Join(parts, "/")
-}
-
-func (v *Validator) inventoryPathToComputePath(path string) string {
-	defer trace.End(trace.Begin(path))
-
-	// sanity check datacenter
-	if !strings.HasPrefix(path, v.DatacenterPath) {
-		log.Debugf("Expected path to be within target datacenter %q: %q", v.DatacenterPath, path)
-		v.NoteIssue(errors.New("inventory path was not in datacenter scope"))
-		return ""
-	}
-
-	// inventory path is always /dc/host/computeResource/Resources/path/to/pool
-	// NOTE: all of the indexes are +1 because the leading / means we have an empty string for [0]
-	pElems := strings.Split(path, "/")
-	if len(pElems) < 4 {
-		log.Debugf("Expected path to be fully qualified, e.g. /dcName/host/clusterName/Resources/poolName: %s", path)
-		v.NoteIssue(errors.New("inventory path format was not recognised"))
-		return ""
-	}
-
-	if len(pElems) == 4 || len(pElems) == 5 {
-		// cluster only or cluster/Resources
-		return pElems[3]
-	}
-
-	// messy but avoid reallocation - overwrite Resources with cluster name
-	pElems[4] = pElems[3]
-
-	// /dc/host/cluster/Resources/path/to/pool
-	return strings.Join(pElems[4:], "/")
-}
-
-// inventoryPathToCluster is a convenience method that will return the cluster
-// path prefix or "" in the case of unexpected path structure
-func (v *Validator) inventoryPathToCluster(path string) string {
-	defer trace.End(trace.Begin(path))
-
-	// inventory path is always /dc/host/computeResource/Resources/path/to/pool
-	pElems := strings.Split(path, "/")
-	if len(pElems) < 3 {
-		log.Debugf("Expected path to be fully qualified, e.g. /dcName/host/clusterName/Resources/poolName: %s", path)
-		v.NoteIssue(errors.New("inventory path format was not recognised"))
-		return ""
-	}
-
-	// /dc/host/cluster/Resources/path/to/pool
-	return strings.Join(pElems[:4], "/")
 }
 
 func (v *Validator) IsVC() bool {

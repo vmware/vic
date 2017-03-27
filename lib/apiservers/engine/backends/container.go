@@ -19,6 +19,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -41,6 +42,7 @@ import (
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/utils"
 	gonat "github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
@@ -54,6 +56,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/retry"
@@ -186,34 +189,215 @@ func NewContainerBackend() *Container {
 
 // docker's container.execBackend
 
+func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResponse, error) {
+	// obtain a portlayer client
+	client := c.containerProxy.Client()
+
+	handle, err := c.Handle(cid, cname)
+	if err != nil {
+		return nil, err
+	}
+
+	// inspect the Task to obtain ProcessConfig
+	config := &models.TaskInspectConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+	params := tasks.NewInspectParamsWithContext(ctx).WithConfig(config)
+	resp, err := client.Tasks.Inspect(params)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Payload, nil
+
+}
+
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
-	return "", fmt.Errorf("%s does not yet implement ContainerExecCreate", ProductName())
+	defer trace.End(trace.Begin(name))
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return "", NotFoundError(name)
+	}
+	id := vc.ContainerID
+
+	handle, err := c.Handle(id, name)
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+
+	joinconfig := &models.TaskJoinConfig{
+		Handle:    handle,
+		Path:      config.Cmd[0],
+		Args:      config.Cmd[1:],
+		Env:       config.Env,
+		User:      config.User,
+		Attach:    config.AttachStdin || config.AttachStdout || config.AttachStderr,
+		OpenStdin: config.AttachStdin,
+		Tty:       config.Tty,
+	}
+	log.Debugf("JoinConfig: %#v", joinconfig)
+
+	// obtain a portlayer client
+	client := c.containerProxy.Client()
+
+	// call Join with JoinParams
+	joinparams := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
+	resp, err := client.Tasks.Join(joinparams)
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+	eid := resp.Payload.ID
+
+	handle = resp.Payload.Handle.(string)
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+
+	// associate newly created exec task with container
+	cache.ContainerCache().AddExecToContainer(vc, eid)
+
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+
+	// exec_create event
+	event := "exec_create: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log(event, eventtypes.ContainerEventType, actor)
+
+	return eid, nil
 }
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
-func (c *Container) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
-	return nil, fmt.Errorf("%s does not yet implement ContainerExecInspect", ProductName())
+func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, error) {
+	defer trace.End(trace.Begin(eid))
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
+	if vc == nil {
+		return nil, NotFoundError(eid)
+	}
+	id := vc.ContainerID
+	name := vc.Name
+
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return nil, InternalServerError(err.Error())
+	}
+
+	exit := int(ec.ExitCode)
+	return &backend.ExecInspect{
+		ID:       ec.ID,
+		Running:  ec.Running,
+		ExitCode: &exit,
+		ProcessConfig: &backend.ExecProcessConfig{
+			Tty:        ec.Tty,
+			Entrypoint: ec.ProcessConfig.ExecPath,
+			Arguments:  ec.ProcessConfig.ExecArgs,
+			User:       ec.User,
+		},
+		OpenStdin:   ec.OpenStdin,
+		OpenStdout:  ec.OpenStdout,
+		OpenStderr:  ec.OpenStderr,
+		ContainerID: vc.ContainerID,
+		Pid:         int(ec.Pid),
+	}, nil
 }
 
 // ContainerExecResize changes the size of the TTY of the process
 // running in the exec with the given name to the given height and
 // width.
 func (c *Container) ContainerExecResize(name string, height, width int) error {
-	return fmt.Errorf("%s does not yet implement ContainerExecResize", ProductName())
+	defer trace.End(trace.Begin(name))
+
+	// FIXME(caglar10ur)
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainerFromExec(name)
+	if vc == nil {
+		return NotFoundError(name)
+	}
+	/*
+		// portlayer client
+		client := c.containerProxy.Client()
+
+		resizeParams := containers.NewExecResizeParamsWithContext(ctx).WithHeight(int32(height)).WithWidth(int32(width)).WithID(vc.ContainerID).WithEid(name)
+		_, err := client.Containers.ExecResize(resizeParams)
+		if err != nil {
+			return InternalServerError(err.Error())
+		}
+	*/
+	return nil
 }
 
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
-func (c *Container) ContainerExecStart(ctx context.Context, name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
-	return fmt.Errorf("%s does not yet implement ContainerExecStart", ProductName())
+func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
+	defer trace.End(trace.Begin(eid))
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
+	if vc == nil {
+		return NotFoundError(eid)
+	}
+	id := vc.ContainerID
+	name := vc.Name
+
+	handle, err := c.Handle(id, name)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+
+	bindconfig := &models.TaskBindConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+
+	// obtain a portlayer client
+	client := c.containerProxy.Client()
+
+	// call Bind with bindparams
+	bindparams := tasks.NewBindParamsWithContext(ctx).WithConfig(bindconfig)
+	resp, err := client.Tasks.Bind(bindparams)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+	handle = resp.Payload.Handle.(string)
+
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+
+	// exec_start event
+	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log(event, eventtypes.ContainerEventType, actor)
+
+	return nil
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
 func (c *Container) ExecExists(name string) (bool, error) {
-	return false, fmt.Errorf("%s does not yet implement ExecExists", ProductName())
+	defer trace.End(trace.Begin(name))
+
+	vc := cache.ContainerCache().GetContainerFromExec(name)
+	if vc == nil {
+		return false, NotFoundError(name)
+	}
+	return true, nil
 }
 
 // docker's container.copyBackend
@@ -308,7 +492,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 
 	// Add create event
 	actor := CreateContainerEventActorWithAttributes(container, map[string]string{})
-	EventService().Log("create", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerCreateEvent, eventtypes.ContainerEventType, actor)
 
 	return containertypes.ContainerCreateCreatedBody{ID: id}, nil
 }
@@ -325,9 +509,12 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 		return "", InternalServerError("Failed to create container")
 	}
 
-	imageID := vc.ImageID
+	id, h, err := c.containerProxy.CreateContainerHandle(vc, config)
+	if err != nil {
+		return "", err
+	}
 
-	id, h, err := c.containerProxy.CreateContainerHandle(imageID, config)
+	h, err = c.containerProxy.CreateContainerTask(h, id, config)
 	if err != nil {
 		return "", err
 	}
@@ -377,7 +564,7 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 	if err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"signal": fmt.Sprintf("%d", sig)})
 
-		EventService().Log("kill", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerKillEvent, eventtypes.ContainerEventType, actor)
 
 	}
 
@@ -387,13 +574,6 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 // ContainerPause pauses a container
 func (c *Container) ContainerPause(name string) error {
 	return fmt.Errorf("%s does not yet implement ContainerPause", ProductName())
-}
-
-// ContainerRename changes the name of a container, using the oldName
-// to find the container. An error is returned if newName is already
-// reserved.
-func (c *Container) ContainerRename(oldName, newName string) error {
-	return fmt.Errorf("%s does not yet implement ContainerRename", ProductName())
 }
 
 // ContainerResize changes the size of the TTY of the process running
@@ -418,7 +598,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 			"width":  fmt.Sprintf("%d", width),
 		})
 
-		EventService().Log("resize", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerResizeEvent, eventtypes.ContainerEventType, actor)
 	}
 
 	return err
@@ -454,7 +634,7 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log("restart", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerRestartEvent, eventtypes.ContainerEventType, actor)
 
 	return nil
 }
@@ -693,6 +873,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		}
 	}
 
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
 	return nil
 }
 
@@ -957,7 +1139,7 @@ func (c *Container) ContainerStop(name string, seconds *int) error {
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log("stop", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerStopEvent, eventtypes.ContainerEventType, actor)
 
 	return nil
 }
@@ -1293,6 +1475,10 @@ payloadLoop:
 	return containers, nil
 }
 
+func (c *Container) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
+	return nil, fmt.Errorf("%s does not yet implement ContainersPrune", ProductName())
+}
+
 // docker's container.attachBackend
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
@@ -1306,10 +1492,6 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		return err
 	}
 	return nil
-}
-
-func (c *Container) ContainersPrune(pruneFilters filters.Args) (*types.ContainersPruneReport, error) {
-	return nil, fmt.Errorf("%s does not yet implement ContainersPrune", ProductName())
 }
 
 func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConfig) error {
@@ -1371,10 +1553,10 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log("attach", eventtypes.ContainerEventType, actor)
+	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
 	defer func() {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log("detach", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 	}()
 	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 	if err != nil {
@@ -1420,6 +1602,66 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 	return nil
 }
 
+// ContainerRename changes the name of a container, using the oldName
+// to find the container. An error is returned if newName is already
+// reserved.
+func (c *Container) ContainerRename(oldName, newName string) error {
+	defer trace.End(trace.Begin(newName))
+
+	if oldName == "" || newName == "" {
+		err := fmt.Errorf("neither old nor new names may be empty")
+		log.Errorf("%s", err.Error())
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	if !utils.RestrictedNamePattern.MatchString(newName) {
+		err := fmt.Errorf("invalid container name (%s), only %s are allowed", newName, utils.RestrictedNameChars)
+		log.Errorf("%s", err.Error())
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(oldName)
+	if vc == nil {
+		log.Errorf("Container %s not found", oldName)
+		return NotFoundError(oldName)
+	}
+
+	oldName = vc.Name
+	if oldName == newName {
+		err := fmt.Errorf("renaming a container with the same name as its current name")
+		log.Errorf("%s", err.Error())
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	// reserve the new name in containerCache
+	if err := cache.ContainerCache().ReserveName(vc, newName); err != nil {
+		log.Errorf("%s", err.Error())
+		return derr.NewRequestConflictError(err)
+	}
+
+	if err := c.containerProxy.Rename(vc, newName); err != nil {
+		log.Errorf("Rename error: %s", err)
+		cache.ContainerCache().ReleaseName(newName)
+		return err
+	}
+
+	// update containerCache
+	if err := cache.ContainerCache().UpdateContainerName(oldName, newName); err != nil {
+		log.Errorf("Failed to update container cache: %s", err)
+		cache.ContainerCache().ReleaseName(newName)
+		return err
+	}
+
+	log.Infof("Container %s renamed to %s", oldName, newName)
+
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{"newName": fmt.Sprintf("%s", newName)})
+
+	EventService().Log("Rename", eventtypes.ContainerEventType, actor)
+
+	return nil
+}
+
 // helper function to format the container name
 // to the docker client approved format
 func clientFriendlyContainerName(name string) string {
@@ -1435,7 +1677,8 @@ func clientFriendlyContainerName(name string) string {
 func createInternalVicContainer(image *metadata.ImageConfig, config *types.ContainerCreateConfig) (*viccontainer.VicContainer, error) {
 	// provide basic container config via the image
 	container := viccontainer.NewVicContainer()
-	container.ImageID = image.ID
+	container.LayerID = image.V1Image.ID // store childmost layer ID to map to the proper vmdk
+	container.ImageID = image.ImageID
 	container.Config = image.Config //Set defaults.  Overrides will get copied below.
 
 	return container, nil
@@ -1467,6 +1710,9 @@ func setCreateConfigOptions(config, imageConfig *containertypes.Config) {
 		}
 	}
 
+	if config.User == "" {
+		config.User = imageConfig.User
+	}
 	// set up environment
 	setEnvFromImageConfig(config, imageConfig)
 }
@@ -1625,12 +1871,6 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 				return InternalServerError("host port ranges are not supported for port bindings")
 			}
 		}
-	}
-
-	// TODO(jzt): users other than root are not currently supported
-	// We should check for USER in config.Config.Env once we support Dockerfiles.
-	if config.Config.User != "" && config.Config.User != "root" {
-		return InternalServerError("Failed to create container - users other than root are not currently supported")
 	}
 
 	// https://github.com/vmware/vic/issues/1378

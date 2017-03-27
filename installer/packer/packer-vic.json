@@ -4,7 +4,7 @@
     "iso_sha1sum": "",
     "esx_host": "",
     "remote_username": "",
-    "remote_password": "",    
+    "remote_password": "",
     "root_password": "2RQrZ83i79N6szpvZNX6"
   },
   "builders": [
@@ -104,6 +104,16 @@
     },
     {
       "type": "file",
+      "source": "../../bin/ova-webserver",
+      "destination": "/usr/local/bin/ova-webserver"
+    },
+    {
+      "type": "file",
+      "source": "../../bin/vic-engine-bundle/",
+      "destination": "/data/fileserver"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/docker.service",
       "destination": "/usr/lib/systemd/system/docker.service"
     },
@@ -173,13 +183,56 @@
       "destination": "/etc/vmware/network-config.sh"
     },
     {
-      "type": "shell",
-      "script": "scripts/system_settings.sh"
+      "type": "file",
+      "source": "scripts/systemd/harbor/harbor_startup.service",
+      "destination": "/usr/lib/systemd/system/harbor_startup.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/harbor/harbor.service",
+      "destination": "/usr/lib/systemd/system/harbor.service"
     },
     {
       "type": "shell",
       "inline": ["sed -i '/linux/ s/$/ net.ifnames=0/' /boot/grub2/grub.cfg"]
     },
+    {
+      "type": "shell",
+      "script": "scripts/provision_harbor.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/harbor/configure_harbor.sh",
+      "destination": "/etc/vmware/harbor/configure_harbor.sh"
+    },
+    {
+      "type": "shell",
+      "script": "scripts/provision_admiral.sh"
+    },
+    {
+      "type": "shell",
+      "script": "scripts/provision_fileserver.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/admiral/admiral_startup.service",
+      "destination": "/usr/lib/systemd/system/admiral_startup.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/admiral/admiral.service",
+      "destination": "/usr/lib/systemd/system/admiral.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/admiral/configure_admiral.sh",
+      "destination": "/etc/vmware/admiral/configure_admiral.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/admiral/start_admiral.sh",
+      "destination": "/etc/vmware/admiral/start_admiral.sh"
+	},
     {
       "type": "shell",
       "only": ["vagrant-local"],

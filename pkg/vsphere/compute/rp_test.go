@@ -19,8 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 
@@ -57,7 +55,6 @@ func TestMain(t *testing.T) {
 		defer sess.Logout(ctx)
 		testGetChildrenVMs(ctx, sess, t)
 		testGetChildVM(ctx, sess, t)
-		testFindResourcePool(ctx, sess, t)
 		testGetCluster(ctx, sess, t)
 	}
 }
@@ -126,21 +123,6 @@ func testGetChildVM(ctx context.Context, sess *session.Session, t *testing.T) {
 	if err == nil && vm != nil {
 		t.Logf("vm: %s", vm.Reference())
 		t.Errorf("Should not find VM random")
-	}
-}
-
-func testFindResourcePool(ctx context.Context, sess *session.Session, t *testing.T) {
-	tests := []struct {
-		name   string
-		hasErr bool
-	}{
-		{"", false},
-		{"random123", true},
-	}
-
-	for _, test := range tests {
-		_, err := FindResourcePool(ctx, sess, test.name)
-		assert.Equal(t, test.hasErr, err != nil)
 	}
 }
 

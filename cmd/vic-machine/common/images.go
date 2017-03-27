@@ -154,7 +154,10 @@ func (i *Images) GetImageVersion(img string) (string, error) {
 	}
 
 	versions := strings.Fields(string(publisherBytes[:size]))
-	return versions[len(versions)-1], nil
+	if len(versions) > 0 {
+		return versions[len(versions)-1], nil
+	}
+	return "version-unknown", nil
 }
 
 func (i *Images) checkImageVersion(img string, force bool) (string, error) {

@@ -25,8 +25,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/registry"
 	"github.com/docker/docker/daemon/events"
+	"github.com/docker/docker/registry"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
 
@@ -64,7 +64,7 @@ var (
 	insecureRegistries []string
 	RegistryCertPool   *x509.CertPool
 
-	eventService      *events.Events
+	eventService *events.Events
 )
 
 func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec, insecureRegs []url.URL) error {
@@ -112,7 +112,11 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 
 	serviceOptions := registry.ServiceOptions{}
 	for _, r := range insecureRegs {
-		insecureRegistries = append(insecureRegistries, r.Path)
+		// host:port was previously stored in the Path
+		// component of the URL. Go 1.8 parser puts it
+		// the Host component. VCH upgrade must move it
+		// from Path to Host.
+		insecureRegistries = append(insecureRegistries, r.Host)
 	}
 	if len(insecureRegistries) > 0 {
 		serviceOptions.InsecureRegistries = insecureRegistries
@@ -253,7 +257,7 @@ func createImageStore() error {
 }
 
 func InsecureRegistries() []string {
-	registries := make([]string, len(insecureRegistries))
+	registries := []string{}
 	for _, reg := range insecureRegistries {
 		registries = append(registries, reg)
 	}

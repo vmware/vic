@@ -29,8 +29,11 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
@@ -252,40 +255,52 @@ func (t *tether) setMounts() error {
 }
 
 func (t *tether) initializeSessions() error {
-	// Iterate over the Sessions and initialize them if needed
-	for id, session := range t.config.Sessions {
-		// make it a func so that we can use defer
-		err := func() error {
-			session.Lock()
-			defer session.Unlock()
 
-			if session.wait != nil {
-				log.Warnf("Session %s already initialized", id)
+	maps := map[string]map[string]*SessionConfig{
+		"Sessions": t.config.Sessions,
+		"Execs":    t.config.Execs,
+	}
+
+	// we need to iterate over both sessions and execs
+	for name, m := range maps {
+
+		// Iterate over the Sessions and initialize them if needed
+		for id, session := range m {
+			// make it a func so that we can use defer
+			err := func() error {
+				session.Lock()
+				defer session.Unlock()
+
+				if session.wait != nil {
+					log.Warnf("Session %s already initialized", id)
+					return nil
+				}
+				log.Debugf("Initializing session %s", id)
+
+				if session.RunBlock {
+					log.Infof("Session %s wants attach capabilities. Creating its channel", id)
+					session.ClearToLaunch = make(chan struct{})
+				}
+
+				stdout, stderr, err := t.ops.SessionLog(session)
+				if err != nil {
+					detail := fmt.Errorf("failed to get log writer for session: %s", err)
+					session.Started = detail.Error()
+
+					return detail
+				}
+				session.Outwriter = stdout
+				session.Errwriter = stderr
+				session.Reader = dio.MultiReader()
+
+				session.wait = &sync.WaitGroup{}
+				session.extraconfigKey = name
+
 				return nil
-			}
-
-			if session.RunBlock {
-				log.Infof("Session %s wants attach capabilities. Creating its channel", id)
-				session.ClearToLaunch = make(chan struct{})
-			}
-
-			stdout, stderr, err := t.ops.SessionLog(session)
+			}()
 			if err != nil {
-				detail := fmt.Errorf("failed to get log writer for session: %s", err)
-				session.Started = detail.Error()
-
-				return detail
+				return err
 			}
-			session.Outwriter = stdout
-			session.Errwriter = stderr
-			session.Reader = dio.MultiReader()
-
-			session.wait = &sync.WaitGroup{}
-
-			return nil
-		}()
-		if err != nil {
-			return err
 		}
 	}
 	return nil
@@ -305,9 +320,10 @@ func (t *tether) reloadExtensions() error {
 
 func (t *tether) processSessions() error {
 	type results struct {
-		id   string
-		path string
-		err  error
+		id    string
+		path  string
+		err   error
+		fatal bool
 	}
 
 	// so that we can launch multiple sessions in parallel
@@ -315,46 +331,75 @@ func (t *tether) processSessions() error {
 	// to collect the errors back from them
 	resultsCh := make(chan results, len(t.config.Sessions))
 
-	// process the sessions and launch if needed
-	for id, session := range t.config.Sessions {
-		session.Lock()
+	maps := []struct {
+		sessions map[string]*SessionConfig
+		fatal    bool
+	}{
+		{t.config.Sessions, true},
+		{t.config.Execs, false},
+	}
 
-		log.Debugf("Processing config for session %s", id)
-		var proc = session.Cmd.Process
+	// we need to iterate over both sessions and execs
+	for i := range maps {
+		m := maps[i]
 
-		// check if session is alive and well
-		if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
-			log.Debugf("Process for session %s is already running (pid: %d)", id, proc.Pid)
-			session.Unlock()
-			continue
-		}
+		// process the sessions and launch if needed
+		for id, session := range m.sessions {
+			session.Lock()
 
-		// check if session has never been started or is configured for restart
-		if proc == nil || session.Restart {
-			if proc == nil {
-				log.Infof("Launching process for session %s", id)
-			} else {
-				session.Diagnostics.ResurrectionCount++
+			log.Debugf("Processing config for session %s", id)
+			var proc = session.Cmd.Process
 
-				// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
-				// currently sure how to expose it neatly via a utility function
-				extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("Sessions.%s", id), "")[0])
-				log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
-				session.Cmd = *restartableCmd(&session.Cmd)
+			// check if session is alive and well
+			if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
+				log.Debugf("Process for session %s is running (pid: %d)", id, proc.Pid)
+				if !session.Active {
+					// stop process - for now this doesn't do any staged levels of aggression
+					log.Infof("Running session %s has been deactivated (pid: %d)", id, proc.Pid)
+
+					killHelper(session)
+				}
+
+				session.Unlock()
+				continue
 			}
 
-			wg.Add(1)
-			go func(session *SessionConfig) {
-				defer wg.Done()
-				resultsCh <- results{
-					id:   session.ID,
-					path: session.Cmd.Path,
-					err:  t.launch(session),
-				}
-			}(session)
+			// if we're not activating this session and it's not running, then skip
+			if !session.Active {
+				log.Debugf("Skipping inactive session %s", id)
+				session.Unlock()
+				continue
+			}
 
+			// check if session has never been started or is configured for restart
+			if proc == nil || session.Restart {
+				if proc == nil {
+					log.Infof("Launching process for session %s", id)
+					log.Debugf("Launch failures are fatal: %t", m.fatal)
+				} else {
+					session.Diagnostics.ResurrectionCount++
+
+					// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
+					// currently sure how to expose it neatly via a utility function
+					extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, id), "")[0])
+					log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
+					session.Cmd = *restartableCmd(&session.Cmd)
+				}
+
+				wg.Add(1)
+				go func(session *SessionConfig) {
+					defer wg.Done()
+					resultsCh <- results{
+						id:    session.ID,
+						path:  session.Cmd.Path,
+						err:   t.launch(session),
+						fatal: m.fatal,
+					}
+				}(session)
+
+			}
+			session.Unlock()
 		}
-		session.Unlock()
 	}
 
 	wg.Wait()
@@ -365,7 +410,13 @@ func (t *tether) processSessions() error {
 	for result := range resultsCh {
 		if result.err != nil {
 			detail := fmt.Errorf("failed to launch %s for %s: %s", result.path, result.id, result.err)
-			return detail
+			if result.fatal {
+				log.Error(detail)
+				return detail
+			}
+
+			log.Warn(detail)
+			return nil
 		}
 	}
 	return nil
@@ -375,7 +426,10 @@ func (t *tether) Start() error {
 	defer trace.End(trace.Begin("main tether loop"))
 
 	// do the initial setup and start the extensions
-	t.setup()
+	if err := t.setup(); err != nil {
+		log.Errorf("Failed to run setup: %s", err)
+		return err
+	}
 	defer t.cleanup()
 
 	// initial entry, so seed this
@@ -503,7 +557,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	// this returns an arbitrary closure for invocation after the session status update
 	f := t.ops.HandleSessionExit(t.config, session)
 
-	extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("Sessions.%s", session.ID), "")[0])
+	extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0])
 
 	if f != nil {
 		log.Debugf("Calling t.ops.HandleSessionExit")
@@ -516,18 +570,24 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 func (t *tether) launch(session *SessionConfig) error {
 	defer trace.End(trace.Begin("launching session " + session.ID))
 
-	// encode the result whether success or error
-	defer func() {
-		extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("Sessions.%s", session.ID), "")[0])
-	}()
-
 	session.Lock()
 	defer session.Unlock()
 
-	// Special case here because UID/GID lookup need to be done
-	// on the appliance...
-	if len(session.User) > 0 {
-		session.Cmd.SysProcAttr = getUserSysProcAttr(session.User)
+	// encode the result whether success or error
+	defer func() {
+		prefix := extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0]
+		log.Debugf("Encoding result of launch for session %s under key: %s", session.ID, prefix)
+		extraconfig.EncodeWithPrefix(t.sink, session, prefix)
+	}()
+
+	if len(session.User) > 0 || len(session.Group) > 0 {
+		user, err := getUserSysProcAttr(session.User, session.Group)
+		if err != nil {
+			log.Errorf("user lookup failed %s:%s, %s", session.User, session.Group, err)
+			session.Started = err.Error()
+			return err
+		}
+		session.Cmd.SysProcAttr = user
 	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
@@ -639,7 +699,7 @@ func logConfig(config *ExecutorConfig) {
 	)
 
 	for k, v := range sink {
-		log.Debugf("%s; %s", k, v)
+		log.Debugf("%s: %s", k, v)
 	}
 
 }
@@ -717,4 +777,29 @@ func (t *tether) Flush() error {
 
 func PIDFileDir() string {
 	return path.Join(Sys.Root, pidFilePath)
+}
+
+// killHelper was pulled from toolbox, and that variant should be directed at this
+// one eventually
+func killHelper(session *SessionConfig) error {
+	sig := new(msgs.SignalMsg)
+	name := session.StopSignal
+	if name == "" {
+		name = string(ssh.SIGTERM)
+	}
+
+	err := sig.FromString(name)
+	if err != nil {
+		return err
+	}
+
+	num := syscall.Signal(sig.Signum())
+
+	log.Infof("sending signal %s (%d) to %s", sig.Signal, num, session.ID)
+
+	if err := session.Cmd.Process.Signal(num); err != nil {
+		return fmt.Errorf("failed to signal %s: %s", session.ID, err)
+	}
+
+	return nil
 }

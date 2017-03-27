@@ -20,8 +20,8 @@
     "webpack-dev-server": "webpack-dev-server",
     "ngc": "ngc",
     "build:dev": "npm run rimraf -- ../main/webapp/resources/build-dev && webpack --env.is_production=0 --progress --display-error-details --display-cached --profile --colors --config ./config/webpack.config.js --bail",
-    "build:prod": "npm run rimraf -- ../main/webapp/resources/dist && webpack --env.is_production=1 --progress --display-error-details --display-cached --profile --colors --config ./config/webpack.config.js --bail",
-    "build:prod_aot": "npm run rimraf -- ../main/webapp/resources/dist && ngc -p tsconfig.aot.json && webpack --env.is_aot=1 --env.is_production=1 --progress --display-error-details --display-cached --profile --colors --config ./config/webpack.config.js --bail",
+    "build:prod": "npm run rimraf -- ../main/webapp/resources/dist && webpack --env.is_production=1 --display-error-details --colors --config ./config/webpack.config.js --bail",
+    "build:prod_aot": "npm run rimraf -- ../main/webapp/resources/dist && ngc -p tsconfig.aot.json && webpack --env.is_aot=1 --env.is_production=1 --colors --display-error-details --config ./config/webpack.config.js --bail",
     "server:dev": "webpack-dev-server --config ./config/webpack.config.js --profile --colors --display-error-details --content-base ../main/webapp/resources/build-dev --inline --bail",
     "server:standalone": "webpack-dev-server --config ./config/webpack.config.js --env.is_standalone=1 --profile --colors --display-error-details --content-base ../main/webapp/resources/build-dev --inline --bail",
     "test": "karma start config/karma.conf.js"

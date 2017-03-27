@@ -35,6 +35,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/go-openapi/runtime"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
@@ -204,13 +205,22 @@ func (m *MockContainerProxy) Handle(id, name string) (string, error) {
 	return "", nil
 }
 
-func (m *MockContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
+func (m *MockContainerProxy) CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error) {
 	respIdx := m.mockRespIndices[0]
 
 	if respIdx >= len(m.mockCreateHandleData) {
 		return "", "", nil
 	}
 	return m.mockCreateHandleData[respIdx].retID, m.mockCreateHandleData[respIdx].retHandle, m.mockCreateHandleData[respIdx].retErr
+}
+
+func (m *MockContainerProxy) CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error) {
+	respIdx := m.mockRespIndices[0]
+
+	if respIdx >= len(m.mockCreateHandleData) {
+		return "", nil
+	}
+	return m.mockCreateHandleData[respIdx].retHandle, m.mockCreateHandleData[respIdx].retErr
 }
 
 func (m *MockContainerProxy) AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error) {
@@ -318,6 +328,10 @@ func (m *MockContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) e
 }
 
 func (m *MockContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int32) error {
+	return nil
+}
+
+func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName string) error {
 	return nil
 }
 

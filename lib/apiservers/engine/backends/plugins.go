@@ -28,46 +28,45 @@ type Plugin struct {
 }
 
 func NewPluginBackend() *Plugin {
-    return &Plugin{}
+	return &Plugin{}
 }
 
 func (p *Plugin) Disable(name string, config *enginetypes.PluginDisableConfig) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) Enable(name string, config *enginetypes.PluginEnableConfig) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) List() ([]enginetypes.Plugin, error) {
-	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) Inspect(name string) (*enginetypes.Plugin, error) {
-	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) Remove(name string, config *enginetypes.PluginRmConfig) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) Set(name string, args []string) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) Privileges(ctx context.Context, ref reference.Named, metaHeaders http.Header, authConfig *enginetypes.AuthConfig) (enginetypes.PluginPrivileges, error) {
-	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) Pull(ctx context.Context, ref reference.Named, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, privileges enginetypes.PluginPrivileges, outStream io.Writer) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) Push(ctx context.Context, name string, metaHeaders http.Header, authConfig *enginetypes.AuthConfig, outStream io.Writer) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return fmt.Errorf("%s does not yet support plugins", ProductName())
 }
 
 func (p *Plugin) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *enginetypes.PluginCreateOptions) error {
-	return fmt.Errorf("%s does not yet support plugins", ProductName())   
+	return fmt.Errorf("%s does not yet support plugins", ProductName())
 }
-

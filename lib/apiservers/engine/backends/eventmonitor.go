@@ -29,15 +29,27 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/net/context"
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
-   	"github.com/vmware/vic/lib/apiservers/portlayer/client/events"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/events"
 	plevents "github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"
 
 	eventtypes "github.com/docker/docker/api/types/events"
+)
+
+const (
+	containerDieEvent     = "die"
+	containerStopEvent    = "stop"
+	containerStartEvent   = "start"
+	containerCreateEvent  = "create"
+	containerRestartEvent = "restart"
+	containerAttachEvent  = "attach"
+	containerDetachEvent  = "detach"
+	containerKillEvent    = "kill"
+	containerResizeEvent  = "resize"
 )
 
 // for unit testing purposes
@@ -56,9 +68,9 @@ type DockerEventPublisher struct {
 }
 
 type PortlayerEventMonitor struct {
-	stop		chan struct{}
-	proxy		eventproxy
-	publisher	eventpublisher
+	stop      chan struct{}
+	proxy     eventproxy
+	publisher eventpublisher
 }
 
 // StreamEvents() handles all swagger interaction to the Portlayer's event manager
@@ -89,7 +101,7 @@ func (ep PlEventProxy) StreamEvents(ctx context.Context, out io.Writer) error {
 		}
 	}
 
-	return nil	
+	return nil
 }
 
 func NewPortlayerEventMonitor(proxy eventproxy, publisher eventpublisher) *PortlayerEventMonitor {
@@ -172,7 +184,6 @@ func (m *PortlayerEventMonitor) monitor() error {
 		writer.Close()
 	}()
 
-
 	// Create a channel signaling when the waitgroup finishes
 	done := make(chan struct{})
 	go func() {
@@ -181,26 +192,25 @@ func (m *PortlayerEventMonitor) monitor() error {
 		close(done)
 	}()
 
-	select{
-		case <- done:
-			for err := range errors {
-				if err != nil {
-					log.Warnf("Exiting Events Monitor: %#v", err)
-					return err
-				}
+	select {
+	case <-done:
+		for err := range errors {
+			if err != nil {
+				log.Warnf("Exiting Events Monitor: %#v", err)
+				return err
 			}
-		case <- m.stop:
-			cancel()
-			writer.Close()
-			reader.Close()
+		}
+	case <-m.stop:
+		cancel()
+		writer.Close()
+		reader.Close()
 	}
 
 	return nil
 }
 
 // publishEvent() translate a portlayer event into a Docker event if the event is for a
-// known container and publishes them to Docker event subscribers.  Currently, it only
-// looks for stopped events.
+// known container and publishes them to Docker event subscribers.
 func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	defer trace.End(trace.Begin(""))
 
@@ -212,6 +222,6 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	if event.Event == plevents.ContainerStopped {
 		log.Debugf("Sending event for continer %s", vc.ContainerID)
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log("die", eventtypes.ContainerEventType, actor)
+		EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
 	}
 }
