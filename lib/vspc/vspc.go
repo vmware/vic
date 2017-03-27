@@ -192,11 +192,11 @@ func (vspc *Vspc) relayReads(containervm *cVM, conn net.Conn) {
 		case ch := <-containervm.vmotionStartedChan:
 			vmotion = true
 			ch <- struct{}{}
-			log.Infof("vspc started to buffer data coming from the remote system")
+			log.Debugf("vspc started to buffer data coming from the remote system")
 		case ch := <-containervm.vmotionCompletedChan:
 			vmotion = false
 			ch <- struct{}{}
-			log.Infof("vspc stopped buffering data coming from the remote system")
+			log.Debugf("vspc stopped buffering data coming from the remote system")
 		default:
 			b := make([]byte, 4096)
 			conn.SetReadDeadline(time.Now().Add(remoteConnReadDeadline))
@@ -211,7 +211,7 @@ func (vspc *Vspc) relayReads(containervm *cVM, conn net.Conn) {
 						if err != nil {
 							log.Errorf("read error from vspc temporary buffer: %v", err)
 						}
-						log.Infof("vspc writing buffered data during vmotion to the containerVM")
+						log.Debugf("vspc writing buffered data during vmotion to the containerVM")
 						if n, err := containervm.containerConn.WriteData(buf); n == -1 {
 							log.Errorf("vspc: RelayReads: %v", err)
 							return
@@ -221,7 +221,7 @@ func (vspc *Vspc) relayReads(containervm *cVM, conn net.Conn) {
 						log.Errorf("vspc: RelayReads: %v", err)
 						return
 					}
-					log.Infof("vspc relayed the read data to the containerVM")
+					log.Debugf("vspc relayed the read data to the containerVM")
 				} else {
 					tmpBuf.Write(b[:n])
 				}

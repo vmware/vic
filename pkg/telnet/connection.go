@@ -126,7 +126,7 @@ func newConn(opts *connOpts) *Conn {
 }
 
 func (c *Conn) writeLoop() {
-	log.Info("entered write loop")
+	log.Debugf("entered write loop")
 	for {
 		select {
 		case writeBytes := <-c.writeCh:
@@ -166,7 +166,7 @@ func (c *Conn) closeConnLoopWrite() {
 	connLoopWriteCh := make(chan struct{})
 	c.connWriteDoneCh <- connLoopWriteCh
 	<-connLoopWriteCh
-	log.Infof("connection loop write-side closed")
+	log.Debugf("connection loop write-side closed")
 }
 
 func (c *Conn) closeDatahandler() {
@@ -177,7 +177,7 @@ func (c *Conn) closeDatahandler() {
 
 func (c *Conn) sendCmd(cmd byte, opt byte) {
 	c.writeCh <- []byte{Iac, cmd, opt}
-	log.Infof("Sending command: %v %v", cmd, opt)
+	log.Debugf("Sending command: %v %v", cmd, opt)
 }
 
 func (c *Conn) handleOptionCommand(cmd byte, opt byte) {
@@ -194,7 +194,7 @@ func (c *Conn) handleOptionCommand(cmd byte, opt byte) {
 			c.sendCmd(Wont, opt)
 			return
 		}
-		log.Infof("Sending WILL command")
+		log.Debugf("Sending WILL command")
 		c.sendCmd(Will, opt)
 
 	}
@@ -202,7 +202,7 @@ func (c *Conn) handleOptionCommand(cmd byte, opt byte) {
 
 func (c *Conn) dataHandlerWrapper(w io.Writer, r io.Reader) {
 	defer func() {
-		log.Infof("data handler closed")
+		log.Debugf("data handler closed")
 	}()
 	for {
 		select {
