@@ -114,6 +114,11 @@
     },
     {
       "type": "file",
+      "source": "../../bin/ui",
+      "destination": "/data/fileserver"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/docker.service",
       "destination": "/usr/lib/systemd/system/docker.service"
     },
