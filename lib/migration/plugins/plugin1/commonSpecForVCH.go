@@ -41,7 +41,7 @@ func init() {
 	}
 }
 
-// AddCommonSpecForVM is plugin for vic 0.8.0-GA version upgrade
+// AddCommonSpecForVCH is plugin for vic 0.8.0-GA version upgrade
 type AddCommonSpecForVCH struct {
 }
 
