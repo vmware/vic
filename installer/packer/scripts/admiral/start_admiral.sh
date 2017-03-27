@@ -15,14 +15,13 @@
 
 set -x -euf -o pipefail
 
-ADMIRAL_PORT=""
-ADMIRAL_SELFSIGNED=""
+ADMIRAL_EXPOSED_PORT=""
 ADMIRAL_DATA_LOCATION=""
 ADMIRAL_KEY_LOCATION=""
 ADMIRAL_CERT_LOCATION=""
 ADMIRAL_JKS_LOCATION=""
 
-/usr/bin/docker run -p ${ADMIRAL_PORT}:8282 \
+/usr/bin/docker run -p ${ADMIRAL_EXPOSED_PORT}:8282 \
   --name vic-admiral \
   -e ADMIRAL_PORT=8282 \
   -e JAVA_OPTS="-Ddcp.net.ssl.trustStore=/tmp/trusted_certificates.jks -Ddcp.net.ssl.trustStorePassword=changeit" \
@@ -30,7 +29,7 @@ ADMIRAL_JKS_LOCATION=""
   -v "$ADMIRAL_CERT_LOCATION:/tmp/server.crt" \
   -v "$ADMIRAL_KEY_LOCATION:/tmp/server.key" \
   -v "$ADMIRAL_JKS_LOCATION:/tmp/trusted_certificates.jks" \
-  -v "$ADMIRAL_DATA_LOCATION/custom.conf:/var/admiral/config/configuration.properties"
+  -v "$ADMIRAL_DATA_LOCATION/custom.conf:/var/admiral/config/configuration.properties" \
   --log-driver=json-file \
   --log-opt max-size=1g \
   --log-opt max-file=10 \
