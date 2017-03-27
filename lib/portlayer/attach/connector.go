@@ -33,7 +33,7 @@ import (
 
 type Connector struct {
 	mutex       sync.Mutex
-	connections map[string]*attachSSH
+	connections map[string]SessionInteraction
 	gets        []chan struct{}
 
 	listener net.Listener
@@ -50,7 +50,7 @@ func NewConnector(listener net.Listener, debug bool) *Connector {
 	defer trace.End(trace.Begin(""))
 
 	connector := &Connector{
-		connections:  make(map[string]*attachSSH),
+		connections:  make(map[string]SessionInteraction),
 		listener:     listener,
 		listenerQuit: make(chan bool),
 		debug:        debug,
@@ -194,9 +194,9 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		return
 	}
 
-	var si *attachSSH
+	var si SessionInteraction
 	for _, id := range ids {
-		si, err = sshAttach(client, id)
+		si, err = SSHAttach(client, id)
 		if err != nil {
 			log.Errorf("SSH connection could not be established (id=%s): %s", id, errors.ErrorStack(err))
 			return

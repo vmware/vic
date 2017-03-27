@@ -873,8 +873,6 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		}
 	}
 
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
 	return nil
 }
 

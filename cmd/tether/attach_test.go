@@ -122,6 +122,7 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
+	log.Infof("successfully opened pipe %s", pathPrefix+"/ttyS0c")
 
 	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {

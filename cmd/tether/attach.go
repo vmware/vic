@@ -598,10 +598,10 @@ func newStdinReader(channel ssh.Channel) *stdinReader {
 	}
 
 	go func() {
-		buf := make([]byte, 512)
+		buf := make([]byte, 2*1024)
 		for {
 			r, err := channel.Read(buf)
-			log.Debugf("stdin r=%d, err=%s", r, err)
+			log.Debugf("stdin r=%d, err=%s buf=%q", r, err, buf)
 			if r > 0 {
 				w.Write(buf[:r])
 			}
@@ -621,7 +621,7 @@ func (r *stdinReader) Read(buf []byte) (int, error) {
 
 	n, err := r.reader.Read(buf)
 	if err == io.ErrClosedPipe {
-		return n, io.EOF
+		err = io.EOF
 	}
 
 	return n, err

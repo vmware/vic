@@ -1676,23 +1676,23 @@ func labelsFromAnnotations(config *container.Config, annotations map[string]stri
 func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
-	defer stdinWriter.Close()
+	defer stdinReader.Close()
 
 	var detach bool
-	var wg sync.WaitGroup
 
+	done := make(chan struct{})
 	go func() {
 		// make sure we get out of io.Copy if context is canceled
 		select {
 		case <-ctx.Done():
 			clStdin.Close()
+		case <-done:
 		}
 	}()
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		defer stdinReader.Close()
+		defer close(done)
+		defer stdinWriter.Close()
 
 		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
 		// watch the stdin stream for the detach keys.
@@ -1717,16 +1717,6 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 				log.Errorf("stdin err: %s", err)
 			}
 		}
-
-		if vc.Config.StdinOnce && !vc.Config.Tty {
-			// Close the stdin connection.  Mimicing Docker's behavior.
-			log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
-			params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(vc.ContainerID)
-			_, err := pl.Interaction.ContainerCloseStdin(params)
-			if err != nil {
-				log.Errorf("CloseStdin failed with %s", err)
-			}
-		}
 	}()
 
 	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
@@ -1735,7 +1725,19 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	setStdinParams = setStdinParams.WithRawStream(stdinReader)
 
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
-	wg.Wait()
+
+	<-done
+
+	if vc.Config.StdinOnce && !vc.Config.Tty {
+		// Close the stdin connection.  Mimicing Docker's behavior.
+		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
+		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+		_, err := pl.Interaction.ContainerCloseStdin(params)
+		if err != nil {
+			log.Errorf("CloseStdin failed with %s", err)
+		}
+	}
+
 	// ignore the portlayer error when it is DetachError as that is what we should return to the caller when we detach
 	if detach {
 		return DetachError{}

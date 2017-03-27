@@ -17,11 +17,10 @@ package attach
 import (
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
-
-	"sync/atomic"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/trace"
@@ -41,6 +40,7 @@ type SessionInteraction interface {
 	// Stdin stream
 	Stdin() io.WriteCloser
 	Close() error
+	IsClosed() bool
 
 	// Resize the terminal
 	Resize(cols, rows, widthpx, heightpx uint32) error
@@ -76,7 +76,7 @@ func SSHls(client *ssh.Client) ([]string, error) {
 
 // SSHAttach returns a stream connection to the requested session
 // The ssh client is assumed to be connected to the Executor hosting the session
-func sshAttach(client *ssh.Client, id string) (*attachSSH, error) {
+func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 	defer trace.End(trace.Begin(""))
 
 	sessionSSH := &attachSSH{
@@ -119,16 +119,7 @@ func (t *attachSSH) Signal(signal ssh.Signal) error {
 func (t *attachSSH) CloseStdin() error {
 	defer trace.End(trace.Begin(""))
 
-	ok, err := t.channel.SendRequest(msgs.CloseStdinReq, true, nil)
-	if err == nil && !ok {
-		return fmt.Errorf("unknown error closing stdin")
-	}
-
-	if err != nil {
-		return fmt.Errorf("close stdin error: %s", err)
-	}
-
-	return nil
+	return t.channel.CloseWrite()
 }
 
 func (t *attachSSH) Stdout() io.Reader {
