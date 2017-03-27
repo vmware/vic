@@ -19,7 +19,7 @@ set -o pipefail
 
 usage() {
     cat <<'EOF'
-Usage: $0 <host> <port-layer.log | docker.log>
+Usage: $0 [-f] <host> <port-layer.log | docker.log>
 
 GOVC_* environment variables also apply, see https://github.com/vmware/govmomi/tree/master/govc#usage
 If GOVC_USERNAME is set, it is used to create an account on the ESX vm.  Default is to use the existing root account.
@@ -27,10 +27,26 @@ If GOVC_PASSWORD is set, the account password will be set to this value.  Defaul
 EOF
 }
 
-if [ $# -ne 2 ] ; then
+if [ $# -lt 2 ] ; then
     usage
     exit 1
 fi
+
+while getopts "f" opt; do
+    case $opt in
+        f)
+            follow="tail/"
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+shift $((OPTIND-1))
+host="$1"
+file="$2"
 
 username=$GOVC_USERNAME
 password=$GOVC_PASSWORD
@@ -38,16 +54,15 @@ unset GOVC_USERNAME GOVC_PASSWORD
 
 if [ -z "$password" ] ; then
     # extract password from $GOVC_URL
-    password=$(govc env | grep GOVC_PASSWORD= | cut -d= -f 2-)
+    password=$(govc env GOVC_PASSWORD)
 fi
 
 if [ -z "$username" ] ; then
-    username=$(govc env | grep GOVC_USERNAME= | cut -d= -f 2-)
+    username=$(govc env GOVC_USERNAME)
 fi
 
 jar=$(mktemp -t cookie-XXXX)
+trap 'rm $jar' EXIT
 
-curl -k -c ${jar} --form username=${username} --form password=${password} https://$1:2378/authentication
-curl -k -b ${jar} https://$1:2378/logs/tail/$2
-
-rm $jar
+curl -k -c "${jar}" --form username="${username}" --form password="${password}" https://"${host}":2378/authentication
+curl -k -b "${jar}" https://"${host}":2378/logs/"${follow}""${file}"
