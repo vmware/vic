@@ -1,16 +1,16 @@
 Test 3-03 - Docker Compose Basic
 =======
 
-#Purpose:
+# Purpose:
 To verify that VIC appliance can work when deploying the most basic example from docker documentation
 
-#References:
+# References:
 [1 - Docker Compose Getting Started](https://docs.docker.com/compose/gettingstarted/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Create a compose file that includes a basic python server and redis server
 2. Deploy VIC appliance to the vSphere server
 3. Create a basic compose yml file
@@ -26,9 +26,12 @@ This test requires that a vSphere server is running and available
 13. Create compose file with link
 14. Issue DOCKER_HOST=<VCH IP> docker-compose up -d
 15. Issue DOCKER_HOST=<VCH IP> docker-compose bundle
+16. Issue DOCKER_HOST=<VCH IP> docker-compose --file compose-rename.yml up -d
+17. Issue DOCKER_HOST=<VCH IP> docker-compose --file compose-rename.yml up -d --force-recreate
+18. Issue DOCKER_HOST=<VCH IP> docker-compose --file compose-rename.yml up -d
 
-#Expected Outcome:
-* Step 4-15 should result in no error
+# Expected Outcome:
+* Step 4-18 should result in no errors
 
-#Possible Problems:
+# Possible Problems:
 None
