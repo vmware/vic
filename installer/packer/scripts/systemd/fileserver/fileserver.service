@@ -1,0 +1,14 @@
+[Unit]
+Description=VIC Unified Installer Web Server
+Documentation=https://github.com/vmware/vic
+After=fileserver_startup.service
+Requires=data.mount
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+ExecStart=/usr/local/bin/ova-webserver
+
+[Install]
+WantedBy=multi-user.target

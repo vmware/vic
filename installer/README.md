@@ -13,18 +13,21 @@ esxcli network firewall set --enabled false
 
 The machine that is running Packer (make ova-release) must be reachable from the launched VM and
 have `ovftool` installed
+
+Build bundle and OVA
 ```
 export PACKER_ESX_HOST=1.1.1.1
 export PACKER_USER=root
 export PACKER_PASSWORD=password
 export PACKER_LOG=1
 
+make vic-engine-bundle
 make ova-release
 ```
 
 Deploy OVA with ovftool in a Docker container on ESX host
 ```
-docker run -it --name test1 --net=host -v ~/go/src/github.com/vmware/vic/bin:/test-bin \
+docker run -it --net=host -v ~/go/src/github.com/vmware/vic/bin:/test-bin \
   gcr.io/eminent-nation-87317/vic-integration-test:1.22 ovftool --acceptAllEulas --X:injectOvfEnv \
   --X:enableHiddenProperties -st=OVA --powerOn --noSSLVerify=true -ds=datastore1 -dm=thin \
   --net:Network="VM Network" --prop:appliance.email_from="noreply@vmware.com" \

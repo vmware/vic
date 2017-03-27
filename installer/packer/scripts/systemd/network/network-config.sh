@@ -46,3 +46,7 @@ else
   # If previous configuration exists, we remove it
   [ -e ${network_conf_file} ] && rm ${network_conf_file} || exit 0
 fi
+
+# Allow ping
+iptables -w -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+iptables -w -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
