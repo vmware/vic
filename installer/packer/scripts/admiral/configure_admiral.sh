@@ -25,7 +25,7 @@ fi
 
 data_dir=/data/admiral
 conf_dir=/etc/vmware/admiral
-javadir=/var/opt/OpenJDK-1.8.0.112-bin/bin/
+javadir=/var/opt/OpenJDK-1.8.0.112-bin/bin
 
 cert_dir=${data_dir}/cert
 flag=${conf_dir}/cert_gen_type
@@ -37,6 +37,7 @@ mkdir -p {${cert_dir},${ca_download_dir}}
 
 cert=${cert_dir}/server.crt
 key=${cert_dir}/server.key
+jks=${cert_dir}/trustedcertificates.jks
 csr=${cert_dir}/server.csr
 ca_cert=${cert_dir}/ca.crt
 ca_key=${cert_dir}/ca.key
@@ -85,6 +86,9 @@ function genCert {
   echo "self-signed" > $flag
   echo "Copy CA certificate to $ca_download_dir"
   cp $ca_cert $ca_download_dir/
+
+  echo "creating java keystore with self-signed CA"
+  $javadir/keytool -import -noprompt -v -trustcacerts -alias selfsignedca -file $ca_cert -keystore $jks -keypass changeit -storepass changeit
 }
 
 function secure {
@@ -97,6 +101,8 @@ function secure {
     echo $ssl_cert_key > $key
     format $key
     echo "customized" > $flag
+    echo "creating java keystore with provided cert for xenon"
+    $javadir/keytool -import -noprompt -v -trustcacerts -alias selfsignedca -file $cert -keystore $jks -keypass changeit -storepass changeit
     return
   fi
 
@@ -149,10 +155,6 @@ function detectHostname {
   fi
 }
 
-attrs=(
-  admiral.port
-)
-
 hostname=""
 ip_address=$(ip addr show dev eth0 | sed -nr 's/.*inet ([^ ]+)\/.*/\1/p')
 
@@ -170,17 +172,19 @@ fi
 secure
 
 configureAdmiralStart ADMIRAL_DATA_LOCATION $data_dir
-#configureAdmiralStart ADMIRAL_TLS YES
 configureAdmiralStart ADMIRAL_CERT_LOCATION $cert
 configureAdmiralStart ADMIRAL_KEY_LOCATION $key
-
-for attr in "${attrs[@]}"
-do
-  echo "Read attribute using ovfenv: [ $attr ]"
-  value=$(ovfenv -k $attr)
-  key=$(echo ${attr} | cut -d. -f2 | tr '[:lower:]' '[:upper:]')
-
-  configureAdmiralStart "$key" "$value"
-done
+configureAdmiralStart ADMIRAL_JKS_LOCATION $jks
+configureAdmiralStart ADMIRAL_PORT $port
 
 iptables -A INPUT -j ACCEPT -p tcp --dport $port
+
+touch $data_dir/custom.conf
+
+harbor_deploy=$(ovfenv -k harbor.deploy)
+
+if [ ${harbor_deploy,,} == "true" ]; then
+  harbor_port=$(ovfenv -k harbor.port)
+  # If harbor is deployed, configure the integration URL
+  echo "harbor.tab.url=https://${hostname}:${harbor_port}" > $data_dir/custom.conf
+fi
