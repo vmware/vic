@@ -79,7 +79,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		}
 
 		if err != nil {
-			log.Errorf("Waiting for operations to complete failed: %s. Spec was %+v", err, *h.Spec.Spec())
+			log.Errorf("An error ocurred while waiting for a creation operation to complete. Spec was %+v", *h.Spec.Spec())
 			return err
 		}
 
