@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/bash
 # Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+set -x -euf -o pipefail
 
-mkdir -p /etc/vmware/fileserver
+port=$(ovfenv -k fileserver.port)
 
-# Move zip files to base directory, remove unneeded files from ui/
-cd /data/fileserver
-find . -name "*.zip" | xargs -t -I {} mv {} .
-# TODO(frapposelli): add this again if needed when vic-ui is built as part of 
-# the bundle
-# rm -r ui/
+if [ -z "$port" ]; then
+  port="9443"
+fi
+
+iptables -w -A INPUT -j ACCEPT -p tcp --dport $port

@@ -132,7 +132,7 @@ Name resolution for a running container after renaming it
     # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link cont9-name2:cont9alias busybox ping -c2 cont9alias
     # Should Be Equal As Integers  ${rc}  0
     # Should Contain  ${output}  2 packets transmitted, 2 packets received
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox ping -c2 cont9alias
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox ping -c2 cont9-name2
     # Should Be Equal As Integers  ${rc}  0
     # Should Contain  ${output}  2 packets transmitted, 2 packets received
 
