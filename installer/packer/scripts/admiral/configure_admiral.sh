@@ -145,7 +145,7 @@ function secure {
 
 function detectHostname {
   hostname=$(hostnamectl status --static) || true
-  if [ -n $hostname ]; then
+  if [ -n "$hostname" ]; then
     if [ "$hostname" = "localhost.localdomain" ]; then
       hostname=""
       return
@@ -175,7 +175,7 @@ configureAdmiralStart ADMIRAL_DATA_LOCATION $data_dir
 configureAdmiralStart ADMIRAL_CERT_LOCATION $cert
 configureAdmiralStart ADMIRAL_KEY_LOCATION $key
 configureAdmiralStart ADMIRAL_JKS_LOCATION $jks
-configureAdmiralStart ADMIRAL_PORT $port
+configureAdmiralStart ADMIRAL_EXPOSED_PORT $port
 
 iptables -A INPUT -j ACCEPT -p tcp --dport $port
 
