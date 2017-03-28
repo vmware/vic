@@ -224,6 +224,7 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 
 	// close the stream
 	params.RawStream.Close()
+	session.CloseWrite()
 
 	log.Debugf("Done copying stdin")
 

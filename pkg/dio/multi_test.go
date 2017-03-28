@@ -428,33 +428,3 @@ func TestReadRemove(t *testing.T) {
 	assert.Equal(t, expected, string(buffer))
 
 }
-
-func TestWaitForReaders(t *testing.T) {
-	var wg sync.WaitGroup
-
-	for i := 0; i < 100; i++ {
-		m := MultiReader()
-		wg.Add(1)
-
-		go func() {
-			p := make([]byte, 20)
-			n := 0
-			w := 0
-			var err error
-			for {
-				n, err = m.Read(p[w:])
-				w += n
-				if err != nil {
-					break
-				}
-			}
-
-			assert.Equal(t, io.EOF, err)
-			assert.Equal(t, string(p[:w]), "hello world")
-			wg.Done()
-		}()
-		r := bytes.NewReader([]byte("hello world"))
-		m.Add(r)
-		wg.Wait()
-	}
-}

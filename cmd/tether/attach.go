@@ -405,9 +405,8 @@ func (t *attachServerSSH) run() error {
 
 			log.Debugf("Adding [%p] to Outwriter", channel)
 			session.Outwriter.Add(channel)
-			stdinReader := newStdinReader(channel)
-			log.Debugf("Adding [%p] to Reader", stdinReader)
-			session.Reader.Add(stdinReader)
+			log.Debugf("Adding [%p] to Reader", channel)
+			session.Reader.Add(channel)
 
 			// cleanup on detach from the session
 			cleanup := func() {
@@ -416,8 +415,8 @@ func (t *attachServerSSH) run() error {
 				log.Debugf("Removing [%p] from Outwriter", channel)
 				session.Outwriter.Remove(channel)
 
-				log.Debugf("Removing [%p] from Reader", stdinReader)
-				session.Reader.Remove(stdinReader)
+				log.Debugf("Removing [%p] from Reader", channel)
+				session.Reader.Remove(channel)
 
 				channel.Close()
 

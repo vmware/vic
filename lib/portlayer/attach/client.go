@@ -40,6 +40,7 @@ type SessionInteraction interface {
 	// Stdin stream
 	Stdin() io.WriteCloser
 	Close() error
+	CloseWrite() error
 	IsClosed() bool
 
 	// Resize the terminal
@@ -119,7 +120,16 @@ func (t *attachSSH) Signal(signal ssh.Signal) error {
 func (t *attachSSH) CloseStdin() error {
 	defer trace.End(trace.Begin(""))
 
-	return t.channel.CloseWrite()
+	ok, err := t.channel.SendRequest(msgs.CloseStdinReq, true, nil)
+	if err == nil && !ok {
+		return fmt.Errorf("unknown error closing stdin")
+	}
+
+	if err != nil {
+		return fmt.Errorf("close stdin error: %s", err)
+	}
+
+	return nil
 }
 
 func (t *attachSSH) Stdout() io.Reader {
@@ -150,6 +160,12 @@ func (t *attachSSH) Close() error {
 	err := t.channel.Close()
 
 	return err
+}
+
+func (t *attachSSH) CloseWrite() error {
+	defer trace.End(trace.Begin(""))
+
+	return t.channel.CloseWrite()
 }
 
 func (t *attachSSH) IsClosed() bool {
