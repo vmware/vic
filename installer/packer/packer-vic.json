@@ -254,6 +254,11 @@
       "destination": "/etc/vmware/fileserver/configure_fileserver.sh"
     },
     {
+      "type": "file",
+      "source": "scripts/fileserver/start_fileserver.sh",
+      "destination": "/etc/vmware/fileserver/start_fileserver.sh"
+    },
+    {
       "type": "shell",
       "only": ["vagrant-local"],
       "script": "scripts/vagrant.sh"
