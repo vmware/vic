@@ -19,8 +19,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -35,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/metrics"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/version"
@@ -64,6 +67,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersGetContainerLogsHandler = containers.GetContainerLogsHandlerFunc(handler.GetContainerLogsHandler)
 	api.ContainersContainerWaitHandler = containers.ContainerWaitHandlerFunc(handler.ContainerWaitHandler)
 	api.ContainersContainerRenameHandler = containers.ContainerRenameHandlerFunc(handler.RenameContainerHandler)
+	api.ContainersGetContainerStatsHandler = containers.GetContainerStatsHandlerFunc(handler.GetContainerStatsHandler)
 
 	handler.handlerCtx = handlerCtx
 }
@@ -319,6 +323,71 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 	return containers.NewContainerSignalOK()
 }
 
+func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params containers.GetContainerStatsParams) middleware.Responder {
+	defer trace.End(trace.Begin(params.ID))
+
+	c := exec.Containers.Container(params.ID)
+	if c == nil {
+		return containers.NewGetContainerStatsNotFound()
+	}
+
+	r, w := io.Pipe()
+	enc := json.NewEncoder(w)
+	flusher := NewFlushingReader(r)
+
+	// channel used to receive metrics
+	var ch chan interface{}
+
+	if params.Stream {
+		subch, err := metrics.Supervisor.VMCollector().Subscribe(c)
+		if err != nil {
+			log.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
+			return containers.NewGetContainerStatsInternalServerError()
+		}
+		log.Debugf("container(%s) stats stream subscribed @ %d", params.ID, &subch)
+		ch = subch
+	} else {
+		sch, err := metrics.Supervisor.VMCollector().Sample(c)
+		if err != nil {
+			log.Errorf("unable to subscribe container(%s) to stats sample: %s", params.ID, err)
+			return containers.NewGetContainerStatsInternalServerError()
+		}
+		log.Debugf("container(%s) stats sample subscribed @ %d", params.ID, &sch)
+		ch = sch
+	}
+
+	// closer will be run when the http transport is closed
+	cleaner := func() {
+		// streaming is a subscription, so unsubscribe if streaming
+		if params.Stream {
+			log.Debug("unsubscribing %s from stats %d", params.ID, &ch)
+			metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
+		}
+		closePipe(r, w)
+	}
+
+	// routine that will listen for new metrics and encode to provided output stream
+	// unsubscription or error will exit the routine
+	go func() {
+		for {
+			select {
+			case metric, ok := <-ch:
+				if !ok {
+					log.Debugf("container stats complete for %s @ %d", params.ID, &ch)
+					return
+				}
+				err := enc.Encode(metric)
+				if err != nil {
+					log.Errorf("encoding error [%s] for container(%s) stats @ %d - stream(%b)", err, params.ID, &ch, params.Stream)
+					return
+				}
+			}
+		}
+	}()
+
+	return NewStreamOutputHandler("containerStats").WithPayload(flusher, params.ID, cleaner)
+}
+
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
@@ -357,7 +426,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	detachableOut := NewFlushingReader(reader)
 
-	return NewContainerOutputHandler("logs").WithPayload(detachableOut, params.ID)
+	return NewStreamOutputHandler("containerLogs").WithPayload(detachableOut, params.ID, nil)
 }
 
 func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.ContainerWaitParams) middleware.Responder {

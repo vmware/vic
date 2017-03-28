@@ -15,15 +15,12 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -296,11 +293,12 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 		return interaction.NewContainerGetStdoutNotFound()
 	}
 
-	return NewContainerOutputHandler("stdout").WithPayload(
+	return NewStreamOutputHandler("stdout").WithPayload(
 		NewFlushingReader(
 			session.Stdout(),
 		),
 		params.ID,
+		nil,
 	)
 }
 
@@ -339,163 +337,11 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 		return interaction.NewContainerGetStderrNotFound()
 	}
 
-	return NewContainerOutputHandler("stderr").WithPayload(
+	return NewStreamOutputHandler("stderr").WithPayload(
 		NewFlushingReader(
 			session.Stderr(),
 		),
 		params.ID,
+		nil,
 	)
-}
-
-// GenericFlusher is a custom reader to allow us to detach cleanly during an io.Copy
-type GenericFlusher interface {
-	Flush()
-}
-
-type FlushingReader struct {
-	io.Reader
-	io.WriterTo
-
-	flusher   GenericFlusher
-	initBytes []byte
-}
-
-func NewFlushingReader(rdr io.Reader) *FlushingReader {
-	return &FlushingReader{Reader: rdr, flusher: nil, initBytes: nil}
-}
-
-func NewFlushingReaderWithInitBytes(rdr io.Reader, initBytes []byte) *FlushingReader {
-	return &FlushingReader{Reader: rdr, flusher: nil, initBytes: initBytes}
-}
-
-func (d *FlushingReader) AddFlusher(flusher GenericFlusher) {
-	d.flusher = flusher
-}
-
-// readDetectInit() is used by WriteTo() which is used by io.Copy.  It attempts
-// to detect a init byte buffer.  If it finds that init byte sequence, it is
-// ignored.  This reader does not care about the init sequeunce.  The init sequence
-// maybe used by the higher level interaction, which in this case is the Swagger
-// establishing initial connection for stdin.
-//
-// Panics if the buf is smaller than the initBytes
-func (d *FlushingReader) readDetectInit(buf []byte) (int, error) {
-	initLen := len(d.initBytes)
-
-	// fast path - len(nil) return 0
-	if initLen == 0 {
-		return d.Read(buf)
-	}
-
-	// make sure we have enough room
-	if len(buf) < initLen {
-		panic("Read buffer is smaller than the initialization byte sequence")
-	}
-
-	total := 0
-	upto := 0
-	for total < initLen {
-		nr, err := d.Read(buf[total:])
-		if nr > 0 {
-			total += nr
-			// we are only interested with the first initLen bytes
-			upto = total
-			if upto > initLen {
-				upto = initLen
-			}
-			if bytes.Compare(d.initBytes[0:upto], buf[0:upto]) != 0 {
-				// First bytes aren't part of init bytes so client must not be
-				// the docker personality so break and ignore looking for the
-				// init bytes.
-				log.Debugf("Did not find primer bytes, stopping watch")
-				return total, err
-			}
-		}
-		if err != nil && total < initLen {
-			log.Debugf("Primer bytes read %d bytes, err %s, stopping watch", nr, err)
-			return 0, err
-		}
-	}
-
-	// would have returned in the compare clause if not matching init bytes
-	copy(buf[0:], buf[initLen:])
-	log.Debugf("Found primer bytes, port layer client might be personality server")
-
-	// no risk of returning <0
-	return total - initLen, nil
-}
-
-// Derived from go's io.Copy.  We use a smaller buffer so as to not hold up
-// writing out data.  Go's version allocates 32k, and the Read will wait till
-// buffer is filled (unless EOF is encountered).  Also, we force a flush if
-// a flusher is added.  We've seen cases where the last bit of data for a
-// screen doesn't reach the docker engine api server.  The flush solves that
-// issue.
-func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
-	buf := make([]byte, ioCopyBufferSize)
-
-	nr, er := d.readDetectInit(buf)
-	for {
-		if nr > 0 {
-			nw, ew := w.Write(buf[0:nr])
-			if d.flusher != nil {
-				d.flusher.Flush()
-			}
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if ew != nil {
-				err = ew
-				break
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				break
-			}
-		}
-		if er == io.EOF {
-			break
-		}
-		if er != nil {
-			err = er
-			break
-		}
-		nr, er = d.Read(buf)
-	}
-	return written, err
-}
-
-// ContainerOutputHandler is custom return handlers for stdout/stderr
-type ContainerOutputHandler struct {
-	outputStream *FlushingReader
-	containerID  string
-	outputName   string
-}
-
-// NewContainerOutputHandler creates ContainerOutputHandler with default headers values
-func NewContainerOutputHandler(name string) *ContainerOutputHandler {
-	return &ContainerOutputHandler{outputName: name}
-}
-
-// WithPayload adds the payload to the container set stdin internal server error response
-func (c *ContainerOutputHandler) WithPayload(payload *FlushingReader, id string) *ContainerOutputHandler {
-	c.outputStream = payload
-	c.containerID = id
-	return c
-}
-
-// WriteResponse to the client
-func (c *ContainerOutputHandler) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
-	rw.WriteHeader(http.StatusOK)
-	if f, ok := rw.(http.Flusher); ok {
-		f.Flush()
-		c.outputStream.AddFlusher(f)
-	}
-
-	_, err := io.Copy(rw, c.outputStream)
-	if err != nil {
-		log.Debugf("Error copying %s stream for container %s: %s", c.outputName, c.containerID, err)
-	} else {
-		log.Debugf("Finished copying %s stream for container %s", c.outputName, c.containerID)
-	}
 }

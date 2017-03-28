@@ -18,10 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -74,62 +72,5 @@ func (handler *EventsHandlerImpl) GetEventsHandler(params events.GetEventsParams
 		}
 	})
 
-	outHandler := &EventOutputHandler{
-		outputName:  "events",
-		onHTTPClose: onClose,
-	}
-
-	return outHandler.WithPayload(flusher)
-}
-
-// closePipe is a convenience function for closing the event stream pipe
-func closePipe(pipeReader *io.PipeReader, pipeWriter *io.PipeWriter) {
-	if pipeReader != nil {
-		pipeReader.Close()
-	}
-	if pipeWriter != nil {
-		pipeWriter.Close()
-	}
-}
-
-// EventOutputHandler is custom return handlers for event stream
-type EventOutputHandler struct {
-	outputStream *FlushingReader
-	outputName   string
-	onHTTPClose  func()
-}
-
-// NewEventOutputHandler creates EventOutputHandler with default headers values
-func NewEventOutputHandler(name string) *EventOutputHandler {
-	return &EventOutputHandler{outputName: name}
-}
-
-// WithPayload adds the payload to output handler
-func (c *EventOutputHandler) WithPayload(payload *FlushingReader) *EventOutputHandler {
-	c.outputStream = payload
-	return c
-}
-
-// WriteResponse to the client
-func (c *EventOutputHandler) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
-	rw.WriteHeader(http.StatusOK)
-	if f, ok := rw.(http.Flusher); ok {
-		f.Flush()
-		c.outputStream.AddFlusher(f)
-	}
-
-	notify := rw.(http.CloseNotifier).CloseNotify()
-
-	go func() {
-		<-notify
-		// execute cleanup function
-		c.onHTTPClose()
-	}()
-
-	_, err := io.Copy(rw, c.outputStream)
-	if err != nil {
-		log.Debugf("Error copying %s stream: %s", c.outputName, err)
-	} else {
-		log.Debugf("Finished copying %s stream", c.outputName)
-	}
+	return NewStreamOutputHandler("events").WithPayload(flusher, sub, onClose)
 }
