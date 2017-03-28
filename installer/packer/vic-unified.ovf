@@ -247,24 +247,24 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <Description>The fully qualified domain name of this VM. Leave blank if DHCP is desired.</Description>
       </Property>
     </ProductSection>
-    <ProductSection ovf:class="harbor" ovf:required="false">
-      <Info>Harbor Properties</Info>
-      <Category>4. Harbor Configuration</Category>
+    <ProductSection ovf:class="registry" ovf:required="false">
+      <Info>Registry Properties</Info>
+      <Category>4. Registry Configuration</Category>
       <Property ovf:key="deploy" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="true">
-        <Label>4.1. Deploy Harbor</Label>
-        <Description>Specifies whether Harbor is enabled on the appliance.</Description>
+        <Label>4.1. Deploy Registry</Label>
+        <Description>Specifies whether registry is enabled on the appliance.</Description>
       </Property>
       <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="443">
-        <Label>4.2. Harbor Port</Label>
-        <Description>Specifies the port on which Harbor will be published.</Description>
+        <Label>4.2. Registry Port</Label>
+        <Description>Specifies the port on which registry will be published.</Description>
       </Property>
       <Property ovf:key="notary_port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="4443">
         <Label>4.3. Notary Port</Label>
         <Description>Specifies the port on which Notary will be published.</Description>
       </Property>
       <Property ovf:key="admin_password" ovf:password="true" ovf:qualifiers="MinLen(8),MaxLen(20)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>4.4. Harbor Admin Password</Label>
-        <Description>The initial password of Harbor admin. Subsequent changes of the admin password should be performed in UI.  (8-20 characters)</Description>
+        <Label>4.4. Registry Admin Password</Label>
+        <Description>The initial password of registry admin. Subsequent changes of the admin password should be performed in UI.  (8-20 characters)</Description>
       </Property>
       <Property ovf:key="db_password" ovf:password="true" ovf:qualifiers="MinLen(8),MaxLen(128)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>4.5. Database Password</Label>
@@ -272,7 +272,7 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
       </Property>
       <Property ovf:key="gc_enabled" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="false">
         <Label>4.6. Garbage Collection</Label>
-        <Description>When setting this to true, Harbor performs garbage collection everytime it boots up.</Description>
+        <Description>When setting this to true, registry performs garbage collection everytime it boots up.</Description>
       </Property>
       <Property ovf:key="ssl_cert" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>4.7. SSL Cert</Label>
@@ -283,16 +283,16 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
       </Property>
     </ProductSection>
-    <ProductSection ovf:class="admiral" ovf:required="false">
-      <Info>Admiral Properties</Info>
-      <Category>5. Admiral Configuration</Category>
+    <ProductSection ovf:class="management_portal" ovf:required="false">
+      <Info>Management Portal Properties</Info>
+      <Category>5. Management Portal Configuration</Category>
       <Property ovf:key="deploy" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="true">
-        <Label>5.1. Deploy Admiral</Label>
-        <Description>Specifies whether Admiral is enabled on the appliance.</Description>
+        <Label>5.1. Deploy Management Portal</Label>
+        <Description>Specifies whether Management Portal is enabled on the appliance.</Description>
       </Property>
       <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="8282">
-        <Label>5.2. Admiral Port</Label>
-        <Description>Specifies the port on which Admiral will be published.</Description>
+        <Label>5.2. Management Portal Port</Label>
+        <Description>Specifies the port on which Management Portal will be published.</Description>
       </Property>
       <Property ovf:key="ssl_cert" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>5.3. SSL Cert</Label>
