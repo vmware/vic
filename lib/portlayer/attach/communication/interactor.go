@@ -103,11 +103,18 @@ func (t *interaction) Signal(signal ssh.Signal) error {
 func (t *interaction) CloseStdin() error {
 	defer trace.End(trace.Begin(""))
 
+	// configure remote to relay EOFs
 	ok, err := t.channel.SendRequest(msgs.CloseStdinReq, true, nil)
 	if err == nil && !ok {
 		return fmt.Errorf("unknown error closing stdin")
 	}
 
+	if err != nil {
+		return fmt.Errorf("close stdin request error: %s", err)
+	}
+
+	// send inline EOF on the stdin stream
+	err = t.channel.CloseWrite()
 	if err != nil {
 		return fmt.Errorf("close stdin error: %s", err)
 	}

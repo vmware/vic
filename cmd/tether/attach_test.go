@@ -234,6 +234,9 @@ func attachCase(t *testing.T, runblock bool) {
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
 		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attach",
 			Name: "tether_test_executor",
@@ -285,11 +288,10 @@ func attachCase(t *testing.T, runblock bool) {
 	assert.NoError(t, err)
 	defer sshConn.Close()
 
-	attachClient := ssh.NewClient(sshConn, chans, reqs)
-
-	_, err = communication.ContainerIDs(attachClient)
+	ssh.NewClient(sshConn, chans, reqs)
+	_, err = communication.ContainerIDs(sshConn)
 	assert.NoError(t, err)
-	sshSession, err := communication.NewSSHInteraction(attachClient, cfg.ID)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID)
 	if runblock {
 		sshSession.Unblock()
 	}
@@ -304,7 +306,7 @@ func attachCase(t *testing.T, runblock bool) {
 	// read from session into buffer
 	buf := &bytes.Buffer{}
 	done := make(chan bool)
-	go func() { io.CopyN(buf, stdout, int64(len(testBytes))); done <- true }()
+	go func() { io.Copy(buf, stdout); done <- true }()
 
 	// write something to echo
 	log.Debug("sending test data")
@@ -312,8 +314,9 @@ func attachCase(t *testing.T, runblock bool) {
 	log.Debug("sent test data")
 
 	// wait for the close to propagate
-	<-done
 	sshSession.CloseStdin()
+	<-done
+	// sshSession.Close()
 }
 
 func TestAttach(t *testing.T) {
@@ -747,6 +750,9 @@ func TestReattach(t *testing.T) {
 			ID:   "attach",
 			Name: "tether_test_executor",
 		},
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
 
 		Sessions: map[string]*executor.SessionConfig{
 			"attach": {
@@ -805,10 +811,10 @@ func TestReattach(t *testing.T) {
 			t.Errorf("Failed to get ssh.NewClient")
 		}
 
-		_, err = communication.ContainerIDs(attachClient)
+		_, err = communication.ContainerIDs(sshConn)
 		assert.NoError(t, err)
 
-		sshSession, err = communication.NewSSHInteraction(attachClient, cfg.ID)
+		sshSession, err = communication.NewSSHInteraction(sshConn, cfg.ID)
 		assert.NoError(t, err)
 
 		sshSession.Unblock()

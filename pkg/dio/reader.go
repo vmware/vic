@@ -28,14 +28,22 @@ type DynamicMultiReader interface {
 	Add(...io.Reader)
 	Remove(io.Reader)
 	Close() error
+	PropagateEOF(bool)
 }
 
 type multiReader struct {
 	mutex sync.Mutex
 
-	cond    *sync.Cond
-	err     error
-	readers []io.Reader
+	cond           *sync.Cond
+	err            error
+	readers        []io.Reader
+	honorInlineEOF bool
+}
+
+func (t *multiReader) PropagateEOF(val bool) {
+	t.mutex.Lock()
+	t.honorInlineEOF = val
+	t.mutex.Unlock()
 }
 
 func (t *multiReader) Read(p []byte) (int, error) {
@@ -115,6 +123,12 @@ func (t *multiReader) Read(p []byte) (int, error) {
 	// This means readers closed/removed while we iterate
 	if eof != 0 && n == 0 && t.err == nil && eof == len(rTmp) {
 		log.Debugf("[%p] All of the readers returned EOF (%d)", t, len(rTmp))
+		t.mutex.Lock()
+		// queue up an EOF for the next time around if no new readers are added
+		if t.honorInlineEOF {
+			t.err = io.EOF
+		}
+		t.mutex.Unlock()
 	}
 	return n, nil
 }

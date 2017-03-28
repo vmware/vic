@@ -363,7 +363,7 @@ func (t *attachServerSSH) run() error {
 			established = establishFn() == nil
 		}
 
-		defer func() {
+		globalCleanup := func() {
 			log.Debugf("cleanup on connection")
 
 			t.serverConn.Lock()
@@ -372,11 +372,12 @@ func (t *attachServerSSH) run() error {
 			if t.serverConn.ServerConn != nil {
 				log.Debugf("closing underlying connection")
 				t.serverConn.Close()
+				t.serverConn.ServerConn = nil
 			}
-		}()
+		}
 
 		// Global requests
-		go t.globalMux(reqs)
+		go t.globalMux(reqs, globalCleanup)
 
 		log.Infof("Ready to service attach requests")
 		// Service the incoming channels
@@ -496,7 +497,7 @@ func (t *attachServerSSH) sessions() []string {
 	return keys
 }
 
-func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
+func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func()) {
 	defer trace.End(trace.Begin("attach server global request handler"))
 
 	var pendingFn func()
@@ -534,6 +535,8 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 			pendingFn = nil
 		}
 	}
+	log.Info("Global mux closed")
+	cleanup()
 }
 
 func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.SessionConfig, cleanup func()) {
@@ -592,13 +595,8 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 			}
 		case msgs.CloseStdinReq:
 			// call Close as the pendingFn so that we can send reply back before closing the channel
-			pendingFn = func() {
-				session.Lock()
-				defer session.Unlock()
-
-				log.Debugf("Closing stdin for %s", session.ID)
-				session.Reader.Close()
-			}
+			log.Debugf("Configuring reader to propagate EOF for %s", session.ID)
+			session.Reader.PropagateEOF(true)
 		default:
 			ok = false
 			log.Error(fmt.Sprintf("ssh request type %s is not supported", req.Type))
