@@ -33,12 +33,19 @@ type DynamicMultiReader interface {
 type multiReader struct {
 	mutex     sync.Mutex
 	readersMu sync.Mutex
+	cond      *sync.Cond
 	readers   []io.Reader
 	pr        *io.PipeReader
 	pw        *io.PipeWriter
 }
 
 func (t *multiReader) Read(p []byte) (int, error) {
+	t.readersMu.Lock()
+	for len(t.readers) == 0 {
+		t.cond.Wait()
+	}
+	t.readersMu.Unlock()
+
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
@@ -64,19 +71,25 @@ func (t *multiReader) Add(readers ...io.Reader) {
 	t.readers = append(t.readers, readers...)
 	for i := range readers {
 		go func(r io.Reader) {
+			var err error
+
 			defer func() {
+				log.Debugf("reader %p exited with error: %s", r, err)
 				t.Remove(r)
 			}()
 
 			buf := make([]byte, 512)
+			n := 0
 			for {
-				n, err := r.Read(buf)
+				n, err = r.Read(buf)
 				if n > 0 {
-					t.pw.Write(buf[:n])
+					if _, ew := t.pw.Write(buf[:n]); ew != nil {
+						return
+					}
 				}
 
 				if err != nil {
-					if err != io.EOF {
+					if err != io.EOF && err != io.ErrClosedPipe {
 						t.pw.CloseWithError(err)
 					}
 					return
@@ -84,6 +97,8 @@ func (t *multiReader) Add(readers ...io.Reader) {
 			}
 		}(readers[i])
 	}
+
+	t.cond.Broadcast()
 }
 
 // TODO: add a WriteTo for more efficient copy
@@ -139,6 +154,7 @@ func (t *multiReader) Remove(reader io.Reader) {
 // return a non-nil, non-EOF error, Read will return that error.
 func MultiReader(readers ...io.Reader) DynamicMultiReader {
 	t := &multiReader{}
+	t.cond = sync.NewCond(&t.readersMu)
 	t.Add(readers...)
 
 	if verbose {

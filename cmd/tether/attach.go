@@ -601,7 +601,7 @@ func newStdinReader(channel ssh.Channel) *stdinReader {
 		buf := make([]byte, 2*1024)
 		for {
 			r, err := channel.Read(buf)
-			log.Debugf("stdin r=%d, err=%s buf=%q", r, err, buf)
+			log.Debugf("stdin r=%d, err=%s buf=%q", r, err, buf[:r])
 			if r > 0 {
 				w.Write(buf[:r])
 			}

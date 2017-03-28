@@ -45,7 +45,7 @@ Attach to stopped container
 Attach with custom detach keys
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
     ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox /bin/top
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
@@ -60,7 +60,7 @@ Attach with custom detach keys
 Reattach to container
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
     ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox /bin/top
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
