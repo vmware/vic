@@ -15,29 +15,23 @@
 
 set -x -euf -o pipefail
 
-PORT=""
-ADMIRAL_TLS=""
+ADMIRAL_EXPOSED_PORT=""
 ADMIRAL_DATA_LOCATION=""
 ADMIRAL_KEY_LOCATION=""
 ADMIRAL_CERT_LOCATION=""
+ADMIRAL_JKS_LOCATION=""
 
-if [ -n $ADMIRAL_TLS ]; then
-	/usr/bin/docker run -d -p ${PORT}:${PORT} \
-	 --name vic-admiral \
-	 -e XENON_OPTS="--sandbox=${ADMIRAL_DATA_LOCATION}" \
-	 --log-driver=json-file \
-	 --log-opt max-size=1g \
-	 --log-opt max-file=10 \
-		 vmware/admiral:dev-vic
-else
-	/usr/bin/docker run -d -p ${PORT}:${PORT} \
-	 --name vic-admiral \
-	 -e ADMIRAL_PORT=-1 \
-	 -e XENON_OPTS="--sandbox=${ADMIRAL_DATA_LOCATION} --securePort=${PORT} --certificateFile=/tmp/server.crt --keyFile=/tmp/server.key --port=-1" \
-	 -v "$ADMIRAL_CERT_LOCATION:/tmp/server.cert" \
-	 -v "$ADMIRAL_KEY_LOCATION:/tmp/server.key" \
-	 --log-driver=json-file \
-	 --log-opt max-size=1g \
-	 --log-opt max-file=10 \
-		 vmware/admiral:dev-vic
-fi
+/usr/bin/docker run -p ${ADMIRAL_EXPOSED_PORT}:8282 \
+  --name vic-admiral \
+  -e ADMIRAL_PORT=8282 \
+  -e JAVA_OPTS="-Ddcp.net.ssl.trustStore=/tmp/trusted_certificates.jks -Ddcp.net.ssl.trustStorePassword=changeit" \
+  -e XENON_OPTS="--port=-1 --securePort=8282 --certificateFile=/tmp/server.crt --keyFile=/tmp/server.key" \
+  -v "$ADMIRAL_CERT_LOCATION:/tmp/server.crt" \
+  -v "$ADMIRAL_KEY_LOCATION:/tmp/server.key" \
+  -v "$ADMIRAL_JKS_LOCATION:/tmp/trusted_certificates.jks" \
+  -v "$ADMIRAL_DATA_LOCATION/custom.conf:/var/admiral/config/configuration.properties" \
+  --log-driver=json-file \
+  --log-opt max-size=1g \
+  --log-opt max-file=10 \
+  vmware/admiral:dev-vic
+  

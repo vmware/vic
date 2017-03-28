@@ -8,9 +8,9 @@ Requires=docker.service
 Type=simple
 Restart=on-failure
 RestartSec=5
-ExecStartPre=-/usr/local/bin/docker rm vic-admiral
-ExecStart=/usr/bin/bash /etc/vmware/admiral/start_admiral.sh
-ExecStop=/usr/local/bin/docker stop vic-admiral
+ExecStart=/etc/vmware/admiral/start_admiral.sh
+ExecStop=/usr/bin/docker stop vic-admiral
+ExecStopPost=/usr/bin/docker rm vic-admiral
 
 [Install]
 WantedBy=multi-user.target
