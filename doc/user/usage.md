@@ -17,7 +17,7 @@ There is an operations user mechanism provided to allow a VCH to operate with le
 * `--ops-user`
 * `--ops-password`
 If neither option is specified then the user supplied via `--target` or `--user` will be used and a warning will be output. If only the `--ops-user` option is provided there will be an interactive prompt for the password.
-At this time vic-machine _does not create_ the operations user, nor does it configure it with minimum set of RBAC permissions necessary for operation - this is actively being worked on (#1689)  
+At this time vic-machine _does not create_ the operations user, nor does it configure it with minimum set of RBAC permissions necessary for operation - this is actively being worked on (#1689)
 
 Deploying a VCH requires credentials able to:
 * create and configure a resource pool (vApp on vCenter)
@@ -33,14 +33,14 @@ However operation of a VCH requires only a subset of those privileges:
 * upload to/download from datastore
 
 ### Example
-Replace the `<fields>` in the following example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. This example will use DHCP for the API endpoint and will not configure client authentication.  
+Replace the `<fields>` in the following example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. This example will use DHCP for the API endpoint and will not configure client authentication.
 
 - --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targeting ESXi or only one datacenter is configured.
-- --compute-resource is the resource pool where VCH will be deployed to. For vCenter this should start with the cluster, followed by the resource pool path, e.g. `mycluster/a/resource/pool/path` (vCenter), or `/a/resource/pool` (ESXi) .
+- --compute-resource is the compute resource where VCH will be deployed to. This should be the name of a cluster or resource pool, e.g. `myCluster` (vCenter), or `myPool` .
 - --thumbprint is the thumbprint of the server's certificate, required if the certificate cannot be validated with a trusted certificate authority (`--force` will accept whatever certificate is presented)
 
 ```
-vic-machine-linux create --target <target-host>[/datacenter] --user <root> --password <password> --thumbprint <certificate thumbprint> --compute-resource <resource pool path> --image-store <datastore name> --name <vch-name> --no-tlsverify
+vic-machine-linux create --target <target-host>[/datacenter] --user <root> --password <password> --thumbprint <certificate thumbprint> --compute-resource <cluster or resource pool name> --image-store <datastore name> --name <vch-name> --no-tlsverify
 ```
 
 This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi (output was generated with --client-network-ip specified instead of `--no-tlsverify` denoted above):
@@ -90,13 +90,12 @@ INFO[2016-11-07T22:01:54Z] docker -H x.x.x.x:2376 --tlsverify --tlscacert="./XXX
 INFO[2016-11-07T22:01:54Z] Installer completed successfully
 ```
 
-
 ## Deleting a Virtual Container Host
 
 Specify the same resource pool and VCH name used to create a VCH, then the VCH will removed, together with the created containers, images, and volumes, if --force is provided. Here is an example command and output - replace the `<fields>` in the example with values specific to your environment.
 
 ```
-vic-machine-linux delete --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <resource pool path> --name <vch-name>
+vic-machine-linux delete --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <cluster or resource pool name> --name <vch-name>
 INFO[2016-06-27T00:09:25Z] ### Removing VCH ####
 INFO[2016-06-27T00:09:26Z] Removing VMs
 INFO[2016-06-27T00:09:26Z] Removing images
@@ -114,7 +113,7 @@ INFO[2016-06-27T00:09:27Z] Completed successfully
 Specify the same resource pool and VCH name used to create a VCH, vic-machine inspect can show the VCH information.
 
 ```
-vic-machine-linux inspect --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <resource pool path> --name <vch-name>
+vic-machine-linux inspect --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <cluster or resource pool name> --name <vch-name>
 INFO[2016-10-08T23:40:28Z] ### Inspecting VCH ####
 INFO[2016-10-08T23:40:29Z]
 INFO[2016-10-08T23:40:29Z] VCH ID: VirtualMachine:286
@@ -143,7 +142,7 @@ INFO[2016-10-08T23:40:29Z] Completed successfully
 Specify the same resource pool and VCH name used to create a VCH, vic-machine debug will enable SSH on the appliance VM and then display the VCH information, now with SSH entry.
 
 ```
-vic-machine-linux debug --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <resource pool path> --name <vch-name> --enable-ssh --rootpw <other password> --authorized-key <keyfile>
+vic-machine-linux debug --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <cluster or resource pool name> --name <vch-name> --enable-ssh --rootpw <other password> --authorized-key <keyfile>
 INFO[2016-10-08T23:41:16Z] ### Configuring VCH for debug ####
 INFO[2016-10-08T23:41:16Z]
 INFO[2016-10-08T23:41:16Z] VCH ID: VirtualMachine:286
@@ -179,7 +178,7 @@ VirtualMachine:vm-189        /dc2/host/cluster2/Resources/test2/test2-2        t
 ```
 
 ```
-vic-machine-linux ls --target <target-host>/dc1 --user <root> --password <password> --compute-resource cluster1/test1
+vic-machine-linux ls --target <target-host>/dc1 --user <root> --password <password> --compute-resource test1
 INFO[2016-08-08T16:25:50-02:00] ### Listing VCHs ####
 
 ID                           PATH                                                   NAME
@@ -203,9 +202,9 @@ docker volume create --name=reports --opts VolumeStore=fast --opt Capacity=1024
 
 Providing a volume store named `default` allows the driver options to be omitted in the example above and enables anoymous volumes including those defined in Dockerfiles, e.g.:
 ```
-docker run -v /var/lib/data -it busybox 
+docker run -v /var/lib/data -it busybox
 ```
-  
+
 
 ## Exposing vSphere networks within a Virtual Container Host
 
@@ -238,7 +237,7 @@ INFO[2016-11-07T19:53:44Z]
 ERRO[2016-11-07T19:53:44Z] Create cannot continue: unable to generate certificates
 ERRO[2016-11-07T19:53:44Z] --------------------
 ERRO[2016-11-07T19:53:44Z] vic-machine-linux failed: provide Common Name for server certificate
-``` 
+```
 
 The [`--cert-path`](#certificate-names-and---cert-path) option applies to all of the TLS configurations other than --no-tls.
 
@@ -296,7 +295,7 @@ The default value of `--cert-path` is that of the `--name` parameter, in the cur
 
 The certificate authority (CA) in the certificate path will only be loaded if no CA is specified via the `--tls-ca` option.
 
-If a warning in the form below is received during creation it means that client authentication was enabled (a certificate authority was provided), but neither that authority nor the ones configured 
+If a warning in the form below is received during creation it means that client authentication was enabled (a certificate authority was provided), but neither that authority nor the ones configured
 on the system were able to verify the provided server certificate. This can be a valid configuration, but should be checked:
 ```
 Unable to verify server certificate with configured CAs: <additional detail>
@@ -310,13 +309,13 @@ INFO[2016-11-11T23:58:02Z] Using client-network-ip as cname where needed - use -
 INFO[2016-11-11T23:58:02Z] Loaded server certificate ./xxx/server-cert.pem
 INFO[2016-11-11T23:58:02Z] Loaded CA with default name from certificate path xxx
 INFO[2016-11-11T23:58:02Z] Loaded client certificate with default name from certificate path xxx
-```    
+```
 
 #### Using client certificates with wget or curl
 
 To use client certificates with wget and curl requires adding the following options:
 ```
-wget --certificate=/path/to/cert --private-key=/path/to/key 
-curl --cert=/path/to/cert --key=/path/to/key 
+wget --certificate=/path/to/cert --private-key=/path/to/key
+curl --cert=/path/to/cert --key=/path/to/key
 ```
 [Issues relating to Virtual Container Host deployment](https://github.com/vmware/vic/labels/component%2Fvic-machine)

@@ -28,6 +28,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -544,6 +545,50 @@ func TestValidateWithFolders(t *testing.T) {
 		}
 	}
 
+	// we have valid input at this point, test various compute-resource suggestions
+	vs := validator.Session
+	crs := []struct {
+		flag    string
+		pool    string
+		cluster string
+	}{
+		{"*", "", ""},         // MultipleFoundError
+		{"Resources", "", ""}, // MultipleFoundError
+		{"DC1_[CH]0", "", ""}, // MultipleFoundError
+		{"DC1_C0_RP1", "/F0/DC1/host/F0/DC1_C0/Resources/DC1_C0_RP1", "/F0/DC1/host/F0/DC1_C0"}, // ResourcePool (nested)
+		{"DC1_H0", "/F0/DC1/host/F0/DC1_H0/Resources", "/F0/DC1/host/F0/DC1_H0"},                // Host (standalone)
+		{"DC1_C0", "/F0/DC1/host/F0/DC1_C0/Resources", "/F0/DC1/host/F0/DC1_C0"},                // Cluster
+	}
+
+	for _, cr := range crs {
+		vs.Pool = nil
+		vs.PoolPath = ""
+
+		vs.Cluster = nil
+		vs.ClusterPath = ""
+
+		_, err = validator.ResourcePoolHelper(ctx, cr.flag)
+
+		if vs.ClusterPath != cr.cluster {
+			t.Errorf("%s ClusterPath=%s", cr.flag, vs.ClusterPath)
+		}
+
+		if vs.PoolPath != cr.pool {
+			t.Errorf("%s PoolPath=%s", cr.flag, vs.PoolPath)
+		}
+
+		if err == nil {
+			continue
+		}
+
+		switch err.(type) {
+		case *find.MultipleFoundError:
+			// expected
+		default:
+			t.Errorf("ResourcePoolHelper(%s): %s", cr.flag, err)
+		}
+	}
+
 	// cover some other paths now that we have a valid config
 	spec, err := validator.ValidateTarget(ctx, input)
 	if err != nil {
@@ -552,7 +597,7 @@ func TestValidateWithFolders(t *testing.T) {
 
 	validator.AddDeprecatedFields(ctx, spec, input)
 
-	_, err = CreateFromVCHConfig(ctx, spec, validator.Session)
+	_, err = CreateFromVCHConfig(ctx, spec, vs)
 	if err != nil {
 		t.Fatal(err)
 	}
