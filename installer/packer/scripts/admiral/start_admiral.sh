@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-set -x -euf -o pipefail
+set -euf -o pipefail
 
 ADMIRAL_EXPOSED_PORT=""
 ADMIRAL_DATA_LOCATION=""
@@ -29,7 +28,7 @@ ADMIRAL_JKS_LOCATION=""
   -v "$ADMIRAL_CERT_LOCATION:/tmp/server.crt" \
   -v "$ADMIRAL_KEY_LOCATION:/tmp/server.key" \
   -v "$ADMIRAL_JKS_LOCATION:/tmp/trusted_certificates.jks" \
-  -v "$ADMIRAL_DATA_LOCATION/custom.conf:/var/admiral/config/configuration.properties" \
+  -v "$ADMIRAL_DATA_LOCATION/custom.conf:/admiral/config/configuration.properties" \
   --log-driver=json-file \
   --log-opt max-size=1g \
   --log-opt max-file=10 \
