@@ -336,7 +336,7 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <rasd:ElementName xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData">4096 MB of memory</rasd:ElementName>
         <rasd:InstanceID xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData">2</rasd:InstanceID>
         <rasd:ResourceType>4</rasd:ResourceType>
-        <rasd:VirtualQuantity>4096</rasd:VirtualQuantity>
+        <rasd:VirtualQuantity>8192</rasd:VirtualQuantity>
       </Item>
       <Item>
         <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
