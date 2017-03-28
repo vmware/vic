@@ -436,7 +436,9 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 
 	nr, er := d.readDetectInit(buf)
 	for {
+		log.Debugf("[%p] nr: %d", d, nr)
 		if nr > 0 {
+			log.Debugf("[%p] buf: %s", d, string(buf[:nr]))
 			nw, ew := w.Write(buf[0:nr])
 			if d.flusher != nil {
 				d.flusher.Flush()
@@ -445,6 +447,7 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 				written += int64(nw)
 			}
 			if ew != nil {
+				log.Debugf("[%p] ew: %s", d, ew)
 				err = ew
 				break
 			}
@@ -457,11 +460,13 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 			break
 		}
 		if er != nil {
+			log.Debugf("[%p] er: %s", d, er)
 			err = er
 			break
 		}
 		nr, er = d.Read(buf)
 	}
+	log.Debugf("[%p] written: %d err: %s", d, written, err)
 	return written, err
 }
 
