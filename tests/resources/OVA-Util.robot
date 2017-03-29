@@ -32,7 +32,7 @@ ${ova_network_options}  --prop:network.ip0=${ova_network_ip0} --prop:network.net
 
 ${ova_harbor_admin_password}  harbor-admin-passwd
 ${ova_harbor_db_password}  harbor-db-passwd
-${ova_service_options}  --prop:harbor.admin_password=${ova_harbor_admin_password} --prop:harbor.db_password=${ova_harbor_db_password}
+${ova_service_options}  --prop:registry.admin_password=${ova_harbor_admin_password} --prop:registry.db_password=${ova_harbor_db_password}
 
 ${ova_options}  ${ovftool_options} ${ova_appliance_options} ${ova_service_options}
 ${ova_options_with_network}  ${ova_options} ${ova_network_options} 

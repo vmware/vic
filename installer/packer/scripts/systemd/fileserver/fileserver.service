@@ -8,7 +8,7 @@ Requires=data.mount
 Type=simple
 Restart=on-failure
 RestartSec=5
-ExecStart=/usr/local/bin/ova-webserver
+ExecStart=/etc/vmware/fileserver/start_fileserver.sh
 
 [Install]
 WantedBy=multi-user.target
