@@ -61,8 +61,10 @@ cp $bin_dir/vic-ui* $TEMP_DIR
 cp $bin_dir/appliance.iso $TEMP_DIR
 cp $bin_dir/bootstrap.iso $TEMP_DIR
 
-find $bin_dir/ui -name "*.zip" -exec cp {} $TEMP_DIR \;
 mkdir $TEMP_DIR/ui
+if [ -d "$bin_dir/ui" ]; then
+  find $bin_dir/ui -name "*.zip" -exec cp {} $TEMP_DIR \;
+fi
 if [ -d "$bin_dir/ui/HTML5Client" ]; then
     cp -r $bin_dir/ui/HTML5Client $TEMP_DIR/ui
 fi
