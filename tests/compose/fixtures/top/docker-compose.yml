@@ -1,6 +1,0 @@
-service_a:
-  image: busybox:latest
-  command: top
-service_b:
-  image: busybox:latest
-  command: top
