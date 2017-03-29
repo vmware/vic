@@ -18,6 +18,25 @@ Resource  ../../resources/Util.robot
 Suite Setup  19-4-Setup
 #Suite Teardown  19-4-Teardown
 
+*** Variables ***
+${developer}  test-user-developer
+${guest}  test-user-guest
+${password}  Test-password-1
+${newPassword}  Test-new-password-1
+${project}  vic-harbor
+${image}  busybox
+${container_name}  busy
+${tag}  new
+${developerRole}  Developer
+${guestRole}  Guest
+${developerEmail}  developer@test.com
+${developerEmail2}  developer2@test.com
+${guestEmail}  guest@test.com
+${developerFullName}  Vic Developer
+${guestFullName}  Vic Guest
+${comments}  comments
+${developer2}  test-user-developer2
+
 *** Keywords ***
 19-4-Setup
     Set Environment Variable  ESX_VERSION  3620759
@@ -27,7 +46,8 @@ Suite Setup  19-4-Setup
     Set Environment Variable  TEST_PASSWORD  e2eFunctionalTest
     Set Environment Variable  BRIDGE_NETWORK  VM Network
     Set Environment Variable  PUBLIC_NETWORK  "VM Network"
-    Set Environment Variable  TEST_DATACENTER  ${SPACE}
+    Set Environment Variable  TEST_DATACENTER  ${EMPTY}
+    Set Environment Variable  TEST_RESOURCE  ${EMPTY}
     Set Environment Variable  TEST_TIMEOUT  30m
     
     Set Suite Variable  ${ESX1}  ${esx1}
@@ -35,8 +55,12 @@ Suite Setup  19-4-Setup
     Set Global Variable  @{list}  ${esx1}
 
     Install Harbor To Test Server  name=19-4-harbor  protocol=https
+    Log To Console  Harbor installer completed successfully...
+    
     Install Harbor Self Signed Cert
-    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt
+    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${false}
+    Create Project And Three Users For It
+    Remove Environment Variable  DOCKER_HOST
 
 19-4-Teardown
     Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
@@ -44,16 +68,166 @@ Suite Setup  19-4-Setup
     Run Keyword And Continue On Failure  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
-Pos001
-    Open Browser  http://%{HARBOR_IP}/
-    Log Into Harbor  user=admin
-    Create A New User  user1  user1@email.com  user1  Password123
-    Create A New User  user2  user2@email.com  user2  Password123 
-    Create A New Project  vic-harbor  ${false}
-    Close All Browsers
-    ${out}=  Run  docker login -u admin -p %{TEST_PASSWORD} %{HARBOR_IP}
-    ${out}=  Run  docker pull busybox
-    ${out}=  Run  docker tag busybox %{HARBOR_IP}/vic-harbor/busybox
-    ${out}=  Run  docker push %{HARBOR_IP}/vic-harbor/busybox
+Test Pos001 Admin Operations
+    Basic Docker Command With Harbor  user=admin  password=%{TEST_PASSWORD}
+
+Test Pos002 Developer Operations
+    Basic Docker Command With Harbor  user=${developer}  password=${password}
     
-    ${out}=  Run  docker %{VCH-PARAMS} pull %{HARBOR_IP}/vic-harbor/busybox
+Test Neg001 Developer Operations
+    # Docker login
+    Log To Console  \nRunning docker login admin...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker login -u ${guest} -p ${password} %{HARBOR_IP}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Login Succeeded
+    Should Not Contain  ${output}  Error response from daemon
+
+    # Docker pull from harbor through VCH, ensure guest could pull
+    Log To Console  docker pull from harbor using VCH...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker pull from dockerhub
+    Log To Console  docker pull from dockerhub...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker pull %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker tag image
+    Log To Console  docker tag...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker tag %{HARBOR_IP}/${project}/${image} %{HARBOR_IP}/${project}/${image}:${tag}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker push image should fail
+    Log To Console  push image...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker push %{HARBOR_IP}/${project}/${image}:${tag}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  unauthorized: authentication required
+    Should Not Contain  ${output}  digest:
+
+Test Pos003 Two VCH With One Harbor
+    # Add another VC
+    ${VCH1-URL} =    Set Variable    %{VCH-PARAMS}
+    Install VIC Appliance To Test Server  vol=default --insecure-registry %{HARBOR_IP}  certs=${False}
+    Remove Environment Variable  DOCKER_HOST
+    ${VCH2-URL} =    Set Variable    %{VCH-PARAMS}
+
+    # Docker login VCH1
+    Log To Console  \nRunning docker login developer VCH1...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH1-URL} login -u ${developer} -p ${password} %{HARBOR_IP}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Login Succeeded
+    Should Not Contain  ${output}  Error response from daemon
+
+    # Docker login VCH2
+    Log To Console  \nRunning docker login developer2 VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} login -u ${developer2} -p ${password} %{HARBOR_IP}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Login Succeeded
+    Should Not Contain  ${output}  Error response from daemon
+
+    # Docker pull from dockerhub
+    Log To Console  docker pull from dockerhub...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker pull ${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker tag image
+    Log To Console  docker tag...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker tag ${image} %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker push image
+    Log To Console  push image...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker push %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  digest:
+    Should Contain  ${output}  latest:
+    Should Not Contain  ${output}  No such image:
+
+    # Docker delete image in local registry
+    Log To Console  docker rmi local registry...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker rmi -f %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Untagged
+
+    # Make sure the image pushed by VCH1 could be used by VCH2
+    # Docker pull from harbor using VCH2
+    Log To Console  docker pull from dockerhub VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} pull %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker run image
+    Log To Console  docker run VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  END_OF_THE_TEST
+
+    # Docker rm container
+    Log To Console  docker rm VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} rm -f ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker create
+    Log To Console  docker create VCH2...
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${VCH2-URL} create --name ${container_name} -i %{HARBOR_IP}/${project}/${image} /bin/top
+    Log  ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker start
+    Log To Console  docker start VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} start ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker attach 
+    Log To Console  Starting process Docker attach VCH2...
+    Start Process  docker ${VCH2-URL} attach ${container_name} < /tmp/fifo  shell=True  alias=custom
+    Sleep  3
+    Run  echo q > /tmp/fifo
+    ${ret}=  Wait For Process  custom
+    Log  ${ret}
+    Should Be Equal As Integers  ${ret.rc}  0
+    Should Be Empty  ${ret.stdout}
+    Should Be Empty  ${ret.stderr}
+
+    # Docker start  
+    Log To Console  docker start VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} start ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker stop
+    Log To Console  docker stop VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} stop ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker remove
+    Log To Console  docker rm VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} rm -f ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container_name}
+    Wait Until Keyword Succeeds  10x  6s  Check That Datastore Is Cleaned  ${container_name}
+
+    # Docker delete image
+    Log To Console  docker rmi VCH2...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} rmi -f %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Untagged
+
+# Test Pos004 Three Client Machines With One Harbor

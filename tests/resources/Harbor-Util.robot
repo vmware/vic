@@ -33,11 +33,14 @@ Install Harbor To Test Server
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
 
     Log To Console  Downloading Harbor OVA...
-    ${out}=  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
+    #${out}=  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
     Log To Console  Generating OVF file...
     ${out}=  Run  ovftool ${HARBOR_VERSION}.ova ${HARBOR_VERSION}.ovf
     Log To Console  Installing Harbor into test server...
-    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --net:"Network 1"="${network}" --prop:vm.vmname=Harbor --prop:root_pwd='${password}' --prop:harbor_admin_password='${password}' --prop:db_password='${password}' --prop:auth_mode=db_auth --prop:permit_root_login=true --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ./bin/harbor_0.5.0-9e4c90e.ova 'vi://${user}:${password}@${host}${datacenter}/host/${cluster}'
+    ${hostString}=  Set Variable If  '${datacenter}' is not '${EMPTY}'  vi://${user}:${password}@${host}${datacenter}/host/${cluster}
+    ...   '${datacenter}' is '${EMPTY}'  vi://${user}:${password}@${host}
+
+    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --net:"Network 1"="${network}" --prop:vm.vmname=Harbor --prop:root_pwd='${password}' --prop:harbor_admin_password='${password}' --prop:db_password='${password}' --prop:auth_mode=db_auth --prop:permit_root_login=true --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} harbor_0.5.0-9e4c90e.ova '${hostString}'
     ${out}=  Split To Lines  ${out}
     
     :FOR  ${line}  IN  @{out}
@@ -122,12 +125,13 @@ Create A New User
     Input Text  confirmPassword  ${password}
     Input Text  comments  ${comments}
 
-    Sleep  1
     Click Button  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
 
     Wait Until Page Contains  New user added successfully.
-    Click Button  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button
-    Sleep  1
+    Wait Until Element Is Visible  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
+    Wait Until Element Is Enabled  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
+    Click Button  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
+    Sleep  3
 
 Toggle Admin Priviledges For User
     [Arguments]  ${user}
@@ -149,7 +153,7 @@ Create Self Signed Cert
     ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
 
 Install Harbor Self Signed Cert
-    ${out}=  Run  wget --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
+    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
     ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
     Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
     ${out}=  Run  systemctl deamon-reload
@@ -480,3 +484,141 @@ Go To HomePage
 
     Wait Until Page Contains  Summary
     Wait Until Page Contains  My Projects:
+
+Check That VM Is Removed
+    [Arguments]  ${container}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc ls %{VCH-NAME}/vm
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  ${container}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc ls vm
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  ${container}
+
+Check That Datastore Is Cleaned
+    [Arguments]  ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  ${container}
+    
+Create Project And Three Users For It
+    # 2 developers, 1 guest
+    Log To Console  Create Three Users For Project..
+    Open Browser  http://%{HARBOR_IP}/
+    Log To Console  Opened
+    Log Into Harbor  user=admin  pw=%{TEST_PASSWORD}
+    Create A New User  name=${developer}  email=${developerEmail}  fullName=${developerFullName}  password=${password}  comments=${comments}
+    Create A New User  name=${guest}  email=${guestEmail}  fullName=${guestFullName}  password=${password}  comments=${comments}
+    Create A New User  name=${developer2}  email=${developerEmail2}  fullName=${developerFullName}  password=${password}  comments=${comments}
+    Create A New Project  name=${project}  public=${False}
+    Add A User To A Project  user=${developer}  project=${project}  role=${developerRole}
+    Add A User To A Project  user=${guest}  project=${project}  role=${guestRole}
+    Add A User To A Project  user=${developer2}  project=${project}  role=${developerRole}
+    Log To Console  User Creation Complete..
+    Close All Browsers
+
+Basic Docker Command With Harbor
+    [Arguments]  ${user}  ${password}
+    # Docker login
+    Log To Console  \nRunning docker login ${user}...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u ${user} -p ${password} %{HARBOR_IP}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Login Succeeded
+    Should Not Contain  ${output}  Error response from daemon
+
+    # Docker pull from dockerhub
+    Log To Console  docker pull from dockerhub...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker pull ${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker tag image
+    Log To Console  docker tag...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker tag ${image} %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker push image
+    Log To Console  push image...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker push %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  digest:
+    Should Contain  ${output}  latest:
+    Should Not Contain  ${output}  No such image:
+
+    # Docker delete image in local registry
+    Log To Console  docker rmi...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker rmi -f %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Untagged
+
+    # Docker pull from harbor using VCH
+    Log To Console  docker pull from harbor using VCH...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker run image
+    Log To Console  docker run...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  END_OF_THE_TEST
+
+    # Docker rm container
+    Log To Console  docker rm...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker create
+    Log To Console  docker create...
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container_name} -i %{HARBOR_IP}/${project}/${image} /bin/top
+    Log  ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker start
+    Log To Console  docker start...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker attach 
+    Log To Console  Starting process Docker attach...
+    Start Process  docker %{VCH-PARAMS} attach ${container_name} < /tmp/fifo  shell=True  alias=custom
+    Sleep  3
+    Run  echo q > /tmp/fifo
+    ${ret}=  Wait For Process  custom
+    Log  ${ret}
+    Should Be Equal As Integers  ${ret.rc}  0
+    Should Be Empty  ${ret.stdout}
+    Should Be Empty  ${ret.stderr}
+
+    # Docker start  
+    Log To Console  docker start...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker stop
+    Log To Console  docker stop...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # Docker remove
+    Log To Console  docker rm...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container_name}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container_name}
+    Wait Until Keyword Succeeds  10x  6s  Check That Datastore Is Cleaned  ${container_name}
+
+    # Docker delete image
+    Log To Console  docker rmi...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi -f %{HARBOR_IP}/${project}/${image}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Untagged
