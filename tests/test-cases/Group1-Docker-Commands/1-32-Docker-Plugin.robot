@@ -41,7 +41,8 @@ Docker plugin disable
     Should Contain  ${output}  does not yet support plugins
 
 Docker plugin inspect
-    Pass execution  Test not implemented till plugin support is added
+    ${status}=  Get State Of Github Issue  4464
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-32-Docker-Plugin.robot needs to be updated now that Issue #4464 has been resolved
 
 Docker plugin ls
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin ls
