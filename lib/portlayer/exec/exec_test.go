@@ -113,11 +113,6 @@ func TestVMRemovedEventCallback(t *testing.T) {
 	container.vm.EnterFixingState()
 	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
 	time.Sleep(time.Millisecond * 30)
-	assert.True(t, Containers.Container(id) != nil, "Container should not be removed in fixing status")
-
-	container.vm.LeaveFixingState()
-	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
-	time.Sleep(time.Millisecond * 30)
-	assert.True(t, Containers.Container(id) == nil, "Container should be removed if not in fixing status")
-
+	assertMsg := "Container should be removed after leaving fixing status in remove event handler"
+	assert.True(t, Containers.Container(id) == nil, assertMsg)
 }
