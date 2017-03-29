@@ -74,9 +74,8 @@ fi
 if [ -d "$bin_dir/ui/vCenterForWindows" ]; then
     cp -r $bin_dir/ui/vCenterForWindows $TEMP_DIR/ui
 fi
-if [ -d "$bin_dir/ui/plugin-packages" ]; then
-    find "$bin_dir/ui/plugin-packages" -name "vc_extension_flags" -exec cp {} $TEMP_DIR/ui \;
-    mv $TEMP_DIR/ui/vc_extension_flags $TEMP_DIR/ui/plugin-manifest
+if [ -f "$bin_dir/ui/plugin-manifest" ]; then
+    cp $bin_dir/ui/plugin-manifest $TEMP_DIR/ui/
 fi
 
 tar czvf $outfile -C $TEMP_DIR . >/dev/null 2>&1
