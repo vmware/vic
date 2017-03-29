@@ -46,7 +46,7 @@ fi
 
 # Install docker
 apt-get -y install linux-image-extra-$(uname -r)
-apt-get -y --allow-downgrades install docker-engine=1.11.2-0~xenial
+apt-get -y --allow-downgrades install docker-engine=1.13.1-0~ubuntu-xenial
 apt-mark hold docker-engine
 usermod -aG docker vagrant
 systemctl start docker
