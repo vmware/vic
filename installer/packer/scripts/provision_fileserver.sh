@@ -18,6 +18,4 @@ mkdir -p /etc/vmware/fileserver
 # Move zip files to base directory, remove unneeded files from ui/
 cd /data/fileserver
 find . -name "*.zip" | xargs -t -I {} mv {} .
-# TODO(frapposelli): add this again if needed when vic-ui is built as part of 
-# the bundle
-# rm -r ui/
+rm -r ui/
