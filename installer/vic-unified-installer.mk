@@ -40,11 +40,11 @@ vic-engine-bundle: $(appliance) $(bootstrap) $(vic-machine-linux) $(vic-machine-
 
 $(ovfenv): $$(call godeps,installer/ovatools/ovfenv/*.go)
 	@echo building ovfenv linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(vic-ova-ui): $$(call godeps,installer/ovatools/vic-ova-ui/*.go)
 	@echo building vic-ova-ui
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(ova-webserver): $$(call godeps,installer/fileserver/*.go)
 	@echo building ova-webserver
