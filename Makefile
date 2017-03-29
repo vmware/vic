@@ -426,6 +426,7 @@ vic-ui-plugins:
 	rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
 	rm -rf $(UI_INSTALLER_WIN_PATH)/utils
 	rm -f $(UI_INSTALLER_WIN_PATH)/._utils
+	rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
 
 $(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
@@ -460,6 +461,9 @@ clean:
 	@rm -f *.log
 	@rm -f *.pem
 	@rm -f *.gas
+
+	@rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
+	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
 
 # removes the yum cache as well as the generated binaries
 distclean:
