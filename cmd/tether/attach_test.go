@@ -580,7 +580,9 @@ func TestAttachMultiple(t *testing.T) {
 	// wait for the close to propagate
 	wg.Wait()
 
+	sessionA.CloseWrite()
 	sessionA.CloseStdin()
+	sessionB.CloseWrite()
 	sessionB.CloseStdin()
 
 	<-mocker.Cleaned

@@ -295,6 +295,7 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 			session.Stdout(),
 		),
 		params.ID,
+		nil,
 		func() {
 			session.Close()
 		},
@@ -341,6 +342,7 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 			session.Stderr(),
 		),
 		params.ID,
+		nil,
 		func() {
 			session.Close()
 		},

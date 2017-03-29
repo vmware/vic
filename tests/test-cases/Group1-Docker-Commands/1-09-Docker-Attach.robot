@@ -67,6 +67,7 @@ Attach with short input
     \     Should Be Equal  ${ret.stdout}  one
     \     Should Be Equal As Integers  ${ret.rc}  0
     \     Should Be Empty  ${ret.stderr}
+    # should be removed once 4410 is fixed
     \     Sleep  1
     Run  rm -rf ${tmp}
 
@@ -81,7 +82,8 @@ Attach with short output
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  one
-    \     Sleep  1 # should be removed once 4410 is fixed
+    # should be removed once 4410 is fixed
+    \     Sleep  1
 
 Attach with short output with tty
     ${status}=  Get State Of Github Issue  4410
@@ -94,4 +96,5 @@ Attach with short output with tty
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  one
-    \     Sleep  1 # should be removed once 4410 is fixed
+    # should be removed once 4410 is fixed
+    \     Sleep  1

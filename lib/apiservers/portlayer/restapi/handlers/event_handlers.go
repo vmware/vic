@@ -72,5 +72,5 @@ func (handler *EventsHandlerImpl) GetEventsHandler(params events.GetEventsParams
 		}
 	})
 
-	return NewStreamOutputHandler("events").WithPayload(flusher, sub, onClose)
+	return NewStreamOutputHandler("events").WithPayload(flusher, sub, onClose, nil)
 }

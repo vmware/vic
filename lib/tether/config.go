@@ -130,6 +130,9 @@ type SessionConfig struct {
 	// b. having only an implementation of CalculateKeys that requires a prefix instead
 	//    of performing a search
 	extraconfigKey string
+
+	CloseStdinRcvd bool
+	ChannelEOF     bool
 }
 
 type NetworkEndpoint struct {

@@ -39,9 +39,8 @@ type multiReader struct {
 
 func (t *multiReader) Read(p []byte) (int, error) {
 	n, err := t.pr.Read(p)
-	if err == io.ErrClosedPipe {
+	if err == io.EOF {
 		t.pr.Close()
-		err = io.EOF
 	}
 
 	return n, err

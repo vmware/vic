@@ -405,8 +405,9 @@ func (t *attachServerSSH) run() error {
 
 			log.Debugf("Adding [%p] to Outwriter", channel)
 			session.Outwriter.Add(channel)
-			log.Debugf("Adding [%p] to Reader", channel)
-			session.Reader.Add(channel)
+			inReader := newStdinReader(channel, session)
+			log.Debugf("Adding [%p] to Reader", inReader)
+			session.Reader.Add(inReader)
 
 			// cleanup on detach from the session
 			cleanup := func() {
@@ -416,7 +417,7 @@ func (t *attachServerSSH) run() error {
 				session.Outwriter.Remove(channel)
 
 				log.Debugf("Removing [%p] from Reader", channel)
-				session.Reader.Remove(channel)
+				session.Reader.Remove(inReader)
 
 				channel.Close()
 
@@ -552,7 +553,10 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 				defer session.Unlock()
 
 				log.Debugf("Closing stdin for %s", session.ID)
-				session.Reader.Close()
+				session.CloseStdinRcvd = true
+				if session.ChannelEOF {
+					session.Reader.Close()
+				}
 			}
 		default:
 			ok = false
@@ -587,30 +591,16 @@ type winsize struct {
 }
 
 type stdinReader struct {
-	reader io.ReadCloser
+	reader  io.ReadCloser
+	session *tether.SessionConfig
+	once    sync.Once
 }
 
-func newStdinReader(channel ssh.Channel) *stdinReader {
-	r, w := io.Pipe()
+func newStdinReader(channel ssh.Channel, session *tether.SessionConfig) *stdinReader {
 	s := &stdinReader{
-		reader: r,
+		reader:  channel,
+		session: session,
 	}
-
-	go func() {
-		buf := make([]byte, 2*1024)
-		for {
-			r, err := channel.Read(buf)
-			log.Debugf("stdin r=%d, err=%s buf=%q", r, err, buf[:r])
-			if r > 0 {
-				w.Write(buf[:r])
-			}
-
-			if err != nil {
-				w.CloseWithError(err)
-				return
-			}
-		}
-	}()
 
 	return s
 }
@@ -619,8 +609,16 @@ func (r *stdinReader) Read(buf []byte) (int, error) {
 	defer trace.End(trace.Begin(""))
 
 	n, err := r.reader.Read(buf)
-	if err == io.ErrClosedPipe {
-		err = io.EOF
+	if err == io.EOF {
+		// close the session Reader if we
+		// received a stdin close message
+		r.session.Lock()
+		r.session.ChannelEOF = true
+		r.session.Reader.Remove(r)
+		if r.session.CloseStdinRcvd {
+			r.session.Reader.Close()
+		}
+		r.session.Unlock()
 	}
 
 	return n, err
@@ -629,6 +627,5 @@ func (r *stdinReader) Read(buf []byte) (int, error) {
 func (r *stdinReader) Close() error {
 	defer trace.End(trace.Begin(""))
 
-	r.reader.Close()
 	return nil
 }
