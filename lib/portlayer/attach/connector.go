@@ -71,15 +71,19 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	ch := make(chan struct{}, 1)
+	var ch chan struct{}
 	defer func() {
+		if ch == nil {
+			return
+		}
+
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
-		// remove ch from waiters
+
 		for i := range c.gets {
 			if c.gets[i] == ch {
 				c.gets = append(c.gets[:i], c.gets[i+1:]...)
-				return
+				break
 			}
 		}
 	}()
@@ -92,12 +96,14 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 			return conn, nil
 		}
 
+		ch = make(chan struct{})
 		c.gets = append(c.gets, ch)
 		c.mutex.Unlock()
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("timed out waiting for connection for container %s", id)
 		case <-ch:
+			ch = nil
 		}
 	}
 }
@@ -207,8 +213,9 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		c.mutex.Lock()
 		c.connections[id] = si
 		for i := range c.gets {
-			c.gets[i] <- struct{}{}
+			close(c.gets[i])
 		}
+		c.gets = nil
 		c.mutex.Unlock()
 	}
 
