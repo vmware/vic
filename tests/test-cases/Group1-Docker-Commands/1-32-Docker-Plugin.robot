@@ -40,10 +40,8 @@ Docker plugin disable
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  does not yet support plugins
 
-#Docker plugin inspect
-    #${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin inspect test-plugin
-    #Should Be Equal As Integers  ${rc}  1
-    #Should Contain  ${output}  does not yet support plugins
+Docker plugin inspect
+    Pass execution  Test not implemented till plugin support is added
 
 Docker plugin ls
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} plugin ls
