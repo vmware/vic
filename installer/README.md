@@ -14,7 +14,14 @@ esxcli network firewall set --enabled false
 The machine that is running Packer (make ova-release) must be reachable from the launched VM and
 have `ovftool` installed
 
-Build bundle and OVA
+#### Build bundle and OVA
+
+Optional step to build UI plugins to be included in the `vic-engine-bundle`, requires ant, npm,
+nodejs (it is recommend to build in a container)
+```
+make vic-ui-plugins
+```
+
 ```
 export PACKER_ESX_HOST=1.1.1.1
 export PACKER_USER=root
