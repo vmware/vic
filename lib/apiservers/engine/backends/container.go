@@ -216,6 +216,10 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
 	defer trace.End(trace.Begin(name))
 
+	if !config.Detach {
+		return "", fmt.Errorf("%s only supports detached exec commands at this time", ProductName())
+	}
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
