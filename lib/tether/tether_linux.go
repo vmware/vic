@@ -254,6 +254,13 @@ func establishPty(session *SessionConfig) error {
 	go func() {
 		_, gerr := io.CopyBuffer(session.Pty, session.Reader, make([]byte, ioCopyBufferSize))
 		log.Debugf("PTY stdin copy: %s", gerr)
+
+		n, gerr := session.Pty.Write([]byte("\x04"))
+		if n != 1 || gerr != nil {
+			log.Errorf("Failed to write EOT to pty, closing directly: %s", gerr)
+			session.Pty.Close()
+		}
+		log.Debug("Written EOT to pty")
 	}()
 
 	return nil

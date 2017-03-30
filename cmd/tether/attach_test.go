@@ -431,6 +431,115 @@ func TestAttachTTY(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////////////
+// TestAttachTTYStdinClose sets up the config for attach testing
+//
+func TestAttachTTYStdinClose(t *testing.T) {
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
+
+	testServer, _ := server.(*testAttachServer)
+
+	cfg := executor.ExecutorConfig{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
+			ID:   "sort",
+			Name: "tether_test_executor",
+		},
+
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
+
+		Sessions: map[string]*executor.SessionConfig{
+			"sort": {
+				Common: executor.Common{
+					ID:   "sort",
+					Name: "tether_test_session",
+				},
+				Tty:    true,
+				Attach: true,
+				Active: true,
+
+				OpenStdin: true,
+				RunBlock:  true,
+
+				Cmd: executor.Cmd{
+					Path: "/usr/bin/sort",
+					// reading from stdin
+					Args: []string{"/usr/bin/sort"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
+	}
+
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
+
+	// wait for updates to occur
+	<-testServer.updated
+
+	if !testServer.enabled {
+		t.Errorf("attach server was not enabled")
+	}
+
+	containerConfig := &ssh.ClientConfig{
+		User: "daemon",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	// create the SSH client from the mocked connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", containerConfig)
+	assert.NoError(t, err)
+	defer sshConn.Close()
+
+	ssh.NewClient(sshConn, chans, reqs)
+	_, err = communication.ContainerIDs(sshConn)
+	assert.NoError(t, err)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID)
+	assert.NoError(t, err)
+
+	// unblock before grabbing stdout - this should buffer in ssh
+	sshSession.Unblock()
+	stdout := sshSession.Stdout()
+
+	// FIXME: the pipe pair are line buffered - how do I disable that so we
+	// don't have odd hangs to diagnose when the trailing \n is missed
+
+	testBytes := []byte("one\ntwo\nthree\n")
+	// after tty translation by sort the above string should result in the following
+	// - we have echo turned on so we get a repeat of the initial string
+	// - all \n bytes are translated to \r\n
+	refBytes := []byte("one\r\ntwo\r\nthree\r\none\r\nthree\r\ntwo\r\n")
+
+	// read from session into buffer
+	buf := &bytes.Buffer{}
+	done := make(chan bool)
+	go func() {
+		io.Copy(buf, stdout)
+		log.Debug("stdout copy complete")
+		done <- true
+	}()
+
+	// write something to echo
+	log.Debug("sending test data")
+	sshSession.Stdin().Write(testBytes)
+	log.Debug("sent test data")
+
+	// wait for the close to propagate
+	sshSession.CloseStdin()
+	<-done
+
+	assert.Equal(t, refBytes, buf.Bytes())
+}
+
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////
 // TestAttachMultiple sets up the config for attach testing - tests launching and
 // attaching to multiple processes simultaneously
 //
