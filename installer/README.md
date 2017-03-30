@@ -14,7 +14,14 @@ esxcli network firewall set --enabled false
 The machine that is running Packer (make ova-release) must be reachable from the launched VM and
 have `ovftool` installed
 
-Build bundle and OVA
+#### Build bundle and OVA
+
+Optional step to build UI plugins to be included in the `vic-engine-bundle`, requires ant, npm,
+nodejs (it is recommend to build in a container)
+```
+make vic-ui-plugins
+```
+
 ```
 export PACKER_ESX_HOST=1.1.1.1
 export PACKER_USER=root
@@ -31,9 +38,9 @@ docker run -it --net=host -v ~/go/src/github.com/vmware/vic/bin:/test-bin \
   gcr.io/eminent-nation-87317/vic-integration-test:1.22 ovftool --acceptAllEulas --X:injectOvfEnv \
   --X:enableHiddenProperties -st=OVA --powerOn --noSSLVerify=true -ds=datastore1 -dm=thin \
   --net:Network="VM Network" --prop:appliance.email_from="noreply@vmware.com" \
-  --prop:appliance.root_pwd="VMware1" --prop:appliance.permit_root_login=true --prop:harbor.port=443 \
-  --prop:admiral.port=8282 --prop:harbor.admin_password="VMware1\!" \
-  --prop:harbor.db_password="VMware1\!" /test-bin/vic-1.1.0-a84985b.ova \
+  --prop:appliance.root_pwd="VMware1\!" --prop:appliance.permit_root_login=True --prop:registry.port=443 \
+  --prop:management_portal.port=8282 --prop:registry.admin_password="VMware1\!" \
+  --prop:registry.db_password="VMware1\!" /test-bin/vic-1.1.0-a84985b.ova \
   vi://root:password@192.168.1.20
 ```
 

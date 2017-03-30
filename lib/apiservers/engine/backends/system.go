@@ -67,10 +67,14 @@ const (
 	loginTimeout            = 20 * time.Second
 )
 
+// var for use by other engine components
+var systemBackend *System
+
 func NewSystemBackend() *System {
-	return &System{
+	systemBackend = &System{
 		systemProxy: &SystemProxy{},
 	}
+	return systemBackend
 }
 
 func (s *System) SystemInfo() (*types.Info, error) {
@@ -254,6 +258,15 @@ func (s *System) SystemVersion() types.Version {
 	}
 
 	return version
+}
+
+// SystemCPUMhzLimit will return the VCH configured Mhz limit
+func (s *System) SystemCPUMhzLimit() (int64, error) {
+	vchInfo, err := s.systemProxy.VCHInfo()
+	if err != nil || vchInfo == nil {
+		return 0, err
+	}
+	return vchInfo.CPUMhz, nil
 }
 
 func (s *System) SystemDiskUsage() (*types.DiskUsage, error) {

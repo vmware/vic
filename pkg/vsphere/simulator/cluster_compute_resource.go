@@ -91,6 +91,7 @@ func CreateClusterComputeResource(f *Folder, name string, spec types.ClusterConf
 	cluster.ResourcePool = &pool.Self
 
 	f.putChild(cluster)
+	pool.Owner = cluster.Self
 
 	return cluster, nil
 }

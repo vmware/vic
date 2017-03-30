@@ -216,6 +216,10 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
 	defer trace.End(trace.Begin(name))
 
+	if !config.Detach {
+		return "", fmt.Errorf("%s only supports detached exec commands at this time", ProductName())
+	}
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -1336,7 +1340,38 @@ func (c *Container) ContainerLogs(ctx context.Context, name string, config *back
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (c *Container) ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error {
-	return fmt.Errorf("%s does not yet implement ContainerStats", ProductName())
+	defer trace.End(trace.Begin(name))
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return NotFoundError(name)
+	}
+
+	// get the configured CPUMhz for this VCH so that we can calculate docker CPU stats
+	cpuMhz, err := systemBackend.SystemCPUMhzLimit()
+	if err != nil {
+		// wrap error to provide a bit more detail
+		sysErr := fmt.Errorf("unable to gather system CPUMhz for container(%s): %s", vc.ContainerID, err)
+		log.Error(sysErr)
+		return InternalServerError(sysErr.Error())
+	}
+
+	out := config.OutStream
+	if config.Stream {
+		// Outstream modification (from Docker's code) so the stream is streamed with the
+		// necessary headers that the CLI expects.  This is Docker's scheme.
+		wf := ioutils.NewWriteFlusher(config.OutStream)
+		defer wf.Close()
+		wf.Flush()
+		out = io.Writer(wf)
+	}
+
+	err = c.containerProxy.StreamContainerStats(ctx, vc.ContainerID, out, config.Stream, cpuMhz, vc.HostConfig.Memory)
+	if err != nil {
+		log.Errorf("error while streaming container (%s) stats: %s", vc.ContainerID, err)
+	}
+	return nil
 }
 
 // ContainerTop lists the processes running inside of the given

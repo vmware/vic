@@ -14,7 +14,7 @@
 # limitations under the License.
 set -x -euf -o pipefail
 
-deploy=$(ovfenv -k harbor.deploy)
+deploy=$(ovfenv -k registry.deploy)
 
 if [ ${deploy,,} != "true" ]; then
   echo "Not configuring Harbor and disabling startup"
@@ -87,8 +87,8 @@ function genCert {
 }
 
 function secure {
-  ssl_cert=$(ovfenv -k harbor.ssl_cert)
-  ssl_cert_key=$(ovfenv -k harbor.ssl_cert_key)
+  ssl_cert=$(ovfenv -k registry.ssl_cert)
+  ssl_cert_key=$(ovfenv -k registry.ssl_cert_key)
   if [ -n "$ssl_cert" ] && [ -n "$ssl_cert_key" ]; then
     echo "ssl_cert and ssl_cert_key are both set, using customized certificate"
     echo $ssl_cert > $cert
@@ -172,9 +172,9 @@ attrs=(
   appliance.email_password 
   appliance.email_from 
   appliance.email_ssl
-  harbor.admin_password
-  harbor.db_password
-  harbor.gc_enabled
+  registry.admin_password
+  registry.db_password
+  registry.gc_enabled
 )
 
 hostname=""
@@ -188,7 +188,7 @@ else
   echo "Hostname is null, set it to IP"
   hostname=${ip_address}
 fi
-configureHarborCfg "hostname" ${hostname}:$(ovfenv -k harbor.port)
+configureHarborCfg "hostname" ${hostname}:$(ovfenv -k registry.port)
 
 configureHarborCfg ui_url_protocol https
 secure
@@ -205,11 +205,11 @@ do
   configureHarborCfg $(echo ${attr} | cut -d. -f2) "$value"
 done
 
-setPortInYAML $harbor_compose_file $(ovfenv -k harbor.port) $(ovfenv -k harbor.notary_port)
+setPortInYAML $harbor_compose_file $(ovfenv -k registry.port) $(ovfenv -k registry.notary_port)
 
-admiral_deploy=$(ovfenv -k admiral.deploy)
+admiral_deploy=$(ovfenv -k management_portal.deploy)
 
 if [ ${admiral_deploy,,} == "true" ]; then
   # If admiral is deployed, configure the integration URL
-  configureHarborCfg admiral_url https://${hostname}:$(ovfenv -k admiral.port)
+  configureHarborCfg admiral_url https://${hostname}:$(ovfenv -k management_portal.port)
 fi

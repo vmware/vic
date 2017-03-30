@@ -114,6 +114,11 @@
     },
     {
       "type": "file",
+      "source": "../../bin/ui",
+      "destination": "/data/fileserver"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/docker.service",
       "destination": "/usr/lib/systemd/system/docker.service"
     },
@@ -206,6 +211,11 @@
       "destination": "/etc/vmware/harbor/configure_harbor.sh"
     },
     {
+      "type": "file",
+      "source": "scripts/harbor/upgrade_from_0.5.sh",
+      "destination": "/etc/vmware/harbor/upgrade_from_0.5.sh"
+    },
+    {
       "type": "shell",
       "script": "scripts/provision_admiral.sh"
     },
@@ -247,6 +257,11 @@
       "type": "file",
       "source": "scripts/fileserver/configure_fileserver.sh",
       "destination": "/etc/vmware/fileserver/configure_fileserver.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/fileserver/start_fileserver.sh",
+      "destination": "/etc/vmware/fileserver/start_fileserver.sh"
     },
     {
       "type": "shell",

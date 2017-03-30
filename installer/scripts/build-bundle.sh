@@ -57,6 +57,30 @@ mkdir -p $(dirname $outfile)
 cp LICENSE $TEMP_DIR
 cp doc/bundle/README $TEMP_DIR
 cp $bin_dir/vic-machine* $TEMP_DIR
+cp $bin_dir/vic-ui* $TEMP_DIR
 cp $bin_dir/appliance.iso $TEMP_DIR
 cp $bin_dir/bootstrap.iso $TEMP_DIR
+
+mkdir $TEMP_DIR/ui
+if [ -d "$bin_dir/ui" ]; then
+  find $bin_dir/ui -name "*.zip" -exec cp {} $TEMP_DIR \;
+fi
+if [ -d "$bin_dir/ui/HTML5Client" ]; then
+    cp -r $bin_dir/ui/HTML5Client $TEMP_DIR/ui
+fi
+if [ -d "$bin_dir/ui/VCSA" ]; then
+    cp -r $bin_dir/ui/VCSA $TEMP_DIR/ui
+fi
+if [ -d "$bin_dir/ui/vCenterForWindows" ]; then
+    cp -r $bin_dir/ui/vCenterForWindows $TEMP_DIR/ui
+fi
+if [ -f "$bin_dir/ui/plugin-manifest" ]; then
+    cp $bin_dir/ui/plugin-manifest $TEMP_DIR/ui/
+fi
+
 tar czvf $outfile -C $TEMP_DIR . >/dev/null 2>&1
+
+shasum -a 256 $outfile
+shasum -a 1 $outfile
+md5sum $outfile
+du -ks $outfile | awk '{print $1 / 1024}' | { read x; echo $x MB; }

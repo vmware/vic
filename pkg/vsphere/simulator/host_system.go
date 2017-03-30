@@ -83,6 +83,7 @@ func CreateDefaultESX(f *Folder) {
 	pool := NewResourcePool()
 	cr.ResourcePool = &pool.Self
 	Map.PutEntity(cr, pool)
+	pool.Owner = cr.Self
 
 	Map.Get(dc.HostFolder).(*Folder).putChild(cr)
 }
@@ -112,6 +113,7 @@ func CreateStandaloneHost(f *Folder, spec types.HostConnectSpec) (*HostSystem, t
 	cr.ResourcePool = &pool.Self
 
 	f.putChild(cr)
+	pool.Owner = cr.Self
 
 	return host, nil
 }

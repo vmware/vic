@@ -30,7 +30,7 @@ Project Bonneville was research aimed at determining best approaches to enabling
 Once built, pick up the correct binary based on your OS, and then the result can be installed with the following command.
 
 ```
-bin/vic-machine-linux create --target <target-host>[/datacenter] --image-store <datastore name> --name <vch-name> --user <username> --password <password> --thumbprint <certificate thumbprint> --compute-resource <cluster/a/resource/pool/path> --tls-cname <FQDN, *.wildcard.domain, or static IP>
+bin/vic-machine-linux create --target <target-host>[/datacenter] --image-store <datastore name> --name <vch-name> --user <username> --password <password> --thumbprint <certificate thumbprint> --compute-resource <cluster or resource pool name> --tls-cname <FQDN, *.wildcard.domain, or static IP>
 ```
 
 See `vic-machine-XXX create --help` for usage information.

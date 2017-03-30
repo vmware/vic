@@ -1850,6 +1850,50 @@
 				}
 			}
 		},
+		"/containers/{id}/stats": {
+			"get": {
+				"description": "Gets the container stats by id",
+				"summary": "Gets the container stats",
+				"operationId": "GetContainerStats",
+				"tags": [
+					"containers"
+				],
+				"consumes": [
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/octet-stream"
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"type": "string",
+						"required": true
+					},
+					{
+						"name": "stream",
+						"in": "query",
+						"type": "boolean",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"format": "binary"
+						}
+					},
+					"404": {
+						"description": "Stats not found"
+					},
+					"500": {
+						"description": "Failed to get stats"
+					}
+				}
+			}
+		},
 		"/containers/{id}/logs": {
 			"get": {
 				"description": "Gets the container logs by id",

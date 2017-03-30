@@ -519,10 +519,10 @@ func (v *Validator) CheckDrs(ctx context.Context) {
 
 	if !(*z.Enabled) {
 		log.Error("DRS check FAILED")
-		log.Errorf("  DRS must be enabled on cluster %q", v.Session.Pool.InventoryPath)
+		log.Errorf("  DRS must be enabled on cluster %q", v.Session.Cluster.InventoryPath)
 		v.NoteIssue(errors.New("DRS must be enabled to use VIC"))
 		return
 	}
 	log.Info("DRS check OK on:")
-	log.Infof("  %q", v.Session.Pool.InventoryPath)
+	log.Infof("  %q", v.Session.Cluster.InventoryPath)
 }

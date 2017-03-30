@@ -96,11 +96,11 @@ func main() {
 			if ip.IsLoopback() || ip.String() == "172.17.0.1" || ip.To4() == nil {
 				continue
 			}
-			if strings.ToLower(ovf.Properties["harbor.deploy"]) == "true" {
-				ips = fmt.Sprintf("%sAccess the Container Registry at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["harbor.port"])
+			if strings.ToLower(ovf.Properties["registry.deploy"]) == "true" {
+				ips = fmt.Sprintf("%sAccess the Container Registry at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["registry.port"])
 			}
-			if strings.ToLower(ovf.Properties["admiral.deploy"]) == "true" {
-				ips = fmt.Sprintf("%sAccess the Container Management Portal at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["admiral.port"])
+			if strings.ToLower(ovf.Properties["management_portal.deploy"]) == "true" {
+				ips = fmt.Sprintf("%sAccess the Container Management Portal at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["management_portal.port"])
 			}
 		}
 	}

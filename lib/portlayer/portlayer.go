@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/logging"
+	"github.com/vmware/vic/lib/portlayer/metrics"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/store"
@@ -90,6 +91,10 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 
 	if err = logging.Init(ctx); err != nil {
+		return err
+	}
+
+	if err = metrics.Init(ctx, sess); err != nil {
 		return err
 	}
 

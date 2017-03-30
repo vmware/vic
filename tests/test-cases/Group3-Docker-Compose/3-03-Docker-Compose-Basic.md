@@ -29,9 +29,12 @@ This test requires that a vSphere server is running and available
 16. Issue DOCKER_HOST=<VCH IP> docker-compose --file compose-rename.yml up -d
 17. Issue DOCKER_HOST=<VCH IP> docker-compose --file compose-rename.yml up -d --force-recreate
 18. Issue DOCKER_HOST=<VCH IP> docker-compose --file compose-rename.yml up -d
+19. Issue DOCKER_HOST=<VCH IP> docker-compose up (without -d)
+20. Issue DOCKER_HOST=<VCH IP> docker-compose stop on the above container
+21. Issue DOCKER_HOST=<VCH IP> docker-compose up (without -d) again
 
 # Expected Outcome:
-* Step 4-18 should result in no errors
+* Step 4-21 should result in no errors
 
 # Possible Problems:
 None

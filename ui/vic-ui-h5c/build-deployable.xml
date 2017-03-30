@@ -20,7 +20,7 @@
    <property name="SERVICE_MODULE_DIR" value="${basedir}/../${PROJECT_NAME}-service"/>
    <xmlproperty file="${H5_PROJECT_UI_HOME}/plugin-package.xml"/>
    <property name="PACKAGE_HOME" value="${basedir}/../installer/plugin-packages"/>
-   <property name="PACKAGE_NAME" value="${PACKAGE_HOME}/${pluginPackage(id)}-${pluginPackage(version)}.zip"/>
+   <property name="PACKAGE_NAME" value="${PACKAGE_HOME}/${pluginPackage(id)}-v${pluginPackage(version)}.zip"/>
 
    <!-- Check if SDKs are found -->
    <target name="check-sdks">
@@ -75,17 +75,13 @@
       <copy file="${VSPHERE_H5C_SDK_HOME}/vsphere-ui/server/repository/usr/vlsiCore.jar" tofile="${H5_PROJECT_UI_HOME}/target/vic/plugins/vlsiCore.jar"/>
       <delete dir="${basedir}/../installer/plugin-packages"/>
       <zip basedir="${H5_PROJECT_UI_HOME}/target/vic" destfile="${PACKAGE_NAME}"/>
-      <copy todir="${PACKAGE_HOME}/${pluginPackage(id)}-${pluginPackage(version)}">
+      <copy todir="${PACKAGE_HOME}/${pluginPackage(id)}-v${pluginPackage(version)}">
          <fileset dir="${H5_PROJECT_UI_HOME}/target/vic"/>
       </copy>
-      <echo file="${PACKAGE_HOME}/${pluginPackage(id)}-${pluginPackage(version)}/vc_extension_flags">key="${pluginPackage(id)}"
-name="${pluginPackage(name)}"
-version="${pluginPackage(version)}"
-summary="${pluginPackage(description)}"
-company="${pluginPackage(vendor)}"
-      </echo>
+      <echo file="${basedir}/../installer/plugin-manifest" append="true">key_h5c="${pluginPackage(id)}"
+</echo>
       <delete dir="${DEPLOY_DIR}"/>
-      <echo>${pluginPackage(id)} ${pluginPackage(version)}</echo>
+      <echo>${pluginPackage(id)} v${pluginPackage(version)}</echo>
       <echo>${PACKAGE_NAME} was created</echo>
    </target>
 

@@ -12,10 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -x -euf -o pipefail
+set -euf -o pipefail
 
-deploy=$(ovfenv -k admiral.deploy)
-port=$(ovfenv -k admiral.port)
+deploy=$(ovfenv -k management_portal.deploy)
+port=$(ovfenv -k management_portal.port)
 
 if [ ${deploy,,} != "true" ]; then
   echo "Not configuring Admiral and disabling startup"
@@ -92,8 +92,8 @@ function genCert {
 }
 
 function secure {
-  ssl_cert=$(ovfenv -k admiral.ssl_cert)
-  ssl_cert_key=$(ovfenv -k admiral.ssl_cert_key)
+  ssl_cert=$(ovfenv -k management_portal.ssl_cert)
+  ssl_cert_key=$(ovfenv -k management_portal.ssl_cert_key)
   if [ -n "$ssl_cert" ] && [ -n "$ssl_cert_key" ]; then
     echo "ssl_cert and ssl_cert_key are both set, using customized certificate"
     echo $ssl_cert > $cert
@@ -181,10 +181,10 @@ iptables -A INPUT -j ACCEPT -p tcp --dport $port
 
 touch $data_dir/custom.conf
 
-harbor_deploy=$(ovfenv -k harbor.deploy)
+harbor_deploy=$(ovfenv -k registry.deploy)
 
 if [ ${harbor_deploy,,} == "true" ]; then
-  harbor_port=$(ovfenv -k harbor.port)
+  harbor_port=$(ovfenv -k registry.port)
   # If harbor is deployed, configure the integration URL
   echo "harbor.tab.url=https://${hostname}:${harbor_port}" > $data_dir/custom.conf
 fi
