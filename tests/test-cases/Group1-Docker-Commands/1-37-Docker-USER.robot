@@ -58,4 +58,3 @@ Run as uid 0 group 0 With -u
     ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run -u 0:0 busybox whoami
     Should Be Equal As Integers    ${rc}       0
     Should Contain                 ${output}   root
-
