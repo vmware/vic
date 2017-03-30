@@ -393,3 +393,9 @@ Rollback
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --rollback
     Should Contain  ${output}  Completed successfully
     Should Be Equal As Integers  ${rc}  0
+
+Reboot VCH
+    Log To Console  Rebooting VCH ...
+    Power Off VM OOB  %{VCH-NAME}
+    Power On VM OOB  %{VCH-NAME}
+    Log To Console  VCH Powered On

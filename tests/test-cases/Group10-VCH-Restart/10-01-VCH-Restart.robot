@@ -33,12 +33,6 @@ Launch Container
     ${id}=  Get Line  ${output}  -1
     [Return]  ${id}
 
-Reboot VCH
-    Log To Console  Rebooting VCH ...
-    Power Off VM OOB  %{VCH-NAME}
-    Power On VM OOB  %{VCH-NAME}
-    Log To Console  VCH Powered On
-
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx
