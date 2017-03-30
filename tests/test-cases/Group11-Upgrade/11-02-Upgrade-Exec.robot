@@ -26,10 +26,10 @@ Exec Not Allowed On Older Containers
     Upgrade
     Check Upgraded Version
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec exec-test ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d exec-test ls
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  running tasks not supported for this container
 
     Launch Container  exec-test2
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec exec-test2 ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d exec-test2 ls
     Should Be Equal As Integers  ${rc}  0
