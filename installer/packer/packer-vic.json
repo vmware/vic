@@ -184,6 +184,16 @@
     },
     {
       "type": "file",
+      "source": "scripts/systemd/appliance/ova-firewall.service",
+      "destination": "/usr/lib/systemd/system/ova-firewall.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/appliance/ova-firewall.sh",
+      "destination": "/etc/vmware/ova-firewall.sh"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/network/network-config.sh",
       "destination": "/etc/vmware/network-config.sh"
     },
