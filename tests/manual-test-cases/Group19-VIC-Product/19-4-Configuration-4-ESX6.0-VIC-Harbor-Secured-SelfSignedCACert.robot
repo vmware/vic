@@ -16,7 +16,7 @@
 Documentation  Test 19-4 - Configuration 4 ESX 6.0 VIC Harbor Secured Self Signed
 Resource  ../../resources/Util.robot
 Suite Setup  19-4-Setup
-#Suite Teardown  19-4-Teardown
+Suite Teardown  19-4-Teardown
 
 *** Variables ***
 ${developer}  test-user-developer
@@ -59,7 +59,7 @@ ${developer2}  test-user-developer2
     
     Install Harbor Self Signed Cert
     Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${false}
-    Create Project And Three Users For It
+    Create Project And Three Users For It  developer=${developer}  developer2=${developer2}  developerEmail=${developerEmail}  developerEmail2=${developerEmail2}  developerFullName=${developerFullName}  password=${password}  comments=${comments}  guest=${guest}  developerRole=${developerRole}  guestRole=${guestRole}  project=${project}  public=${False}
     Remove Environment Variable  DOCKER_HOST
 
 19-4-Teardown
@@ -69,10 +69,10 @@ ${developer2}  test-user-developer2
 
 *** Test Cases ***
 Test Pos001 Admin Operations
-    Basic Docker Command With Harbor  user=admin  password=%{TEST_PASSWORD}
+    Basic Docker Command With Harbor  user=admin  password=%{TEST_PASSWORD}  project=${project}  image=${image}  container_name=${container_name}
 
 Test Pos002 Developer Operations
-    Basic Docker Command With Harbor  user=${developer}  password=${password}
+    Basic Docker Command With Harbor  user=${developer}  password=${password}  project=${project}  image=${image}  container_name=${container_name}
     
 Test Neg001 Developer Operations
     # Docker login

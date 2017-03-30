@@ -41,11 +41,10 @@ ${developer2}  test-user-developer2
 19-1-Setup
     ${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc_ip}=  Create a Simple VC Cluster
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
-
     Install Harbor To Test Server  name=19-1-harbor
     Restart Docker With Insecure Registry Option
     Install VIC Appliance To Test Server  vol=default --insecure-registry %{HARBOR_IP}  certs=${False}
-    Create Project And Three Users For It
+    Create Project And Three Users For It  developer=${developer}  developer2=${developer2}  developerEmail=${developerEmail}  developerEmail2=${developerEmail2}  developerFullName=${developerFullName}  password=${password}  comments=${comments}  guest=${guest}  developerRole=${developerRole}  guestRole=${guestRole}  project=${project}  public=${False}
     Remove Environment Variable  DOCKER_HOST
 
 19-1-Teardown
@@ -55,10 +54,10 @@ ${developer2}  test-user-developer2
 
 *** Test Cases ***
 Test Pos001 Admin Operations
-    Basic Docker Command With Harbor  user=admin  password=%{TEST_PASSWORD}
+    Basic Docker Command With Harbor  user=admin  password=%{TEST_PASSWORD}  project=${project}  image=${image}  container_name=${container_name}
 
 Test Pos002 Developer Operations
-    Basic Docker Command With Harbor  user=${developer}  password=${password}
+    Basic Docker Command With Harbor  user=${developer}  password=${password}  project=${project}  image=${image}  container_name=${container_name}
     
 Test Neg001 Developer Operations
     # Docker login
@@ -217,4 +216,4 @@ Test Pos003 Two VCH With One Harbor
     Should Contain  ${output}  Untagged
 
 # Test Pos004 Three Client Machines With One Harbor
-    
+

@@ -14,6 +14,7 @@
 
 *** Settings ***
 Documentation  This resource provides any keywords related to the Harbor private registry appliance
+Library  Selenium2Library
 
 *** Variables ***
 ${HARBOR_SHORT_VERSION}  0.5.0
@@ -35,12 +36,10 @@ Install Harbor To Test Server
     Log To Console  Downloading Harbor OVA...
     #${out}=  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
     Log To Console  Generating OVF file...
-    ${out}=  Run  ovftool ${HARBOR_VERSION}.ova ${HARBOR_VERSION}.ovf
     Log To Console  Installing Harbor into test server...
-    ${hostString}=  Set Variable If  '${datacenter}' is not '${EMPTY}'  vi://${user}:${password}@${host}${datacenter}/host/${cluster}
+    ${hostString}=  Set Variable If  '${datacenter}' is not '${EMPTY}'  vi://${user}:${password}@${host}/${datacenter}/host/${cluster}
     ...   '${datacenter}' is '${EMPTY}'  vi://${user}:${password}@${host}
-
-    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --net:"Network 1"="${network}" --prop:vm.vmname=Harbor --prop:root_pwd='${password}' --prop:harbor_admin_password='${password}' --prop:db_password='${password}' --prop:auth_mode=db_auth --prop:permit_root_login=true --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} harbor_0.5.0-9e4c90e.ova '${hostString}'
+    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --net:"Network 1"="${network}" --prop:vm.vmname=Harbor --prop:root_pwd='${password}' --prop:harbor_admin_password='${password}' --prop:db_password='${password}' --prop:auth_mode=db_auth --prop:permit_root_login=true --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova '${hostString}'
     ${out}=  Split To Lines  ${out}
     
     :FOR  ${line}  IN  @{out}
@@ -55,18 +54,9 @@ Restart Docker With Insecure Registry Option
     # Requires you to edit /etc/systemd/system/docker.service.d/overlay.conf or docker.conf to be:
     # ExecStart=/bin/bash -c "usr/bin/docker daemon -H fd:// -s overlay $DOCKER_OPTS --insecure-registry='cat /tmp/harbor'"
     # Requires to be run as root
-    ${out}=  Run  service docker stop
+    ${out}=  Run  systemctl daemon-reload
+    ${out}=  Run  systemctl restart docker
     Log  ${out}
-    # Since docker couldn't access systemd, just modify the docker env
-    ${docker_opts}=  Get Environment Variable  DOCKER_OPTS  ${EMPTY}
-    Log to Console  ${docker_opts}
-    Set Environment Variable  DOCKER_OPTS  ${docker_opts} --insecure-registry=%{HARBOR_IP}
-    ${out}=  Run  service docker status
-    Log  ${out}
-    ${rc}  ${output}=  Run And Return Rc And Output  service docker start
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Log to Console  %{DOCKER_OPTS}
 
 Log Into Harbor
     [Arguments]  ${user}=%{TEST_USERNAME}  ${pw}=%{TEST_PASSWORD}
@@ -124,7 +114,9 @@ Create A New User
     Input Text  password  ${password}
     Input Text  confirmPassword  ${password}
     Input Text  comments  ${comments}
-
+    
+    Wait Until Element Is Visible  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
+    Wait Until Element Is Enabled  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
     Click Button  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
 
     Wait Until Page Contains  New user added successfully.
@@ -153,10 +145,19 @@ Create Self Signed Cert
     ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
 
 Install Harbor Self Signed Cert
+    Log To Console  Wait for Harbor to Come Up...
+    :FOR    ${i}    IN RANGE    10
+    \  Sleep  30
+    \  Exit For Loop If  ${i} == 9
+    \  ${out}=  Run  curl -k https://%{HARBOR_IP} 
+    \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
+    \  Exit For Loop If  ${status} 
+    \  Log    ${out}
+    Log    Exited
     ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
     ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
     Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
-    ${out}=  Run  systemctl deamon-reload
+    ${out}=  Run  systemctl daemon-reload
     ${out}=  Run  systemctl restart docker
 
 Delete A User
@@ -501,9 +502,10 @@ Check That Datastore Is Cleaned
     Should Not Contain  ${output}  ${container}
     
 Create Project And Three Users For It
+    [Arguments]  ${developer}  ${developer2}  ${developerEmail}  ${developerEmail2}  ${developerFullName}  ${password}  ${comments}  ${guest}  ${developerRole}  ${guestRole}  ${project}  ${public}=${False}
     # 2 developers, 1 guest
     Log To Console  Create Three Users For Project..
-    Open Browser  http://%{HARBOR_IP}/
+    Open Browser  http://%{HARBOR_IP}/  chrome
     Log To Console  Opened
     Log Into Harbor  user=admin  pw=%{TEST_PASSWORD}
     Create A New User  name=${developer}  email=${developerEmail}  fullName=${developerFullName}  password=${password}  comments=${comments}
@@ -517,7 +519,7 @@ Create Project And Three Users For It
     Close All Browsers
 
 Basic Docker Command With Harbor
-    [Arguments]  ${user}  ${password}
+    [Arguments]  ${user}  ${password}  ${project}  ${image}  ${container_name}
     # Docker login
     Log To Console  \nRunning docker login ${user}...
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u ${user} -p ${password} %{HARBOR_IP}
