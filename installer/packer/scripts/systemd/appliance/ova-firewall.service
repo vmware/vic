@@ -1,0 +1,11 @@
+[Unit]
+Description=configure system firewall
+After=systemd-networkd.service iptables.service
+Requires=iptables.service
+
+[Service]
+Type=oneshot
+ExecStart=/etc/vmware/ova-firewall.sh
+
+[Install]
+WantedBy=systemd-networkd.service
