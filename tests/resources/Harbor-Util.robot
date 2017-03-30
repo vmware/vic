@@ -19,6 +19,7 @@ Library  Selenium2Library
 *** Variables ***
 ${HARBOR_SHORT_VERSION}  0.5.0
 ${HARBOR_VERSION}  harbor_0.5.0-9e4c90e
+${MY_PROJECTS_TABLE}  div.table-body-container > table.table.table-pane
 
 *** Keywords ***
 Install Harbor To Test Server
@@ -70,6 +71,7 @@ Create Self Signed Cert
     ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
 
 Install Harbor Self Signed Cert
+    # Need to provide permissions to /etc/docker folder for your user (sudo chmod -R 777 /etc/docker)
     ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
     Log  ${out}
     ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
@@ -103,7 +105,7 @@ Create A New Project
     Sleep  1
     Run Keyword If  ${public}  Select Checkbox  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
     Click Button  Save
-    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div.each-tab-pane > div > div.table-body-container > table  ${name}
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${name}
 
 Create A New User
     [Arguments]  ${name}  ${email}  ${fullName}  ${password}  ${comments}
@@ -311,7 +313,7 @@ Add A User To A Project
     Wait Until Element Is Visible  //a[@tag='project']
     Wait Until Element Is Enabled  //a[@tag='project']
     Click Link  Projects
-    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${project}
     Wait Until Element Is Visible  xpath=//td/a[text()='${project}']
     Wait Until Element Is Enabled  xpath=//td/a[text()='${project}']
     Click Link  xpath=//td/a[text()='${project}']
@@ -331,14 +333,14 @@ Add A User To A Project
     Wait Until Element Is Enabled  btnSave
     Click Button  btnSave
     Sleep  1
-    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=div.sub-pane > div:nth-child(2) > table  ${user}
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${user}
 
 Remove A User From A Project
     [Arguments]  ${user}  ${project}
     Wait Until Element Is Visible  //a[@tag='project']
     Wait Until Element Is Enabled  //a[@tag='project']
     Click Link  Projects
-    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Table Should Contain  css=${MY_PROJECTS_TABLE}  ${project}
     Wait Until Element Is Visible  xpath=//td/a[text()='${project}']
     Wait Until Element Is Enabled  xpath=//td/a[text()='${project}']
     Click Link  xpath=//td/a[text()='${project}']
@@ -356,8 +358,8 @@ Change A User's Role In A Project
     Wait Until Element Is Visible  //a[@tag='project']
     Wait Until Element Is Enabled  //a[@tag='project']
     Click Link  Projects
-    Wait Until Element Is Visible  css=div.custom-sub-pane > div:nth-child(2) > table 
-    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Wait Until Element Is Visible  css=${MY_PROJECTS_TABLE} 
+    Table Should Contain  css=${MY_PROJECTS_TABLE}  ${project}
     Click Link  xpath=//td/a[text()='${project}']
     Wait Until Element Is Visible  xpath=//a[@tag='users']
     Wait Until Element Is Enabled  xpath=//a[@tag='users']
@@ -392,7 +394,7 @@ Delete A Project
     Wait Until Element Is Enabled  css=div.modal.fade.in > div > div > div:nth-child(3) > button:nth-child(1)
     Click Button  css=div.modal.fade.in > div > div > div:nth-child(3) > button:nth-child(1)
     Sleep  1
-    Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  css=div.table-body-container > table  ${project}
+    Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  css=${MY_PROJECTS_TABLE}  ${project}
 
 Search For A Project
     # search for the project contains the keyword, and return all result as a list
@@ -407,7 +409,7 @@ Search For A Project
     Wait Until Element Is Enabled  css=span.input-group-btn > button
     Click Button  css=span.input-group-btn > button
     Sleep  1
-    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=div.table-body-container > table  ${keyword} 
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${keyword} 
     # check all result contains the search keyword
     Wait Until Element Is Visible  xpath=//tbody/tr/td[1]
     Wait Until Element Is Enabled  xpath=//tbody/tr/td[1]
@@ -425,7 +427,7 @@ Delete Repository From Project
     Wait Until Element Is Visible  //a[@tag='project']
     Wait Until Element Is Enabled  //a[@tag='project']
     Click Link  Projects
-    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Table Should Contain  css=${MY_PROJECTS_TABLE}  ${project}
     Wait Until Element Is Visible  xpath=//td/a[text()='${project}']
     Wait Until Element Is Enabled  xpath=//td/a[text()='${project}']
     Click Link  xpath=//td/a[text()='${project}']
@@ -444,7 +446,7 @@ Delete Image From Project
     Wait Until Element Is Visible  //a[@tag='project']
     Wait Until Element Is Enabled  //a[@tag='project']
     Click Link  Projects
-    Table Should Contain  css=div.custom-sub-pane > div:nth-child(2) > table  ${project}
+    Table Should Contain  css=${MY_PROJECTS_TABLE}  ${project}
     Wait Until Element Is Visible  xpath=//td/a[text()='${project}']
     Wait Until Element Is Enabled  xpath=//td/a[text()='${project}']
     Click Link  xpath=//td/a[text()='${project}']
