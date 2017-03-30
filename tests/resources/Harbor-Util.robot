@@ -40,15 +40,23 @@ Install Harbor To Test Server
     ${hostString}=  Set Variable If  '${datacenter}' is not '${EMPTY}'  vi://${user}:${password}@${host}/${datacenter}/host/${cluster}
     ...   '${datacenter}' is '${EMPTY}'  vi://${user}:${password}@${host}
     ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --net:"Network 1"="${network}" --prop:vm.vmname=Harbor --prop:root_pwd='${password}' --prop:harbor_admin_password='${password}' --prop:db_password='${password}' --prop:auth_mode=db_auth --prop:permit_root_login=true --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova '${hostString}'
+    Should Contain  ${out}  Received IP address:
+
     ${out}=  Split To Lines  ${out}
-    
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Received IP address:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Environment Variable  HARBOR_IP  ${ip}
-    \   Return From Keyword If  ${status}
+    \   Exit For Loop If  ${status}
 
-    Fail  Harbor failed to install
+    Log To Console  Waiting for Harbor to Come Up...
+    :FOR  ${i}  IN RANGE  10
+    \  ${out}=  Run  curl -k https://%{HARBOR_IP}
+    \  Log    ${out}
+    \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
+    \  Return From Keyword If  ${status}
+    \  Sleep  30
+    Fail  Harbor failed to come up properly!
 
 Restart Docker With Insecure Registry Option
     # Requires you to edit /etc/systemd/system/docker.service.d/overlay.conf or docker.conf to be:
@@ -57,6 +65,17 @@ Restart Docker With Insecure Registry Option
     ${out}=  Run  systemctl daemon-reload
     ${out}=  Run  systemctl restart docker
     Log  ${out}
+
+Create Self Signed Cert
+    ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
+
+Install Harbor Self Signed Cert
+    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
+    Log  ${out}
+    ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
+    Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
+    ${out}=  Run  systemctl daemon-reload
+    ${out}=  Run  systemctl restart docker
 
 Log Into Harbor
     [Arguments]  ${user}=%{TEST_USERNAME}  ${pw}=%{TEST_PASSWORD}
@@ -140,25 +159,6 @@ Toggle Admin Priviledges For User
     ${newPublicity}=  Get Text  xpath=//td[text()='test-user']/../td[last()-1]/toggle-admin/button[not(contains(@class, 'ng-hide'))]
     Should Not Be Equal  ${oldPublicity}  ${newPublicity}
     [return]  ${newPublicity}
-
-Create Self Signed Cert
-    ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
-
-Install Harbor Self Signed Cert
-    Log To Console  Wait for Harbor to Come Up...
-    :FOR    ${i}    IN RANGE    10
-    \  Sleep  30
-    \  Exit For Loop If  ${i} == 9
-    \  ${out}=  Run  curl -k https://%{HARBOR_IP} 
-    \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
-    \  Exit For Loop If  ${status} 
-    \  Log    ${out}
-    Log    Exited
-    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
-    ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
-    Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
-    ${out}=  Run  systemctl daemon-reload
-    ${out}=  Run  systemctl restart docker
 
 Delete A User
     [Arguments]  ${user}

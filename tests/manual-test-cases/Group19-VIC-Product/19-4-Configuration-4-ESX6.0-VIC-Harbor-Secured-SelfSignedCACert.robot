@@ -16,7 +16,7 @@
 Documentation  Test 19-4 - Configuration 4 ESX 6.0 VIC Harbor Secured Self Signed
 Resource  ../../resources/Util.robot
 Suite Setup  19-4-Setup
-Suite Teardown  19-4-Teardown
+#Suite Teardown  19-4-Teardown
 
 *** Variables ***
 ${developer}  test-user-developer
