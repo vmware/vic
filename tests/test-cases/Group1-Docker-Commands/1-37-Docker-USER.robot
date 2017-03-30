@@ -1,4 +1,4 @@
-# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+# Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,18 +19,42 @@ Suite Setup     Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-Run as NewUser in NewGroup
-     ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run gigawhitlocks/1-37-docker-user-newuser-newgroup:latest
-     Should Be Equal As Integers    ${rc}       0
-     Should Match Regexp            ${output}   uid=\\d+\\\(newuser\\\)\\s+gid=\\d+\\\(newuser\\\)\\s+groups=\\d+\\\(newuser\\\)
+Run Image Specifying NewUser in NewGroup
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run gigawhitlocks/1-37-docker-user-newuser-newgroup:latest
+    Should Be Equal As Integers    ${rc}       0
+    Should Match Regexp            ${output}   uid=\\d+\\\(newuser\\\)\\s+gid=\\d+\\\(newuser\\\)\\s+groups=\\d+\\\(newuser\\\)
 
-Run as UID 2000
-     ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run gigawhitlocks/1-37-docker-user-uid-2000:latest
-     Should Be Equal As Integers    ${rc}       0
-     Should Contain                 ${output}   uid=2000 gid=0(root)
+Run Image Specifying UID 2000
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run gigawhitlocks/1-37-docker-user-uid-2000:latest
+    Should Be Equal As Integers    ${rc}       0
+    Should Contain                 ${output}   uid=2000 gid=0(root)
 
-Run as UID:GID 2000:2000
-     ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run gigawhitlocks/1-37-docker-user-uid-gid-2000-2000:latest
-     Should Be Equal As Integers    ${rc}       0
-     Should Contain                 ${output}   uid=2000 gid=2000
+Run Specifying UID 2000 With -u
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run -u 2000 busybox id
+    Should Be Equal As Integers    ${rc}       0
+    Should Contain                 ${output}   uid=2000 gid=0(root)
 
+Run Image Specifying UID:GID 2000:2000
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run gigawhitlocks/1-37-docker-user-uid-gid-2000-2000:latest
+    Should Be Equal As Integers    ${rc}       0
+    Should Contain                 ${output}   uid=2000 gid=2000
+
+Run Specifying UID:GID 2000:2000 With -u
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run -u 2000:2000 busybox id
+    Should Be Equal As Integers    ${rc}       0
+    Should Contain                 ${output}   uid=2000 gid=2000
+
+Run as Nonexistent User With -u
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run -u nonexistent busybox whoami
+    Should Be Equal As Integers    ${rc}       125
+    Should Contain                 ${output}   Unable to find user nonexistent
+
+Run as Root with Nonexistent User With -u
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run -u root:nonexistent busybox whoami
+    Should Be Equal As Integers    ${rc}       125
+    Should Contain                 ${output}   Unable to find group nonexistent
+
+Run as uid 0 group 0 With -u
+    ${rc}    ${output}=    Run And Return Rc And Output    docker %{VCH-PARAMS} run -u 0:0 busybox whoami
+    Should Be Equal As Integers    ${rc}       0
+    Should Contain                 ${output}   root
