@@ -1,6 +1,10 @@
 version: "2"
 
 services:
+  my_container:
+    image: busybox
+    command: top
+  
   bridge:
     image: busybox
     command: top
@@ -14,7 +18,7 @@ services:
   container:
     image: busybox
     command: top
-    network_mode: "container:composetest_network_mode_container"
+    network_mode: "container:my_container"
 
   host:
     image: busybox

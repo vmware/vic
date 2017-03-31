@@ -1,6 +1,6 @@
 version: '2'
 services:
-    redis:
-     image: redis
+  myservice:
+    image: redis
     group_add:
       - mail
