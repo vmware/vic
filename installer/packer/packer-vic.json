@@ -5,7 +5,8 @@
     "esx_host": "",
     "remote_username": "",
     "remote_password": "",
-    "root_password": "2RQrZ83i79N6szpvZNX6"
+    "root_password": "2RQrZ83i79N6szpvZNX6",
+    "build_admiral_revision": "dev"
   },
   "builders": [
     {
@@ -227,6 +228,7 @@
     },
     {
       "type": "shell",
+      "environment_vars": ["BUILD_ADMIRAL_REVISION={{user `build_admiral_revision`}}"],
       "script": "scripts/provision_admiral.sh"
     },
     {
