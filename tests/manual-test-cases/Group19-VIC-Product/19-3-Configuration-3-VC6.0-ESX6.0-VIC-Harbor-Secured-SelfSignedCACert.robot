@@ -97,19 +97,9 @@ Test Neg001 Developer Operations
 
 Test Pos003 Two VCH With One Harbor
     # Add another VC
-    ${VCH1-URL} =    Set Variable    %{VCH-PARAMS}
-    Set Test Environment Variables
-    # disable firewall
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
+    ${VCH1-URL}=  Set Variable  %{VCH-PARAMS}
 
-    # Install the VCH now
-    Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  bin/vic-machine-linux  bin/appliance.iso  bin/bootstrap.iso  ${false}  default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt
-    Log  ${output}
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${false}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
-
+    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${false}  cleanup=${false}
     Remove Environment Variable  DOCKER_HOST
     ${VCH2-URL}=  Set Variable  %{VCH-PARAMS}
 
