@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 3-03 - Docker Compose Keywords
+Documentation  Test 3-03 - Docker Compose Keywords.
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${True}
 Suite Teardown  Cleanup VIC Appliance On Test Server
