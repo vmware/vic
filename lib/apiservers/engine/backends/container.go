@@ -15,6 +15,7 @@
 package backends
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -396,10 +397,30 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		if _, ok := err.(DetachError); ok {
 			log.Infof("Detach detected, tearing down connection")
 
-			if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
+			// QUESTION: why are we returning DetachError? It doesn't seem like an error
+			// Should we also be generating a detach event as in other AttachStreams call
+
+			// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
+			// This avoids cutting the communication channel for other sessions connected to this
+			// container
+
+			// if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
+			// 	return err
+			// }
+		} else {
+			ec, gerr := c.TaskInspect(id, name, eid)
+			if gerr != nil {
+				log.Errorf("Unable to get update status for task %s in %s: %s", eid, id, err)
 				return err
 			}
+
+			if ec.ProcessConfig.ErrorMsg != "" {
+				detail := fmt.Sprintf("exec task error: %s", ec.ProcessConfig.ErrorMsg)
+				log.Warnf("Task %s reported: %s", detail)
+				return errors.New(detail)
+			}
 		}
+
 		return err
 	}
 

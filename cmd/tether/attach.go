@@ -48,6 +48,13 @@ type AttachServer interface {
 	stop() error
 }
 
+type config struct {
+	Key []byte
+
+	Sessions map[string]*tether.SessionConfig
+	Execs    map[string]*tether.SessionConfig
+}
+
 type attachServerSSH struct {
 	// serializes data access for exported functions
 	m sync.Mutex
@@ -65,7 +72,8 @@ type attachServerSSH struct {
 		*ssh.ServerConn
 	}
 
-	config    *tether.ExecutorConfig
+	// extension local copy of the bits of config important to attach
+	config    config
 	sshConfig *ssh.ServerConfig
 
 	enabled int32
@@ -96,13 +104,18 @@ func NewAttachServerSSH() AttachServer {
 }
 
 // Reload - tether.Extension implementation
-func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
+func (t *attachServerSSH) Reload(tconfig *tether.ExecutorConfig) error {
 	defer trace.End(trace.Begin("attach reload"))
 
 	t.m.Lock()
 	defer t.m.Unlock()
 
-	t.config = config
+	// We copy this stuff so that we're not referencing the direct config
+	// structure if/while it's being updated.
+	// The subelements generally have locks or updated in single assignment
+	t.config.Key = tconfig.Key
+	t.config.Sessions = tconfig.Sessions
+	t.config.Execs = tconfig.Execs
 
 	err := server.start()
 	if err != nil {
@@ -411,6 +424,23 @@ func (t *attachServerSSH) run() error {
 				}
 			}
 
+			// session is potentially blocked in launch until we've got the unblock message, so we cannot lock it.
+			// check that session is valid
+			// The detail remains concise as it'll eventually make its way to the user
+			if session.Started != "" && session.Started != "true" {
+				detail := fmt.Sprintf("launch failed with: %s", session.Started)
+				attachchan.Reject(ssh.Prohibited, detail)
+				log.Error(detail)
+				continue
+			}
+
+			if session.StopTime != 0 {
+				detail := fmt.Sprintf("process finished with exit code: %d", session.ExitStatus)
+				attachchan.Reject(ssh.Prohibited, detail)
+				log.Error(detail)
+				continue
+			}
+
 			channel, requests, err := attachchan.Accept()
 			if err != nil {
 				detail := fmt.Sprintf("could not accept channel: %s", err)
@@ -479,6 +509,9 @@ func (t *attachServerSSH) sessions() []string {
 
 	var keys []string
 
+	// this iterates the local copies of the sessions maps
+	// so we don't need to care whether they're initialized or not
+	// as extension reload comes after that point
 	for k, v := range t.config.Sessions {
 		if v.Active && v.StopTime == 0 {
 			keys = append(keys, k)
@@ -486,7 +519,8 @@ func (t *attachServerSSH) sessions() []string {
 	}
 
 	for k, v := range t.config.Execs {
-		if v.Active && v.StopTime == 0 {
+		// skip those that have had launch errors
+		if v.Active && v.StopTime == 0 && (v.Started == "" || v.Started == "true") {
 			log.Debugf("Adding %s to keys %t", v.ID, v.Active)
 
 			keys = append(keys, k)
@@ -553,6 +587,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 
 	for req := range in {
 		ok := true
+		abort := false
 
 		switch req.Type {
 		case msgs.PingReq:
@@ -565,16 +600,25 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 		case msgs.UnblockReq:
 			log.Infof("Received UnblockReq for %s", session.ID)
 
-			// unblock ^ (above)
-			pendingFn = func() {
-				once.Do(func() {
-					if session.RunBlock && session.ClearToLaunch != nil && session.Started != "true" {
-						log.Infof("Unblocking the launch of %s", session.Common.ID)
-						// make sure that portlayer received the container id back
-						session.ClearToLaunch <- struct{}{}
-						log.Infof("Unblocked the launch of %s", session.Common.ID)
-					}
-				})
+			// if the process has exited, or couldn't launch
+			if session.Started != "" && session.Started != "true" {
+				// we need to force the session closed so that error handling occurs on the callers
+				// side
+				ok = false
+				abort = true
+			} else {
+				// unblock ^ (above)
+				pendingFn = func() {
+					once.Do(func() {
+						launchChan := session.ClearToLaunch
+						if session.RunBlock && launchChan != nil && session.Started != "true" {
+							log.Infof("Unblocking the launch of %s", session.Common.ID)
+							// make sure that portlayer received the container id back
+							launchChan <- struct{}{}
+							log.Infof("Unblocked the launch of %s", session.Common.ID)
+						}
+					})
+				}
 			}
 
 		case msgs.WindowChangeReq:
@@ -615,6 +659,10 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 			log.Debug("Invoking pending work for channel mux")
 			go pendingFn()
 			pendingFn = nil
+		}
+
+		if abort {
+			break
 		}
 	}
 }

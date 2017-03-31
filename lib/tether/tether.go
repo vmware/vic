@@ -400,8 +400,10 @@ func (t *tether) processSessions() error {
 			}
 
 			// check if session has never been started or is configured for restart
-			if proc == nil || session.Restart {
-				if proc == nil {
+			// if proc is nil, but Started is set then it could be a launch failure
+			if (proc == nil && session.Started == "") || session.Restart {
+				// if we've never been started
+				if proc == nil && session.Started == "" {
 					log.Infof("Launching process for session %s", id)
 					log.Debugf("Launch failures are fatal: %t", m.fatal)
 				} else {
@@ -466,7 +468,9 @@ func (t *tether) Start() error {
 		log.Info("Loading main configuration")
 
 		// load the config - this modifies the structure values in place
+		t.config.Lock()
 		extraconfig.Decode(t.src, t.config)
+		t.config.Unlock()
 
 		t.setLogLevel()
 
@@ -541,21 +545,10 @@ func (t *tether) Register(name string, extension Extension) {
 	t.extensions[name] = extension
 }
 
-// handleSessionExit processes the result from the session command, records it in persistent
-// maner and determines if the Executor should exit
+// cleanupSession performs some common cleanup work between handling a session exit and
+// handling a failure to launch
 // caller needs to hold session Lock
-func (t *tether) handleSessionExit(session *SessionConfig) {
-	defer trace.End(trace.Begin("handling exit of session " + session.ID))
-
-	log.Debugf("Waiting on session.wait")
-	session.wait.Wait()
-	log.Debugf("Wait on session.wait completed")
-
-	log.Debugf("Calling wait on cmd")
-	if err := session.Cmd.Wait(); err != nil {
-		log.Warnf("Wait returned %s", err)
-	}
-
+func (t *tether) cleanupSession(session *SessionConfig) {
 	log.Debugf("Calling close on reader")
 	if err := session.Reader.Close(); err != nil {
 		log.Warnf("Close for Reader returned %s", err)
@@ -572,10 +565,28 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
 	if session.ClearToLaunch != nil {
-		log.Debugf("Calling close chan")
+		log.Debugf("Calling close chan: %s", session.ID)
 		close(session.ClearToLaunch)
 		session.ClearToLaunch = nil
 	}
+}
+
+// handleSessionExit processes the result from the session command, records it in persistent
+// maner and determines if the Executor should exit
+// caller needs to hold session Lock
+func (t *tether) handleSessionExit(session *SessionConfig) {
+	defer trace.End(trace.Begin("handling exit of session " + session.ID))
+
+	log.Debugf("Waiting on session.wait")
+	session.wait.Wait()
+	log.Debugf("Wait on session.wait completed")
+
+	log.Debugf("Calling wait on cmd")
+	if err := session.Cmd.Wait(); err != nil {
+		log.Warnf("Wait returned %s", err)
+	}
+
+	t.cleanupSession(session)
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
@@ -603,8 +614,14 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Lock()
 	defer session.Unlock()
 
-	// encode the result whether success or error
+	var err error
 	defer func() {
+		if session.Started != "true" {
+			// if we didn't launch cleanly then clean up
+			t.cleanupSession(session)
+		}
+
+		// encode the result whether success or error
 		prefix := extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0]
 		log.Debugf("Encoding result of launch for session %s under key: %s", session.ID, prefix)
 		extraconfig.EncodeWithPrefix(t.sink, session, prefix)

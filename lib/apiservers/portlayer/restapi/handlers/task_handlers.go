@@ -217,7 +217,7 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 
 	res := &models.TaskInspectResponse{
 		ID:       t.ID,
-		Running:  t.Started != "",
+		Running:  t.Started == "true",
 		ExitCode: int64(t.ExitStatus),
 		ProcessConfig: &models.ProcessConfig{
 			ExecPath: t.Cmd.Path,
@@ -230,5 +230,11 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 		OpenStderr: t.Attach,
 		Pid:        0,
 	}
+
+	// report launch error if we failed
+	if t.Started != "" && t.Started != "true" {
+		res.ProcessConfig.ErrorMsg = t.Started
+	}
+
 	return tasks.NewInspectOK().WithPayload(res)
 }
