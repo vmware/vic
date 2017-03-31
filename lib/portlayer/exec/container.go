@@ -613,6 +613,12 @@ func (c *Container) OnEvent(e events.Event) {
 			if c.vm != nil && c.vm.IsFixing() {
 				// is fixing vm, which will be registered back soon, so do not remove from containers cache
 				log.Debugf("Container(%s) %s is being fixed", c.ExecConfig.ID)
+
+				// Received remove event triggered by unregister VM operation - leave
+				// fixing state now. In a loaded environment, the remove event may be
+				// received after vm.fixVM() has returned, at which point the container
+				// should still be in fixing state to avoid removing it from the cache below.
+				c.vm.LeaveFixingState()
 				break
 			}
 
