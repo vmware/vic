@@ -896,8 +896,6 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		}
 	}
 
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
 	return nil
 }
 
@@ -1614,6 +1612,11 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
 			log.Infof("Detach detected, tearing down connection")
+
+			defer func() {
+				actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+			}()
 
 			handle, err := c.Handle(id, name)
 			if err != nil {
