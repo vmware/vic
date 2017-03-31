@@ -222,6 +222,9 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		*/
 	}
 
+	// close the stream
+	params.RawStream.Close()
+
 	log.Debugf("Done copying stdin")
 
 	return interaction.NewContainerSetStdinOK()
