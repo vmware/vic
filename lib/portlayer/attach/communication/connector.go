@@ -131,7 +131,10 @@ func (c *Connector) Interaction(ctx context.Context, id string, timeout time.Dur
 		err := fmt.Errorf("attach connector: Connection not found error for id:%s: %s", id, ctx.Err())
 		log.Error(err)
 		// wake up the result gofunc before returning
+		c.mutex.RLock()
 		c.cond.Broadcast()
+		c.mutex.RUnlock()
+
 		return nil, err
 	}
 }

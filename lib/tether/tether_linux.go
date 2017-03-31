@@ -255,6 +255,8 @@ func establishPty(session *SessionConfig) error {
 		_, gerr := io.CopyBuffer(session.Pty, session.Reader, make([]byte, ioCopyBufferSize))
 		log.Debugf("PTY stdin copy: %s", gerr)
 
+		// ensure that an EOT is delivered to the process - this makes the behaviour on EOF at this layer
+		// consistent between tty and non-tty cases
 		n, gerr := session.Pty.Write([]byte("\x04"))
 		if n != 1 || gerr != nil {
 			log.Errorf("Failed to write EOT to pty, closing directly: %s", gerr)
