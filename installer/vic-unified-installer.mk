@@ -60,6 +60,7 @@ ova-release: $(vic-tarball) $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 			-var 'esx_host=$(PACKER_ESX_HOST)'\
 			-var 'remote_username=$(PACKER_USERNAME)'\
 			-var 'remote_password=$(PACKER_PASSWORD)'\
+			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			packer-vic.json
 	@echo adding proper vic OVF file...
 	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
@@ -80,6 +81,7 @@ ova-debug: $(vic-tarball) $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 			-var 'esx_host=$(PACKER_ESX_HOST)'\
 			-var 'remote_username=$(PACKER_USERNAME)'\
 			-var 'remote_password=$(PACKER_PASSWORD)'\
+			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			--on-error=abort packer-vic.json
 	@echo adding proper vic OVF file...
 	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
