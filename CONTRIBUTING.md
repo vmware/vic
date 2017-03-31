@@ -7,14 +7,14 @@ tracker:
 
 - [Slack](https://vmwarecode.slack.com/messages/vic-engine): This is the primary community channel. If you don't have an @vmware.com or @emc.com email, please sign up at https://code.vmware.com/slack to get a Slack invite.
 
-- [Gitter](https://gitter.im/vmware/vic): Gitter is monitored but go to slack if you need a response quickly.
+- [Gitter](https://gitter.im/vmware/vic): Gitter is monitored but go to Slack if you need a response quickly.
 
 ## Getting started
 
 First, fork the repository on GitHub to your personal account.
 
 Note that _GOPATH_ can be any directory, the example below uses _$HOME/vic_.
-Change _$USER_ below to your github username if they are not the same.
+Change _$USER_ below to your GitHub username.
 
 ``` shell
 export GOPATH=$HOME/vic
@@ -39,7 +39,7 @@ This is a rough outline of what a contributor's workflow looks like:
 - Push your changes to a topic branch in your fork of the repository.
 - Test your changes as detailed in the [Automated Testing](#automated-testing) section.
 - Submit a pull request to vmware/vic.
-- Your PR must receive at least two approved reviews from maintainers before merging.
+- Your PR must receive approvals from component owners and at least two approvals overall from maintainers before merging.
 
 Example:
 
@@ -83,12 +83,12 @@ git rebase -i --autosquash vmware/master
 git push --force-with-lease $USER my-new-feature
 ```
 
-Be sure to add a comment to the PR indicating your new changes are ready to review, as github does not generate a
+Be sure to add a comment to the PR indicating your new changes are ready to review, as GitHub does not generate a
 notification when you git push.
 
 ### Code style
 
-The coding style suggested by the Golang community is used in vIC. See the
+The coding style suggested by the Golang community is used in VIC. See the
 [style doc](https://github.com/golang/go/wiki/CodeReviewComments) for details.
 
 Try to limit column width to 120 characters for both code and markdown documents such as this one.
@@ -97,15 +97,21 @@ Try to limit column width to 120 characters for both code and markdown documents
 
 We follow the conventions on [How to Write a Git Commit Message](http://chris.beams.io/posts/git-commit/).
 
-Be sure to include any related GitHub issue references in the commit message.  See
+Be sure to include any related GitHub issue references in the commit message. See
 [GFM syntax](https://guides.github.com/features/mastering-markdown/#GitHub-flavored-markdown) for referencing issues
 and commits.
 
+To help write conforming commit messages, it is recommended to set up the [git-good-commit][commithook] commit hook. Run this command in the VIC repo's root directory:
+
+```shell
+curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+```
 
 [dronevic]:https://ci.vmware.run/vmware/vic
 [e2edronevic]:https://e2e.ci.vmware.run/vmware/vic
 [dronesrc]:https://github.com/drone/drone
 [dronecli]:http://readme.drone.io/usage/getting-started-cli/
+[commithook]:https://github.com/tommarshall/git-good-commit
 
 ## Automated Testing
 
@@ -113,8 +119,13 @@ Automated testing uses [Drone][dronesrc].
 
 PRs must pass unit tests and integration tests before being merged into `master`.
 
-If CI shouldn't run tests (when making a commit that doesn't change code), add `[ci skip]` or `[skip ci]`
-to the commit message.
+There are three keywords to trigger custom CI builds:
+- To skip running tests (e.g. for a work-in-progress PR), add `[ci skip]` or `[skip ci]`
+to the commit message or the PR title.
+- To run the full test suite, use `[full ci]`.
+- To run _one_ integration test or group, use `[specific ci=$test]`. Examples:
+  - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
+  - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
 
 You can run the tests locally before making a PR or view the Drone build results for [unit tests][dronevic]
 and [integration tests][e2edronevic].
@@ -216,6 +227,8 @@ Note: Epics should never be In Progress
 ### Verify
 
 A "Verify" issue normally means the feature or fix is in code review and/or awaiting further testing.  These issues require one final QE sign off or at the end of a sprint another dev that didn't work on the issue can verify the issue.
+
+In most cases, an issue should be in Verify _before_ the corresponding PR is merged. The developer can then close the issue while merging the PR.
 
 ### Closed
 
