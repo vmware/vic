@@ -153,7 +153,7 @@ func TestAttachSshSession(t *testing.T) {
 			assert.Equal(t, ch.ChannelType(), attachChannelType)
 			_, reqs, _ = ch.Accept()
 			for req := range reqs {
-				if req.Type == msgs.PingReq {
+				if req.Type == msgs.UnblockReq {
 					req.Reply(true, nil)
 					break
 				}

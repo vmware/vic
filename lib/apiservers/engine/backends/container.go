@@ -230,6 +230,21 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	}
 	id := vc.ContainerID
 
+	// Is it running?
+	state, err := c.containerProxy.State(vc)
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+	if !state.Running {
+		return "", ConflictError(fmt.Sprintf("Container %s is not running", id))
+	}
+	if state.Restarting {
+		return "", ConflictError(fmt.Sprintf("Container %s is restarting, wait until the container is running", id))
+	}
+
+	// set up the environment
+	config.Env = setEnvFromImageConfig(config.Tty, config.Env, vc.Config.Env)
+
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		return "", InternalServerError(err.Error())
@@ -1766,16 +1781,16 @@ func setCreateConfigOptions(config, imageConfig *containertypes.Config) {
 		config.User = imageConfig.User
 	}
 	// set up environment
-	setEnvFromImageConfig(config, imageConfig)
+	config.Env = setEnvFromImageConfig(config.Tty, config.Env, imageConfig.Env)
 }
 
-func setEnvFromImageConfig(config, imageConfig *containertypes.Config) {
+func setEnvFromImageConfig(tty bool, env []string, imgEnv []string) []string {
 	// Set PATH in ENV if needed
-	setPathFromImageConfig(config, imageConfig)
+	env = setPathFromImageConfig(env, imgEnv)
 
-	containerEnv := make(map[string]string, len(config.Env))
-	for _, env := range config.Env {
-		kv := strings.SplitN(env, "=", 2)
+	containerEnv := make(map[string]string, len(env))
+	for _, e := range env {
+		kv := strings.SplitN(e, "=", 2)
 		var val string
 		if len(kv) == 2 {
 			val = kv[1]
@@ -1784,44 +1799,48 @@ func setEnvFromImageConfig(config, imageConfig *containertypes.Config) {
 	}
 
 	// Set TERM to xterm if tty is set, unless user supplied a different TERM
-	if config.Tty {
+	if tty {
 		if _, ok := containerEnv["TERM"]; !ok {
-			config.Env = append(config.Env, "TERM=xterm")
+			env = append(env, "TERM=xterm")
 		}
 	}
 
 	// add remaining environment variables from the image config to the container
 	// config, taking care not to overwrite anything
-	for _, imageEnv := range imageConfig.Env {
+	for _, imageEnv := range imgEnv {
 		key := strings.SplitN(imageEnv, "=", 2)[0]
 		// is environment variable already set in container config?
 		if _, ok := containerEnv[key]; !ok {
 			// no? let's copy it from the image config
-			config.Env = append(config.Env, imageEnv)
+			env = append(env, imageEnv)
 		}
 	}
+
+	return env
 }
 
-func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
+func setPathFromImageConfig(env []string, imgEnv []string) []string {
 	// check if user supplied PATH environment variable at creation time
-	for _, v := range config.Env {
+	for _, v := range env {
 		if strings.HasPrefix(v, "PATH=") {
 			// a PATH is set, bail
-			return
+			return env
 		}
 	}
 
 	// check to see if the image this container is created from supplies a PATH
-	for _, v := range imageConfig.Env {
+	for _, v := range imgEnv {
 		if strings.HasPrefix(v, "PATH=") {
 			// a PATH was found, add it to the config
-			config.Env = append(config.Env, v)
-			return
+			env = append(env, v)
+			return env
 		}
 	}
 
 	// no PATH set, use the default
-	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", defaultEnvPath))
+	env = append(env, fmt.Sprintf("PATH=%s", defaultEnvPath))
+
+	return env
 }
 
 // validateCreateConfig() checks the parameters for ContainerCreate().

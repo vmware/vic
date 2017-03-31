@@ -45,10 +45,6 @@ func lookupVCHIP() (net.IP, error) {
 }
 
 func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
-	for _, session := range handle.ExecConfig.Execs {
-		session.RunBlock = connected
-	}
-
 	// get the virtual device list
 	devices := object.VirtualDeviceList(handle.Config.Hardware.Device)
 
@@ -99,12 +95,18 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	}
 	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
 
-	primary, ok := handle.ExecConfig.Sessions[handle.ExecConfig.ID]
-	if ok && primary.Attach {
-		// iterate over Sessions and set their RunBlock property to connected
-		// if attach happens before start then this property will be persist in the vmx
-		// if attach happens after start then this propery will be thrown away by commit (one simply cannot change ExtraConfig if the vm is powered on)
-		for _, session := range handle.ExecConfig.Sessions {
+	// iterate over Sessions and set their RunBlock property to connected
+	// if attach happens before start then this property will be persist in the vmx
+	// if attach happens after start then this propery will be thrown away by commit (one simply cannot change ExtraConfig if the vm is powered on)
+	for _, session := range handle.ExecConfig.Sessions {
+		if session.Attach {
+			session.RunBlock = connected
+		}
+	}
+
+	// iterate over Execs and set their RunBlock property to connected
+	for _, session := range handle.ExecConfig.Execs {
+		if session.Attach {
 			session.RunBlock = connected
 		}
 	}

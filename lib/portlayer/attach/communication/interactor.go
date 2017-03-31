@@ -167,7 +167,7 @@ func (t *interaction) Resize(cols, rows, widthpx, heightpx uint32) error {
 	return nil
 }
 
-// Ping checks the liveleness of the connection
+// Ping checks the liveliness of the connection
 func (t *interaction) Ping() error {
 	defer trace.End(trace.Begin(""))
 

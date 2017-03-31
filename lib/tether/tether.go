@@ -190,7 +190,6 @@ func (t *tether) cleanup() {
 	log.SetOutput(os.Stdout)
 
 	// perform basic cleanup
-	t.reload = nil
 	t.ops.Cleanup()
 }
 
@@ -465,6 +464,12 @@ func (t *tether) Start() error {
 	// initial entry, so seed this
 	t.reload <- struct{}{}
 	for range t.reload {
+		select {
+		case <-t.ctx.Done():
+			log.Warnf("Someone called shutdown, returning from start")
+			return nil
+		default:
+		}
 		log.Info("Loading main configuration")
 
 		// load the config - this modifies the structure values in place
@@ -523,20 +528,25 @@ func (t *tether) Start() error {
 func (t *tether) Stop() error {
 	defer trace.End(trace.Begin(""))
 
-	// TODO: kill all the children
-	if t.reload != nil {
-		close(t.reload)
-	}
-
-	// cancel the context to unblock waiters
+	// cancel the context to signal waiters
 	t.cancel()
+
+	// TODO: kill all the children
+	close(t.reload)
+
 	return nil
 }
 
 func (t *tether) Reload() {
-	log.Infof("Reload triggered")
+	defer trace.End(trace.Begin(""))
 
-	t.reload <- struct{}{}
+	select {
+	case <-t.ctx.Done():
+		log.Warnf("Someone called shutdown, dropping the reload request")
+		return
+	default:
+		t.reload <- struct{}{}
+	}
 }
 
 func (t *tether) Register(name string, extension Extension) {

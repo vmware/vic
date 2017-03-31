@@ -706,6 +706,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/matryer/resync",
+			"repository": "https://github.com/matryer/resync",
+			"vcs": "git",
+			"revision": "d39c09a11215c84aab0b65e323fc47dd6e276af1",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/mattn/go-runewidth",
 			"repository": "https://github.com/mattn/go-runewidth",
 			"vcs": "git",

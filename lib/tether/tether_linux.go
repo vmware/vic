@@ -48,6 +48,8 @@ func Mkdev(majorNumber int, minorNumber int) int {
 // ReloadConfig signals the current process, which triggers the signal handler
 // to reload the config.
 func ReloadConfig() error {
+	defer trace.End(trace.Begin(""))
+
 	p, err := os.FindProcess(os.Getpid())
 	if err != nil {
 		return err
