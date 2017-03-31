@@ -105,6 +105,9 @@ func (s *SearchIndex) FindChild(req *types.FindChild) soap.HasFault {
 	case *ResourcePool:
 		children = e.ResourcePool.ResourcePool
 		children = append(children, e.Vm...)
+	case *VirtualApp:
+		children = e.ResourcePool.ResourcePool
+		children = append(children, e.Vm...)
 	}
 
 	match := Map.FindByName(req.Name, children)

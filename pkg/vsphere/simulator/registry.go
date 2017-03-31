@@ -89,6 +89,20 @@ func (r *Registry) Get(ref types.ManagedObjectReference) mo.Reference {
 	return r.objects[ref]
 }
 
+// Any returns the first instance of entity type specified by kind.
+func (r *Registry) Any(kind string) mo.Entity {
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	for ref, val := range r.objects {
+		if ref.Type == kind {
+			return val.(mo.Entity)
+		}
+	}
+
+	return nil
+}
+
 func (r *Registry) Put(item mo.Reference) mo.Reference {
 	r.m.Lock()
 	defer r.m.Unlock()
