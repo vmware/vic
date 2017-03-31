@@ -15,12 +15,15 @@
 package exec
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 )
 
@@ -90,8 +93,9 @@ func TestVMRemovedEventCallback(t *testing.T) {
 
 	mgr := event.NewEventManager()
 	Config.EventManager = mgr
-	// subscribe the exec layer to the event stream for Vm events
-	mgr.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "testing", func(e events.Event) {
+
+	// subscribe the exec layer to the event stream for VM events
+	mgr.Subscribe(events.NewEventType(&vsphere.VMEvent{}).Topic(), "testing", func(e events.Event) {
 		if c := Containers.Container(e.Reference()); c != nil {
 			c.OnEvent(e)
 		}
@@ -104,20 +108,29 @@ func TestVMRemovedEventCallback(t *testing.T) {
 	container.SetState(StateRunning)
 	Containers.Put(container)
 
-	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
-	time.Sleep(time.Millisecond * 30)
-	assert.True(t, Containers.Container(id) == nil, "Container should be removed")
-
-	addTestVM(container)
-	Containers.put(container)
 	container.vm.EnterFixingState()
-	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
-	time.Sleep(time.Millisecond * 30)
-	assert.True(t, Containers.Container(id) != nil, "Container should not be removed in fixing status")
 
-	container.vm.LeaveFixingState()
-	publishContainerEvent(id, time.Now().UTC(), events.ContainerRemoved)
-	time.Sleep(time.Millisecond * 30)
-	assert.True(t, Containers.Container(id) == nil, "Container should be removed if not in fixing status")
+	cID, _ := strconv.Atoi(id)
+	vmwEve := &types.VmRemovedEvent{
+		VmEvent: types.VmEvent{
+			Event: types.Event{
+				CreatedTime: time.Now().UTC(),
+				Key:         int32(cID),
+				Vm: &types.VmEventArgument{
+					Vm: container.vm.Reference(),
+				},
+			},
+		},
+	}
+	vmEvent := vsphere.NewVMEvent(vmwEve)
 
+	mgr.Publish(vmEvent)
+	time.Sleep(time.Millisecond * 30)
+	assertMsg := "Container should have left fixing state in VM remove event handler"
+	assert.False(t, container.vm.IsFixing(), assertMsg)
+
+	mgr.Publish(vmEvent)
+	time.Sleep(time.Millisecond * 30)
+	assertMsg = "Container should be removed now that it has left fixing state"
+	assert.True(t, Containers.Container(id) == nil, assertMsg)
 }
