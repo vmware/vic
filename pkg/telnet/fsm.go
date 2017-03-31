@@ -56,7 +56,7 @@ func (fsm *fsm) start() {
 		}
 		if err != nil {
 			log.Debugf("connection read: %v", err)
-			fsm.tc.Close()
+			fsm.tc.close()
 			break
 		}
 	}
