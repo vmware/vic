@@ -15,6 +15,8 @@
 
 mkdir /etc/vmware/admiral
 
+BUILD_ADMIRAL_REVISION="${BUILD_ADMIRAL_REVISION:-dev}"
+
 # start docker
 echo "starting Docker .."
 systemctl daemon-reload
@@ -24,7 +26,8 @@ echo "Docker started"
 # pull admiral image
 echo "Pulling Admiral Docker image.."
 # TODO(lcastellano): parametrize the image name
-docker pull vmware/admiral:dev-vic
+docker pull vmware/admiral:vic_${BUILD_ADMIRAL_REVISION}
+docker tag vmware/admiral:vic_${BUILD_ADMIRAL_REVISION} vmware/admiral:ova
 echo "Pulled Admiral image"
 
 # stop docker
