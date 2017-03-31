@@ -43,7 +43,8 @@ ${developer2}  test-user-developer2
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
     Install Harbor To Test Server  name=19-3-harbor  protocol=https
     Install Harbor Self Signed Cert
-    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt
+    # diable the tls check between dockercli and VCH
+    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${False}
     Create Project And Three Users For It  developer=${developer}  developer2=${developer2}  developerEmail=${developerEmail}  developerEmail2=${developerEmail2}  developerFullName=${developerFullName}  password=${password}  comments=${comments}  guest=${guest}  developerRole=${developerRole}  guestRole=${guestRole}  project=${project}  public=${False}
     Remove Environment Variable  DOCKER_HOST
 
@@ -97,9 +98,20 @@ Test Neg001 Developer Operations
 Test Pos003 Two VCH With One Harbor
     # Add another VC
     ${VCH1-URL} =    Set Variable    %{VCH-PARAMS}
-    Install VIC Appliance To Test Server  vol=default --insecure-registry %{HARBOR_IP}  certs=${False}
+    Set Test Environment Variables
+    # disable firewall
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
+
+    # Install the VCH now
+    Log To Console  \nInstalling VCH to test server...
+    ${output}=  Run VIC Machine Command  bin/vic-machine-linux  bin/appliance.iso  bin/bootstrap.iso  ${false}  default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${false}
+    Log To Console  Installer completed successfully: %{VCH-NAME}...
+
     Remove Environment Variable  DOCKER_HOST
-    ${VCH2-URL} =    Set Variable    %{VCH-PARAMS}
+    ${VCH2-URL}=  Set Variable  %{VCH-PARAMS}
 
     # Docker login VCH1
     Log To Console  \nRunning docker login developer VCH1...
