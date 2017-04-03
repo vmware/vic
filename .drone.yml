@@ -127,7 +127,8 @@ build:
       - make sincemark
     when:
       repo: vmware/vic
-      branch: [ master, refs/tags, release ]
+      event: [ push, tag ]
+      branch: [ master, release ]
       success: true
 
 notify:
@@ -139,7 +140,8 @@ notify:
       build https://ci.vmware.run/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
     when:
       repo: vmware/vic
-      branch: [ master, refs/tags, release ]
+      event: [ push, tag ]
+      branch: [ master, release ]
       failure: true
 
 publish:
@@ -157,7 +159,8 @@ publish:
         publish: true
     when:
       repo: vmware/vic
-      branch: [ master, refs/tags, release ]
+      event: [ push, tag ]
+      branch: [ master, release ]
       success: true
   coverage:
     server: https://coverage.vmware.run
@@ -165,5 +168,6 @@ publish:
     include: /drone/src/github.com/vmware/vic/.cover/cover.out
     when:
       repo: vmware/vic
-      branch: [ master, refs/tags, release ]
+      event: [ push, tag ]
+      branch: [ master, release ]
       success: true
