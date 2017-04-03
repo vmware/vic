@@ -60,14 +60,14 @@ function configureHarborCfg {
 function formatCert {
   content=$1
   file=$2
-  echo $content | sed -r "s/ /\n/g" | sed -r "/-+$/d" | sed -r "s/^(-+).*/& CERTIFICATE\1/g" > $file
+  echo $content | sed -r "s/-----BEGIN CERTIFICATE-----/-----BEGIN CERTIFICATE-----\n/g" | sed -r "s/-----END CERTIFICATE-----/\n-----END CERTIFICATE-----\n/g"
 }
 
 #Format key file
 function formatKey {
   content=$1
   file=$2
-  echo $content | sed -r "s/ /\n/g" | sed -r "/^PRIVATE$/d"| sed -r "/-+$/d" | sed -r "s/^(-+).*/& PRIVATE KEY\1/g" > $file
+  echo $content | sed -r "s/-----BEGIN.*PRIVATE KEY-----/-----BEGIN RSA PRIVATE KEY-----\n/g" | sed -r "s/-----END.*PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----\n/g"
 }
 
 function genCert {
