@@ -58,7 +58,7 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
 
-    Reboot VCH
+    Reboot VM  %{VCH-NAME}
 
     Log To Console  Getting VCH IP ...
     ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
@@ -125,7 +125,7 @@ Create VCH attach disk and reboot
     ${rc}=  Run And Return Rc  govc vm.disk.create -vm=%{VCH-NAME} -name=%{VCH-NAME}/deleteme -size "16M"
     Should Be Equal As Integers  ${rc}  0
 
-    Reboot VCH
+    Reboot VM  %{VCH-NAME}
 
     # wait for docker info to succeed
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}

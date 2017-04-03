@@ -49,6 +49,13 @@ Remove Host From Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.exit -host.ip=%{TEST_URL}
     Should Contain  ${output}  exiting maintenance mode... OK
 
+Reboot VM
+    [Arguments]  ${vm}
+    Log To Console  Rebooting ${vm} ...
+    Power Off VM OOB  ${vm}
+    Power On VM OOB  ${vm}
+    Log To Console  ${vm} Powered On
+
 Wait Until VM Powers On
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
