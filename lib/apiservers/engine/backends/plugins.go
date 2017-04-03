@@ -44,7 +44,7 @@ func (p *Plugin) List() ([]enginetypes.Plugin, error) {
 }
 
 func (p *Plugin) Inspect(name string) (*enginetypes.Plugin, error) {
-	return nil, fmt.Errorf("%s does not yet support plugins", ProductName())
+	return nil, nil
 }
 
 func (p *Plugin) Remove(name string, config *enginetypes.PluginRmConfig) error {

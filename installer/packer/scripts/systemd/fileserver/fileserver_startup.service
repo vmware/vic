@@ -1,7 +1,7 @@
 [Unit]
 Description=VIC Unified Installer Web Server Startup Configuration
 Documentation=https://github.com/vmware/vic
-After=systemd-networkd.service systemd-resolved.service
+After=systemd-networkd.service systemd-resolved.service admiral_startup.service
 Before=fileserver.service
 
 [Service]

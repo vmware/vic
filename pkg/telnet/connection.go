@@ -125,6 +125,11 @@ func newConn(opts *connOpts) *Conn {
 	return tc
 }
 
+//UnderlyingConnection returns the underlying TCP connection
+func (c *Conn) UnderlyingConnection() net.Conn {
+	return c.conn
+}
+
 func (c *Conn) writeLoop() {
 	log.Debugf("entered write loop")
 	for {
@@ -149,10 +154,11 @@ func (c *Conn) startNegotiation() {
 	}
 }
 
-// Close closes the telnet connection
-func (c *Conn) Close() {
+// close closes the telnet connection
+func (c *Conn) close() {
 	c.closedMutex.Lock()
 	defer c.closedMutex.Unlock()
+
 	c.closed = true
 	log.Infof("Closing the connection")
 	c.conn.Close()

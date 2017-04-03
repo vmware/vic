@@ -21,7 +21,7 @@ ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
 endif
-REV :=$(shell git rev-parse --short HEAD)
+REV :=$(shell git rev-parse --short=8 HEAD)
 TAG :=$(shell git describe --abbrev=0 --tags) # e.g. `v0.9.0`
 TAG_NUM :=$(shell git describe --abbrev=0 --tags | cut -c 2-) # e.g. `0.9.0`
 
@@ -406,10 +406,10 @@ ENV_FLEX_SDK_HOME = "/tmp/sdk/flex_sdk_min"
 ENV_HTML_SDK_HOME = "/tmp/sdk/html-client-sdk"
 
 vic-ui-plugins:
-	@npm install -g yarn
-	sed "s/0.0.1/$(TAG_NUM)/" ./$(VICUI_SOURCE_PATH)/plugin-package.xml > ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml
-	sed "s/1.0.0/$(TAG_NUM)/" ./$(VICUI_H5_UI_PATH)/plugin-package.xml > ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml
-	sed "s/UI_VERSION_PLACEHOLDER/$(TAG)/" ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties > ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties
+	@npm install -g yarn > /dev/null
+	sed "s/0.0.1/$(shell printf %s ${TAG_NUM})/" ./$(VICUI_SOURCE_PATH)/plugin-package.xml > ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml
+	sed "s/0.0.1/$(shell printf %s ${TAG_NUM})/" ./$(VICUI_H5_UI_PATH)/plugin-package.xml > ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml
+	sed "s/UI_VERSION_PLACEHOLDER/$(shell printf %s ${TAG})/" ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties > ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties
 	rm ./$(VICUI_SOURCE_PATH)/plugin-package.xml ./$(VICUI_H5_UI_PATH)/plugin-package.xml ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties
 	mv ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml ./$(VICUI_SOURCE_PATH)/plugin-package.xml
 	mv ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml ./$(VICUI_H5_UI_PATH)/plugin-package.xml

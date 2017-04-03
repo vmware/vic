@@ -32,5 +32,5 @@ ADMIRAL_JKS_LOCATION=""
   --log-driver=json-file \
   --log-opt max-size=1g \
   --log-opt max-file=10 \
-  vmware/admiral:dev-vic
+  vmware/admiral:ova
   
