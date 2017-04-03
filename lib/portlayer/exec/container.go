@@ -303,8 +303,6 @@ func (c *Container) Refresh(ctx context.Context) error {
 }
 
 func (c *Container) refresh(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
 	// c.Config is nil if this is a create operation
 	if c.Config != nil {
 		log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
