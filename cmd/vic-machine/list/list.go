@@ -178,7 +178,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 		return errors.New("list failed")
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
-	vchs, err := executor.SearchVCHs(validator.ResourcePoolPath)
+	vchs, err := executor.SearchVCHs(validator.ClusterPath)
 	if err != nil {
 		log.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.ResourcePoolPath, err)
 	}
