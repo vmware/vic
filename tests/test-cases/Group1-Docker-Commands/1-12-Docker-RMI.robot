@@ -25,7 +25,7 @@ Basic docker pull, restart, and remove image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine
     Should Be Equal As Integers  ${rc}  0
 
-    Reboot VCH
+    Reboot VM  %{VCH-NAME}
 
     Log To Console  Getting VCH IP ...
     ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
