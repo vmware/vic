@@ -60,14 +60,7 @@ function configureHarborCfg {
 function formatCert {
   content=$1
   file=$2
-  echo $content | sed -r "s/-----BEGIN CERTIFICATE-----/-----BEGIN CERTIFICATE-----\n/g" | sed -r "s/-----END CERTIFICATE-----/\n-----END CERTIFICATE-----\n/g"
-}
-
-#Format key file
-function formatKey {
-  content=$1
-  file=$2
-  echo $content | sed -r "s/-----BEGIN.*PRIVATE KEY-----/-----BEGIN RSA PRIVATE KEY-----\n/g" | sed -r "s/-----END.*PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----\n/g"
+  echo $content | sed -r 's/(-{5}BEGIN [A-Z ]+-{5})/&\n/g; s/(-{5}END [A-Z ]+-{5})/\n&\n/g' | sed -r 's/.{64}/&\n/g' > $file
 }
 
 function genCert {
@@ -96,7 +89,7 @@ function secure {
   if [ -n "$ssl_cert" ] && [ -n "$ssl_cert_key" ]; then
     echo "ssl_cert and ssl_cert_key are both set, using customized certificate"
     formatCert "$ssl_cert" $cert
-    formatKey "$ssl_cert_key" $key
+    formatCert "$ssl_cert_key" $key
     echo "customized" > $flag
     return
   fi
