@@ -52,6 +52,9 @@ Cons of this option is that every time to update a VCH, user need to know all th
 
 If there are many options specified to create VCH, and only a few things need to be tuned, the first option is more clear, and less effort to write the update command. But if there are less options specified in first create, and lots of changes needed, the second option will be easier to know what will be there after update.
 
+Preference:
+After discussion with Cheng, my preference is to support both options, cause each one can work well in one scenario. We might provide more flexibility to users.
+
 ## Show Existing VCH configuration
 Right now, there is no user friendly way to view all configurations of existing VCH. To support update operation, we need to make it easier, otherwise, update only makes things weird.
 
@@ -137,6 +140,29 @@ Endpoint:
 Based on this output, it's easy to modify existing configuration to update command options
 
 Note: Special character might be escaped based on current OS platform. But even with this, the command options cannot be copied to other platform.
+
+## Update In Progress Status
+Same to vic-machine upgrade, concurrent update requests for same VCH is not allowed. vic-machine should be able to detect if one VCH is running update/upgrade. If true, return useful error message. And also should not leave that update flag in there after update is stopped, or even interrupted.
+
+Issue https://github.com/vmware/vic/issues/4069 is tracking this problem.
+
+## Backward compatible
+It's possible that after vic engine released new version, user is trying to update older version's VCH with newer vic-machine.
+
+There are few options:
+- Run update using same version's vic-machine (this option should technically always work)
+
+  For any customers that do not want to change vic-machine version, they need to run update using same version's vic-machine.
+
+- Combine upgrade process into update
+
+  Upgrade is actually one special kind of update, technically it's easy to have upgrade run together with update. User might want to update VCH configuration, and also want to upgrade it after or before update. In that case, a combined update and upgrade command can provide a better user experience.
+
+ Here is the combined command ```vic-machine update --upgrade <all update and upgrade options supported here>```
+
+- Support backward compatibility in vic-machine
+
+  This will need to add backward compatible code in vic-machine. Even initially there is only few changes, that will expand massively over time, which is not consistent with our data migration design, so this is not our option.
 
 # VCH Update Rollback (P0.5)
 Similar to VCH upgrade workflow, before update VCH, snapshot should be took to keep existing status. If the update failed eventually, VCH should be reverted to old status automatically.
