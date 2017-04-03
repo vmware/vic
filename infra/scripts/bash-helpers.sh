@@ -93,6 +93,10 @@ addr-from-dockerhost () {
     echo $DOCKER_HOST | sed -e 's/:[0-9]*$//'
 }
 
+vic-tail() {
+    $(vic-path)/infra/scripts/vic-logs.sh -f $(echo $DOCKER_HOST | cut -d\: -f1) $*
+}
+
 # import the custom sites
 # example entry, actived by typing "example"
 # those variales that hold multiple arguments which may contain spaces are arrays to allow for proper quoting
