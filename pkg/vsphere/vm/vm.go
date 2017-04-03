@@ -492,9 +492,11 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 	name := mvm.Summary.Config.Name
 	log.Debugf("Unregister VM %s", name)
 	vm.EnterFixingState()
-	defer vm.LeaveFixingState()
 	if err := vm.Unregister(ctx); err != nil {
 		log.Errorf("Unable to unregister vm %q: %s", name, err)
+
+		// Leave fixing state since it will not be reset in the remove event handler
+		vm.LeaveFixingState()
 		return err
 	}
 

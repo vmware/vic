@@ -58,14 +58,18 @@ function configureAdmiralStart {
   fi
 }
 
-function format {
-  file=$1
-  head=$(sed -rn 's/(-+[A-Za-z ]*-+)([^-]*)(-+[A-Za-z ]*-+)/\1/p' $file)
-  body=$(sed -rn 's/(-+[A-Za-z ]*-+)([^-]*)(-+[A-Za-z ]*-+)/\2/p' $file)
-  tail=$(sed -rn 's/(-+[A-Za-z ]*-+)([^-]*)(-+[A-Za-z ]*-+)/\3/p' $file)
-  echo $head > $file
-  echo $body | sed  's/\s\+/\n/g' >> $file
-  echo $tail >> $file
+#Format cert file
+function formatCert {
+  content=$1
+  file=$2
+  echo $content | sed -r "s/-----BEGIN CERTIFICATE-----/-----BEGIN CERTIFICATE-----\n/g" | sed -r "s/-----END CERTIFICATE-----/\n-----END CERTIFICATE-----\n/g"
+}
+
+#Format key file
+function formatKey {
+  content=$1
+  file=$2
+  echo $content | sed -r "s/-----BEGIN.*PRIVATE KEY-----/-----BEGIN RSA PRIVATE KEY-----\n/g" | sed -r "s/-----END.*PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----\n/g"
 }
 
 function genCert {
@@ -96,10 +100,8 @@ function secure {
   ssl_cert_key=$(ovfenv -k management_portal.ssl_cert_key)
   if [ -n "$ssl_cert" ] && [ -n "$ssl_cert_key" ]; then
     echo "ssl_cert and ssl_cert_key are both set, using customized certificate"
-    echo $ssl_cert > $cert
-    format $cert
-    echo $ssl_cert_key > $key
-    format $key
+    formatCert "$ssl_cert" $cert
+    formatKey "$ssl_cert_key" $key
     echo "customized" > $flag
     echo "creating java keystore with provided cert for xenon"
     $javadir/keytool -import -noprompt -v -trustcacerts -alias selfsignedca -file $cert -keystore $jks -keypass changeit -storepass changeit

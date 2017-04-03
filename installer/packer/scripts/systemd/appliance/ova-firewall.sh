@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/bash
 # Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,24 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-mkdir /etc/vmware/admiral
-
-BUILD_ADMIRAL_REVISION="${BUILD_ADMIRAL_REVISION:-dev}"
-
-# start docker
-echo "starting Docker .."
-systemctl daemon-reload
-systemctl start docker
-echo "Docker started"
-
-# pull admiral image
-echo "Pulling Admiral Docker image.."
-# TODO(lcastellano): parametrize the image name
-docker pull vmware/admiral:vic_${BUILD_ADMIRAL_REVISION}
-docker tag vmware/admiral:vic_${BUILD_ADMIRAL_REVISION} vmware/admiral:ova
-echo "Pulled Admiral image"
-
-# stop docker
-echo "stopping Docker .."
-systemctl stop docker
-echo "Docker stopped"
+iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+iptables -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
