@@ -51,6 +51,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
@@ -1367,7 +1368,25 @@ func (c *Container) ContainerStats(ctx context.Context, name string, config *bac
 		out = io.Writer(wf)
 	}
 
-	err = c.containerProxy.StreamContainerStats(ctx, vc.ContainerID, out, config.Stream, cpuMhz, vc.HostConfig.Memory)
+	// stats configuration
+	statsConfig := &convert.ContainerStatsConfig{
+		VchMhz:      cpuMhz,
+		Stream:      config.Stream,
+		ContainerID: vc.ContainerID,
+		Out:         out,
+		Memory:      vc.HostConfig.Memory,
+	}
+
+	// if we are not streaming then we need to get the container state
+	if !config.Stream {
+		statsConfig.ContainerState, err = c.containerProxy.State(vc)
+		if err != nil {
+			return InternalServerError(err.Error())
+		}
+
+	}
+
+	err = c.containerProxy.StreamContainerStats(ctx, statsConfig)
 	if err != nil {
 		log.Errorf("error while streaming container (%s) stats: %s", vc.ContainerID, err)
 	}

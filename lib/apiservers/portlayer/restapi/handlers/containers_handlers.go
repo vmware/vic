@@ -335,34 +335,21 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 	enc := json.NewEncoder(w)
 	flusher := NewFlushingReader(r)
 
-	// channel used to receive metrics
-	var ch chan interface{}
-
-	if params.Stream {
-		subch, err := metrics.Supervisor.VMCollector().Subscribe(c)
-		if err != nil {
-			log.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
-			return containers.NewGetContainerStatsInternalServerError()
-		}
-		log.Debugf("container(%s) stats stream subscribed @ %d", params.ID, &subch)
-		ch = subch
-	} else {
-		sch, err := metrics.Supervisor.VMCollector().Sample(c)
-		if err != nil {
-			log.Errorf("unable to subscribe container(%s) to stats sample: %s", params.ID, err)
-			return containers.NewGetContainerStatsInternalServerError()
-		}
-		log.Debugf("container(%s) stats sample subscribed @ %d", params.ID, &sch)
-		ch = sch
+	// subscribe to metrics
+	// currently all stats requests will be a subscription and it will
+	// be the responsibility of the caller to close the connection
+	// and there by release the subscription
+	ch, err := metrics.Supervisor.VMCollector().Subscribe(c)
+	if err != nil {
+		log.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
+		return containers.NewGetContainerStatsInternalServerError()
 	}
+	log.Debugf("container(%s) stats stream subscribed @ %d", params.ID, &ch)
 
 	// closer will be run when the http transport is closed
 	cleaner := func() {
-		// streaming is a subscription, so unsubscribe if streaming
-		if params.Stream {
-			log.Debug("unsubscribing %s from stats %d", params.ID, &ch)
-			metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
-		}
+		log.Debugf("unsubscribing %s from stats %d", params.ID, &ch)
+		metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
 		closePipe(r, w)
 	}
 
