@@ -15,7 +15,6 @@
 package backends
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -319,8 +318,6 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 func (c *Container) ContainerExecResize(name string, height, width int) error {
 	defer trace.End(trace.Begin(name))
 
-	// FIXME(caglar10ur)
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainerFromExec(name)
 	if vc == nil {
@@ -402,12 +399,14 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		ca.UseStderr = false
 	}
 
-	// FIXME(caglar10ur): should call unbind?
-	// docker run -d busybox /bin/top
-	// docker exec -it {name} /bin/ash
-	//   - Detach
-	//   - Exit
-	err = c.containerProxy.AttachStreams(context.Background(), vc, eid, stdin, stdout, stderr, ca)
+	ac := &AttachConfig{
+		ID: eid,
+		ContainerAttachConfig: ca,
+		UseTty:                ec.Tty,
+		CloseStdin:            true,
+	}
+
+	err = c.containerProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
 			log.Infof("Detach detected, tearing down connection")
@@ -430,9 +429,9 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			}
 
 			if ec.ProcessConfig.ErrorMsg != "" {
-				detail := fmt.Sprintf("exec task error: %s", ec.ProcessConfig.ErrorMsg)
+				detail := fmt.Errorf("exec task error: %s", ec.ProcessConfig.ErrorMsg)
 				log.Warnf("Task %s reported: %s", detail)
-				return errors.New(detail)
+				return detail
 			}
 		}
 
@@ -1617,30 +1616,37 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 		return err
 	}
 
-	clStdin, clStdout, clStderr, err := ca.GetStreams()
+	stdin, stdout, stderr, err := ca.GetStreams()
 	if err != nil {
 		return InternalServerError("Unable to get stdio streams for calling client")
 	}
-	defer clStdin.Close()
+	defer stdin.Close()
 
 	if !vc.Config.Tty && ca.MuxStreams {
 		// replace the stdout/stderr with Docker's multiplex stream
 		if ca.UseStderr {
-			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
+			stderr = stdcopy.NewStdWriter(stderr, stdcopy.Stderr)
 		}
 		if ca.UseStdout {
-			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
+			stdout = stdcopy.NewStdWriter(stdout, stdcopy.Stdout)
 		}
-	}
-
-	if vc.Config.Tty {
-		ca.UseStderr = false
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
 
-	err = c.containerProxy.AttachStreams(context.Background(), vc, "", clStdin, clStdout, clStderr, ca)
+	if vc.Config.Tty {
+		ca.UseStderr = false
+	}
+
+	ac := &AttachConfig{
+		ID: id,
+		ContainerAttachConfig: ca,
+		UseTty:                vc.Config.Tty,
+		CloseStdin:            vc.Config.StdinOnce,
+	}
+
+	err = c.containerProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
 			// fire detach event

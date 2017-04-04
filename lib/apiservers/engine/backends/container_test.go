@@ -348,7 +348,7 @@ func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName strin
 	return nil
 }
 
-func (m *MockContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
+func (m *MockContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, clStdin io.ReadCloser, clStdout, clStderr io.Writer) error {
 	return nil
 }
 

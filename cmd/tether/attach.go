@@ -48,6 +48,7 @@ type AttachServer interface {
 	stop() error
 }
 
+// config is a struct that holds Sessions and Execs
 type config struct {
 	Key []byte
 
@@ -59,9 +60,9 @@ type attachServerSSH struct {
 	// serializes data access for exported functions
 	m sync.Mutex
 
-	// conn is held directly as it is how we stop the attach server
+	// conn is the underlying net.Conn which carries SSH
+	// held directly as it is how we stop the attach server
 	conn struct {
-		// serializes data access for the underlying conn
 		sync.Mutex
 		conn net.Conn
 	}
@@ -161,35 +162,33 @@ func (t *attachServerSSH) Stop() error {
 	return server.stop()
 }
 
+func (t *attachServerSSH) reload() error {
+	t.serverConn.Lock()
+	defer t.serverConn.Unlock()
+
+	if t.serverConn.ServerConn != nil {
+		msg := msgs.ContainersMsg{
+			IDs: t.sessions(),
+		}
+		payload := msg.Marshal()
+
+		ok, _, err := t.serverConn.SendRequest(msgs.ContainersReq, true, payload)
+		if !ok || err != nil {
+			return fmt.Errorf("failed to send container ids: %s, %t", err, ok)
+		}
+	}
+	return nil
+}
+
 func (t *attachServerSSH) start() error {
 	defer trace.End(trace.Begin("start attach server"))
 
-	if t == nil {
-		err := fmt.Errorf("attach server is not configured")
-		log.Error(err)
-		return err
-	}
-
+	// if we come here while enabled, reload
 	if t.Enabled() {
-		t.serverConn.Lock()
-		if t.serverConn.ServerConn != nil {
-			msg := msgs.ContainersMsg{
-				IDs: t.sessions(),
-			}
-			payload := msg.Marshal()
-
-			ok, _, err := t.serverConn.SendRequest(msgs.ContainersReq, true, payload)
-			if !ok || err != nil {
-				log.Errorf("failed to send container ids: %s, %t", err, ok)
-			}
-			t.serverConn.Unlock()
-
-			return nil
+		log.Debugf("Start called while enabled, reloading")
+		if err := t.reload(); err != nil {
+			log.Warn(err)
 		}
-		t.serverConn.Unlock()
-
-		err := fmt.Errorf("attach server is already enabled")
-		log.Warn(err)
 		return nil
 	}
 
@@ -528,8 +527,6 @@ func (t *attachServerSSH) sessions() []string {
 	for k, v := range t.config.Execs {
 		// skip those that have had launch errors
 		if v.Active && v.StopTime == 0 && (v.Started == "" || v.Started == "true") {
-			log.Debugf("Adding %s to keys %t", v.ID, v.Active)
-
 			keys = append(keys, k)
 		}
 	}
@@ -541,6 +538,10 @@ func (t *attachServerSSH) sessions() []string {
 func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func()) {
 	defer trace.End(trace.Begin("attach server global request handler"))
 
+	// cleanup function passed by the caller
+	defer cleanup()
+
+	// for the actions after we process the request
 	var pendingFn func()
 	for req := range reqchan {
 		var payload []byte
@@ -576,15 +577,10 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func())
 			pendingFn = nil
 		}
 	}
-	log.Info("Global mux closed")
-	cleanup()
 }
 
 func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.SessionConfig, cleanup func()) {
 	defer trace.End(trace.Begin("attach server channel request handler"))
-
-	// for the actions after we process the request
-	var pendingFn func()
 
 	// cleanup function passed by the caller
 	defer cleanup()
@@ -592,6 +588,8 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 	// to make sure we close the channel once
 	var once sync.Once
 
+	// for the actions after we process the request
+	var pendingFn func()
 	for req := range in {
 		ok := true
 		abort := false

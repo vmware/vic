@@ -98,3 +98,40 @@ Stop a container stuck in starting state
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json */${name}* | jq -r .VirtualMachines[].Runtime.PowerState
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  poweredOff
+
+Attach with custom detach keys
+    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
+    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom
+    Sleep  3
+    Run  echo a > /tmp/fifo
+    ${ret}=  Wait For Process  custom
+    Should Be Equal As Integers  ${ret.rc}  0
+    Should Be Empty  ${ret.stdout}
+    Should Be Empty  ${ret.stderr}
+
+Reattach to container
+    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
+    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom
+    Sleep  3
+    Run  echo a > /tmp/fifo
+    ${ret}=  Wait For Process  custom
+    Should Be Equal As Integers  ${ret.rc}  0
+    Should Be Empty  ${ret.stdout}
+    Should Be Empty  ${ret.stderr}
+    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom2
+    Sleep  3
+    Run  echo a > /tmp/fifo
+    ${ret}=  Wait For Process  custom2
+    Should Be Equal As Integers  ${ret.rc}  0
+    Should Be Empty  ${ret.stdout}
+    Should Be Empty  ${ret.stderr}

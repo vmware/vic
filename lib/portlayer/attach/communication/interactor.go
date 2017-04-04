@@ -17,9 +17,9 @@ package communication
 import (
 	"fmt"
 	"io"
-	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/matryer/resync"
 
 	"golang.org/x/crypto/ssh"
 
@@ -57,7 +57,7 @@ type interaction struct {
 	channel ssh.Channel
 
 	// avoid spamming unblock messages
-	unblocked sync.Once
+	unblocked resync.Once
 }
 
 // ContainerIDs asks the ids of the containers on the other hand and return them to the caller
@@ -193,9 +193,7 @@ func (t *interaction) Unblock() error {
 		ok, err := t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg))
 		if !ok || err != nil {
 			log.Errorf("failed to unblock the other side: %s", err)
-			// TODO: swap this out for github.com/matryer/resync once we can adjust the
-			// OSS manifest
-			t.unblocked = sync.Once{}
+			t.unblocked.Reset()
 		}
 	})
 

@@ -100,7 +100,7 @@ type VicContainerProxy interface {
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
-	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
+	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -118,6 +118,22 @@ type volumeFields struct {
 	ID    string
 	Dest  string
 	Flags string
+}
+
+// AttachConfig wraps backend.ContainerAttachConfig and adds other required fields
+// Similar to https://github.com/docker/docker/blob/master/container/stream/attach.go
+type AttachConfig struct {
+	*backend.ContainerAttachConfig
+
+	// ID of the session
+	ID string
+	// Tells the attach copier that the stream's stdin is a TTY and to look for
+	// escape sequences in stdin to detach from the stream.
+	// When true the escape sequence is not passed to the underlying stream
+	UseTty bool
+	// CloseStdin signals that once done, stdin for the attached stream should be closed
+	// For example, this would close the attached container's stdin.
+	CloseStdin bool
 }
 
 const (
@@ -925,43 +941,47 @@ func (c *ContainerProxy) Resize(id string, height, width int32) error {
 // AttachStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
 // clStdin, clStdout, clStderr are the hijacked connection
-func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
+func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error {
 	// Cancel will close the child connections.
 	var wg, outWg sync.WaitGroup
 	errors := make(chan error, 3)
 
 	// For stdin, we only have a timeout for connection.  There can be a long duration before
 	// the first entry so there is no timeout for response.
-	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
+	client, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
 
 	var keys []byte
 	var err error
-	if ca.DetachKeys != "" {
-		keys, err = term.ToBytes(ca.DetachKeys)
+	if ac.DetachKeys != "" {
+		keys, err = term.ToBytes(ac.DetachKeys)
 		if err != nil {
-			return fmt.Errorf("Invalid escape keys (%s) provided", ca.DetachKeys)
+			return fmt.Errorf("Invalid escape keys (%s) provided", ac.DetachKeys)
 		}
 	}
 
 	// ensure that the API client connection is shutdown on exit
 	// TODO: see if this is needed, or if callers of postContainersAttach will clean up
 	// on clean exit path
-	defer clStdin.Close()
+	defer func() {
+		if stdin != nil {
+			stdin.Close()
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if ca.UseStdin {
+	if ac.UseStdin {
 		wg.Add(1)
 	}
 
-	if ca.UseStdout {
+	if ac.UseStdout {
 		wg.Add(1)
 		outWg.Add(1)
 	}
 
-	if ca.UseStderr {
+	if ac.UseStderr {
 		wg.Add(1)
 		outWg.Add(1)
 	}
@@ -972,14 +992,14 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		cancel()
 	}()
 
-	if ca.UseStdin {
+	if ac.UseStdin {
 		go func() {
 			defer wg.Done()
-			err := copyStdIn(ctx, plClient, vc, eid, clStdin, keys)
+			err := copyStdIn(ctx, client, ac, stdin, keys)
 			if err != nil {
-				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err)
+				log.Errorf("container attach: stdin (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stdin (%s) done", vc.ContainerID)
+				log.Infof("container attach: stdin (%s) done", ac.ID)
 			}
 
 			// only trigger the cancel of stdout/stderr if it's a client side close that triggered
@@ -987,7 +1007,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 
 			// TODO: I've no idea what the actual semantic intent is of stdinOnce, so hard to say
 			// if this is actually correct behaviour even without the inCtx check.
-			if !vc.Config.StdinOnce || vc.Config.Tty {
+			if !ac.CloseStdin || ac.UseTty {
 				cancel()
 			}
 
@@ -997,16 +1017,16 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		}()
 	}
 
-	if ca.UseStdout {
+	if ac.UseStdout {
 		go func() {
 			defer outWg.Done()
 			defer wg.Done()
 
-			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, eid, clStdout)
+			err := copyStdOut(ctx, client, ac, stdout, attachAttemptTimeout)
 			if err != nil {
-				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err)
+				log.Errorf("container attach: stdout (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stdout (%s) done", vc.ContainerID)
+				log.Infof("container attach: stdout (%s) done", ac.ID)
 			}
 
 			if err != context.Canceled && err != io.EOF {
@@ -1015,16 +1035,16 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		}()
 	}
 
-	if ca.UseStderr {
+	if ac.UseStderr {
 		go func() {
 			defer outWg.Done()
 			defer wg.Done()
 
-			err := copyStdErr(ctx, plClient, vc, eid, clStderr)
+			err := copyStdErr(ctx, client, ac, stderr)
 			if err != nil {
-				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err)
+				log.Errorf("container attach: stderr (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stderr (%s) done", vc.ContainerID)
+				log.Infof("container attach: stderr (%s) done", ac.ID)
 			}
 
 			if err != context.Canceled && err != io.EOF {
@@ -1039,7 +1059,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 	// close the channel so that we don't leak (if there is an error)/or get blocked (if there are no errors)
 	close(errors)
 
-	log.Infof("cleaned up connections to %s. Checking errors", vc.ContainerID)
+	log.Infof("cleaned up connections to %s. Checking errors", ac.ID)
 	for err := range errors {
 		if err != nil {
 			// check if we got DetachError
@@ -1741,7 +1761,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 // ContainerAttach() Utility Functions
 //------------------------------------
 
-func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, keys []byte) error {
+func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clStdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
 	defer stdinReader.Close()
@@ -1783,7 +1803,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		// he/she is using.
 		log.Debugf("copyStdIn writing primer bytes")
 		stdinWriter.Write([]byte(attachStdinInitString))
-		if vc.Config.Tty {
+		if ac.UseTty {
 			_, err = copyEscapable(stdinWriter, clStdin, keys)
 		} else {
 			_, err = io.Copy(stdinWriter, clStdin)
@@ -1799,10 +1819,8 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		}
 	}()
 
-	id := vc.ContainerID
-	if eid != "" {
-		id = eid
-	}
+	id := ac.ID
+
 	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
 	// to set the stdin is synchronous so we need to run in a goroutine
 	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(id)
@@ -1811,7 +1829,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
 	<-done
 
-	if vc.Config.StdinOnce && !vc.Config.Tty {
+	if ac.CloseStdin && !ac.UseTty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
 		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
 		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(id)
@@ -1829,11 +1847,8 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	return err
 }
 
-func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.Duration, vc *viccontainer.VicContainer, eid string, clStdout io.Writer) error {
-	id := vc.ContainerID
-	if eid != "" {
-		id = eid
-	}
+func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clStdout io.Writer, attemptTimeout time.Duration) error {
+	id := ac.ID
 
 	//Calculate how much time to let portlayer attempt
 	plAttemptTimeout := attemptTimeout - attachPLAttemptDiff //assumes personality deadline longer than portlayer's deadline
@@ -1857,11 +1872,8 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.D
 	return nil
 }
 
-func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, eid string, clStderr io.Writer) error {
-	id := vc.ContainerID
-	if eid != "" {
-		id = eid
-	}
+func copyStdErr(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clStderr io.Writer) error {
+	id := ac.ID
 
 	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(id)
 	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)

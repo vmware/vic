@@ -63,17 +63,10 @@ func NewConnector(listener net.Listener, debug bool) *Connector {
 	return connector
 }
 
-// Interaction returns the interactor corresponding to the specified ID. If the connection doesn't exist
-// the method will wait for the specified timeout, returning when the connection is created
-// or the timeout expires, whichever occurs first
-func (c *Connector) Interaction(ctx context.Context, id string, timeout time.Duration) (SessionInteractor, error) {
-	defer trace.End(trace.Begin(id))
-
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	// FIXME(caglar10ur): ugly lock/unlock dance
+func (c *Connector) aliveAndKicking(ctx context.Context, id string) SessionInteractor {
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	conn := c.interactions[id]
 	// we already established this connection, let's check it status
 	if conn != nil {
@@ -85,20 +78,34 @@ func (c *Connector) Interaction(ctx context.Context, id string, timeout time.Dur
 			if err := conn.Unblock(); err == nil {
 				log.Infof("attach connector: Unblocked %s, returning", id)
 			}
-			c.mutex.Unlock()
-			return conn, nil
+			return conn
 		}
 		// ping failed so we need to remove it from the map
-		log.Infof("attach connector: Ping failed, removing %s", id)
+		log.Infof("attach connector: Ping test failed, removing %s from connection map", id)
 		delete(c.interactions, id)
-	} else if timeout == 0 {
-		c.mutex.Unlock()
-		return nil, fmt.Errorf("no such connection")
 	}
-	c.mutex.Unlock()
+
+	return nil
+}
+
+// Interaction returns the interactor corresponding to the specified ID. If the connection doesn't exist
+// the method will wait for the specified timeout, returning when the connection is created
+// or the timeout expires, whichever occurs first
+func (c *Connector) Interaction(ctx context.Context, id string, timeout time.Duration) (SessionInteractor, error) {
+	defer trace.End(trace.Begin(id))
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	conn := c.aliveAndKicking(ctx, id)
+	if conn != nil {
+		return conn, nil
+	}
+	if conn == nil && timeout == 0 {
+		return nil, fmt.Errorf("attach connector: no such connection")
+	}
 
 	result := make(chan SessionInteractor, 1)
-
 	go func() {
 		ok := false
 		var conn SessionInteractor
@@ -149,14 +156,11 @@ func (c *Connector) RemoveInteraction(id string) error {
 	var err error
 
 	if c.interactions[id] != nil {
-		log.Debugf("Removing %s from the map", id)
+		log.Debugf("attach connector: Removing %s from the connection map", id)
 		err = c.interactions[id].Close()
 		delete(c.interactions, id)
 	}
 
-	for i := range c.interactions {
-		log.Debugf("We have %s in the map after the RemoveInteraction", c.interactions[i])
-	}
 	return err
 }
 
@@ -296,6 +300,9 @@ func (c *Connector) processIncoming(conn net.Conn) {
 	return
 }
 
+// ids iterates over the gived ids and
+// - calls Ping for existing connections
+// - calls NewSSHInteraction for new connections and fills the connection map
 func (c *Connector) ids(conn ssh.Conn, ids []string) {
 	for _, id := range ids {
 		c.mutex.RLock()
@@ -328,11 +335,14 @@ func (c *Connector) ids(conn ssh.Conn, ids []string) {
 	}
 }
 
+// reqs is the global request channel of the portlayer side of the connection
+// we keep a list of  sessions assosiacated with this connection and drop them from the map when the global mux exits
 func (c *Connector) reqs(reqs <-chan *ssh.Request, conn ssh.Conn, ids []string) {
 	defer trace.End(trace.Begin(""))
 
 	var pending func()
 
+	// list of session ids mux'ed on this connection
 	droplist := make(map[string]struct{})
 
 	// fill the map with the initial ids
@@ -344,7 +354,6 @@ func (c *Connector) reqs(reqs <-chan *ssh.Request, conn ssh.Conn, ids []string) 
 		ok := true
 
 		log.Infof("received global request type %v", req.Type)
-
 		switch req.Type {
 		case msgs.ContainersReq:
 			pending = func() {
@@ -380,13 +389,14 @@ func (c *Connector) reqs(reqs <-chan *ssh.Request, conn ssh.Conn, ids []string) 
 		}
 	}
 
-	// global mux closed so time to do cleanup
+	// global mux closed so it is time to do cleanup
 	for id := range droplist {
 		log.Infof("Droping %s from connection map", id)
 		c.RemoveInteraction(id)
 	}
 }
 
+// this is the channel mux for the ssh channel . It is configured to reject everything (required)
 func (c *Connector) chans(chans <-chan ssh.NewChannel) {
 	defer trace.End(trace.Begin(""))
 
