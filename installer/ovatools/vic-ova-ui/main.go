@@ -81,27 +81,25 @@ func main() {
 		ips = fmt.Sprintf("error: %s\n", err.Error())
 	}
 
-	ifaces, _ := net.Interfaces()
-	for _, i := range ifaces {
-		addrs, _ := i.Addrs()
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			// If the IP is a loopback interface, coming from docker0 or an ip6, we don't need it
-			if ip.IsLoopback() || ip.String() == "172.17.0.1" || ip.To4() == nil {
-				continue
-			}
-			if strings.ToLower(ovf.Properties["registry.deploy"]) == "true" {
-				ips = fmt.Sprintf("%sAccess the Container Registry at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["registry.port"])
-			}
-			if strings.ToLower(ovf.Properties["management_portal.deploy"]) == "true" {
-				ips = fmt.Sprintf("%sAccess the Container Management Portal at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["management_portal.port"])
-			}
+	iface, err := net.InterfaceByName("eth0")
+	addrs, _ := iface.Addrs()
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		// If the IP is a loopback address an ipv6, we don't need it
+		if ip.IsLoopback() || ip.To4() == nil {
+			continue
+		}
+		if strings.ToLower(ovf.Properties["registry.deploy"]) == "true" {
+			ips = fmt.Sprintf("%sAccess the Container Registry at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["registry.port"])
+		}
+		if strings.ToLower(ovf.Properties["management_portal.deploy"]) == "true" {
+			ips = fmt.Sprintf("%sAccess the Container Management Portal at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["management_portal.port"])
 		}
 	}
 
