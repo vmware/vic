@@ -161,12 +161,6 @@ END
 }
 
 attrs=( 
-  appliance.email_server 
-  appliance.email_server_port 
-  appliance.email_username 
-  appliance.email_password 
-  appliance.email_from 
-  appliance.email_ssl
   registry.admin_password
   registry.db_password
   registry.gc_enabled
