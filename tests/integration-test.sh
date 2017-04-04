@@ -12,7 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+
+. tests/utils.sh
+wait_for_idle_server
+
+# The time gap between wait_for_idle_server and pybot may still cause
+# multiple tests run on the same server, though with a significantly
+# smaller probability
 
 set -x
 gsutil version -l

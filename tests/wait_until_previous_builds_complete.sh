@@ -13,17 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-unit_test_array=($TEST_URL_ARRAY)
-numServers=${#unit_test_array[@]}
-DRONE_BUILD_NUMBER=${DRONE_BUILD_NUMBER:=0}
-prevBuildStatus=`drone build info vmware/vic $(( $DRONE_BUILD_NUMBER-$numServers ))`
-outArray=($prevBuildStatus)
-
-while [[ ${outArray[2]} == *"running"* ]]; do
-    echo "Waiting 5 minutes for previous build to complete";
-    sleep 300;
-    prevBuildStatus=`drone build info vmware/vic $(( $DRONE_BUILD_NUMBER-$numServers ))`
-    outArray=($prevBuildStatus)
-done
-
+. tests/utils.sh
+wait_for_idle_server
 exit 0

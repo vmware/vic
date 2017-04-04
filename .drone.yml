@@ -24,6 +24,8 @@ build:
       TEST_URL_ARRAY:  $$TEST_URL_ARRAY
       DRONE_SERVER:  $$DRONE_SERVER
       DRONE_TOKEN:  $$DRONE_TOKEN
+      TEST_USERNAME:  $$TEST_USERNAME
+      TEST_PASSWORD:  $$TEST_PASSWORD
     commands:
       - tests/wait_until_previous_builds_complete.sh
 
