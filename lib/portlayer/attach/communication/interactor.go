@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@ package communication
 import (
 	"fmt"
 	"io"
+	"sync"
+
+	log "github.com/Sirupsen/logrus"
 
 	"golang.org/x/crypto/ssh"
 
@@ -52,6 +55,9 @@ type SessionInteractor interface {
 // interaction implements SessionInteractor using SSH
 type interaction struct {
 	channel ssh.Channel
+
+	// avoid spamming unblock messages
+	unblocked sync.Once
 }
 
 // ContainerIDs asks the ids of the containers on the other hand and return them to the caller
@@ -183,10 +189,15 @@ func (t *interaction) Ping() error {
 func (t *interaction) Unblock() error {
 	defer trace.End(trace.Begin(""))
 
-	ok, err := t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg))
-	if !ok || err != nil {
-		return fmt.Errorf("failed to unblock the other side: %s", err)
-	}
+	t.unblocked.Do(func() {
+		ok, err := t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg))
+		if !ok || err != nil {
+			log.Errorf("failed to unblock the other side: %s", err)
+			// TODO: swap this out for github.com/matryer/resync once we can adjust the
+			// OSS manifest
+			t.unblocked = sync.Once{}
+		}
+	})
 
 	return nil
 }

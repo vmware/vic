@@ -559,18 +559,22 @@ func (t *tether) Register(name string, extension Extension) {
 // handling a failure to launch
 // caller needs to hold session Lock
 func (t *tether) cleanupSession(session *SessionConfig) {
-	log.Debugf("Calling close on reader")
-	if err := session.Reader.Close(); err != nil {
-		log.Warnf("Close for Reader returned %s", err)
-	}
-
 	// close down the outputs
 	log.Debugf("Calling close on writers")
 	if err := session.Outwriter.Close(); err != nil {
 		log.Warnf("Close for Outwriter returned %s", err)
 	}
+
+	// this is a little ugly, however ssh channel.Close will get invoked by these calls,
+	// whereas CloseWrite will be invoked by the OutWriter.Close so that goes first.
 	if err := session.Errwriter.Close(); err != nil {
 		log.Warnf("Close for Errwriter returned %s", err)
+	}
+	// if we're calling this we don't care about truncation of pending input, so this is
+	// called last
+	log.Debugf("Calling close on reader")
+	if err := session.Reader.Close(); err != nil {
+		log.Warnf("Close for Reader returned %s", err)
 	}
 
 	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)

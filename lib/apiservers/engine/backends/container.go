@@ -1654,14 +1654,14 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 			}()
 
-			handle, err := c.Handle(id, name)
-			if err != nil {
-				return err
-			}
+			// handle, err := c.Handle(id, name)
+			// if err != nil {
+			// 	return err
+			// }
 
-			if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
-				return err
-			}
+			// if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
+			// 	return err
+			// }
 		}
 		return err
 	}

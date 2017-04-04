@@ -927,7 +927,7 @@ func (c *ContainerProxy) Resize(id string, height, width int32) error {
 // clStdin, clStdout, clStderr are the hijacked connection
 func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, eid string, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
 	// Cancel will close the child connections.
-	var wg sync.WaitGroup
+	var wg, outWg sync.WaitGroup
 	errors := make(chan error, 3)
 
 	// For stdin, we only have a timeout for connection.  There can be a long duration before
@@ -944,39 +944,50 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		}
 	}
 
-	var inCtx context.Context
-	var inCancel, cancel func()
+	// ensure that the API client connection is shutdown on exit
+	// TODO: see if this is needed, or if callers of postContainersAttach will clean up
+	// on clean exit path
+	defer clStdin.Close()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if ca.UseStdin {
 		wg.Add(1)
-		inCtx, inCancel = context.WithCancel(ctx)
-		defer inCancel()
 	}
 
 	if ca.UseStdout {
 		wg.Add(1)
+		outWg.Add(1)
 	}
 
 	if ca.UseStderr {
 		wg.Add(1)
+		outWg.Add(1)
 	}
 
-	if ca.UseStderr || ca.UseStdout {
-		ctx, cancel = context.WithCancel(ctx)
-		defer cancel()
-	}
+	// shut down everything if all output streams are complete
+	go func() {
+		outWg.Wait()
+		cancel()
+	}()
 
 	if ca.UseStdin {
 		go func() {
 			defer wg.Done()
-			err := copyStdIn(inCtx, plClient, vc, eid, clStdin, keys)
+			err := copyStdIn(ctx, plClient, vc, eid, clStdin, keys)
 			if err != nil {
 				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err)
 			} else {
 				log.Infof("container attach: stdin (%s) done", vc.ContainerID)
 			}
 
+			// only trigger the cancel of stdout/stderr if it's a client side close that triggered
+			// this, not the exit of one of stdout/stderr
+
+			// TODO: I've no idea what the actual semantic intent is of stdinOnce, so hard to say
+			// if this is actually correct behaviour even without the inCtx check.
 			if !vc.Config.StdinOnce || vc.Config.Tty {
-				// close stdout/stderr
 				cancel()
 			}
 
@@ -988,6 +999,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 
 	if ca.UseStdout {
 		go func() {
+			defer outWg.Done()
 			defer wg.Done()
 
 			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, eid, clStdout)
@@ -995,10 +1007,6 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err)
 			} else {
 				log.Infof("container attach: stdout (%s) done", vc.ContainerID)
-			}
-
-			if inCancel != nil {
-				inCancel()
 			}
 
 			if err != context.Canceled && err != io.EOF {
@@ -1009,6 +1017,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 
 	if ca.UseStderr {
 		go func() {
+			defer outWg.Done()
 			defer wg.Done()
 
 			err := copyStdErr(ctx, plClient, vc, eid, clStderr)
@@ -1016,10 +1025,6 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err)
 			} else {
 				log.Infof("container attach: stderr (%s) done", vc.ContainerID)
-			}
-
-			if inCancel != nil {
-				inCancel()
 			}
 
 			if err != context.Canceled && err != io.EOF {
@@ -1748,6 +1753,18 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		// make sure we get out of io.Copy if context is canceled
 		select {
 		case <-ctx.Done():
+			// This will cause the transport to the API client to be shut down, so all output
+			// streams will get closed as well.
+			// See the closer in container_routes.go:postContainersAttach
+
+			// TO BE CONFIRMED: we're closing this here to disrupt the io.Copy below
+			// TODO: seems like we should be providing an io.Copy impl with ctx argument that honors
+			// cancelation with the amount of code dedicated to working around it
+
+			// TODO: I think this still leaves a race between closing of the API client transport and
+			// copying of the output streams, it's just likely the error will be dropped as the transport is
+			// closed when it occurs.
+			// We should move away from needing to close transports to interrupt reads.
 			clStdin.Close()
 		case <-done:
 		}

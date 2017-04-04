@@ -72,7 +72,8 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	proxyURI := fmt.Sprintf("telnet://%s:%d", ip, constants.SerialOverLANPort)
 
 	if b.ProxyURI == proxyURI && c.Connected == connected {
-		log.Debugf("Already in the desired state, continuing to enforce state via changeVersion update (connected: %t, proxyURI: %s)", connected, proxyURI)
+		log.Debugf("Already in the desired state, (connected: %t, proxyURI: %s)", connected, proxyURI)
+		return handle, nil
 	}
 
 	// set the values

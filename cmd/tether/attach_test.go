@@ -540,6 +540,139 @@ func TestAttachTTYStdinClose(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////////////
+// TestEcho ensures we get back data without a tty and without any stdin interaction
+//
+func TestEcho(t *testing.T) {
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
+
+	testServer, _ := server.(*testAttachServer)
+
+	cfg := executor.ExecutorConfig{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
+			ID:   "echo",
+			Name: "tether_test_executor",
+		},
+
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
+
+		Sessions: map[string]*executor.SessionConfig{
+			"echo": {
+				Common: executor.Common{
+					ID:   "echo",
+					Name: "tether_test_session",
+				},
+				Tty:    false,
+				Attach: true,
+				Active: true,
+
+				OpenStdin: true,
+				RunBlock:  true,
+
+				Cmd: executor.Cmd{
+					Path: "/bin/echo",
+					// reading from stdin
+					Args: []string{"/bin/echo", "hello"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
+	}
+
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
+
+	// wait for updates to occur
+	<-testServer.updated
+
+	if !testServer.enabled {
+		t.Errorf("attach server was not enabled")
+	}
+
+	containerConfig := &ssh.ClientConfig{
+		User: "daemon",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	// create the SSH client from the mocked connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", containerConfig)
+	assert.NoError(t, err)
+	defer sshConn.Close()
+
+	ssh.NewClient(sshConn, chans, reqs)
+	_, err = communication.ContainerIDs(sshConn)
+	assert.NoError(t, err)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID)
+	assert.NoError(t, err)
+
+	// unblock before grabbing stdout - this should buffer in ssh
+	sshSession.Unblock()
+	stdin := sshSession.Stdin()
+	stdout := sshSession.Stdout()
+	stderr := sshSession.Stderr()
+
+	doneStdout := make(chan bool)
+	doneStderr := make(chan bool)
+	doneStdin := make(chan bool)
+
+	// read from session into buffer
+	bufout := &bytes.Buffer{}
+	go func() {
+		io.Copy(bufout, stdout)
+		log.Debug("stdout copy complete")
+		doneStdout <- true
+	}()
+
+	// read from session into buffer
+	buferr := &bytes.Buffer{}
+	go func() {
+		io.Copy(buferr, stderr)
+		log.Debug("stderr copy complete")
+		doneStderr <- true
+	}()
+
+	// nothing being sent, but is attached
+	pr, _, err := os.Pipe()
+	assert.NoError(t, err)
+	go func() {
+		io.Copy(stdin, pr)
+		log.Debug("stdin copy complete")
+		doneStdin <- true
+	}()
+
+	// seeing if premature close of stdin causes problems
+	sshSession.CloseStdin()
+
+	// wait for the close to propagate
+	<-doneStdout
+	assert.Equal(t, "hello\n", string(bufout.Bytes()))
+
+	<-doneStderr
+	assert.Equal(t, "", string(buferr.Bytes()))
+
+	// TODO: remove this when we've verified stdin behaviour
+}
+
+func TestEchoRepeat(t *testing.T) {
+	log.SetLevel(log.WarnLevel)
+
+	for i := 0; i < 100 && !t.Failed(); i++ {
+		TestEcho(t)
+	}
+
+	defer log.SetLevel(log.DebugLevel)
+}
+
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////
 // TestAttachMultiple sets up the config for attach testing - tests launching and
 // attaching to multiple processes simultaneously
 //

@@ -114,8 +114,15 @@ func (t *attachServerSSH) Reload(tconfig *tether.ExecutorConfig) error {
 	// structure if/while it's being updated.
 	// The subelements generally have locks or updated in single assignment
 	t.config.Key = tconfig.Key
-	t.config.Sessions = tconfig.Sessions
-	t.config.Execs = tconfig.Execs
+	t.config.Sessions = make(map[string]*tether.SessionConfig)
+	for k, v := range tconfig.Sessions {
+		t.config.Sessions[k] = v
+	}
+
+	t.config.Execs = make(map[string]*tether.SessionConfig)
+	for k, v := range tconfig.Execs {
+		t.config.Execs[k] = v
+	}
 
 	err := server.start()
 	if err != nil {
@@ -650,7 +657,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 		if req.WantReply {
 			log.Debugf("Sending channel request reply %t back", ok)
 			if err := req.Reply(ok, nil); err != nil {
-				log.Warnf("Failed to reply a channel request back")
+				log.Warnf("Failed replying to a channel request: %s", err)
 			}
 		}
 
