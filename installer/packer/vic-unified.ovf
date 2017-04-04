@@ -211,11 +211,11 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
       </Property>
       <Property ovf:key="DNS" ovf:type="string" ovf:userConfigurable="true">
         <Label>2.4. Domain Name Servers</Label>
-        <Description>The domain name server IP Addresses for this VM (comma separated). Leave blank if DHCP is desired.</Description>
+        <Description>The domain name server IP Addresses for this VM (space separated). Leave blank if DHCP is desired.</Description>
       </Property>
       <Property ovf:key="searchpath" ovf:type="string" ovf:userConfigurable="true">
         <Label>2.5. Domain Search Path</Label>
-        <Description>The domain search path (comma or space separated domain names) for this VM. Leave blank if DHCP is desired.</Description>
+        <Description>The domain search path (space separated domain names) for this VM. Leave blank if DHCP is desired.</Description>
       </Property>
       <Property ovf:key="fqdn" ovf:type="string" ovf:userConfigurable="true" ovf:value="localhost.localdomain">
         <Label>2.6. FQDN</Label>
