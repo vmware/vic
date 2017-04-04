@@ -23,9 +23,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/telnet"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 /* Vsphere telnet extension constants */
@@ -106,12 +108,15 @@ type Vspc struct {
 	attachSrvrPort uint
 
 	doneCh chan bool
+
+	verbose bool
 }
 
 // NewVspc is the constructor
 func NewVspc() *Vspc {
 	defer trace.End(trace.Begin("new vspc"))
 
+	var vchconfig config.VirtualContainerHostConfigSpec
 	vchIP, err := lookupVCHIP()
 	if err != nil {
 		log.Fatalf("cannot retrieve vch-endpoint ip: %v", err)
@@ -136,6 +141,16 @@ func NewVspc() *Vspc {
 		CmdHandler:  hdlr.cmdHdlr,
 	}
 	vspc.Server = telnet.NewServer(opts)
+	vspc.verbose = false
+
+	// load the vchconfig to get debug level
+	if src, err := extraconfig.GuestInfoSource(); err == nil {
+		extraconfig.Decode(src, &vchconfig)
+		if vchconfig.Diagnostics.DebugLevel > 2 {
+			vspc.verbose = true
+		}
+	}
+
 	return vspc
 }
 
@@ -203,7 +218,9 @@ func (vspc *Vspc) relayReads(containervm *cVM, conn net.Conn) {
 			var n int
 			var err error
 			if n, err = conn.Read(b); n > 0 {
-				log.Debugf("vspc read %d bytes from the  remote system connection", n)
+				if vspc.verbose {
+					log.Debugf("vspc read %d bytes from the  remote system connection", n)
+				}
 				if !vmotion {
 					if tmpBuf.Len() > 0 {
 						buf := tmpBuf.Bytes()
@@ -221,7 +238,6 @@ func (vspc *Vspc) relayReads(containervm *cVM, conn net.Conn) {
 						log.Errorf("vspc: RelayReads: %v", err)
 						return
 					}
-					log.Debugf("vspc relayed the read data to the containerVM")
 				} else {
 					tmpBuf.Write(b[:n])
 				}
