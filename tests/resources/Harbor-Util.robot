@@ -35,8 +35,9 @@ Install Harbor To Test Server
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
 
     Log To Console  Downloading Harbor OVA...
-    #${out}=  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
+    ${out}=  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
     Log To Console  Generating OVF file...
+    ${out}=  Run  ovftool ${HARBOR_VERSION}.ova ${HARBOR_VERSION}.ovf
     Log To Console  Installing Harbor into test server...
     ${hostString}=  Set Variable If  '${datacenter}' is not '${EMPTY}'  vi://${user}:${password}@${host}/${datacenter}/host/${cluster}
     ...   '${datacenter}' is '${EMPTY}'  vi://${user}:${password}@${host}
