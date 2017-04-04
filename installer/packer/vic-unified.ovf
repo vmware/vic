@@ -193,129 +193,104 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <Label>1.2. Permit Root Login</Label>
         <Description>Specifies whether root user can log in using SSH.</Description>
       </Property>
-      <Category>2. Email Settings</Category>
-      <Property ovf:key="email_server" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="smtp.mydomain.com">
-        <Label>2.1. Email Server</Label>
-        <Description>The mail server to send out emails to reset password. It has no effect when the authentication mode is ldap_auth.</Description>
-      </Property>
-      <Property ovf:key="email_server_port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="25">
-        <Label>2.2. Email Server Port</Label>
-        <Description>It has no effect when the authentication mode is ldap_auth.</Description>
-      </Property>
-      <Property ovf:key="email_username" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="sample_admin@mydomain.com">
-        <Label>2.3. Email Username</Label>
-        <Description>The user from whom the password reset email is sent. It has no effect when the authentication mode is ldap_auth.</Description>
-      </Property>
-      <Property ovf:key="email_password" ovf:password="true" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>2.4. Email Password</Label>
-        <Description>The password of the user from whom the password reset email is sent. It has no effect when the authentication mode is ldap_auth.</Description>
-      </Property>
-      <Property ovf:key="email_from" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="admin &lt;sample_admin@mydomain.com&gt;">
-        <Label>2.5. Email From</Label>
-        <Description>The name of the email sender. It has no effect when the authentication mode is ldap_auth.</Description>
-      </Property>
-      <Property ovf:key="email_ssl"  ovf:type="boolean" ovf:userConfigurable="true" ovf:value="false">
-        <Label>2.6. Email SSL</Label>
-        <Description>Whether to enable secure mail transmission. It has no effect when the authentication mode is ldap_auth.</Description>
-      </Property>
     </ProductSection>
     <ProductSection ovf:class="network" ovf:required="false">
       <Info>Networking Properties</Info>
-      <Category>3. Networking Properties</Category>
+      <Category>2. Networking Properties</Category>
       <Property ovf:key="ip0" ovf:type="string" ovf:userConfigurable="true">
-        <Label>3.1. Network IP Address</Label>
+        <Label>2.1. Network IP Address</Label>
         <Description>The IP address for this interface. Leave blank if DHCP is desired.</Description>
       </Property>
       <Property ovf:key="netmask0" ovf:type="string" ovf:userConfigurable="true">
-        <Label>3.2. Network Netmask</Label>
+        <Label>2.2. Network Netmask</Label>
         <Description>The netmask or prefix for this interface. Leave blank if DHCP is desired.</Description>
       </Property>
       <Property ovf:key="gateway" ovf:type="string" ovf:userConfigurable="true">
-        <Label>3.3. Default Gateway</Label>
+        <Label>2.3. Default Gateway</Label>
         <Description>The default gateway address for this VM. Leave blank if DHCP is desired.</Description>
       </Property>
       <Property ovf:key="DNS" ovf:type="string" ovf:userConfigurable="true">
-        <Label>3.4. Domain Name Servers</Label>
+        <Label>2.4. Domain Name Servers</Label>
         <Description>The domain name server IP Addresses for this VM (comma separated). Leave blank if DHCP is desired.</Description>
       </Property>
       <Property ovf:key="searchpath" ovf:type="string" ovf:userConfigurable="true">
-        <Label>3.5. Domain Search Path</Label>
+        <Label>2.5. Domain Search Path</Label>
         <Description>The domain search path (comma or space separated domain names) for this VM. Leave blank if DHCP is desired.</Description>
       </Property>
       <Property ovf:key="fqdn" ovf:type="string" ovf:userConfigurable="true" ovf:value="localhost.localdomain">
-        <Label>3.6. FQDN</Label>
+        <Label>2.6. FQDN</Label>
         <Description>The fully qualified domain name of this VM. Leave blank if DHCP is desired.</Description>
       </Property>
     </ProductSection>
     <ProductSection ovf:class="registry" ovf:required="false">
       <Info>Registry Properties</Info>
-      <Category>4. Registry Configuration</Category>
+      <Category>3. Registry Configuration</Category>
       <Property ovf:key="deploy" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="true">
-        <Label>4.1. Deploy Registry</Label>
+        <Label>3.1. Deploy Registry</Label>
         <Description>Specifies whether registry is enabled on the appliance.</Description>
       </Property>
       <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="443">
-        <Label>4.2. Registry Port</Label>
+        <Label>3.2. Registry Port</Label>
         <Description>Specifies the port on which registry will be published.</Description>
       </Property>
       <Property ovf:key="notary_port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="4443">
-        <Label>4.3. Notary Port</Label>
+        <Label>3.3. Notary Port</Label>
         <Description>Specifies the port on which Notary will be published.</Description>
       </Property>
       <Property ovf:key="admin_password" ovf:password="true" ovf:qualifiers="MinLen(8),MaxLen(20)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>4.4. Registry Admin Password</Label>
+        <Label>3.4. Registry Admin Password</Label>
         <Description>The initial password of registry admin. Subsequent changes of the admin password should be performed in UI.  (8-20 characters)</Description>
       </Property>
       <Property ovf:key="db_password" ovf:password="true" ovf:qualifiers="MinLen(8),MaxLen(128)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>4.5. Database Password</Label>
+        <Label>3.5. Database Password</Label>
         <Description>The initial password of the root user of MySQL database. Subsequent changes of password should be performed in operating system. (8-128 characters)</Description>
       </Property>
       <Property ovf:key="gc_enabled" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="false">
-        <Label>4.6. Garbage Collection</Label>
+        <Label>3.6. Garbage Collection</Label>
         <Description>When setting this to true, registry performs garbage collection everytime it boots up.</Description>
       </Property>
       <Property ovf:key="ssl_cert" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>4.7. SSL Cert</Label>
+        <Label>3.7. SSL Cert</Label>
         <Description>Paste in the content of a certificate file. Leave blank for a generated self-signed certificate.</Description>
       </Property>
       <Property ovf:key="ssl_cert_key" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>4.8. SSL Cert Key</Label>
+        <Label>3.8. SSL Cert Key</Label>
         <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
       </Property>
     </ProductSection>
     <ProductSection ovf:class="management_portal" ovf:required="false">
       <Info>Management Portal Properties</Info>
-      <Category>5. Management Portal Configuration</Category>
+      <Category>4. Management Portal Configuration</Category>
       <Property ovf:key="deploy" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="true">
-        <Label>5.1. Deploy Management Portal</Label>
+        <Label>4.1. Deploy Management Portal</Label>
         <Description>Specifies whether Management Portal is enabled on the appliance.</Description>
       </Property>
       <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="8282">
-        <Label>5.2. Management Portal Port</Label>
+        <Label>4.2. Management Portal Port</Label>
         <Description>Specifies the port on which Management Portal will be published.</Description>
       </Property>
       <Property ovf:key="ssl_cert" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>5.3. SSL Cert</Label>
+        <Label>4.3. SSL Cert</Label>
         <Description>Paste in the content of a certificate file. Leave blank for a generated self-signed certificate.</Description>
       </Property>
       <Property ovf:key="ssl_cert_key" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>5.4. SSL Cert Key</Label>
+        <Label>4.4. SSL Cert Key</Label>
         <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
       </Property>
     </ProductSection>
     <ProductSection ovf:class="fileserver" ovf:required="false">
       <Info>Fileserver Properties</Info>
-      <Category>6. Fileserver Configuration</Category>
+      <Category>5. Fileserver Configuration</Category>
       <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="9443">
-        <Label>6.1. Fileserver Port</Label>
+        <Label>5.1. Fileserver Port</Label>
         <Description>Specifies the port on which fileserver will be published.</Description>
       </Property>
       <Property ovf:key="ssl_cert" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>6.2. SSL Cert</Label>
+        <Label>5.2. SSL Cert</Label>
         <Description>Paste in the content of a certificate file. Leave blank for a generated self-signed certificate.</Description>
       </Property>
       <Property ovf:key="ssl_cert_key" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>6.3. SSL Cert Key</Label>
+        <Label>5.3. SSL Cert Key</Label>
         <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
       </Property>
     </ProductSection>
