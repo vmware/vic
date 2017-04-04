@@ -62,7 +62,7 @@ Docker run fake image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run fakeImage /bin/bash
     Should Be True  ${rc} > 0
     Should Contain  ${output}  docker: Error parsing reference:
-    Should Contain  ${output}  "fakeImage" is not a valid repository/tag.
+    Should Contain  ${output}  "fakeImage" is not a valid repository/tag
 
 Docker run named container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name busy3 busybox /bin/top
