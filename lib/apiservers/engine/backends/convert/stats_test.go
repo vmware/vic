@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/ioutils"
 
 	"github.com/stretchr/testify/assert"
 
@@ -39,42 +38,43 @@ const (
 )
 
 func TestContainerConverter(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	plumb := setup()
+	defer teardown(plumb)
 
-	r, o := io.Pipe()
-	defer o.Close()
-	out := io.Writer(o)
-	// Outstream modification (from Docker's code) so the stream is streamed with the
-	// necessary headers that the CLI expects.  This is Docker's scheme.
-	wf := ioutils.NewWriteFlusher(out)
-	defer wf.Close()
-	wf.Flush()
-	out = io.Writer(wf)
-
-	config := ContainerStatsConfig{
-		VchMhz:      int64(vchMhzTotal),
-		Ctx:         ctx,
-		Cancel:      cancel,
-		ContainerID: "1234",
-		Out:         out,
-		Stream:      true,
-		Memory:      2048,
-	}
+	// grab a config object
+	config := ccConfig(plumb)
 
 	cStats := NewContainerStats(config)
 	assert.NotNil(t, cStats)
 
-	// this writer goes is provided to the PL
+	// returned writer is given to PL
 	writer := cStats.Listen()
 	assert.NotNil(t, writer)
-
+	// second call should result in nil writer as
+	// we are already listening
 	w2 := cStats.Listen()
 	assert.Nil(t, w2)
 
+	// // ensure stop closes reader / writer
+	cStats.Stop()
+	// verify we stopped listening
+	assert.False(t, cStats.IsListening())
+}
+
+func TestToContainerStats(t *testing.T) {
+	plumb := setup()
+	defer teardown(plumb)
+	// grab a config object
+	config := ccConfig(plumb)
+
+	cStats := NewContainerStats(config)
+	assert.NotNil(t, cStats)
+
 	initCPU := 1000
 	vmBefore := vmMetrics(vcpuCount, initCPU)
-	time.Sleep(1 * time.Millisecond)
 	vmm := vmMetrics(vcpuCount, initCPU)
+	// ensure we are after the initial metric
+	vmm.SampleTime.Add(time.Second * 1)
 
 	// first metric sent, should return nil
 	js, err := cStats.ToContainerStats(vmm)
@@ -86,7 +86,7 @@ func TestContainerConverter(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, js)
 
-	// send stat before the previous
+	// send out of order stat
 	js, err = cStats.ToContainerStats(vmBefore)
 	assert.NotNil(t, err)
 	assert.Nil(t, js)
@@ -95,7 +95,8 @@ func TestContainerConverter(t *testing.T) {
 	// create a new metric
 	vmmm := vmMetrics(vcpuCount, secondCPU)
 	// sample will be 20 seconds apart..
-	vmmm.SampleTime.Add(time.Second * 20)
+	vmmm.SampleTime = vmm.SampleTime.Add(time.Second * 20)
+
 	js, err = cStats.ToContainerStats(vmmm)
 	assert.NoError(t, err)
 	assert.NotZero(t, js.Read, js.PreRead)
@@ -108,47 +109,212 @@ func TestContainerConverter(t *testing.T) {
 	cpuPercent := fmt.Sprintf("%2.2f", calculateCPUPercentUnix(js.PreCPUStats.CPUUsage.TotalUsage, js.PreCPUStats.SystemUsage, js))
 	assert.Equal(t, "7.58", cpuPercent)
 
-	// reset listener, so reader/writer operates
-	cStats.currentMetrics = nil
-	cStats.dockerStats = &types.StatsJSON{}
+	config.Cancel()
+	<-config.Ctx.Done()
+	// sleep to let the methods complete
+	sleepy()
+	// verify we stopped listening
+	assert.False(t, cStats.IsListening())
+}
 
-	// simulate portLayer
-	plEnc := json.NewEncoder(writer)
-	err = plEnc.Encode(vmm)
-	assert.NoError(t, err)
-	err = plEnc.Encode(vmmm)
-	assert.NoError(t, err)
-
-	// simulate docker client
-	docClient := json.NewDecoder(r)
-	dstat := &types.StatsJSON{}
-	err = docClient.Decode(dstat)
-	assert.NoError(t, err)
-
-	// ensure stop closes reader / writer
-	cStats.Stop()
-	_, err = cStats.reader.Read([]byte{0, 0, 0})
-	assert.Error(t, err)
-
-	config.Stream = false
-
-	cStats = NewContainerStats(config)
+func TestContainerStatsListener(t *testing.T) {
+	plumb := setup()
+	defer teardown(plumb)
+	// grab a config object
+	config := ccConfig(plumb)
+	cStats := NewContainerStats(config)
 	assert.NotNil(t, cStats)
 
-	writer = cStats.Listen()
+	// start the listener
+	writer := cStats.Listen()
+	assert.NotNil(t, writer)
 
-	// simulate portLayer
-	plEnc = json.NewEncoder(writer)
-	err = plEnc.Encode(vmm)
-	assert.NoError(t, err)
-	err = plEnc.Encode(vmmm)
-	assert.NoError(t, err)
-
-	// simulate docker client
-	dstat = &types.StatsJSON{}
-	err = docClient.Decode(dstat)
+	// create an initial metric
+	initCPU := 1000
+	vm := vmMetrics(vcpuCount, initCPU)
+	err := plumb.mockPLMetrics(vm, writer)
 	assert.NoError(t, err)
 
+	// send second metric
+	vmm := vmMetrics(vcpuCount, initCPU+100)
+	vmm.SampleTime = vm.SampleTime.Add(time.Second * 20)
+	err = plumb.mockPLMetrics(vmm, writer)
+	assert.NoError(t, err)
+
+	// did client receive metric??
+	ds, err := plumb.mockDockerClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, ds)
+	assert.Equal(t, uint64((initCPU*2+100)/vcpuCount), ds.CPUStats.CPUUsage.TotalUsage)
+
+	// docker expects data quicker than vSphere can produce -- sleep for just over 1 sec
+	// and ensure the previous docker stat is returned to client
+	time.Sleep(time.Millisecond * 1100)
+	same, err := plumb.mockDockerClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, same)
+	assert.Equal(t, ds.CPUStats.CPUUsage.TotalUsage, same.CPUStats.CPUUsage.TotalUsage)
+
+	config.Cancel()
+	<-config.Ctx.Done()
+	// sleep to let the methods complete
+	sleepy()
+	// verify we stopped listening
+	assert.False(t, cStats.IsListening())
+}
+
+func TestContainerConvertCtxCancel(t *testing.T) {
+	plumb := setup()
+	defer teardown(plumb)
+	// grab a config object
+	config := ccConfig(plumb)
+	cStats := NewContainerStats(config)
+	assert.NotNil(t, cStats)
+
+	// start the listener
+	writer := cStats.Listen()
+	assert.NotNil(t, writer)
+
+	// cancel the context
+	config.Cancel()
+	<-config.Ctx.Done()
+	// sleep to let the methods complete
+	sleepy()
+	// verify we stopped listening
+	assert.False(t, cStats.IsListening())
+}
+
+func TestContainerConvertNoStream(t *testing.T) {
+	plumb := setup()
+	defer teardown(plumb)
+	// grab a config object
+	config := ccConfig(plumb)
+	config.Stream = false
+	cStats := NewContainerStats(config)
+	assert.NotNil(t, cStats)
+
+	// start the listener
+	writer := cStats.Listen()
+	assert.NotNil(t, writer)
+
+	// create an initial metric
+	initCPU := 1000
+	vm := vmMetrics(vcpuCount, initCPU)
+	err := plumb.mockPLMetrics(vm, writer)
+	assert.NoError(t, err)
+
+	// send second metric
+	vmm := vmMetrics(vcpuCount, initCPU+100)
+	vmm.SampleTime = vm.SampleTime.Add(time.Second * 20)
+	err = plumb.mockPLMetrics(vmm, writer)
+	assert.NoError(t, err)
+
+	ds, err := plumb.mockDockerClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, ds)
+
+	// converter canceled the context
+	<-config.Ctx.Done()
+	// sleep to let the methods complete
+	sleepy()
+	// verify we stopped listening
+	assert.False(t, cStats.IsListening())
+}
+
+func TestContainerNotRunningNoStream(t *testing.T) {
+	plumb := setup()
+	defer teardown(plumb)
+	// grab a config object
+	config := ccConfig(plumb)
+	config.Stream = false
+	config.ContainerState.Running = false
+	cStats := NewContainerStats(config)
+	assert.NotNil(t, cStats)
+
+	// start the listener
+	writer := cStats.Listen()
+	assert.NotNil(t, writer)
+
+	ds, err := plumb.mockDockerClient()
+	assert.NoError(t, err)
+	assert.NotNil(t, ds)
+
+	// converter canceled the context
+	<-config.Ctx.Done()
+	// sleep to let the methods complete
+	sleepy()
+	// verify we stopped listening
+	assert.False(t, cStats.IsListening())
+}
+
+// Test Helpers
+
+type plumbing struct {
+	r   *io.PipeReader
+	w   *io.PipeWriter
+	out io.Writer
+	// mock portlayer
+	mockPL *json.Encoder
+	// mock docker client decoder
+	mockDoc *json.Decoder
+}
+
+func setup() *plumbing {
+	r, o := io.Pipe()
+	out := io.Writer(o)
+
+	return &plumbing{
+		r:       r,
+		w:       o,
+		out:     out,
+		mockDoc: json.NewDecoder(r),
+	}
+}
+
+// sleepy will sleep for 1/2 second -- this is only needed for testing
+func sleepy() {
+	time.Sleep(time.Millisecond * 500)
+}
+func teardown(p *plumbing) {
+	// close the reader / writer
+	p.r.Close()
+	p.w.Close()
+}
+
+func (p *plumbing) mockPLMetrics(metric *metrics.VMMetrics, writer io.Writer) error {
+	if p.mockPL == nil {
+		p.mockPL = json.NewEncoder(writer)
+	}
+	return p.mockPL.Encode(metric)
+}
+
+func (p *plumbing) mockDockerClient() (*types.StatsJSON, error) {
+	docStats := &types.StatsJSON{}
+
+	err := p.mockDoc.Decode(docStats)
+	if err != nil {
+		return nil, err
+	}
+
+	return docStats, nil
+}
+
+func ccConfig(p *plumbing) *ContainerStatsConfig {
+	// test config
+	ctx, cancel := context.WithCancel(context.Background())
+	config := &ContainerStatsConfig{
+		VchMhz:      int64(vchMhzTotal),
+		Ctx:         ctx,
+		Cancel:      cancel,
+		ContainerID: "1234",
+		Out:         p.out,
+		Stream:      true,
+		Memory:      2048,
+		ContainerState: &types.ContainerState{
+			Running: true,
+		},
+	}
+	return config
 }
 
 func vmMetrics(count int, vcpuMhz int) *metrics.VMMetrics {

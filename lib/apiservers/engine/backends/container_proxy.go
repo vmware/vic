@@ -89,7 +89,7 @@ type VicContainerProxy interface {
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
-	StreamContainerStats(ctx context.Context, id string, out io.Writer, stream bool, CPUMhz int64, memory int64) error
+	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
@@ -523,8 +523,8 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 // StreamContainerStats will provide a stream of container stats written to the provided
 // io.Writer.  Prior to writing to the provided io.Writer there will be a transformation
 // from the portLayer representation of stats to the docker format
-func (c *ContainerProxy) StreamContainerStats(ctx context.Context, id string, out io.Writer, stream bool, CPUMhz int64, mem int64) error {
-	defer trace.End(trace.Begin(id))
+func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
+	defer trace.End(trace.Begin(config.ContainerID))
 
 	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
@@ -534,33 +534,26 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, id string, ou
 	defer cancel()
 
 	params := containers.NewGetContainerStatsParamsWithContext(ctx)
-	params.ID = id
-	params.Stream = stream
+	params.ID = config.ContainerID
+	params.Stream = config.Stream
 
-	// converter config
-	config := convert.ContainerStatsConfig{
-		Ctx:         ctx,
-		Cancel:      cancel,
-		VchMhz:      CPUMhz,
-		Stream:      stream,
-		ContainerID: id,
-		Out:         out,
-		Memory:      mem,
-	}
+	config.Ctx = ctx
+	config.Cancel = cancel
+
 	// create our converter
 	containerConverter := convert.NewContainerStats(config)
 	// provide the writer for the portLayer and start listening for metrics
 	writer := containerConverter.Listen()
 	if writer == nil {
 		// problem with the listener
-		return InternalServerError(fmt.Sprintf("unable to gather container(%s) statistics", id))
+		return InternalServerError(fmt.Sprintf("unable to gather container(%s) statistics", config.ContainerID))
 	}
 
 	_, err := plClient.Containers.GetContainerStats(params, writer)
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerStatsNotFound:
-			return NotFoundError(id)
+			return NotFoundError(config.ContainerID)
 		case *containers.GetContainerStatsInternalServerError:
 			return InternalServerError("Server error from the interaction port layer")
 		default:
