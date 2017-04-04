@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -387,18 +387,18 @@ func TestSoapFaults(t *testing.T) {
 
 	// Test the task.Error path
 	res, err := task.WaitForResult(ctx, nil)
-	if !isTaskInProgress(err) {
+	if !isRetryError(err) {
 		t.Error(err)
 	}
 
 	// Test the soap.IsVimFault() path
-	if !isTaskInProgress(soap.WrapVimFault(res.Error.Fault)) {
+	if !isRetryError(soap.WrapVimFault(res.Error.Fault)) {
 		t.Errorf("fault=%#v", res.Error.Fault)
 	}
 
 	// Test the soap.IsSoapFault() path
 	err = vm.MarkAsTemplate(ctx)
-	if !isTaskInProgress(err) {
+	if !isRetryError(err) {
 		t.Error(err)
 	}
 
@@ -413,7 +413,7 @@ func TestSoapFaults(t *testing.T) {
 	if err == nil {
 		t.Error("expected error")
 	}
-	if isTaskInProgress(err) {
+	if isRetryError(err) {
 		t.Error(err)
 	}
 
