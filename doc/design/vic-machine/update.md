@@ -50,10 +50,30 @@ Pros of this option is no new options introduced and all options used in vic-mac
 Cons of this option is that every time to update a VCH, user need to know all the old configuration first, otherwise some configuration will be removed by mistake.
 
 
-If there are many options specified to create VCH, and only a few things need to be tuned, the first option is more clear, and less effort to write the update command. But if there are less options specified in first create, and lots of changes needed, the second option will be easier to know what will be there after update.
+If there are many options specified to create VCH, and only a few things need to be tuned, the delta update option is more clear, and less effort to write the update command. But if there are less options specified in first create, and lots of changes needed, the whole update option will be easier to know what will be there after update.
+
+### Separate Update to Sub Commands
+The idea of this option is to update a few configuration each time, which is similar to Delta Options, but we're not using different options to separate the update scope, instead we can use different update sub command. For example, to update volume-store, we can use following command
+```
+vic-machine update volume-store --rm ds://datastore/volume:default
+vic-machine update volume-store --add nfs://host:port/container:nfs
+```
+
+The command format is like ```vic-machine update <update object> --<update keyword> --<update option> <update value>```
+
+Pros:
+- The whole update options are splitted to many update sub commands. Then in each sub command, only a small number of options are available, and that does not increase over time. Only the sub command number will increase.
+- Consistent with existing update firewall command format
+
+Cons:
+- We'll need to reinvent option names
+
+  For example, to update client network, user need to specify all options if they want to use static ip. Then in one update command, we'll need all those options. Here is the command looks like ```vic-machine update bridge-network --port-group value --gateway value --ip value```
+  The existing option name in vic-machine create is ```--client-network value   --client-network-gateway value  --client-network-ip value```, we'll need to remove the prefix cause that is already shown as sub-command name.
 
 Preference:
-After discussion with Cheng, my preference is to support both options, cause each one can work well in one scenario. We might provide more flexibility to users.
+
+- The sub commands option
 
 ## Show Existing VCH configuration
 Right now, there is no user friendly way to view all configurations of existing VCH. To support update operation, we need to make it easier, otherwise, update only makes things weird.
@@ -117,7 +137,7 @@ Endpoint:
 	SSHEnabled: true
 ```
 
-- Command Option Format
+- Command Option Format (corresponding to Delta Update option)
 
   The yml format output is more readable for VIC admin, but if users want to recreate their vic-machine create or update command, it's hard to do based on that format, because there is no one on one mapping between the configuration and command options. 
 
@@ -140,6 +160,10 @@ Endpoint:
 Based on this output, it's easy to modify existing configuration to update command options
 
 Note: Special character might be escaped based on current OS platform. But even with this, the command options cannot be copied to other platform.
+
+- Subcommand Inspect (corresponding to update subcommand option)
+  The update subcommand option might change command option based on each different sub command requirement, to get current configuration, we'll need to have command inspect for each subcommand. So the option is to extend vic-machine inspect command to include sub command as well.
+  For example, ```vic-machine inspect bridge-network``` will print out current configuration in the command format, to make sure user can easily generate their update command based on that.
 
 ## Update In Progress Status
 Same to vic-machine upgrade, concurrent update requests for same VCH is not allowed. vic-machine should be able to detect if one VCH is running update/upgrade. If true, return useful error message. And also should not leave that update flag in there after update is stopped, or even interrupted.
