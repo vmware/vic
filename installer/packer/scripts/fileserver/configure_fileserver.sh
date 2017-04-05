@@ -12,12 +12,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -x -euf -o pipefail
+set -euf -o pipefail
+
+data_dir=/data/fileserver
+cert_dir=${data_dir}/cert
+cert=${cert_dir}/server.crt
+key=${cert_dir}/server.key
 
 port=$(ovfenv -k fileserver.port)
+fileserver_cert=$(ovfenv -k fileserver.ssl_cert)
+fileserver_key=$(ovfenv -k fileserver.ssl_cert_key)
 
 if [ -z "$port" ]; then
   port="9443"
 fi
 
 iptables -w -A INPUT -j ACCEPT -p tcp --dport $port
+
+#Format cert file
+function formatCert {
+  content=$1
+  file=$2
+  echo $content | sed -r 's/(-{5}BEGIN [A-Z ]+-{5})/&\n/g; s/(-{5}END [A-Z ]+-{5})/\n&\n/g' | sed -r 's/.{64}/&\n/g; /^\s*$/d' > $file
+}
+
+if [[ x$fileserver_cert != "x" && x$fileserver_key != "x" ]]; then
+  mkdir -p "$cert_dir"
+  formatCert "$fileserver_cert" $cert
+  formatCert "$fileserver_key" $key
+fi
