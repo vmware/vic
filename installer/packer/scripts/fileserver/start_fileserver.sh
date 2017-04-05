@@ -14,8 +14,18 @@
 # limitations under the License.
 set -euf -o pipefail
 
-FILESERVER_EXPOSED_PORT=$(ovfenv -k fileserver.port)
-FILESERVER_CERT_LOCATION=$(ovfenv -k fileserver.ssl_cert)
-FILESERVER_KEY_LOCATION=$(ovfenv -k fileserver.ssl_cert_key)
+data_dir=/data/fileserver
+cert_dir=${data_dir}/cert
+cert=${cert_dir}/server.crt
+key=${cert_dir}/server.key
+fileserver_cert=$(ovfenv -k fileserver.ssl_cert)
+fileserver_key=$(ovfenv -k fileserver.ssl_cert_key)
 
-/usr/local/bin/ova-webserver --addr ":${FILESERVER_EXPOSED_PORT}" --cert "${FILESERVER_CERT_LOCATION}" --key "${FILESERVER_KEY_LOCATION}"
+FILESERVER_EXPOSED_PORT=$(ovfenv -k fileserver.port)
+
+if [[ x$fileserver_cert != "x" && x$fileserver_key != "x" ]]; then
+  /usr/local/bin/ova-webserver --addr ":${FILESERVER_EXPOSED_PORT}" --cert "${cert}" --key "${key}"
+else
+  /usr/local/bin/ova-webserver --addr ":${FILESERVER_EXPOSED_PORT}"
+fi
+

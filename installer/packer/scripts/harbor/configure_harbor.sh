@@ -60,7 +60,7 @@ function configureHarborCfg {
 function formatCert {
   content=$1
   file=$2
-  echo $content | sed -r 's/(-{5}BEGIN [A-Z ]+-{5})/&\n/g; s/(-{5}END [A-Z ]+-{5})/\n&\n/g' | sed -r 's/.{64}/&\n/g' > $file
+  echo $content | sed -r 's/(-{5}BEGIN [A-Z ]+-{5})/&\n/g; s/(-{5}END [A-Z ]+-{5})/\n&\n/g' | sed -r 's/.{64}/&\n/g; /^\s*$/d' > $file
 }
 
 function genCert {
@@ -161,12 +161,6 @@ END
 }
 
 attrs=( 
-  appliance.email_server 
-  appliance.email_server_port 
-  appliance.email_username 
-  appliance.email_password 
-  appliance.email_from 
-  appliance.email_ssl
   registry.admin_password
   registry.db_password
   registry.gc_enabled
