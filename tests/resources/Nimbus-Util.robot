@@ -341,6 +341,10 @@ Setup Network For Simple VC Cluster
     ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /${datacenter}/host/${cluster}
     Should Contain  ${out}  OK
 
+    Log To Console  Enable DRS on the cluster
+    ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
+    Should Be Empty  ${out}
+
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
 
