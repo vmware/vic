@@ -40,11 +40,11 @@ vic-engine-bundle: $(appliance) $(bootstrap) $(vic-machine-linux) $(vic-machine-
 
 $(ovfenv): $$(call godeps,installer/ovatools/ovfenv/*.go)
 	@echo building ovfenv linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(vic-ova-ui): $$(call godeps,installer/ovatools/vic-ova-ui/*.go)
 	@echo building vic-ova-ui
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(ldflags)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 $(ova-webserver): $$(call godeps,installer/fileserver/*.go)
 	@echo building ova-webserver
@@ -60,6 +60,8 @@ ova-release: $(vic-tarball) $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 			-var 'esx_host=$(PACKER_ESX_HOST)'\
 			-var 'remote_username=$(PACKER_USERNAME)'\
 			-var 'remote_password=$(PACKER_PASSWORD)'\
+			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
+			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			packer-vic.json
 	@echo adding proper vic OVF file...
 	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
@@ -80,6 +82,8 @@ ova-debug: $(vic-tarball) $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 			-var 'esx_host=$(PACKER_ESX_HOST)'\
 			-var 'remote_username=$(PACKER_USERNAME)'\
 			-var 'remote_password=$(PACKER_PASSWORD)'\
+			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
+			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			--on-error=abort packer-vic.json
 	@echo adding proper vic OVF file...
 	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf

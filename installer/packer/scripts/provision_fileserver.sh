@@ -16,6 +16,6 @@
 mkdir -p /etc/vmware/fileserver
 
 # Move zip files to base directory, remove unneeded files from ui/
-cd /data/fileserver
+cd /data/fileserver/files
 find . -name "*.zip" | xargs -t -I {} mv {} .
 rm -r ui/
