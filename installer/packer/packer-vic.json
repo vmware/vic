@@ -111,12 +111,12 @@
     {
       "type": "file",
       "source": "../../bin/vic-engine-bundle/",
-      "destination": "/data/fileserver"
+      "destination": "/data/fileserver/files"
     },
     {
       "type": "file",
       "source": "../../bin/ui",
-      "destination": "/data/fileserver"
+      "destination": "/data/fileserver/files"
     },
     {
       "type": "file",
