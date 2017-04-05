@@ -130,6 +130,13 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
 
+    # regression test for #4020
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${shortID1}=  Get container shortID  ${container1}
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name=${shortID1} busybox
+    Should Be Equal As Integers  ${rc}  0
+
     Scrape Logs For The Password
 
 Launch Container
