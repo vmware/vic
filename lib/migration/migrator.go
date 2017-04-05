@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/lib/migration/errors"
 	"github.com/vmware/vic/lib/migration/manager"
 	// imported for the side effect
@@ -65,8 +63,6 @@ func ContainerDataVersion(conf map[string]string) (int, error) {
 
 // dataIsOlder returns true if data is older than latest. If error happens, always returns false
 func dataIsOlder(data map[string]string, target string, verKey string) (bool, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("target: %s, version key: %s", target, verKey)))
-
 	var currentID int
 	var err error
 
@@ -97,7 +93,6 @@ func migrateConfig(ctx context.Context, s *session.Session, data map[string]stri
 	}
 	latestVer := manager.Migrator.LatestVersion(target)
 	if latestVer <= currentID {
-		log.Debugf("No new plugin available, no need to migrate")
 		return dst, false, nil
 	}
 
@@ -107,7 +102,6 @@ func migrateConfig(ctx context.Context, s *session.Session, data map[string]stri
 }
 
 func getCurrentID(data map[string]string, verKey string) (int, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("version key: %s", verKey)))
 	var currentID int
 	var err error
 	strID := data[verKey]
