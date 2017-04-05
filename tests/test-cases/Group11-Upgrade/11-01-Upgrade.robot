@@ -109,7 +109,7 @@ Run Docker Checks
     Should Not Contain  ${output}  Error
 
 Create Docker Containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch container on bridge network
     ${id1}  ${ip1}=  Launch Container  vch-restart-test1  bridge
