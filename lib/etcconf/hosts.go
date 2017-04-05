@@ -145,7 +145,7 @@ func (h *hosts) Save() error {
 		return err
 	}
 
-	// make sure the file is readable
+	// make sure the file is readable #nosec
 	if err := os.Chmod(h.path, 0644); err != nil {
 		return err
 	}

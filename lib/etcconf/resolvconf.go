@@ -166,7 +166,7 @@ func (r *resolvConf) Save() error {
 		return err
 	}
 
-	// make sure the file is readable
+	// make sure the file is readable #nosec
 	if err := os.Chmod(r.path, 0644); err != nil {
 		return err
 	}

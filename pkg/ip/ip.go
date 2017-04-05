@@ -96,7 +96,7 @@ func (i *Range) Network() *net.IPNet {
 
 func ParseRange(r string) *Range {
 	var first, last net.IP
-	// check if its a CIDR
+	// check if its a CIDR #nosec
 	_, ipnet, _ := net.ParseCIDR(r)
 	if ipnet != nil {
 		first = ipnet.IP

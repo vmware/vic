@@ -115,6 +115,7 @@ func (s *server) listen() error {
 			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, certificate-based authentication is disabled")
 		}
 
+		// #nosec
 		return &tls.Config{
 			Certificates:             c.Certificates,
 			NameToCertificate:        c.NameToCertificate,

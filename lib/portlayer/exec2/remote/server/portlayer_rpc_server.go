@@ -54,6 +54,7 @@ func main() {
 	rpcServer := new(PortLayerRPCServer)
 	rpc.Register(rpcServer)
 	rpc.HandleHTTP()
+	// #nosec
 	l, e := net.Listen("tcp", ":1234")
 	if e != nil {
 		log.Fatal("listen error:", e)

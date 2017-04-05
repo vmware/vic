@@ -255,6 +255,7 @@ func (lm *LogManager) rotateLogs() {
 		lm.op.Debugf("logrotate is not defined. Skipping.")
 		return
 	}
+	// #nosec
 	output, err := exec.Command(LogRotateBinary, configFile).CombinedOutput()
 	if err == nil {
 		if len(output) > 0 {

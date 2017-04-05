@@ -106,10 +106,12 @@ func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
 
 func Halt() error {
 	log.Infof("Halting system...")
+	// #nosec
 	return exec.Command(shutdown, "-h", "now").Run()
 }
 
 func Reboot() error {
 	log.Infof("Rebooting system...")
+	// #nosec
 	return exec.Command(shutdown, "-r", "now").Run()
 }

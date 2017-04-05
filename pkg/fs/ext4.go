@@ -41,6 +41,7 @@ func (e *Ext4) Mkfs(devPath, label string) error {
 	// -v is verbose - this is only useful when things go wrong,
 	// -F is needed to use the entire disk without prompting
 	// we can't use -V as well for fs specific stuff as that prevents it actually being done.
+	// #nosec
 	cmd := exec.Command("/sbin/mkfs.ext4", "-L", label, "-vF", devPath)
 
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -73,6 +74,7 @@ func (e *Ext4) Unmount(path string) error {
 func (e *Ext4) SetLabel(devPath, labelName string) error {
 	defer trace.End(trace.Begin(devPath))
 
+	// #nosec
 	cmd := exec.Command("/sbin/e2label", devPath, labelName)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		log.Errorf("failed to set label %s: %s", devPath, err)

@@ -116,6 +116,7 @@ func NewBlobProperty(ID int32, val []byte) *VixProperty {
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface
+// #nosec
 func (p *VixProperty) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -197,6 +198,7 @@ func (l *VixPropertyList) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface
+// #nosec
 func (l *VixPropertyList) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 

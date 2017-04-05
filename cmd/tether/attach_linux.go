@@ -38,7 +38,7 @@ func setTerminalSpeed(fd uintptr) error {
 		termios syscall.Termios
 	}
 
-	// get the current state
+	// get the current state #nosec
 	if _, _, errno := syscall.Syscall6(syscall.SYS_IOCTL,
 		uintptr(fd),
 		syscall.TCGETS,
@@ -60,7 +60,7 @@ func setTerminalSpeed(fd uintptr) error {
 	future.Ispeed = syscall.B115200
 	future.Ospeed = syscall.B115200
 
-	// set the future values
+	// set the future values #nosec
 	if _, _, errno := syscall.Syscall6(
 		syscall.SYS_IOCTL,
 		uintptr(fd),
@@ -129,6 +129,7 @@ func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
 	defer trace.End(trace.Begin(""))
 
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
+	// #nosec
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		pty,

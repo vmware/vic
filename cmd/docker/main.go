@@ -164,6 +164,7 @@ func startServer() *apiserver.Server {
 	}
 
 	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
+	// #nosec
 	tlsConfig := func(c *tls.Config) *tls.Config {
 		return &tls.Config{
 			Certificates:             c.Certificates,
