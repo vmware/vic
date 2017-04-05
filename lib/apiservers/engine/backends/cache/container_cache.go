@@ -60,16 +60,17 @@ func (cc *CCache) getContainerByName(nameOnly string) *container.VicContainer {
 }
 
 func (cc *CCache) getContainer(nameOrID string) *container.VicContainer {
+	// full name matching should take precedence over id prefix matching
+	if container, exist := cc.containersByName[nameOrID]; exist {
+		return container
+	}
+
 	// get the full ID if we only have a prefix
 	if cid, err := cc.idIndex.Get(nameOrID); err == nil {
 		nameOrID = cid
 	}
 
 	if container, exist := cc.containersByID[nameOrID]; exist {
-		return container
-	}
-
-	if container, exist := cc.containersByName[nameOrID]; exist {
 		return container
 	}
 	return nil
