@@ -57,7 +57,7 @@ func main() {
 		halt()
 	}()
 
-	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
+	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0)
 	if err != nil {
 		log.Errorf("Could not open serial port for debugging info. Some debug info may be lost! Error reported was %s", err)
 	}

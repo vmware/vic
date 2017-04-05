@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,12 +109,12 @@ func (t *operations) Log() (io.Writer, error) {
 	defer trace.End(trace.Begin("operations.Log"))
 
 	// make the logging directory
-	os.MkdirAll(fmt.Sprintf("%s%c%s", pathPrefix, os.PathSeparator, logDir), 0777)
+	os.MkdirAll(fmt.Sprintf("%s%c%s", pathPrefix, os.PathSeparator, logDir), 0755)
 
 	logPath := strings.Join([]string{pathPrefix, logDir, initLog}, string(os.PathSeparator))
 
 	log.Infof("opening %s for debug log", logPath)
-	out, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	out, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0644)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open file port for debug log: %s", err)
 		log.Error(detail)
@@ -137,7 +137,7 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 
 	// open SttyS2 for session logging
 	log.Infof("opening %s for session logging", logPath)
-	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0644)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open file for session log: %s", err)
 		log.Error(detail)
