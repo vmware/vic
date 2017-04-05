@@ -25,7 +25,7 @@ echo "Docker started"
 
 # pull admiral image
 echo "Pulling Admiral Docker image.."
-# TODO(lcastellano): parametrize the image name
+echo "Downloading Admiral ${BUILD_ADMIRAL_REVISION}"
 docker pull vmware/admiral:vic_${BUILD_ADMIRAL_REVISION}
 docker tag vmware/admiral:vic_${BUILD_ADMIRAL_REVISION} vmware/admiral:ova
 echo "Pulled Admiral image"

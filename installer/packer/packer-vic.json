@@ -6,7 +6,8 @@
     "remote_username": "",
     "remote_password": "",
     "root_password": "2RQrZ83i79N6szpvZNX6",
-    "build_admiral_revision": "dev"
+    "build_admiral_revision": "dev",
+    "build_harbor_revision": "dev"
   },
   "builders": [
     {
@@ -214,6 +215,7 @@
     },
     {
       "type": "shell",
+      "environment_vars": ["BUILD_HARBOR_REVISION={{user `build_harbor_revision`}}"],
       "script": "scripts/provision_harbor.sh"
     },
     {
