@@ -69,12 +69,12 @@ Docker logs backward compatibility
     Should Contain  ${output}  vSphere Integrated Containers does not yet support '--timestamps'
     Upgrade
     Check Upgraded Version
-    ${rc}  ${id2}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} run -d busybox sh -c "echo Whats the deeeal with Ovaltine?"
+    ${rc}  ${id2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox sh -c "echo Whats the deeeal with Ovaltine?"
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} logs --timestamps ${id2}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${id2}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Whats the deeeal with Ovaltine?
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} logs --timestamps ${id1}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${id1}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  container ${id1} does not support '--timestamps'
 
