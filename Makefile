@@ -226,12 +226,12 @@ misspell: $(MISSPELL)
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
-#   one day we will enable shadow check
-#	@$(GO) tool vet -all -shadow -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+# 	one day we will enable shadow check
+# 	@$(GO) tool vet -all -shadow -lostcancel -tests $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 gas: $(GAS)
 	@echo checking security problems
-	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) ./... > ../$$i.gas 2> /dev/null; popd > /dev/null; done
+	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) ./... > ../$$i.gas 2> /dev/null || exit 1; popd > /dev/null; done
 
 vendor: $(GVT)
 	@echo restoring vendor
