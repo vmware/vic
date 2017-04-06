@@ -97,7 +97,8 @@ const (
 
 // isRetryErrors will return true for vSphere errors, which can be fixed by retry.
 // Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack and InvalidArgument
-// Retry on errors NetworkDisruptedAndConfigRolledBack and InvalidArgument is to workaround vSphere or vSAN intermittent failure
+// Retry on NetworkDisruptedAndConfigRolledBack is to workaround vSphere issue
+// Retry on InvalidArgument(invlid path) is to workaround vSAN bug: https://bugzilla.eng.vmware.com/show_bug.cgi?id=1770798. TODO: Should remove it after vSAN fixed the bug
 func isRetryError(err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
