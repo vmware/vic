@@ -354,6 +354,12 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	id := vc.ContainerID
 	name := vc.Name
 
+	// grab the task details
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		return InternalServerError(err.Error())
@@ -375,12 +381,15 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 	handle = resp.Payload.Handle.(string)
 
-	if err := c.containerProxy.BindInteraction(handle, name); err != nil {
-		return InternalServerError(err.Error())
+	// exec doesn't have seperate attach path so we will decide whether we need interaction/runblocking or not
+	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
+
+	f := func() error { return c.containerProxy.CommitContainerHandle(handle, name, 0) }
+	if attach {
+		f = func() error { return c.containerProxy.BindInteraction(handle, name) }
 	}
 
-	ec, err := c.TaskInspect(id, name, eid)
-	if err != nil {
+	if err := f(); err != nil {
 		return InternalServerError(err.Error())
 	}
 
@@ -389,12 +398,19 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(event, eventtypes.ContainerEventType, actor)
 
+	// no need to attach for detached case
+	if !attach {
+		log.Debugf("Detached mode. Returning early.")
+		return nil
+	}
+
 	ca := &backend.ContainerAttachConfig{
 		UseStdin:  ec.OpenStdin,
 		UseStdout: ec.OpenStdout,
 		UseStderr: ec.OpenStderr,
 	}
 
+	// set UseStderr to false for Tty case as we merge stdout and stderr
 	if ec.Tty {
 		ca.UseStderr = false
 	}
