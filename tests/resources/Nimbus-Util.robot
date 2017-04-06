@@ -318,7 +318,7 @@ Create a Simple VC Cluster
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  TEST_DATASTORE  datastore1
-    Set Environment Variable  TEST_DATACENTER  ${datacenter}
+    Set Environment Variable  TEST_DATACENTER  /${datacenter}
     Set Environment Variable  TEST_RESOURCE  ${cluster}
     Set Environment Variable  TEST_TIMEOUT  30m
     [Return]  @{esx_names}  ${vc}  @{esx_ips}  ${vc_ip}
