@@ -62,7 +62,6 @@ func (d *dsBackend) Save(ctx context.Context, r io.Reader, path string) error {
 		log.Debugf("failed to move file (%s) to (%s) after attempting to recover from a FileNotFoundFault with error (%s) during a kv store save operation.", tmpfile, path, err.Error())
 		return err
 	}
-
 	return nil
 }
 
