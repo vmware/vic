@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			}
 		}
 
-		if !isTaskInProgress(err) {
+		if !isRetryError(err) {
 			return info, err
 		}
 
@@ -89,10 +89,26 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 	}
 }
 
-func isTaskInProgress(err error) bool {
+const (
+	vimFault  = "vim"
+	soapFault = "soap"
+	taskFault = "task"
+)
+
+// isRetryErrors will return true for vSphere errors, which can be fixed by retry.
+// Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack and InvalidArgument
+// Retry on NetworkDisruptedAndConfigRolledBack is to workaround vSphere issue
+// Retry on InvalidArgument(invlid path) is to workaround vSAN bug: https://bugzilla.eng.vmware.com/show_bug.cgi?id=1770798. TODO: Should remove it after vSAN fixed the bug
+func isRetryError(err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
 		case types.TaskInProgress:
+			return true
+		case *types.NetworkDisruptedAndConfigRolledBack:
+			logExpectedFault(soapFault, f)
+			return true
+		case *types.InvalidArgument:
+			logExpectedFault(soapFault, f)
 			return true
 		default:
 			logSoapFault(f)
@@ -103,6 +119,12 @@ func isTaskInProgress(err error) bool {
 		switch f := soap.ToVimFault(err).(type) {
 		case *types.TaskInProgress:
 			return true
+		case *types.NetworkDisruptedAndConfigRolledBack:
+			logExpectedFault(vimFault, f)
+			return true
+		case *types.InvalidArgument:
+			logExpectedFault(vimFault, f)
+			return true
 		default:
 			logFault(f)
 		}
@@ -110,10 +132,18 @@ func isTaskInProgress(err error) bool {
 
 	switch err := err.(type) {
 	case task.Error:
-		if _, ok := err.Fault().(*types.TaskInProgress); ok {
+		switch f := err.Fault().(type) {
+		case *types.TaskInProgress:
 			return true
+		case *types.NetworkDisruptedAndConfigRolledBack:
+			logExpectedFault(taskFault, f)
+			return true
+		case *types.InvalidArgument:
+			logExpectedFault(taskFault, f)
+			return true
+		default:
+			logFault(err.Fault())
 		}
-		logFault(err.Fault())
 	default:
 		if f, ok := err.(types.HasFault); ok {
 			logFault(f.Fault())
@@ -135,4 +165,8 @@ func logSoapFault(fault types.AnyType) {
 
 func logError(err error) {
 	log.Debugf("unexpected error on task retry : %#v", err)
+}
+
+func logExpectedFault(kind string, fault interface{}) {
+	log.Debugf("task retry on expected %s fault: %#v", kind, fault)
 }
