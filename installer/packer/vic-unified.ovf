@@ -275,7 +275,7 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
       </Property>
       <Property ovf:key="ssl_cert_key" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>4.4. SSL Cert Key</Label>
-        <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
+        <Description>Paste in the content of certificate key file in PKCS#8 format. Leave blank for a generated key.</Description>
       </Property>
     </ProductSection>
     <ProductSection ovf:class="fileserver" ovf:required="false">
