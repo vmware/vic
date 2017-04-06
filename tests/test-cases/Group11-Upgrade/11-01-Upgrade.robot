@@ -112,8 +112,8 @@ Create Docker Containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch container on bridge network
-    ${id1}  ${ip1}=  Launch Container  vch-restart-test1  bridge
-    ${id2}  ${ip2}=  Launch Container  vch-restart-test2  bridge
+    ${id1}  ${ip1}=  Launch Container  vch-restart-test1  bridge  docker1.11
+    ${id2}  ${ip2}=  Launch Container  vch-restart-test2  bridge  docker1.11
     Set Environment Variable  ID1  ${id1}
     Set Environment Variable  ID2  ${id2}
     Set Environment Variable  IP1  ${ip1}
