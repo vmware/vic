@@ -57,6 +57,9 @@ const (
 	serverKey  = "server-key.pem"
 	caCert     = "ca.pem"
 	caKey      = "ca-key.pem"
+
+	dsScheme  = "ds"
+	nfsScheme = "nfs"
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -880,27 +883,41 @@ func (c *Create) processDNSServers() error {
 
 func (c *Create) processVolumeStores() error {
 	defer trace.End(trace.Begin(""))
-	c.VolumeLocations = make(map[string]string)
+	c.VolumeLocations = make(map[string]*url.URL)
 	for _, arg := range c.volumeStores {
 		splitMeta := strings.Split(arg, ":")
 		if len(splitMeta) < 1 {
-			return errors.New("volume store input must be in format datastore/path:label or <nfs://<user>:<password>@<host>/<url-path>:label")
+			return errors.New("volume store input must be in format datastore/path:label or <nfs://<host>/<url-path>?<mount option as query parameters>:,<comma separated mount options>label")
 		}
 
-		u := common.CheckURLValidation(arg)
-		if u != nil {
-			if u.Scheme != "nfs" {
-				return fmt.Errorf("parsed url for option --volume-store does not have scheme 'nfs',  valid inputs are datastore/path:label or <nfs://<user>:<password>@<host>/<share point path>:label")
-			}
-		}
-
-		if err := common.CheckUnsupportedChars(arg); err != nil && u == nil {
-			return fmt.Errorf("--volume-store contains unsupported characters for datastore target: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err)
-		}
-
+		// divide out the label with the target
 		lastIndex := len(splitMeta)
-		reconstructedTarget := strings.Join(splitMeta[0:lastIndex-1], ":")
-		c.VolumeLocations[splitMeta[lastIndex-1]] = reconstructedTarget
+		label := splitMeta[lastIndex-1]
+		rawTarget := strings.Join(splitMeta[0:lastIndex-1], ":")
+
+		// raw target input should be in the form of a url
+		urlTarget, err := url.Parse(rawTarget)
+		if err != nil {
+			return fmt.Errorf("parsed url for option --volume-store does not have scheme 'nfs',  valid inputs are datastore/path:label or <nfs://<host>/<share point path>?<mount options as query params>:label")
+		}
+
+		switch urlTarget.Scheme {
+		case nfsScheme:
+			// nothing needs to be done here. parsing the url is enough for pre-validation checking.
+		default:
+			// a datastore target is our default assumption
+			urlTarget.Scheme = dsScheme
+			if err := common.CheckUnsupportedChars(rawTarget); err != nil {
+				return fmt.Errorf("--volume-store contains unsupported characters for datastore target: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / : ,", err)
+			}
+
+			if len(urlTarget.RawQuery) > 0 {
+				return errors.New("volume store input must be in format datastore/path:label or <nfs://<host>/<url-path>,<comma separated mount options>:,<comma separated mount options>label")
+			}
+
+		}
+
+		c.VolumeLocations[label] = urlTarget
 	}
 
 	return nil
@@ -1412,6 +1429,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	}
 
 	log.Infof("Initialization of appliance successful")
+
+	// We must check for the volume stores that are present after the portlayer presents.
 
 	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile, c.certPath)
 	log.Infof("Installer completed successfully")

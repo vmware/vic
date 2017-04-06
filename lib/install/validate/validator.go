@@ -64,10 +64,6 @@ type Validator struct {
 	allowEmptyDC         bool
 }
 
-const (
-	dsScheme = "ds"
-)
-
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
 	defer trace.End(trace.Begin(""))
 
