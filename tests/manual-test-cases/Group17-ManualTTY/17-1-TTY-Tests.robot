@@ -135,3 +135,35 @@ Reattach to container
     Should Be Equal As Integers  ${ret.rc}  0
     Should Be Empty  ${ret.stdout}
     Should Be Empty  ${ret.stderr}
+
+Exec Echo -it
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -it ${d} /bin/echo "I find your lack of faith disturbing."
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Be Equal As Strings  ${output}  I find your lack of faith disturbing.
+
+Exec Sort -it
+    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    Should Be Equal As Integers  ${rc}  0
+    ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
+    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  5
+    \     Start Process  docker %{VCH-PARAMS} exec -it ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    \     Run  echo one > ${fifo}
+    \     ${ret}=  Wait For Process  custom
+    \     Log  ${ret.stderr}
+    \     Should Be Equal  ${ret.stdout}  cannot enable tty mode on non tty input
+    \     Should Be Equal As Integers  ${ret.rc}  0
+    \     Should Be Empty  ${ret.stderr}
+    Run  rm -rf ${tmp}

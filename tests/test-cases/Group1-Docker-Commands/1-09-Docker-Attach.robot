@@ -59,7 +59,7 @@ Attach with short input
     ${out}=  Run  docker %{VCH-PARAMS} pull busybox
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox sort
     Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  20
+    :FOR  ${idx}  IN RANGE  0  5
     \     Start Process  docker %{VCH-PARAMS} start -ai ${containerID} < ${fifo}  shell=True  alias=custom
     \     Run  echo one > ${fifo}
     \     ${ret}=  Wait For Process  custom
@@ -78,7 +78,7 @@ Attach with short output
     Run  docker %{VCH-PARAMS} pull busybox
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox echo one
     Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  20
+    :FOR  ${idx}  IN RANGE  0  5
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  one
@@ -92,7 +92,7 @@ Attach with short output with tty
     Run  docker %{VCH-PARAMS} pull busybox
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t busybox echo one
     Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  20
+    :FOR  ${idx}  IN RANGE  0  5
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  one
