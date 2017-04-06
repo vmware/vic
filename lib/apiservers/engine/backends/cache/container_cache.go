@@ -76,7 +76,7 @@ func (cc *CCache) getContainer(nameOrID string) *container.VicContainer {
 	return nil
 }
 
-// GetContainerByName function returns a container whose "exactly" matches nameOnly
+// GetContainerByName returns a container whose name "exactly" matches nameOnly
 func (cc *CCache) GetContainerByName(nameOnly string) *container.VicContainer {
 	cc.m.RLock()
 	defer cc.m.RUnlock()
