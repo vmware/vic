@@ -97,7 +97,7 @@ const (
 
 // isRetryErrors will return true for vSphere errors, which can be fixed by retry.
 // Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack and InvalidArgument
-// The reason to retry for these errors is because sometimes vSphere needs longer time to finish sync up inside
+// Retry on errors NetworkDisruptedAndConfigRolledBack and InvalidArgument is to workaround vSphere or vSAN intermittent failure
 func isRetryError(err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
