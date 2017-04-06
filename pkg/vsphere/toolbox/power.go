@@ -106,12 +106,12 @@ func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
 
 func Halt() error {
 	log.Infof("Halting system...")
-	// #nosec
+	// #nosec: Subprocess launching with variable
 	return exec.Command(shutdown, "-h", "now").Run()
 }
 
 func Reboot() error {
 	log.Infof("Rebooting system...")
-	// #nosec
+	// #nosec: Subprocess launching with variable
 	return exec.Command(shutdown, "-r", "now").Run()
 }

@@ -56,7 +56,7 @@ func startCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
 func enableShell() error {
 	defer trace.End(trace.Begin(""))
 
-	// #nosec
+	// #nosec: Subprocess launching should be audited
 	chsh := exec.Command("/bin/chsh", "-s", "/bin/bash", "root")
 	err := chsh.Start()
 	if err != nil {
@@ -113,7 +113,7 @@ func passwd(pass string) error {
 		// continue anyway as people may be able to get something useful
 	}
 
-	// #nosec
+	// #nosec: Subprocess launching should be audited
 	setPasswd := exec.Command("/sbin/chpasswd")
 	stdin, err := setPasswd.StdinPipe()
 	if err != nil {
@@ -183,7 +183,7 @@ func enableSSH(key string) error {
 
 // startSSH launches the sshd server
 func startSSH() error {
-	// #nosec
+	// #nosec: Subprocess launching should be audited
 	c := exec.Command("/usr/bin/systemctl", "start", "sshd")
 
 	var b bytes.Buffer

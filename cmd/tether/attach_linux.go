@@ -38,7 +38,8 @@ func setTerminalSpeed(fd uintptr) error {
 		termios syscall.Termios
 	}
 
-	// get the current state #nosec
+	// get the current state
+	// #nosec: Use of unsafe calls should be audited
 	if _, _, errno := syscall.Syscall6(syscall.SYS_IOCTL,
 		uintptr(fd),
 		syscall.TCGETS,
@@ -60,7 +61,8 @@ func setTerminalSpeed(fd uintptr) error {
 	future.Ispeed = syscall.B115200
 	future.Ospeed = syscall.B115200
 
-	// set the future values #nosec
+	// set the future values
+	// #nosec: Use of unsafe calls should be audited
 	if _, _, errno := syscall.Syscall6(
 		syscall.SYS_IOCTL,
 		uintptr(fd),
@@ -129,7 +131,7 @@ func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
 	defer trace.End(trace.Begin(""))
 
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
-	// #nosec
+	// #nosec: Use of unsafe calls should be audited
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		pty,

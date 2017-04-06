@@ -65,7 +65,7 @@ func (ds *Datastore) RefreshDatastore(*types.RefreshDatastore) soap.HasFault {
 
 	info := ds.Info.GetDatastoreInfo()
 
-	// #nosec
+	// #nosec: Subprocess launching with variable
 	buf, err := exec.Command("df", "-k", info.Url).Output()
 
 	if err != nil {

@@ -112,7 +112,8 @@ func main() {
 	app.Version = version.GetBuild().ShortVersion()
 
 	logs := []io.Writer{app.Writer}
-	// Open log file #nosec
+	// Open log file
+	// #nosec: Expect file permissions to be 0600 or less
 	f, err := os.OpenFile(LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening logfile %s: %v\n", LogFile, err)

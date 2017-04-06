@@ -90,7 +90,7 @@ func main() {
 }
 
 func createDevices() error {
-	// #nosec
+	// #nosec: Expect directory permissions to be 0700 or less
 	err := os.MkdirAll(pathPrefix, 644)
 	if err != nil {
 		log.Warnf("Failed to ensure presence of tether device directory: %s", err)

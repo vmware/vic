@@ -119,26 +119,26 @@ func NewBlobProperty(ID int32, val []byte) *VixProperty {
 func (p *VixProperty) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	// #nosec
+	// #nosec: Errors unhandled
 	_ = binary.Write(buf, binary.LittleEndian, &p.header)
 
 	switch p.header.Kind {
 	case vixPropertyTypeBool:
-		// #nosec
+		// #nosec: Errors unhandled
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Bool)
 	case vixPropertyTypeInt32:
-		// #nosec
+		// #nosec: Errors unhandled
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Int32)
 	case vixPropertyTypeInt64:
-		// #nosec
+		// #nosec: Errors unhandled
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Int64)
 	case vixPropertyTypeString:
-		// #nosec
+		// #nosec: Errors unhandled
 		_, _ = buf.WriteString(p.data.String)
-		// #nosec
+		// #nosec: Errors unhandled
 		_ = buf.WriteByte(0)
 	case vixPropertyTypeBlob:
-		// #nosec
+		// #nosec: Errors unhandled
 		_, _ = buf.Write(p.data.Blob)
 	}
 
@@ -208,9 +208,9 @@ func (l *VixPropertyList) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 
 	for _, p := range *l {
-		// #nosec
+		// #nosec: Errors unhandled
 		b, _ := p.MarshalBinary()
-		// #nosec
+		// #nosec: Errors unhandled
 		_, _ = buf.Write(b)
 	}
 

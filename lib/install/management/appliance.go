@@ -755,7 +755,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 		// TLS enabled
 		proto = "https"
 
-		// #nosec
+		// #nosec: TLS InsecureSkipVerify set true
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,

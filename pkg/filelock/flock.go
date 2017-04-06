@@ -53,7 +53,7 @@ func (fl *FileLock) Acquire() error {
 	fl.fh = fh
 	err = syscall.Flock(int(fh.Fd()), syscall.LOCK_EX)
 	if err != nil {
-		// #nosec
+		// #nosec: Errors unhandled
 		fh.Close()
 		fh = nil
 		fl.mu.Unlock()
@@ -66,7 +66,7 @@ func (fl *FileLock) Release() error {
 	if fl.fh == nil {
 		panic("Attempt to release not acquired lock!")
 	}
-	// #nosec
+	// #nosec: Errors unhandled
 	syscall.Flock(int(fl.fh.Fd()), syscall.LOCK_UN)
 	err := fl.fh.Close()
 	fl.fh = nil

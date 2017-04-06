@@ -91,7 +91,7 @@ func CheckAPIAvailability(targetURL string) int {
 
 	for attempts := 5; errorCode != VCStatusOK && attempts > 0; attempts-- {
 
-		// #nosec
+		// #nosec: TLS InsecureSkipVerify set true
 		c := http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{

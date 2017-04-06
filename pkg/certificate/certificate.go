@@ -195,7 +195,7 @@ func createCertificate(template, parent *x509.Certificate, templateKey, parentKe
 func saveCertificate(cf, kf string, cert, key *bytes.Buffer) error {
 	defer trace.End(trace.Begin(""))
 
-	// #nosec
+	// #nosec: Expect file permissions to be 0600 or less
 	certFile, err := os.OpenFile(cf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		err = errors.Errorf("Failed to create certificate file %s: %s", cf, err)
