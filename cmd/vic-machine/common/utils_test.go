@@ -120,7 +120,7 @@ func TestCheckUnsupportedCharsDatastore(t *testing.T) {
 	}
 }
 
-func TestCheckURLValidationOutputParity(t *testing.T) {
+func TestCheckNFSVolumeURLOutputParity(t *testing.T) {
 	tests := []struct {
 		S     string
 		valid bool
@@ -136,7 +136,7 @@ func TestCheckURLValidationOutputParity(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		url := CheckURLValidation(test.S)
+		url := CheckNFSVolumeURL(test.S)
 
 		if test.valid {
 			if url == nil {
@@ -152,10 +152,10 @@ func TestCheckURLValidationOutputParity(t *testing.T) {
 	}
 }
 
-func TestCheckURLValidationOutputCorrectness(t *testing.T) {
+func TestCheckNFSVolumeURLOutputCorrectness(t *testing.T) {
 
 	testRawURL := "blargh://jim:@127.0.0.1/great/path:importantTarget"
-	u := CheckURLValidation(testRawURL)
+	u := CheckNFSVolumeURL(testRawURL)
 
 	correctScheme := "blargh"
 	correctUser := "jim"

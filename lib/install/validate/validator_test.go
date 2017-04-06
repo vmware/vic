@@ -120,7 +120,6 @@ func TestMain(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
 	ctx := context.Background()
-	TestNFSHelperOutputParity(t)
 
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
@@ -170,13 +169,13 @@ func TestMain(t *testing.T) {
 	}
 }
 
-func getESXData(url *url.URL) *data.Data {
+func getESXData(testURL *url.URL) *data.Data {
 	result := data.NewData()
-	url.Path = url.Path + "/ha-datacenter"
-	result.OpsUser = url.User.Username()
-	passwd, _ := url.User.Password()
+	testURL.Path = testURL.Path + "/ha-datacenter"
+	result.OpsUser = testURL.User.Username()
+	passwd, _ := testURL.User.Password()
 	result.OpsPassword = &passwd
-	result.URL = url
+	result.URL = testURL
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
@@ -184,28 +183,35 @@ func getESXData(url *url.URL) *data.Data {
 	_, result.BridgeIPRange, _ = net.ParseCIDR("172.16.0.0/12")
 	result.ManagementNetwork.Name = "VM Network"
 	result.PublicNetwork.Name = "VM Network"
-	result.VolumeLocations = make(map[string]string)
-	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
-
+	result.VolumeLocations = make(map[string]*url.URL)
+	testVolumeStoreURL := &url.URL{
+		Host: "LocalDS_0",
+		Path: "volumes/test",
+	}
+	result.VolumeLocations["volume-store"] = testVolumeStoreURL
 	return result
 }
 
-func getVPXData(url *url.URL) *data.Data {
+func getVPXData(testURL *url.URL) *data.Data {
 	result := data.NewData()
-	url.Path = url.Path + "/DC0"
-	result.OpsUser = url.User.Username()
-	passwd, _ := url.User.Password()
+	testURL.Path = testURL.Path + "/DC0"
+	result.OpsUser = testURL.User.Username()
+	passwd, _ := testURL.User.Password()
 	result.OpsPassword = &passwd
-	result.URL = url
+	result.URL = testURL
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
 	result.PublicNetwork.Name = "VM Network"
 	result.BridgeNetworkName = "bridge"
 	_, result.BridgeIPRange, _ = net.ParseCIDR("172.16.0.0/12")
-	result.VolumeLocations = make(map[string]string)
-	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
+	result.VolumeLocations = make(map[string]*url.URL)
+	testVolumeStoreURL := &url.URL{
+		Host: "LocalDS_0",
+		Path: "volumes/test",
+	}
+	result.VolumeLocations["volume-store"] = testVolumeStoreURL
 	return result
 }
 
@@ -300,83 +306,96 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 }
 
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
+	// specifically ignoring err here because we do not care about the parse result.
+	testURL1, _ := url.Parse("LocalDS_0/volumes/volume1")
+	testURL2, _ := url.Parse("ds://LocalDS_0/volumes/volume2")
+	testURL3, _ := url.Parse("ds://LocalDS_0/volumes/volume1")
+
+	// These two should report errors due to bad characters in the url. These should test how DatastoreHelper handles a nil or malformed url.
+	testURL4, _ := url.Parse("😗/volumes/volume1")
+	testURL5, _ := url.Parse("ds://😗/volumes/volume2")
+
+	testURL6, _ := url.Parse("LocalDS_1/volumes/volume1")
+	testURL7, _ := url.Parse("ds://LocalDS_1/volumes/volume2")
+	testURL8, _ := url.Parse("")
+	testURL9, _ := url.Parse("ds://")
+
 	tests := []struct {
 		image         string
-		volumes       map[string]string
+		volumes       map[string]*url.URL
 		hasErr        bool
 		expectImage   string
-		expectVolumes map[string]string
+		expectVolumes map[string]*url.URL
 	}{
 		{"LocalDS_0",
-			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL1,
+				"volume2": testURL2},
 			false,
-			"ds://LocalDS_0",
-			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"}},
-
+			"ds://LocalDS_0/test001",
+			map[string]*url.URL{"volume1": testURL3,
+				"volume2": testURL2}},
 		{"LocalDS_0/images",
-			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL1,
+				"volume2": testURL2},
 			false,
 			"ds://LocalDS_0/images",
-			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+			map[string]*url.URL{"volume1": testURL3,
+				"volume2": testURL2}},
 
 		{"ds://LocalDS_0/images",
-			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL1,
+				"volume2": testURL2},
 			false,
 			"ds://LocalDS_0/images",
-			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+			map[string]*url.URL{"volume1": testURL3,
+				"volume2": testURL2}},
 
 		{"ds://LocalDS_0/images/xyz",
-			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL1,
+				"volume2": testURL2},
 			false,
 			"ds://LocalDS_0/images/xyz",
-			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
-				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+			map[string]*url.URL{"volume1": testURL3,
+				"volume2": testURL2}},
 
 		{"ds://😗",
-			map[string]string{"volume1": "😗/volumes/volume1",
-				"volume2": "ds://😗/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL4,
+				"volume2": testURL5},
 			true,
 			"ds://😗/test001",
 			nil},
 
 		{"ds://LocalDS_0",
-			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
-				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL6,
+				"volume2": testURL7},
 			true,
 			"ds://LocalDS_0/test001",
 			nil},
 
 		{"LocalDS_0",
-			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
-				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL6,
+				"volume2": testURL7},
 			true,
 			"ds://LocalDS_0/test001",
 			nil},
 
 		{"LocalDS_0",
-			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
-				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			map[string]*url.URL{"volume1": testURL6,
+				"volume2": testURL7},
 			true,
 			"ds://LocalDS_0/test001",
 			nil},
 
 		{"",
-			map[string]string{"volume1": "",
-				"volume2": "ds://"},
+			map[string]*url.URL{"volume1": testURL8,
+				"volume2": testURL9},
 			true,
 			"",
 			nil},
 
 		{"ds://",
-			map[string]string{"volume1": "",
-				"volume2": "ds://"},
+			map[string]*url.URL{"volume1": testURL8,
+				"volume2": testURL9},
 			true,
 			"",
 			nil},
@@ -393,7 +412,7 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			assert.Equal(t, test.expectImage, conf.ImageStores[0].String())
 			conf.ImageStores = conf.ImageStores[1:]
 			for key, volume := range conf.VolumeLocations {
-				assert.Equal(t, test.expectVolumes[key], volume.String())
+				assert.Equal(t, test.expectVolumes[key].String(), volume.String())
 			}
 		} else {
 			assert.True(t, len(v.issues) > 0, "Should have errors")
@@ -724,34 +743,4 @@ func TestValidateWithESX(t *testing.T) {
 
 	simulator.Map.Remove(esx.Datacenter.Reference()) // goodnight now.
 	validator.suggestDatacenter()
-}
-
-func TestNFSHelperOutputParity(t *testing.T) {
-	tests := []struct {
-		S     string
-		valid bool
-	}{
-		{"nfs://127.0.0.1:/my/data/here", true},
-		{"NotAGoodScheme://127.0.0.1:/not/my/server", false},
-		{"not a URL", false},
-		{"127.0.0.1:/schemeless/url", false},
-		{"//127.0.0.1/schemeless/url", false},
-		{"Blargh://127.0.0.1/schemeless/url", false},
-		{"Blargh://bob:pass@127.0.0.1/schemed/url", false},
-		{"Blargh://jim:@127.0.0.1/schemed/url", false},
-		{"nfs://jim:@127.0.0.1/schemed/url", true},
-		{"datastore1", false},
-		{"nfs://127.0.0.1/some/path", true},
-	}
-
-	for _, test := range tests {
-		url, err := NFSHelper(test.S)
-
-		if test.valid {
-			assert.Nil(t, err, "")
-			assert.NotNil(t, url, "")
-		} else {
-			assert.NotNil(t, err, "")
-		}
-	}
 }

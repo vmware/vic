@@ -97,8 +97,12 @@ func getESXData(url *url.URL) *data.Data {
 	result.BridgeNetworkName = "bridge"
 	result.ManagementNetwork.Name = "VM Network"
 	result.PublicNetwork.Name = "VM Network"
-	result.VolumeLocations = make(map[string]string)
-	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
+	result.VolumeLocations = make(map[string]*url.URL)
+	testURL := &url.URL{
+		Host: "LocalDS_0",
+		Path: "volumes/test",
+	}
+	result.VolumeLocations["volume-store"] = testURL
 
 	return result
 }
@@ -111,8 +115,12 @@ func getVPXData(url *url.URL) *data.Data {
 	result.ImageDatastorePath = "LocalDS_0"
 	result.PublicNetwork.Name = "VM Network"
 	result.BridgeNetworkName = "DC0_DVPG0"
-	result.VolumeLocations = make(map[string]string)
-	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
+	result.VolumeLocations = make(map[string]*url.URL)
+	testURL := &url.URL{
+		Host: "LocalDS_0",
+		Path: "volumes/test",
+	}
+	result.VolumeLocations["volume-store"] = testURL
 
 	return result
 }

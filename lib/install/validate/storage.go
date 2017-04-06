@@ -33,6 +33,7 @@ import (
 
 const (
 	nfsScheme = "nfs"
+	dsScheme  = "ds"
 )
 
 func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
@@ -60,60 +61,52 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 		conf.VolumeLocations = make(map[string]*url.URL)
 	}
 
-	// TODO: add volume locations
-	for label, volPath := range input.VolumeLocations {
-		nfsURL, nfsErr := NFSHelper(volPath)
-		if nfsURL != nil && nfsErr == nil {
-			conf.VolumeLocations[label] = nfsURL
+	for label, targetURL := range input.VolumeLocations {
+		var vsErr error
+		switch targetURL.Scheme {
+		case nfsScheme:
+			vsErr := validateNFSTarget(targetURL)
+			v.NoteIssue(vsErr)
+		case dsScheme:
+			// TODO: change v.DatastoreHelper to take url struct instead of string and modify tests.
+			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.String(), label, "--volume-store")
+			v.NoteIssue(vsErr)
+		default:
+			// We should not reach here, if we do we will attempt to treat this as a vsphere datastore
+			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.String(), label, "--volume-store")
+			v.NoteIssue(vsErr)
+		}
+
+		// skip adding volume stores that we know will fail
+		if vsErr != nil {
 			continue
 		}
 
-		dsURL, _, dsErr := v.DatastoreHelper(ctx, volPath, label, "--volume-store")
-
-		// if both validations return error then the input cannot be used as a volumestore.
-		if nfsErr != nil && dsErr != nil {
-			v.NoteIssue(nfsErr)
-			v.NoteIssue(dsErr)
-		}
-
-		if dsURL != nil {
-			conf.VolumeLocations[label] = dsURL
-		}
+		conf.VolumeLocations[label] = targetURL
 	}
 }
 
-// NFSHelper is used to construct a potential nfs target. If a valid NFS target cannot be contsructed a nil pointer will be returned.
-func NFSHelper(rawPath string) (*url.URL, error) {
-	// NOTE: issues from this function will need to be noted at the end of the datastore validation attempt. since we have multiple acceptable input formats now.
-	// NOTE: USER is checked at portlayer configuration time, since we cannot validate whether one is needed or not during vic-machine create time.
-
-	u, err := url.Parse(rawPath)
-	if err != nil {
-		return nil, err
+func validateNFSTarget(nfsURL *url.URL) error {
+	if nfsURL.Host == "" || nfsURL.Path == "" {
+		return fmt.Errorf("nfs volume target (%s) requires both a host and a share point path", nfsURL.String())
 	}
 
-	// XXX: the below cases indicate a successful url parsing path, and should be accounted for in the error output from the validator
-	// at a minimum we expect a proper scheme, a host, and a path. without these a nfs store is not identifiable and able to be targeted
-	if u.Scheme != nfsScheme {
-		return u, fmt.Errorf("volume store target (%s) needs to have scheme 'nfs' if it is intended as an nfs volume-store. format: <nfs://<user>:<password>@<host>/<share point path>:label", rawPath)
+	if nfsURL.Host == "" {
+		return fmt.Errorf("volume store target (%s) is missing the host field. format: <nfs://<user>:<password>@<host>/<share point path>:label", nfsURL.String())
 	}
 
-	if u.Host == "" {
-		return u, fmt.Errorf("volume store target (%s) is missing the host field. format: <nfs://<user>:<password>@<host>/<share point path>:label", rawPath)
+	if nfsURL.Path == "" {
+		return fmt.Errorf("volume store target (%s) is missing the path field. format: <nfs://<host>/<share point path>?<mount options as query vars>:label", nfsURL.String())
 	}
 
-	if u.Path == "" {
-		return u, fmt.Errorf("volume store target (%s) is missing the path field. format: <nfs://<user>:<password>@<host>/<share point path>:label", rawPath)
-	}
-
-	return u, nil
+	return nil
 }
 
 func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
 	defer trace.End(trace.Begin(path))
-	dsURL, err := url.Parse(path)
-	if err != nil {
-		return nil, nil, errors.Errorf("error parsing datastore path: %s", err)
+	dsURL, dsErr := url.Parse(path)
+	if dsErr != nil {
+		return nil, nil, errors.Errorf("error parsing datastore path: %s", dsErr)
 	}
 
 	// url scheme does not contain ://, so remove it to make url work
@@ -121,7 +114,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 		return nil, nil, errors.Errorf("bad scheme %q provided for datastore", dsURL.Scheme)
 	}
 
-	dsURL.Scheme = "ds"
+	dsURL.Scheme = dsScheme
 
 	// if a datastore name (e.g. "datastore1") is specified with no decoration then this
 	// is interpreted as the Path
