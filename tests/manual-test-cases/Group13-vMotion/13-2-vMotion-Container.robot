@@ -36,10 +36,14 @@ Test
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container3}
     Should Be Equal As Integers  ${rc}  0
-
-    vMotion A VM  %{VCH-NAME}/*-${container1}
-    vMotion A VM  %{VCH-NAME}/*-${container2}
-    vMotion A VM  %{VCH-NAME}/*-${container3}
+    
+    ${vmName1}=  Get VM display name  ${container1}
+    ${vmName2}=  Get VM display name  ${container2}
+    ${vmName3}=  Get VM display name  ${container3}
+    
+    vMotion A VM  %{VCH-NAME}/${vmName1}
+    vMotion A VM  %{VCH-NAME}/${vmName2}
+    vMotion A VM  %{VCH-NAME}/${vmName3}
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0
