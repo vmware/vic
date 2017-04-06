@@ -119,10 +119,10 @@ Create Docker Containers
     Set Environment Variable  IP1  ${ip1}
     Set Environment Variable  IP2  ${ip2}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver nginx
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
