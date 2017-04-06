@@ -202,3 +202,9 @@ if [ ${admiral_deploy,,} == "true" ]; then
   # If admiral is deployed, configure the integration URL
   configureHarborCfg admiral_url https://${hostname}:$(ovfenv -k management_portal.port)
 fi
+
+# Open port for Harbor
+iptables -w -A INPUT -j ACCEPT -p tcp --dport $(ovfenv -k registry.port)
+
+# Open port for Notary
+iptables -w -A INPUT -j ACCEPT -p tcp --dport 4443
