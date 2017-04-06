@@ -118,7 +118,6 @@ yum_cached -p $PKGDIR clean all
 pwhash=$(openssl passwd -1 -salt vic password)
 sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
 
-
 # Disable SSH by default - this can be enabled via guest operations
 rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service
 rm $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/sshd.service
@@ -128,6 +127,11 @@ sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/
 
 # Disable root login
 sed -i -e 's@:/bin/bash$@:/bin/false@' $(rootfs_dir $PKGDIR)/etc/passwd
+
+# Allow chpasswd to change expired password when launched from vic-init
+cp -f ${DIR}/appliance/chpasswd.pam $(rootfs_dir $PKGDIR)/etc/pam.d/chpasswd
+# Allow chage to be used with expired password when launched from vic-init
+cp -f ${DIR}/appliance/chage.pam $(rootfs_dir $PKGDIR)/etc/pam.d/chage
 
 # package up the result
 pack $PKGDIR $OUT
