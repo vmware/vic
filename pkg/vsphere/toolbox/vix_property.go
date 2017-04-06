@@ -116,23 +116,29 @@ func NewBlobProperty(ID int32, val []byte) *VixProperty {
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface
-// #nosec
 func (p *VixProperty) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
+	// #nosec
 	_ = binary.Write(buf, binary.LittleEndian, &p.header)
 
 	switch p.header.Kind {
 	case vixPropertyTypeBool:
+		// #nosec
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Bool)
 	case vixPropertyTypeInt32:
+		// #nosec
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Int32)
 	case vixPropertyTypeInt64:
+		// #nosec
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Int64)
 	case vixPropertyTypeString:
+		// #nosec
 		_, _ = buf.WriteString(p.data.String)
+		// #nosec
 		_ = buf.WriteByte(0)
 	case vixPropertyTypeBlob:
+		// #nosec
 		_, _ = buf.Write(p.data.Blob)
 	}
 
@@ -198,12 +204,13 @@ func (l *VixPropertyList) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface
-// #nosec
 func (l *VixPropertyList) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 
 	for _, p := range *l {
+		// #nosec
 		b, _ := p.MarshalBinary()
+		// #nosec
 		_, _ = buf.Write(b)
 	}
 
