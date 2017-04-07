@@ -91,7 +91,7 @@ func (c *Connector) aliveAndKicking(ctx context.Context, id string) SessionInter
 // Interaction returns the interactor corresponding to the specified ID. If the connection doesn't exist
 // the method will wait for the specified timeout, returning when the connection is created
 // or the timeout expires, whichever occurs first
-func (c *Connector) Interaction(ctx context.Context, id string, timeout time.Duration) (SessionInteractor, error) {
+func (c *Connector) Interaction(ctx context.Context, id string) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)

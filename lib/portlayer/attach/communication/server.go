@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -101,13 +100,13 @@ func (n *Server) Addr() string {
 // Interaction returns the session interface for the given container.  If the container
 // cannot be found, this call will wait for the given timeout.
 // id is ID of the container.
-func (n *Server) Interaction(ctx context.Context, id string, timeout time.Duration) (SessionInteractor, error) {
+func (n *Server) Interaction(ctx context.Context, id string) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
 	n.m.RLock()
 	defer n.m.RUnlock()
 
-	return n.c.Interaction(ctx, id, timeout)
+	return n.c.Interaction(ctx, id)
 }
 
 // RemoveInteraction removes the session interface from underlying connector

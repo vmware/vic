@@ -142,8 +142,13 @@ func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUn
 
 // ContainerResizeHandler calls resize
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
+	defer trace.End(trace.Begin(params.ID))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 0)
+	defer cancel()
+
 	// See whether there is an active session to the container
-	session, err := i.server.Interaction(context.Background(), params.ID, 0)
+	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {
 		// just note the warning and return, resize requires an active connection
 		log.Warnf("No resize connection found (id: %s): %s", params.ID, err)
@@ -170,24 +175,20 @@ func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.Cont
 func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.ContainerSetStdinParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	var ctxDeadline time.Time
-	var timeout time.Duration
-
-	// Calculate the timeout for the attach if the caller specified a deadline.  This deadline
+	ctx, cancel := context.WithTimeout(context.Background(), interactionTimeout)
 	if params.Deadline != nil {
-		ctxDeadline = time.Time(*params.Deadline)
-		timeout = ctxDeadline.Sub(time.Now())
-		log.Debugf("Attempting to get ssh session for container %s stdin with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
-		if timeout < 0 {
-			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
-			return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
+		ctx, cancel = context.WithDeadline(context.Background(), time.Time(*params.Deadline))
+	}
+	defer cancel()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		e := &models.Error{
+			Message: fmt.Sprintf("Deadline for stdout already passed for container %s", params.ID),
 		}
-	} else {
-		log.Debugf("Attempting to get ssh session for container %s stdin", params.ID)
-		timeout = interactionTimeout
+		return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
 	}
 
-	session, err := i.server.Interaction(context.Background(), params.ID, timeout)
+	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
@@ -211,10 +212,8 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 					log.Infof("CloseStdin@ContainerSetStdinHandler succeeded")
 				}
 			}
-		*/
 
-		// FIXME(caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
-		/*
+			// FIXME(caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
 			e := &models.Error{
 				Message: fmt.Sprintf("Error copying stdin (id: %s): %s", params.ID, err.Error()),
 			}
@@ -234,7 +233,10 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 func (i *InteractionHandlersImpl) ContainerCloseStdinHandler(params interaction.ContainerCloseStdinParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	session, err := i.server.Interaction(context.Background(), params.ID, interactionTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), interactionTimeout)
+	defer cancel()
+
+	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
@@ -258,24 +260,20 @@ func (i *InteractionHandlersImpl) ContainerCloseStdinHandler(params interaction.
 func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.ContainerGetStdoutParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	var ctxDeadline time.Time
-	var timeout time.Duration
-
-	// Calculate the timeout for the attach if the caller specified a deadline
+	ctx, cancel := context.WithTimeout(context.Background(), interactionTimeout)
 	if params.Deadline != nil {
-		ctxDeadline = time.Time(*params.Deadline)
-		timeout = ctxDeadline.Sub(time.Now())
-		log.Debugf("Attempting to get ssh session for container %s stdout with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
-		if timeout < 0 {
-			e := &models.Error{Message: fmt.Sprintf("Deadline for stdout already passed for container %s", params.ID)}
-			return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
+		ctx, cancel = context.WithDeadline(context.Background(), time.Time(*params.Deadline))
+	}
+	defer cancel()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		e := &models.Error{
+			Message: fmt.Sprintf("Deadline for stdout already passed for container %s", params.ID),
 		}
-	} else {
-		log.Debugf("Attempting to get ssh session for container %s stdout", params.ID)
-		timeout = interactionTimeout
+		return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
 	}
 
-	session, err := i.server.Interaction(context.Background(), params.ID, timeout)
+	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
@@ -302,24 +300,20 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.ContainerGetStderrParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	var ctxDeadline time.Time
-	var timeout time.Duration
-
-	// Calculate the timeout for the attach if the caller specified a deadline
+	ctx, cancel := context.WithTimeout(context.Background(), interactionTimeout)
 	if params.Deadline != nil {
-		ctxDeadline = time.Time(*params.Deadline)
-		timeout = ctxDeadline.Sub(time.Now())
-		log.Debugf("Attempting to get ssh session for container %s stderr with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
-		if timeout < 0 {
-			e := &models.Error{Message: fmt.Sprintf("Deadline for stderr already passed for container %s", params.ID)}
-			return interaction.NewContainerGetStderrInternalServerError().WithPayload(e)
+		ctx, cancel = context.WithDeadline(context.Background(), time.Time(*params.Deadline))
+	}
+	defer cancel()
+
+	if ctx.Err() == context.DeadlineExceeded {
+		e := &models.Error{
+			Message: fmt.Sprintf("Deadline for stderr already passed for container %s", params.ID),
 		}
-	} else {
-		log.Debugf("Attempting to get ssh session for container %s stderr", params.ID)
-		timeout = interactionTimeout
+		return interaction.NewContainerGetStderrInternalServerError().WithPayload(e)
 	}
 
-	session, err := i.server.Interaction(context.Background(), params.ID, timeout)
+	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 

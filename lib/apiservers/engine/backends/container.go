@@ -381,7 +381,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 	handle = resp.Payload.Handle.(string)
 
-	// exec doesn't have seperate attach path so we will decide whether we need interaction/runblocking or not
+	// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
 	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
 
 	f := func() error { return c.containerProxy.CommitContainerHandle(handle, name, 0) }
