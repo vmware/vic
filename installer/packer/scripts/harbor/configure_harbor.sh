@@ -12,7 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-set -x -euf -o pipefail
+set -euf -o pipefail
+
+umask 077
 
 deploy=$(ovfenv -k registry.deploy)
 
