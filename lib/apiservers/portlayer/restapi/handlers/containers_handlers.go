@@ -385,7 +385,7 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 		}
 	}()
 
-	return NewStreamOutputHandler("containerStats").WithPayload(flusher, params.ID, cleaner)
+	return NewStreamOutputHandler("containerStats").WithPayload(flusher, params.ID, cleaner, nil)
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
@@ -426,7 +426,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	detachableOut := NewFlushingReader(reader)
 
-	return NewStreamOutputHandler("containerLogs").WithPayload(detachableOut, params.ID, nil)
+	return NewStreamOutputHandler("containerLogs").WithPayload(detachableOut, params.ID, nil, nil)
 }
 
 func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.ContainerWaitParams) middleware.Responder {

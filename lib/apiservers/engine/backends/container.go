@@ -877,8 +877,6 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		}
 	}
 
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
 	return nil
 }
 
@@ -1579,10 +1577,10 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 
 	if !vc.Config.Tty && ca.MuxStreams {
 		// replace the stdout/stderr with Docker's multiplex stream
-		if ca.UseStdout {
+		if ca.UseStderr {
 			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
 		}
-		if ca.UseStderr {
+		if ca.UseStdout {
 			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
 		}
 	}

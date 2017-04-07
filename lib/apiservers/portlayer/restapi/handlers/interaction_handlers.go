@@ -143,7 +143,7 @@ func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUn
 // ContainerResizeHandler calls resize
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
 	// See whether there is an active session to the container
-	session, err := i.attachServer.Get(context.Background(), params.ID, 0)
+	session, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
 		// just note the warning and return, resize requires an active connection
 		log.Warnf("No resize connection found (id: %s): %s", params.ID, err)
@@ -196,13 +196,6 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		}
 		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
 	}
-	// Remove the connection from the map
-	defer func() {
-		// io.EOF is expected if the channel is already closed so ignore it
-		if err := i.attachServer.Remove(params.ID); err != nil && err != io.EOF {
-			log.Errorf("Removing the connection from the map failed with %s", err)
-		}
-	}()
 
 	detachableIn := NewFlushingReaderWithInitBytes(params.RawStream, []byte(attachStdinInitString))
 	_, err = io.Copy(session.Stdin(), detachableIn)
@@ -228,6 +221,10 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 			return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
 		*/
 	}
+
+	// close the stream
+	params.RawStream.Close()
+	session.CloseWrite()
 
 	log.Debugf("Done copying stdin")
 
@@ -299,6 +296,9 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 		),
 		params.ID,
 		nil,
+		func() {
+			session.Close()
+		},
 	)
 }
 
@@ -343,5 +343,8 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 		),
 		params.ID,
 		nil,
+		func() {
+			session.Close()
+		},
 	)
 }

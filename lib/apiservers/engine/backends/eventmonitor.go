@@ -219,9 +219,17 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		log.Errorf("Portlayer event for container %s but not found in cache", event.Ref)
 	}
 
-	if event.Event == plevents.ContainerStopped {
-		log.Debugf("Sending event for continer %s", vc.ContainerID)
+	switch event.Event {
+	case plevents.ContainerStopped,
+		plevents.ContainerPoweredOff:
+		log.Debugf("Sending die event for container %s", vc.ContainerID)
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 		EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
+	case plevents.ContainerStarted,
+		plevents.ContainerPoweredOn:
+		log.Debugf("Sending start event for container %s", vc.ContainerID)
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+		EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
 	}
+
 }

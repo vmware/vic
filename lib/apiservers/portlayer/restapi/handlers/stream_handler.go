@@ -26,10 +26,11 @@ import (
 // StreamOutputHandler is a custom return handler that provides common
 // stream handling across the API.
 type StreamOutputHandler struct {
-	outputStream *FlushingReader
-	id           string
-	outputName   string
-	onHTTPClose  func() // clean up func called when transport closed
+	outputStream   *FlushingReader
+	id             string
+	outputName     string
+	onHTTPClose    func() // clean up func called when transport closed
+	onResponseDone func()
 }
 
 // NewStreamOutputHandler creates StreamOutputHandler with default headers values
@@ -38,10 +39,11 @@ func NewStreamOutputHandler(name string) *StreamOutputHandler {
 }
 
 // WithPayload adds the payload to the container set stdin internal server error response
-func (s *StreamOutputHandler) WithPayload(payload *FlushingReader, id string, cleanup func()) *StreamOutputHandler {
+func (s *StreamOutputHandler) WithPayload(payload *FlushingReader, id string, cleanup func(), responseDone func()) *StreamOutputHandler {
 	s.outputStream = payload
 	s.id = id
 	s.onHTTPClose = cleanup
+	s.onResponseDone = responseDone
 	return s
 }
 
@@ -67,6 +69,10 @@ func (s *StreamOutputHandler) WriteResponse(rw http.ResponseWriter, producer run
 		log.Debugf("Error streaming %s for %s: %s", s.outputName, s.id, err)
 	} else {
 		log.Debugf("Finished streaming %s for %s", s.outputName, s.id)
+	}
+
+	if s.onResponseDone != nil {
+		s.onResponseDone()
 	}
 }
 
@@ -169,8 +175,10 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 
 	nr, er := d.readDetectInit(buf)
 	for {
+		log.Debugf("[%p] nr=%d er=%s", d, nr, er)
 		if nr > 0 {
 			nw, ew := w.Write(buf[0:nr])
+			log.Debugf("[%p] nw=%d ew=%s", d, nw, ew)
 			if d.flusher != nil {
 				d.flusher.Flush()
 			}
@@ -187,6 +195,7 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 			}
 		}
 		if er == io.EOF {
+			log.Debugf("[%p] EOF", d)
 			break
 		}
 		if er != nil {
@@ -195,5 +204,6 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 		}
 		nr, er = d.Read(buf)
 	}
+	log.Debugf("[%p] written=%d err=%s", d, written, err)
 	return written, err
 }

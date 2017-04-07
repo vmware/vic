@@ -817,9 +817,6 @@ func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int
 // clStdin, clStdout, clStderr are the hijacked connection
 func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
 	// Cancel will close the child connections.
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	var wg sync.WaitGroup
 	errors := make(chan error, 3)
 
@@ -837,72 +834,85 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 		}
 	}
 
+	var inCtx context.Context
+	var inCancel, cancel func()
 	if ca.UseStdin {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := copyStdIn(ctx, plClient, vc, clStdin, keys)
-			if err != nil {
-				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err.Error())
-			} else {
-				log.Infof("container attach: stdin (%s) done: %s", vc.ContainerID)
-			}
-
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
-				return
-			}
-			cancel()
-
-			errors <- err
-		}()
+		inCtx, inCancel = context.WithCancel(ctx)
+		defer inCancel()
 	}
 
 	if ca.UseStdout {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, clStdout)
-			if err != nil {
-				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err.Error())
-			} else {
-				log.Infof("container attach: stdout (%s) done: %s", vc.ContainerID)
-			}
-
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
-				return
-			}
-			cancel()
-
-			errors <- err
-		}()
 	}
 
 	if ca.UseStderr {
 		wg.Add(1)
+	}
+
+	if ca.UseStderr || ca.UseStdout {
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+	}
+
+	if ca.UseStdin {
+		go func() {
+			defer wg.Done()
+			err := copyStdIn(inCtx, plClient, vc, clStdin, keys)
+			if err != nil {
+				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err)
+			} else {
+				log.Infof("container attach: stdin (%s) done", vc.ContainerID)
+			}
+
+			if !vc.Config.StdinOnce || vc.Config.Tty {
+				// close stdout/stderr
+				cancel()
+			}
+
+			if err != context.Canceled && err != io.EOF {
+				errors <- err
+			}
+		}()
+	}
+
+	if ca.UseStdout {
+		go func() {
+			defer wg.Done()
+			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, clStdout)
+			if err != nil {
+				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err)
+			} else {
+				log.Infof("container attach: stdout (%s) done", vc.ContainerID)
+			}
+
+			if inCancel != nil {
+				inCancel()
+			}
+
+			if err != context.Canceled && err != io.EOF {
+				errors <- err
+			}
+		}()
+	}
+
+	if ca.UseStderr {
 		go func() {
 			defer wg.Done()
 			err := copyStdErr(ctx, plClient, vc, clStderr)
 			if err != nil {
-				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err.Error())
+				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err)
 			} else {
-				log.Infof("container attach: stderr (%s) done: %s", vc.ContainerID)
+				log.Infof("container attach: stderr (%s) done", vc.ContainerID)
 			}
 
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
-				return
+			if inCancel != nil {
+				inCancel()
 			}
-			cancel()
 
-			errors <- err
+			if err != context.Canceled && err != io.EOF {
+				errors <- err
+			}
 		}()
 	}
 
@@ -1666,12 +1676,23 @@ func labelsFromAnnotations(config *container.Config, annotations map[string]stri
 func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
-	defer stdinWriter.Close()
+	defer stdinReader.Close()
 
 	var detach bool
 
+	done := make(chan struct{})
 	go func() {
-		defer stdinReader.Close()
+		// make sure we get out of io.Copy if context is canceled
+		select {
+		case <-ctx.Done():
+			clStdin.Close()
+		case <-done:
+		}
+	}()
+
+	go func() {
+		defer close(done)
+		defer stdinWriter.Close()
 
 		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
 		// watch the stdin stream for the detach keys.
@@ -1704,6 +1725,9 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	setStdinParams = setStdinParams.WithRawStream(stdinReader)
 
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
+
+	<-done
+
 	if vc.Config.StdinOnce && !vc.Config.Tty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
 		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
@@ -1718,6 +1742,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	if detach {
 		return DetachError{}
 	}
+
 	return err
 }
 

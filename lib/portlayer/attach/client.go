@@ -17,6 +17,7 @@ package attach
 import (
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -39,6 +40,8 @@ type SessionInteraction interface {
 	// Stdin stream
 	Stdin() io.WriteCloser
 	Close() error
+	CloseWrite() error
+	IsClosed() bool
 
 	// Resize the terminal
 	Resize(cols, rows, widthpx, heightpx uint32) error
@@ -51,6 +54,7 @@ type attachSSH struct {
 
 	channel  ssh.Channel
 	requests <-chan *ssh.Request
+	closed   uint32
 }
 
 func SSHls(client *ssh.Client) ([]string, error) {
@@ -89,7 +93,7 @@ func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 	// we have to handle incoming requests to the client on this channel but we don't support any currently
 	go func() {
 		for req := range sessionSSH.requests {
-			// default, preserving OpenSSH behaviour
+			// default, preserving OpenSSH behavior
 			req.Reply(false, nil)
 		}
 	}()
@@ -149,7 +153,23 @@ func (t *attachSSH) Stdin() io.WriteCloser {
 func (t *attachSSH) Close() error {
 	defer trace.End(trace.Begin(""))
 
-	return t.channel.Close()
+	if !atomic.CompareAndSwapUint32(&t.closed, 0, 1) {
+		return nil // another routine beat us to it
+	}
+
+	err := t.channel.Close()
+
+	return err
+}
+
+func (t *attachSSH) CloseWrite() error {
+	defer trace.End(trace.Begin(""))
+
+	return t.channel.CloseWrite()
+}
+
+func (t *attachSSH) IsClosed() bool {
+	return atomic.LoadUint32(&t.closed) == 1
 }
 
 // Resize resizes the terminal.
