@@ -12,4 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-echo "root:$(ovfenv --key appliance.root_pwd)" | chpasswd
+set -euf -o pipefail
+
+if [[ ! -f /etc/vmware/firstboot ]]; then
+  echo "root:$(ovfenv --key appliance.root_pwd)" | chpasswd
+  date -u +"%Y-%m-%dT%H:%M:%SZ" > /etc/vmware/firstboot
+fi
