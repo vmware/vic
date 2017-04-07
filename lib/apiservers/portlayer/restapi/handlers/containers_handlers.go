@@ -85,7 +85,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	id := uid.New().String()
 
 	// Init key for tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}

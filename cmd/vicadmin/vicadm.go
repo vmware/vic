@@ -196,6 +196,7 @@ func (path commandReader) open() (entry, error) {
 	defer trace.End(trace.Begin(string(path)))
 
 	args := strings.Split(string(path), " ")
+	// #nosec: Subprocess launching with variable
 	cmd := exec.Command(args[0], args[1:]...)
 
 	output, err := cmd.CombinedOutput()

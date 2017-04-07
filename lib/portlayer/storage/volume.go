@@ -15,7 +15,7 @@
 package storage
 
 import (
-	"crypto/md5"
+	"crypto/md5" // #nosec: Use of weak cryptographic primitive
 	"errors"
 	"fmt"
 	"net/url"
@@ -102,6 +102,7 @@ func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk) (
 func label(ID string) string {
 
 	// e2label's manpage says the label size is 16 chars
+	// #nosec: Use of weak cryptographic primitive
 	m := md5.Sum([]byte(ID))
 	return fmt.Sprintf("%x", m)[:16]
 }

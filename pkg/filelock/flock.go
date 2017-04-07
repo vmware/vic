@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ func (fl *FileLock) Acquire() error {
 	fl.fh = fh
 	err = syscall.Flock(int(fh.Fd()), syscall.LOCK_EX)
 	if err != nil {
+		// #nosec: Errors unhandled
 		fh.Close()
 		fh = nil
 		fl.mu.Unlock()
@@ -65,6 +66,7 @@ func (fl *FileLock) Release() error {
 	if fl.fh == nil {
 		panic("Attempt to release not acquired lock!")
 	}
+	// #nosec: Errors unhandled
 	syscall.Flock(int(fl.fh.Fd()), syscall.LOCK_UN)
 	err := fl.fh.Close()
 	fl.fh = nil

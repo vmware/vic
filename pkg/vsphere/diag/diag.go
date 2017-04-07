@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -91,6 +91,7 @@ func CheckAPIAvailability(targetURL string) int {
 
 	for attempts := 5; errorCode != VCStatusOK && attempts > 0; attempts-- {
 
+		// #nosec: TLS InsecureSkipVerify set true
 		c := http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{

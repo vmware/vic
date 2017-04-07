@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,10 +106,12 @@ func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
 
 func Halt() error {
 	log.Infof("Halting system...")
+	// #nosec: Subprocess launching with variable
 	return exec.Command(shutdown, "-h", "now").Run()
 }
 
 func Reboot() error {
 	log.Infof("Rebooting system...")
+	// #nosec: Subprocess launching with variable
 	return exec.Command(shutdown, "-r", "now").Run()
 }

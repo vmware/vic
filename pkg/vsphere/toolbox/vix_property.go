@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -119,19 +119,26 @@ func NewBlobProperty(ID int32, val []byte) *VixProperty {
 func (p *VixProperty) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
+	// #nosec: Errors unhandled
 	_ = binary.Write(buf, binary.LittleEndian, &p.header)
 
 	switch p.header.Kind {
 	case vixPropertyTypeBool:
+		// #nosec: Errors unhandled
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Bool)
 	case vixPropertyTypeInt32:
+		// #nosec: Errors unhandled
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Int32)
 	case vixPropertyTypeInt64:
+		// #nosec: Errors unhandled
 		_ = binary.Write(buf, binary.LittleEndian, p.data.Int64)
 	case vixPropertyTypeString:
+		// #nosec: Errors unhandled
 		_, _ = buf.WriteString(p.data.String)
+		// #nosec: Errors unhandled
 		_ = buf.WriteByte(0)
 	case vixPropertyTypeBlob:
+		// #nosec: Errors unhandled
 		_, _ = buf.Write(p.data.Blob)
 	}
 
@@ -201,7 +208,9 @@ func (l *VixPropertyList) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 
 	for _, p := range *l {
+		// #nosec: Errors unhandled
 		b, _ := p.MarshalBinary()
+		// #nosec: Errors unhandled
 		_, _ = buf.Write(b)
 	}
 

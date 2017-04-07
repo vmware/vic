@@ -53,7 +53,7 @@ func main() {
 	}()
 
 	// ensure that panics and error output are persisted
-	logFile, err := os.OpenFile("/dev/ttyS0", os.O_WRONLY|os.O_SYNC, 0644)
+	logFile, err := os.OpenFile("/dev/ttyS0", os.O_WRONLY|os.O_SYNC, 0)
 	if err != nil {
 		log.Errorf("Could not redirect outputs to serial for debugging info, some debug info may be lost! Error reported was %s", err)
 	}

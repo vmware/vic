@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ func startCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
 func enableShell() error {
 	defer trace.End(trace.Begin(""))
 
+	// #nosec: Subprocess launching should be audited
 	chsh := exec.Command("/bin/chsh", "-s", "/bin/bash", "root")
 	err := chsh.Start()
 	if err != nil {
@@ -112,6 +113,7 @@ func passwd(pass string) error {
 		// continue anyway as people may be able to get something useful
 	}
 
+	// #nosec: Subprocess launching should be audited
 	setPasswd := exec.Command("/sbin/chpasswd")
 	stdin, err := setPasswd.StdinPipe()
 	if err != nil {
@@ -181,6 +183,7 @@ func enableSSH(key string) error {
 
 // startSSH launches the sshd server
 func startSSH() error {
+	// #nosec: Subprocess launching should be audited
 	c := exec.Command("/usr/bin/systemctl", "start", "sshd")
 
 	var b bytes.Buffer

@@ -57,7 +57,7 @@ func main() {
 		halt()
 	}()
 
-	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
+	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0)
 	if err != nil {
 		log.Errorf("Could not open serial port for debugging info. Some debug info may be lost! Error reported was %s", err)
 	}
@@ -113,6 +113,7 @@ func main() {
 }
 
 func createDevices() error {
+	// #nosec: Expect directory permissions to be 0700 or less
 	err := os.MkdirAll(pathPrefix, 644)
 	if err != nil {
 		log.Warnf("Failed to ensure presence of tether device directory: %s", err)

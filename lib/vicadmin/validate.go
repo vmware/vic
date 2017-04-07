@@ -143,6 +143,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		} else {
 			v.FirewallStatus = BadStatus
 			for _, err := range firewallIssues {
+				// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 				v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
 			}
 		}
@@ -158,6 +159,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		} else {
 			v.LicenseStatus = BadStatus
 			for _, err := range licenseIssues {
+				// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 				v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
 			}
 		}
@@ -187,6 +189,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	if len(nwErrors) > 0 {
 		v.NetworkStatus = BadStatus
 		for _, err := range nwErrors {
+			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.NetworkIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.NetworkIssues, err))
 		}
 	} else {
@@ -300,6 +303,7 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		log.Infof("Datastore %s Free Space: %.1fGB", ds.Name, float64(ds.Summary.FreeSpace)/(1<<30))
 		log.Infof("Datastore %s Capacity: %.1fGB", ds.Name, float64(ds.Summary.Capacity)/(1<<30))
 
+		// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 		v.StorageRemaining = template.HTML(fmt.Sprintf(`%s
 			<p class="card-text">
 			  %s:
@@ -339,6 +343,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, s
 		log.Infof("Checking status of %s", proc)
 		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(tether.PIDFileDir(), proc)))
 		if err != nil {
+			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s service is not running</span>\n",
 				v.VCHIssues, strings.Title(service)))
 			log.Errorf("Process %s not running: %s", proc, err)
@@ -347,6 +352,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, s
 
 		status, err := ioutil.ReadFile(path.Join("/proc", string(pid), "stat"))
 		if err != nil {
+			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">Unable to query service %s</span>\n",
 				v.VCHIssues, strings.Title(service)))
 			continue
@@ -361,6 +367,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, s
 			break
 		// Process has been killed, is dying, or a zombie
 		case 'K', 'X', 'x', 'Z':
+			// #nosec: this method will not auto-escape HTML. Verify data is well formed.
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s has failed</span>\n",
 				v.VCHIssues, strings.Title(service)))
 		}
