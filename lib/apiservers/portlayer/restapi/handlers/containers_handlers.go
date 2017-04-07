@@ -337,7 +337,6 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 
 	// channel used to receive metrics
 	var ch chan interface{}
-
 	if params.Stream {
 		subch, err := metrics.Supervisor.VMCollector().Subscribe(c)
 		if err != nil {
@@ -360,7 +359,7 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 	cleaner := func() {
 		// streaming is a subscription, so unsubscribe if streaming
 		if params.Stream {
-			log.Debug("unsubscribing %s from stats %d", params.ID, &ch)
+			log.Debugf("unsubscribing %s from stats %d", params.ID, &ch)
 			metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
 		}
 		closePipe(r, w)
