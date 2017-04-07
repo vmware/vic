@@ -60,3 +60,6 @@ END
 # Replace default DataDirectories in the harbor-provided compose files
 overrideDataDirectory /etc/vmware/harbor/docker-compose.yml /data/harbor
 overrideDataDirectory /etc/vmware/harbor/docker-compose.notary.yml /data/harbor
+
+chmod 600 /data/harbor/harbor.cfg
+chmod -R 600 /etc/vmware/harbor/common
