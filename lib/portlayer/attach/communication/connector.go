@@ -30,8 +30,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/sync/singleflight"
 )
 
+// Connector defines the connection and interactions
 type Connector struct {
 	mutex        sync.RWMutex
 	cond         *sync.Cond
@@ -40,6 +42,9 @@ type Connector struct {
 	listener net.Listener
 	// Quit channel for serve
 	done chan struct{}
+
+	// deduplication of incoming calls
+	fg singleflight.Group
 
 	// graceful shutdown
 	wg sync.WaitGroup
@@ -94,14 +99,29 @@ func (c *Connector) aliveAndKicking(ctx context.Context, id string) SessionInter
 func (c *Connector) Interaction(ctx context.Context, id string) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	// make sure that we have only one call in-flight for each ID at any given time
+	si, err, shared := c.fg.Do(id, func() (interface{}, error) {
+		return c.interaction(ctx, id)
+	})
+	if err != nil {
+		c.fg.Forget(id)
+		return nil, err
+	}
+	if shared {
+		log.Debugf("Eliminated duplicated calls to Interaction")
+	}
+	return si.(SessionInteractor), nil
+}
+
+func (c *Connector) interaction(ctx context.Context, id string) (SessionInteractor, error) {
+	defer trace.End(trace.Begin(id))
 
 	conn := c.aliveAndKicking(ctx, id)
 	if conn != nil {
 		return conn, nil
 	}
-	if conn == nil && timeout == 0 {
+
+	if ctx.Err() == context.DeadlineExceeded {
 		return nil, fmt.Errorf("attach connector: no such connection")
 	}
 
@@ -146,7 +166,7 @@ func (c *Connector) Interaction(ctx context.Context, id string) (SessionInteract
 	}
 }
 
-// Remove removes the session the inteactions map
+// RemoveInteraction removes the session the inteactions map
 func (c *Connector) RemoveInteraction(id string) error {
 	defer trace.End(trace.Begin(id))
 
@@ -159,6 +179,7 @@ func (c *Connector) RemoveInteraction(id string) error {
 		log.Debugf("attach connector: Removing %s from the connection map", id)
 		err = c.interactions[id].Close()
 		delete(c.interactions, id)
+		c.fg.Forget(id)
 	}
 
 	return err

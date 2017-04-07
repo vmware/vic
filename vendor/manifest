@@ -1179,6 +1179,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "golang.org/x/sync/singleflight",
+			"repository": "https://go.googlesource.com/sync",
+			"vcs": "git",
+			"revision": "5a06fca2c336a4b2b2fcb45702e8c47621b2aa2c",
+			"branch": "master",
+			"path": "/singleflight",
+			"notests": true
+		},
+		{
 			"importpath": "golang.org/x/sys/unix",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
