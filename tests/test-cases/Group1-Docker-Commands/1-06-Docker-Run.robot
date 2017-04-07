@@ -125,3 +125,11 @@ Docker run verify container start and stop time
     Run Keyword Unless  ${startStatus}  Fail  container start time before command start
     ${stopStatus}=  Run Keyword And Return Status  Should Be True  ${cmdStart} < ${containerStop}
     Run Keyword Unless  ${stopStatus}  Fail  container stop time before command start
+
+Docker run verify name and id are not conflated
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${shortID1}=  Get container shortID  ${container1}
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${shortID1} busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${container2}  Conflict

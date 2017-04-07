@@ -52,7 +52,19 @@ func ContainerCache() *CCache {
 	return containerCache
 }
 
+func (cc *CCache) getContainerByName(nameOnly string) *container.VicContainer {
+	if container, exist := cc.containersByName[nameOnly]; exist {
+		return container
+	}
+	return nil
+}
+
 func (cc *CCache) getContainer(nameOrID string) *container.VicContainer {
+	// full name matching should take precedence over id prefix matching
+	if container, exist := cc.containersByName[nameOrID]; exist {
+		return container
+	}
+
 	// get the full ID if we only have a prefix
 	if cid, err := cc.idIndex.Get(nameOrID); err == nil {
 		nameOrID = cid
@@ -61,11 +73,15 @@ func (cc *CCache) getContainer(nameOrID string) *container.VicContainer {
 	if container, exist := cc.containersByID[nameOrID]; exist {
 		return container
 	}
-
-	if container, exist := cc.containersByName[nameOrID]; exist {
-		return container
-	}
 	return nil
+}
+
+// GetContainerByName returns a container whose name "exactly" matches nameOnly
+func (cc *CCache) GetContainerByName(nameOnly string) *container.VicContainer {
+	cc.m.RLock()
+	defer cc.m.RUnlock()
+
+	return cc.getContainerByName(nameOnly)
 }
 
 func (cc *CCache) GetContainer(nameOrID string) *container.VicContainer {

@@ -450,7 +450,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 	var err error
 
 	// bail early if container name already exists
-	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
+	if exists := cache.ContainerCache().GetContainerByName(config.Name); exists != nil {
 		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
 		log.Errorf("%s", err.Error())
 		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
