@@ -124,6 +124,22 @@ Run Regression Tests
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container2}
     Should Be Equal As Integers  ${rc}  0
 
+    # regression test for #4020
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${shortID1}=  Get container shortID  ${container1}
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${shortID1} busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${container2}  Conflict
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${container1}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} stop ${container2}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container1}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container2}
+    Should Be Equal As Integers  ${rc}  0
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
