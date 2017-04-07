@@ -1589,13 +1589,13 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-	defer func() {
-		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
-	}()
 	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
+			// fire detach event
+			actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+
 			log.Infof("Detach detected, tearing down connection")
 			client = c.containerProxy.Client()
 			handle, err = c.Handle(id, name)
