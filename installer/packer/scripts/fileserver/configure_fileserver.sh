@@ -14,6 +14,8 @@
 # limitations under the License.
 set -euf -o pipefail
 
+umask 077
+
 data_dir=/data/fileserver
 cert_dir=${data_dir}/cert
 cert=${cert_dir}/server.crt

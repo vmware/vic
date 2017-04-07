@@ -14,6 +14,8 @@
 # limitations under the License.
 set -euf -o pipefail
 
+umask 077
+
 deploy=$(ovfenv -k management_portal.deploy)
 port=$(ovfenv -k management_portal.port)
 
