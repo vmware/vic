@@ -32,12 +32,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
+	eventtypes "github.com/docker/docker/api/types/events"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/events"
 	plevents "github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"
-
-	eventtypes "github.com/docker/docker/api/types/events"
 )
 
 const (
@@ -217,9 +218,10 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 
 	vc := cache.ContainerCache().GetContainer(event.Ref)
 	if vc == nil {
-		log.Errorf("Portlayer event for container %s but not found in cache", event.Ref)
+		log.Warnf("Portlayer event for container %s but not found in cache", event.Ref)
 		return
 	}
+
 	var attrs map[string]string
 	// TODO: move to a container.OnEvent() so that container drives the necessary changes
 	// based on event activity
@@ -229,9 +231,9 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		// since we are going to make a call to the portLayer lets execute this in a
 		// go routine
 		go func() {
-			attrs = make(map[string]string)
-			// get the containerProxy
-			code, err := NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()).exitCode(vc)
+			attrs := make(map[string]string)
+			// get the containerEngine
+			code, err := NewContainerBackend().containerProxy.exitCode(vc)
 			if err != nil {
 				// log the error, but continue
 				log.Errorf("unable to get exitCode for die event: %s", err)
@@ -241,8 +243,21 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 			attrs["exitCode"] = code
 			log.Infof("Sending die event for container %s - code: %s", vc.ContainerID, code)
 			actor := CreateContainerEventActorWithAttributes(vc, attrs)
-
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
+
+			// auto-remove if required
+			if vc.HostConfig.AutoRemove {
+				config := &types.ContainerRmConfig{
+					ForceRemove:  true,
+					RemoveVolume: true,
+				}
+
+				err := NewContainerBackend().ContainerRm(vc.Name, config)
+				if err != nil {
+					log.Warnf("failed to auto remove container: %s", err.Error())
+				}
+			}
+
 		}()
 	case plevents.ContainerRemoved:
 		attrs = make(map[string]string)

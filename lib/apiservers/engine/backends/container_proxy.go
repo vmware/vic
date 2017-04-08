@@ -33,8 +33,6 @@ package backends
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -124,7 +122,6 @@ const (
 	attachStdinInitString               = "v1c#>"
 	swaggerSubstringEOF                 = "EOF"
 	forceLogType                        = "json-file" //Use in inspect to allow docker logs to work
-	annotationKeyLabels                 = "docker.labels"
 	ShortIDLen                          = 12
 
 	DriverArgFlagKey      = "flags"
@@ -137,16 +134,9 @@ const (
 	ContainerExited  = "exited"
 )
 
-// used by other engine components
-var containerProxy *ContainerProxy
-var once sync.Once
-
-// NewContainerProxy will create a new proxy or return the existing proxy
+// NewContainerProxy will create a new proxy
 func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
-	once.Do(func() {
-		containerProxy = &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
-	})
-	return containerProxy
+	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
 }
 
 // Handle retrieves a handle to a VIC container.  Handles should be treated as opaque strings.
@@ -878,7 +868,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 			if err != nil {
 				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err.Error())
 			} else {
-				log.Infof("container attach: stdin (%s) done: %s", vc.ContainerID)
+				log.Infof("container attach: stdin (%s) done", vc.ContainerID)
 			}
 
 			// no need to take action if we are canceled
@@ -901,13 +891,13 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 			if err != nil {
 				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err.Error())
 			} else {
-				log.Infof("container attach: stdout (%s) done: %s", vc.ContainerID)
+				log.Infof("container attach: stdout (%s) done", vc.ContainerID)
 			}
 
 			// no need to take action if we are canceled
 			// as that means error happened somewhere else
 			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
+				log.Infof("returning from stdout as context canceled somewhere else")
 				return
 			}
 			cancel()
@@ -924,13 +914,13 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 			if err != nil {
 				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err.Error())
 			} else {
-				log.Infof("container attach: stderr (%s) done: %s", vc.ContainerID)
+				log.Infof("container attach: stderr (%s) done", vc.ContainerID)
 			}
 
 			// no need to take action if we are canceled
 			// as that means error happened somewhere else
 			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
+				log.Infof("returning from stderr as context canceled somewhere else")
 				return
 			}
 			cancel()
@@ -1098,7 +1088,13 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, vc *
 	config.NetworkDisabled = cc.Config.NetworkDisabled
 
 	// Stuff the Docker labels into VIC container annotations
-	annotationsFromLabels(config, cc.Config.Labels)
+	if len(cc.Config.Labels) > 0 {
+		convert.SetContainerAnnotation(config, convert.AnnotationKeyLabels, cc.Config.Labels)
+	}
+	// if autoremove then add to annotation
+	if cc.HostConfig.AutoRemove {
+		convert.SetContainerAnnotation(config, convert.AnnotationKeyAutoRemove, cc.HostConfig.AutoRemove)
+	}
 
 	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
@@ -1381,6 +1377,9 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 		log.Errorf("Failed to parse port mapping %s: %s", info.HostConfig.Ports, err)
 	}
 
+	// get the autoremove annotation from the container annotations
+	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyAutoRemove, &hostConfig.AutoRemove)
+
 	return &hostConfig
 }
 
@@ -1486,7 +1485,7 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	}
 
 	// Pull labels from the annotation
-	labelsFromAnnotations(&container, info.ContainerConfig.Annotations)
+	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &container.Labels)
 
 	return &container
 }
@@ -1632,64 +1631,6 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	vc.Config = containerConfigFromContainerInfo(tempVC, &info)
 	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
 	return vc
-}
-
-// annotationsFromLabels() encodes labels into annotations within the swagger
-// create config.  The difference between labels and annotations is that labels
-// is specific to Docker.  Annotations is a generic per VIC container k,v struct.
-// We store the labels in an annotation key.
-func annotationsFromLabels(config *models.ContainerCreateConfig, labels map[string]string) error {
-	var err error
-
-	if config == nil || len(labels) == 0 {
-		return nil
-	}
-
-	if config.Annotations == nil {
-		config.Annotations = make(map[string]string)
-	}
-
-	// Encoding the labels map into a blob that can be stored as ansi regardless
-	// of what encoding the input labels are.  We do this by first marshaling to
-	// to a json byte array to get a self describing encoding and then encoding
-	// to base64.  We could use another encoding for the self describing part,
-	// such as Golang GOB, but this data will be pushed over to a standard REST
-	// server so we use standard web standards instead.
-	if labelsBytes, merr := json.Marshal(labels); merr == nil {
-		labelsBlob := base64.StdEncoding.EncodeToString(labelsBytes)
-		config.Annotations[annotationKeyLabels] = labelsBlob
-	} else {
-		err = merr
-		log.Errorf("Unable to marshal docker labels to json: %s", err)
-	}
-
-	return err
-}
-
-// labelsFromAnnotations() decodes the Docker label value from the VIC annotations.
-func labelsFromAnnotations(config *container.Config, annotations map[string]string) error {
-	var err error
-
-	if config == nil || len(annotations) == 0 {
-		return nil
-	}
-
-	if config.Labels == nil {
-		config.Labels = make(map[string]string)
-	}
-
-	if labelsBlob, ok := annotations[annotationKeyLabels]; ok {
-		if labelsBytes, decodeErr := base64.StdEncoding.DecodeString(labelsBlob); decodeErr == nil {
-			if err = json.Unmarshal(labelsBytes, &config.Labels); err != nil {
-				log.Errorf("Unable to unmarshal docker labels: %s", err)
-			}
-		} else {
-			err = decodeErr
-			log.Errorf("Unable to decode container annotations: %s", err)
-		}
-	}
-
-	return err
 }
 
 //------------------------------------

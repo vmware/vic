@@ -156,9 +156,22 @@ func (r containerByCreated) Len() int           { return len(r) }
 func (r containerByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r containerByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
+var containerEngine *Container
+var once sync.Once
+
 // Container struct represents the Container
 type Container struct {
 	containerProxy VicContainerProxy
+}
+
+// NewContainerBackend will create a new containerEngine or return the existing
+func NewContainerBackend() *Container {
+	once.Do(func() {
+		containerEngine = &Container{
+			containerProxy: NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()),
+		}
+	})
+	return containerEngine
 }
 
 const (
@@ -179,13 +192,6 @@ func (c *Container) Handle(id, name string) (string, error) {
 		}
 	}
 	return resp.Payload, nil
-}
-
-// NewContainerBackend returns a new Container
-func NewContainerBackend() *Container {
-	return &Container{
-		containerProxy: NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()),
-	}
 }
 
 // docker's container.execBackend
@@ -657,7 +663,6 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		return NotFoundError(name)
 	}
 	id := vc.ContainerID
-
 	// Get the portlayer Client API
 	client := c.containerProxy.Client()
 
@@ -673,8 +678,9 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		state, err := c.containerProxy.State(vc)
 		if err != nil {
 			if IsNotFoundError(err) {
+				// remove container from persona cache, but don't return error to the user
 				cache.ContainerCache().DeleteContainer(id)
-				return NotFoundError(name)
+				return nil
 			}
 			return InternalServerError(err.Error())
 		}
@@ -689,8 +695,9 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.ContainerRemoveNotFound:
+			// remove container from persona cache, but don't return error to the user
 			cache.ContainerCache().DeleteContainer(id)
-			return NotFoundError(name)
+			return nil
 		case *containers.ContainerRemoveDefault:
 			return InternalServerError(err.Payload.Message)
 		case *containers.ContainerRemoveConflict:
@@ -1454,15 +1461,14 @@ payloadLoop:
 			started,
 			stopped)
 
-		// labels func requires a config be passed
-		// TODO: refactor labelsFromAnnotations func for broader use
-		tempConfig := &containertypes.Config{}
-		err = labelsFromAnnotations(tempConfig, t.ContainerConfig.Annotations)
-		if err != nil && config.Filters.Include("label") {
-			return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
+		var labels map[string]string
+		if config.Filters.Include("label") {
+			err = convert.ContainerAnnotation(t.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &labels)
+			if err != nil {
+				return nil, fmt.Errorf("unable to convert vic annotations to docker labels (%s)", t.ContainerConfig.ContainerID)
+			}
 		}
-
-		listContext.Labels = tempConfig.Labels
+		listContext.Labels = labels
 		listContext.ExitCode = exitCode
 		listContext.ID = t.ContainerConfig.ContainerID
 
