@@ -35,7 +35,7 @@ make ova-release
 Deploy OVA with ovftool in a Docker container on ESX host
 ```
 docker run -it --net=host -v ~/go/src/github.com/vmware/vic/bin:/test-bin \
-  gcr.io/eminent-nation-87317/vic-integration-test:1.23 ovftool --acceptAllEulas --X:injectOvfEnv \
+  gcr.io/eminent-nation-87317/vic-integration-test:1.24 ovftool --acceptAllEulas --X:injectOvfEnv \
   --X:enableHiddenProperties -st=OVA --powerOn --noSSLVerify=true -ds=datastore1 -dm=thin \
   --net:Network="VM Network" --prop:appliance.email_from="noreply@vmware.com" \
   --prop:appliance.root_pwd="VMware1\!" --prop:appliance.permit_root_login=True --prop:registry.port=443 \
@@ -59,11 +59,11 @@ Build 'ova-release' errored: unexpected EOF
 2017/03/16 10:26:25 ui error: Build 'ova-release' errored: unexpected EOF
 2017/03/16 10:26:25 Builds completed. Waiting on interrupt barrier...
 2017/03/16 10:26:25 machine readable: error-count []string{"1"}
-2017/03/16 10:26:25 ui error: 
+2017/03/16 10:26:25 ui error:
 ==> Some builds didn't complete successfully and had errors:
 2017/03/16 10:26:25 machine readable: ova-release,error []string{"unexpected EOF"}
 2017/03/16 10:26:25 ui error: --> ova-release: unexpected EOF
-2017/03/16 10:26:25 ui: 
+2017/03/16 10:26:25 ui:
 ==> Builds finished but no artifacts were created.
 2017/03/16 10:26:25 waiting for all plugin processes to complete...
 2017/03/16 10:26:25 /usr/local/bin/packer: plugin process exited

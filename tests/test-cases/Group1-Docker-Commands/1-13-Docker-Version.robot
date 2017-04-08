@@ -71,8 +71,8 @@ Docker Version Format Server Go Version
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} version --format '{{.Server.GoVersion}}'
     Should Be Equal As Integers  ${rc}  0
     Should Not Be Empty  ${output}
-    
+
 Docker Version Format Bad Field
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} version --format '{{.fakeItem}}'
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  fakeItem is not a field of struct type types.VersionResponse
+    Should Contain  ${output}  can't evaluate field fakeItem in type types.VersionResponse

@@ -46,8 +46,8 @@ Hit Nginx Endpoint
     Should Be Equal As Integers  ${rc}  0
 
 Get Container IP
-    [Arguments]  ${docker-params}  ${id}  ${network}=default
-    ${rc}  ${ip}=  Run And Return Rc And Output  docker ${docker-params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address' | cut -d \\" -f 2 | cut -d \\/ -f 1
+    [Arguments]  ${docker-params}  ${id}  ${network}=default  ${dockercmd}=docker
+    ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address' | cut -d \\" -f 2 | cut -d \\/ -f 1
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
 
@@ -133,9 +133,9 @@ Run Regression Tests
     Scrape Logs For The Password
 
 Launch Container
-    [Arguments]  ${name}  ${network}=default
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} --net ${network} -itd busybox
+    [Arguments]  ${name}  ${network}=default  ${dockercmd}=docker
+    ${rc}  ${output}=  Run And Return Rc And Output  ${dockercmd} %{VCH-PARAMS} run --name ${name} --net ${network} -itd busybox
     Should Be Equal As Integers  ${rc}  0
     ${id}=  Get Line  ${output}  -1
-    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id}  ${network}
+    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id}  ${network}  ${dockercmd}
     [Return]  ${id}  ${ip}

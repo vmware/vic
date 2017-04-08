@@ -28,7 +28,7 @@ RUN mv /usr/bin/docker /usr/bin/docker1.12
 RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.13.0.tgz && tar --strip-components=1 -xvzf docker-1.13.0.tgz -C /usr/bin
 RUN mv /usr/bin/docker /usr/bin/docker1.13
 
-RUN ln -s /usr/bin/docker1.11 /usr/bin/docker
+RUN ln -s /usr/bin/docker1.13 /usr/bin/docker
 
 RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.13.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
 RUN chmod +x /usr/local/bin/govc
