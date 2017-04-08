@@ -21,15 +21,15 @@ Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Simple VSAN
     ${name}=  Evaluate  'vic-vsan-' + str(random.randint(1000,9999))  modules=random
     Set Test Variable  ${user}  %{NIMBUS_USER}
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ob-${VC_VERSION} --esxPxeDir ob-${ESX_VERSION} --esxBuild ob-${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName ${name} --vcqetestwarezipBuild ob-${TESTWAREZIP_VERSION} --plugin testng
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-ob-${VC_VERSION}' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${vc-ip}  ${ip}
     \   Exit For Loop If  ${status}
 
-    Set Global Variable  @{list}  ${user}-${name}.vcva-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
+    Set Global Variable  @{list}  ${user}-${name}.vcva-ob-${VC_VERSION}  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2  ${user}-${name}.esx.3  ${user}-${name}.nfs.0  ${user}-${name}.iscsi.0
 
     Log To Console  Set environment variables up for GOVC
     Set Environment Variable  GOVC_URL  ${vc-ip}

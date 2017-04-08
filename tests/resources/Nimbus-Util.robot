@@ -19,6 +19,7 @@ Documentation  This resource contains any keywords related to using the Nimbus c
 ${ESX_VERSION}  4564106  #6.5 RTM
 ${VC_VERSION}  4602587   #6.5 RTM
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
+${TESTWAREZIP_VERSION}  5314336  # 04-07-2017 vcqetestwarezip build number from branch vim-main
 
 *** Keywords ***
 Deploy Nimbus ESXi Server
@@ -237,10 +238,10 @@ Gather Host IPs
 
 Create a VSAN Cluster
     Log To Console  \nStarting basic VSAN cluster deploy...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ob-${VC_VERSION} --esxPxeDir ob-${ESX_VERSION} --esxBuild ob-${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion --vcqetestwarezipBuild ob-${TESTWAREZIP_VERSION} --plugin testng
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-ob-${VC_VERSION}' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Suite Variable  ${vc-ip}  ${ip}
     \   Exit For Loop If  ${status}
