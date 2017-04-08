@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/bash
 # Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+set -euf -o pipefail
 
 # Make sure we're using the traditional naming scheme for network interfaces
 sed -i '/linux/ s/$/ net.ifnames=0/' /boot/grub2/grub.cfg
@@ -32,12 +33,13 @@ systemctl enable harbor_startup.service harbor.service
 systemctl enable admiral_startup.service admiral
 systemctl enable fileserver_startup.service fileserver.service
 
-
 # Clean up temporary directories
 rm -rf /var/tmp/*
 
 # seal the template
 > /etc/machine-id
 rm /etc/hostname
-rm /etc/ssh/ssh_host_*
+ls -al /etc/ssh
+rm /etc/ssh/{ssh_host_dsa_key,ssh_host_dsa_key.pub,ssh_host_ecdsa_key,ssh_host_ecdsa_key.pub,ssh_host_ed25519_key,ssh_host_ed25519_key.pub,ssh_host_rsa_key,ssh_host_rsa_key.pub}
+ls -al /etc/ssh
 umount /data
