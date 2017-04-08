@@ -30,7 +30,7 @@ RUN mv /usr/bin/docker /usr/bin/docker1.13
 
 RUN ln -s /usr/bin/docker1.13 /usr/bin/docker
 
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.13.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.14.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
 RUN chmod +x /usr/local/bin/govc
 
 RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
