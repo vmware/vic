@@ -217,11 +217,27 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	vc := cache.ContainerCache().GetContainer(event.Ref)
 	if vc == nil {
 		log.Errorf("Portlayer event for container %s but not found in cache", event.Ref)
+		return
 	}
 
-	if event.Event == plevents.ContainerStopped {
-		log.Debugf("Sending event for continer %s", vc.ContainerID)
-		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
+	if event.Event == plevents.ContainerStopped || event.Event == plevents.ContainerPoweredOff {
+		// since we are going to make a call to the portLayer lets execute this in a
+		// go routine
+		go func() {
+			attrs := make(map[string]string)
+			// get the containerProxy
+			code, err := NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()).exitCode(vc)
+			if err != nil {
+				// log the error, but continue
+				log.Errorf("unable to get exitCode for die event: %s", err)
+			}
+			// if the docker client is unable to convert the code to an int then
+			// then the client will return 125
+			attrs["exitCode"] = code
+			log.Infof("Sending die event for container %s - code: %s", vc.ContainerID, code)
+			actor := CreateContainerEventActorWithAttributes(vc, attrs)
+
+			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
+		}()
 	}
 }

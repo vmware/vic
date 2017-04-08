@@ -49,10 +49,8 @@ Link and alias
     Should Not Contain  ${output}  Error
 
     # cannot reach first from another network
-    ${status}=  Get State Of Github Issue  4561
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-24-Docker-Link.robot needs to be updated now that Issue #4561 has been resolved
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run debian ping -c1 first
-    # Should Not Be Equal As Integers  ${rc}  0
+    Should Not Be Equal As Integers  ${rc}  0
     Should contain  ${output}  unknown host
 
     # the link
@@ -66,10 +64,8 @@ Link and alias
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     # check if we can use alias "c1" from another container
-    ${status}=  Get State Of Github Issue  4561
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-24-Docker-Link.robot needs to be updated now that Issue #4561 has been resolved
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net jedi debian ping -c1 1st
-    # Should Not Be Equal As Integers  ${rc}  0
+    Should Not Be Equal As Integers  ${rc}  0
     Should contain  ${output}  unknown host
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it -d --net jedi --net-alias 2nd busybox
