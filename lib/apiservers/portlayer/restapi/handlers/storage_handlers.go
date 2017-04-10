@@ -106,9 +106,9 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 	for name, dsurl := range spl.Config.VolumeLocations {
 		switch dsurl.Scheme {
 		case nfsScheme:
-			err = createNFSVolumeStore(dsurl)
+			vs, err = createNFSVolumeStore(op, dsurl, name)
 		case dsScheme:
-			err = createVsphereVolumeStore(op, dsurl, handlerCtx)
+			vs, err = createVsphereVolumeStore(op, dsurl, name, handlerCtx)
 		default:
 			err = fmt.Errorf("unknown scheme for %s", dsurl.String())
 			log.Error(err.Error())
@@ -573,39 +573,43 @@ func createMetadataMap(volume *spl.Volume) map[string]string {
 	return stringMap
 }
 
-func createNFSVolumeStore(dsurl url.URL) error {
+func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (spl.VolumeStorer, error) {
+	var err error
 	uid := nfs.DefaultUID
 
 	// TODO: stuff uid and gid into Username field as <uid>:<gid> in vic-machine then pull them out and use them here.
 	if dsurl.User != nil && dsurl.User.Username() != "" {
 		uid, err = strconv.Atoi(dsurl.User.Username())
 		if err != nil {
-			log.Error(err.Error())
-			return err
+			op.Errorf("%s", err.Error())
+			return nil, err
 		}
 	}
 
 	// XXX replace with the vch name
 	mnt := nfs.NewMount(dsurl, "vic", uint32(uid), uint32(uid))
-	vs, err = nfs.NewVolumeStore(op, name, mnt)
+	vs, err := nfs.NewVolumeStore(op, name, mnt)
 	if err != nil {
-		log.Error(err.Error())
-		return err
+		op.Errorf("%s", err.Error())
+		return nil, err
 	}
+
+	return vs, nil
 }
 
-func createVsphereVolumeStore(op trace.Operation, dsurl url.URL, handlerCtx *HandlerContext) error {
+func createVsphereVolumeStore(op trace.Operation, dsurl *url.URL, name string, handlerCtx *HandlerContext) (spl.VolumeStorer, error) {
 	ds, err := datastore.NewHelperFromURL(op, handlerCtx.Session, dsurl)
 	if err != nil {
 		err = fmt.Errorf("cannot find datastores: %s", err)
-		log.Error(err.Error())
-		return err
+		op.Errorf("%s", err.Error())
+		return nil, err
 	}
 
-	vs, err = vsphere.NewVolumeStore(op, name, handlerCtx.Session, ds)
+	vs, err := vsphere.NewVolumeStore(op, name, handlerCtx.Session, ds)
 	if err != nil {
 		err = fmt.Errorf("cannot instantiate the volume store: %s", err)
-		log.Error(err.Error())
-		return err
+		op.Errorf("%s", err.Error())
+		return nil, err
 	}
+	return vs, nil
 }
