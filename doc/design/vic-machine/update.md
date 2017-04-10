@@ -138,7 +138,7 @@ Same to vic-machine upgrade, concurrent reconfigure requests for same VCH is not
 
 Issue https://github.com/vmware/vic/issues/4069 is tracking this problem.
 
-## Backward compatible
+## Backward Compatibility
 It's possible that after vic engine released new version, user is trying to reconfigure older version's VCH with newer vic-machine.
 
 There are few options:
@@ -168,7 +168,7 @@ vic-machine create already has more than 50 options, and the number will increas
 
 [vic-machine design](vic-machine.md#vch-manifest) mentioned manifest idea, here we'll start from a simple implementation. The manifest file format will be same to the yml file format, mentioned in [configuration inspection](#configuration-inspection)
 
-- vic-machine inspect --conf --manifest filename will dump all configurations in yml file format to the manifest file.
+- vic-machine inspect --manifest filename will dump all configurations in yml file format to the manifest file.
 - vic-machine create --manifest will load the manifest file and create VCH based on it.
 - vic-machine reconfigure --manifest will load the manifest file and update VCH configuration based on it.
 
