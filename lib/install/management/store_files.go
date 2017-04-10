@@ -269,6 +269,7 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 
 		// NFS volumestores need only make it into the config of the vch
 		if url.Scheme != dsScheme {
+			log.Debugf("Skipping nfs volume store for vic-machine creation operation : (%s)", url.String())
 			continue
 		}
 
