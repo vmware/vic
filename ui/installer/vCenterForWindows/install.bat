@@ -35,56 +35,46 @@ SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Admin
 FOR /f "usebackq delims=" %%p in (`%psCommand%`) do set vcenter_password=%%p
 
 SET plugin_manager_bin=%parent%..\..\vic-ui-windows.exe
-SET utils_path=%parent%utils\
 SET vcenter_reg_common_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
 
 IF [%1] == [--force] (
    SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --force
 )
 
-IF /I %vic_ui_host_url% NEQ NOURL (
-    IF /I %vic_ui_host_url:~0,5%==https (
-        SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --server-thumbprint %vic_ui_host_thumbprint%
-    )
-
-    IF %vic_ui_host_url:~-1,1% NEQ / (
-        SET vic_ui_host_url=%vic_ui_host_url%/
+FOR /F "tokens=1,2 delims==" %%A IN (..\plugin-manifest) DO (
+    IF NOT %%A=="" (
+        CALL SET %%A=%%B
     )
 )
 
 IF %target_vc_version% EQU 6.5 (
-    SET plugin_binary_folder=plugin-packages
+    SET key=%key_h5c%
 ) ELSE (
-    SET plugin_binary_folder=vsphere-client-serenity
+    SET key=%key_flex%
 )
 
-IF EXIST _scratch_flags.txt (
-    DEL _scratch_flags.txt
-)
-
-cd ..\%plugin_binary_folder%
-FOR /D %%i IN (*) DO (
-    IF /I %vic_ui_host_url%==NOURL (
-        "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" -o " --name \"" -v "/pluginPackage/@name" -o "\" --version " -v "/pluginPackage/@version" -o " --summary \"" -v "/pluginPackage/@description" -o "\" --company \"" -v "/pluginPackage/@vendor" -o "\" --url NOURL" -n %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
-    ) ELSE (
-        "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" -o " --name \"" -v "/pluginPackage/@name" -o "\" --version " -v "/pluginPackage/@version" -o " --summary \"" -v "/pluginPackage/@description" -o "\" --company \"" -v "/pluginPackage/@vendor" -o "\" --url %vic_ui_host_url%" -v "/pluginPackage/@id" -o "-" -v "/pluginPackage/@version" -o ".zip" -n %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
+SET PLUGIN_FLAGS=--key %key:"=% --name %name% --version %version:"=% --summary %summary% --company %company%
+SET PLUGIN_URL=%vic_ui_host_url%%key%-%version%.zip
+IF /I %vic_ui_host_url% NEQ NOURL (
+    IF %vic_ui_host_url:~-1,1% NEQ / (
+        SET vic_ui_host_url=%vic_ui_host_url%/
     )
+
+    IF /I %vic_ui_host_url:~0,5%==https (
+        SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --server-thumbprint %vic_ui_host_thumbprint%
+    )
+    SET PLUGIN_FLAGS=%PLUGIN_FLAGS% --url %PLUGIN_URL:"=%
+) ELSE (
+    SET PLUGIN_FLAGS=%PLUGIN_FLAGS% --url NOURL
 )
 
 ECHO Registering VIC UI Plugins...
-FOR /F "tokens=*" %%A IN (..\vCenterForWindows\_scratch_flags.txt) DO (
-    IF NOT %%A=="" (
-        %plugin_manager_bin% install %vcenter_reg_common_flags% %%A
-        IF %ERRORLEVEL% NEQ 0 (
-            ECHO Error! Could not register plugin with vCenter Server. Please see the message above
-            GOTO:EOF
-        )
-    )
+
+"%plugin_manager_bin%" install %PLUGIN_FLAGS% %vcenter_reg_common_flags%
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO Error! Could not register plugin with vCenter Server. Please see the message above
+    GOTO:EOF
 )
-
-cd ..\vCenterForWindows
-DEL _scratch_flags.txt
-
 ECHO.
 ECHO Installation of UI plugin succeeded
 ECHO.
@@ -92,20 +82,20 @@ ECHO.
 IF /I %vic_ui_host_url% EQU NOURL (
     ECHO =============================
     IF %target_vc_version% EQU 6.5 (
-        ECHO ** If you are installing the plugin for the vSphere Web Client (Flex Client) **
-        ECHO To finish installation, copy the com.vmware.vic* folder from \ui\%plugin_binary_folder% to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\%plugin_binary_folder%. Create any missing folders in between if necessary.
+        ECHO If you are installing the plugin for the vSphere Web Client (Flex Client^^^)
+        ECHO To finish installation, copy the com.vmware.vic* folder from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. Create any missing folders in between if necessary.
         ECHO Once all done, log out of vSphere Web Client and then log back in.
         ECHO.
-        ECHO ** WARNING: If you are installing the plugin for the vSphere Client (H5 Client) **
+        ECHO WARNING: If you are installing the plugin for the vSphere Client (H5 Client^^^)
         ECHO The plugin won't install correctly without a web server for the vSphere Client at this moment.
-        ECHO Please see issue #4279 (https://github.com/vmware/vic/issues/4279)
+        ECHO Please see issue #4279 (https://github.com/vmware/vic/issues/4279^^^)
     ) ELSE (
         IF %target_vc_version% EQU 6.0 (
-            ECHO ** NEXT STEP for vCenter 6.0 users **
-            ECHO With the current version of VIC running on vCenter for Windows, the com.vmware.vic.* folder needs to be manually copied from \ui\%plugin_binary_folder% to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\%plugin_binary_folder%. If you have not done so, please copy it now.
+            ECHO NEXT STEP for vCenter 6.0 users
+            ECHO With the current version of VIC running on vCenter for Windows, the com.vmware.vic.* folder needs to be manually copied from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. If you have not done so, please copy it now.
         ) ELSE (
-            ECHO ** NEXT STEP for vCenter 5.5 users **
-            ECHO VIC UI may run on a vCenter 5.5 setup, but is NOT officially supported. Use it at your own risk. To proceed, copy the com.vmware.vic.* folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\%plugin_binary_folder% instead.
+            ECHO NEXT STEP for vCenter 5.5 users
+            ECHO VIC UI may run on a vCenter 5.5 setup, but is NOT officially supported. Use it at your own risk. To proceed, copy the com.vmware.vic.* folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead.
         )
         ECHO Once all done, log out of vSphere Web Client and then log back in.
     )
