@@ -86,6 +86,14 @@ func ConflictError(msg string) error {
 	return derr.NewRequestConflictError(fmt.Errorf("Conflict error from portlayer: %s", msg))
 }
 
+func PluginNotFoundError(name string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("plugin %s not found", name), http.StatusNotFound)
+}
+
+func SwarmNotSupportedError() error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("swarm is not supported by %s", ProductName()), http.StatusNotFound)
+}
+
 // Error type check
 
 func IsNotFoundError(err error) bool {

@@ -44,7 +44,7 @@ func (s *Swarm) Leave(force bool) error {
 }
 
 func (s *Swarm) Inspect() (types.Swarm, error) {
-	return types.Swarm{}, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+	return types.Swarm{}, SwarmNotSupportedError()
 }
 
 func (s *Swarm) Update(uint64, types.Spec, types.UpdateFlags) error {
@@ -60,11 +60,11 @@ func (s *Swarm) UnlockSwarm(req types.UnlockRequest) error {
 }
 
 func (s *Swarm) GetServices(basictypes.ServiceListOptions) ([]types.Service, error) {
-	return nil, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+	return nil, SwarmNotSupportedError()
 }
 
 func (s *Swarm) GetService(string) (types.Service, error) {
-	return types.Service{}, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+	return types.Service{}, SwarmNotSupportedError()
 }
 
 func (s *Swarm) CreateService(types.ServiceSpec, string) (*basictypes.ServiceCreateResponse, error) {
@@ -84,11 +84,11 @@ func (s *Swarm) ServiceLogs(context.Context, string, *backend.ContainerLogsConfi
 }
 
 func (s *Swarm) GetNodes(basictypes.NodeListOptions) ([]types.Node, error) {
-	return nil, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+	return nil, SwarmNotSupportedError()
 }
 
 func (s *Swarm) GetNode(string) (types.Node, error) {
-	return types.Node{}, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+	return types.Node{}, SwarmNotSupportedError()
 }
 
 func (s *Swarm) UpdateNode(string, uint64, types.NodeSpec) error {
@@ -100,11 +100,11 @@ func (s *Swarm) RemoveNode(string, bool) error {
 }
 
 func (s *Swarm) GetTasks(basictypes.TaskListOptions) ([]types.Task, error) {
-	return nil, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+	return nil, SwarmNotSupportedError()
 }
 
 func (s *Swarm) GetTask(string) (types.Task, error) {
-	return types.Task{}, fmt.Errorf("%s does not yet support Docker Swarm", ProductName())
+	return types.Task{}, SwarmNotSupportedError()
 }
 
 func (s *Swarm) GetSecrets(opts basictypes.SecretListOptions) ([]types.Secret, error) {
