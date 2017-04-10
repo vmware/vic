@@ -54,9 +54,11 @@ Get Container IP
     [Return]  ${ip}
 
 # Use host docker daemon to start a dind container alongside this test container
+# This requires host socket mapped into current container
 Start Docker Daemon From Host Socket
-    [Arguments]  ${docker-params}  ${dind-version}=docker:1.13-dind
-    ${rc}  ${id}=  Run And Return Rc And Output  docker run -it --privileged ${docker-params} -d ${dind-version} 2>/dev/null
+    [Arguments]  ${docker-params}  ${dind-version}=docker:1.13-dind  ${host}=unix:///var/run/docker.sock
+#    ${rc}  ${id}=  Run And Return Rc And Output  docker -H ${host} run -it --privileged -d ${dind-version} ${docker-params} 2>/dev/null
+    ${rc}  ${id}=  Run And Return Rc And Output  docker -H ${host} run -it --privileged -d ${dind-version} ${docker-params}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${id}
 
@@ -65,22 +67,20 @@ Start Docker Daemon From Host Socket
 # If you are running this keyword in a container, make sure it is run with --privileged turned on
 Start Docker Daemon Locally
     [Arguments]  ${dockerd-params}  ${dockerd-path}=/usr/local/bin/dockerd-entrypoint.sh  ${log}=./daemon-local.log
-    File Should Exist  ${dockerd-path}
+    OperatingSystem.File Should Exist  ${dockerd-path}
     ${handle}=  Start Process  ${dockerd-path} ${dockerd-params} >${log} 2>&1  shell=True
     Process Should Be Running  ${handle}
     :FOR  ${IDX}  IN RANGE  5
-    \   ${pid}=  Run  ps aux | grep '[d]ockerd ' | awk '{print $2}' # Space after [d]ockerd in grep is essential to filter shell process
+    \   ${pid}=  Run  pidof dockerd
     \   Run Keyword If  '${pid}' != '${EMPTY}'  Set Test Variable  ${dockerd-pid}  ${pid}
     \   Exit For Loop If  '${pid}' != '${EMPTY}'
     \   Sleep  1s
-    # dump ps information for debug
-    Run Keyword If  '${dockerd-pid}' == '${EMPTY}'  Run Keywords  Log To Console  ps aux  And  Log To Console  ps aux | grep '[d]ockerd '  And  Log To Console  ps aux | grep '[d]ockerd ' | awk '{print $2}'
     Should Not Be Equal  '${dockerd-pid}'  '${EMPTY}'
     [Return]  ${handle}  ${dockerd-pid}
-    
-Cleanup Local Container On ID
-    [Arguments]  ${id}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker rm -f ${id}
+
+Cleanup Container On ID
+    [Arguments]  ${id}  ${host}=unix:///var/run/docker.sock
+    ${rc}  ${output}=  Run And Return Rc And Output  docker -H ${host} rm -f ${id}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  ${id}
 
