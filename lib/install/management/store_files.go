@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/store"
@@ -302,11 +303,17 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 			return 0
 		}
 
-		volumeStores := new(bytes.Buffer)
+		dsVolumeStores := new(bytes.Buffer)
+		nfsVolumeStores := new(bytes.Buffer)
 		for label, url := range conf.VolumeLocations {
-			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+			switch url.Scheme {
+			case common.DsScheme:
+				dsVolumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+			case common.NfsScheme:
+				nfsVolumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+			}
 		}
-		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI or supplied nfs targets to delete content you do not wish to keep.\n%s", volumeStores.String())
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI or supplied nfs targets to delete content you do not wish to keep.\n vsphere volumestores:\n%s\n NFS volumestores:\n%s\n", dsVolumeStores.String(), nfsVolumeStores.String())
 		return 0
 	}
 

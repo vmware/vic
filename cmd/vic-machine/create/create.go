@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+		// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,10 +57,6 @@ const (
 	serverKey  = "server-key.pem"
 	caCert     = "ca.pem"
 	caKey      = "ca-key.pem"
-
-	dsScheme    = "ds"
-	nfsScheme   = "nfs"
-	emptyScheme = ""
 
 	nfsInputformat = "nfs://<host>/<url-path>?<mount option as query parameters>:<label>"
 )
@@ -189,7 +185,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "volume-store, vs",
 			Value: &c.volumeStores,
-			Usage: "Specify a list of location and label for volume store, nfs stores can have mount options specified as query parameters in the url target. \n\t examples for a vsphere backed volume store are:  \"datastore/path:label\" or \"datastore:label\" or \"ds://my-datastore-name:store-label\"\n\t Examples for nfs back volume stores are: \"nfs://127.0.0.1/path/to/share/point?uid=1234&gid=5678&proto=tcp:my-volume-store-label\" or \"nfs://my-store/path/to/share/point:my-label\"",
+			Usage: "Specify a list of location and label for volume store, nfs stores can have mount options specified as query parameters in the url target. \n\t Examples for a vsphere backed volume store are:  \"datastore/path:label\" or \"datastore:label\" or \"ds://my-datastore-name:store-label\"\n\t Examples for nfs back volume stores are: \"nfs://127.0.0.1/path/to/share/point?uid=1234&gid=5678&proto=tcp:my-volume-store-label\" or \"nfs://my-store/path/to/share/point:my-label\"",
 		},
 
 		// bridge
@@ -905,11 +901,11 @@ func (c *Create) processVolumeStores() error {
 		}
 
 		switch urlTarget.Scheme {
-		case nfsScheme:
+		case common.NfsScheme:
 			// nothing needs to be done here. parsing the url is enough for pre-validation checking.
-		case emptyScheme, dsScheme:
+		case common.EmptyScheme, common.DsScheme:
 			// a datastore target is our default assumption
-			urlTarget.Scheme = dsScheme
+			urlTarget.Scheme = common.DsScheme
 			if err := common.CheckUnsupportedChars(rawTarget); err != nil {
 				return fmt.Errorf("--volume-store contains unsupported characters for datastore target: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / : ,", err)
 			}
