@@ -1,13 +1,13 @@
 # VCH Reconfigure (P0)
 This document defines the VCH reconfigure command line, and the related changes in vic-machine, to make VCH reconfigure process more reasonable.
 
-Here is the key points considerred in this Definition
+Here are the key points considerred in this Definition:
 - Batch Operation
 
   We'd like to change VCH configurations more than one item at one time to make the command easy to use
 - Reuse all options used in vic-machine create
 
-  In vic-machine create, we already have 57 options to define VCH configurations, though not all of them can be updated, quite amount of them should be able to be changed, and this number will grow up over time, so we definitely do not want to introduce 3X that number of options to reconfigure (update means add/modify/remove)
+  In vic-machine create, we already have 57 options to define VCH configurations, though not all of them can be updated, many of them should be able to be changed, and this number will grow over time, so we definitely do not want to introduce 3X that number of options to reconfigure (update means add/modify/remove)
 
 ## Options
 First option is to reconfigure all in one command
@@ -30,7 +30,7 @@ vic-machine reconfigure volume-store --add nfs://host:port/container:nfs
 The command format is like ```vic-machine reconfigure <reconfigure object> --<reconfigure keyword> --<reconfigure option> <configuration value>```
 
 Pros:
-- The whole configuration options are splitted to many sub commands. Then in each sub command, only a small number of options are available, and that does not increase over time. Only the sub command number will increase.
+- The whole configuration options are split to many sub commands. Then in each sub command, only a small number of options are available, and that does not increase over time. Only the sub command number will increase.
 - Consistent with existing update firewall command format (though the command name might be different)
 
 Cons:
