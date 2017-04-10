@@ -16,11 +16,15 @@ have `ovftool` installed
 
 #### Build bundle and OVA
 
-Optional step to build UI plugins to be included in the `vic-engine-bundle`, requires ant, npm,
-nodejs (it is recommend to build in a container)
+First, we have to set the revisions of the components we want to bundle in the OVA:
+
 ```
-make vic-ui-plugins
+export BUILD_HARBOR_REVISION=1.1.0-rc1     # Optional, defaults to dev
+export BUILD_ADMIRAL_REVISION=v1.1.0-rc1   # Optional, defaults to dev
+export BUILD_VICENGINE_REVISION=1.1.0-rc4  # Required
 ```
+
+Then set the required env vars for the build environment and make the release:
 
 ```
 export PACKER_ESX_HOST=1.1.1.1
@@ -28,7 +32,6 @@ export PACKER_USER=root
 export PACKER_PASSWORD=password
 export PACKER_LOG=1
 
-make vic-engine-bundle
 make ova-release
 ```
 
@@ -37,7 +40,7 @@ Deploy OVA with ovftool in a Docker container on ESX host
 docker run -it --net=host -v ~/go/src/github.com/vmware/vic/bin:/test-bin \
   gcr.io/eminent-nation-87317/vic-integration-test:1.25 ovftool --acceptAllEulas --X:injectOvfEnv \
   --X:enableHiddenProperties -st=OVA --powerOn --noSSLVerify=true -ds=datastore1 -dm=thin \
-  --net:Network="VM Network" --prop:appliance.email_from="noreply@vmware.com" \
+  --net:Network="VM Network" \
   --prop:appliance.root_pwd="VMware1\!" --prop:appliance.permit_root_login=True --prop:registry.port=443 \
   --prop:management_portal.port=8282 --prop:registry.admin_password="VMware1\!" \
   --prop:registry.db_password="VMware1\!" /test-bin/vic-1.1.0-a84985b.ova \
