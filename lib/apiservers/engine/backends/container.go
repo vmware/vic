@@ -831,6 +831,7 @@ func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostC
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -946,6 +947,9 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 			return InternalServerError(err.Error())
 		}
 	}
+
+	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+	EventService().Log(containerRestartEvent, eventtypes.ContainerEventType, actor)
 
 	return nil
 }
