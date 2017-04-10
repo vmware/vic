@@ -24,16 +24,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-)
-
-const (
-	nfsScheme = "nfs"
-	dsScheme  = "ds"
 )
 
 func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
@@ -64,10 +60,10 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	for label, targetURL := range input.VolumeLocations {
 		var vsErr error
 		switch targetURL.Scheme {
-		case nfsScheme:
+		case common.NfsScheme:
 			vsErr := validateNFSTarget(targetURL)
 			v.NoteIssue(vsErr)
-		case dsScheme:
+		case common.DsScheme:
 			// TODO: change v.DatastoreHelper to take url struct instead of string and modify tests.
 			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.String(), label, "--volume-store")
 			v.NoteIssue(vsErr)
@@ -87,10 +83,6 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 }
 
 func validateNFSTarget(nfsURL *url.URL) error {
-	if nfsURL.Host == "" || nfsURL.Path == "" {
-		return fmt.Errorf("nfs volume target (%s) requires both a host and a share point path", nfsURL.String())
-	}
-
 	if nfsURL.Host == "" {
 		return fmt.Errorf("volume store target (%s) is missing the host field. format: <nfs://<user>:<password>@<host>/<share point path>:label", nfsURL.String())
 	}
@@ -114,7 +106,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 		return nil, nil, errors.Errorf("bad scheme %q provided for datastore", dsURL.Scheme)
 	}
 
-	dsURL.Scheme = dsScheme
+	dsURL.Scheme = common.DsScheme
 
 	// if a datastore name (e.g. "datastore1") is specified with no decoration then this
 	// is interpreted as the Path
