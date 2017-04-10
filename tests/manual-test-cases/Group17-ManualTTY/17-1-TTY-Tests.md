@@ -16,7 +16,7 @@ This test requires that a vSphere server is running and available
 3. Issue docker run -it busybox df to the new VCH
 4. Issue docker run -it busybox top to the new VCH
 5. Issue docker create -it busybox /bin/top to VIC appliance
-6. Issue docker start -ai <containerID> from pervious step
+6. Issue docker start -ai <containerID> from previous step
 
 
 ### Expected Outcome:
