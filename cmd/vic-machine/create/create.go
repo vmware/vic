@@ -58,8 +58,11 @@ const (
 	caCert     = "ca.pem"
 	caKey      = "ca-key.pem"
 
-	dsScheme  = "ds"
-	nfsScheme = "nfs"
+	dsScheme    = "ds"
+	nfsScheme   = "nfs"
+	emptyScheme = ""
+
+	nfsInputformat = "nfs://<host>/<url-path>?<mount option as query parameters>:<label>"
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -186,7 +189,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "volume-store, vs",
 			Value: &c.volumeStores,
-			Usage: "Specify a list of location and label for volume store, e.g. \"datastore/path:label\" or \"datastore:label\".",
+			Usage: "Specify a list of location and label for volume store, nfs stores can have mount options specified as query parameters in the url target. \n\t examples for a vsphere backed volume store are:  \"datastore/path:label\" or \"datastore:label\" or \"ds://my-datastore-name:store-label\"\n\t Examples for nfs back volume stores are: \"nfs://127.0.0.1/path/to/share/point?uid=1234&gid=5678&proto=tcp:my-volume-store-label\" or \"nfs://my-store/path/to/share/point:my-label\"",
 		},
 
 		// bridge
@@ -886,8 +889,8 @@ func (c *Create) processVolumeStores() error {
 	c.VolumeLocations = make(map[string]*url.URL)
 	for _, arg := range c.volumeStores {
 		splitMeta := strings.Split(arg, ":")
-		if len(splitMeta) < 1 {
-			return errors.New("volume store input must be in format datastore/path:label or <nfs://<host>/<url-path>?<mount option as query parameters>:,<comma separated mount options>label")
+		if len(splitMeta) < 2 {
+			return errors.New("volume store input must be in format datastore/path:label or ")
 		}
 
 		// divide out the label with the target
@@ -898,13 +901,13 @@ func (c *Create) processVolumeStores() error {
 		// raw target input should be in the form of a url
 		urlTarget, err := url.Parse(rawTarget)
 		if err != nil {
-			return fmt.Errorf("parsed url for option --volume-store does not have scheme 'nfs',  valid inputs are datastore/path:label or <nfs://<host>/<share point path>?<mount options as query params>:label")
+			return fmt.Errorf("parsed url for option --volume-store does not have scheme 'nfs',  valid inputs are datastore/path:label or %s", nfsInputformat)
 		}
 
 		switch urlTarget.Scheme {
 		case nfsScheme:
 			// nothing needs to be done here. parsing the url is enough for pre-validation checking.
-		default:
+		case emptyScheme, dsScheme:
 			// a datastore target is our default assumption
 			urlTarget.Scheme = dsScheme
 			if err := common.CheckUnsupportedChars(rawTarget); err != nil {
@@ -912,9 +915,11 @@ func (c *Create) processVolumeStores() error {
 			}
 
 			if len(urlTarget.RawQuery) > 0 {
-				return errors.New("volume store input must be in format datastore/path:label or <nfs://<host>/<url-path>,<comma separated mount options>:,<comma separated mount options>label")
+				return fmt.Errorf("volume store input must be in format datastore/path:label or %s", nfsInputformat)
 			}
 
+		default:
+			return fmt.Errorf("%s", "Please specify a datastore or nfs target. See -vs usage for examples.")
 		}
 
 		c.VolumeLocations[label] = urlTarget

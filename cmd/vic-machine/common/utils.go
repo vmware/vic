@@ -46,7 +46,7 @@ func LogErrorIfAny(clic *cli.Context, err error) error {
 
 // CheckUnsupportedChars returns an error if string contains special characters
 func CheckUnsupportedChars(s string) error {
-	return checkUnsupportedChars(s, reUnsuppDatastore)
+	return checkUnsupportedChars(s, reUnsupp)
 }
 
 // CheckUnsupportedCharsDatastore returns an error if a datastore string contains special characters
