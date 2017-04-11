@@ -14,7 +14,10 @@
 # limitations under the License.
 set -euf -o pipefail
 
-function harborDataSanityCheck() {
+data_mount=/data/harbor
+cfg=${data_mount}/harbor.cfg
+
+function harborDataSanityCheck {
   harbor_dirs=( 
     cert
     database
@@ -32,13 +35,58 @@ function harborDataSanityCheck() {
 
 }
 
-data_mount=/data/harbor
+function cleanupProcedure {
+  # Umount old disks
+  umount $system_tmp_mount
+  umount $data_tmp_mount
+}
+
+#Configure attr in harbor.cfg
+function configureHarborCfg {
+  cfg_key=$1
+  cfg_value=$2
+
+  basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+  if [ -n "$cfg_key" ]; then
+    cfg_value=$(echo $cfg_value | sed -r -e 's%[\/&%]%\\&%g')
+    sed -i -r "s%#?$cfg_key\s*=\s*.*%$cfg_key = $cfg_value%" $cfg
+  fi
+}
+
+function upgradeHarborConfiguration {
+  local source_configuration=$1
+  XIFS=$IFS
+  IFS=$'\r\n'
+  for config in $(grep = ${source_configuration} | sed 's/ *= */=/g' | awk -F= '{ printf "%s=\"%s\"\n", $1, $2 }'); do
+    local key=$(echo ${config} | cut -d= -f1)
+    local value=$(echo ${config} | cut -d= -f2 | sed -e 's/^"//' -e 's/"$//')
+    if [[ x$value == "x" ]]; then 
+      continue
+    fi
+    configureHarborCfg $key $value
+  done
+  IFS=$XIFS
+}
 
 # Before trying anything on the upgrade side, let's check if there is any data
 # from harbor already in the new data folder.
 if harborDataSanityCheck $data_mount; then 
-  echo "Harbor Data is already present in ${data_mount}, can't continue with upgrade operation" && exit 0
+  echo "Harbor Data is already present in ${data_mount}, this script might corrupt/delete/overwrite your data."
+  read -r -p "Do you want to continue? [y/N] " response
+  if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]
+  then
+      exit 1
+  else
+    read -r -p "This script will overwrite your data, are you sure you want to continue? [y/N] " response
+    if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]
+    then
+        exit 1
+    fi
+  fi
 fi
+
+echo "Performing sanity check..."
 
 old_data_disk=$(pvs ---noheadings | grep data1_vg | gawk '{ print $1 }')
 
@@ -53,7 +101,9 @@ mount /dev/data1_vg/data $data_tmp_mount
 
 # Perform sanity check on data volume
 if ! harborDataSanityCheck $data_tmp_mount; then
-  echo "Harbor Data is not present in ${data_tmp_mount}, can't continue with upgrade operation" && exit 0
+  echo "Harbor Data is not present in ${data_tmp_mount}, can't continue with upgrade operation" 
+  cleanupProcedure
+  exit 0
 fi
 
 # Bash black magic to extract the third partition on an unmounted volume that
@@ -71,19 +121,25 @@ system_tmp_mount=$(mktemp -d)
 mount $old_system_disk $system_tmp_mount
 
 if [ ! -d "$system_tmp_mount"/harbor ]; then
-  echo "Harbor system directory not found, exiting..." && exit 0
+  echo "Harbor system directory not found, exiting..."
+  cleanupProcedure
+  exit 0
 fi
 
 # Start migration
 echo "Starting migration"
 
-echo "shutting down harbor"
+echo "[=] shutting down harbor"
 systemctl stop harbor_startup.service
 systemctl stop harbor.service
 
-echo "copying data over"
+echo "[=] copying data"
 rsync -av --info=progress $data_tmp_mount/ $data_mount/
 
-# Umount old disks
-umount $system_tmp_mount
-umount $data_tmp_mount
+echo "[=] migrating harbor configuration"
+upgradeHarborConfiguration "$system_tmp_mount"/harbor/harbor/harbor.cfg
+echo "[=] cleaning up"
+cleanupProcedure
+
+echo "Upgrade procedure complete."
+echo "You can now shutdown the appliance, detach the old Harbors disk and start it again."
