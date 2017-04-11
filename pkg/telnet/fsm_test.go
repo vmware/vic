@@ -140,10 +140,12 @@ func TestFSM(t *testing.T) {
 		dummyConn := newMockConn(inBuf, outBuf)
 		fsm := newFSM()
 		opts := connOpts{
-			conn:        dummyConn,
-			fsm:         fsm,
-			cmdHandler:  cmdPtr.mockCmdHandler,
-			dataHandler: defaultDataHandlerFunc,
+			conn: dummyConn,
+			fsm:  fsm,
+			Handlers: Handlers{
+				CmdHandler:  cmdPtr.mockCmdHandler,
+				DataHandler: defaultDataHandlerFunc,
+			},
 			optCallback: optPtr.optCallback,
 		}
 		tc := newConn(&opts)
