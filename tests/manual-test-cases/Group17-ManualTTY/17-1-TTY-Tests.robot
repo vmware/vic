@@ -71,3 +71,14 @@ Hello world with -it
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  https://docs.docker.com/engine/userguide/
+
+Start with attach and interactive
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
