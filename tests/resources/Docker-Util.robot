@@ -59,6 +59,9 @@ Get Container IP
 Start Docker Daemon Locally
     [Arguments]  ${dockerd-params}  ${dockerd-path}=/usr/local/bin/dockerd-entrypoint.sh  ${log}=./daemon-local.log
     OperatingSystem.File Should Exist  ${dockerd-path}
+    ${pid}=  Run  pidof dockerd
+    Run Keyword If  '${pid}' != '${EMPTY}'  Run  kill -9 ${pid}
+    Run Keyword If  '${pid}' != '${EMPTY}'  Log To Console  \nKilling local dangling dockerd process: ${pid}
     ${handle}=  Start Process  ${dockerd-path} ${dockerd-params} >${log} 2>&1  shell=True
     Process Should Be Running  ${handle}
     :FOR  ${IDX}  IN RANGE  5
@@ -67,6 +70,11 @@ Start Docker Daemon Locally
     \   Exit For Loop If  '${pid}' != '${EMPTY}'
     \   Sleep  1s
     Should Not Be Equal  '${dockerd-pid}'  '${EMPTY}'
+    :FOR  ${IDX}  IN RANGE  10
+    \   ${rc}=  Run And Return Rc  DOCKER_API_VERSION=1.23 docker -H unix:///var/run/docker-local.sock ps
+    \   Return From Keyword If  '${rc}' == '0'  ${handle}  ${dockerd-pid}
+    \   Sleep 1s
+    Fail  Failed to initialize local dockerd
     [Return]  ${handle}  ${dockerd-pid}
 
 Kill Local Docker Daemon
