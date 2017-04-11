@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/govmomi/vim25/xml"
@@ -121,6 +122,16 @@ func (s *Service) call(method *Method) soap.HasFault {
 		log.Print(msg)
 		fault := &types.MethodNotFound{Receiver: method.This, Method: method.Name}
 		return &serverFaultBody{Reason: Fault(msg, fault)}
+	}
+
+	if e, ok := handler.(mo.Entity); ok {
+		for _, dm := range e.Entity().DisabledMethod {
+			if name == dm {
+				msg := fmt.Sprintf("%s method is disabled: %s", method.This, method.Name)
+				fault := &types.MethodDisabled{}
+				return &serverFaultBody{Reason: Fault(msg, fault)}
+			}
+		}
 	}
 
 	res := m.Call([]reflect.Value{reflect.ValueOf(method.Body)})
@@ -278,7 +289,6 @@ func (s *Service) NewServer() *Server {
 	// Using NewUnstartedServer() instead of NewServer(),
 	// for use in main.go, where Start() blocks, we can still set ServiceHostName
 	ts := httptest.NewUnstartedServer(mux)
-	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // we don't need this noise
 
 	u := &url.URL{
 		Scheme: "http",
@@ -303,6 +313,7 @@ func (s *Service) NewServer() *Server {
 	if s.TLS == nil {
 		ts.Start()
 	} else {
+		ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // silence benign "TLS handshake error" log messages
 		ts.TLS = s.TLS
 		ts.StartTLS()
 		u.Scheme += "s"

@@ -16,7 +16,6 @@ package management
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -34,8 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 func TestDelete(t *testing.T) {
@@ -130,68 +127,14 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *config.Vi
 		force:   false,
 	}
 
-	if d.isVC {
-		if d.vchVapp, err = d.createVApp(conf, vConf); err != nil {
-			// FIXME: Got error: ServerFaultCode: ResourcePool:resourcepool-14 does not implement: CreateVApp. Simulator need to implement CreateVApp
-			//			t.Errorf("Unable to create virtual app: %s", err)
-		}
-	}
-	if d.vchPool, err = d.createResourcePool(conf, vConf); err != nil {
-		t.Errorf("Unable to create resource pool: %s", err)
-	}
-
-	spec, err := d.createApplianceSpec(conf, vConf)
+	err = d.createPool(conf, vConf)
 	if err != nil {
-		t.Errorf("Unable to create appliance spec: %s", err)
-		return
+		t.Fatal(err)
 	}
 
-	// create appliance VM
-	folder := d.session.Folders(ctx).VmFolder
-	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return folder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
-	})
-	// get VM reference and save it
-	moref := info.Result.(types.ManagedObjectReference)
-	conf.SetMoref(&moref)
-	obj, err := d.session.Finder.ObjectReference(d.ctx, moref)
+	err = d.createAppliance(conf, vConf)
 	if err != nil {
-		t.Errorf("Failed to reacquire reference to appliance VM after creation: %s", err)
-		return
-	}
-	gvm, ok := obj.(*object.VirtualMachine)
-	if !ok {
-		t.Errorf("Required reference after appliance creation was not for a VM: %T", obj)
-		return
-	}
-
-	vm2 := vm.NewVirtualMachineFromVM(d.ctx, d.session, gvm)
-	uuid, err := vm2.UUID(d.ctx)
-	if err != nil {
-		t.Errorf("Failed to get VM UUID: %s", err)
-		return
-	}
-	t.Logf("uuid: %s", uuid)
-
-	// leverage create volume method to create image datastore
-	conf.VolumeLocations["images-store"], _ = url.Parse(fmt.Sprintf("ds://LocalDS_0/VIC/%s/images", uuid))
-
-	if err := d.createVolumeStores(conf); err != nil {
-		t.Errorf("Unable to create volume stores: %s", err)
-		return
-	}
-
-	spec, err = d.reconfigureApplianceSpec(vm2, conf, vConf)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// reconfig
-	_, err = vm2.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vm2.Reconfigure(ctx, *spec)
-	})
-	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 }
 

@@ -233,8 +233,12 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 	c.Folder.putChild(vm)
 
-	rp := Map.Get(*vm.ResourcePool).(*ResourcePool)
-	rp.Vm = append(rp.Vm, vm.Reference())
+	switch rp := Map.Get(*vm.ResourcePool).(type) {
+	case *ResourcePool:
+		rp.Vm = append(rp.Vm, vm.Reference())
+	case *VirtualApp:
+		rp.Vm = append(rp.Vm, vm.Reference())
+	}
 
 	return vm.Reference(), nil
 }
