@@ -15,11 +15,13 @@
 *** Settings ***
 Documentation  This resource provides any keywords related to the Harbor private registry appliance
 Library  Selenium2Library
+Library  OperatingSystem
 
 *** Variables ***
 ${HARBOR_SHORT_VERSION}  0.5.0
 ${HARBOR_VERSION}  harbor_0.5.0-9e4c90e
 ${MY_PROJECTS_TABLE}  div.table-body-container > table.table.table-pane
+${harbor_cert}  getcert
 
 *** Keywords ***
 Install Harbor To Test Server
@@ -627,3 +629,55 @@ Basic Docker Command With Harbor
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Untagged
+
+Install Harbor To Specified Test Server
+    [Tags]  secret
+    [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${db_password}=%{TEST_PASSWORD}  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${network}=bridge
+    Log To Console  \nFetching harbor ova...
+    ${status}  ${message}=  Run Keyword And Ignore Error  OperatingSystem.File Should Exist  ${HARBOR_VERSION}.ova
+    ${out}=  Run Keyword If  '${status}' == 'FAIL'  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
+    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    ${len}=  Get Length  ${URLs}
+    ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
+
+    Set Test Variable  ${host}  @{URLs}[${IDX}]
+
+    Log To Console  \nDeploying ova...
+    ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:db_password=${db_password} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://${user}:${password}@${host}'
+    Should Contain  ${out}  Received IP address:
+    Should Not Contain  ${out}  None
+
+    ${out}=  Split To Lines  ${out}
+    :FOR  ${line}  IN  @{out}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Received IP address:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Test Variable  ${harbor-ip}  ${ip}
+    \   Exit For Loop If  ${status}
+
+    Log To Console  Waiting for Harbor to Come Up...
+    :FOR  ${i}  IN RANGE  20
+    \  ${out}=  Run  curl -k ${protocol}://${harbor-ip}
+    \  Log  ${out}
+    \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
+    \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Not Contain  ${out}  Connection refused
+    \  Run Keyword If  ${status}  Set Test Variable  ${status}  ${status}
+    \  Exit For Loop If  ${status}
+    \  Sleep  30s
+    Run Keyword If  not ${status}  Fail  Harbor failed to come up properly!
+    [Return]  ${harbor-ip}
+
+Fetch Harbor Self Signed Cert
+    [Tags]  secret
+    [Arguments]  ${harbor-ip}  ${user}=admin  ${password}=%{TEST_PASSWORD}
+    ${rc}=  Run And Return Rc  wget -q --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user ${user} --password ${password} https://${harbor-ip}/api/systeminfo/${harbor_cert}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${harbor_cert}
+
+# Requires vc credential for govc
+Cleanup Harbor
+    [Tags]  secret
+    [Arguments]  ${harbor-name}  ${host}=%{TEST_URL}  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}
+    Log To Console  \nCleanup Harbor...
+    Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc vm.destroy ${harbor-name}

@@ -14,6 +14,8 @@
 
 *** Settings ***
 Documentation  This resource provides helper functions for docker operations
+Library  OperatingSystem
+Library  Process
 
 *** Keywords ***
 Run Docker Info
@@ -50,6 +52,44 @@ Get Container IP
     ${rc}  ${ip}=  Run And Return Rc And Output  ${dockercmd} ${docker-params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address' | cut -d \\" -f 2 | cut -d \\/ -f 1
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${ip}
+
+# Use host docker daemon to start a dind container alongside this test container
+# This requires host socket mapped into current container
+Start Docker Daemon From Host Socket
+    [Arguments]  ${docker-params}  ${dind-version}=docker:1.13-dind  ${host}=unix:///var/run/docker.sock
+#    ${rc}  ${id}=  Run And Return Rc And Output  docker -H ${host} run -it --privileged -d ${dind-version} ${docker-params} 2>/dev/null
+    ${rc}  ${id}=  Run And Return Rc And Output  docker -H ${host} run -it --privileged -d ${dind-version} ${docker-params}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${id}
+
+# The local dind version is embedded in Dockerfile
+# docker:1.13-dind
+# If you are running this keyword in a container, make sure it is run with --privileged turned on
+Start Docker Daemon Locally
+    [Arguments]  ${dockerd-params}  ${dockerd-path}=/usr/local/bin/dockerd-entrypoint.sh  ${log}=./daemon-local.log
+    OperatingSystem.File Should Exist  ${dockerd-path}
+    ${handle}=  Start Process  ${dockerd-path} ${dockerd-params} >${log} 2>&1  shell=True
+    Process Should Be Running  ${handle}
+    :FOR  ${IDX}  IN RANGE  5
+    \   ${pid}=  Run  pidof dockerd
+    \   Run Keyword If  '${pid}' != '${EMPTY}'  Set Test Variable  ${dockerd-pid}  ${pid}
+    \   Exit For Loop If  '${pid}' != '${EMPTY}'
+    \   Sleep  1s
+    Should Not Be Equal  '${dockerd-pid}'  '${EMPTY}'
+    [Return]  ${handle}  ${dockerd-pid}
+
+Cleanup Container On ID
+    [Arguments]  ${id}  ${host}=unix:///var/run/docker.sock
+    ${rc}  ${output}=  Run And Return Rc And Output  docker -H ${host} rm -f ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${id}
+
+Kill Local Docker Daemon
+    [Arguments]  ${handle}  ${dockerd-pid}
+    Terminate Process  ${handle}
+    Process Should Be Stopped  ${handle}
+    ${rc}=  Run And Return Rc  kill -9 ${dockerd-pid}
+    Should Be Equal As Integers  ${rc}  0
 
 Get container shortID
     [Arguments]  ${id}
