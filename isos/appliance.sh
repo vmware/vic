@@ -64,7 +64,7 @@ unpack $PACKAGE $PKGDIR
 #################################################################
 
 # sysctl
-cp $DIR/appliance/sysctl.conf $(rootfs_dir $PKGDIR)/etc/
+cp ${DIR}/appliance/sysctl.conf $(rootfs_dir $PKGDIR)/etc/
 
 ## systemd configuration
 # create systemd vic target
