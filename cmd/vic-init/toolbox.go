@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/diag"
@@ -42,20 +43,33 @@ func startCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
 
 	switch r.ProgramPath {
 	case "enable-ssh":
-		return -1, enableSSH(r.Arguments)
+		err := enableSSH(r.Arguments)
+		enableShell()
+		return -1, err
+
 	case "passwd":
-		return -1, passwd(r.Arguments)
+		err := passwd(r.Arguments)
+		enableShell()
+		return -1, err
+
 	case "test-vc-api":
 		return diag.CheckAPIAvailability(r.Arguments), nil
+
 	default:
 		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
 	}
 }
 
 // enableShell changes the root shell from /bin/false to /bin/bash
+// We try to ensure the password is not expired via chage, as chsh
+// requires an unexpired password to succeed.
 func enableShell() error {
 	defer trace.End(trace.Begin(""))
 
+	// if reset fails, try the rest anyway
+	resetPasswdExpiry()
+
+	// #nosec: Subprocess launching should be audited
 	chsh := exec.Command("/bin/chsh", "-s", "/bin/bash", "root")
 	err := chsh.Start()
 	if err != nil {
@@ -98,6 +112,8 @@ func enableShell() error {
 		return err
 	}
 
+	log.Info("Attempted to enable the shell for root")
+
 	return nil
 }
 
@@ -105,13 +121,7 @@ func enableShell() error {
 func passwd(pass string) error {
 	defer trace.End(trace.Begin(""))
 
-	err := enableShell()
-	if err != nil {
-		err := fmt.Errorf("Failed to enable shell: %s", err)
-		log.Error(err)
-		// continue anyway as people may be able to get something useful
-	}
-
+	// #nosec: Subprocess launching should be audited
 	setPasswd := exec.Command("/sbin/chpasswd")
 	stdin, err := setPasswd.StdinPipe()
 	if err != nil {
@@ -145,6 +155,8 @@ func passwd(pass string) error {
 		return err
 	}
 
+	log.Info("Attempted to set the password for root")
+
 	return nil
 }
 
@@ -152,16 +164,9 @@ func passwd(pass string) error {
 func enableSSH(key string) error {
 	defer trace.End(trace.Begin(""))
 
-	err := enableShell()
-	if err != nil {
-		err := fmt.Errorf("Failed to enable shell: %s", err)
-		log.Error(err)
-		// continue anyway as people may be able to get something useful
-	}
-
 	// basic sanity check for args - we don't bother validating it's a key
 	if len(key) != 0 {
-		err = os.MkdirAll("/root/.ssh", 0700)
+		err := os.MkdirAll("/root/.ssh", 0700)
 		if err != nil {
 			err := fmt.Errorf("unable to create path for keys: %s", err)
 			log.Error(err)
@@ -198,5 +203,31 @@ func startSSH() error {
 		log.Info("Attempted to start ssh service:\n %s", b)
 	}()
 
+	return nil
+}
+
+func resetPasswdExpiry() error {
+	defer trace.End(trace.Begin(""))
+
+	// add just enough time for the password not to be expired
+	// if the user wants more time they can actually change the password
+	// This will expire in at most 1 day, perhaps sooner depending on local time
+	// NB: Format is example based - that's the reference time format
+	expireDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+	// #nosec: Subprocess launching should be audited
+	chage := exec.Command("/bin/chage", "-M", "1", "-d", expireDate, "root")
+	err := chage.Start()
+	if err != nil {
+		err := fmt.Errorf("Failed to launch chage: %s", err)
+		log.Error(err)
+		return err
+	}
+
+	// ignore the error - it's likely raced with child reaper, we just want to make sure
+	// that it's exited by the time we pass this point
+	chage.Wait()
+
+	log.Infof("Attempted reset of password expiry: /bin/chage -M 1 -d %s root", expireDate)
 	return nil
 }
