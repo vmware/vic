@@ -886,7 +886,7 @@ func (c *Create) processVolumeStores() error {
 	for _, arg := range c.volumeStores {
 		splitMeta := strings.Split(arg, ":")
 		if len(splitMeta) < 2 {
-			return errors.New("volume store input must be in format datastore/path:label or ")
+			return fmt.Errorf("volume store input must be in format datastore/path:label or %s", nfsInputformat)
 		}
 
 		// divide out the label with the target
@@ -897,16 +897,16 @@ func (c *Create) processVolumeStores() error {
 		// raw target input should be in the form of a url
 		urlTarget, err := url.Parse(rawTarget)
 		if err != nil {
-			return fmt.Errorf("parsed url for option --volume-store does not have scheme 'nfs',  valid inputs are datastore/path:label or %s", nfsInputformat)
+			return fmt.Errorf("parsed url for option --volume-store could not be parsed as a url, valid inputs are datastore/path:label or %s. See -h for usage examples.", nfsInputformat)
 		}
 
 		switch urlTarget.Scheme {
 		case common.NfsScheme:
-			// nothing needs to be done here. parsing the url is enough for pre-validation checking.
+			// nothing needs to be done here. parsing the url is enough for pre-validation checking of an nfs target.
 		case common.EmptyScheme, common.DsScheme:
 			// a datastore target is our default assumption
 			urlTarget.Scheme = common.DsScheme
-			if err := common.CheckUnsupportedChars(rawTarget); err != nil {
+			if err := common.CheckUnsupportedCharsDatastore(rawTarget); err != nil {
 				return fmt.Errorf("--volume-store contains unsupported characters for datastore target: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / : ,", err)
 			}
 
