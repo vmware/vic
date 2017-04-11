@@ -39,6 +39,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -100,6 +101,7 @@ type VicContainerProxy interface {
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
+	exitCode(vc *viccontainer.VicContainer) (string, error)
 }
 
 // ContainerProxy struct
@@ -135,9 +137,16 @@ const (
 	ContainerExited  = "exited"
 )
 
-// NewContainerProxy creates a new ContainerProxy
+// used by other engine components
+var containerProxy *ContainerProxy
+var once sync.Once
+
+// NewContainerProxy will create a new proxy or return the existing proxy
 func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
-	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
+	once.Do(func() {
+		containerProxy = &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
+	})
+	return containerProxy
 }
 
 // Handle retrieves a handle to a VIC container.  Handles should be treated as opaque strings.
@@ -676,6 +685,36 @@ func (c *ContainerProxy) State(vc *viccontainer.VicContainer) (*types.ContainerS
 		return nil, err
 	}
 	return inspectJSON.State, nil
+}
+
+// exitCode returns container exitCode
+func (c *ContainerProxy) exitCode(vc *viccontainer.VicContainer) (string, error) {
+	defer trace.End(trace.Begin(""))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.exitCode failed to get a portlayer client")
+	}
+
+	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetContainerInfoNotFound:
+			return "", NotFoundError(vc.Name)
+		case *containers.GetContainerInfoInternalServerError:
+			return "", InternalServerError(err.Payload.Message)
+		default:
+			return "", InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
+		}
+	}
+	// get the exitCode -- ignoring the status, so no start / stop
+	// time needed
+	code, _ := dockerStatus(
+		int(results.Payload.ProcessConfig.ExitCode),
+		results.Payload.ProcessConfig.Status,
+		results.Payload.ContainerConfig.State,
+		time.Time{}, time.Time{})
+
+	return strconv.Itoa(code), nil
 }
 
 func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (
