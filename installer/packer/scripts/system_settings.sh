@@ -34,7 +34,7 @@ systemctl enable admiral_startup.service admiral
 systemctl enable fileserver_startup.service fileserver.service
 
 # Clean up temporary directories
-rm -rf /var/tmp/*
+rm -rf /var/tmp/harbor
 
 # seal the template
 > /etc/machine-id

@@ -16,7 +16,11 @@ set -euf -o pipefail
 
 mkdir -p /etc/vmware/fileserver
 
-# Move zip files to base directory, remove unneeded files from ui/
-cd /data/fileserver/files
-find . -name "*.zip" | xargs -t -I {} mv {} .
-rm -r ui/
+[[ x$BUILD_VICENGINE_REVISION == "x" ]] && ( echo "VIC Engine build not set, failing"; exit 1 )
+
+# Download Build
+cd /var/tmp
+echo "Downloading VIC Engine ${BUILD_VICENGINE_REVISION}"
+curl -LO "https://vmware.bintray.com/vic/vic_${BUILD_VICENGINE_REVISION}.tar.gz" 
+tar xfz vic_${BUILD_VICENGINE_REVISION}.tar.gz -C /data/fileserver/files vic/ui/vsphere-client-serenity/com.vmware.vic.ui-v${BUILD_VICENGINE_REVISION}.zip vic/ui/plugin-packages/com.vmware.vic-v${BUILD_VICENGINE_REVISION}.zip --strip-components=3
+mv vic_${BUILD_VICENGINE_REVISION}.tar.gz /data/fileserver/files
