@@ -6,6 +6,7 @@
     "remote_username": "",
     "remote_password": "",
     "root_password": "2RQrZ83i79N6szpvZNX6",
+    "build_vicengine_revision": "",
     "build_admiral_revision": "dev",
     "build_harbor_revision": "dev"
   },
@@ -108,16 +109,6 @@
       "type": "file",
       "source": "../../bin/ova-webserver",
       "destination": "/usr/local/bin/ova-webserver"
-    },
-    {
-      "type": "file",
-      "source": "../../bin/vic-engine-bundle/",
-      "destination": "/data/fileserver/files"
-    },
-    {
-      "type": "file",
-      "source": "../../bin/ui",
-      "destination": "/data/fileserver/files"
     },
     {
       "type": "file",
@@ -260,6 +251,7 @@
     },
     {
       "type": "shell",
+      "environment_vars": ["BUILD_VICENGINE_REVISION={{user `build_vicengine_revision`}}"],
       "script": "scripts/provision_fileserver.sh"
     },
     {

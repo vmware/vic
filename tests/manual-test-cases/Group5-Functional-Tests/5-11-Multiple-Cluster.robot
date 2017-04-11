@@ -27,8 +27,6 @@ Test
 
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
 
-    Create a Simple VC Cluster  datacenter1  cls1
-
     Log To Console  Create cluster2 on the VC
     ${out}=  Run  govc cluster.create cls2
     Should Be Empty  ${out}
