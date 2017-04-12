@@ -46,6 +46,9 @@ type StorageHandlersImpl struct {
 const (
 	nfsScheme = "nfs"
 	dsScheme  = "ds"
+
+	uidQueryKey = "uid"
+	gidQueryKey = "gid"
 )
 
 // Configure assigns functions to all the storage api handlers
@@ -317,7 +320,7 @@ func (h *StorageHandlersImpl) VolumeStoresList(params storage.VolumeStoresListPa
 			})
 	}
 
-	resp := &models.VolumeStoresListResponse{Stores: stores}
+	rresp := &models.VolumeStoresListResponse{Stores: stores}
 
 	return storage.NewVolumeStoresListOK().WithPayload(resp)
 }
@@ -576,10 +579,25 @@ func createMetadataMap(volume *spl.Volume) map[string]string {
 func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (spl.VolumeStorer, error) {
 	var err error
 	uid := nfs.DefaultUID
+	gid := nfs.DefaultUID
 
-	// TODO: stuff uid and gid into Username field as <uid>:<gid> in vic-machine then pull them out and use them here.
-	if dsurl.User != nil && dsurl.User.Username() != "" {
-		uid, err = strconv.Atoi(dsurl.User.Username())
+	vsUid := dsurl.Query().Get(uidQueryKey)
+	vsGid := dsurl.Query().Get(gidQueryKey)
+
+	if vsGid == "" {
+		vsGid = vsUid
+	}
+
+	if vsUid != nil {
+		uid, err = strconv.Atoi(vsUid)
+		if err != nil {
+			op.Errorf("%s", err.Error())
+			return nil, err
+		}
+	}
+
+	if vsGid != "" {
+		gid, err = strconv.Atoi(vsGid)
 		if err != nil {
 			op.Errorf("%s", err.Error())
 			return nil, err
@@ -587,7 +605,7 @@ func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (spl.
 	}
 
 	// XXX replace with the vch name
-	mnt := nfs.NewMount(dsurl, "vic", uint32(uid), uint32(uid))
+	mnt := nfs.NewMount(dsurl, "vic", uint32(uid), uint32(gid))
 	vs, err := nfs.NewVolumeStore(op, name, mnt)
 	if err != nil {
 		op.Errorf("%s", err.Error())
