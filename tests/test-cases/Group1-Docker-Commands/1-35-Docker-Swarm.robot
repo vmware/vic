@@ -32,10 +32,10 @@ Docker swarm join
 Docker swarm join-token
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} swarm join-token worker
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  swarm is not supported by vSphere Integrated Containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} swarm join-token manager
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  swarm is not supported by vSphere Integrated Containers
 
 Docker swarm leave
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} swarm leave
@@ -50,5 +50,4 @@ Docker swarm unlock-key
 Docker swarm update
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} swarm update --autolock
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
-
+    Should Contain  ${output}  swarm is not supported by vSphere Integrated Containers
