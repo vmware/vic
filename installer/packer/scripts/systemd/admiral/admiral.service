@@ -1,7 +1,7 @@
 [Unit]
 Description=Admiral is a highly scalable and very lightweight Container Management platform for deploying and managing container based applications.
 Documentation=https://github.com/vmware/admiral
-After=docker.service systemd-networkd.service systemd-resolved.service
+After=docker.service systemd-networkd.service systemd-resolved.service systemd-timesyncd.service vmtoolsd.service
 Requires=docker.service
 
 [Service]
