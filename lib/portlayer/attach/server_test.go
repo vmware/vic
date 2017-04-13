@@ -43,9 +43,11 @@ func TestAttachStartStop(t *testing.T) {
 		defer wg.Done()
 
 		c, err := net.Dial("tcp", s.l.Addr().String())
-		assert.NoError(t, err)
-		assert.NotNil(t, c)
-		defer c.Close()
+		if assert.NoError(t, err) && assert.NotNil(t, c) {
+			defer c.Close()
+		} else {
+			return
+		}
 
 		buf := make([]byte, 1)
 		c.SetReadDeadline(time.Now().Add(time.Second))
