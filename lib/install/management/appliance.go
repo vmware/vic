@@ -744,7 +744,9 @@ func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostCon
 	var volumeStoresLine string
 	for _, value := range sysInfo.SystemStatus {
 		if value[0] == volumeStoresID {
+			log.Debugf("Portlayer has established volume stores (%s)", value[1])
 			volumeStoresLine = value[1]
+			break
 		}
 	}
 

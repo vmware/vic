@@ -320,7 +320,7 @@ func (h *StorageHandlersImpl) VolumeStoresList(params storage.VolumeStoresListPa
 			})
 	}
 
-	rresp := &models.VolumeStoresListResponse{Stores: stores}
+	resp := &models.VolumeStoresListResponse{Stores: stores}
 
 	return storage.NewVolumeStoresListOK().WithPayload(resp)
 }
@@ -581,23 +581,23 @@ func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (spl.
 	uid := nfs.DefaultUID
 	gid := nfs.DefaultUID
 
-	vsUid := dsurl.Query().Get(uidQueryKey)
-	vsGid := dsurl.Query().Get(gidQueryKey)
+	vsUID := dsurl.Query().Get(uidQueryKey)
+	vsGID := dsurl.Query().Get(gidQueryKey)
 
-	if vsGid == "" {
-		vsGid = vsUid
+	if vsGID == "" {
+		vsGID = vsUID
 	}
 
-	if vsUid != nil {
-		uid, err = strconv.Atoi(vsUid)
+	if vsUID != "" {
+		uid, err = strconv.Atoi(vsUID)
 		if err != nil {
 			op.Errorf("%s", err.Error())
 			return nil, err
 		}
 	}
 
-	if vsGid != "" {
-		gid, err = strconv.Atoi(vsGid)
+	if vsGID != "" {
+		gid, err = strconv.Atoi(vsGID)
 		if err != nil {
 			op.Errorf("%s", err.Error())
 			return nil, err
