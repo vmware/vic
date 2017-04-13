@@ -29,6 +29,7 @@ ADMIRAL_JKS_LOCATION=""
   -v "$ADMIRAL_KEY_LOCATION:/tmp/server.key" \
   -v "$ADMIRAL_JKS_LOCATION:/tmp/trusted_certificates.jks" \
   -v "$ADMIRAL_DATA_LOCATION/custom.conf:/admiral/config/configuration.properties" \
+  -v "$ADMIRAL_DATA_LOCATION:/var/admiral" \
   --log-driver=json-file \
   --log-opt max-size=1g \
   --log-opt max-file=10 \
