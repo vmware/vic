@@ -35,7 +35,7 @@ import (
 // Start the server, make 200 client connections, test they connect, then Stop.
 func TestAttachStartStop(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	s := NewAttachServer("", -1)
+	s := NewAttachServer("", 0)
 
 	wg := &sync.WaitGroup{}
 
@@ -43,8 +43,9 @@ func TestAttachStartStop(t *testing.T) {
 		defer wg.Done()
 
 		c, err := net.Dial("tcp", s.l.Addr().String())
-		assert.NoError(t, err)
-		assert.NotNil(t, c)
+		if !assert.NoError(t, err) || !assert.NotNil(t, c) {
+			return
+		}
 		defer c.Close()
 
 		buf := make([]byte, 1)
@@ -88,7 +89,7 @@ func TestAttachStartStop(t *testing.T) {
 func TestAttachSshSession(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 
-	s := NewAttachServer("", -1)
+	s := NewAttachServer("", 0)
 	assert.NoError(t, s.Start(true))
 	defer s.Stop()
 

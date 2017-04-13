@@ -22,7 +22,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -41,9 +40,6 @@ type Server struct {
 func NewAttachServer(ip string, port int) *Server {
 	defer trace.End(trace.Begin(""))
 
-	if port == 0 {
-		port = constants.AttachServerPort
-	}
 	return &Server{ip: "localhost", port: port}
 }
 
@@ -54,6 +50,9 @@ func (n *Server) Start(debug bool) error {
 	log.Infof("Attach server listening on %s:%d", n.ip, n.port)
 
 	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", n.ip, n.port))
+	if err != nil {
+		return fmt.Errorf("Attach server error %s:%d: %s", n.ip, n.port, errors.ErrorStack(err))
+	}
 
 	n.l, err = net.ListenTCP("tcp", addr)
 	if err != nil {
