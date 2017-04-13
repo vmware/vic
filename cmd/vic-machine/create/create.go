@@ -1377,7 +1377,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
-		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert)
+		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert, c.certPath)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
 		if cmd != "" {
 			log.Infof("\t\tRun command: %s", cmd)
@@ -1390,7 +1390,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	log.Infof("Initialization of appliance successful")
 
-	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile)
+	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile, c.certPath)
 	log.Infof("Installer completed successfully")
 	return nil
 }
