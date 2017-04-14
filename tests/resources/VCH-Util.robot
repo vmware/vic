@@ -44,7 +44,8 @@ Set Test Environment Variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
-    Set Environment Variable  GOVC_DATASTORE  %{TEST_DATASTORE}
+    ${noQuotes}=  Strip String  %{TEST_DATASTORE}  characters="
+    Set Environment Variable  GOVC_DATASTORE  ${noQuotes}
 
     ${about}=  Run  govc about
     ${status}=  Run Keyword And Return Status  Should Contain  ${about}  VMware ESXi
@@ -207,6 +208,7 @@ Run VIC Machine Inspect Command
 
 Gather Logs From Test Server
     [Tags]  secret
+    Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
     ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
     Log  ${out}
     ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs.zip

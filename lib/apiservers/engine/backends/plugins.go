@@ -44,7 +44,7 @@ func (p *Plugin) List() ([]enginetypes.Plugin, error) {
 }
 
 func (p *Plugin) Inspect(name string) (*enginetypes.Plugin, error) {
-	return nil, PluginNotFoundError(name)
+	return nil, nil
 }
 
 func (p *Plugin) Remove(name string, config *enginetypes.PluginRmConfig) error {
