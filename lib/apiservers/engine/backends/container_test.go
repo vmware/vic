@@ -38,6 +38,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -338,7 +339,7 @@ func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName strin
 func (m *MockContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
 	return nil
 }
-func (m *MockContainerProxy) StreamContainerStats(ctx context.Context, id string, out io.Writer, stream bool, CPUMhz int64, memory int64) error {
+func (m *MockContainerProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
 	return nil
 }
 func (m *MockContainerProxy) exitCode(vc *viccontainer.VicContainer) (string, error) {
