@@ -76,8 +76,9 @@ type Data struct {
 
 	Timeout time.Duration
 
-	Force bool
-	UseRP bool
+	Force               bool
+	UseRP               bool
+	ResetInProgressFlag bool
 
 	AsymmetricRouting bool
 

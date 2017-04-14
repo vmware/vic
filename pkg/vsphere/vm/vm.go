@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -32,9 +33,12 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
+
+const UpdateInProgress = "UpdateInProgress"
 
 type InvalidState struct {
 	r types.ManagedObjectReference
@@ -559,4 +563,48 @@ func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.Manag
 		return nil, err
 	}
 	return mvm.Datastore, nil
+}
+
+// GetVCHUpdateStatus tells if an upgrade/update has already been started based on the UpdateInProgress flag in ExtraConfig
+// If error != nil, VCH upgrade/update will exit; so the value of the VCH upgrade/update status is not important
+func (vm *VirtualMachine) GetVCHUpdateStatus(ctx context.Context) (bool, error) {
+	var mvm mo.VirtualMachine
+
+	if err := vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
+		log.Errorf("Unable to get vm config: %s", err)
+		return false, err
+	}
+
+	for _, bov := range mvm.Config.ExtraConfig {
+		ov := bov.GetOptionValue()
+		if ov.Key == UpdateInProgress {
+			if updateStatus, err := strconv.ParseBool(ov.Value.(string)); err != nil {
+				return false, err
+			} else {
+				return updateStatus, nil
+			}
+		}
+	}
+	// If "UpdateInProgress" is not found, it might be the case that no update/upgrade has been done to this VCH before
+	return false, nil
+}
+
+// SetVCHUpdateStatus sets the "UpdateInProgress" flag in ExtraConfig
+func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, updateStatus bool) error {
+
+	info, err := vm.FetchExtraConfig(ctx)
+	if err != nil {
+		return err
+	}
+	info[UpdateInProgress] = strconv.FormatBool(updateStatus)
+
+	s := &types.VirtualMachineConfigSpec{
+		ExtraConfig: vmomi.OptionValueFromMap(info),
+	}
+
+	_, err = vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Reconfigure(ctx, *s)
+	})
+
+	return err
 }

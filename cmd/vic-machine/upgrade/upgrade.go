@@ -64,6 +64,11 @@ func (u *Upgrade) Flags() []cli.Flag {
 			Usage:       "Roll back VCH version to before the previous upgrade",
 			Destination: &u.Rollback,
 		},
+		cli.BoolFlag{
+			Name:        "resetInProgressFlag",
+			Usage:       "Reset the UpdateInProgress flag",
+			Destination: &u.ResetInProgressFlag,
+		},
 	}
 
 	target := u.TargetFlags()
@@ -147,6 +152,40 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 
 	log.Infof("")
 	log.Infof("VCH ID: %s", vch.Reference().String())
+
+	if u.ResetInProgressFlag {
+		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
+			log.Error("Failed to reset UpdateInprogress flag")
+			log.Error(err)
+			return errors.New("upgrade failed")
+		}
+		log.Infof("Reset UpdateInProgress flag successfully")
+		return nil
+	}
+
+	upgrading, err := vch.GetVCHUpdateStatus(ctx)
+	if err != nil {
+		log.Error("Unable to determine if upgrade/update is in progress")
+		log.Error(err)
+		return errors.New("upgrade failed")
+	}
+	if upgrading {
+		log.Error("Upgrade failed: another upgrade/update operation is in progress")
+		return errors.New("upgrade failed")
+	}
+
+	if err = vch.SetVCHUpdateStatus(ctx, true); err != nil {
+		log.Error("Failed to set UpdateInProgress flag to true")
+		log.Error(err)
+		return errors.New("upgrade failed")
+	}
+
+	defer func() {
+		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
+			log.Error("Failed to reset UpdateInProgress")
+			log.Error(err)
+		}
+	} ()
 
 	vchConfig, err := executor.FetchAndMigrateVCHConfig(vch)
 	if err != nil {
