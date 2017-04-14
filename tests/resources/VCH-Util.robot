@@ -44,7 +44,8 @@ Set Test Environment Variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
-    Set Environment Variable  GOVC_DATASTORE  %{TEST_DATASTORE}
+    ${noQuotes}=  Strip String  %{TEST_DATASTORE}  characters="
+    Set Environment Variable  GOVC_DATASTORE  ${noQuotes}
 
     ${about}=  Run  govc about
     ${status}=  Run Keyword And Return Status  Should Contain  ${about}  VMware ESXi
