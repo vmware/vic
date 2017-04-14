@@ -42,6 +42,7 @@ import (
 
 const (
 	containerDieEvent     = "die"
+	containerDestroyEvent = "destroy"
 	containerStopEvent    = "stop"
 	containerStartEvent   = "start"
 	containerCreateEvent  = "create"
@@ -219,12 +220,16 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 		log.Errorf("Portlayer event for container %s but not found in cache", event.Ref)
 		return
 	}
-
-	if event.Event == plevents.ContainerStopped || event.Event == plevents.ContainerPoweredOff {
+	var attrs map[string]string
+	// TODO: move to a container.OnEvent() so that container drives the necessary changes
+	// based on event activity
+	switch event.Event {
+	case plevents.ContainerStopped,
+		plevents.ContainerPoweredOff:
 		// since we are going to make a call to the portLayer lets execute this in a
 		// go routine
 		go func() {
-			attrs := make(map[string]string)
+			attrs = make(map[string]string)
 			// get the containerProxy
 			code, err := NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()).exitCode(vc)
 			if err != nil {
@@ -239,5 +244,18 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 
 			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
 		}()
+	case plevents.ContainerRemoved:
+		attrs = make(map[string]string)
+		//pop the destroy event...
+		actor := CreateContainerEventActorWithAttributes(vc, attrs)
+		EventService().Log(containerDestroyEvent, eventtypes.ContainerEventType, actor)
+		if err := UnmapPorts(vc.HostConfig); err != nil {
+			log.Warn(err)
+		}
+		// remove from the container cache...
+		cache.ContainerCache().DeleteContainer(vc.ContainerID)
+	default:
+		// let everything else slide on by...
 	}
+
 }

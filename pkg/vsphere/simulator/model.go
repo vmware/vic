@@ -67,6 +67,15 @@ type Model struct {
 	// All resources for the Datacenter are placed within these folders, rather than the top-level folders.
 	Folder int
 
+	// App specifies the number of VirtualApp to create per Cluster
+	App int
+
+	// Pod specifies the number of StoragePod to create per Cluster
+	Pod int
+
+	// total number of inventory objects, set by Count()
+	total int
+
 	dirs []string
 }
 
@@ -93,6 +102,44 @@ func VPX() *Model {
 		Datastore:      1,
 		Machine:        2,
 	}
+}
+
+// Count returns a Model with total number of each existing type
+func (m *Model) Count() Model {
+	count := Model{}
+
+	for ref, obj := range Map.objects {
+		if _, ok := obj.(mo.Entity); !ok {
+			continue
+		}
+
+		count.total++
+
+		switch ref.Type {
+		case "Datacenter":
+			count.Datacenter++
+		case "DistributedVirtualPortgroup":
+			count.Portgroup++
+		case "ClusterComputeResource":
+			count.Cluster++
+		case "Datastore":
+			count.Datastore++
+		case "HostSystem":
+			count.Host++
+		case "VirtualMachine":
+			count.Machine++
+		case "ResourcePool":
+			count.Pool++
+		case "VirtualApp":
+			count.App++
+		case "Folder":
+			count.Folder++
+		case "StoragePod":
+			count.Pod++
+		}
+	}
+
+	return count
 }
 
 func (*Model) fmtName(prefix string, num int) string {
@@ -217,6 +264,12 @@ func (m *Model) Create() error {
 			return err
 		}
 
+		if m.Pod > 0 {
+			for pod := 0; pod < m.Pod; pod++ {
+				_, _ = folders.DatastoreFolder.CreateStoragePod(ctx, m.fmtName(dcName+"_POD", pod))
+			}
+		}
+
 		if folder != root {
 			// Create sub-folders and use them to create any resources that follow
 			subs := []**object.Folder{&folders.DatastoreFolder, &folders.HostFolder, &folders.NetworkFolder, &folders.VmFolder}
@@ -322,6 +375,21 @@ func (m *Model) Create() error {
 				if err != nil {
 					return err
 				}
+			}
+
+			prefix = clusterName + "_APP"
+
+			for napp := 0; napp < m.App; napp++ {
+				rspec := NewResourceConfigSpec()
+				vspec := NewVAppConfigSpec()
+				name := m.fmtName(prefix, napp)
+
+				vapp, err := pool.CreateVApp(ctx, name, rspec, vspec, nil)
+				if err != nil {
+					return err
+				}
+
+				addMachine(name, nil, vapp.ResourcePool, folders)
 			}
 		}
 	}

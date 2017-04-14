@@ -88,6 +88,11 @@ func TestFolderESX(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
+
+	_, err = folders.DatastoreFolder.CreateStoragePod(ctx, "pod")
+	if err == nil {
+		t.Fatal("expected error")
+	}
 }
 
 func TestFolderVC(t *testing.T) {
@@ -135,6 +140,16 @@ func TestFolderVC(t *testing.T) {
 	folders, err := dc.Folders(ctx)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	_, err = folders.VmFolder.CreateStoragePod(ctx, "pod")
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	_, err = folders.DatastoreFolder.CreateStoragePod(ctx, "pod")
+	if err != nil {
+		t.Error(err)
 	}
 
 	tests := []struct {
@@ -402,11 +417,26 @@ func TestFolderMoveInto(t *testing.T) {
 		t.Error(err)
 	}
 
-	task, err = f.MoveInto(ctx, []types.ManagedObjectReference{dc.Reference()})
+	task, _ = f.MoveInto(ctx, []types.ManagedObjectReference{dc.Reference()})
+	err = task.Wait(ctx)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
+	pod, err := folders.DatastoreFolder.CreateStoragePod(ctx, "pod")
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Moving any type other than Datastore into a StoragePod should fail
+	task, _ = pod.MoveInto(ctx, []types.ManagedObjectReference{dc.Reference()})
+	err = task.Wait(ctx)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	// Move DS into a StoragePod
+	task, _ = pod.MoveInto(ctx, []types.ManagedObjectReference{ds.Reference()})
 	err = task.Wait(ctx)
 	if err != nil {
 		t.Error(err)
