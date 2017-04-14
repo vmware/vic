@@ -56,6 +56,7 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 		NewFileManager(*s.Content.FileManager),
 		NewLicenseManager(*s.Content.LicenseManager),
 		NewSearchIndex(*s.Content.SearchIndex),
+		NewViewManager(*s.Content.ViewManager),
 	}
 
 	for _, o := range objects {
