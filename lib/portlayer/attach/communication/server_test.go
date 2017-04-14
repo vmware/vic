@@ -35,7 +35,7 @@ import (
 // Start the server, make 200 client connections, test they connect, then Stop.
 func TestAttachStartStop(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	s := NewServer("", 0)
+	s := NewServer("localhost", 0)
 
 	var wg sync.WaitGroup
 
@@ -89,7 +89,7 @@ func TestAttachStartStop(t *testing.T) {
 func TestAttachSshSession(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 
-	s := NewServer("", 0)
+	s := NewServer("localhost", 0)
 	assert.NoError(t, s.Start(true))
 	defer s.Stop()
 
