@@ -216,7 +216,7 @@ Gather Logs From Test Server
     Remove File  vic-admin-cookies
     ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware.log
     Should Contain  ${out}  OK
-    Run  govc logs -log=vmkernel -n=10000 > vmkernel.log
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel.log
 
 Check For The Proper Log Files
     [Arguments]  ${container}
