@@ -490,6 +490,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		log.Errorf("Create appliance reported: %s", info.Error.LocalizedMessage)
 	}
 
+	if err = d.createVolumeStores(conf); err != nil {
+		return errors.Errorf("Exiting because we could not create volume stores due to error: %s", err)
+	}
+
 	// get VM reference and save it
 	moref := info.Result.(types.ManagedObjectReference)
 	conf.SetMoref(&moref)
