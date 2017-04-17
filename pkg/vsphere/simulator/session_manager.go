@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -41,14 +42,22 @@ func NewSessionManager(ref types.ManagedObjectReference) object.Reference {
 func (s *SessionManager) Login(login *types.Login) soap.HasFault {
 	body := &methods.LoginBody{}
 
+	if login.Locale == "" {
+		login.Locale = session.Locale
+	}
+
 	if login.UserName == "" || login.Password == "" {
 		body.Fault_ = Fault("Login failure", &types.InvalidLogin{})
 	} else {
 		body.Res = &types.LoginResponse{
 			Returnval: types.UserSession{
-				UserName:  login.UserName,
-				FullName:  login.UserName,
-				LoginTime: time.Now(),
+				Key:            uuid.New().String(),
+				UserName:       login.UserName,
+				FullName:       login.UserName,
+				LoginTime:      time.Now(),
+				LastActiveTime: time.Now(),
+				Locale:         login.Locale,
+				MessageLocale:  login.Locale,
 			},
 		}
 	}
