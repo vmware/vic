@@ -125,6 +125,8 @@ Docker run verify container start and stop time
     Run Keyword Unless  ${startStatus}  Fail  container start time before command start
     ${stopStatus}=  Run Keyword And Return Status  Should Be True  ${cmdStart} < ${containerStop}
     Run Keyword Unless  ${stopStatus}  Fail  container stop time before command start
+    ${timeDiff}=  Evaluate  ${containerStop}-${cmdStart}
+    Should Be True  0 < ${timeDiff} < 60000
 
 Docker run verify name and id are not conflated
     ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
