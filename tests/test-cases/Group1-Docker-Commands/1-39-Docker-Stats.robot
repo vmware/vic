@@ -61,7 +61,7 @@ Stats No Stream All Containers
     Should Contain  ${output}  ${stop}
 
 Stats API Memory Validation
-    ${rc}  ${apiMem}=  Run And Return Rc And Output  curl -s -k -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .memory_stats.usage
+    ${rc}  ${apiMem}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .memory_stats.usage
     Should Be Equal As Integers  ${rc}  0
     ${stress}=  Get Container ShortID  %{STRESSED}
     ${rc}  ${vmomiMemory}=  Run And Return Rc And Output  govc metric.sample -n 1 -json %{VM-PATH} mem.active.average | jq -r .Sample[].Value[].Value[0]
@@ -72,7 +72,7 @@ Stats API Memory Validation
     Should Be True  ${diff} < 1000
 
 Stats API CPU Validation
-    ${rc}  ${apiCPU}=  Run And Return Rc And Output  curl -s -k -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .cpu_stats.cpu_usage.percpu_usage[0]
+    ${rc}  ${apiCPU}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .cpu_stats.cpu_usage.percpu_usage[0]
     Should Be Equal As Integers  ${rc}  0
     ${stress}=  Get Container ShortID  %{STRESSED}
     ${rc}  ${vmomiCPU}=  Run And Return Rc And Output  govc metric.sample -json %{VM-PATH} cpu.usagemhz.average | jq -r .Sample[].Value[0].Value[]
