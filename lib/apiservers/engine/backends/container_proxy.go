@@ -1761,7 +1761,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 // ContainerAttach() Utility Functions
 //------------------------------------
 
-func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clStdin io.ReadCloser, keys []byte) error {
+func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
 	defer stdinReader.Close()
@@ -1785,7 +1785,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clSt
 			// copying of the output streams, it's just likely the error will be dropped as the transport is
 			// closed when it occurs.
 			// We should move away from needing to close transports to interrupt reads.
-			clStdin.Close()
+			stdin.Close()
 		case <-done:
 		}
 	}()
@@ -1804,9 +1804,9 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clSt
 		log.Debugf("copyStdIn writing primer bytes")
 		stdinWriter.Write([]byte(attachStdinInitString))
 		if ac.UseTty {
-			_, err = copyEscapable(stdinWriter, clStdin, keys)
+			_, err = copyEscapable(stdinWriter, stdin, keys)
 		} else {
-			_, err = io.Copy(stdinWriter, clStdin)
+			_, err = io.Copy(stdinWriter, stdin)
 		}
 
 		if err != nil {
@@ -1847,7 +1847,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clSt
 	return err
 }
 
-func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clStdout io.Writer, attemptTimeout time.Duration) error {
+func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdout io.Writer, attemptTimeout time.Duration) error {
 	id := ac.ID
 
 	//Calculate how much time to let portlayer attempt
@@ -1859,7 +1859,7 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clS
 
 	log.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
 	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(id).WithDeadline(&swaggerDeadline)
-	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, clStdout)
+	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, stdout)
 	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
@@ -1872,11 +1872,11 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clS
 	return nil
 }
 
-func copyStdErr(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, clStderr io.Writer) error {
+func copyStdErr(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stderr io.Writer) error {
 	id := ac.ID
 
 	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(id)
-	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)
+	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, stderr)
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
 			ResourceNotFoundError(id, "interaction connection")

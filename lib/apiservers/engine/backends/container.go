@@ -315,13 +315,13 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 // ContainerExecResize changes the size of the TTY of the process
 // running in the exec with the given name to the given height and
 // width.
-func (c *Container) ContainerExecResize(name string, height, width int) error {
-	defer trace.End(trace.Begin(name))
+func (c *Container) ContainerExecResize(eid string, height, width int) error {
+	defer trace.End(trace.Begin(eid))
 
-	// Look up the container name in the metadata cache to get long ID
-	vc := cache.ContainerCache().GetContainerFromExec(name)
+	// Look up the container eid in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return NotFoundError(name)
+		return NotFoundError(eid)
 	}
 
 	// Call the port layer to resize
@@ -329,7 +329,7 @@ func (c *Container) ContainerExecResize(name string, height, width int) error {
 	plWidth := int32(width)
 
 	var err error
-	if err = c.containerProxy.Resize(name, plHeight, plWidth); err == nil {
+	if err = c.containerProxy.Resize(eid, plHeight, plWidth); err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),
@@ -428,7 +428,9 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			log.Infof("Detach detected, tearing down connection")
 
 			// QUESTION: why are we returning DetachError? It doesn't seem like an error
-			// Should we also be generating a detach event as in other AttachStreams call
+			// fire detach event
+			actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
 			// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
 			// This avoids cutting the communication channel for other sessions connected to this
@@ -459,12 +461,12 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
-func (c *Container) ExecExists(name string) (bool, error) {
-	defer trace.End(trace.Begin(name))
+func (c *Container) ExecExists(eid string) (bool, error) {
+	defer trace.End(trace.Begin(eid))
 
-	vc := cache.ContainerCache().GetContainerFromExec(name)
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return false, NotFoundError(name)
+		return false, NotFoundError(eid)
 	}
 	return true, nil
 }
@@ -1669,16 +1671,15 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 	err = c.containerProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
+			log.Infof("Detach detected, tearing down connection")
+
 			// fire detach event
 			actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
-			log.Infof("Detach detected, tearing down connection")
-
-			defer func() {
-				actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
-			}()
+			// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
+			// This avoids cutting the communication channel for other sessions connected to this
+			// container
 
 			// handle, err := c.Handle(id, name)
 			// if err != nil {
