@@ -30,17 +30,6 @@ Simple start
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
-Start with attach and interactive
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
-
 Start from image that has no PATH
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull vmware/photon
     Should Be Equal As Integers  ${rc}  0

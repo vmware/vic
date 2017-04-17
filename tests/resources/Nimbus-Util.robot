@@ -219,11 +219,12 @@ Cleanup Nimbus PXE folder
     Close connection
 
 Nimbus Cleanup
-    [Arguments]  ${vm_list}  ${collect_log}=True
+    [Arguments]  ${vm_list}  ${collect_log}=True  ${dontDelete}=${false}
     Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
+    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Return From Keyword If  ${dontDelete}
     :FOR  ${item}  IN  @{vm_list}
     \   Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${item}
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
@@ -318,7 +319,7 @@ Create a Simple VC Cluster
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  TEST_DATASTORE  datastore1
-    Set Environment Variable  TEST_DATACENTER  ${datacenter}
+    Set Environment Variable  TEST_DATACENTER  /${datacenter}
     Set Environment Variable  TEST_RESOURCE  ${cluster}
     Set Environment Variable  TEST_TIMEOUT  30m
     [Return]  @{esx_names}  ${vc}  @{esx_ips}  ${vc_ip}
@@ -340,6 +341,10 @@ Setup Network For Simple VC Cluster
     Log To Console  Add all the hosts to the distributed switch
     ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /${datacenter}/host/${cluster}
     Should Contain  ${out}  OK
+
+    Log To Console  Enable DRS on the cluster
+    ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
+    Should Be Empty  ${out}
 
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network

@@ -145,6 +145,36 @@ func (f *Folder) CreateFolder(c *types.CreateFolder) soap.HasFault {
 	return r
 }
 
+// StoragePod aka "Datastore Cluster"
+type StoragePod struct {
+	mo.StoragePod
+}
+
+func (f *Folder) CreateStoragePod(c *types.CreateStoragePod) soap.HasFault {
+	r := &methods.CreateStoragePodBody{}
+
+	if f.hasChildType("StoragePod") {
+		pod := &StoragePod{}
+
+		pod.Name = c.Name
+		pod.ChildType = []string{"Datastore"}
+
+		f.putChild(pod)
+
+		r.Res = &types.CreateStoragePodResponse{
+			Returnval: pod.Self,
+		}
+	} else {
+		r.Fault_ = f.typeNotSupported()
+	}
+
+	return r
+}
+
+func (p *StoragePod) MoveIntoFolderTask(c *types.MoveIntoFolder_Task) soap.HasFault {
+	return (&Folder{Folder: p.Folder}).MoveIntoFolderTask(c)
+}
+
 func (f *Folder) CreateDatacenter(c *types.CreateDatacenter) soap.HasFault {
 	r := &methods.CreateDatacenterBody{}
 
@@ -233,8 +263,12 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 	c.Folder.putChild(vm)
 
-	rp := Map.Get(*vm.ResourcePool).(*ResourcePool)
-	rp.Vm = append(rp.Vm, vm.Reference())
+	switch rp := Map.Get(*vm.ResourcePool).(type) {
+	case *ResourcePool:
+		rp.Vm = append(rp.Vm, vm.Reference())
+	case *VirtualApp:
+		rp.Vm = append(rp.Vm, vm.Reference())
+	}
 
 	return vm.Reference(), nil
 }

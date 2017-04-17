@@ -21,6 +21,8 @@ Test Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Test
+    Set Test Variable  ${user}  %{NIMBUS_USER}
+    Set Global Variable  @{list}  ${user}-vic-vmotion.vcva-${VC_VERSION}  ${user}-vic-vmotion.esx.0  ${user}-vic-vmotion.esx.1  ${user}-vic-vmotion.esx.2  ${user}-vic-vmotion.esx.3  ${user}-vic-vmotion.nfs.0  ${user}-vic-vmotion.iscsi.0
     Install VIC Appliance To Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -36,10 +38,14 @@ Test
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container3}
     Should Be Equal As Integers  ${rc}  0
-
-    vMotion A VM  %{VCH-NAME}/*-${container1}
-    vMotion A VM  %{VCH-NAME}/*-${container2}
-    vMotion A VM  %{VCH-NAME}/*-${container3}
+    
+    ${vmName1}=  Get VM display name  ${container1}
+    ${vmName2}=  Get VM display name  ${container2}
+    ${vmName3}=  Get VM display name  ${container3}
+    
+    vMotion A VM  %{VCH-NAME}/${vmName1}
+    vMotion A VM  %{VCH-NAME}/${vmName2}
+    vMotion A VM  %{VCH-NAME}/${vmName3}
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0

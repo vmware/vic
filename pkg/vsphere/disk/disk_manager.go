@@ -215,7 +215,7 @@ func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath) (*Virtu
 
 	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
 
-	info, err := vdm.QueryVirtualDiskInfo(op, diskURI.String(), nil, true)
+	info, err := vdm.QueryVirtualDiskInfo(op, diskURI.String(), m.vm.Datacenter, true)
 	if err != nil {
 		op.Errorf("error querying parents (%s): %s", diskURI, err.Error())
 		return nil, err

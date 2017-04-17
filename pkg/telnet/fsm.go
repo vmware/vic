@@ -47,7 +47,6 @@ func (fsm *fsm) start() {
 		b := make([]byte, 4096)
 		n, err := fsm.readFromRawConnection(b)
 		if n > 0 {
-			log.Debugf("(vspc) fsm read %d bytes from the containerVM", n)
 			for i := 0; i < n; i++ {
 				ch := b[i]
 				ns := fsm.nextState(ch)
@@ -56,7 +55,7 @@ func (fsm *fsm) start() {
 		}
 		if err != nil {
 			log.Debugf("connection read: %v", err)
-			fsm.tc.Close()
+			fsm.tc.close()
 			break
 		}
 	}

@@ -62,7 +62,7 @@ Docker run fake image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run fakeImage /bin/bash
     Should Be True  ${rc} > 0
     Should Contain  ${output}  docker: Error parsing reference:
-    Should Contain  ${output}  "fakeImage" is not a valid repository/tag.
+    Should Contain  ${output}  "fakeImage" is not a valid repository/tag
 
 Docker run named container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name busy3 busybox /bin/top
@@ -83,7 +83,7 @@ Docker run -d unspecified host port
 Docker run check exit codes
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox true
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox false
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox false
     Should Be Equal As Integers  ${rc}  1
 
 Docker run ps password check
@@ -113,6 +113,7 @@ Docker run verify container start and stop time
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${cmdStart}=  Run  date +%s
+    Sleep  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop busybox
     Should Be Equal As Integers  ${rc}  0
     Should Be Empty  ${output}
@@ -124,3 +125,11 @@ Docker run verify container start and stop time
     Run Keyword Unless  ${startStatus}  Fail  container start time before command start
     ${stopStatus}=  Run Keyword And Return Status  Should Be True  ${cmdStart} < ${containerStop}
     Run Keyword Unless  ${stopStatus}  Fail  container stop time before command start
+
+Docker run verify name and id are not conflated
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${shortID1}=  Get container shortID  ${container1}
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${shortID1} busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${container2}  Conflict

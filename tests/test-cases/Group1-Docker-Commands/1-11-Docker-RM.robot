@@ -67,7 +67,7 @@ Remove a running container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: You cannot remove a running container. Stop the container before attempting removal or use -f
-    
+
 Force remove a running container
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
@@ -84,7 +84,7 @@ Remove a fake container
     Should Contain  ${output}  Error response from daemon: No such container: fakeContainer
 
 Remove a container deleted out of band
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name testRMOOB busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name testRMOOB -p 80:8080 busybox
     Should Be Equal As Integers  ${rc}  0
     # Remove container VM out-of-band
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "testRMOOB*"
@@ -94,6 +94,9 @@ Remove a container deleted out of band
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm testRMOOB
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No such container: testRMOOB
+    # now recreate the same container to ensure it's completely deleted
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name testRMOOB -p 80:8080 busybox
+    Should Be Equal As Integers  ${rc}  0
 
 Remove a container created with unknown executable
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox xxxx

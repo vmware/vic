@@ -223,8 +223,12 @@ func testCreateAppliance(ctx context.Context, sess *session.Session, conf *confi
 		force:   false,
 	}
 
-	d.vchPool = d.session.Pool
-	err := d.createAppliance(conf, vConf)
+	err := d.createPool(conf, vConf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.createAppliance(conf, vConf)
 	if err != nil {
 		t.Error(err)
 	}

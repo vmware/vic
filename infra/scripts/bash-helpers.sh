@@ -75,7 +75,7 @@ vic-ssh () {
         keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
     fi
 
-    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
+    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh "$keyarg" --rootpw=password --thumbprint=$THUMBPRINT $*)
     host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^:\s]*\).*/\1/p')
 
     echo "SSH to ${host}"
@@ -91,6 +91,10 @@ vic-admin () {
 
 addr-from-dockerhost () {
     echo $DOCKER_HOST | sed -e 's/:[0-9]*$//'
+}
+
+vic-tail() {
+    $(vic-path)/infra/scripts/vic-logs.sh -f $(echo $DOCKER_HOST | cut -d\: -f1) $*
 }
 
 # import the custom sites

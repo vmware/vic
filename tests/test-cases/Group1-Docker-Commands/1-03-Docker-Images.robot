@@ -32,13 +32,13 @@ Simple images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  alpine  6
+    Should Contain X Times  ${output}  alpine  3
 
 All images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  alpine  6
+    Should Contain X Times  ${output}  alpine  3
 
 Quiet images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q
@@ -46,14 +46,14 @@ Quiet images
     Should Not Contain  ${output}  Error
     Should Not Contain  ${output}  alpine
     @{lines}=  Split To Lines  ${output}
-    Length Should Be  ${lines}  6
+    Length Should Be  ${lines}  3
     Length Should Be  @{lines}[1]  12
 
 No-trunc images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images --no-trunc
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  alpine  6
+    Should Contain X Times  ${output}  alpine  3
     @{lines}=  Split To Lines  ${output}
     @{line}=  Split String  @{lines}[2]
     Length Should Be  @{line}[2]  64
@@ -63,7 +63,7 @@ Filter images before
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
-    Length Should Be  ${lines}  5
+    Length Should Be  ${lines}  3
     Should Contain  ${output}  3.1
 
 Filter images since
@@ -71,7 +71,7 @@ Filter images since
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
-    Length Should Be  ${lines}  5
+    Length Should Be  ${lines}  3
     Should Contain  ${output}  latest
 
 Tag images

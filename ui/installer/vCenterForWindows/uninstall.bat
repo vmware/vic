@@ -35,30 +35,27 @@ SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Admin
 FOR /f "usebackq delims=" %%p in (`%psCommand%`) do set vcenter_password=%%p
 
 SET plugin_manager_bin=%parent%..\..\vic-ui-windows.exe
-SET utils_path=%parent%utils\
 SET vcenter_unreg_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
 
-IF EXIST _scratch_flags.txt (
-    DEL _scratch_flags.txt
-)
-
-cd ..\vsphere-client-serenity
-FOR /D %%i IN (*) DO (
-    "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
-)
-
-ECHO Unregistering VIC UI Plugins...
-FOR /F "tokens=*" %%A IN (..\vCenterForWindows\_scratch_flags.txt) DO (
+FOR /F "tokens=1,2 delims==" %%A IN (..\plugin-manifest) DO (
     IF NOT %%A=="" (
-        %plugin_manager_bin% remove %vcenter_unreg_flags% %%A
-        IF %ERRORLEVEL% NEQ 0 (
-            ECHO Error! Could not unregister plugin from vCenter Server. Please see the message above 
-            GOTO:EOF
-        )
+        CALL SET %%A=%%B
     )
 )
 
-cd ..\vCenterForWindows
-DEL _scratch_flags.txt
+IF %target_vc_version% EQU 6.5 (
+    SET key=%key_h5c%
+) ELSE (
+    SET key=%key_flex%
+)
 
+ECHO Unregistering VIC UI Plugins...
+
+"%plugin_manager_bin%" remove %vcenter_unreg_flags% --key %key:"=%
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO Error! Could not unregister plugin from vCenter Server. Please see the message above 
+    GOTO:EOF
+)
+
+ECHO.
 ECHO VIC UI was successfully uninstalled. Make sure to log out of vSphere Web Client if are logged in, and log back in.

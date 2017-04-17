@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ func OpenPort(name string) (io.ReadWriteCloser, error) {
 		port.Flush()
 		return &NamedPort{Port: port, config: *cfg, fd: 0}, nil
 	case "file":
-		return os.OpenFile(parts[1], os.O_RDWR|os.O_SYNC, 0777)
+		return os.OpenFile(parts[1], os.O_RDWR|os.O_SYNC, 0)
 	default:
 		return nil, errors.New("unrecognised destination scheme: " + scheme)
 	}

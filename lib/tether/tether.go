@@ -147,6 +147,7 @@ func (t *tether) setup() error {
 		}
 	}
 
+	// #nosec: Expect directory permissions to be 0700 or less
 	if err = os.MkdirAll(PIDFileDir(), 0755); err != nil {
 		log.Errorf("could not create pid file directory %s: %s", PIDFileDir(), err)
 	}

@@ -8,7 +8,7 @@ Requires=docker.service data.mount
 Type=simple
 Restart=on-failure
 RestartSec=5
-ExecStart=/usr/local/bin/docker-compose -f /etc/vmware/harbor/docker-compose.yml -f /etc/vmware/harbor/docker-compose.notary.yml up
+ExecStart=/etc/vmware/harbor/start_harbor.sh
 ExecStop=/usr/local/bin/docker-compose -f /etc/vmware/harbor/docker-compose.yml -f /etc/vmware/harbor/docker-compose.notary.yml down -v
 ExecStopPost=/usr/local/bin/docker-compose -f /etc/vmware/harbor/docker-compose.yml -f /etc/vmware/harbor/docker-compose.notary.yml rm -f
 

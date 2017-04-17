@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ func setTerminalSpeed(fd uintptr) error {
 	}
 
 	// get the current state
+	// #nosec: Use of unsafe calls should be audited
 	if _, _, errno := syscall.Syscall6(syscall.SYS_IOCTL,
 		uintptr(fd),
 		syscall.TCGETS,
@@ -61,6 +62,7 @@ func setTerminalSpeed(fd uintptr) error {
 	future.Ospeed = syscall.B115200
 
 	// set the future values
+	// #nosec: Use of unsafe calls should be audited
 	if _, _, errno := syscall.Syscall6(
 		syscall.SYS_IOCTL,
 		uintptr(fd),
@@ -129,6 +131,7 @@ func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
 	defer trace.End(trace.Begin(""))
 
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
+	// #nosec: Use of unsafe calls should be audited
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		pty,

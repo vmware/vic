@@ -54,6 +54,8 @@ Test Teardown  Gather Logs From Test Server
     #This does not work currently, as the VM has been migrated out of the vApp
 
 Step 6-9
+    Set Test Variable  ${user}  %{NIMBUS_USER}
+    Set Global Variable  @{list}  ${user}-vic-vmotion.vcva-${VC_VERSION}  ${user}-vic-vmotion.esx.0  ${user}-vic-vmotion.esx.1  ${user}-vic-vmotion.esx.2  ${user}-vic-vmotion.esx.3  ${user}-vic-vmotion.nfs.0  ${user}-vic-vmotion.iscsi.0
     Install VIC Appliance To Test Server
     Run Regression Tests
     ${host}=  Get VM Host Name  %{VCH-NAME}/%{VCH-NAME}

@@ -99,6 +99,8 @@ Connect containers to multiple networks non-overlapping
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net cross2-network2 --name cross2-container2 debian ping -c2 ${ip}
     Should Not Be Equal As Integers  ${rc}  0
+    Should contain  ${output}  Destination Port Unreachable
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross2-container2
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 0 packets received, 100% packet loss
@@ -110,6 +112,8 @@ Connect containers to multiple networks non-overlapping
     ${ip}=  Get Container IP  %{VCH-PARAMS}  ${containerID}  cross2-network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net cross2-network2 --name cross2-container3 debian ping -c2 ${ip}
     Should Not Be Equal As Integers  ${rc}  0
+    Should contain  ${output}  Destination Port Unreachable
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --follow cross2-container3
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 0 packets received, 100% packet loss

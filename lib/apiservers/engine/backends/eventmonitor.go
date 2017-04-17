@@ -42,6 +42,7 @@ import (
 
 const (
 	containerDieEvent     = "die"
+	containerDestroyEvent = "destroy"
 	containerStopEvent    = "stop"
 	containerStartEvent   = "start"
 	containerCreateEvent  = "create"
@@ -217,11 +218,44 @@ func (p DockerEventPublisher) PublishEvent(event plevents.BaseEvent) {
 	vc := cache.ContainerCache().GetContainer(event.Ref)
 	if vc == nil {
 		log.Errorf("Portlayer event for container %s but not found in cache", event.Ref)
+		return
+	}
+	var attrs map[string]string
+	// TODO: move to a container.OnEvent() so that container drives the necessary changes
+	// based on event activity
+	switch event.Event {
+	case plevents.ContainerStopped,
+		plevents.ContainerPoweredOff:
+		// since we are going to make a call to the portLayer lets execute this in a
+		// go routine
+		go func() {
+			attrs = make(map[string]string)
+			// get the containerProxy
+			code, err := NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()).exitCode(vc)
+			if err != nil {
+				// log the error, but continue
+				log.Errorf("unable to get exitCode for die event: %s", err)
+			}
+			// if the docker client is unable to convert the code to an int then
+			// then the client will return 125
+			attrs["exitCode"] = code
+			log.Infof("Sending die event for container %s - code: %s", vc.ContainerID, code)
+			actor := CreateContainerEventActorWithAttributes(vc, attrs)
+
+			EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
+		}()
+	case plevents.ContainerRemoved:
+		attrs = make(map[string]string)
+		//pop the destroy event...
+		actor := CreateContainerEventActorWithAttributes(vc, attrs)
+		EventService().Log(containerDestroyEvent, eventtypes.ContainerEventType, actor)
+		if err := UnmapPorts(vc.HostConfig); err != nil {
+			log.Warn(err)
+		}
+		// remove from the container cache...
+		cache.ContainerCache().DeleteContainer(vc.ContainerID)
+	default:
+		// let everything else slide on by...
 	}
 
-	if event.Event == plevents.ContainerStopped {
-		log.Debugf("Sending event for continer %s", vc.ContainerID)
-		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log(containerDieEvent, eventtypes.ContainerEventType, actor)
-	}
 }

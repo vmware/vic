@@ -27,6 +27,7 @@ This test requires that a vSphere server is running and available
 14. Issue docker run -it busybox /bin/false
 15. Issue docker run -it busybox /bin/fakeCommand
 16. Issue docker run busybox date
+17. Create container1 with id1 and then create container2 with name = id1
 
 #Expected Outcome:
 * Step 2 and 3 should result in success and print the dmesg of the container
@@ -49,6 +50,7 @@ docker: Error parsing reference: "fakeImage" is not a valid repository/tag.
 * Step 14 should result in success with exit code 1
 * Step 15 should result in success with exit code 127
 * Step 16 should result in success and the output should contain the current date
+* Step 17 should result in no conflicts
 
 #Possible Problems:
 None

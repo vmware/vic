@@ -5,7 +5,10 @@
     "esx_host": "",
     "remote_username": "",
     "remote_password": "",
-    "root_password": "2RQrZ83i79N6szpvZNX6"
+    "root_password": "2RQrZ83i79N6szpvZNX6",
+    "build_vicengine_revision": "",
+    "build_admiral_revision": "dev",
+    "build_harbor_revision": "dev"
   },
   "builders": [
     {
@@ -109,16 +112,6 @@
     },
     {
       "type": "file",
-      "source": "../../bin/vic-engine-bundle/",
-      "destination": "/data/fileserver"
-    },
-    {
-      "type": "file",
-      "source": "../../bin/ui",
-      "destination": "/data/fileserver"
-    },
-    {
-      "type": "file",
       "source": "scripts/systemd/docker.service",
       "destination": "/usr/lib/systemd/system/docker.service"
     },
@@ -184,6 +177,16 @@
     },
     {
       "type": "file",
+      "source": "scripts/systemd/appliance/ova-firewall.service",
+      "destination": "/usr/lib/systemd/system/ova-firewall.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/appliance/ova-firewall.sh",
+      "destination": "/etc/vmware/ova-firewall.sh"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/network/network-config.sh",
       "destination": "/etc/vmware/network-config.sh"
     },
@@ -203,6 +206,7 @@
     },
     {
       "type": "shell",
+      "environment_vars": ["BUILD_HARBOR_REVISION={{user `build_harbor_revision`}}"],
       "script": "scripts/provision_harbor.sh"
     },
     {
@@ -212,11 +216,17 @@
     },
     {
       "type": "file",
+      "source": "scripts/harbor/start_harbor.sh",
+      "destination": "/etc/vmware/harbor/start_harbor.sh"
+    },
+    {
+      "type": "file",
       "source": "scripts/harbor/upgrade_from_0.5.sh",
       "destination": "/etc/vmware/harbor/upgrade_from_0.5.sh"
     },
     {
       "type": "shell",
+      "environment_vars": ["BUILD_ADMIRAL_REVISION={{user `build_admiral_revision`}}"],
       "script": "scripts/provision_admiral.sh"
     },
     {
@@ -241,6 +251,7 @@
     },
     {
       "type": "shell",
+      "environment_vars": ["BUILD_VICENGINE_REVISION={{user `build_vicengine_revision`}}"],
       "script": "scripts/provision_fileserver.sh"
     },
     {

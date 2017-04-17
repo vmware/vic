@@ -37,9 +37,16 @@ type handler struct {
 func (h *handler) dataHdlr(w io.Writer, b []byte, tc *telnet.Conn) {
 	cvm, exists := h.vspc.cvmFromTelnetConn(tc)
 	if !exists {
-		log.Errorf("vspc datahandler cannot find the vm with the provided data")
+		// the fsm will sense the closed connecrion and perform the necessary cleanup
+		if tc.UnderlyingConnection() != nil {
+			log.Errorln("cannot find a vm associated with this connection.")
+			log.Infoln("closing connection")
+			tc.UnderlyingConnection().Close()
+		}
+		return
 	}
 	cvm.remoteConn.Write(b)
+
 }
 
 // CmdHdlr is the telnet command handler

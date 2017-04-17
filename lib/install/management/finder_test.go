@@ -95,7 +95,7 @@ func TestFinder(t *testing.T) {
 		found = testSearchVCHs(t, validator, true)
 		expect := 1 // 1 VCH per Resource pool
 		if model.Host != 0 {
-			expect *= (model.Host + model.Cluster)
+			expect *= (model.Host + model.Cluster) * 2
 		}
 		if found != expect {
 			t.Errorf("found %d VCHs, expected %d", found, expect)
@@ -148,6 +148,10 @@ func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
 	}
 	n := len(vchs)
 	t.Logf("Found %d VCHs without a compute-path", n)
+	nexpect := 1
+	if d.isVC {
+		nexpect = 2 // 1 for the top-level vApp, VC only
+	}
 
 	for _, vm := range vchs {
 		// Find with --compute-resource
@@ -173,10 +177,9 @@ func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
 		name := path.Base(obj.Path)
 
 		paths := []string{
-			obj.Path,                         // "/dc1/cluster1"
-			name,                             // "cluster1"
-			path.Join(".", name),             // "./cluster1"
-			path.Join(obj.Path, "Resources"), // "/dc1/cluster1/Resources"
+			obj.Path,             // "/dc1/cluster1"
+			name,                 // "cluster1"
+			path.Join(".", name), // "./cluster1"
 		}
 
 		for _, path := range paths {
@@ -185,7 +188,7 @@ func testSearchVCHs(t *testing.T, v *validate.Validator, expect bool) int {
 				t.Errorf("SearchVCHs(%s): %s", path, err)
 			}
 
-			if len(vchs) != 1 {
+			if len(vchs) != nexpect {
 				t.Errorf("Found %d VCHs with compute-path=%s", len(vchs), path)
 			}
 		}
@@ -198,6 +201,10 @@ func createTestData(ctx context.Context, sess *session.Session, prefix string) e
 	dcs, err := sess.Finder.DatacenterList(ctx, "*")
 	if err != nil {
 		return err
+	}
+	kind := rpNode
+	if sess.IsVC() {
+		kind = vappNode
 	}
 	for _, dc := range dcs {
 		sess.Finder.SetDatacenter(dc)
@@ -219,7 +226,7 @@ func createTestData(ctx context.Context, sess *session.Session, prefix string) e
 							Name: prefix + "pool1-2",
 							Children: []*Node{
 								{
-									Kind: rpNode,
+									Kind: kind,
 									Name: prefix + "pool1-2-1",
 									Children: []*Node{
 										{
@@ -241,6 +248,16 @@ func createTestData(ctx context.Context, sess *session.Session, prefix string) e
 		if err = createResources(ctx, sess, resources); err != nil {
 			return err
 		}
+		if sess.IsVC() {
+			// Test with a top-level VApp
+			vapp := &Node{
+				Kind: vappNode,
+				Name: prefix + "VApp",
+			}
+			if err = createResources(ctx, sess, vapp); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -260,7 +277,7 @@ type Node struct {
 }
 
 func createResources(ctx context.Context, sess *session.Session, node *Node) error {
-	rootPools, err := sess.Finder.ResourcePoolList(ctx, "*")
+	rootPools, err := sess.Finder.ResourcePoolList(ctx, "Resources")
 	if err != nil {
 		return err
 	}
@@ -291,9 +308,7 @@ func createNodes(ctx context.Context, sess *session.Session, pool *object.Resour
 			return createNodes(ctx, sess, child, childNode, base)
 		}
 	case vappNode:
-		confSpec := types.VAppConfigSpec{
-			VmConfigSpec: types.VmConfigSpec{},
-		}
+		confSpec := simulator.NewVAppConfigSpec()
 		vapp, err := pool.CreateVApp(ctx, node.Name, spec, confSpec, nil)
 		if err != nil {
 			return err

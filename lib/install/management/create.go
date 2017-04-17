@@ -38,6 +38,34 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
+	if err = d.createPool(conf, settings); err != nil {
+		return err
+	}
+
+	if err = d.createBridgeNetwork(conf); err != nil {
+		return err
+	}
+
+	if err = d.createVolumeStores(conf); err != nil {
+		return errors.Errorf("Exiting because we could not create volume stores due to error: %s", err)
+	}
+
+	if err = d.createAppliance(conf, settings); err != nil {
+		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
+	}
+
+	if err = d.uploadImages(settings.ImageFiles); err != nil {
+		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
+	}
+
+	return d.startAppliance(conf)
+}
+
+func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	defer trace.End(trace.Begin(""))
+
+	var err error
+
 	if d.isVC && !settings.UseRP {
 		if d.vchVapp, err = d.createVApp(conf, settings); err != nil {
 			detail := fmt.Sprintf("Creating virtual app failed: %s", err)
@@ -64,23 +92,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		}
 	}
 
-	if err = d.createBridgeNetwork(conf); err != nil {
-		return err
-	}
-
-	if err = d.createVolumeStores(conf); err != nil {
-		return errors.Errorf("Exiting because we could not create volume stores due to error: %s", err)
-	}
-
-	if err = d.createAppliance(conf, settings); err != nil {
-		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
-	}
-
-	if err = d.uploadImages(settings.ImageFiles); err != nil {
-		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
-	}
-
-	return d.startAppliance(conf)
+	return nil
 }
 
 func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec) error {

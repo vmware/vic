@@ -21,28 +21,7 @@ import (
 )
 
 func compareModel(t *testing.T, m *Model) {
-	count := Model{}
-
-	for ref := range Map.objects {
-		switch ref.Type {
-		case "Datacenter":
-			count.Datacenter++
-		case "DistributedVirtualPortgroup":
-			count.Portgroup++
-		case "ClusterComputeResource":
-			count.Cluster++
-		case "Datastore":
-			count.Datastore++
-		case "HostSystem":
-			count.ClusterHost++
-		case "VirtualMachine":
-			count.Machine++
-		case "ResourcePool":
-			count.Pool++
-		case "Folder":
-			count.Folder++
-		}
-	}
+	count := m.Count()
 
 	hosts := (m.Host + (m.ClusterHost * m.Cluster)) * m.Datacenter
 	vms := ((m.Host + m.Cluster) * m.Datacenter) * m.Machine
@@ -60,7 +39,7 @@ func compareModel(t *testing.T, m *Model) {
 		{m.Cluster * m.Datacenter, count.Cluster, "Cluster"},
 		{m.Portgroup * m.Datacenter, count.Portgroup, "Portgroup"},
 		{m.Datastore * m.Datacenter, count.Datastore, "Datastore"},
-		{hosts, count.ClusterHost, "Host"},
+		{hosts, count.Host, "Host"},
 		{vms, count.Machine, "VirtualMachine"},
 		{pools, count.Pool, "ResourcePool"},
 		{folders, count.Folder, "Folder"},

@@ -51,6 +51,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
@@ -215,6 +216,10 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
 	defer trace.End(trace.Begin(name))
+
+	if !config.Detach {
+		return "", fmt.Errorf("%s only supports detached exec commands at this time", ProductName())
+	}
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -446,7 +451,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (contain
 	var err error
 
 	// bail early if container name already exists
-	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
+	if exists := cache.ContainerCache().GetContainerByName(config.Name); exists != nil {
 		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
 		log.Errorf("%s", err.Error())
 		return containertypes.ContainerCreateCreatedBody{}, derr.NewRequestConflictError(err)
@@ -667,7 +672,11 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 	} else {
 		state, err := c.containerProxy.State(vc)
 		if err != nil {
-			return err
+			if IsNotFoundError(err) {
+				cache.ContainerCache().DeleteContainer(id)
+				return NotFoundError(name)
+			}
+			return InternalServerError(err.Error())
 		}
 		// force stop if container state is error to make sure container is deletable later
 		if state.Status == ContainerError {
@@ -691,22 +700,13 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 	}
 
-	// Unmap ports if the container was stopped out-of-band and then removed,
-	// in which case ports have been left mapped because the container is dropped
-	// from the persona cache before the mappings could be removed.
-	// If there's an error during unmap, don't fail the remove op.
-	if err = UnmapPorts(vc.HostConfig); err != nil {
-		log.Warn(err)
-	}
-
-	// delete container from the cache
-	cache.ContainerCache().DeleteContainer(id)
 	return nil
 }
 
 // cleanupPortBindings gets port bindings for the container and
 // unmaps ports if the cVM that previously bound them isn't powered on
 func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
+	defer trace.End(trace.Begin(vc.ContainerID))
 	for ctrPort, hostPorts := range vc.HostConfig.PortBindings {
 		for _, hostPort := range hostPorts {
 			hPort := hostPort.HostPort
@@ -728,15 +728,24 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			}
 			state, err := c.containerProxy.State(cc)
 			if err != nil {
-				return fmt.Errorf("Failed to get container %q power state: %s",
-					mappedCtr, err)
+				if IsNotFoundError(err) {
+					log.Debugf("container(%s) not found in portLayer, removing from persona cache", cc.ContainerID)
+					// we have a container in the persona cache, but it's been removed from the portLayer
+					// which is the source of truth -- so remove from the persona cache after this func
+					// completes
+					defer cache.ContainerCache().DeleteContainer(cc.ContainerID)
+				} else {
+					// we have issues of an unknown variety...return..
+					return InternalServerError(err.Error())
+				}
 			}
-			if state.Running {
+
+			if state != nil && state.Running {
 				log.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
 				continue
 			}
 
-			log.Debugf("Unmapping ports for powered off container %q", mappedCtr)
+			log.Debugf("Unmapping ports for powered off / removed container %q", mappedCtr)
 			err = UnmapPorts(cc.HostConfig)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
@@ -1363,7 +1372,25 @@ func (c *Container) ContainerStats(ctx context.Context, name string, config *bac
 		out = io.Writer(wf)
 	}
 
-	err = c.containerProxy.StreamContainerStats(ctx, vc.ContainerID, out, config.Stream, cpuMhz, vc.HostConfig.Memory)
+	// stats configuration
+	statsConfig := &convert.ContainerStatsConfig{
+		VchMhz:      cpuMhz,
+		Stream:      config.Stream,
+		ContainerID: vc.ContainerID,
+		Out:         out,
+		Memory:      vc.HostConfig.Memory,
+	}
+
+	// if we are not streaming then we need to get the container state
+	if !config.Stream {
+		statsConfig.ContainerState, err = c.containerProxy.State(vc)
+		if err != nil {
+			return InternalServerError(err.Error())
+		}
+
+	}
+
+	err = c.containerProxy.StreamContainerStats(ctx, statsConfig)
 	if err != nil {
 		log.Errorf("error while streaming container (%s) stats: %s", vc.ContainerID, err)
 	}
@@ -1585,13 +1612,13 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-	defer func() {
-		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-		EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
-	}()
 	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
+			// fire detach event
+			actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+
 			log.Infof("Detach detected, tearing down connection")
 			client = c.containerProxy.Client()
 			handle, err = c.Handle(id, name)

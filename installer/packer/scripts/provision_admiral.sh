@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/bash
 # Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+set -euf -o pipefail
 
 mkdir /etc/vmware/admiral
+
+BUILD_ADMIRAL_REVISION="${BUILD_ADMIRAL_REVISION:-dev}"
 
 # start docker
 echo "starting Docker .."
@@ -23,8 +26,9 @@ echo "Docker started"
 
 # pull admiral image
 echo "Pulling Admiral Docker image.."
-# TODO(lcastellano): parametrize the image name
-docker pull vmware/admiral:dev-vic
+echo "Downloading Admiral ${BUILD_ADMIRAL_REVISION}"
+docker pull vmware/admiral:vic_${BUILD_ADMIRAL_REVISION}
+docker tag vmware/admiral:vic_${BUILD_ADMIRAL_REVISION} vmware/admiral:ova
 echo "Pulled Admiral image"
 
 # stop docker

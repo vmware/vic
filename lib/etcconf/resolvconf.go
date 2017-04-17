@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -167,6 +167,7 @@ func (r *resolvConf) Save() error {
 	}
 
 	// make sure the file is readable
+	// #nosec: Expect file permissions to be 0600 or less
 	if err := os.Chmod(r.path, 0644); err != nil {
 		return err
 	}

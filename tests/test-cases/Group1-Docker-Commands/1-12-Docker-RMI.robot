@@ -19,11 +19,25 @@ Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-Basic docker remove image
+Basic docker pull, restart, and remove image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine
     Should Be Equal As Integers  ${rc}  0
+
+    Reboot VM  %{VCH-NAME}
+
+    Log To Console  Getting VCH IP ...
+    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new-vch-ip}
+    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    Should Be Equal As Integers  ${rc}  0
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images

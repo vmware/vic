@@ -19,9 +19,9 @@ Documentation  This resource contains all keywords related to creating, deleting
 Install Admiral
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 8282:8282 --name admiral vmware/admiral
     Should Be Equal As Integers  0  ${rc}
-    Set Environment Variable  ADMIRAL-IP  %{VCH-IP}:8282
+    Set Environment Variable  ADMIRAL_IP  %{VCH-IP}:8282
     :FOR  ${idx}  IN RANGE  0  10
-    \   ${out}=  Run  curl %{ADMIRAL-IP}
+    \   ${out}=  Run  curl %{ADMIRAL_IP}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  <body class="admiral-default">
     \   Return From Keyword If  ${status}
     \   Sleep  5
