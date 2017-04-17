@@ -42,16 +42,14 @@ Assert Kill Signal
     # Assert SIGKILL was sent or not by checking the tether debug log file
     [Arguments]  ${id}  ${expect}
     ${vmName}=  Get VM display name  ${id}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info -json %{VCH-NAME}/${vmName}* | jq -r .VirtualMachines[].Runtime.PowerState
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal  ${output}  poweredOff
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json ${vmName} | jq -r .VirtualMachines[].Runtime.PowerState
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  poweredOff
-    ${rc}  ${dir}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls ${vmName}*
-    Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${dir}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Run And Return Rc And Output  govc datastore.ls ${id}*
-    Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Set Test Variable  ${id}  ${vmName}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${vmName}  %{VCH-NAME}/${vmName}*
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${vmName} | jq -r .VirtualMachines[].Runtime.PowerState
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  poweredOff
+
+    ${rc}  ${dir}=  Run And Return Rc And Output  govc datastore.ls ${id}*
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.download ${dir}/tether.debug -
     Should Be Equal As Integers  ${rc}  0
     Run Keyword If  ${expect}  Should Contain  ${output}  sending signal KILL
