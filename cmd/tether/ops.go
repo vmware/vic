@@ -24,7 +24,7 @@ func (t *operations) Cleanup() error {
 	return t.BaseOperations.Cleanup()
 }
 
-func (t *operations) SetupFirewall() error {
+func (t *operations) SetupFirewall(*tether.ExecutorConfig) error {
 	return nil // no-op for tether
 }
 

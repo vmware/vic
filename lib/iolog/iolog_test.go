@@ -39,7 +39,7 @@ func (testClock) Now() time.Time {
 
 var (
 	tc         testClock
-	expectedTs = tc.Now().UTC().Format(RFC3339NanoFixed)
+	expectedTs = time.Unix(0, tc.Now().UTC().UnixNano()).Format(RFC3339NanoFixed)
 )
 
 func TestWriteEntry(t *testing.T) {

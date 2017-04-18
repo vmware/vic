@@ -456,7 +456,7 @@ func (t *tether) Start() error {
 		extraconfig.Encode(t.sink, t.config)
 
 		// setup the firewall
-		if err := t.ops.SetupFirewall(); err != nil {
+		if err := t.ops.SetupFirewall(t.config); err != nil {
 			log.Warnf("Failed to setup firewall: %s", err)
 		}
 

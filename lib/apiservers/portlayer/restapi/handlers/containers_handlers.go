@@ -365,7 +365,7 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 				}
 				err := enc.Encode(metric)
 				if err != nil {
-					log.Errorf("encoding error [%s] for container(%s) stats @ %d - stream(%b)", err, params.ID, &ch, params.Stream)
+					log.Errorf("encoding error [%s] for container(%s) stats @ %d - stream(%t)", err, params.ID, &ch, params.Stream)
 					return
 				}
 			}

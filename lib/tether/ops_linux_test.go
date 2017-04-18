@@ -144,6 +144,12 @@ func (t *Mocker) RouteDel(route *netlink.Route) error {
 	return nil
 }
 
+func (t *Mocker) RuleList(int) ([]netlink.Rule, error) {
+	defer trace.End(trace.Begin("not implemented"))
+
+	return nil, nil
+}
+
 func (t *Mocker) LinkBySlot(slot int32) (netlink.Link, error) {
 	defer trace.End(trace.Begin(""))
 
