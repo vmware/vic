@@ -940,7 +940,7 @@ func (c *ContainerProxy) Resize(id string, height, width int32) error {
 
 // AttachStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
-// clStdin, clStdout, clStderr are the hijacked connection
+// stdin, stdout, stderr are the hijacked connection
 func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error {
 	// Cancel will close the child connections.
 	var wg, outWg sync.WaitGroup
@@ -963,11 +963,11 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 	// ensure that the API client connection is shutdown on exit
 	// TODO: see if this is needed, or if callers of postContainersAttach will clean up
 	// on clean exit path
-	defer func() {
-		if stdin != nil {
-			stdin.Close()
-		}
-	}()
+	//defer func() {
+	//	if stdin != nil {
+	//		stdin.Close()
+	//	}
+	//}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -986,7 +986,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 		outWg.Add(1)
 	}
 
-	// shut down everything if all output streams are complete
+	// cancel stdin if all output streams are complete
 	go func() {
 		outWg.Wait()
 		cancel()
@@ -1011,7 +1011,8 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 				cancel()
 			}
 
-			if err != context.Canceled && err != io.EOF {
+			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
+			if err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF) {
 				errors <- err
 			}
 		}()
@@ -1029,7 +1030,8 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 				log.Infof("container attach: stdout (%s) done", ac.ID)
 			}
 
-			if err != context.Canceled && err != io.EOF {
+			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
+			if err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF) {
 				errors <- err
 			}
 		}()
@@ -1047,7 +1049,8 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 				log.Infof("container attach: stderr (%s) done", ac.ID)
 			}
 
-			if err != context.Canceled && err != io.EOF {
+			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
+			if err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF) {
 				errors <- err
 			}
 		}()

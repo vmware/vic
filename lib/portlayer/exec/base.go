@@ -16,7 +16,6 @@ package exec
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
@@ -150,6 +150,20 @@ func (c *containerBase) ReloadConfig(ctx context.Context) error {
 	return c.startGuestProgram(ctx, "reload", "")
 }
 
+// WaitForTask waits exec'ed task to set started field or timeout
+func (c *containerBase) WaitForTask(ctx context.Context, id string) error {
+	defer trace.End(trace.Begin(id))
+
+	return c.waitForTask(ctx, id)
+}
+
+// WaitForSession waits non-exec'ed task to set started field or timeout
+func (c *containerBase) WaitForSession(ctx context.Context, id string) error {
+	defer trace.End(trace.Begin(id))
+
+	return c.waitForSession(ctx, id)
+}
+
 func (c *containerBase) startGuestProgram(ctx context.Context, name string, args string) error {
 	// make sure we have vm
 	if c.vm == nil {
@@ -193,24 +207,8 @@ func (c *containerBase) start(ctx context.Context) error {
 		return err
 	}
 
-	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", c.ExecConfig.ID), "")[0]
-	var detail string
-
-	// Wait some before giving up...
-	ctx, cancel := context.WithTimeout(ctx, propertyCollectorTimeout)
-	defer cancel()
-
-	detail, err = c.vm.WaitForKeyInExtraConfig(ctx, key)
-	if err != nil {
-		return fmt.Errorf("unable to wait for process launch status: %s", err.Error())
-	}
-
-	if detail != "true" {
-		return errors.New(detail)
-	}
-
-	return nil
+	// wait task to set started field to something
+	return c.waitForSession(ctx, c.ExecConfig.ID)
 }
 
 func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
@@ -362,4 +360,43 @@ func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration
 	}
 
 	return false, nil
+}
+
+func (c *containerBase) waitForSession(ctx context.Context, id string) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
+	// set the PropertyCollectorTimeout
+	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
+	defer cancel()
+
+	// guestinfo key that we want to wait for
+	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
+	return c.waitFor(ctx, key)
+}
+
+func (c *containerBase) waitForTask(ctx context.Context, id string) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
+	// set the PropertyCollectorTimeout
+	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
+	defer cancel()
+
+	// guestinfo key that we want to wait for
+	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
+	return c.waitFor(ctx, key)
+}
+
+func (c *containerBase) waitFor(ctx context.Context, key string) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
+	detail, err := c.vm.WaitForKeyInExtraConfig(ctx, key)
+	if err != nil {
+		return fmt.Errorf("unable to wait for process launch status: %s", err)
+	}
+
+	if detail != "true" {
+		return fmt.Errorf("%s", detail)
+	}
+
+	return nil
 }

@@ -209,6 +209,7 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 		Handle: handle,
 		ID:     eid,
 	}
+
 	params := tasks.NewInspectParamsWithContext(ctx).WithConfig(config)
 	resp, err := client.Tasks.Inspect(params)
 	if err != nil {
@@ -216,6 +217,35 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 	}
 	return resp.Payload, nil
 
+}
+
+func (c *Container) TaskWait(cid, cname, eid string) error {
+	// obtain a portlayer client
+	client := c.containerProxy.Client()
+
+	handle, err := c.Handle(cid, cname)
+	if err != nil {
+		return err
+	}
+
+	// wait the Task to start
+	config := &models.TaskWaitConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+
+	params := tasks.NewWaitParamsWithContext(ctx).WithConfig(config)
+	_, err = client.Tasks.Wait(params)
+	if err != nil {
+		switch err := err.(type) {
+		case *tasks.WaitInternalServerError:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	return nil
 }
 
 // ContainerExecCreate sets up an exec in a running container.
@@ -393,8 +423,27 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		return InternalServerError(err.Error())
 	}
 
+	// we need to be able to cancel it
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		defer trace.End(trace.Begin("TaskWaitRoutine"))
+		// wait property collector
+		if err := c.TaskWait(id, name, eid); err != nil {
+			log.Errorf("Task wait returned %s, canceling the context", err)
+
+			// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
+			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
+			stdout.Write([]byte(err.Error() + "\r\n"))
+
+			cancel()
+		}
+	}()
+
 	// exec_start event
 	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(event, eventtypes.ContainerEventType, actor)
 
@@ -403,6 +452,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		log.Debugf("Detached mode. Returning early.")
 		return nil
 	}
+	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
 
 	ca := &backend.ContainerAttachConfig{
 		UseStdin:  ec.OpenStdin,
@@ -422,14 +472,13 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		CloseStdin:            true,
 	}
 
-	err = c.containerProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr)
+	err = c.containerProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
 			log.Infof("Detach detected, tearing down connection")
 
 			// QUESTION: why are we returning DetachError? It doesn't seem like an error
 			// fire detach event
-			actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
 			// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
@@ -439,18 +488,6 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			// if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
 			// 	return err
 			// }
-		} else {
-			ec, gerr := c.TaskInspect(id, name, eid)
-			if gerr != nil {
-				log.Errorf("Unable to get update status for task %s in %s: %s", eid, id, err)
-				return err
-			}
-
-			if ec.ProcessConfig.ErrorMsg != "" {
-				detail := fmt.Errorf("exec task error: %s", ec.ProcessConfig.ErrorMsg)
-				log.Warnf("Task %s reported: %s", detail)
-				return detail
-			}
 		}
 
 		return err
@@ -1674,7 +1711,6 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 			log.Infof("Detach detected, tearing down connection")
 
 			// fire detach event
-			actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
 			// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
