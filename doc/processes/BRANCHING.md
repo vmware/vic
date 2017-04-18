@@ -33,7 +33,7 @@ We can keep changes isolated from RC / GA testing by way of `git` branches.
   * Bugs found in RC branch need an issue before merging fix to branch targeted to RC, e.g. `targeted/<RC branch name>`
   * Ideally patch should be merged to `MASTER` first if it exists there too.
   * Only if issue is targeted for RC, a different PR with the same issue number for the RC branch.
-  * Only close issue after each relevant and targeted release has had a fixed merged to it.  We can use targetting to verify this.
+  * Only close issue after each relevant and targeted release has had a fixed merged to it.  We can use targeting to verify this.
 * Bugs found in `MASTER` or any RC branch need to be tagged, e.g.`exists/<branches>`
 
 ```
