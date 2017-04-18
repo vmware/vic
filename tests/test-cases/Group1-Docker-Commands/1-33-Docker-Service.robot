@@ -32,7 +32,7 @@ Docker service ls
 Docker service ps
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service ps test-service
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  No such service: test-service
 
 Docker serivce rm
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service rm test-service
@@ -42,12 +42,12 @@ Docker serivce rm
 Docker service scale
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service scale test-service=3
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  No such service: test-service
 
 Docker service update
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service update test-service
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  No such service: test-service
 
 Docker service logs
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} service logs test
