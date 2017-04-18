@@ -1,7 +1,10 @@
-#docker build --no-cache -t vic-test -f Dockerfile.test .
-#docker tag vic-test gcr.io/eminent-nation-87317/vic-integration-test:1.x
-#login to vic gloud project
-#gcloud docker -- push gcr.io/eminent-nation-87317/vic-integration-test:1.x
+# Building:
+# cp -R /usr/lib/vmware-ovftool/ .
+# docker build --no-cache -t vic-test -f Dockerfile.test .
+# docker tag vic-test gcr.io/eminent-nation-87317/vic-integration-test:1.x
+# gcloud auth login
+# gcloud docker -- push gcr.io/eminent-nation-87317/vic-integration-test:1.x
+
 FROM golang:1.8
 
 RUN apt-get update
@@ -85,5 +88,8 @@ RUN wget "https://raw.githubusercontent.com/docker/docker/${DIND_COMMIT}/hack/di
 # This container needs to be run in privileged mode(run with --privileged option) to make it work
 COPY dockerd-entrypoint.sh /usr/local/bin/dockerd-entrypoint.sh
 Run chmod +x /usr/local/bin/dockerd-entrypoint.sh
+
+COPY scripts /opt/vmware/scripts
+ENV PATH="${PATH}:/opt/vmware/scripts"
 
 VOLUME /var/lib/docker
