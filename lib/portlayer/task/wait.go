@@ -49,8 +49,8 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	defer cancel()
 
 	c := exec.Containers.Container(handle.ExecConfig.ID)
-	if c != nil {
-		return c.WaitForTask(ctx, id)
+	if c == nil {
+		return fmt.Errorf("Unknown container ID: %s", handle.ExecConfig.ID)
 	}
-	return nil
+	return c.WaitForTask(ctx, id)
 }

@@ -208,6 +208,9 @@ func (c *containerBase) start(ctx context.Context) error {
 	}
 
 	// wait task to set started field to something
+	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
+	defer cancel()
+
 	return c.waitForSession(ctx, c.ExecConfig.ID)
 }
 
@@ -351,6 +354,7 @@ func (c *containerBase) poweroff(ctx context.Context) error {
 
 func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration, state types.VirtualMachinePowerState) (bool, error) {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
 	timeout, cancel := context.WithTimeout(ctx, max)
 	defer cancel()
 
@@ -363,11 +367,7 @@ func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration
 }
 
 func (c *containerBase) waitForSession(ctx context.Context, id string) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
-	// set the PropertyCollectorTimeout
-	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
-	defer cancel()
+	defer trace.End(trace.Begin(id))
 
 	// guestinfo key that we want to wait for
 	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
@@ -375,11 +375,7 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 }
 
 func (c *containerBase) waitForTask(ctx context.Context, id string) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
-	// set the PropertyCollectorTimeout
-	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
-	defer cancel()
+	defer trace.End(trace.Begin(id))
 
 	// guestinfo key that we want to wait for
 	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
@@ -387,8 +383,6 @@ func (c *containerBase) waitForTask(ctx context.Context, id string) error {
 }
 
 func (c *containerBase) waitFor(ctx context.Context, key string) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
 	detail, err := c.vm.WaitForKeyInExtraConfig(ctx, key)
 	if err != nil {
 		return fmt.Errorf("unable to wait for process launch status: %s", err)
