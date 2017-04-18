@@ -85,17 +85,36 @@ func (c *client) SetTimeout(t time.Duration) {
 	c.timeout = t
 }
 
-func withRetry(op func() error) error {
+// Note that the Go runtime sets SA_RESTART for syscalls which retries them automatically if they interrupted.
+// However, from the signal man page:
+//
+//      The following interfaces are never restarted after being interrupted
+//      by a signal handler, regardless of the use of SA_RESTART; they always
+//      fail with the error EINTR when interrupted by a signal handler:
+//
+//      * "Input" socket interfaces, when a timeout (SO_RCVTIMEO) has been
+//      set on the socket using setsockopt(2): accept(2), recv(2),
+//      recvfrom(2), recvmmsg(2) (also with a non-NULL timeout argument),
+//      and recvmsg(2).
+//
+//      * "Output" socket interfaces, when a timeout (SO_RCVTIMEO) has been
+//      set on the socket using setsockopt(2): connect(2), send(2),
+//      sendto(2), and sendmsg(2).
+func withRetry(name string, op func() error) error {
 	defer trace.End(trace.Begin(""))
 
 	for {
 		if err := op(); err != nil {
-			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EAGAIN {
-				return err
+			if errno, ok := err.(syscall.Errno); ok {
+				if errno == syscall.EAGAIN || errno == syscall.EINTR {
+					log.Debugf("retrying %q: errno=%d, error=%s", name, errno, err)
+					continue
+				}
 			}
-		} else {
-			return nil
+			return err
 		}
+
+		return nil
 	}
 }
 
@@ -215,7 +234,7 @@ func (c *client) Request() error {
 
 	success := false
 	var p dhcp4.Packet
-	err = withRetry(func() error {
+	err = withRetry("DHCP request", func() error {
 		var err error
 		success, p, err = c.request(rawc)
 		return err
@@ -292,7 +311,7 @@ func (c *client) Renew() error {
 	defer cl.Close()
 
 	var newack dhcp4.Packet
-	err = withRetry(func() error {
+	err = withRetry("DHCP renew", func() error {
 		var err error
 		newack, err = c.renew(cl)
 		return err
@@ -319,7 +338,7 @@ func (c *client) Release() error {
 	}
 	defer cl.Close()
 
-	return withRetry(func() error {
+	return withRetry("DHCP release", func() error {
 		return cl.Release(c.ack)
 	})
 }
