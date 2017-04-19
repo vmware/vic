@@ -423,7 +423,7 @@ func (t *attachServerSSH) run() error {
 
 			s, oks := t.config.Sessions[sessionid]
 			e, oke := t.config.Execs[sessionid]
-			if !oks || !oke {
+			if !oks && !oke {
 				detail := fmt.Sprintf("session %s is invalid", sessionid)
 				attachchan.Reject(ssh.Prohibited, detail)
 				log.Error(detail)
