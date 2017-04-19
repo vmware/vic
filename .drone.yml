@@ -15,7 +15,7 @@ clone:
 
 build:
   prevent-concurrent-builds:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.26}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.27}
     pull: true
     environment:
       BIN: bin
@@ -28,7 +28,7 @@ build:
       - tests/wait_until_previous_builds_complete.sh
 
   vic:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.26}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.27}
     pull: true
     environment:
       BIN: bin
@@ -52,7 +52,7 @@ build:
       - make sincemark
 
   integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.26}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.27}
     pull: true
     privileged: true
     environment:
@@ -89,7 +89,7 @@ build:
       success: true
 
   vicui:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.26}
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.27}
     pull: true
     environment:
       BIN: bin
