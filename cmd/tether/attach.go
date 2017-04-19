@@ -168,7 +168,7 @@ func (t *attachServerSSH) reload() error {
 
 	if t.serverConn.ServerConn != nil {
 		msg := msgs.ContainersMsg{
-			IDs: t.sessions(),
+			IDs: t.sessions(false),
 		}
 		payload := msg.Marshal()
 
@@ -510,7 +510,7 @@ func (t *attachServerSSH) run() error {
 	return nil
 }
 
-func (t *attachServerSSH) sessions() []string {
+func (t *attachServerSSH) sessions(all bool) []string {
 	defer trace.End(trace.Begin(""))
 
 	var keys []string
@@ -518,9 +518,11 @@ func (t *attachServerSSH) sessions() []string {
 	// this iterates the local copies of the sessions maps
 	// so we don't need to care whether they're initialized or not
 	// as extension reload comes after that point
-	for k, v := range t.config.Sessions {
-		if v.Active && v.StopTime == 0 {
-			keys = append(keys, k)
+	if all {
+		for k, v := range t.config.Sessions {
+			if v.Active && v.StopTime == 0 {
+				keys = append(keys, k)
+			}
 		}
 	}
 
@@ -552,7 +554,7 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func())
 		switch req.Type {
 		case msgs.ContainersReq:
 			msg := msgs.ContainersMsg{
-				IDs: t.sessions(),
+				IDs: t.sessions(true),
 			}
 			payload = msg.Marshal()
 		default:
@@ -593,6 +595,8 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 	for req := range in {
 		ok := true
 		abort := false
+
+		log.Infof("received channel mux type %v", req.Type)
 
 		switch req.Type {
 		case msgs.PingReq:
@@ -643,7 +647,8 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 				log.Errorf(err.Error())
 			}
 		case msgs.CloseStdinReq:
-			// call Close as the pendingFn so that we can send reply back before closing the channel
+			log.Infof("Received CloseStdinReq for %s", session.ID)
+
 			log.Debugf("Configuring reader to propagate EOF for %s", session.ID)
 			session.Reader.PropagateEOF(true)
 		default:

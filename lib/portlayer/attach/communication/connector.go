@@ -108,7 +108,7 @@ func (c *Connector) Interaction(ctx context.Context, id string) (SessionInteract
 		return nil, err
 	}
 	if shared {
-		log.Debugf("Eliminated duplicated calls to Interaction")
+		log.Debugf("Eliminated duplicated calls to Interaction for %s", id)
 	}
 	return si.(SessionInteractor), nil
 }
