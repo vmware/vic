@@ -166,6 +166,7 @@ func (t *attachServerSSH) reload() error {
 	t.serverConn.Lock()
 	defer t.serverConn.Unlock()
 
+	// push the exec'ed session ids to the portlayer
 	if t.serverConn.ServerConn != nil {
 		msg := msgs.ContainersMsg{
 			IDs: t.sessions(false),
@@ -419,15 +420,19 @@ func (t *attachServerSSH) run() error {
 			}
 
 			sessionid := string(bytes)
-			session, ok := t.config.Sessions[sessionid]
-			if !ok {
-				session, ok = t.config.Execs[sessionid]
-				if !ok {
-					detail := fmt.Sprintf("session %s is invalid", sessionid)
-					attachchan.Reject(ssh.Prohibited, detail)
-					log.Error(detail)
-					continue
-				}
+
+			s, oks := t.config.Sessions[sessionid]
+			e, oke := t.config.Execs[sessionid]
+			if !oks || !oke {
+				detail := fmt.Sprintf("session %s is invalid", sessionid)
+				attachchan.Reject(ssh.Prohibited, detail)
+				log.Error(detail)
+				continue
+			}
+			// we have sessionid
+			session := s
+			if oke {
+				session = e
 			}
 
 			// session is potentially blocked in launch until we've got the unblock message, so we cannot lock it.
@@ -476,7 +481,7 @@ func (t *attachServerSSH) run() error {
 
 				t.serverConn.Lock()
 				// set serverConn to nil if not an exec session
-				if _, ok = t.config.Sessions[sessionid]; ok {
+				if oks {
 					log.Debugf("Setting serverConn to nil")
 					t.serverConn.ServerConn = nil
 				}
@@ -518,6 +523,8 @@ func (t *attachServerSSH) sessions(all bool) []string {
 	// this iterates the local copies of the sessions maps
 	// so we don't need to care whether they're initialized or not
 	// as extension reload comes after that point
+
+	// whether include sessions or not
 	if all {
 		for k, v := range t.config.Sessions {
 			if v.Active && v.StopTime == 0 {
