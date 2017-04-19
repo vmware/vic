@@ -14,8 +14,10 @@
 package client
 
 import (
+	"errors"
 	"net"
 	"os"
+	"syscall"
 	"testing"
 
 	"github.com/d2g/dhcp4"
@@ -77,5 +79,33 @@ func TestSetOptions(t *testing.T) {
 		assert.NotNil(t, cid)
 		b, _ := id.MarshalBinary()
 		assert.EqualValues(t, cid, b)
+	}
+}
+
+func TestWithRetry(t *testing.T) {
+	errors := []error{
+		syscall.Errno(syscall.EAGAIN),
+		syscall.Errno(syscall.EINTR),
+		errors.New("fail"),
+	}
+
+	i := 0
+
+	err := withRetry("test fail", func() error {
+		e := errors[i]
+		i++
+		return e
+	})
+
+	if err != errors[len(errors)-1] {
+		t.Errorf("err=%s", err)
+	}
+
+	err = withRetry("test ok", func() error {
+		return nil
+	})
+
+	if err != nil {
+		t.Errorf("err=%s", err)
 	}
 }
