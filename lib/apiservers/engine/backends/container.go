@@ -416,7 +416,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 
 	f := func() error { return c.containerProxy.CommitContainerHandle(handle, name, 0) }
 	if attach {
-		f = func() error { return c.containerProxy.BindInteraction(handle, name) }
+		f = func() error { return c.containerProxy.BindInteraction(handle, name, eid) }
 	}
 
 	if err := f(); err != nil {
@@ -485,7 +485,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 			// This avoids cutting the communication channel for other sessions connected to this
 			// container
 
-			// if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
+			// if err := c.containerProxy.UnbindInteraction(handle, name, eid); err != nil {
 			// 	return err
 			// }
 		}
@@ -1671,7 +1671,7 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 		return err
 	}
 
-	if err := c.containerProxy.BindInteraction(handle, name); err != nil {
+	if err := c.containerProxy.BindInteraction(handle, name, id); err != nil {
 		return err
 	}
 
@@ -1722,7 +1722,7 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 			// 	return err
 			// }
 
-			// if err := c.containerProxy.UnbindInteraction(handle, name); err != nil {
+			// if err := c.containerProxy.UnbindInteraction(handle, name, id); err != nil {
 			// 	return err
 			// }
 		}

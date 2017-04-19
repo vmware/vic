@@ -87,8 +87,8 @@ type VicContainerProxy interface {
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 
-	BindInteraction(handle string, name string) error
-	UnbindInteraction(handle string, name string) error
+	BindInteraction(handle string, name string, id string) error
+	UnbindInteraction(handle string, name string, id string) error
 
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
@@ -495,7 +495,7 @@ func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.C
 }
 
 // BindInteraction enables interaction capabilies
-func (c *ContainerProxy) BindInteraction(handle string, name string) error {
+func (c *ContainerProxy) BindInteraction(handle string, name string, id string) error {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
@@ -506,6 +506,7 @@ func (c *ContainerProxy) BindInteraction(handle string, name string) error {
 		interaction.NewInteractionBindParamsWithContext(ctx).
 			WithConfig(&models.InteractionBindConfig{
 				Handle: handle,
+				ID:     id,
 			}))
 	if err != nil {
 		return InternalServerError(err.Error())
@@ -519,7 +520,7 @@ func (c *ContainerProxy) BindInteraction(handle string, name string) error {
 }
 
 // UnbindInteraction disables interaction capabilies
-func (c *ContainerProxy) UnbindInteraction(handle string, name string) error {
+func (c *ContainerProxy) UnbindInteraction(handle string, name string, id string) error {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
@@ -530,6 +531,7 @@ func (c *ContainerProxy) UnbindInteraction(handle string, name string) error {
 		interaction.NewInteractionUnbindParamsWithContext(ctx).
 			WithConfig(&models.InteractionUnbindConfig{
 				Handle: handle,
+				ID:     id,
 			}))
 	if err != nil {
 		return InternalServerError(err.Error())

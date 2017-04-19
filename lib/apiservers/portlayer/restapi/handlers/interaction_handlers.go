@@ -100,7 +100,7 @@ func (i *InteractionHandlersImpl) BindHandler(params interaction.InteractionBind
 		return interaction.NewInteractionBindInternalServerError().WithPayload(err)
 	}
 
-	handleprime, err := attach.Bind(handle)
+	handleprime, err := attach.Bind(handle, params.Config.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
@@ -125,7 +125,7 @@ func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUn
 		return interaction.NewInteractionUnbindInternalServerError().WithPayload(err)
 	}
 
-	handleprime, err := attach.Unbind(handle)
+	handleprime, err := attach.Unbind(handle, params.Config.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 

@@ -44,9 +44,10 @@ func lookupVCHIP() (net.IP, error) {
 	return ips[0], nil
 }
 
-func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
+func toggle(handle *exec.Handle, id string, connected bool) (*exec.Handle, error) {
 	// iterate over Execs and set their RunBlock property to connected
-	for _, session := range handle.ExecConfig.Execs {
+	session, ok := handle.ExecConfig.Execs[id]
+	if ok {
 		if session.Attach {
 			session.RunBlock = connected
 		}
@@ -106,7 +107,8 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	// iterate over Sessions and set their RunBlock property to connected
 	// if attach happens before start then this property will be persist in the vmx
 	// if attach happens after start then this propery will be thrown away by commit (one simply cannot change ExtraConfig if the vm is powered on)
-	for _, session := range handle.ExecConfig.Sessions {
+	session, ok = handle.ExecConfig.Sessions[id]
+	if ok {
 		if session.Attach {
 			session.RunBlock = connected
 		}

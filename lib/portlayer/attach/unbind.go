@@ -22,7 +22,7 @@ import (
 )
 
 // Unbind unsets the *Connected fields of the VirtualSerialPort
-func Unbind(h interface{}) (interface{}, error) {
+func Unbind(h interface{}, id string) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
 	handle, ok := h.(*exec.Handle)
@@ -32,5 +32,5 @@ func Unbind(h interface{}) (interface{}, error) {
 	if handle.MigrationError != nil {
 		return nil, fmt.Errorf("Migration failed %s", handle.MigrationError)
 	}
-	return toggle(handle, false)
+	return toggle(handle, id, false)
 }

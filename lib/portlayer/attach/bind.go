@@ -22,7 +22,7 @@ import (
 )
 
 // Bind sets the *Connected fields of the VirtualSerialPort
-func Bind(h interface{}) (interface{}, error) {
+func Bind(h interface{}, id string) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
 	handle, ok := h.(*exec.Handle)
@@ -32,5 +32,5 @@ func Bind(h interface{}) (interface{}, error) {
 	if handle.MigrationError != nil {
 		return nil, fmt.Errorf("Migration failed %s", handle.MigrationError)
 	}
-	return toggle(handle, true)
+	return toggle(handle, id, true)
 }

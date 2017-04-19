@@ -3374,9 +3374,14 @@
 		"InteractionBindConfig": {
 			"type": "object",
 			"required": [
-				"handle"
+				"handle",
+				"id"
 			],
 			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
 				"handle": {
 					"type": "object"
 				}
@@ -3385,9 +3390,14 @@
 		"InteractionUnbindConfig": {
 			"type": "object",
 			"required": [
-				"handle"
+				"handle",
+				"id"
 			],
 			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
 				"handle": {
 					"type": "object"
 				}
