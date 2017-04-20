@@ -827,7 +827,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		var ipAddr net.IP
 		ipAddr, ipNet, err = net.ParseCIDR(staticIP)
 		if err != nil {
-			return fmt.Errorf("Provided %s network IP address %s has a wrong format", netName, staticIP)
+			return fmt.Errorf("Failed to parse the provided %s network IP address %s: %s", netName, staticIP, err)
 		}
 
 		network.IP.IP = ipAddr
