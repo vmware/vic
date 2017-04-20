@@ -31,7 +31,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
-	"github.com/docker/docker/pkg/archive"
 	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
@@ -41,11 +40,6 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
-)
-
-const (
-	bindDir      = "/.bind"
-	mountsCopied = "/.mountscopied"
 )
 
 var (
@@ -721,11 +715,6 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		return errors.New(detail)
 	}
 
-	if err := copyExistingContent(target); err != nil {
-		detail := fmt.Sprintf("copying existing data to %s failed: %s", target, err)
-		return errors.New(detail)
-	}
-
 	return nil
 }
 
@@ -743,11 +732,6 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	if err := Sys.Syscall.Mount(rawSource, target, nfsFileSystemType, 0, mountOptions); err != nil {
 		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
 		return err
-	}
-
-	if err := copyExistingContent(target); err != nil {
-		detail := fmt.Sprintf("copying existing data to %s failed: %s", target, err)
-		return errors.New(detail)
 	}
 
 	return nil
@@ -889,59 +873,4 @@ func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 		sysProc.Credential.Groups = append(sysProc.Credential.Groups, uint32(sgid))
 	}
 	return sysProc, nil
-}
-
-// copyExistingContent copies the underlying files
-// shadowed by a mount on a directory to the volume mounted on the directory
-// this is only done only once
-// see bug https://github.com/vmware/vic/issues/3482
-func copyExistingContent(source string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("copyExistingContent from %s on mount", source)))
-
-	// skip if this was done before
-	if _, err := os.Stat(mountsCopied); err == nil {
-		log.Errorf("mounts already copied, skipping copy")
-		return nil
-	}
-
-	log.Debugf("creating directory %s", bindDir)
-	if err := os.MkdirAll(bindDir, 0644); err != nil {
-		log.Errorf("error creating directory %s: %+v", bindDir, err)
-		return err
-	}
-
-	log.Debugf("mounting / on %s", bindDir)
-	if err := Sys.Syscall.Mount("/", bindDir, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
-		log.Errorf("error mounting to %s: %+v", bindDir, err)
-		return err
-	}
-
-	mountedSource := filepath.Join(bindDir, source)
-	log.Debugf("copying contents from to %s to %s", mountedSource, source)
-	if err := archive.CopyWithTar(mountedSource, source); err != nil {
-		log.Errorf("err copying %s to %s: %+v", mountedSource, source, err)
-		return err
-	}
-
-	log.Debugf("unmounting / from %s", bindDir)
-	if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
-		log.Errorf("error unmounting %+v", err)
-		return err
-	}
-
-	log.Debugf("removing %s", bindDir)
-	if err := os.Remove(bindDir); err != nil {
-		log.Errorf("error removing directory %s: %+v", bindDir, err)
-		return err
-	}
-
-	log.Debugf("creating %s", mountsCopied)
-	f, err := os.Create(mountsCopied)
-	if err != nil {
-		log.Debugf("error creating file %s: %+v", mountsCopied, err)
-		return err
-	}
-	defer f.Close()
-
-	return nil
 }

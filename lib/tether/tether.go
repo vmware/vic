@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -32,6 +33,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/archive"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/system"
@@ -42,11 +44,16 @@ import (
 )
 
 const (
-	// The maximum number of records to keep for restarting processes
+	// MaxDeathRecords The maximum number of records to keep for restarting processes
 	MaxDeathRecords = 5
 
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
+
+	// temp directory to copy existing data to mounts
+	bindDir = "/.bind"
+	// markfile to avoid re-copying existing data to mounts
+	mountsCopied = "/.mountscopied"
 )
 
 var Sys = system.New()
@@ -251,6 +258,88 @@ func (t *tether) setMounts() error {
 		default:
 			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
 		}
+	}
+	return t.populateVolumes()
+}
+
+func (t *tether) populateVolumes() error {
+	defer trace.End(trace.Begin(fmt.Sprintf("populateVolumes")))
+
+	// skip if this was done before
+	if _, err := os.Stat(mountsCopied); err == nil {
+		log.Debugf("mounts already copied, skipping copy")
+		return nil
+	}
+
+	for _, mnt := range t.config.Mounts {
+		if mnt.Path == "" {
+			continue
+		}
+		err := copyExistingContent(mnt.Path)
+		if err != nil {
+			log.Errorf("error copyExistingContent for mount %s: %+v", mnt.Path, err)
+			return err
+		}
+	}
+
+	log.Debugf("creating %s", mountsCopied)
+	f, err := os.Create(mountsCopied)
+	if err != nil {
+		log.Debugf("error creating file %s: %+v", mountsCopied, err)
+		return err
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("error closing file for mount %s: %+v", f.Name(), err)
+		}
+	}()
+
+	return nil
+}
+
+// copyExistingContent copies the underlying files
+// shadowed by a mount on a directory to the volume mounted on the directory
+// this is only done only once
+// see bug https://github.com/vmware/vic/issues/3482
+func copyExistingContent(source string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("copyExistingContent from %s", source)))
+
+	source = filepath.Clean(source)
+
+	log.Debugf("creating directory %s", bindDir)
+	if err := os.MkdirAll(bindDir, 0644); err != nil {
+		log.Errorf("error creating directory %s: %+v", bindDir, err)
+		return err
+	}
+
+	parentDir := filepath.Dir(filepath.Clean(source))
+	// mount the parent directory of the source to bindDir
+	// e.g if source is /foo/bar, mount /foo to ./bindDir
+	log.Debugf("mounting %s on %s", parentDir, bindDir)
+	if err := Sys.Syscall.Mount(parentDir, bindDir, "", syscall.MS_BIND, ""); err != nil {
+		log.Errorf("error mounting to %s: %+v", bindDir, err)
+		return err
+	}
+
+	mountedSource := filepath.Join(bindDir, filepath.Base(source))
+	// copy data from the bindDir to the source
+	// e.g if source is /foo/bar, copy ./bindDir/bar to /foo/bar
+	log.Debugf("copying contents from to %s to %s", mountedSource, source)
+	if err := archive.CopyWithTar(mountedSource, source); err != nil {
+		log.Errorf("err copying %s to %s: %+v", mountedSource, source, err)
+		return err
+	}
+
+	log.Debugf("unmounting %s", bindDir)
+	if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
+		log.Errorf("error unmounting %+v", err)
+		return err
+	}
+
+	log.Debugf("removing %s", bindDir)
+	if err := os.Remove(bindDir); err != nil {
+		log.Errorf("error removing directory %s: %+v", bindDir, err)
+		return err
 	}
 	return nil
 }
