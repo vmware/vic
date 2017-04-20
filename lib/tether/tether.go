@@ -25,7 +25,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -33,7 +32,6 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/archive"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/system"
@@ -275,7 +273,7 @@ func (t *tether) populateVolumes() error {
 		if mnt.Path == "" {
 			continue
 		}
-		err := copyExistingContent(mnt.Path)
+		err := t.ops.CopyExistingContent(mnt.Path)
 		if err != nil {
 			log.Errorf("error copyExistingContent for mount %s: %+v", mnt.Path, err)
 			return err
@@ -294,53 +292,6 @@ func (t *tether) populateVolumes() error {
 		}
 	}()
 
-	return nil
-}
-
-// copyExistingContent copies the underlying files
-// shadowed by a mount on a directory to the volume mounted on the directory
-// this is only done only once
-// see bug https://github.com/vmware/vic/issues/3482
-func copyExistingContent(source string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("copyExistingContent from %s", source)))
-
-	source = filepath.Clean(source)
-
-	log.Debugf("creating directory %s", bindDir)
-	if err := os.MkdirAll(bindDir, 0644); err != nil {
-		log.Errorf("error creating directory %s: %+v", bindDir, err)
-		return err
-	}
-
-	parentDir := filepath.Dir(filepath.Clean(source))
-	// mount the parent directory of the source to bindDir
-	// e.g if source is /foo/bar, mount /foo to ./bindDir
-	log.Debugf("mounting %s on %s", parentDir, bindDir)
-	if err := Sys.Syscall.Mount(parentDir, bindDir, "", syscall.MS_BIND, ""); err != nil {
-		log.Errorf("error mounting to %s: %+v", bindDir, err)
-		return err
-	}
-
-	mountedSource := filepath.Join(bindDir, filepath.Base(source))
-	// copy data from the bindDir to the source
-	// e.g if source is /foo/bar, copy ./bindDir/bar to /foo/bar
-	log.Debugf("copying contents from to %s to %s", mountedSource, source)
-	if err := archive.CopyWithTar(mountedSource, source); err != nil {
-		log.Errorf("err copying %s to %s: %+v", mountedSource, source, err)
-		return err
-	}
-
-	log.Debugf("unmounting %s", bindDir)
-	if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
-		log.Errorf("error unmounting %+v", err)
-		return err
-	}
-
-	log.Debugf("removing %s", bindDir)
-	if err := os.Remove(bindDir); err != nil {
-		log.Errorf("error removing directory %s: %+v", bindDir, err)
-		return err
-	}
 	return nil
 }
 

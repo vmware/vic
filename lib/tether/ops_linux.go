@@ -31,6 +31,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
+	"github.com/docker/docker/pkg/archive"
 	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
@@ -731,6 +732,56 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	rawSource := source.Hostname() + ":/" + source.Path
 	if err := Sys.Syscall.Mount(rawSource, target, nfsFileSystemType, 0, mountOptions); err != nil {
 		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
+		return err
+	}
+
+	return nil
+}
+
+// CopyExistingContent copies the underlying files shadowed by a mount on a directory
+// to the volume mounted on the directory
+// this is only done only once
+// see bug https://github.com/vmware/vic/issues/3482
+func (t *BaseOperations) CopyExistingContent(source string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("copyExistingContent from %s", source)))
+
+	source = filepath.Clean(source)
+
+	log.Debugf("creating directory %s", bindDir)
+	if err := os.MkdirAll(bindDir, 0644); err != nil {
+		log.Errorf("error creating directory %s: %+v", bindDir, err)
+		return err
+	}
+
+	parentDir := filepath.Dir(filepath.Clean(source))
+	// mount the parent directory of the source to bindDir
+	// e.g if source is /foo/bar, mount /foo to ./bindDir
+	log.Debugf("mounting %s on %s", parentDir, bindDir)
+	if err := Sys.Syscall.Mount(parentDir, bindDir, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+		log.Errorf("error mounting to %s: %+v", bindDir, err)
+		return err
+	}
+
+	mountedSource := filepath.Join(bindDir, filepath.Base(source))
+	// copy data from the bindDir to the source
+	// e.g if source is /foo/bar, copy ./bindDir/bar to /foo/bar
+	log.Debugf("copying contents from to %s to %s", mountedSource, source)
+	if err := archive.CopyWithTar(mountedSource, source); err != nil {
+		log.Errorf("err copying %s to %s: %+v", mountedSource, source, err)
+		return err
+	}
+
+	// TODO jaked copy ownership
+
+	log.Debugf("unmounting %s", bindDir)
+	if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
+		log.Errorf("error unmounting %+v", err)
+		return err
+	}
+
+	log.Debugf("removing %s", bindDir)
+	if err := os.Remove(bindDir); err != nil {
+		log.Errorf("error removing directory %s: %+v", bindDir, err)
 		return err
 	}
 
