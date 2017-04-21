@@ -23,8 +23,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/migration/errors"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -75,9 +75,9 @@ func (m *DataMigrator) Register(ver int, target string, plugin Plugin) error {
 			Message: "Empty Plugin object is not allowed",
 		}
 	}
-	if ver > version.MaxPluginVersion {
+	if ver > feature.MaxPluginVersion {
 		return &errors.InternalError{
-			Message: fmt.Sprintf("Plugin %d is bigger than Max Plugin Version %d", ver, version.MaxPluginVersion),
+			Message: fmt.Sprintf("Plugin %d is bigger than Max Plugin Version %d", ver, feature.MaxPluginVersion),
 		}
 	}
 

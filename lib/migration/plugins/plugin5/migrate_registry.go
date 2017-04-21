@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/migration/errors"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/migration/manager"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -32,8 +33,7 @@ import (
 )
 
 const (
-	version = 5
-	target  = manager.ApplianceConfigure
+	target = manager.ApplianceConfigure
 )
 
 // VirtualContainerHostConfigSpec holds the metadata for a
@@ -50,9 +50,9 @@ type Registry struct {
 }
 
 func init() {
-	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, version)))
-	if err := manager.Migrator.Register(version, target, &MigrateRegistry{}); err != nil {
-		log.Errorf("Failed to register plugin %s:%d, %s", target, version, err)
+	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, feature.MigrateRegistryVersion)))
+	if err := manager.Migrator.Register(feature.MigrateRegistryVersion, target, &MigrateRegistry{}); err != nil {
+		log.Errorf("Failed to register plugin %s:%d, %s", target, feature.MigrateRegistryVersion, err)
 		panic(err)
 	}
 }
@@ -62,9 +62,9 @@ type MigrateRegistry struct {
 }
 
 func (p *MigrateRegistry) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("MigrateRegistry version %d", version)))
+	defer trace.End(trace.Begin(fmt.Sprintf("MigrateRegistry version %d", feature.MigrateRegistryVersion)))
 	if data == nil {
-		log.Debugf("No data received plugin %s:%d", target, version)
+		log.Debugf("No data received plugin %s:%d", target, feature.MigrateRegistryVersion)
 		return nil
 	}
 

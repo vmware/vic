@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/iolog"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/metrics"
 	"github.com/vmware/vic/pkg/trace"
@@ -45,7 +46,6 @@ import (
 
 const (
 	containerWaitTimeout = 3 * time.Minute
-	minVersionForRename  = 4
 )
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
@@ -474,7 +474,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 
 	// rename on container version < supportVersionForRename is not supported
 	log.Debugf("The container DataVersion is: %d", h.DataVersion)
-	if h.DataVersion < minVersionForRename {
+	if h.DataVersion < feature.RenameSupportedVersion {
 		err := &models.Error{
 			Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name),
 		}
