@@ -22,8 +22,8 @@ ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	BIN_ARCH := -$(OS)
 endif
 REV :=$(shell git rev-parse --short=8 HEAD)
-TAG :=$(shell git describe --abbrev=0 --tags) # e.g. `v0.9.0`
-TAG_NUM :=$(shell git describe --abbrev=0 --tags | cut -c 2-) # e.g. `0.9.0`
+TAG :=$(shell git for-each-ref --format="%(refname:short)" --sort=-authordate --count=1 refs/tags) # e.g. `v0.9.0`
+TAG_NUM :=$(shell git for-each-ref --format="%(refname:short)" --sort=-authordate --count=1 refs/tags | cut -c 2-) # e.g. `0.9.0`
 
 BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BASE_PKG := github.com/vmware/vic/
