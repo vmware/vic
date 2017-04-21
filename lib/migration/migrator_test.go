@@ -24,21 +24,26 @@ import (
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/migration/manager"
 	"github.com/vmware/vic/lib/migration/samples/plugins/plugin1"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+)
+
+var (
+	MaxPluginVersion = feature.MaxPluginVersion - 2
 )
 
 func setUp() {
 	// register sample plugin into test
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
-	version.MaxPluginVersion = version.MaxPluginVersion + 1
 
-	if err := manager.Migrator.Register(version.MaxPluginVersion, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
-		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, version.MaxPluginVersion, err)
+	MaxPluginVersion++
+
+	if err := manager.Migrator.Register(MaxPluginVersion, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
+		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, MaxPluginVersion, err)
 		panic(err)
 	}
 }
@@ -74,7 +79,7 @@ func TestMigrateConfigure(t *testing.T) {
 	assert.True(t, migrated, "should be migrated")
 
 	latestVer := newData[manager.ApplianceVersionKey]
-	assert.Equal(t, strconv.Itoa(version.MaxPluginVersion), latestVer, "upgrade version mismatch")
+	assert.Equal(t, strconv.Itoa(feature.MaxPluginVersion), latestVer, "upgrade version mismatch")
 
 	// check new data
 	var found bool
@@ -104,7 +109,7 @@ func TestMigrateConfigure(t *testing.T) {
 	newConf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.Decode(extraconfig.MapSource(newData), newConf)
 
-	assert.Equal(t, version.MaxPluginVersion, newConf.Version.PluginVersion, "should not be migrated")
+	assert.Equal(t, feature.MaxPluginVersion, newConf.Version.PluginVersion, "should not be migrated")
 	t.Logf("other version fields: %s", newConf.Version.String())
 }
 
