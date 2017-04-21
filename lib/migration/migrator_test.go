@@ -139,13 +139,12 @@ func TestIsDataOlder(t *testing.T) {
 	older, err := ApplianceDataIsOlder(mapData)
 	assert.Equal(t, nil, err, "should not have error")
 	assert.True(t, older, "Test data should be older than latest")
-	/*
-		mapData = make(map[string]string)
-		extraconfig.Encode(extraconfig.MapSink(mapData), conf.ExecutorConfig)
-		t.Logf("Old container data: %#v", mapData)
 
-		older, err = ContainerDataIsOlder(mapData)
-		assert.Equal(t, nil, err, "should not have error")
-		assert.True(t, older, "Test data should be older than latest since a container update plugin has been registered")
-	*/
+	mapData = make(map[string]string)
+	extraconfig.Encode(extraconfig.MapSink(mapData), conf.ExecutorConfig)
+	t.Logf("Old container data: %#v", mapData)
+
+	older, err = ContainerDataIsOlder(mapData)
+	assert.Equal(t, nil, err, "should not have error")
+	assert.True(t, older, "Test data should be older than latest since a container update plugin has been registered")
 }
