@@ -37,10 +37,17 @@ Inspect VCH Upgrade Completed
     Should Contain  ${output}  Completed successfully
 
 *** Test Cases ***
+Upgrade VCH with UpdateInProgress
+    Run  govc vm.change -vm=%{VCH-NAME} -e=UpdateInProgress=true
+    Check UpdateInProgress  true
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Upgrade failed: another upgrade/update operation is in progress
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --resetInProgressFlag --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Reset UpdateInProgress flag successfully
+    Check UpdateInProgress  false
+
 Upgrade and inspect VCH
-    #Start Process  bin/vic-machine-linux  create --help --name\=aaa  alias=create
-    #Wait For Process  create
-    Start Process  bin/vic-machine-linux  upgrade --debug 1 --name %{VCH-NAME} --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --force --compute-resource %{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}  alias=UpgradeVCH
+    Start Process  bin/vic-machine-linux  upgrade  --debug\=1  --name\=%{VCH-NAME}  --target\=%{TEST_URL}  --user\=%{TEST_USERNAME}  --password\=%{TEST_PASSWORD}  --force --compute-resource\=%{TEST_RESOURCE}  --timeout\=%{TEST_TIMEOUT}  alias=UpgradeVCH
     Wait Until Keyword Succeeds  20x  5s  Inspect VCH   Upgrade/update in progress
     Wait For Process  UpgradeVCH
     Inspect VCH  Completed successfully

@@ -1,4 +1,4 @@
-Test 11-02 - Upgrade Exec
+Test 11-04 - Upgrade UpdateInProgress
 =======
 
 #Purpose:
