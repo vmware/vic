@@ -22,6 +22,8 @@ const (
 	MigrateRegistryVersion
 	ExecSupportedVersion
 
+	// Add new feature flag here
+
 	// MaxPluginVersion must be the last
 	MaxPluginVersion
 )

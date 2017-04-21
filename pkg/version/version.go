@@ -83,7 +83,7 @@ func GetBuild() *Build {
 		BuildDate:     BuildDate,
 		BuildNumber:   BuildNumber,
 		State:         State,
-		PluginVersion: feature.MaxPluginVersion,
+		PluginVersion: feature.MaxPluginVersion - 1,
 	}
 }
 
