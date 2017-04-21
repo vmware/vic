@@ -20,11 +20,11 @@ import (
 	"strconv"
 
 	"github.com/vmware/vic/lib/migration/errors"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/migration/manager"
 	// imported for the side effect
 	_ "github.com/vmware/vic/lib/migration/plugins"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -97,7 +97,7 @@ func migrateConfig(ctx context.Context, s *session.Session, data map[string]stri
 	}
 
 	_, err = manager.Migrator.Migrate(ctx, s, target, currentID, dst)
-	dst[verKey] = strconv.Itoa(version.MaxPluginVersion)
+	dst[verKey] = strconv.Itoa(feature.MaxPluginVersion)
 	return dst, true, err
 }
 
