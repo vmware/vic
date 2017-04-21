@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -112,7 +112,11 @@ func fieldValue(rval reflect.Value, p string) (interface{}, error) {
 	fields := strings.Split(p, ".")
 
 	for i, name := range fields {
-		if rval.Type().Kind() == reflect.Ptr {
+		kind := rval.Type().Kind()
+		if kind == reflect.Ptr || kind == reflect.Interface {
+			if rval.IsNil() {
+				continue
+			}
 			rval = rval.Elem()
 		}
 
@@ -210,8 +214,20 @@ func (rr *retrieveResult) collectAll(rval reflect.Value, rtype reflect.Type, con
 
 func (rr *retrieveResult) collectFields(rval reflect.Value, fields []string, content *types.ObjectContent) []types.ManagedObjectReference {
 	var refs []types.ManagedObjectReference
+	seen := make(map[string]bool)
+
+	for i := range content.PropSet {
+		seen[content.PropSet[i].Name] = true // mark any already collected via embedded field
+	}
 
 	for _, name := range fields {
+		if seen[name] {
+			// rvc 'ls' includes the "name" property twice, then fails with no error message or stack trace
+			// in RbVmomi::VIM::ObjectContent.to_hash_uncached when it sees the 2nd "name" property.
+			continue
+		}
+		seen[name] = true
+
 		val, err := fieldValue(rval, name)
 		if err == nil {
 			if rr.recurse[name] {
@@ -341,7 +357,7 @@ func (pc *PropertyCollector) collect(r *types.RetrievePropertiesEx) (*types.Retr
 func (pc *PropertyCollector) CreateFilter(c *types.CreateFilter) soap.HasFault {
 	body := &methods.CreateFilterBody{}
 
-	filter := &PropertyFilter{}
+	filter := &PropertyFilter{pc: pc}
 	filter.PartialUpdates = c.PartialUpdates
 	filter.Spec = c.Spec
 
@@ -369,8 +385,9 @@ func (pc *PropertyCollector) CreatePropertyCollector(c *types.CreatePropertyColl
 func (pc *PropertyCollector) DestroyPropertyCollector(c *types.DestroyPropertyCollector) soap.HasFault {
 	body := &methods.DestroyPropertyCollectorBody{}
 
-	for _, filter := range pc.Filter {
-		(&PropertyFilter{}).DestroyPropertyFilter(&types.DestroyPropertyFilter{This: filter})
+	for _, ref := range pc.Filter {
+		filter := Map.Get(ref).(*PropertyFilter)
+		filter.DestroyPropertyFilter(&types.DestroyPropertyFilter{This: ref})
 	}
 
 	Map.Remove(c.This)
@@ -414,6 +431,10 @@ func (pc *PropertyCollector) RetrieveProperties(r *types.RetrieveProperties) soa
 	}
 
 	return body
+}
+
+func (pc *PropertyCollector) CancelWaitForUpdates(r *types.CancelWaitForUpdates) soap.HasFault {
+	return &methods.CancelWaitForUpdatesBody{Res: new(types.CancelWaitForUpdatesResponse)}
 }
 
 func (pc *PropertyCollector) WaitForUpdatesEx(r *types.WaitForUpdatesEx) soap.HasFault {
@@ -469,6 +490,26 @@ func (pc *PropertyCollector) WaitForUpdatesEx(r *types.WaitForUpdatesEx) soap.Ha
 
 	body.Res = &types.WaitForUpdatesExResponse{
 		Returnval: update,
+	}
+
+	return body
+}
+
+// WaitForUpdates is deprecated, but pyvmomi is still using it at the moment.
+func (pc *PropertyCollector) WaitForUpdates(r *types.WaitForUpdates) soap.HasFault {
+	body := &methods.WaitForUpdatesBody{}
+
+	res := pc.WaitForUpdatesEx(&types.WaitForUpdatesEx{
+		This:    r.This,
+		Version: r.Version,
+	})
+
+	if res.Fault() != nil {
+		body.Fault_ = res.Fault()
+	} else {
+		body.Res = &types.WaitForUpdatesResponse{
+			Returnval: *res.(*methods.WaitForUpdatesExBody).Res.Returnval,
+		}
 	}
 
 	return body

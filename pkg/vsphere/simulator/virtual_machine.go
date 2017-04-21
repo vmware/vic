@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,7 +92,12 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 	}
 
 	vm.Runtime.PowerState = types.VirtualMachinePowerStatePoweredOff
+	vm.Runtime.ConnectionState = types.VirtualMachineConnectionStateConnected
 	vm.Summary.Runtime = vm.Runtime
+
+	vm.Summary.QuickStats.GuestHeartbeatStatus = types.ManagedEntityStatusGray
+	vm.Summary.OverallStatus = types.ManagedEntityStatusGreen
+	vm.ConfigStatus = types.ManagedEntityStatusGreen
 
 	return vm, nil
 }
@@ -122,6 +127,7 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 		{spec.Uuid, &vm.Config.Uuid},
 		{spec.Version, &vm.Config.Version},
 		{spec.Files.VmPathName, &vm.Config.Files.VmPathName},
+		{spec.Files.VmPathName, &vm.Summary.Config.VmPathName},
 		{spec.Files.SnapshotDirectory, &vm.Config.Files.SnapshotDirectory},
 		{spec.Files.LogDirectory, &vm.Config.Files.LogDirectory},
 	}
