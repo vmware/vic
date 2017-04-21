@@ -568,41 +568,35 @@ func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.Manag
 // GetVCHUpdateStatus tells if an upgrade/update has already been started based on the UpdateInProgress flag in ExtraConfig
 // If error != nil, VCH upgrade/update will exit; so the value of the VCH upgrade/update status is not important
 func (vm *VirtualMachine) GetVCHUpdateStatus(ctx context.Context) (bool, error) {
-	var mvm mo.VirtualMachine
-
-	if err := vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
-		log.Errorf("Unable to get vm config: %s", err)
+	info, err := vm.FetchExtraConfig(ctx)
+	if err != nil {
+		log.Errorf("Unable to get vm ExtraConfig: %s", err)
 		return false, err
 	}
 
-	for _, bov := range mvm.Config.ExtraConfig {
-		ov := bov.GetOptionValue()
-		if ov.Key == UpdateInProgress {
-			if updateStatus, err := strconv.ParseBool(ov.Value.(string)); err != nil {
-				return false, err
-			} else {
-				return updateStatus, nil
-			}
+	if v, ok := info[UpdateInProgress]; ok {
+		updateStatus, err := strconv.ParseBool(v)
+		if err != nil {
+			//  If error occurs, return true to cancel VCH upgrade. The user can reset the UpdateInProgress flag later.
+			return true, fmt.Errorf("failed to parse %s to bool: %s", v, err)
 		}
+		return updateStatus, nil
 	}
+
 	// If "UpdateInProgress" is not found, it might be the case that no update/upgrade has been done to this VCH before
 	return false, nil
 }
 
 // SetVCHUpdateStatus sets the "UpdateInProgress" flag in ExtraConfig
-func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, updateStatus bool) error {
-
-	info, err := vm.FetchExtraConfig(ctx)
-	if err != nil {
-		return err
-	}
-	info[UpdateInProgress] = strconv.FormatBool(updateStatus)
+func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, updateStatus string) error {
+	info := make(map[string]string)
+	info[UpdateInProgress] = updateStatus
 
 	s := &types.VirtualMachineConfigSpec{
 		ExtraConfig: vmomi.OptionValueFromMap(info),
 	}
 
-	_, err = vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err := vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Reconfigure(ctx, *s)
 	})
 

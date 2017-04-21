@@ -154,7 +154,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	log.Infof("VCH ID: %s", vch.Reference().String())
 
 	if u.ResetInProgressFlag {
-		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
+		if err = vch.SetVCHUpdateStatus(ctx, "false"); err != nil {
 			log.Error("Failed to reset UpdateInprogress flag")
 			log.Error(err)
 			return errors.New("upgrade failed")
@@ -174,14 +174,14 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return errors.New("upgrade failed")
 	}
 
-	if err = vch.SetVCHUpdateStatus(ctx, true); err != nil {
+	if err = vch.SetVCHUpdateStatus(ctx, "true"); err != nil {
 		log.Error("Failed to set UpdateInProgress flag to true")
 		log.Error(err)
 		return errors.New("upgrade failed")
 	}
 
 	defer func() {
-		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
+		if err = vch.SetVCHUpdateStatus(ctx, "false"); err != nil {
 			log.Error("Failed to reset UpdateInProgress")
 			log.Error(err)
 		}
