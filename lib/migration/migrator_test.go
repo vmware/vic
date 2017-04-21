@@ -79,7 +79,7 @@ func TestMigrateConfigure(t *testing.T) {
 	assert.True(t, migrated, "should be migrated")
 
 	latestVer := newData[manager.ApplianceVersionKey]
-	assert.Equal(t, strconv.Itoa(feature.MaxPluginVersion), latestVer, "upgrade version mismatch")
+	assert.Equal(t, strconv.Itoa(feature.MaxPluginVersion-1), latestVer, "upgrade version mismatch")
 
 	// check new data
 	var found bool
@@ -109,7 +109,7 @@ func TestMigrateConfigure(t *testing.T) {
 	newConf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.Decode(extraconfig.MapSource(newData), newConf)
 
-	assert.Equal(t, feature.MaxPluginVersion, newConf.Version.PluginVersion, "should not be migrated")
+	assert.Equal(t, feature.MaxPluginVersion-1, newConf.Version.PluginVersion, "should not be migrated")
 	t.Logf("other version fields: %s", newConf.Version.String())
 }
 
