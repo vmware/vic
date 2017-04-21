@@ -185,7 +185,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 			log.Error("Failed to reset UpdateInProgress")
 			log.Error(err)
 		}
-	} ()
+	}()
 
 	vchConfig, err := executor.FetchAndMigrateVCHConfig(vch)
 	if err != nil {
