@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/vmware/govmomi/find"
@@ -41,6 +43,9 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/govmomi/vim25/xml"
 )
+
+// Trace when set to true, writes SOAP traffic to stderr
+var Trace = false
 
 // Method encapsulates a decoded SOAP client request
 type Method struct {
@@ -169,8 +174,65 @@ func (s *Service) RoundTrip(ctx context.Context, request, response soap.HasFault
 	return nil
 }
 
-// ServeHTTP implements the http.Handler interface
-func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// soapEnvelope is a copy of soap.Envelope, with namespace changed to "soapenv",
+// and additional namespace attributes required by some client libraries.
+// Go still has issues decoding with such a namespace, but encoding is ok.
+type soapEnvelope struct {
+	XMLName xml.Name    `xml:"soapenv:Envelope"`
+	Enc     string      `xml:"xmlns:soapenc,attr"`
+	Env     string      `xml:"xmlns:soapenv,attr"`
+	XSD     string      `xml:"xmlns:xsd,attr"`
+	XSI     string      `xml:"xmlns:xsi,attr"`
+	Body    interface{} `xml:"soapenv:Body"`
+}
+
+// About generates some info about the simulator.
+func (s *Service) About(w http.ResponseWriter, r *http.Request) {
+	var about struct {
+		Methods []string
+		Types   []string
+	}
+
+	seen := make(map[string]bool)
+
+	f := reflect.TypeOf((*soap.HasFault)(nil)).Elem()
+
+	for _, obj := range Map.objects {
+		kind := obj.Reference().Type
+		if seen[kind] {
+			continue
+		}
+		seen[kind] = true
+
+		about.Types = append(about.Types, kind)
+
+		t := reflect.TypeOf(obj)
+		for i := 0; i < t.NumMethod(); i++ {
+			m := t.Method(i)
+			if seen[m.Name] {
+				continue
+			}
+			seen[m.Name] = true
+
+			if m.Type.NumIn() != 2 || m.Type.NumOut() != 1 || m.Type.Out(0) != f {
+				continue
+			}
+
+			about.Methods = append(about.Methods, strings.Replace(m.Name, "Task", "_Task", 1))
+		}
+	}
+
+	sort.Strings(about.Methods)
+	sort.Strings(about.Types)
+
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(&about)
+}
+
+// ServeSDK implements the http.Handler interface
+func (s *Service) ServeSDK(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -182,6 +244,10 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error reading body: %s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
+	}
+
+	if Trace {
+		fmt.Fprintf(os.Stderr, "Request: %s\n", string(body))
 	}
 
 	var res soap.HasFault
@@ -199,15 +265,31 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	e := xml.NewEncoder(w)
-	err = e.Encode(&soap.Envelope{Body: res})
+	var out bytes.Buffer
+
+	fmt.Fprint(&out, xml.Header)
+	e := xml.NewEncoder(&out)
+	err = e.Encode(&soapEnvelope{
+		Enc:  "http://schemas.xmlsoap.org/soap/encoding/",
+		Env:  "http://schemas.xmlsoap.org/soap/envelope/",
+		XSD:  "http://www.w3.org/2001/XMLSchema",
+		XSI:  "http://www.w3.org/2001/XMLSchema-instance",
+		Body: res,
+	})
 	if err == nil {
 		err = e.Flush()
 	}
 
 	if err != nil {
 		log.Printf("error encoding %s response: %s", method.Name, err)
+		return
 	}
+
+	if Trace {
+		fmt.Fprintf(os.Stderr, "Response: %s\n", out.String())
+	}
+
+	_, _ = w.Write(out.Bytes())
 }
 
 func (s *Service) findDatastore(query url.Values) (*Datastore, error) {
@@ -231,6 +313,7 @@ func (s *Service) findDatastore(query url.Values) (*Datastore, error) {
 
 const folderPrefix = "/folder/"
 
+// ServeDatastore handler for Datastore access via /folder path.
 func (s *Service) ServeDatastore(w http.ResponseWriter, r *http.Request) {
 	ds, ferr := s.findDatastore(r.URL.Query())
 	if ferr != nil {
@@ -278,13 +361,33 @@ func (s *Service) ServeDatastore(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ServiceVersions handler for the /sdk/vimServiceVersions.xml path.
+func (*Service) ServiceVersions(w http.ResponseWriter, r *http.Request) {
+	// pyvmomi depends on this
+
+	const versions = xml.Header + `<namespaces version="1.0">
+ <namespace>
+  <name>urn:vim25</name>
+  <version>6.5</version>
+  <priorVersions>
+   <version>6.0</version>
+   <version>5.5</version>
+  </priorVersions>
+ </namespace>
+</namespaces>
+`
+	fmt.Fprint(w, versions)
+}
+
 // NewServer returns an http Server instance for the given service
 func (s *Service) NewServer() *Server {
 	mux := http.NewServeMux()
 	path := "/sdk"
-	mux.Handle(path, s)
 
+	mux.HandleFunc(path, s.ServeSDK)
+	mux.HandleFunc(path+"/vimServiceVersions.xml", s.ServiceVersions)
 	mux.HandleFunc(folderPrefix, s.ServeDatastore)
+	mux.HandleFunc("/about", s.About)
 
 	// Using NewUnstartedServer() instead of NewServer(),
 	// for use in main.go, where Start() blocks, we can still set ServiceHostName
@@ -297,11 +400,6 @@ func (s *Service) NewServer() *Server {
 		User:   url.UserPassword("user", "pass"),
 	}
 
-	// Enable use of SessionManagerGenericServiceTicket.HostName in govmomi, disabled by default.
-	opts := u.Query()
-	opts.Set("GOVMOMI_USE_SERVICE_TICKET_HOSTNAME", "true")
-	u.RawQuery = opts.Encode()
-
 	// Redirect clients to this http server, rather than HostSystem.Name
 	Map.Get(*s.client.ServiceContent.SessionManager).(*SessionManager).ServiceHostName = u.Host
 
@@ -313,7 +411,6 @@ func (s *Service) NewServer() *Server {
 	if s.TLS == nil {
 		ts.Start()
 	} else {
-		ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // silence benign "TLS handshake error" log messages
 		ts.TLS = s.TLS
 		ts.StartTLS()
 		u.Scheme += "s"
