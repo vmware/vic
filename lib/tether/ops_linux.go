@@ -753,7 +753,7 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 		return err
 	}
 
-	parentDir := filepath.Dir(filepath.Clean(source))
+	parentDir := filepath.Dir(source)
 	// mount the parent directory of the source to bindDir
 	// e.g if source is /foo/bar, mount /foo to ./bindDir
 	log.Debugf("mounting %s on %s", parentDir, bindDir)
