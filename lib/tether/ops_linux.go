@@ -740,7 +740,6 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 
 // CopyExistingContent copies the underlying files shadowed by a mount on a directory
 // to the volume mounted on the directory
-// this is only done only once
 // see bug https://github.com/vmware/vic/issues/3482
 func (t *BaseOperations) CopyExistingContent(source string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("copyExistingContent from %s", source)))
@@ -771,14 +770,11 @@ func (t *BaseOperations) CopyExistingContent(source string) error {
 		return err
 	}
 
-	// TODO jaked copy ownership
-
 	log.Debugf("unmounting %s", bindDir)
 	if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
 		log.Errorf("error unmounting %+v", err)
 		return err
 	}
-
 	log.Debugf("removing %s", bindDir)
 	if err := os.Remove(bindDir); err != nil {
 		log.Errorf("error removing directory %s: %+v", bindDir, err)

@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -117,7 +118,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, fmt.Errorf("Unexpected scheme (%s) for volume store (%s)", u.Scheme, v.Name)
 	}
 
-	vol, err := storage.NewVolume(v.SelfLink, ID, info, NewVolume(u, v.volDirPath(ID)))
+	vol, err := storage.NewVolume(v.SelfLink, ID, info, NewVolume(u, v.volDirPath(ID)), executor.CopyNew)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +131,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	return vol, nil
 }
 
-// Removes a volume and all of its contents from the nfs store. We already know via the cache if it is in use.
+// VolumeDestroy Removes a volume and all of its contents from the nfs store. We already know via the cache if it is in use.
 func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
 	target, err := v.Service.Mount(op)
 	if err != nil {
@@ -184,7 +185,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		}
 
 		u, _ := v.Service.URL()
-		vol, err := storage.NewVolume(v.SelfLink, fileInfo.Name(), volMetadata, NewVolume(u, v.volDirPath(fileInfo.Name())))
+		vol, err := storage.NewVolume(v.SelfLink, fileInfo.Name(), volMetadata, NewVolume(u, v.volDirPath(fileInfo.Name())), executor.CopyNew)
 		if err != nil {
 			op.Errorf("Failed to create volume struct from volume directory (%s)", fileInfo.Name())
 			return nil, err

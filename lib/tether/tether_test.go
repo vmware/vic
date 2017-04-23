@@ -179,6 +179,13 @@ func (t *Mocker) MountTarget(ctx context.Context, source url.URL, target string,
 	return nil
 }
 
+// CopyExistingContent copies the underlying files shadowed by a mount on a directory
+// to the volume mounted on the directory
+func (t *Mocker) CopyExistingContent(source string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("mocking copyExistingContent from %s", source)))
+	return nil
+}
+
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
 func (t *Mocker) Fork() error {
 	defer trace.End(trace.Begin("mocking fork"))

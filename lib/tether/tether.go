@@ -34,6 +34,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
@@ -49,9 +50,9 @@ const (
 	shortLen = 12
 
 	// temp directory to copy existing data to mounts
-	bindDir = "/.bind"
+	bindDir = "/.tether/.bind"
 	// markfile to avoid re-copying existing data to mounts
-	mountsCopied = "/.mountscopied"
+	mountsCopied = "/.tether/.mountscopied"
 )
 
 var Sys = system.New()
@@ -262,7 +263,6 @@ func (t *tether) setMounts() error {
 
 func (t *tether) populateVolumes() error {
 	defer trace.End(trace.Begin(fmt.Sprintf("populateVolumes")))
-
 	// skip if this was done before
 	if _, err := os.Stat(mountsCopied); err == nil {
 		log.Debugf("mounts already copied, skipping copy")
@@ -273,10 +273,12 @@ func (t *tether) populateVolumes() error {
 		if mnt.Path == "" {
 			continue
 		}
-		err := t.ops.CopyExistingContent(mnt.Path)
-		if err != nil {
-			log.Errorf("error copyExistingContent for mount %s: %+v", mnt.Path, err)
-			return err
+		if mnt.CopyMode == executor.CopyNew {
+			err := t.ops.CopyExistingContent(mnt.Path)
+			if err != nil {
+				log.Errorf("error copyExistingContent for mount %s: %+v", mnt.Path, err)
+				return err
+			}
 		}
 	}
 
