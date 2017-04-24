@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/migration/manager"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,14 +30,13 @@ import (
 )
 
 const (
-	version = 2
-	target  = manager.ContainerConfigure
+	target = manager.ContainerConfigure
 )
 
 func init() {
-	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, version)))
-	if err := manager.Migrator.Register(version, target, &AddCommonSpecForContainer{}); err != nil {
-		log.Errorf("Failed to register plugin %s:%d, %s", target, version, err)
+	defer trace.End(trace.Begin(fmt.Sprintf("Registering plugin %s:%d", target, feature.AddCommonSpecForContainerVersion)))
+	if err := manager.Migrator.Register(feature.AddCommonSpecForContainerVersion, target, &AddCommonSpecForContainer{}); err != nil {
+		log.Errorf("Failed to register plugin %s:%d, %s", target, feature.AddCommonSpecForContainerVersion, err)
 		panic(err)
 	}
 }
@@ -82,7 +82,7 @@ type UpdatedCommon struct {
 }
 
 func (p *AddCommonSpecForContainer) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("AddCommonSpecForContainer version %d", version)))
+	defer trace.End(trace.Begin(fmt.Sprintf("AddCommonSpecForContainer version %d", feature.AddCommonSpecForContainerVersion)))
 	if data == nil {
 		return nil
 	}
