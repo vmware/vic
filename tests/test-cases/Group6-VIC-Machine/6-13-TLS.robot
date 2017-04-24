@@ -41,6 +41,7 @@ Create VCH - force accept target thumbprint
 
     # Test that --force without --thumbprint accepts the --target thumbprint
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
@@ -146,10 +147,11 @@ Create VCH - Server cert with untrusted CA
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Generate CA and wildcard cert for *.<DOMAIN>
-    Run  git clone https://github.com/andrewtchin/ca-test.git
-    ${output}=  Run  cd ca-test; ./ca-test.sh -s "*.${domain}"
-    Log  ${output}
-    Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Generate Certificate Authority
+    Generate Wildcard Server Certificate
+
+    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Log  ${out}
 
     # Run vic-machine install, supply server cert and key
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --key "bundle/*.${domain}.key.pem" --cert "bundle/*.${domain}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
@@ -169,7 +171,6 @@ Create VCH - Server cert with untrusted CA
     Run  rm -rf bundle
     Run  rm -f cert-bundle.tgz
     Run  rm -rf /root/ca
-    Run  rm -rf ca-test
     Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 
 
@@ -183,19 +184,18 @@ Create VCH - Server cert with trusted CA
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
-    Run  git clone https://github.com/andrewtchin/ca-test.git
-    ${output}=  Run  cd ca-test; ./ca-test.sh -s "*.${domain}"; ./ubuntu-install-ca.sh
-    Log  ${output}
-    Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
-    ${output}=  Run   ls -al /usr/local/share/ca-certificates/
-    Log  ${output}
+    Generate Certificate Authority
+    Generate Wildcard Server Certificate
+    Trust Certificate Authority
+
+    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Log  ${out}
 
     # Run vic-machine install, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --key "bundle/*.${domain}.key.pem" --cert "bundle/*.${domain}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --key "bundle/*.%{DOMAIN}.key.pem" --cert "bundle/*.%{DOMAIN}.cert.pem" --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls} --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
-    Should Contain  ${output}  for use against host certificate
     Should Contain  ${output}  Installer completed successfully
 
 
@@ -205,13 +205,12 @@ Create VCH - Server cert with trusted CA
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
-    ${output}=  Run  ./ca-test/ubuntu-remove-ca.sh
-    Log  ${output}
-
     Run  rm -rf bundle
     Run  rm -f cert-bundle.tgz
     Run  rm -rf /root/ca
-    Run  rm -rf ca-test
+
+    Reload Default Certificate Authorities
+
     Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 
 

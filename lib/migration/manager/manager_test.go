@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -45,7 +44,6 @@ func (p *TestPlugin) Migrate(ctx context.Context, s *session.Session, data inter
 func setUp() {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
-	version.MaxPluginVersion = 100
 	testMap = make(map[int]bool)
 }
 
@@ -75,7 +73,7 @@ func TestMigratePluginExecution(t *testing.T) {
 		verPlugins: make(map[int]Plugin),
 	}
 
-	ids := []int{1, 2, 4, 5, 8, 9, 11, 20, 15}
+	ids := []int{1, 2, 3, 4, 5}
 	var err error
 	for _, id := range ids {
 		if err = tester.Register(id, ApplianceConfigure, NewTestPlugin(id)); err != nil {
@@ -84,30 +82,23 @@ func TestMigratePluginExecution(t *testing.T) {
 	}
 
 	dataID, err := tester.Migrate(nil, nil, ApplianceConfigure, 0, nil)
-	assert.Equal(t, 20, dataID, "migrated id mismatch")
+	assert.Equal(t, 5, dataID, "migrated id mismatch")
 	for _, id := range ids {
 		assert.True(t, testMap[id], fmt.Sprintf("plugin %d should be executed", id))
 	}
 	testMap = make(map[int]bool)
-	dataID, err = tester.Migrate(nil, nil, ApplianceConfigure, 5, nil)
-	assert.Equal(t, 20, dataID, "migrated id mismatch")
-	for _, id := range ids[:4] {
+	dataID, err = tester.Migrate(nil, nil, ApplianceConfigure, 3, nil)
+	assert.Equal(t, 5, dataID, "migrated id mismatch")
+	for _, id := range ids[:3] {
 		assert.False(t, testMap[id], fmt.Sprintf("plugin %d should not be executed", id))
 	}
-	for _, id := range ids[4:] {
+	for _, id := range ids[3:] {
 		assert.True(t, testMap[id], fmt.Sprintf("plugin %d should be executed", id))
 	}
 
 	testMap = make(map[int]bool)
 	dataID, err = tester.Migrate(nil, nil, ApplianceConfigure, 20, nil)
 	assert.Equal(t, 20, dataID, "migrated id mismatch")
-	for _, id := range ids {
-		assert.False(t, testMap[id], fmt.Sprintf("plugin %d should not be executed", id))
-	}
-
-	testMap = make(map[int]bool)
-	dataID, err = tester.Migrate(nil, nil, ApplianceConfigure, 30, nil)
-	assert.Equal(t, 30, dataID, "migrated id mismatch")
 	for _, id := range ids {
 		assert.False(t, testMap[id], fmt.Sprintf("plugin %d should not be executed", id))
 	}

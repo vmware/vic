@@ -17,7 +17,8 @@ This test requires that a vSphere server is running and available
 4. Issue docker run -it busybox top to the new VCH
 5. Issue docker create -it busybox /bin/top to VIC appliance
 6. Issue docker start -ai <containerID> from previous step
+7. Issue commands to make container stuck in starting status, and then test docker stop can stop the container
 
 
 ### Expected Outcome:
-* Steps 1-6 should all succeed and return the expected output from those commands
+* Steps 1-7 should all succeed and return the expected output from those commands

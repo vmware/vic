@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -102,7 +102,7 @@ func TestDatastoreHTTP(t *testing.T) {
 	src := "datastore_test.go"
 	dst := "tmp.go"
 
-	for _, model := range []*Model{ESX(), VPX()} {
+	for i, model := range []*Model{ESX(), VPX()} {
 		defer model.Remove()
 		err := model.Create()
 		if err != nil {
@@ -111,6 +111,13 @@ func TestDatastoreHTTP(t *testing.T) {
 
 		s := model.Service.NewServer()
 		defer s.Close()
+
+		if i == 0 {
+			// Enable use of SessionManagerGenericServiceTicket.HostName in govmomi, disabled by default.
+			opts := s.URL.Query()
+			opts.Set("GOVMOMI_USE_SERVICE_TICKET_HOSTNAME", "true")
+			s.URL.RawQuery = opts.Encode()
+		}
 
 		c, err := govmomi.NewClient(ctx, s.URL, true)
 		if err != nil {
@@ -129,6 +136,12 @@ func TestDatastoreHTTP(t *testing.T) {
 		ds, err := finder.DefaultDatastore(ctx)
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		if i == 0 {
+			// Cover the service ticket path
+			// TODO: govmomi requires HostSystem.Config.VirtualNicManagerInfo
+			// ctx = ds.HostContext(ctx, object.NewHostSystem(c.Client, esx.HostSystem.Reference()))
 		}
 
 		dsPath := ds.Path

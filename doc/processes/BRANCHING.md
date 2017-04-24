@@ -29,11 +29,11 @@ We can keep changes isolated from RC / GA testing by way of `git` branches.
   * `TAG` with `MACRO++` for each patch.
 
 ###Accounting###
-* Targetting
-  * Bugs found in RC branch need an issue before merging fix to branch targetted to RC, e.g. `targetted/<RC branch name>`
+* Targeting
+  * Bugs found in RC branch need an issue before merging fix to branch targeted to RC, e.g. `targeted/<RC branch name>`
   * Ideally patch should be merged to `MASTER` first if it exists there too.
-  * Only if issue is targetted for RC, a different PR with the same issue number for the RC branch.
-  * Only close issue after each relevant and targetted release has had a fixed merged to it.  We can use targetting to verify this.
+  * Only if issue is targeted for RC, a different PR with the same issue number for the RC branch.
+  * Only close issue after each relevant and targeted release has had a fixed merged to it.  We can use targeting to verify this.
 * Bugs found in `MASTER` or any RC branch need to be tagged, e.g.`exists/<branches>`
 * The release branch will live as long as our support contract exists on that branch, once support sunsets we can remove the branch
 * The CI system will build all branches within the `releases/*` naming convention on push or tag event and publish the binary to our public binary location

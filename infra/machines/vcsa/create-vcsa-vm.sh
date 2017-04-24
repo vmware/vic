@@ -23,8 +23,8 @@ usage() {
 export GOVC_INSECURE=1
 
 name=vcsa
-# 6.5.0a - http://pubs.vmware.com/Release_Notes/en/vsphere/65/vsphere-vcenter-server-650a-release-notes.html
-ova=VMware-vCenter-Server-Appliance-6.5.0.5200-4944578_OVF10.ova
+# 6.5.0d - http://pubs.vmware.com/Release_Notes/en/vsphere/65/vsphere-vcenter-server-650d-release-notes.html
+ova=VMware-vCenter-Server-Appliance-6.5.0.5500-5318154_OVF10.ova
 
 while getopts a:i:n: flag
 do

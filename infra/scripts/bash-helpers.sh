@@ -64,6 +64,10 @@ vic-inspect () {
     $(vic-path)/bin/vic-machine-"$OS" inspect --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
 }
 
+vic-upgrade () {
+    $(vic-path)/bin/vic-machine-"$OS" upgrade --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
+}
+
 vic-ls () {
 
     $(vic-path)/bin/vic-machine-"$OS" ls --target="$GOVC_URL" --thumbprint=$THUMBPRINT $*

@@ -68,9 +68,6 @@ Restart Docker With Insecure Registry Option
     ${out}=  Run  systemctl restart docker
     Log  ${out}
 
-Create Self Signed Cert
-    ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt
-
 Install Harbor Self Signed Cert
     # Need to provide permissions to /etc/docker folder for your user (sudo chmod -R 777 /etc/docker)
     ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
@@ -116,7 +113,7 @@ Create A New User
     Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
     Wait Until Element Is Enabled  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
     Click Element  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
-    
+
     Wait Until Element Is Visible  username
     Wait Until Element Is Enabled  username
     Wait Until Element Is Visible  email
@@ -136,7 +133,7 @@ Create A New User
     Input Text  password  ${password}
     Input Text  confirmPassword  ${password}
     Input Text  comments  ${comments}
-    
+
     Wait Until Element Is Visible  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
     Wait Until Element Is Enabled  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
     Click Button  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
@@ -176,7 +173,7 @@ Delete A User
     Wait Until Element Is Enabled  css=div.modal.fade.in > div > div > div:nth-child(3) > button:nth-child(1)
     Click Button  css=div.modal.fade.in > div > div > div:nth-child(3) > button:nth-child(1)
     Sleep  1
-    Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  css=div.table-body-container > table  ${user} 
+    Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  css=div.table-body-container > table  ${user}
 
 Search For A User
     [Arguments]  ${keyword}
@@ -190,7 +187,7 @@ Search For A User
     Wait Until Element Is Enabled  css=span.input-group-btn > button
     Click Button  css=span.input-group-btn > button
     Sleep  1
-    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=div.table-body-container > table  ${keyword} 
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=div.table-body-container > table  ${keyword}
     # check all result contains the search keyword
     Wait Until Element Is Visible  xpath=//tbody/tr/td[1]
     Wait Until Element Is Enabled  xpath=//tbody/tr/td[1]
@@ -297,7 +294,7 @@ Sign up
     Input Text  password  ${password}
     Input Text  confirmPassword  ${password}
     Input Text  comments  ${comments}
-    
+
     Wait Until Element Is Visible  xpath=//button[text()='Sign Up']
     Wait Until Element Is Enabled  xpath=//button[text()='Sign Up']
     Click Button  xpath=//button[text()='Sign Up']
@@ -359,7 +356,7 @@ Change A User's Role In A Project
     Wait Until Element Is Visible  //a[@tag='project']
     Wait Until Element Is Enabled  //a[@tag='project']
     Click Link  Projects
-    Wait Until Element Is Visible  css=${MY_PROJECTS_TABLE} 
+    Wait Until Element Is Visible  css=${MY_PROJECTS_TABLE}
     Table Should Contain  css=${MY_PROJECTS_TABLE}  ${project}
     Click Link  xpath=//td/a[text()='${project}']
     Wait Until Element Is Visible  xpath=//a[@tag='users']
@@ -410,7 +407,7 @@ Search For A Project
     Wait Until Element Is Enabled  css=span.input-group-btn > button
     Click Button  css=span.input-group-btn > button
     Sleep  1
-    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${keyword} 
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${keyword}
     # check all result contains the search keyword
     Wait Until Element Is Visible  xpath=//tbody/tr/td[1]
     Wait Until Element Is Enabled  xpath=//tbody/tr/td[1]
@@ -460,13 +457,13 @@ Delete Image From Project
     Wait Until Element Is Visible  css=div.modal.fade.in > div > div > div:nth-child(2)
     Wait Until Element Contains  css=div.modal.fade.in > div > div > div:nth-child(2)  Delete tag "${tag}" now?
     Wait Until Element Is Enabled  css=div.modal.fade.in > div > div > div:nth-child(3) > button:nth-child(1)
-    Click Button  css=div.modal.fade.in > div > div > div:nth-child(3) > button:nth-child(1)    
+    Click Button  css=div.modal.fade.in > div > div > div:nth-child(3) > button:nth-child(1)
     Sleep  1
     # if it is last image in this repo, the repo will be deleted
     ${imageNum}=  Get Text  xpath=//a[contains(., '${project}/${image}')]/span[2]
     Run Keyword If  '${imageNum}'=='1'  Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  css=div.sub-pane  ${tag}
-    ...  Else  Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  xpath=//a[contains(., '${project}/${image}')]/../../../div[2]/div/table/tbody  ${tag}    
-    
+    ...  Else  Wait Until Keyword Succeeds  5x  1  Element Should Not Contain  xpath=//a[contains(., '${project}/${image}')]/../../../div[2]/div/table/tbody  ${tag}
+
 Toggle Publicity On Project
     [Arguments]  ${project}
     Wait Until Element Is Visible  //a[@tag='project']
@@ -503,7 +500,7 @@ Check That Datastore Is Cleaned
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  ${container}
-    
+
 Create Project And Three Users For It
     [Arguments]  ${developer}  ${developer2}  ${developerEmail}  ${developerEmail2}  ${developerFullName}  ${password}  ${comments}  ${guest}  ${developerRole}  ${guestRole}  ${project}  ${public}=${False}
     # 2 developers, 1 guest
@@ -590,7 +587,7 @@ Basic Docker Command With Harbor
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    # Docker attach 
+    # Docker attach
     Log To Console  Starting process Docker attach...
     Start Process  docker %{VCH-PARAMS} attach ${container_name} < /tmp/fifo  shell=True  alias=custom
     Sleep  3
@@ -601,7 +598,7 @@ Basic Docker Command With Harbor
     Should Be Empty  ${ret.stdout}
     Should Be Empty  ${ret.stderr}
 
-    # Docker start  
+    # Docker start
     Log To Console  docker start...
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container_name}
     Log  ${output}
