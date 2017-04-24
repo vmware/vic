@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/netfilter"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -124,6 +126,47 @@ func (t *operations) Setup(sink tether.Config) error {
 	if err = tether.Sys.Syscall.Unmount(runMountPoint, syscall.MNT_DETACH); err != nil {
 		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EINVAL {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// SetupFirewall sets up firewall rules on the external scope only.  Any
+// portmaps are honored as are port exposes.
+//func (t *operations) SetupFirewall(endpoints map[string]*tether.NetworkEndpoint) error {
+func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
+	if err := netfilter.Flush(context.Background(), ""); err != nil {
+		return err
+	}
+
+	// default rule set
+	established := &netfilter.Rule{
+		Chain:     netfilter.Input,
+		States:    []netfilter.State{netfilter.Established},
+		Interface: "external",
+		Target:    netfilter.Accept,
+	}
+
+	reject := &netfilter.Rule{
+		Chain:     netfilter.Input,
+		Interface: "external",
+		Target:    netfilter.Reject,
+	}
+
+	for _, endpoint := range config.Networks {
+		if endpoint.Name == "external" {
+
+			// XXX handle port maps
+			if err := established.Commit(context.TODO()); err != nil {
+				return err
+			}
+
+			if err := reject.Commit(context.TODO()); err != nil {
+				return err
+			}
+
+			break
 		}
 	}
 

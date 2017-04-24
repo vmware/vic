@@ -963,16 +963,18 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 	// map ports
 	if bind {
-		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
-		if err = MapPorts(hostConfig, e, id); err != nil {
-			return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
-		}
-
-		defer func() {
-			if err != nil {
-				UnmapPorts(hostConfig)
+		scope, e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
+		if scope != nil && scope.ScopeType == "bridged" {
+			if err = MapPorts(hostConfig, e, id); err != nil {
+				return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 			}
-		}()
+
+			defer func() {
+				if err != nil {
+					UnmapPorts(hostConfig)
+				}
+			}()
+		}
 	}
 
 	// commit the handle; this will reconfigure and start the vm
@@ -1200,31 +1202,36 @@ func (c *Container) defaultScope() string {
 	return defaultScope.scope
 }
 
-func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.HostConfig, endpoints []*models.EndpointConfig) *models.EndpointConfig {
+func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.HostConfig, endpoints []*models.EndpointConfig) (*models.ScopeConfig, *models.EndpointConfig) {
 	if len(hostconfig.PortBindings) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// check if the port binding network is a bridge type
 	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(hostconfig.NetworkMode.NetworkName()))
 	if err != nil {
 		log.Error(err)
-		return nil
+		return nil, nil
 	}
 
-	if len(listRes.Payload) != 1 || listRes.Payload[0].ScopeType != "bridge" {
+	if l := len(listRes.Payload); l != 1 {
+		log.Warnf("found %d scopes", l)
+		return nil, nil
+	}
+
+	if listRes.Payload[0].ScopeType != "bridge" {
 		log.Warnf("port binding for network %s is not bridge type", hostconfig.NetworkMode.NetworkName())
-		return nil
+		return listRes.Payload[0], nil
 	}
 
 	// look through endpoints to find the container's IP on the network that has the port binding
 	for _, e := range endpoints {
 		if hostconfig.NetworkMode.NetworkName() == e.Scope || (hostconfig.NetworkMode.IsDefault() && e.Scope == c.defaultScope()) {
-			return e
+			return listRes.Payload[0], e
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ContainerStop looks for the given container and terminates it,

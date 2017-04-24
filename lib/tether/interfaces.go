@@ -33,7 +33,7 @@ type Operations interface {
 	Log() (io.Writer, error)
 
 	SetHostname(hostname string, aliases ...string) error
-	SetupFirewall(config *ExecutorConfig) error
+	SetupFirewall(*ExecutorConfig) error
 	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(ctx context.Context, label, target string) error
 	MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error
