@@ -433,7 +433,7 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 	// delete the default route for the bridge.out table, if it exists
 	bTablePresent := bridgeTableExists(t)
 	if bTablePresent {
-		if err := t.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Table: 201}); err != nil {
+		if err := t.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Table: bridgeTableNumber}); err != nil {
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.ESRCH {
 				return fmt.Errorf("could not update default route for bridge.out table: %s", err)
 			}
@@ -447,7 +447,7 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 	}
 
 	if bTablePresent {
-		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP, Table: 201}
+		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP, Table: bridgeTableNumber}
 		if err := t.RouteAdd(route); err != nil {
 			return fmt.Errorf("failed to add gateway route for table bridge.out for endpoint %s: %s", endpoint.Network.Name, err)
 		}
