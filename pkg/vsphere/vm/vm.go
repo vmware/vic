@@ -38,7 +38,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
-const UpgradeInProgress = "UpgradeInProgress"
+const UpdateStatus = "UpgradeInProgress"
 
 type InvalidState struct {
 	r types.ManagedObjectReference
@@ -574,23 +574,23 @@ func (vm *VirtualMachine) VCHUpdateStatus(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	if v, ok := info[UpgradeInProgress]; ok {
-		updateStatus, err := strconv.ParseBool(v)
+	if v, ok := info[UpdateStatus]; ok {
+		status, err := strconv.ParseBool(v)
 		if err != nil {
 			//  If error occurs, the bool return value does not matter for the caller.
-			return true, fmt.Errorf("failed to parse %s to bool: %s", v, err)
+			return false, fmt.Errorf("failed to parse %s to bool: %s", v, err)
 		}
-		return updateStatus, nil
+		return status, nil
 	}
 
-	// If "UpgradeInProgress" is not found, it might be the case that no upgrade/configure has been done to this VCH before
+	// If UpdateStatus is not found, it might be the case that no upgrade/configure has been done to this VCH before
 	return false, nil
 }
 
-// SetVCHUpdateStatus sets the "UpgradeInProgress" flag in ExtraConfig
-func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, updateStatus bool) error {
+// SetVCHUpdateStatus sets the VCH update status in ExtraConfig
+func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) error {
 	info := make(map[string]string)
-	info[UpgradeInProgress] = strconv.FormatBool(updateStatus)
+	info[UpdateStatus] = strconv.FormatBool(status)
 
 	s := &types.VirtualMachineConfigSpec{
 		ExtraConfig: vmomi.OptionValueFromMap(info),

@@ -608,7 +608,7 @@ func TestWaitForResult(t *testing.T) {
 // SetUpdateStatus sets the VCH upgrade/configure status.
 func SetUpdateStatus(ctx context.Context, updateStatus string, vm *VirtualMachine) error {
 	info := make(map[string]string)
-	info[UpgradeInProgress] = updateStatus
+	info[UpdateStatus] = updateStatus
 
 	s := &types.VirtualMachineConfigSpec{
 		ExtraConfig: vmomi.OptionValueFromMap(info),
@@ -754,7 +754,7 @@ func TestSetVCHUpdateStatus(t *testing.T) {
 		t.Fatalf("ERROR: %s", err)
 	}
 
-	v, ok := info[UpgradeInProgress]
+	v, ok := info[UpdateStatus]
 	if ok {
 		assert.Equal(t, "true", v, "UpgradeInProgress should be true")
 	} else {
@@ -772,7 +772,7 @@ func TestSetVCHUpdateStatus(t *testing.T) {
 		t.Fatalf("ERROR: %s", err)
 	}
 
-	v, ok = info[UpgradeInProgress]
+	v, ok = info[UpdateStatus]
 	if ok {
 		assert.Equal(t, "false", v, "UpgradeInProgress should be false")
 	} else {
