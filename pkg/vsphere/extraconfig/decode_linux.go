@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 	guestinfo := rpcvmx.NewConfig()
 
 	source := func(key string) (string, error) {
-		if key != guestinfoSecretKey {
+		if key != GuestInfoSecretKey {
 			key = addPrefixToKey(DefaultGuestInfoPrefix, prefix, key)
 		}
 
@@ -52,7 +52,7 @@ func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 			value = ""
 		}
 
-		if key != guestinfoSecretKey { // don't log the secret key
+		if key != GuestInfoSecretKey { // don't log the secret key
 			log.Debugf("GuestInfoSource: key: %s, value: %#v, error: %s", key, value, err)
 		}
 
