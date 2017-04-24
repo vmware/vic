@@ -22,8 +22,9 @@ while getopts ":c:d:n:" opt; do
 done
 
 
+CONF_DIR=`dirname $0`
 cd $OUTDIR
-openssl ca -config openssl.cnf \
+openssl ca -config $CONF_DIR/openssl.cnf \
     -batch \
     -extensions server_cert \
     -days 365 -notext -md sha256 \
