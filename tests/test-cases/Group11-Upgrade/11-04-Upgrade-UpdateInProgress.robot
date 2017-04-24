@@ -31,11 +31,6 @@ Check UpdateInProgress
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
-Inspect VCH Upgrade Completed
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Completed successfully
-
 *** Test Cases ***
 Upgrade VCH with UpdateInProgress
     Run  govc vm.change -vm=%{VCH-NAME} -e=UpdateInProgress=true
@@ -47,7 +42,7 @@ Upgrade VCH with UpdateInProgress
     Check UpdateInProgress  false
 
 Upgrade and inspect VCH
-    Start Process  bin/vic-machine-linux  upgrade  --debug\=1  --name\=%{VCH-NAME}  --target\=%{TEST_URL}  --user\=%{TEST_USERNAME}  --password\=%{TEST_PASSWORD}  --force --compute-resource\=%{TEST_RESOURCE}  --timeout\=%{TEST_TIMEOUT}  alias=UpgradeVCH
+    Start Process  bin/vic-machine-linux upgrade --debug 1 --name %{VCH-NAME} --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --force --compute-resource %{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}  shell=True  alias=UpgradeVCH
     Wait Until Keyword Succeeds  20x  5s  Inspect VCH   Upgrade/update in progress
     Wait For Process  UpgradeVCH
     Inspect VCH  Completed successfully
