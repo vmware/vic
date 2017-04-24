@@ -21,53 +21,53 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Make sure container starts
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${out}=  Run  docker ${params} ps
+    \   ${out}=  Run  docker %{VCH-PARAMS} ps
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  /bin/top
     \   Exit For Loop If  ${status}
     \   Sleep  1
 
 *** Test Cases ***
 Docker run -it date
-    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} run -it busybox date
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it busybox date
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  UTC
 
 Docker run -it df
-    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} run -it busybox df
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it busybox df
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  Filesystem
 
 Docker run -it command that doesn't stop
-    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} rm -f
-    ${result}=  Start Process  docker ${params} run -itd busybox /bin/top  shell=True  alias=top
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs -n1 docker %{VCH-PARAMS} rm -f
+    ${result}=  Start Process  docker %{VCH-PARAMS} run -itd busybox /bin/top  shell=True  alias=top
 
     Make sure container starts
-    ${containerID}=  Run  docker ${params} ps -q
-    ${out}=  Run  docker ${params} logs ${containerID}
+    ${containerID}=  Run  docker %{VCH-PARAMS} ps -q
+    ${out}=  Run  docker %{VCH-PARAMS} logs ${containerID}
     Should Contain  ${out}  Mem:
     Should Contain  ${out}  CPU:
     Should Contain  ${out}  Load average:
 
 Docker run with -i
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -i busybox /bin/ash -c "dmesg;echo END_OF_THE_TEST"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -i busybox /bin/ash -c "dmesg;echo END_OF_THE_TEST"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  END_OF_THE_TEST
 
 Docker run with -it
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/ash -c "dmesg;echo END_OF_THE_TEST"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it busybox /bin/ash -c "dmesg;echo END_OF_THE_TEST"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  END_OF_THE_TEST
 
 Hello world with -i
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -i hello-world
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -i hello-world
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  https://docs.docker.com/engine/userguide/
 
 Hello world with -it
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it hello-world
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it hello-world
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  https://docs.docker.com/engine/userguide/
@@ -82,3 +82,19 @@ Start with attach and interactive
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
+
+Stop a container stuck in starting state
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${name}=  Generate Random String  15
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it --name ${name} busybox /bin/date
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc device.disconnect -vm */${name}* serialport-9000
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${name}
+    Should Contain  ${output}  Error:
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${name}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json */${name}* | jq -r .VirtualMachines[].Runtime.PowerState
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  poweredOff
