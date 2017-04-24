@@ -136,11 +136,14 @@ func (t *operations) Setup(sink tether.Config) error {
 
 // SetupFirewall sets up firewall rules on the external scope only.  Any
 // portmaps are honored as are port exposes.
-//func (t *operations) SetupFirewall(endpoints map[string]*tether.NetworkEndpoint) error {
 func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
-	if err := netfilter.Flush(context.Background(), ""); err != nil {
-		return err
-	}
+	// XXX It looks like we'd want to collect the errors here, but we
+	// can't.  Since this is running inside init (tether) and tether
+	// reaps all children, the os.exec package won't be able to collect
+	// the error code in time before the reaper does.  The exec package
+	// calls wait and attemps to collect its child, but the reaper will
+	// have raptured the pid before that.  So, best effor, just keep going.
+	netfilter.Flush(context.Background(), "")
 
 	// default rule set
 	established := &netfilter.Rule{
@@ -159,12 +162,6 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	for _, endpoint := range config.Networks {
 		if endpoint.Name == "external" {
 
-			// XXX It looks like we'd want to collect the errors here, but we
-			// can't.  Since this is running inside init (tether) and tether
-			// reaps all children, the os.exec package won't be able to collect
-			// the error code in time before the reaper does.  The exec package
-			// calls wait and attemps to collect its child, but the reaper will
-			// have raptured the pid before that.  So, best effor, just keep going.
 			established.Commit(context.TODO())
 
 			// handle the ports
@@ -172,7 +169,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 				// parse the port maps
 				r, err := portToRule(p)
 				if err != nil {
-					log.Errorf("can't apply port rule: %s", err.Error())
+					log.Errorf("can't apply port rule (%s): %s", p, err.Error())
 					continue
 				}
 
