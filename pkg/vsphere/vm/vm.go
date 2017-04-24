@@ -38,7 +38,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
-const UpdateInProgress = "UpdateInProgress"
+const UpgradeInProgress = "UpgradeInProgress"
 
 type InvalidState struct {
 	r types.ManagedObjectReference
@@ -565,32 +565,32 @@ func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.Manag
 	return mvm.Datastore, nil
 }
 
-// GetVCHUpdateStatus tells if an upgrade/update has already been started based on the UpdateInProgress flag in ExtraConfig
-// If error != nil, VCH upgrade/update will exit; so the value of the VCH upgrade/update status is not important
-func (vm *VirtualMachine) GetVCHUpdateStatus(ctx context.Context) (bool, error) {
+// VCHUpgradeStatus tells if an upgrade/configure has already been started based on the UpgradeInProgress flag in ExtraConfig
+// It returns the error if the vm operation does not succeed
+func (vm *VirtualMachine) VCHUpgradeStatus(ctx context.Context) (bool, error) {
 	info, err := vm.FetchExtraConfig(ctx)
 	if err != nil {
 		log.Errorf("Unable to get vm ExtraConfig: %s", err)
 		return false, err
 	}
 
-	if v, ok := info[UpdateInProgress]; ok {
-		updateStatus, err := strconv.ParseBool(v)
+	if v, ok := info[UpgradeInProgress]; ok {
+		upgradeStatus, err := strconv.ParseBool(v)
 		if err != nil {
-			//  If error occurs, return true to cancel VCH upgrade. The user can reset the UpdateInProgress flag later.
+			//  If error occurs, the bool return value does not matter for the caller.
 			return true, fmt.Errorf("failed to parse %s to bool: %s", v, err)
 		}
-		return updateStatus, nil
+		return upgradeStatus, nil
 	}
 
-	// If "UpdateInProgress" is not found, it might be the case that no update/upgrade has been done to this VCH before
+	// If "UpgradeInProgress" is not found, it might be the case that no upgrade/configure has been done to this VCH before
 	return false, nil
 }
 
-// SetVCHUpdateStatus sets the "UpdateInProgress" flag in ExtraConfig
-func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, updateStatus string) error {
+// SetVCHUpgradeStatus sets the "UpgradeInProgress" flag in ExtraConfig
+func (vm *VirtualMachine) SetVCHUpgradeStatus(ctx context.Context, upgradeStatus bool) error {
 	info := make(map[string]string)
-	info[UpdateInProgress] = updateStatus
+	info[UpgradeInProgress] = strconv.FormatBool(upgradeStatus)
 
 	s := &types.VirtualMachineConfigSpec{
 		ExtraConfig: vmomi.OptionValueFromMap(info),

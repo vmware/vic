@@ -66,7 +66,7 @@ func (u *Upgrade) Flags() []cli.Flag {
 		},
 		cli.BoolFlag{
 			Name:        "resetInProgressFlag",
-			Usage:       "Reset the UpdateInProgress flag",
+			Usage:       "Reset the UpgradeInProgress flag",
 			Destination: &u.ResetInProgressFlag,
 		},
 	}
@@ -154,35 +154,36 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	log.Infof("VCH ID: %s", vch.Reference().String())
 
 	if u.ResetInProgressFlag {
-		if err = vch.SetVCHUpdateStatus(ctx, "false"); err != nil {
-			log.Error("Failed to reset UpdateInprogress flag")
+		if err = vch.SetVCHUpgradeStatus(ctx, false); err != nil {
+			log.Error("Failed to reset UpgradeInprogress flag")
 			log.Error(err)
 			return errors.New("upgrade failed")
 		}
-		log.Infof("Reset UpdateInProgress flag successfully")
+		log.Infof("Reset UpgradeInProgress flag successfully")
 		return nil
 	}
 
-	upgrading, err := vch.GetVCHUpdateStatus(ctx)
+	upgrading, err := vch.VCHUpgradeStatus(ctx)
 	if err != nil {
-		log.Error("Unable to determine if upgrade/update is in progress")
+		log.Error("Unable to determine if upgrade/configure is in progress")
 		log.Error(err)
 		return errors.New("upgrade failed")
 	}
 	if upgrading {
-		log.Error("Upgrade failed: another upgrade/update operation is in progress")
+		log.Error("Upgrade failed: another upgrade/configure operation is in progress")
+		log.Error("Use --resetInProgressFlag to reset the VCH upgrade/configure status")
 		return errors.New("upgrade failed")
 	}
 
-	if err = vch.SetVCHUpdateStatus(ctx, "true"); err != nil {
-		log.Error("Failed to set UpdateInProgress flag to true")
+	if err = vch.SetVCHUpgradeStatus(ctx, true); err != nil {
+		log.Error("Failed to set UpgradeInProgress flag to true")
 		log.Error(err)
 		return errors.New("upgrade failed")
 	}
 
 	defer func() {
-		if err = vch.SetVCHUpdateStatus(ctx, "false"); err != nil {
-			log.Error("Failed to reset UpdateInProgress")
+		if err = vch.SetVCHUpgradeStatus(ctx, false); err != nil {
+			log.Error("Failed to reset UpgradeInProgress")
 			log.Error(err)
 		}
 	}()

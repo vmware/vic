@@ -168,13 +168,13 @@ func (i *Inspect) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachi
 		return
 	}
 
-	upgrading, err := vch.GetVCHUpdateStatus(ctx)
+	upgrading, err := vch.VCHUpgradeStatus(ctx)
 	if err != nil {
-		log.Errorf("Unable to determine if upgrade/update is in progress: %s", err)
+		log.Errorf("Unable to determine if upgrade/configure is in progress: %s", err)
 		return
 	}
 	if upgrading {
-		log.Info("Upgrade/update in progress")
+		log.Info("Upgrade/configure in progress")
 		return
 	}
 
