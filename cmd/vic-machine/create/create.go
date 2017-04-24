@@ -1204,7 +1204,8 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 
 		// If openssl is present, try to generate a browser friendly pfx file (a bundle of the public certificate AND the private key)
 		// The pfx file can be imported directly into keychains for client certificate authentication
-		args := strings.Split(fmt.Sprintf("pkcs12 -export -out ./%[1]s/cert.pfx -inkey ./%[1]s/key.pem -in ./%[1]s/cert.pem -certfile ./%[1]s/ca.pem -password pass:", c.DisplayName), " ")
+		certPath := filepath.Clean(c.certPath)
+		args := strings.Split(fmt.Sprintf("pkcs12 -export -out %[1]s/cert.pfx -inkey %[1]s/key.pem -in %[1]s/cert.pem -certfile %[1]s/ca.pem -password pass:", certPath), " ")
 		// #nosec: Subprocess launching with variable
 		pfx := exec.Command("openssl", args...)
 		out, err := pfx.CombinedOutput()
@@ -1212,7 +1213,7 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 			log.Debug(out)
 			log.Warnf("Failed to generate browser friendly PFX client certificate: %s", err)
 		} else {
-			log.Infof("Generated browser friendly PFX client certificate - certificate in ./%s/cert.pfx", c.DisplayName)
+			log.Infof("Generated browser friendly PFX client certificate - certificate in %s/cert.pfx", certPath)
 		}
 	}
 
