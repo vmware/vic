@@ -16,7 +16,6 @@
 Documentation  This resource contains all keywords related to creating, deleting, maintaining an instance of Admiral
 Library  Selenium2Library  5  5
 Library  OperatingSystem
-Suite Teardown  Close All Browsers
 
 *** Keywords ***
 Install Admiral
