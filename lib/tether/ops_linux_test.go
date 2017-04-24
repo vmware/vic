@@ -29,6 +29,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 
+	"os"
+
+	"io/ioutil"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -246,4 +250,30 @@ func TestGetUserSysProcAttr(t *testing.T) {
 		assert.Equal(t, test.ruid, int(user.Credential.Uid), "returned user id mismatch")
 		assert.Equal(t, test.rgid, int(user.Credential.Gid), "returned group id mismatch")
 	}
+}
+
+func TestIsEmpty(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testisEmpty")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	err = os.MkdirAll(dir+"/lost+found", 0644)
+	assert.NoError(t, err)
+
+	ok, err := isEmpty(dir)
+	assert.True(t, ok)
+	assert.NoError(t, err)
+
+	err = os.MkdirAll(dir+"/test1", 0644)
+	assert.NoError(t, err)
+	err = os.MkdirAll(dir+"/test2", 0644)
+	assert.NoError(t, err)
+	err = ioutil.WriteFile(dir+"/test3.txt", []byte{}, 0644)
+	assert.NoError(t, err)
+
+	ok, err = isEmpty(dir)
+	assert.False(t, ok)
+	assert.NoError(t, err)
+
 }

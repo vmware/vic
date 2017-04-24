@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-# docker build --no-cache -t jakedsouza/group-1-06-docker-verify-volume-files:1.0 -f Dockerfile.1-06-Docker-Verify-Volume-Files .
-# docker push jakedsouza/group-1-06-docker-verify-volume-files:1.0
+# docker build --no-cache -t jakedsouza/group-1-19-docker-verify-volume-files:1.0 -f Dockerfile.1-19-Docker-Verify-Volume-Files .
+# docker push jakedsouza/group-1-19-docker-verify-volume-files:1.0
 
 FROM alpine:latest
 

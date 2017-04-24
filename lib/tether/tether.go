@@ -51,8 +51,6 @@ const (
 
 	// temp directory to copy existing data to mounts
 	bindDir = "/.tether/.bind"
-	// markfile to avoid re-copying existing data to mounts
-	mountsCopied = "/.tether/.mountscopied"
 )
 
 var Sys = system.New()
@@ -267,11 +265,6 @@ func (t *tether) populateVolumes() error {
 	if len(t.config.Mounts) == 0 {
 		return nil
 	}
-	// skip if this was done before
-	if _, err := os.Stat(mountsCopied); err == nil {
-		log.Debugf("mounts already copied, skipping copy")
-		return nil
-	}
 
 	for _, mnt := range t.config.Mounts {
 		if mnt.Path == "" {
@@ -285,18 +278,6 @@ func (t *tether) populateVolumes() error {
 			}
 		}
 	}
-
-	log.Debugf("creating %s", mountsCopied)
-	f, err := os.Create(mountsCopied)
-	if err != nil {
-		log.Debugf("error creating file %s: %+v", mountsCopied, err)
-		return err
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Errorf("error closing file for mount %s: %+v", f.Name(), err)
-		}
-	}()
 
 	return nil
 }

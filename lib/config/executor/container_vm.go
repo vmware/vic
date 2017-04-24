@@ -29,6 +29,17 @@ const (
 	KILLED
 )
 
+// CopyMode type to define whether to copy data from the base image on mount
+type CopyMode int
+
+const (
+	// CopyNever Dont copy data on mount
+	CopyNever CopyMode = iota + 1
+
+	// CopyNew Copy data to the volume when it is first mounted
+	CopyNew
+)
+
 // Common data between managed entities, across execution environments
 type Common struct {
 	// A reference to the components hosting execution environment, if any
@@ -78,17 +89,6 @@ type ExitLog struct {
 	ExitStatus int
 	Message    string
 }
-
-// CopyMode type to define whether to copy data from the base image on mount
-type CopyMode int
-
-const (
-	// CopyNever Dont copy data on mount
-	CopyNever CopyMode = iota
-
-	// CopyNew Copy data to the volume when it is first mounted
-	CopyNew
-)
 
 // MountSpec details a mount that must be executed within the executor
 // A mount is a URI -> path mapping with a credential of some kind
