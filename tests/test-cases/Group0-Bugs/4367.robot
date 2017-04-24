@@ -18,9 +18,6 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-docker run -t --name test busybox ls
-docker start -a test
-
 *** Test Cases ***
 Check running twice
     ${name}=  Generate Random String  15

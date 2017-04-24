@@ -48,9 +48,6 @@ Attach to fake container
     Should Contain  ${out}  Error: No such container: fakeContainer
 
 Attach with short input
-    ${status}=  Get State Of Github Issue  4367
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-09-Docker-Attach.robot needs to be updated now that Issue #4367 has been resolved
-    Log  Issue \#4367 is blocking implementation  WARN
     ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
     Should Be Equal As Integers  ${rc}  0
     ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
@@ -70,9 +67,6 @@ Attach with short input
     Run  rm -rf ${tmp}
 
 Attach with short output
-    ${status}=  Get State Of Github Issue  4410
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-09-Docker-Attach.robot needs to be updated now that Issue #4410 has been resolved
-    Log  Issue \#4410 is blocking implementation  WARN
     Run  docker %{VCH-PARAMS} pull busybox
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox echo one
     Should Be Equal As Integers  ${rc}  0
@@ -82,9 +76,6 @@ Attach with short output
     \     Should Be Equal  ${output}  one
 
 Attach with short output with tty
-    ${status}=  Get State Of Github Issue  4410
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-09-Docker-Attach.robot needs to be updated now that Issue #4410 has been resolved
-    Log  Issue \#4410 is blocking implementation  WARN
     Run  docker %{VCH-PARAMS} pull busybox
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t busybox echo one
     Should Be Equal As Integers  ${rc}  0

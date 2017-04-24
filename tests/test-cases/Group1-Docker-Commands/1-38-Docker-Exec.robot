@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 1-38 - Docker Start
+Documentation  Test 1-38 - Docker Exec
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
@@ -28,7 +28,7 @@ Exec -d
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${id} /bin/touch tmp/force
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/ls -al /tmp/force
-    Should Be Equal As Integers  ${rc}  0 
+    Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  force
 
 Exec Echo
@@ -105,3 +105,14 @@ Exec Sort -i
     \     Should Be Equal As Integers  ${ret.rc}  0
     \     Should Be Empty  ${ret.stderr}
     Run  rm -rf ${tmp}
+
+Exec NonExisting
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /NonExisting
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Contain  ${output}  no such file or directory

@@ -17,10 +17,11 @@ This test requires that a vSphere server is running and available
 4. Issue docker exec -i <containerID> /bin/echo ID - 5 times with incrementing ID
 5. Issue docker exec -t <containerID> /bin/echo ID - 5 times with incrementing ID
 6. Issue docker exec -it <containerID> /bin/echo ID - 5 times with incrementing ID
-
+7. Issue docker exec -it <containerID> NON_EXISTING_COMMAND
 
 #Expected Outcome:
 * Step 2-6 should echo the ID given
+* Step 7 should return an error
 
 #Possible Problems:
 None
