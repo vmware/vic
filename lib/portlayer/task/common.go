@@ -18,12 +18,10 @@ import (
 	"fmt"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 )
-
-// TasksSupportedVersion is the minimum version that tasks are supported in
-const TasksSupportedVersion = 3
 
 // Toggle launching of the process in the container
 func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (interface{}, error) {
@@ -69,7 +67,7 @@ func toggleActive(op *trace.Operation, h interface{}, id string, active bool) (i
 
 func compatible(h interface{}) error {
 	if handle, ok := h.(*exec.Handle); ok {
-		if handle.DataVersion < TasksSupportedVersion {
+		if handle.DataVersion < feature.TasksSupportedVersion {
 			return fmt.Errorf("running tasks not supported for this container")
 		}
 

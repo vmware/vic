@@ -8,7 +8,7 @@ As [upgrade design](../../../doc/design/upgrade.md) mentioned, every developer w
 
 ### VM guestinfo changes including VCH appliance and container VM
 
-- Manually increase MaxPluginVersion constant in pkg/version/version.go. Be sure to check if there is file conflict with other's commit. If there is conflict, that means others had plugin check in as well, make sure you did not use same version number with others
+- Be sure to check if there is file conflict with other's commit. If there is conflict, that means others had plugin check in as well, make sure you did not use same version number with others
 - Create one package in this directory for your plugin
 - Add plugin files to the new package
 - Your plugin might rely on previous version and current version, if you need the whole VCH appliance or container configuration definition, copy them to package lib/migration/config, with correct new package created. For example, if you are working on migration from version 4 to version 5, create a package named v4 if there is no one existing, and copy all old configuration files to there, and create a new package v5,  copy all new configuration files to v5 package. Remember to update package name.
@@ -22,7 +22,7 @@ As [upgrade design](../../../doc/design/upgrade.md) mentioned, every developer w
 
 ### key/value store changes
 
-- Manually increase MaxPluginVersion constant in pkg/version/version.go. Be sure to check if there is file conflict with other's commit. If there is conflict, that means others had plugin check in as well, make sure you did not use same version number with others
+- Be sure to check if there is file conflict with other's commit. If there is conflict, that means others had plugin check in as well, make sure you did not use same version number with others
 - Create one package in this directory for your plugin
 - Add your plugin files to the new package
 - Develop plugin based on your specific change.

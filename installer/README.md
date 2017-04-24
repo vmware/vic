@@ -38,7 +38,7 @@ make ova-release
 Deploy OVA with ovftool in a Docker container on ESX host
 ```
 docker run -it --net=host -v ~/go/src/github.com/vmware/vic/bin:/test-bin \
-  gcr.io/eminent-nation-87317/vic-integration-test:1.26 ovftool --acceptAllEulas --X:injectOvfEnv \
+  gcr.io/eminent-nation-87317/vic-integration-test:1.27 ovftool --acceptAllEulas --X:injectOvfEnv \
   --X:enableHiddenProperties -st=OVA --powerOn --noSSLVerify=true -ds=datastore1 -dm=thin \
   --net:Network="VM Network" \
   --prop:appliance.root_pwd="VMware1\!" --prop:appliance.permit_root_login=True --prop:registry.port=443 \

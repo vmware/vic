@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -289,6 +290,17 @@ func TestWaitForUpdates(t *testing.T) {
 	if err == nil {
 		t.Error("expected error")
 	}
+
+	// test CancelWaitForUpdates
+	p, err := pc.Create(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = methods.CancelWaitForUpdates(ctx, c.Client, &types.CancelWaitForUpdates{This: p.Reference()})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestCollectInterfaceType(t *testing.T) {
@@ -339,5 +351,88 @@ func TestExtractEmbeddedField(t *testing.T) {
 	if ok {
 		t.Error("expected not ok")
 	}
+}
 
+func TestPropertyCollectorFold(t *testing.T) {
+	ctx := context.Background()
+
+	m := VPX()
+
+	defer m.Remove()
+
+	err := m.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	client, err := govmomi.NewClient(ctx, s.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cluster := Map.Any("ClusterComputeResource")
+	compute := Map.Any("ComputeResource")
+
+	// Test that we fold duplicate properties (rbvmomi depends on this)
+	var content []types.ObjectContent
+	err = client.Retrieve(ctx, []types.ManagedObjectReference{cluster.Reference()}, []string{"name", "name"}, &content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(content) != 1 {
+		t.Fatalf("len(content)=%d", len(content))
+	}
+	if len(content[0].PropSet) != 1 {
+		t.Fatalf("len(PropSet)=%d", len(content[0].PropSet))
+	}
+
+	// Test that we fold embedded type properties (rbvmomi depends on this)
+	req := types.RetrieveProperties{
+		SpecSet: []types.PropertyFilterSpec{
+			{
+				PropSet: []types.PropertySpec{
+					{
+						DynamicData: types.DynamicData{},
+						Type:        "ComputeResource",
+						PathSet:     []string{"name"},
+					},
+					{
+						DynamicData: types.DynamicData{},
+						Type:        "ClusterComputeResource",
+						PathSet:     []string{"name"},
+					},
+				},
+				ObjectSet: []types.ObjectSpec{
+					{
+						Obj: compute.Reference(),
+					},
+					{
+						Obj: cluster.Reference(),
+					},
+				},
+			},
+		},
+	}
+
+	pc := client.PropertyCollector()
+
+	res, err := pc.RetrieveProperties(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content = res.Returnval
+
+	if len(content) != 2 {
+		t.Fatalf("len(content)=%d", len(content))
+	}
+
+	for _, oc := range content {
+		if len(oc.PropSet) != 1 {
+			t.Errorf("%s len(PropSet)=%d", oc.Obj, len(oc.PropSet))
+		}
+	}
 }

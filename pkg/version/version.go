@@ -20,6 +20,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/vmware/vic/lib/migration/feature"
 )
 
 // These fields are set by the compiler using the linker flags upon build via Makefile.
@@ -29,9 +31,6 @@ var (
 	BuildDate   string
 	BuildNumber string
 	State       string
-
-	// MaxPluginVersion must be increased to add new plugin and make sure the new plugin version is same to this value
-	MaxPluginVersion = 5
 
 	v bool
 )
@@ -84,7 +83,7 @@ func GetBuild() *Build {
 		BuildDate:     BuildDate,
 		BuildNumber:   BuildNumber,
 		State:         State,
-		PluginVersion: MaxPluginVersion,
+		PluginVersion: feature.MaxPluginVersion - 1,
 	}
 }
 

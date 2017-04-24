@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/iolog"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/metrics"
 	"github.com/vmware/vic/pkg/trace"
@@ -45,7 +46,6 @@ import (
 
 const (
 	containerWaitTimeout = 3 * time.Minute
-	minVersionForRename  = 4
 )
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
@@ -335,34 +335,21 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 	enc := json.NewEncoder(w)
 	flusher := NewFlushingReader(r)
 
-	// channel used to receive metrics
-	var ch chan interface{}
-
-	if params.Stream {
-		subch, err := metrics.Supervisor.VMCollector().Subscribe(c)
-		if err != nil {
-			log.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
-			return containers.NewGetContainerStatsInternalServerError()
-		}
-		log.Debugf("container(%s) stats stream subscribed @ %d", params.ID, &subch)
-		ch = subch
-	} else {
-		sch, err := metrics.Supervisor.VMCollector().Sample(c)
-		if err != nil {
-			log.Errorf("unable to subscribe container(%s) to stats sample: %s", params.ID, err)
-			return containers.NewGetContainerStatsInternalServerError()
-		}
-		log.Debugf("container(%s) stats sample subscribed @ %d", params.ID, &sch)
-		ch = sch
+	// subscribe to metrics
+	// currently all stats requests will be a subscription and it will
+	// be the responsibility of the caller to close the connection
+	// and there by release the subscription
+	ch, err := metrics.Supervisor.VMCollector().Subscribe(c)
+	if err != nil {
+		log.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
+		return containers.NewGetContainerStatsInternalServerError()
 	}
+	log.Debugf("container(%s) stats stream subscribed @ %d", params.ID, &ch)
 
 	// closer will be run when the http transport is closed
 	cleaner := func() {
-		// streaming is a subscription, so unsubscribe if streaming
-		if params.Stream {
-			log.Debug("unsubscribing %s from stats %d", params.ID, &ch)
-			metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
-		}
+		log.Debugf("unsubscribing %s from stats %d", params.ID, &ch)
+		metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
 		closePipe(r, w)
 	}
 
@@ -487,7 +474,7 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 
 	// rename on container version < supportVersionForRename is not supported
 	log.Debugf("The container DataVersion is: %d", h.DataVersion)
-	if h.DataVersion < minVersionForRename {
+	if h.DataVersion < feature.RenameSupportedVersion {
 		err := &models.Error{
 			Message: fmt.Sprintf("container %s does not support rename", container.ExecConfig.Name),
 		}

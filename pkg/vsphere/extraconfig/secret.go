@@ -27,7 +27,7 @@ import (
 
 // The value of this key is hidden from API requests, but visible within the guest
 // #nosec: Potential hardcoded credentials
-const guestinfoSecretKey = "guestinfo.ovfEnv"
+const GuestInfoSecretKey = "guestinfo.ovfEnv"
 
 // SecretKey provides helpers to encrypt/decrypt extraconfig values
 type SecretKey struct {
@@ -68,12 +68,12 @@ func (s *SecretKey) String() string {
 
 // Source wraps the given DataSource, decrypting any secret values
 func (s *SecretKey) Source(ds DataSource) DataSource {
-	// If guestinfoSecretKey has a value, it should be our secret key.
-	if val, _ := ds(guestinfoSecretKey); val != "" {
+	// If GuestInfoSecretKey has a value, it should be our secret key.
+	if val, _ := ds(GuestInfoSecretKey); val != "" {
 		if err := s.FromString(val); err != nil {
-			log.Errorf("failed to decode %s: %s", guestinfoSecretKey, err)
+			log.Errorf("failed to decode %s: %s", GuestInfoSecretKey, err)
 		} else {
-			log.Debugf("secret key decoded from %s", guestinfoSecretKey)
+			log.Debugf("secret key decoded from %s", GuestInfoSecretKey)
 		}
 	}
 
@@ -104,8 +104,8 @@ func (s *SecretKey) Source(ds DataSource) DataSource {
 // Sink wraps the given DataSink, encrypting any secret values
 func (s *SecretKey) Sink(ds DataSink) DataSink {
 	// Store our secret key.
-	if err := ds(guestinfoSecretKey, s.String()); err != nil {
-		log.Errorf("failed to store %s: %s", guestinfoSecretKey, err)
+	if err := ds(GuestInfoSecretKey, s.String()); err != nil {
+		log.Errorf("failed to store %s: %s", GuestInfoSecretKey, err)
 	}
 
 	return func(key, value string) error {

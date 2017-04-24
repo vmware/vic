@@ -607,26 +607,29 @@ func (c *Container) OnEvent(e events.Event) {
 			}
 			log.Debugf("Container(%s) state set to %s via event activity", c, newState)
 		case StateRemoved:
-			log.Debugf("Container(%s) %s via event activity", c, newState)
 			if c.vm != nil && c.vm.IsFixing() {
 				// is fixing vm, which will be registered back soon, so do not remove from containers cache
-				log.Debugf("Container(%s) %s is being fixed", c.ExecConfig.ID)
+				log.Debugf("Container(%s) %s is being fixed - %s event ignored", c.ExecConfig.ID, newState)
 
 				// Received remove event triggered by unregister VM operation - leave
 				// fixing state now. In a loaded environment, the remove event may be
 				// received after vm.fixVM() has returned, at which point the container
 				// should still be in fixing state to avoid removing it from the cache below.
 				c.vm.LeaveFixingState()
-				break
+				// since we're leaving the container in cache, just return w/o allowing
+				// a container event to be propogated to subscribers
+				return
 			}
-
+			log.Debugf("Container(%s) %s via event activity", c, newState)
+			// if we are here the containerVM has been removed from vSphere, so lets remove it
+			// from the portLayer cache
 			Containers.Remove(c.ExecConfig.ID)
 			c.vm = nil
 		default:
 			return
 		}
 
-		// regardless of update success failure publish the container event
+		// regardless of state update success or failure publish the container event
 		publishContainerEvent(c.ExecConfig.ID, e.Created(), e.String())
 		return
 	}

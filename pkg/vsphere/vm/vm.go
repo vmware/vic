@@ -108,67 +108,6 @@ func (vm *VirtualMachine) DSPath(ctx context.Context) (url.URL, error) {
 	return val, nil
 }
 
-// WaitForMac will wait until VM get mac for all attached nics.
-// Returns map "Virtual Network Name": "nic MAC address"
-func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, error) {
-	devices, err := vm.Device(ctx)
-	if err != nil {
-		log.Errorf("Unable to get device listing for VM")
-		return nil, err
-	}
-
-	nics := devices.SelectByType(&types.VirtualEthernetCard{})
-	macs := make(map[string]string)
-	// device name:network name
-	nicMappings := make(map[string]string)
-	for _, nic := range nics {
-		if n, ok := nic.(types.BaseVirtualEthernetCard); ok {
-			netName, err := vm.getNetworkName(ctx, n)
-			if err != nil {
-				log.Errorf("failed to get network name: %s", err)
-				return nil, err
-			}
-			macs[netName] = ""
-
-			nicMappings[devices.Name(nic)] = netName
-		} else {
-			log.Errorf("Failed to get network name of vNIC: %v", nic)
-			return nil, err
-		}
-	}
-
-	p := property.DefaultCollector(vm.Session.Vim25())
-
-	// Wait for all NICs to have a MacAddress, which may not be generated yet.
-	err = property.Wait(ctx, p, vm.Reference(), []string{"config.hardware.device"}, func(pc []types.PropertyChange) bool {
-		for _, c := range pc {
-			if c.Op != types.PropertyChangeOpAssign {
-				continue
-			}
-
-			changedDevices := c.Val.(types.ArrayOfVirtualDevice).VirtualDevice
-			for _, device := range changedDevices {
-				if nic, ok := device.(types.BaseVirtualEthernetCard); ok {
-					mac := nic.GetVirtualEthernetCard().MacAddress
-					if mac == "" {
-						continue
-					}
-					netName := nicMappings[devices.Name(device)]
-					macs[netName] = mac
-				}
-			}
-		}
-		for key, value := range macs {
-			if value == "" {
-				log.Debugf("Didn't get mac address for nic on %s, continue", key)
-				return false
-			}
-		}
-		return true
-	})
-	return macs, err
-}
-
 func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirtualEthernetCard) (string, error) {
 	if card, ok := nic.GetVirtualEthernetCard().Backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo); ok {
 		pg := card.Port.PortgroupKey
@@ -260,7 +199,12 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 			case types.VirtualMachinePowerState:
 				if v != types.VirtualMachinePowerStatePoweredOn {
 					// Give up if the vm has powered off
-					poweredOff = fmt.Errorf("%s=%s", c.Name, v)
+					msg := "powered off"
+					if v == types.VirtualMachinePowerStateSuspended {
+						// Unlikely, but possible if the VM was suspended out-of-band
+						msg = string(v)
+					}
+					poweredOff = fmt.Errorf("container VM has unexpectedly %s", msg)
 					return true
 				}
 			}
