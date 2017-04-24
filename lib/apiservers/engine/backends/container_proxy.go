@@ -597,8 +597,9 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 		cache.ContainerCache().DeleteContainer(vc.ContainerID)
 		return err
 	}
-	// attempt to stop container if status is running or broken
-	if !state.Running && state.Status != ContainerError {
+	// attempt to stop container only if container state is not stopped or exited.
+	// we should allow user to stop and remove the container that is in unexpected status, e.g. starting, because of serial port connection issue
+	if state.Status == ContainerStopped || state.Status == ContainerExited {
 		return nil
 	}
 

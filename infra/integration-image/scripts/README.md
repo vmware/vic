@@ -1,5 +1,9 @@
 # scripts
 
+
+Integration image MUST be rebuilt after updates to scripts in this directory to be included in CI 
+
+
 ### ca-test.sh
 
 Generate a root CA and a server certificate

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,10 +23,14 @@ import (
 
 type PropertyFilter struct {
 	mo.PropertyFilter
+
+	pc *PropertyCollector
 }
 
-func (*PropertyFilter) DestroyPropertyFilter(c *types.DestroyPropertyFilter) soap.HasFault {
+func (f *PropertyFilter) DestroyPropertyFilter(c *types.DestroyPropertyFilter) soap.HasFault {
 	body := &methods.DestroyPropertyFilterBody{}
+
+	f.pc.Filter = RemoveReference(c.This, f.pc.Filter)
 
 	Map.Remove(c.This)
 

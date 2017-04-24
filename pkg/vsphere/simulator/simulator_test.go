@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -271,13 +272,54 @@ func TestServeHTTP(t *testing.T) {
 	}
 }
 
+func TestServeAbout(t *testing.T) {
+	ctx := context.Background()
+
+	m := VPX()
+	m.App = 1
+	m.Pod = 1
+
+	defer m.Remove()
+
+	err := m.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := m.Service.NewServer()
+	defer s.Close()
+
+	c, err := govmomi.NewClient(ctx, s.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u := *s.URL
+	u.Path += "/vimServiceVersions.xml"
+	r, err := c.Get(u.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Body.Close()
+
+	u.Path = "/about"
+	r, err = c.Get(u.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Body.Close()
+}
+
 func TestServeHTTPS(t *testing.T) {
 	s := New(NewServiceInstance(esx.ServiceContent, esx.RootFolder))
 	s.TLS = new(tls.Config)
 	ts := s.NewServer()
 	defer ts.Close()
 
+	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0) // silence benign "TLS handshake error" log messages
+
 	ctx := context.Background()
+
 	// insecure=true OK
 	client, err := govmomi.NewClient(ctx, ts.URL, true)
 	if err != nil {
