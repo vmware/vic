@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -157,18 +159,66 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	for _, endpoint := range config.Networks {
 		if endpoint.Name == "external" {
 
-			// XXX handle port maps
-			if err := established.Commit(context.TODO()); err != nil {
-				return err
+			// XXX It looks like we'd want to collect the errors here, but we
+			// can't.  Since this is running inside init (tether) and tether
+			// reaps all children, the os.exec package won't be able to collect
+			// the error code in time before the reaper does.  The exec package
+			// calls wait and attemps to collect its child, but the reaper will
+			// have raptured the pid before that.  So, best effor, just keep going.
+			established.Commit(context.TODO())
+
+			// handle the ports
+			for _, p := range endpoint.Ports {
+				// parse the port maps
+				r, err := portToRule(p)
+				if err != nil {
+					log.Errorf("can't apply port rule: %s", err.Error())
+					continue
+				}
+
+				log.Infof("Applying rule for port %s", p)
+				r.Commit(context.TODO())
 			}
 
-			if err := reject.Commit(context.TODO()); err != nil {
-				return err
-			}
+			reject.Commit(context.TODO())
 
 			break
 		}
 	}
 
 	return nil
+}
+
+func portToRule(p string) (*netfilter.Rule, error) {
+	if strings.Contains(p, ":") {
+		return nil, errors.New("port maps are TBD")
+	}
+
+	// 9999/tcp
+	s := strings.Split(p, "/")
+	if len(s) != 2 {
+		return nil, errors.New("can't parse port spec: " + p)
+	}
+
+	rule := &netfilter.Rule{
+		Chain:     netfilter.Input,
+		Interface: "external",
+		Target:    netfilter.Accept,
+	}
+
+	switch netfilter.Protocol(s[1]) {
+	case netfilter.UDP:
+		rule.Protocol = netfilter.UDP
+	case netfilter.TCP:
+		rule.Protocol = netfilter.TCP
+	}
+
+	port, err := strconv.Atoi(s[0])
+	if err != nil {
+		return nil, err
+	}
+
+	rule.FromPort = port
+
+	return rule, nil
 }
