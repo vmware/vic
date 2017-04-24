@@ -1073,10 +1073,20 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		h.ExecConfig.Networks = make(map[string]*executor.NetworkEndpoint)
 	}
 
+	// If the scope type is external, name the nic as such.  We can only have
+	// one of these ATM, so this is a safe way to force ports (if exposed) to
+	// be explicitly allowed on this interface vs the bridged interface (which
+	// is by default private and secure).  We want to be able to limit traffic
+	// on exposed or external traffic and this is a stable hint to do that.
+	var ifname string
+	if s.Type() == constants.ExternalScopeType {
+		ifname = constants.ExternalScopeType
+	}
+
 	ne := &executor.NetworkEndpoint{
 		Common: executor.Common{
-			ID: strconv.Itoa(int(pciSlot)),
-			// Name: this would cause NIC renaming if uncommented
+			ID:   strconv.Itoa(int(pciSlot)),
+			Name: ifname,
 		},
 		Network: executor.ContainerNetwork{
 			Common: executor.Common{
