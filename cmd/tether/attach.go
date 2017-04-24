@@ -27,6 +27,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
@@ -562,6 +563,11 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func())
 		case msgs.ContainersReq:
 			msg := msgs.ContainersMsg{
 				IDs: t.sessions(true),
+			}
+			payload = msg.Marshal()
+		case msgs.VersionReq:
+			msg := msgs.VersionMsg{
+				Version: feature.MaxPluginVersion - 1,
 			}
 			payload = msg.Marshal()
 		default:

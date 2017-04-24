@@ -20,6 +20,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 
@@ -48,6 +49,10 @@ func toggle(handle *exec.Handle, id string, connected bool) (*exec.Handle, error
 	// iterate over Execs and set their RunBlock property to connected
 	session, ok := handle.ExecConfig.Execs[id]
 	if ok {
+		if err := compatible(handle); err != nil {
+			return nil, err
+		}
+
 		if session.Attach {
 			session.RunBlock = connected
 		}
@@ -115,4 +120,16 @@ func toggle(handle *exec.Handle, id string, connected bool) (*exec.Handle, error
 	}
 
 	return handle, nil
+}
+
+func compatible(h interface{}) error {
+	if handle, ok := h.(*exec.Handle); ok {
+		if handle.DataVersion < feature.ExecSupportedVersion {
+			return fmt.Errorf("attaching exec tasks not supported for this container")
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("Type assertion failed for %#+v", h)
 }

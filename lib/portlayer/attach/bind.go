@@ -32,5 +32,6 @@ func Bind(h interface{}, id string) (interface{}, error) {
 	if handle.MigrationError != nil {
 		return nil, fmt.Errorf("Migration failed %s", handle.MigrationError)
 	}
+
 	return toggle(handle, id, true)
 }

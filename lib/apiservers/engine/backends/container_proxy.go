@@ -509,7 +509,12 @@ func (c *ContainerProxy) BindInteraction(handle string, name string, id string) 
 				ID:     id,
 			}))
 	if err != nil {
-		return InternalServerError(err.Error())
+		switch err := err.(type) {
+		case *interaction.InteractionBindInternalServerError:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
 	}
 	handle, ok := bind.Payload.Handle.(string)
 	if !ok {

@@ -339,7 +339,14 @@ func (c *Connector) ids(conn ssh.Conn, ids []string) {
 			log.Warnf("Connection found but it wasn't alive. Creating a new one")
 		}
 
-		si, err := NewSSHInteraction(conn, id)
+		// this is a new connection so learn the version
+		version, err := ContainerVersion(conn)
+		if err != nil {
+			log.Errorf("SSH version could not be learned (id=%s): %s", id, errors.ErrorStack(err))
+			return
+		}
+
+		si, err = NewSSHInteraction(conn, id, version)
 		if err != nil {
 			log.Errorf("SSH connection could not be established (id=%s): %s", id, errors.ErrorStack(err))
 			return

@@ -142,10 +142,18 @@ func TestAttachSshSession(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		exit := 0
 		for req := range reqs {
 			if req.Type == msgs.ContainersReq {
 				msg := msgs.ContainersMsg{IDs: []string{expectedID}}
 				req.Reply(true, msg.Marshal())
+				exit++
+			}
+			if req.Type == msgs.VersionReq {
+				req.Reply(false, nil)
+				exit++
+			}
+			if exit == 2 {
 				break
 			}
 		}
@@ -155,13 +163,7 @@ func TestAttachSshSession(t *testing.T) {
 		defer wg.Done()
 		for ch := range chans {
 			assert.Equal(t, ch.ChannelType(), attachChannelType)
-			_, reqs, _ = ch.Accept()
-			for req := range reqs {
-				if req.Type == msgs.UnblockReq {
-					req.Reply(true, nil)
-					break
-				}
-			}
+			_, _, _ = ch.Accept()
 			break
 		}
 	}()

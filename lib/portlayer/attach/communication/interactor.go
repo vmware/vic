@@ -24,6 +24,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -58,6 +59,30 @@ type interaction struct {
 
 	// avoid spamming unblock messages
 	unblocked resync.Once
+
+	// current feature version that the container provides
+	version int
+}
+
+// ContainerVersion asks the version of the containers on the other hand and return them to the caller
+func ContainerVersion(conn ssh.Conn) (int, error) {
+	defer trace.End(trace.Begin(""))
+
+	ok, reply, err := conn.SendRequest(msgs.VersionReq, true, nil)
+	if !ok && err == nil {
+		log.Warnf("VersionReq not supported by the container")
+		return 0, nil
+	}
+	if !ok || err != nil {
+		return 0, fmt.Errorf("failed to get container version from remote: %s", err)
+	}
+
+	version := msgs.VersionMsg{}
+	if err = version.Unmarshal(reply); err != nil {
+		return 0, fmt.Errorf("failed to unmarshal version from remote: %s", err)
+	}
+
+	return version.Version, nil
 }
 
 // ContainerIDs asks the ids of the containers on the other hand and return them to the caller
@@ -79,7 +104,7 @@ func ContainerIDs(conn ssh.Conn) ([]string, error) {
 
 // NewSSHInteraction returns a stream connection to the requested session
 // The ssh conn is assumed to be connected to the Executor hosting the session
-func NewSSHInteraction(conn ssh.Conn, id string) (SessionInteractor, error) {
+func NewSSHInteraction(conn ssh.Conn, id string, version int) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
 	channel, _, err := conn.OpenChannel(attachChannelType, []byte(id))
@@ -87,7 +112,11 @@ func NewSSHInteraction(conn ssh.Conn, id string) (SessionInteractor, error) {
 		return nil, err
 	}
 
-	return &interaction{channel: channel}, nil
+	i := &interaction{
+		channel: channel,
+		version: version,
+	}
+	return i, nil
 }
 
 func (t *interaction) Signal(signal ssh.Signal) error {
@@ -177,6 +206,11 @@ func (t *interaction) Resize(cols, rows, widthpx, heightpx uint32) error {
 func (t *interaction) Ping() error {
 	defer trace.End(trace.Begin(""))
 
+	if t.version < feature.ExecSupportedVersion {
+		log.Warnf("Running container does not support Ping request, skipping.")
+		return nil
+	}
+
 	ok, err := t.channel.SendRequest(msgs.PingReq, true, []byte(msgs.PingMsg))
 	if !ok || err != nil {
 		return fmt.Errorf("failed to ping the other side: %s", err)
@@ -188,6 +222,11 @@ func (t *interaction) Ping() error {
 // Unblock sends an unblock msg
 func (t *interaction) Unblock() error {
 	defer trace.End(trace.Begin(""))
+
+	if t.version < feature.ExecSupportedVersion {
+		log.Warnf("Running container does not support Unblock request, skipping.")
+		return nil
+	}
 
 	t.unblocked.Do(func() {
 		ok, err := t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg))

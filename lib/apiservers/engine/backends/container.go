@@ -420,7 +420,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 
 	if err := f(); err != nil {
-		return InternalServerError(err.Error())
+		return err
 	}
 
 	// we need to be able to cancel it
