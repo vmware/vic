@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 11-04 - Upgrade-Inspect
+Documentation  Test 11-04 - Upgrade-UpdateInProgress
 Suite Setup  Install VIC with version to Test Server  7315
 Suite Teardown  Clean up VIC Appliance And Local Binary
 Resource  ../../resources/Util.robot
