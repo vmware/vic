@@ -18,10 +18,10 @@ while getopts ":c:d:" opt; do
   esac
 done
 
-
+CONF_DIR=`dirname $0`
 ### Create root CA
 mkdir -p $OUTDIR
-cp openssl.cnf $OUTDIR
+cp $CONF_DIR/openssl.cnf $OUTDIR
 cd $OUTDIR
 mkdir certs crl csr newcerts private
 chmod 700 private
@@ -34,7 +34,7 @@ openssl genrsa -out private/ca.key.pem 4096
 chmod 400 private/ca.key.pem
 
 # Generate root CA CSR
-openssl req -config openssl.cnf \
+openssl req -config $CONF_DIR/openssl.cnf \
     -new -sha256 \
     -key private/ca.key.pem \
     -out csr/ca.csr.pem \
@@ -42,7 +42,7 @@ openssl req -config openssl.cnf \
     -subj "/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA"
 
 # Self sign for root CA certificate
-openssl x509 -req -extfile openssl.cnf \
+openssl x509 -req -extfile $CONF_DIR/openssl.cnf \
     -extensions v3_ca \
     -days 7300 -in csr/ca.csr.pem -signkey private/ca.key.pem -out certs/ca.cert.pem
 

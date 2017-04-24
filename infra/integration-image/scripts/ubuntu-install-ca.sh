@@ -2,7 +2,7 @@
 
 # Install CA into root store
 
-CERT_FILE="/root/ca/certs/ca.cert.crt"
+CERT_FILE="/root/ca/certs/STARK_ENTERPRISES_ROOT_CA.crt"
 
 while getopts ":f:" opt; do
   case $opt in

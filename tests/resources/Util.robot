@@ -30,3 +30,4 @@ Resource  Harbor-Util.robot
 Resource  Docker-Util.robot
 Resource  Admiral-Util.robot
 Resource  OVA-Util.robot
+Resource  Cert-Util.robot
