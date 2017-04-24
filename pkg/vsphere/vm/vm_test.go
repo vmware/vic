@@ -671,32 +671,32 @@ func TestVCHUpdateStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
-	assert.False(t, updateStatus, "updateStatus should be false if UpgradeInProgress is not set in the VCH's ExtraConfig")
+	assert.False(t, updateStatus, "updateStatus should be false if UpdateInProgress is not set in the VCH's ExtraConfig")
 
-	// Set UpgradeInProgress to false
+	// Set UpdateInProgress to false
 	SetUpdateStatus(ctx, "false", vmm)
 
 	updateStatus, err = vmm.VCHUpdateStatus(ctx)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
-	assert.False(t, updateStatus, "updateStatus should be false since UpgradeInProgress is set to false")
+	assert.False(t, updateStatus, "updateStatus should be false since UpdateInProgress is set to false")
 
-	// Set UpgradeInProgress to true
+	// Set UpdateInProgress to true
 	SetUpdateStatus(ctx, "true", vmm)
 
 	updateStatus, err = vmm.VCHUpdateStatus(ctx)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
-	assert.True(t, updateStatus, "updateStatus should be true since UpgradeInProgress is set to true")
+	assert.True(t, updateStatus, "updateStatus should be true since UpdateInProgress is set to true")
 
-	// Set UpgradeInProgress to NonBool
+	// Set UpdateInProgress to NonBool
 	SetUpdateStatus(ctx, "NonBool", vmm)
 
 	updateStatus, err = vmm.VCHUpdateStatus(ctx)
 	if assert.Error(t, err, "An error was expected") {
-		assert.Contains(t, err.Error(), "failed to parse", "Error msg should contain 'failed to parse' since UpgradeInProgress is set to NonBool")
+		assert.Contains(t, err.Error(), "failed to parse", "Error msg should contain 'failed to parse' since UpdateInProgress is set to NonBool")
 	}
 }
 
@@ -743,7 +743,7 @@ func TestSetVCHUpdateStatus(t *testing.T) {
 	s.Populate(ctx)
 	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
 
-	// Set UpgradeInProgress to true and then check status
+	// Set UpdateInProgress to true and then check status
 	err = vmm.SetVCHUpdateStatus(ctx, true)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
@@ -756,12 +756,12 @@ func TestSetVCHUpdateStatus(t *testing.T) {
 
 	v, ok := info[UpdateStatus]
 	if ok {
-		assert.Equal(t, "true", v, "UpgradeInProgress should be true")
+		assert.Equal(t, "true", v, "UpdateInProgress should be true")
 	} else {
-		t.Fatal("ERROR: UpgradeInProgress does not exist in ExtraConfig")
+		t.Fatal("ERROR: UpdateInProgress does not exist in ExtraConfig")
 	}
 
-	// Set UpgradeInProgress to false and then check status
+	// Set UpdateInProgress to false and then check status
 	err = vmm.SetVCHUpdateStatus(ctx, false)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
@@ -774,8 +774,8 @@ func TestSetVCHUpdateStatus(t *testing.T) {
 
 	v, ok = info[UpdateStatus]
 	if ok {
-		assert.Equal(t, "false", v, "UpgradeInProgress should be false")
+		assert.Equal(t, "false", v, "UpdateInProgress should be false")
 	} else {
-		t.Fatal("ERROR: UpgradeInProgress does not exist in ExtraConfig")
+		t.Fatal("ERROR: UpdateInProgress does not exist in ExtraConfig")
 	}
 }

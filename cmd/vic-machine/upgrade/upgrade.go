@@ -66,7 +66,7 @@ func (u *Upgrade) Flags() []cli.Flag {
 		},
 		cli.BoolFlag{
 			Name:        "resetInProgressFlag",
-			Usage:       "Reset the UpgradeInProgress flag. Warning: Do not reset this flag if another upgrade/configure process is running",
+			Usage:       "Reset the UpdateInProgress flag. Warning: Do not reset this flag if another upgrade/configure process is running",
 			Destination: &u.ResetInProgressFlag,
 		},
 	}
@@ -155,11 +155,11 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 
 	if u.ResetInProgressFlag {
 		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
-			log.Error("Failed to reset UpgradeInprogress flag")
+			log.Error("Failed to reset UpdateInProgress flag")
 			log.Error(err)
 			return errors.New("upgrade failed")
 		}
-		log.Infof("Reset UpgradeInProgress flag successfully")
+		log.Infof("Reset UpdateInProgress flag successfully")
 		return nil
 	}
 
@@ -176,14 +176,14 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	}
 
 	if err = vch.SetVCHUpdateStatus(ctx, true); err != nil {
-		log.Error("Failed to set UpgradeInProgress flag to true")
+		log.Error("Failed to set UpdateInProgress flag to true")
 		log.Error(err)
 		return errors.New("upgrade failed")
 	}
 
 	defer func() {
 		if err = vch.SetVCHUpdateStatus(ctx, false); err != nil {
-			log.Error("Failed to reset UpgradeInProgress")
+			log.Error("Failed to reset UpdateInProgress")
 			log.Error(err)
 		}
 	}()

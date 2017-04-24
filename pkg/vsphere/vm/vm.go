@@ -38,7 +38,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
-const UpdateStatus = "UpgradeInProgress"
+const UpdateStatus = "UpdateInProgress"
 
 type InvalidState struct {
 	r types.ManagedObjectReference
@@ -363,20 +363,6 @@ func IsUpgradeSnapshot(node *types.VirtualMachineSnapshotTree, upgradePrefix str
 	return node != nil && strings.HasPrefix(node.Name, upgradePrefix)
 }
 
-// UpgradeInProgress tells if an upgrade has already been started based on snapshot name beginning with upgradePrefix
-func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix string) (bool, string, error) {
-	node, err := vm.GetCurrentSnapshotTree(ctx)
-	if err != nil {
-		return false, "", fmt.Errorf("Failed to check upgrade snapshot status: %s", err)
-	}
-
-	if IsUpgradeSnapshot(node, upgradePrefix) {
-		return true, node.Name, nil
-	}
-
-	return false, "", nil
-}
-
 func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 	vapp, pool, host *types.ManagedObjectReference, vmfolder *object.Folder) (*object.Task, error) {
 	log.Debugf("Register VM %s", name)
@@ -565,7 +551,7 @@ func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.Manag
 	return mvm.Datastore, nil
 }
 
-// VCHUpdateStatus tells if an upgrade/configure has already been started based on the UpgradeInProgress flag in ExtraConfig
+// VCHUpdateStatus tells if an upgrade/configure has already been started based on the UpdateInProgress flag in ExtraConfig
 // It returns the error if the vm operation does not succeed
 func (vm *VirtualMachine) VCHUpdateStatus(ctx context.Context) (bool, error) {
 	info, err := vm.FetchExtraConfig(ctx)

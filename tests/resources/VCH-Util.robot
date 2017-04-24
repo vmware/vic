@@ -212,9 +212,9 @@ Inspect VCH
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
-Check UpgradeInProgress
+Check UpdateInProgress
     [Arguments]  ${expected}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep UpgradeInProgress
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep UpdateInProgress
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 

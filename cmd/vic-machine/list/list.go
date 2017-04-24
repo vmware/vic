@@ -192,7 +192,7 @@ func (l *List) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachine,
 		return "Up to date"
 	}
 
-	upgrading, _, err := vch.UpgradeInProgress(ctx, management.UpgradePrefix)
+	upgrading, err := vch.VCHUpdateStatus(ctx)
 	if err != nil {
 		return fmt.Sprintf("Unknown: %s", err)
 	}

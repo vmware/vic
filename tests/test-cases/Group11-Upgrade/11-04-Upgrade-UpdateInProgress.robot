@@ -13,24 +13,24 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 11-04 - Upgrade-UpgradeInProgress
+Documentation  Test 11-04 - Upgrade-UpdateInProgress
 Suite Setup  Install VIC with version to Test Server  7315
 Suite Teardown  Clean up VIC Appliance And Local Binary
 Resource  ../../resources/Util.robot
 
 *** Test Cases ***
-Upgrade VCH with UpgradeInProgress
-    Run  govc vm.change -vm=%{VCH-NAME} -e=UpgradeInProgress=true
-    Check UpgradeInProgress  true
+Upgrade VCH with UpdateInProgress
+    Run  govc vm.change -vm=%{VCH-NAME} -e=UpdateInProgress=true
+    Check UpdateInProgress  true
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Upgrade failed: another upgrade/configure operation is in progress
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --resetInProgressFlag --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
-    Should Contain  ${output}  Reset UpgradeInProgress flag successfully
-    Check UpgradeInProgress  false
+    Should Contain  ${output}  Reset UpdateInProgress flag successfully
+    Check UpdateInProgress  false
 
 Upgrade and inspect VCH
     Start Process  bin/vic-machine-linux upgrade --debug 1 --name %{VCH-NAME} --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --force --compute-resource %{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}  shell=True  alias=UpgradeVCH
     Wait Until Keyword Succeeds  20x  5s  Inspect VCH   Upgrade/configure in progress
     Wait For Process  UpgradeVCH
     Inspect VCH  Completed successfully
-    Check UpgradeInProgress  false
+    Check UpdateInProgress  false
