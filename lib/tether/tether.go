@@ -263,6 +263,10 @@ func (t *tether) setMounts() error {
 
 func (t *tether) populateVolumes() error {
 	defer trace.End(trace.Begin(fmt.Sprintf("populateVolumes")))
+	// skip if no mounts present
+	if len(t.config.Mounts) == 0 {
+		return nil
+	}
 	// skip if this was done before
 	if _, err := os.Stat(mountsCopied); err == nil {
 		log.Debugf("mounts already copied, skipping copy")
