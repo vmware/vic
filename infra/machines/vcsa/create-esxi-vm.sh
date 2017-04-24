@@ -29,8 +29,8 @@ EOF
 
 disk=48
 mem=16
-# 6.5.0a - http://pubs.vmware.com/Release_Notes/en/vsphere/65/vsphere-esxi-650a-release-notes.html
-iso=VMware-VMvisor-6.5.0-4887370.x86_64.iso
+# 6.5.0b - http://pubs.vmware.com/Release_Notes/en/vsphere/65/vsphere-vcenter-server-650b-release-notes.html
+iso=VMware-VMvisor-6.5.0-5146846.x86_64.iso
 
 while getopts d:hi:m:s flag
 do
@@ -152,6 +152,13 @@ EOF
     vm_ip=$(vmrun getGuestIPAddress "$vmx" -wait)
 else
     export GOVC_DATASTORE=${GOVC_DATASTORE:-$(basename "$(govc ls datastore)")}
+
+    # Note that policy is empty when GOVC_URL points to Workstation
+    policy=$(govc host.portgroup.info -json | jq -r ".Portgroup[] | select(.Spec.Name == \"$network\") | .Spec.Policy.Security")
+    if [ -n "$policy" ] && [ "$(jq -r <<<"$policy" .AllowPromiscuous)" != "true" ] ; then
+        echo "Enabling promiscuous mode for $network on $(govc env -x GOVC_URL_HOST)..."
+        govc host.portgroup.change -allow-promiscuous "$network"
+    fi
 
     boot=$(basename "$iso")
     if ! govc datastore.ls "$boot" > /dev/null 2>&1 ; then
