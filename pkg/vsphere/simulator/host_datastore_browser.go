@@ -30,7 +30,7 @@ type HostDatastoreBrowser struct {
 	mo.HostDatastoreBrowser
 }
 
-type searchDatastoreTask struct {
+type searchDatastore struct {
 	*HostDatastoreBrowser
 
 	DatastorePath string
@@ -41,7 +41,7 @@ type searchDatastoreTask struct {
 	recurse bool
 }
 
-func (s *searchDatastoreTask) addFile(file os.FileInfo, res *types.HostDatastoreBrowserSearchResults) {
+func (s *searchDatastore) addFile(file os.FileInfo, res *types.HostDatastoreBrowserSearchResults) {
 	details := s.SearchSpec.Details
 	if details == nil {
 		details = new(types.FileQueryFlags)
@@ -96,7 +96,7 @@ func (s *searchDatastoreTask) addFile(file os.FileInfo, res *types.HostDatastore
 	res.File = append(res.File, finfo)
 }
 
-func (s *searchDatastoreTask) search(ds *types.ManagedObjectReference, folder string, dir string) error {
+func (s *searchDatastore) search(ds *types.ManagedObjectReference, folder string, dir string) error {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		log.Printf("search %s: %s", dir, err)
@@ -128,7 +128,7 @@ func (s *searchDatastoreTask) search(ds *types.ManagedObjectReference, folder st
 	return nil
 }
 
-func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFault) {
+func (s *searchDatastore) Run(Task *Task) (types.AnyType, types.BaseMethodFault) {
 	p, fault := parseDatastorePath(s.DatastorePath)
 	if fault != nil {
 		return nil, fault
@@ -165,7 +165,7 @@ func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFa
 }
 
 func (b *HostDatastoreBrowser) SearchDatastoreTask(s *types.SearchDatastore_Task) soap.HasFault {
-	task := NewTask(&searchDatastoreTask{
+	task := NewTask(&searchDatastore{
 		HostDatastoreBrowser: b,
 		DatastorePath:        s.DatastorePath,
 		SearchSpec:           s.SearchSpec,
@@ -181,7 +181,7 @@ func (b *HostDatastoreBrowser) SearchDatastoreTask(s *types.SearchDatastore_Task
 }
 
 func (b *HostDatastoreBrowser) SearchDatastoreSubFoldersTask(s *types.SearchDatastoreSubFolders_Task) soap.HasFault {
-	task := NewTask(&searchDatastoreTask{
+	task := NewTask(&searchDatastore{
 		HostDatastoreBrowser: b,
 		DatastorePath:        s.DatastorePath,
 		SearchSpec:           s.SearchSpec,

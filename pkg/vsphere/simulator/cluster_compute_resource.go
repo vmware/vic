@@ -26,13 +26,13 @@ type ClusterComputeResource struct {
 	mo.ClusterComputeResource
 }
 
-type addHostTask struct {
+type addHost struct {
 	*ClusterComputeResource
 
 	req *types.AddHost_Task
 }
 
-func (add *addHostTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+func (add *addHost) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	spec := add.req.Spec
 
 	if spec.HostName == "" {
@@ -59,7 +59,7 @@ func (add *addHostTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 func (c *ClusterComputeResource) AddHostTask(add *types.AddHost_Task) soap.HasFault {
 	r := &methods.AddHost_TaskBody{}
 
-	task := NewTask(&addHostTask{c, add})
+	task := NewTask(&addHost{c, add})
 
 	r.Res = &types.AddHost_TaskResponse{
 		Returnval: task.Self,

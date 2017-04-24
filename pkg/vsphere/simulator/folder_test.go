@@ -30,7 +30,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 )
 
-func addStandaloneHost(folder *object.Folder, spec types.HostConnectSpec) (*object.Task, error) {
+func addStandaloneHostTask(folder *object.Folder, spec types.HostConnectSpec) (*object.Task, error) {
 	// TODO: add govmomi wrapper
 	req := types.AddStandaloneHost_Task{
 		This:         folder.Reference(),
@@ -84,7 +84,7 @@ func TestFolderESX(t *testing.T) {
 	}
 
 	spec := types.HostConnectSpec{}
-	_, err = addStandaloneHost(folders.HostFolder, spec)
+	_, err = addStandaloneHostTask(folders.HostFolder, spec)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -165,7 +165,7 @@ func TestFolderVC(t *testing.T) {
 			HostName: test.name,
 		}
 
-		task, err := addStandaloneHost(folders.HostFolder, spec)
+		task, err := addStandaloneHostTask(folders.HostFolder, spec)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -225,7 +225,12 @@ func TestFolderFaults(t *testing.T) {
 func TestRegisterVm(t *testing.T) {
 	ctx := context.Background()
 
-	for _, model := range []*Model{ESX(), VPX()} {
+	for i, model := range []*Model{ESX(), VPX()} {
+		match := "*"
+		if i == 1 {
+			model.App = 1
+			match = "*APP*"
+		}
 		defer model.Remove()
 		err := model.Create()
 		if err != nil {
@@ -255,7 +260,7 @@ func TestRegisterVm(t *testing.T) {
 
 		vmFolder := folders.VmFolder
 
-		vms, err := finder.VirtualMachineList(ctx, "*")
+		vms, err := finder.VirtualMachineList(ctx, match)
 		if err != nil {
 			t.Fatal(err)
 		}
