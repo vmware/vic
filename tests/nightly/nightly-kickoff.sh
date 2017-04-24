@@ -69,7 +69,7 @@ n=0
       canContinue="Yes"
       break
       else
-      echo "tar extraction failed"     
+      echo "tar extraction failed"
       canContinue="No"
       rm -rf bin
       fi
@@ -77,7 +77,7 @@ n=0
       sleep 15
    done
 
-if [ $canContinue = "No" ] 
+if [ $canContinue = "No" ]
 then
 echo "Tarball extraction failed..quitting the run"
 break
@@ -104,7 +104,7 @@ for i in $nightly_list_var; do
     echo "Failed"
     nightlystatus[$count]="FAIL"
     fi
-    
+
     mv *.log 65/$i
     mv *.zip 65/$i
     ((count++))
@@ -123,7 +123,7 @@ for i in $nightly_list_var; do
     echo "Failed"
     nightlystatus[$count]="FAIL"
     fi
-    
+
     mv *.log 60/$i
     mv *.zip 60/$i
     ((count++))
@@ -131,9 +131,9 @@ for i in $nightly_list_var; do
 done
 
 # Setting the NSX test status to Not Implemented.
-nightlystatus[23]="TODO"
+nightlystatus[23]="N/A"
 
-for i in "${nightlystatus[@]}" 
+for i in "${nightlystatus[@]}"
 do
     echo $i
     if [ $i = "Pass" ]
@@ -144,7 +144,7 @@ do
     buildStatus="Failed!"
     echo "Test failed, setting global test status to Failed!"
     break
-    fi	
+    fi
 done
 
 echo "Global Nightly Test Status $buildStatus"
@@ -233,7 +233,7 @@ Content-Type: text/html
                       </td>
                     </tr>
                     `for ((i=0; i < ${#nightly_list_var[@]}; ++i)); do echo "<tr class=\"d$(($i%2))\"><td>${nightly_list_var[$i]}: </td><td>${nightlystatus[(($i+${#nightly_list_var[@]}))]}</td></tr>"; done`
-                  </table> 
+                  </table>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>

@@ -26,7 +26,7 @@ Deploy Nimbus ESXi Server
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ob-${version}
