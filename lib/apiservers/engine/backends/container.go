@@ -264,20 +264,20 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
-	if !state.Running {
-		return "", ConflictError(fmt.Sprintf("Container %s is not running", id))
-	}
 	if state.Restarting {
 		return "", ConflictError(fmt.Sprintf("Container %s is restarting, wait until the container is running", id))
 	}
-
-	// set up the environment
-	config.Env = setEnvFromImageConfig(config.Tty, config.Env, vc.Config.Env)
+	if !state.Running {
+		return "", ConflictError(fmt.Sprintf("Container %s is not running", id))
+	}
 
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
+
+	// set up the environment
+	config.Env = setEnvFromImageConfig(config.Tty, config.Env, vc.Config.Env)
 
 	handleprime, eid, err := c.containerProxy.CreateExecTask(handle, config)
 	if err != nil {
