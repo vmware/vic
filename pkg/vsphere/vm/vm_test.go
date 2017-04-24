@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -602,4 +603,179 @@ func TestWaitForResult(t *testing.T) {
 	})
 	assert.True(t, called == 2, "task should be retried once")
 	assert.True(t, !vmm.IsInvalidState(ctx), "vm state should be fixed")
+}
+
+// SetUpdateStatus sets the VCH upgrade/configure status.
+func SetUpdateStatus(ctx context.Context, updateStatus string, vm *VirtualMachine) error {
+	info := make(map[string]string)
+	info[UpgradeInProgress] = updateStatus
+
+	s := &types.VirtualMachineConfigSpec{
+		ExtraConfig: vmomi.OptionValueFromMap(info),
+	}
+
+	_, err := vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Reconfigure(ctx, *s)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TestVCHUpdateStatus tests if VCHUpdateStatus() could obtain the correct VCH upgrade/configure status
+func TestVCHUpdateStatus(t *testing.T) {
+	ctx := context.Background()
+
+	// Nothing VC specific in this test, so we use the simpler ESX model
+	model := simulator.ESX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := model.Service.NewServer()
+	defer server.Close()
+	client, err := govmomi.NewClient(ctx, server.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Any VM will do
+	finder := find.NewFinder(client.Client, false)
+	vmo, err := finder.VirtualMachine(ctx, "/ha-datacenter/vm/*_VM0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := &session.Config{
+		Service:        server.URL.String(),
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "",
+		DatastorePath:  "/ha-datacenter/datastore/*",
+		HostPath:       "/ha-datacenter/host/*/*",
+		PoolPath:       "/ha-datacenter/host/*/Resources",
+	}
+
+	s, err := session.NewSession(config).Connect(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Populate(ctx)
+	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
+
+	updateStatus, err := vmm.VCHUpdateStatus(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	assert.False(t, updateStatus, "updateStatus should be false if UpgradeInProgress is not set in the VCH's ExtraConfig")
+
+	// Set UpgradeInProgress to false
+	SetUpdateStatus(ctx, "false", vmm)
+
+	updateStatus, err = vmm.VCHUpdateStatus(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	assert.False(t, updateStatus, "updateStatus should be false since UpgradeInProgress is set to false")
+
+	// Set UpgradeInProgress to true
+	SetUpdateStatus(ctx, "true", vmm)
+
+	updateStatus, err = vmm.VCHUpdateStatus(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	assert.True(t, updateStatus, "updateStatus should be true since UpgradeInProgress is set to true")
+
+	// Set UpgradeInProgress to NonBool
+	SetUpdateStatus(ctx, "NonBool", vmm)
+
+	updateStatus, err = vmm.VCHUpdateStatus(ctx)
+	if assert.Error(t, err, "An error was expected") {
+		assert.Contains(t, err.Error(), "failed to parse", "Error msg should contain 'failed to parse' since UpgradeInProgress is set to NonBool")
+	}
+}
+
+// TestSetVCHUpdateStatus tests if SetVCHUpdateStatus() could set the VCH upgrade/configure status correctly
+func TestSetVCHUpdateStatus(t *testing.T) {
+	ctx := context.Background()
+
+	// Nothing VC specific in this test, so we use the simpler ESX model
+	model := simulator.ESX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := model.Service.NewServer()
+	defer server.Close()
+	client, err := govmomi.NewClient(ctx, server.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Any VM will do
+	finder := find.NewFinder(client.Client, false)
+	vmo, err := finder.VirtualMachine(ctx, "/ha-datacenter/vm/*_VM0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := &session.Config{
+		Service:        server.URL.String(),
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "",
+		DatastorePath:  "/ha-datacenter/datastore/*",
+		HostPath:       "/ha-datacenter/host/*/*",
+		PoolPath:       "/ha-datacenter/host/*/Resources",
+	}
+
+	s, err := session.NewSession(config).Connect(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Populate(ctx)
+	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
+
+	// Set UpgradeInProgress to true and then check status
+	err = vmm.SetVCHUpdateStatus(ctx, true)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+
+	info, err := vmm.FetchExtraConfig(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+
+	v, ok := info[UpgradeInProgress]
+	if ok {
+		assert.Equal(t, "true", v, "UpgradeInProgress should be true")
+	} else {
+		t.Fatal("ERROR: UpgradeInProgress does not exist in ExtraConfig")
+	}
+
+	// Set UpgradeInProgress to false and then check status
+	err = vmm.SetVCHUpdateStatus(ctx, false)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+
+	info, err = vmm.FetchExtraConfig(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+
+	v, ok = info[UpgradeInProgress]
+	if ok {
+		assert.Equal(t, "false", v, "UpgradeInProgress should be false")
+	} else {
+		t.Fatal("ERROR: UpgradeInProgress does not exist in ExtraConfig")
+	}
 }

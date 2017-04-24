@@ -565,9 +565,9 @@ func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.Manag
 	return mvm.Datastore, nil
 }
 
-// VCHUpgradeStatus tells if an upgrade/configure has already been started based on the UpgradeInProgress flag in ExtraConfig
+// VCHUpdateStatus tells if an upgrade/configure has already been started based on the UpgradeInProgress flag in ExtraConfig
 // It returns the error if the vm operation does not succeed
-func (vm *VirtualMachine) VCHUpgradeStatus(ctx context.Context) (bool, error) {
+func (vm *VirtualMachine) VCHUpdateStatus(ctx context.Context) (bool, error) {
 	info, err := vm.FetchExtraConfig(ctx)
 	if err != nil {
 		log.Errorf("Unable to get vm ExtraConfig: %s", err)
@@ -575,22 +575,22 @@ func (vm *VirtualMachine) VCHUpgradeStatus(ctx context.Context) (bool, error) {
 	}
 
 	if v, ok := info[UpgradeInProgress]; ok {
-		upgradeStatus, err := strconv.ParseBool(v)
+		updateStatus, err := strconv.ParseBool(v)
 		if err != nil {
 			//  If error occurs, the bool return value does not matter for the caller.
 			return true, fmt.Errorf("failed to parse %s to bool: %s", v, err)
 		}
-		return upgradeStatus, nil
+		return updateStatus, nil
 	}
 
 	// If "UpgradeInProgress" is not found, it might be the case that no upgrade/configure has been done to this VCH before
 	return false, nil
 }
 
-// SetVCHUpgradeStatus sets the "UpgradeInProgress" flag in ExtraConfig
-func (vm *VirtualMachine) SetVCHUpgradeStatus(ctx context.Context, upgradeStatus bool) error {
+// SetVCHUpdateStatus sets the "UpgradeInProgress" flag in ExtraConfig
+func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, updateStatus bool) error {
 	info := make(map[string]string)
-	info[UpgradeInProgress] = strconv.FormatBool(upgradeStatus)
+	info[UpgradeInProgress] = strconv.FormatBool(updateStatus)
 
 	s := &types.VirtualMachineConfigSpec{
 		ExtraConfig: vmomi.OptionValueFromMap(info),
