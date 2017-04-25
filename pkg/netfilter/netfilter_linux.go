@@ -121,10 +121,9 @@ func (r *Rule) args() ([]string, error) {
 		}
 	}
 
-	if r.Interface == "" {
-		return nil, errors.New("interface cannot be empty")
+	if r.Interface != "" {
+		args = append(args, "-i", r.Interface)
 	}
-	args = append(args, "-i", r.Interface)
 
 	if r.Target == "" {
 		return nil, errors.New("target cannot be empty")
