@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -32,9 +33,12 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
+
+const UpdateStatus = "UpdateInProgress"
 
 type InvalidState struct {
 	r types.ManagedObjectReference
@@ -359,20 +363,6 @@ func IsUpgradeSnapshot(node *types.VirtualMachineSnapshotTree, upgradePrefix str
 	return node != nil && strings.HasPrefix(node.Name, upgradePrefix)
 }
 
-// UpgradeInProgress tells if an upgrade has already been started based on snapshot name beginning with upgradePrefix
-func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix string) (bool, string, error) {
-	node, err := vm.GetCurrentSnapshotTree(ctx)
-	if err != nil {
-		return false, "", fmt.Errorf("Failed to check upgrade snapshot status: %s", err)
-	}
-
-	if IsUpgradeSnapshot(node, upgradePrefix) {
-		return true, node.Name, nil
-	}
-
-	return false, "", nil
-}
-
 func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 	vapp, pool, host *types.ManagedObjectReference, vmfolder *object.Folder) (*object.Task, error) {
 	log.Debugf("Register VM %s", name)
@@ -559,4 +549,42 @@ func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.Manag
 		return nil, err
 	}
 	return mvm.Datastore, nil
+}
+
+// VCHUpdateStatus tells if an upgrade/configure has already been started based on the UpdateInProgress flag in ExtraConfig
+// It returns the error if the vm operation does not succeed
+func (vm *VirtualMachine) VCHUpdateStatus(ctx context.Context) (bool, error) {
+	info, err := vm.FetchExtraConfig(ctx)
+	if err != nil {
+		log.Errorf("Unable to get vm ExtraConfig: %s", err)
+		return false, err
+	}
+
+	if v, ok := info[UpdateStatus]; ok {
+		status, err := strconv.ParseBool(v)
+		if err != nil {
+			//  If error occurs, the bool return value does not matter for the caller.
+			return false, fmt.Errorf("failed to parse %s to bool: %s", v, err)
+		}
+		return status, nil
+	}
+
+	// If UpdateStatus is not found, it might be the case that no upgrade/configure has been done to this VCH before
+	return false, nil
+}
+
+// SetVCHUpdateStatus sets the VCH update status in ExtraConfig
+func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) error {
+	info := make(map[string]string)
+	info[UpdateStatus] = strconv.FormatBool(status)
+
+	s := &types.VirtualMachineConfigSpec{
+		ExtraConfig: vmomi.OptionValueFromMap(info),
+	}
+
+	_, err := vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		return vm.Reconfigure(ctx, *s)
+	})
+
+	return err
 }
