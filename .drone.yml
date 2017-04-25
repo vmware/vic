@@ -128,7 +128,7 @@ build:
     when:
       repo: vmware/vic
       event: [ push, tag ]
-      branch: [ master, release, refs/tags/* ]
+      branch: [ master, releases/*, refs/tags/* ]
       success: true
 
 notify:
@@ -141,7 +141,7 @@ notify:
     when:
       repo: vmware/vic
       event: [ push, tag ]
-      branch: [ master, release, refs/tags/* ]
+      branch: [ master, releases/*, refs/tags/* ]
       failure: true
 
 publish:
@@ -160,7 +160,7 @@ publish:
     when:
       repo: vmware/vic
       event: [ push, tag ]
-      branch: [ master, release, refs/tags/* ]
+      branch: [ master, releases/*, refs/tags/* ]
       success: true
   coverage:
     server: https://coverage.vmware.run
@@ -169,5 +169,5 @@ publish:
     when:
       repo: vmware/vic
       event: [ push, tag ]
-      branch: [ master, release, refs/tags/* ]
+      branch: [ master, releases/*, refs/tags/* ]
       success: true

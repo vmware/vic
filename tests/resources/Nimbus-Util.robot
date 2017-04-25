@@ -64,7 +64,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     ${name3}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
 
     Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     ${out1}=  Deploy Nimbus ESXi Server Async  ${name1}
     ${out2}=  Deploy Nimbus ESXi Server Async  ${name2}
@@ -142,7 +142,7 @@ Deploy Nimbus vCenter Server
     ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus vCenter server: ${name}
     Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
@@ -171,7 +171,7 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    
+
     ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ${version}'
     [Return]  ${out}
 
@@ -193,8 +193,8 @@ Deploy Nimbus vCenter Server Async
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${testbed}
     Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-    
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
+
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
     \   # Make sure the deploy actually worked
@@ -207,14 +207,14 @@ Deploy Nimbus Testbed
 Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
     Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
 
 Cleanup Nimbus PXE folder
     [Arguments]  ${user}  ${password}
     Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
     ${out}=  Execute Command  rm -rf public_html/pxe/*
     Close connection
 
@@ -389,7 +389,7 @@ Deploy Nimbus NFS Datastore
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus NFS server: ${name}
     Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     ${out}=  Execute Command  nimbus-nfsdeploy ${name}
     # Make sure the deploy actually worked
