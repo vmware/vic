@@ -17,6 +17,7 @@ install-*.tar.gz
 package.list
 *container-logs.zip
 integration_logs*
+vmware-ovftool
 
 # generally a bad idea to check certificates into repos - whitelist if needed
 **/*.pem
