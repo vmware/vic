@@ -51,6 +51,14 @@ Assert Number Of Containers
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${num}
 
+Check Length Of PS
+    [Arguments]  ${len}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  /bin/top
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  ${len}
+
 *** Test Cases ***
 Empty docker ps command
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
@@ -71,11 +79,7 @@ Docker ps only running containers
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
     Create several containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  /bin/top
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  ${len+1}
+    Wait Until Keyword Succeeds  5x  5 seconds  Check Length of PS  ${len+1}
 
 Docker ps all containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
