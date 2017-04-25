@@ -24,7 +24,7 @@ We can keep changes isolated from RC / GA testing by way of `git` branches.
 
 ###Branching###
 * Use [master](http://github.com/vmware/vic) for future release work.
-* Use RC branch (`MAJOR.MINOR.MACRO`) for RC release work.
+* Use RC branch (`releases/MAJOR.MINOR.MACRO`) for RC release work.
   * `TAG` branch for each RC
   * `TAG` with `MACRO++` for each patch.
 
@@ -35,6 +35,8 @@ We can keep changes isolated from RC / GA testing by way of `git` branches.
   * Only if issue is targeted for RC, a different PR with the same issue number for the RC branch.
   * Only close issue after each relevant and targeted release has had a fixed merged to it.  We can use targeting to verify this.
 * Bugs found in `MASTER` or any RC branch need to be tagged, e.g.`exists/<branches>`
+* The release branch will live as long as our support contract exists on that branch, once support sunsets we can remove the branch
+* The CI system will build all branches within the `releases/*` naming convention on push or tag event and publish the binary to our public binary location
 
 ```
 
