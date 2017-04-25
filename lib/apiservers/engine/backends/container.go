@@ -419,80 +419,85 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		f = func() error { return c.containerProxy.BindInteraction(handle, name, eid) }
 	}
 
-	if err := f(); err != nil {
-		return err
-	}
-
-	// we need to be able to cancel it
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	go func() {
-		defer trace.End(trace.Begin("TaskWaitRoutine"))
-		// wait property collector
-		if err := c.TaskWait(id, name, eid); err != nil {
-			log.Errorf("Task wait returned %s, canceling the context", err)
-
-			// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
-			// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
-			stdout.Write([]byte(err.Error() + "\r\n"))
-
-			cancel()
+	operation := func() error {
+		if err := f(); err != nil {
+			return err
 		}
-	}()
 
-	// exec_start event
-	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+		// we need to be able to cancel it
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(event, eventtypes.ContainerEventType, actor)
+		go func() {
+			defer trace.End(trace.Begin("TaskWaitRoutine"))
+			// wait property collector
+			if err := c.TaskWait(id, name, eid); err != nil {
+				log.Errorf("Task wait returned %s, canceling the context", err)
 
-	// no need to attach for detached case
-	if !attach {
-		log.Debugf("Detached mode. Returning early.")
+				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
+				// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
+				stdout.Write([]byte(err.Error() + "\r\n"))
+
+				cancel()
+			}
+		}()
+
+		// exec_start event
+		event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+		EventService().Log(event, eventtypes.ContainerEventType, actor)
+
+		// no need to attach for detached case
+		if !attach {
+			log.Debugf("Detached mode. Returning early.")
+			return nil
+		}
+		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
+
+		ca := &backend.ContainerAttachConfig{
+			UseStdin:  ec.OpenStdin,
+			UseStdout: ec.OpenStdout,
+			UseStderr: ec.OpenStderr,
+		}
+
+		// set UseStderr to false for Tty case as we merge stdout and stderr
+		if ec.Tty {
+			ca.UseStderr = false
+		}
+
+		ac := &AttachConfig{
+			ID: eid,
+			ContainerAttachConfig: ca,
+			UseTty:                ec.Tty,
+			CloseStdin:            true,
+		}
+
+		err = c.containerProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
+		if err != nil {
+			if _, ok := err.(DetachError); ok {
+				log.Infof("Detach detected, tearing down connection")
+
+				// QUESTION: why are we returning DetachError? It doesn't seem like an error
+				// fire detach event
+				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+
+				// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
+				// This avoids cutting the communication channel for other sessions connected to this
+				// container
+
+				// if err := c.containerProxy.UnbindInteraction(handle, name, eid); err != nil {
+				// 	return err
+				// }
+			}
+
+			return err
+		}
 		return nil
 	}
-	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-
-	ca := &backend.ContainerAttachConfig{
-		UseStdin:  ec.OpenStdin,
-		UseStdout: ec.OpenStdout,
-		UseStderr: ec.OpenStderr,
-	}
-
-	// set UseStderr to false for Tty case as we merge stdout and stderr
-	if ec.Tty {
-		ca.UseStderr = false
-	}
-
-	ac := &AttachConfig{
-		ID: eid,
-		ContainerAttachConfig: ca,
-		UseTty:                ec.Tty,
-		CloseStdin:            true,
-	}
-
-	err = c.containerProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
-	if err != nil {
-		if _, ok := err.(DetachError); ok {
-			log.Infof("Detach detected, tearing down connection")
-
-			// QUESTION: why are we returning DetachError? It doesn't seem like an error
-			// fire detach event
-			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
-
-			// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
-			// This avoids cutting the communication channel for other sessions connected to this
-			// container
-
-			// if err := c.containerProxy.UnbindInteraction(handle, name, eid); err != nil {
-			// 	return err
-			// }
-		}
-
+	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
-
 	return nil
 }
 
