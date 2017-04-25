@@ -4,7 +4,7 @@ This example uses vSphere Integrated Containers Engine 0.9.0, Harbor 0.5.0, and 
 
 If no server certificate and private key are provided during installation, Harbor will create a self-generated CA (certificate authority) certificate, a server certificate, and a server private key.  The self-generated CA certificate will be available for download from the Harbor web client.
 
-See the OVA installation guide for Harbor [Harbor docs](https://github.com/vmware/harbor/blob/master/docs/installation_guide_ova.md). Harbor requires both an IP address and FQDN (fully qualified domain name) for the server. A DHCP install method is available for debugging purposes, but it is not a recommended production deployment model.
+See the OVA installation guide for Harbor [Harbor docs](https://github.com/vmware/harbor/blob/release-0.5.0/docs/installation_guide_ova.md). Harbor requires both an IP address and FQDN (fully qualified domain name) for the server. A DHCP install method is available for debugging purposes, but it is not a recommended production deployment model.
 
 This example assumes a Harbor instance was installed without a server certificate or a private key and the CA cert downloaded using the Harbor instructions. For Harbor to work with vSphere Integrated Containers Engine you need to update standard docker with the Harbor CA cert and deploy a new VCH with the CA cert.
 
