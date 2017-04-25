@@ -39,6 +39,7 @@ import (
 
 	"github.com/vmware/vic/lib/portlayer/attach/communication"
 
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/serial"
 )
@@ -290,8 +291,9 @@ func attachCase(t *testing.T, runblock bool) {
 
 	ssh.NewClient(sshConn, chans, reqs)
 	_, err = communication.ContainerIDs(sshConn)
+	version, err := communication.ContainerVersion(sshConn)
 	assert.NoError(t, err)
-	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, version)
 	if runblock {
 		sshSession.Unblock()
 	}
@@ -394,7 +396,7 @@ func TestAttachTTY(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := communication.NewSSHInteraction(client, cfg.ID)
+	session, err := communication.NewSSHInteraction(client, cfg.ID, feature.MaxPluginVersion-1)
 	assert.NoError(t, err)
 
 	stdout := session.Stdout()
@@ -499,7 +501,7 @@ func TestAttachTTYStdinClose(t *testing.T) {
 	ssh.NewClient(sshConn, chans, reqs)
 	_, err = communication.ContainerIDs(sshConn)
 	assert.NoError(t, err)
-	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, feature.MaxPluginVersion-1)
 	assert.NoError(t, err)
 
 	// unblock before grabbing stdout - this should buffer in ssh
@@ -608,7 +610,10 @@ func TestEcho(t *testing.T) {
 	ssh.NewClient(sshConn, chans, reqs)
 	_, err = communication.ContainerIDs(sshConn)
 	assert.NoError(t, err)
-	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID)
+	version, err := communication.ContainerVersion(sshConn)
+	assert.NoError(t, err)
+
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, version)
 	assert.NoError(t, err)
 
 	// unblock before grabbing stdout - this should buffer in ssh
@@ -662,7 +667,7 @@ func TestEcho(t *testing.T) {
 func TestEchoRepeat(t *testing.T) {
 	log.SetLevel(log.WarnLevel)
 
-	for i := 0; i < 100 && !t.Failed(); i++ {
+	for i := 0; i < 10 && !t.Failed(); i++ {
 		TestEcho(t)
 	}
 
@@ -777,6 +782,8 @@ func TestAttachMultiple(t *testing.T) {
 
 	ids, err := communication.ContainerIDs(client)
 	assert.NoError(t, err)
+	version, err := communication.ContainerVersion(client)
+	assert.NoError(t, err)
 
 	// there's no ordering guarantee in the returned ids
 	if len(ids) != len(cfg.Sessions) {
@@ -790,10 +797,10 @@ func TestAttachMultiple(t *testing.T) {
 		}
 	}
 
-	sessionA, err := communication.NewSSHInteraction(client, "tee1")
+	sessionA, err := communication.NewSSHInteraction(client, "tee1", version)
 	assert.NoError(t, err)
 
-	sessionB, err := communication.NewSSHInteraction(client, "tee2")
+	sessionB, err := communication.NewSSHInteraction(client, "tee2", version)
 	assert.NoError(t, err)
 
 	stdoutA := sessionA.Stdout()
@@ -902,7 +909,10 @@ func TestAttachInvalid(t *testing.T) {
 
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	_, err = communication.NewSSHInteraction(client, "invalid")
+	version, err := communication.ContainerVersion(client)
+	assert.NoError(t, err)
+
+	_, err = communication.NewSSHInteraction(client, "invalid", version)
 	tthr.Stop()
 	if err == nil {
 		t.Errorf("Expected to fail on attempt to attach to invalid session")
@@ -1056,7 +1066,10 @@ func TestReattach(t *testing.T) {
 		_, err = communication.ContainerIDs(sshConn)
 		assert.NoError(t, err)
 
-		sshSession, err = communication.NewSSHInteraction(sshConn, cfg.ID)
+		version, err := communication.ContainerVersion(sshConn)
+		assert.NoError(t, err)
+
+		sshSession, err = communication.NewSSHInteraction(sshConn, cfg.ID, version)
 		assert.NoError(t, err)
 
 		sshSession.Unblock()
@@ -1075,7 +1088,7 @@ func TestReattach(t *testing.T) {
 		log.Debug("sent test data")
 	}
 
-	limit := 100
+	limit := 10
 	for i := 0; i <= limit; i++ {
 		if i > 0 {
 			// truncate the buffer for the retach

@@ -87,7 +87,7 @@ const UnblockMsg = "Unblock"
 const VersionReq = "version"
 
 type VersionMsg struct {
-	Version int
+	Version uint32
 }
 
 func (s *VersionMsg) RequestType() string {

@@ -61,11 +61,11 @@ type interaction struct {
 	unblocked resync.Once
 
 	// current feature version that the container provides
-	version int
+	version uint32
 }
 
 // ContainerVersion asks the version of the containers on the other hand and return them to the caller
-func ContainerVersion(conn ssh.Conn) (int, error) {
+func ContainerVersion(conn ssh.Conn) (uint32, error) {
 	defer trace.End(trace.Begin(""))
 
 	ok, reply, err := conn.SendRequest(msgs.VersionReq, true, nil)
@@ -104,7 +104,7 @@ func ContainerIDs(conn ssh.Conn) ([]string, error) {
 
 // NewSSHInteraction returns a stream connection to the requested session
 // The ssh conn is assumed to be connected to the Executor hosting the session
-func NewSSHInteraction(conn ssh.Conn, id string, version int) (SessionInteractor, error) {
+func NewSSHInteraction(conn ssh.Conn, id string, version uint32) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
 	channel, _, err := conn.OpenChannel(attachChannelType, []byte(id))

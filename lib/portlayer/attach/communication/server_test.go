@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/pkg/serial"
 )
 
@@ -150,7 +151,8 @@ func TestAttachSshSession(t *testing.T) {
 				exit++
 			}
 			if req.Type == msgs.VersionReq {
-				req.Reply(false, nil)
+				msg := msgs.VersionMsg{Version: feature.MaxPluginVersion - 1}
+				req.Reply(true, msg.Marshal())
 				exit++
 			}
 			if exit == 2 {
@@ -163,7 +165,13 @@ func TestAttachSshSession(t *testing.T) {
 		defer wg.Done()
 		for ch := range chans {
 			assert.Equal(t, ch.ChannelType(), attachChannelType)
-			_, _, _ = ch.Accept()
+			_, reqs, _ = ch.Accept()
+			for req := range reqs {
+				if req.Type == msgs.UnblockReq {
+					req.Reply(true, nil)
+					break
+				}
+			}
 			break
 		}
 	}()
