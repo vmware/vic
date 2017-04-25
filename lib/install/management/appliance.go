@@ -733,15 +733,9 @@ func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostCon
 		log.Debugf("error while unmarshalling res body: %s", err.Error())
 		return false
 	}
-
-	for _, status := range sysInfo.SystemStatus {
-		if status[0] == sysInfo.Driver {
-			return status[1] == "RUNNING"
-		}
-	}
-
 	// At this point the portlayer is up successfully. However, we need to report the Volume Stores that were not created successfully.
-	var volumeStoresLine string
+	volumeStoresLine := ""
+
 	for _, value := range sysInfo.SystemStatus {
 		if value[0] == volumeStoresID {
 			log.Debugf("Portlayer has established volume stores (%s)", value[1])
@@ -755,12 +749,19 @@ func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostCon
 		log.Warn("Some Volume Stores that were specified were not successfully created, Please check the above output for more information. More Information on failed volume store targets can also be found in the portlayer logs found at the vic admin endpoint.")
 	}
 
+	for _, status := range sysInfo.SystemStatus {
+		if status[0] == sysInfo.Driver {
+			return status[1] == "RUNNING"
+		}
+	}
+
 	return false
 }
 
 // confirmVolumeStores is a helper function that will log and warn the vic-machine user if some of their volumestores did not present in the portlayer
 func confirmVolumeStores(conf *config.VirtualContainerHostConfigSpec, rawVolumeStores string) bool {
 	establishedVolumeStores := make(map[string]struct{})
+
 	splitStores := strings.Split(rawVolumeStores, " ")
 	for _, v := range splitStores {
 		establishedVolumeStores[v] = struct{}{}
@@ -769,7 +770,7 @@ func confirmVolumeStores(conf *config.VirtualContainerHostConfigSpec, rawVolumeS
 	result := true
 	for k := range conf.VolumeLocations {
 		if _, ok := establishedVolumeStores[k]; !ok {
-			log.Warnf("VolumeStore (%s) specified as (%s) was not able to be established in the portlayer. Please check network and nfs server configurations.", k, conf.VolumeLocations[k].String())
+			log.Warnf("VolumeStore (%s) specified was not able to be established in the portlayer. Please check network and nfs server configurations.", k)
 			result = false
 		}
 	}
