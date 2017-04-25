@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/portlayer/metrics"
+	"github.com/vmware/vic/pkg/retry"
 )
 
 const (
@@ -111,10 +112,8 @@ func TestToContainerStats(t *testing.T) {
 
 	config.Cancel()
 	<-config.Ctx.Done()
-	// sleep to let the methods complete
-	sleepy()
 	// verify we stopped listening
-	assert.False(t, cStats.IsListening())
+	assert.True(t, success(cStats))
 }
 
 func TestContainerStatsListener(t *testing.T) {
@@ -157,10 +156,8 @@ func TestContainerStatsListener(t *testing.T) {
 
 	config.Cancel()
 	<-config.Ctx.Done()
-	// sleep to let the methods complete
-	sleepy()
 	// verify we stopped listening
-	assert.False(t, cStats.IsListening())
+	assert.True(t, success(cStats))
 }
 
 func TestContainerConvertCtxCancel(t *testing.T) {
@@ -178,10 +175,8 @@ func TestContainerConvertCtxCancel(t *testing.T) {
 	// cancel the context
 	config.Cancel()
 	<-config.Ctx.Done()
-	// sleep to let the methods complete
-	sleepy()
 	// verify we stopped listening
-	assert.False(t, cStats.IsListening())
+	assert.True(t, success(cStats))
 }
 
 func TestContainerConvertNoStream(t *testing.T) {
@@ -215,10 +210,8 @@ func TestContainerConvertNoStream(t *testing.T) {
 
 	// converter canceled the context
 	<-config.Ctx.Done()
-	// sleep to let the methods complete
-	sleepy()
 	// verify we stopped listening
-	assert.False(t, cStats.IsListening())
+	assert.True(t, success(cStats))
 }
 
 func TestContainerNotRunningNoStream(t *testing.T) {
@@ -241,10 +234,8 @@ func TestContainerNotRunningNoStream(t *testing.T) {
 
 	// converter canceled the context
 	<-config.Ctx.Done()
-	// sleep to let the methods complete
-	sleepy()
 	// verify we stopped listening
-	assert.False(t, cStats.IsListening())
+	assert.True(t, success(cStats))
 }
 
 // Test Helpers
@@ -271,10 +262,29 @@ func setup() *plumbing {
 	}
 }
 
-// sleepy will sleep for 1/2 second -- this is only needed for testing
-func sleepy() {
-	time.Sleep(time.Millisecond * 500)
+// success is a helper to check the listening status of the
+// converter
+func success(converter *ContainerStats) bool {
+	op := func() error {
+		listen := converter.IsListening()
+		if listen {
+			return fmt.Errorf("still listening: %t", listen)
+		}
+		return nil
+	}
+	wait := func(err error) bool {
+		if err != nil {
+			return true
+		}
+		return false
+	}
+	// use the retry package and keep retrying until we've hit the limit
+	if err := retry.Do(op, wait); err != nil {
+		return false
+	}
+	return true
 }
+
 func teardown(p *plumbing) {
 	// close the reader / writer
 	p.r.Close()
