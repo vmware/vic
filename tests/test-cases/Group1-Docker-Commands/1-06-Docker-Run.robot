@@ -135,3 +135,15 @@ Docker run verify name and id are not conflated
     ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name ${shortID1} busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container2}  Conflict
+
+Docker run and auto remove
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    ${count}=  Get Length  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --rm busybox date
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  ${count}

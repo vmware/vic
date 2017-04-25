@@ -33,6 +33,7 @@ import (
 	"github.com/docker/libnetwork/networkdb"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/convert"
 	vicendpoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
@@ -153,7 +154,7 @@ func (n *Network) CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCr
 	// Marshal and encode the labels for transport and storage in the portlayer
 	if labelsBytes, err := json.Marshal(nc.Labels); err == nil {
 		encodedLabels := base64.StdEncoding.EncodeToString(labelsBytes)
-		cfg.Annotations[annotationKeyLabels] = encodedLabels
+		cfg.Annotations[convert.AnnotationKeyLabels] = encodedLabels
 	} else {
 		log.Errorf("error marshaling labels: %s", err)
 		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("unable to marshal labels: %s", err), http.StatusInternalServerError)
@@ -492,7 +493,7 @@ func (n *network) Labels() map[string]string {
 	}
 
 	// Look for the Docker-specific annotation (label) blob and process it for the output
-	if encodedLabels, ok := n.cfg.Annotations[annotationKeyLabels]; ok {
+	if encodedLabels, ok := n.cfg.Annotations[convert.AnnotationKeyLabels]; ok {
 
 		if labelsBytes, decodeErr := base64.StdEncoding.DecodeString(encodedLabels); decodeErr == nil {
 			if unmarshalErr := json.Unmarshal(labelsBytes, &labels); unmarshalErr != nil {
