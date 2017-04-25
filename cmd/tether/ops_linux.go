@@ -147,21 +147,35 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 
 	// default rule set
 	established := &netfilter.Rule{
-		Chain:     netfilter.Input,
-		States:    []netfilter.State{netfilter.Established},
-		Interface: "external",
-		Target:    netfilter.Accept,
+		Chain:  netfilter.Input,
+		States: []netfilter.State{netfilter.Established},
+		Target: netfilter.Accept,
 	}
 
 	reject := &netfilter.Rule{
-		Chain:     netfilter.Input,
-		Interface: "external",
-		Target:    netfilter.Reject,
+		Chain:  netfilter.Input,
+		Target: netfilter.Reject,
 	}
 
 	for _, endpoint := range config.Networks {
-		if endpoint.Name == "external" {
+		if endpoint.Network.Type == "external" {
 
+			id, err := strconv.Atoi(endpoint.ID)
+			if err != nil {
+				log.Errorf("can't apply port rules: %s", err.Error())
+				continue
+			}
+
+			iface, err := t.LinkBySlot(int32(id))
+			if err != nil {
+				log.Errorf("can't apply rules: %s", err.Error())
+				continue
+			}
+
+			ifaceName := iface.Attrs().Name
+			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
+
+			established.Interface = ifaceName
 			established.Commit(context.TODO())
 
 			// handle the ports
@@ -174,9 +188,11 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 				}
 
 				log.Infof("Applying rule for port %s", p)
+				r.Interface = ifaceName
 				r.Commit(context.TODO())
 			}
 
+			reject.Interface = ifaceName
 			reject.Commit(context.TODO())
 
 			break
