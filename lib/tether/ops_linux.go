@@ -31,6 +31,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
+	"github.com/docker/docker/pkg/archive"
 	// need to use libcontainer for user validation, for os/user package cannot find user here if container image is busybox
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netlink"
@@ -737,6 +738,67 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	return nil
 }
 
+// CopyExistingContent copies the underlying files shadowed by a mount on a directory
+// to the volume mounted on the directory
+// see bug https://github.com/vmware/vic/issues/3482
+func (t *BaseOperations) CopyExistingContent(source string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("copyExistingContent from %s", source)))
+
+	source = filepath.Clean(source)
+
+	// if mounted volume is not empty skip the copy task
+	if empty, err := isEmpty(source); err != nil || !empty {
+		if err != nil {
+			log.Errorf("error checking directory for contents %s: %+v", source, err)
+			return err
+		}
+		log.Debugf("Skipping copy as volume %s is not empty", source)
+		return nil
+	}
+
+	log.Debugf("creating directory %s", bindDir)
+	if err := os.MkdirAll(bindDir, 0644); err != nil {
+		log.Errorf("error creating directory %s: %+v", bindDir, err)
+		return err
+	}
+
+	// remove dir
+	defer func() {
+		log.Debugf("removing %s", bindDir)
+		if err := os.Remove(bindDir); err != nil {
+			log.Errorf("error removing directory %s: %+v", bindDir, err)
+		}
+	}()
+
+	parentDir := filepath.Dir(source)
+	// mount the parent directory of the source to bindDir
+	// e.g if source is /foo/bar, mount /foo to ./bindDir
+	log.Debugf("mounting %s on %s", parentDir, bindDir)
+	if err := Sys.Syscall.Mount(parentDir, bindDir, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+		log.Errorf("error mounting to %s: %+v", bindDir, err)
+		return err
+	}
+
+	// unmount
+	defer func() {
+		log.Debugf("unmounting %s", bindDir)
+		if err := Sys.Syscall.Unmount(bindDir, syscall.MNT_DETACH); err != nil {
+			log.Errorf("error unmounting %+v", err)
+		}
+	}()
+
+	mountedSource := filepath.Join(bindDir, filepath.Base(source))
+	// copy data from the bindDir to the source
+	// e.g if source is /foo/bar, copy ./bindDir/bar to /foo/bar
+	log.Debugf("copying contents from to %s to %s", mountedSource, source)
+	if err := archive.CopyWithTar(mountedSource, source); err != nil {
+		log.Errorf("err copying %s to %s: %+v", mountedSource, source, err)
+		return err
+	}
+
+	return nil
+}
+
 // ProcessEnv does OS specific checking and munging on the process environment prior to launch
 func (t *BaseOperations) ProcessEnv(env []string) []string {
 	// TODO: figure out how we're going to specify user and pass all the settings along
@@ -873,4 +935,31 @@ func getUserSysProcAttr(uid, gid string) (*syscall.SysProcAttr, error) {
 		sysProc.Credential.Groups = append(sysProc.Credential.Groups, uint32(sgid))
 	}
 	return sysProc, nil
+}
+
+// isEmpty returns true if the directory is empty or contains a lost+found folder
+func isEmpty(name string) (bool, error) {
+	files, err := readDir(name)
+	if err != nil || len(files) > 0 {
+		return false, err
+	}
+	return true, nil
+}
+
+// readDir reads a directory and hides a specific dir "lost+found"
+func readDir(dir string) ([]os.FileInfo, error) {
+	lostnfound := "lost+found"
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	result := files[:0]
+	for _, f := range files {
+		if f.Name() != lostnfound {
+			result = append(result, f)
+		}
+	}
+
+	return result, nil
 }

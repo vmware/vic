@@ -16,7 +16,6 @@ package nfs
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -49,8 +48,7 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 	}
 
 	// construct MountSpec for the tether
-	mountSpec := createMountSpec(volume.Device.DiskPath(), mountPath, diskOpts)
-
+	mountSpec := createMountSpec(volume, mountPath, diskOpts)
 	if handle.ExecConfig.Mounts == nil {
 		handle.ExecConfig.Mounts = make(map[string]executor.MountSpec)
 	}
@@ -59,12 +57,14 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 	return handle, nil
 }
 
-func createMountSpec(host url.URL, mountPath string, diskOpts map[string]string) *executor.MountSpec {
+func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[string]string) *executor.MountSpec {
+	host := volume.Device.DiskPath()
 	deviceMode := nfsMountOptions + ",addr=" + host.Host
 	newMountSpec := executor.MountSpec{
-		Source: host,
-		Path:   mountPath,
-		Mode:   deviceMode,
+		Source:   host,
+		Path:     mountPath,
+		Mode:     deviceMode,
+		CopyMode: volume.CopyMode,
 	}
 	return &newMountSpec
 }

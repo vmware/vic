@@ -37,6 +37,7 @@ type Operations interface {
 	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(ctx context.Context, label, target string) error
 	MountTarget(ctx context.Context, source url.URL, target string, mountOptions string) error
+	CopyExistingContent(source string) error
 	Fork() error
 	// Returns two DynamicMultiWriters for stdout and stderr
 	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error)

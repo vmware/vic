@@ -22,6 +22,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -105,8 +106,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, err
 	}
 	defer v.dm.Detach(op, vmdisk)
-
-	vol, err := storage.NewVolume(store, ID, info, vmdisk)
+	vol, err := storage.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 			return nil, err
 		}
 
-		vol, err := storage.NewVolume(v.SelfLink, ID, meta, dev)
+		vol, err := storage.NewVolume(v.SelfLink, ID, meta, dev, executor.CopyNew)
 		if err != nil {
 			return nil, err
 		}

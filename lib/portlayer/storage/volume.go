@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -70,10 +71,12 @@ type Volume struct {
 
 	// Backing device
 	Device Disk
+
+	CopyMode executor.CopyMode
 }
 
 // NewVolume creates a Volume
-func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk) (*Volume, error) {
+func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk, copyMode executor.CopyMode) (*Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -93,8 +96,8 @@ func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk) (
 		SelfLink: selflink,
 		Device:   device,
 		Info:     info,
+		CopyMode: copyMode,
 	}
-
 	return vol, nil
 }
 

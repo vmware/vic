@@ -59,6 +59,14 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	return errors.New("not implemented on Windows")
 }
 
+// CopyExistingContent copies the underlying files shadowed by a mount on a directory
+// to the volume mounted on the directory
+func (t *BaseOperations) CopyExistingContent(source string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("copyExistingContent from %s", source)))
+
+	return errors.New("not implemented on Windows")
+}
+
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
 func (t *BaseOperations) ProcessEnv(env []string) []string {
 	return env

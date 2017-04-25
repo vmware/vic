@@ -29,6 +29,17 @@ const (
 	KILLED
 )
 
+// CopyMode type to define whether to copy data from the base image on mount
+type CopyMode int
+
+const (
+	// CopyNever Dont copy data on mount
+	CopyNever CopyMode = iota + 1
+
+	// CopyNew Copy data to the volume when it is first mounted
+	CopyNew
+)
+
 // Common data between managed entities, across execution environments
 type Common struct {
 	// A reference to the components hosting execution environment, if any
@@ -94,6 +105,9 @@ type MountSpec struct {
 	// Freeform mode string, which could translate directly to mount options
 	// We may want to turn this into a more structured form eventually
 	Mode string `vic:"0.1" scope:"read-only" key:"mode"`
+
+	// CopyMode specifies if data should be copied from the base image on first mount
+	CopyMode CopyMode `vic:"0.1" scope:"read-only" key:"copymode"`
 }
 
 // ContainerVM holds that data tightly associated with a containerVM, but that should not

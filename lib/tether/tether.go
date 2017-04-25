@@ -34,6 +34,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
@@ -42,11 +43,14 @@ import (
 )
 
 const (
-	// The maximum number of records to keep for restarting processes
+	// MaxDeathRecords The maximum number of records to keep for restarting processes
 	MaxDeathRecords = 5
 
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
+
+	// temp directory to copy existing data to mounts
+	bindDir = "/.tether/.bind"
 )
 
 var Sys = system.New()
@@ -252,6 +256,29 @@ func (t *tether) setMounts() error {
 			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
 		}
 	}
+	return t.populateVolumes()
+}
+
+func (t *tether) populateVolumes() error {
+	defer trace.End(trace.Begin(fmt.Sprintf("populateVolumes")))
+	// skip if no mounts present
+	if len(t.config.Mounts) == 0 {
+		return nil
+	}
+
+	for _, mnt := range t.config.Mounts {
+		if mnt.Path == "" {
+			continue
+		}
+		if mnt.CopyMode == executor.CopyNew {
+			err := t.ops.CopyExistingContent(mnt.Path)
+			if err != nil {
+				log.Errorf("error copyExistingContent for mount %s: %+v", mnt.Path, err)
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 

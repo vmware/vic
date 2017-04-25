@@ -34,7 +34,6 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 
 	//constuct MountSpec for the tether
 	mountSpec := createMountSpec(volume, mountPath, diskOpts)
-
 	//append a device addition spec change to the container config
 	diskDevice := createVolumeVirtualDisk(volume)
 	config := createDeviceConfigSpec(diskDevice)
@@ -83,8 +82,9 @@ func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[stri
 			Scheme: "label",
 			Path:   volume.Label,
 		},
-		Path: mountPath,
-		Mode: deviceMode,
+		Path:     mountPath,
+		Mode:     deviceMode,
+		CopyMode: volume.CopyMode,
 	}
 	return newMountSpec
 }
