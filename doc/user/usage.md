@@ -241,7 +241,6 @@ ERRO[2016-11-07T19:53:44Z] vic-machine-linux failed: provide Common Name for ser
 
 The [`--cert-path`](#certificate-names-and---cert-path) option applies to all of the TLS configurations other than --no-tls.
 
-Using `--force` will allow a `create` operation to move past some certificate checks performed for existing certificates, however will do so by generating __new__ certificates, __overwriting__ the old.
 
 #### Disabled, `--no-tls`
 Disabling TLS completely is strongly discouraged as it allows trivial snooping of API traffic by entities on the same network. When using this option the API will be served over HTTP, not HTTPS.
