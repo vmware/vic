@@ -80,7 +80,7 @@ Compute:
 	Path: " myCluster/Resources/myRP"
 	CpuLimit: 0 MHz
 	MemoryLimit: 0 MHZ
-Storages:
+Storage:
 	ImageStore: "datastore"
 	VolumeStore:
 		- "ds://datastore/volumes/default": "default"
@@ -107,14 +107,13 @@ Endpoint:
 	Cpu: 1
 	Memory: 2048 MHZ
 	Debug: 3
-	SSHEnabled: true
 ```
 
 - Command Option Format
 
   The yml format output is more readable for VIC admin, but if users want to recreate their vic-machine create or configure command, it's hard to do based on that format, because there is no one on one mapping between the configuration and command options. 
 
-  Here we'd support another option as "vic-machine inspect --cmd --conf", this will print out the vic-machine create command options minus secret information. 
+  Here we'd support another option as "vic-machine inspect --conf", this will print out the vic-machine create command options minus secret information. 
 
   The sample output:
 ```
@@ -170,13 +169,33 @@ The Configure Rollback is talking about after a successful configure, vic-machin
 
 This feature is nice to have, but as vic-machine upgrade already have this capability, mark it as P0.5.
 
+# Inspect Command Enhancement
+
+- Dump certificates
+```
+vic-machine inspect --cert-path  ./cert/path
+```
+This command will load certificate from cert path, and if not found, dump certificate files into this directory. If the certificate is not configured during creation, no certificate will be created. The default value `--cert-path` is VCH name.
+
+- Set Env
+`vic-machine inspect` should set user env like what `vic-machine create` did, to make sure user can run docker command correctly.
+
 # Manifest File
 vic-machine create already has more than 50 options, and the number will increase over time. With this configure feature added, most of those options need to be updated as well. To improve user experience, in my opinion, we need Manifest file to simplify vic-machine command generation.
 
 [vic-machine design](vic-machine.md#vch-manifest) mentioned manifest idea, here we'll start from a simple implementation. The manifest file format will be same to the yml file format, mentioned in [configuration inspection](#configuration-inspection)
 
 - vic-machine inspect --manifest filename will dump all configurations in yml file format to the manifest file.
+
+Here is how to manage VCH using manifest files.
 - vic-machine create --manifest will load the manifest file and create VCH based on it.
 - vic-machine configure --manifest will load the manifest file and update VCH configuration based on it.
+
+In addition, all the command options can be used together with manifest file, and the command option will override the value in manifest file
+
+TODO: Manifest management command line is not well defined yet. Here is one possible solution for it.
+- vic-machine update manifest
+
+All command options in `vic-machine create` can be used for this command.
 
 This manifest file approach will simplify vic-machine create/configure workflow, and leverage user readable configuration format. But it will be an additional work for existing vic-machine create.
