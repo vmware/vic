@@ -141,8 +141,8 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	// can't.  Since this is running inside init (tether) and tether
 	// reaps all children, the os.exec package won't be able to collect
 	// the error code in time before the reaper does.  The exec package
-	// calls wait and attemps to collect its child, but the reaper will
-	// have raptured the pid before that.  So, best effor, just keep going.
+	// calls wait and attempts to collect its child, but the reaper will
+	// have raptured the pid before that.  So, best effort, just keep going.
 	netfilter.Flush(context.Background(), "")
 
 	// default rule set
