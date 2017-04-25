@@ -90,11 +90,9 @@ Docker inspect container with multiple networks
     Should Be Equal As Integers  ${rc}  0
 
 Docker inspect invalid object
-    ${status}=  Get State Of Github Issue  4573
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-23-Docker-Inspect.robot needs to be updated now that Issue #4573 has been resolved
-	# ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect fake
-    # Should Be Equal As Integers  ${rc}  1
-    # Should Contain  ${output}  Error: No such image or container: fake
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect fake
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error: No such object: fake
 
 Docker inspect non-nil volume
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=test-with-volume -v /var/lib/test busybox

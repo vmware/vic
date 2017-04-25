@@ -22,7 +22,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Docker node demote
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node demote self
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  No such node: self
 
 Docker node ls
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node ls
@@ -32,7 +32,7 @@ Docker node ls
 Docker node promote
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node promote self
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  No such node: self
 
 Docker node rm
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node rm self
@@ -42,7 +42,7 @@ Docker node rm
 Docker node update
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node update self
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support Docker Swarm
+    Should Contain  ${output}  No such node: self
 
 Docker node ps
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} node ps
