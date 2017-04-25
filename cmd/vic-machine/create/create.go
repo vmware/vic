@@ -466,6 +466,12 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "Time to wait for create",
 			Destination: &c.Timeout,
 		},
+		cli.BoolFlag{
+			Name:        "asymmetric-routes, ar",
+			Usage:       "Set up the Virtual Container Host for asymmetric routing",
+			Destination: &c.AsymmetricRouting,
+			Hidden:      true,
+		},
 	}
 
 	help := []cli.Flag{

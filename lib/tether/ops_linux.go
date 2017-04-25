@@ -57,6 +57,7 @@ const (
 	pciDevPath         = "/sys/bus/pci/devices"
 	nfsFileSystemType  = "nfs"
 	ext4FileSystemType = "ext4"
+	bridgeTableNumber  = 201
 )
 
 type BaseOperations struct {
@@ -78,6 +79,7 @@ type Netlink interface {
 	AddrDel(netlink.Link, *netlink.Addr) error
 	RouteAdd(*netlink.Route) error
 	RouteDel(*netlink.Route) error
+	RuleList(family int) ([]netlink.Rule, error)
 	// Not quite netlink, but tightly associated
 
 	LinkBySlot(slot int32) (netlink.Link, error)
@@ -121,6 +123,10 @@ func (t *BaseOperations) RouteAdd(route *netlink.Route) error {
 
 func (t *BaseOperations) RouteDel(route *netlink.Route) error {
 	return netlink.RouteDel(route)
+}
+
+func (t *BaseOperations) RuleList(family int) ([]netlink.Rule, error) {
+	return netlink.RuleList(family)
 }
 
 func (t *BaseOperations) LinkBySlot(slot int32) (netlink.Link, error) {
@@ -393,6 +399,21 @@ func updateRoutes(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error
 	return nil
 }
 
+func bridgeTableExists(t Netlink) bool {
+	rules, err := t.RuleList(syscall.AF_INET)
+	if err != nil {
+		return false
+	}
+
+	for _, r := range rules {
+		if r.Table == bridgeTableNumber {
+			return true
+		}
+	}
+
+	return false
+}
+
 func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
 	gw := endpoint.Network.Assigned.Gateway
 	// Add routes
@@ -409,10 +430,27 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 		}
 	}
 
+	// delete the default route for the bridge.out table, if it exists
+	bTablePresent := bridgeTableExists(t)
+	if bTablePresent {
+		if err := t.RouteDel(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Table: bridgeTableNumber}); err != nil {
+			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.ESRCH {
+				return fmt.Errorf("could not update default route for bridge.out table: %s", err)
+			}
+		}
+	}
+
 	log.Infof("Setting default gateway to %s", gw.IP)
 	route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP}
 	if err := t.RouteAdd(route); err != nil {
 		return fmt.Errorf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
+	}
+
+	if bTablePresent {
+		route = &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: gw.IP, Table: bridgeTableNumber}
+		if err := t.RouteAdd(route); err != nil {
+			return fmt.Errorf("failed to add gateway route for table bridge.out for endpoint %s: %s", endpoint.Network.Name, err)
+		}
 	}
 
 	log.Infof("updated default route to %s interface, gateway: %s", endpoint.Network.Name, gw.IP)

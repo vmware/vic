@@ -39,8 +39,21 @@ echo 2 > /proc/sys/net/ipv4/ip_dynaddr
 # too many routers are still ignorant
 echo 0 > /proc/sys/net/ipv4/tcp_ecn
 
+# add a routing table for traffic from bridge that is not destined
+# for a local address
+echo 201 bridge.out >> /etc/iproute2/rt_tables
+ip rule add fwmark 1 table bridge.out
+
 # blow away any existing rules with iptables-restore
 iptables-restore <<RULES
+*mangle
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+-A PREROUTING -i bridge -m addrtype ! --dst-type LOCAL -j MARK --set-xmark 0x1/0xffffffff
+COMMIT
 *nat
 :PREROUTING ACCEPT [0:0]
 :INPUT ACCEPT [0:0]

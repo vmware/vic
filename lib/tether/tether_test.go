@@ -145,7 +145,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	return nil
 }
 
-func (t *Mocker) SetupFirewall() error {
+func (t *Mocker) SetupFirewall(*ExecutorConfig) error {
 	return nil
 }
 

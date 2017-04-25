@@ -79,6 +79,8 @@ type Data struct {
 	Force bool
 	UseRP bool
 
+	AsymmetricRouting bool
+
 	ScratchSize string
 	Rollback    bool
 }

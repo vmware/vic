@@ -420,6 +420,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		conf.AddContainerNetwork(mappedNet)
 	}
 	v.nicNumbers(conf)
+
+	conf.AsymmetricRouting = input.AsymmetricRouting
 }
 
 // nicNumbers will check vch appliance nic numbers. currently we don't support more than three nics for issue #1674.
