@@ -206,6 +206,18 @@ Run VIC Machine Inspect Command
     ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  %{VCH-NAME}
     Get Docker Params  ${output}  ${true}
 
+Inspect VCH
+    [Arguments]  ${expected}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${expected}
+
+Check UpdateInProgress
+    [Arguments]  ${expected}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep UpdateInProgress
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${expected}
+
 Gather Logs From Test Server
     [Tags]  secret
     Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
