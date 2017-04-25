@@ -143,7 +143,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	// the error code in time before the reaper does.  The exec package
 	// calls wait and attempts to collect its child, but the reaper will
 	// have raptured the pid before that.  So, best effort, just keep going.
-	netfilter.Flush(context.Background(), "")
+	_ = netfilter.Flush(context.Background(), "")
 
 	// default rule set
 	established := &netfilter.Rule{
@@ -176,7 +176,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
 			established.Interface = ifaceName
-			established.Commit(context.TODO())
+			_ = established.Commit(context.TODO())
 
 			// handle the ports
 			for _, p := range endpoint.Ports {
@@ -189,11 +189,11 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 
 				log.Infof("Applying rule for port %s", p)
 				r.Interface = ifaceName
-				r.Commit(context.TODO())
+				_ = r.Commit(context.TODO())
 			}
 
 			reject.Interface = ifaceName
-			reject.Commit(context.TODO())
+			_ = reject.Commit(context.TODO())
 
 			break
 		}
