@@ -600,8 +600,14 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	},
 	)
 
+	// fix up those parts of the config that depend on the final applianceVM folder name
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 
+	if len(conf.ImageStores[0].Path) == 0 {
+		conf.ImageStores[0].Path = d.vmPathName
+	}
+
+	// apply the fixed-up configuration
 	spec, err = d.reconfigureApplianceSpec(vm2, conf, settings)
 	if err != nil {
 		log.Errorf("Error while getting appliance reconfig spec: %s", err)
@@ -650,12 +656,7 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 	var devices object.VirtualDeviceList
 	var err error
 
-	spec := &types.VirtualMachineConfigSpec{
-		Name:               conf.Name,
-		GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
-		AlternateGuestName: constants.DefaultAltVCHGuestName(),
-		Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-	}
+	spec := &types.VirtualMachineConfigSpec{}
 
 	// create new devices
 	if devices, err = d.configIso(conf, vm, settings); err != nil {
