@@ -622,6 +622,12 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 		case msgs.UnblockReq:
 			log.Infof("Received UnblockReq for %s", session.ID)
 
+			if string(req.Payload) != msgs.UnblockMsg {
+				log.Infof("Received corrupted UnblockReq for %s", session.ID)
+				ok = false
+				break
+			}
+
 			// if the process has exited, or couldn't launch
 			if session.Started != "" && session.Started != "true" {
 				// we need to force the session closed so that error handling occurs on the callers
