@@ -81,6 +81,12 @@ type Data struct {
 
 	ScratchSize string
 	Rollback    bool
+
+	SyslogConfig SyslogConfig
+}
+
+type SyslogConfig struct {
+	Addr string
 }
 
 type ContainerNetworks struct {

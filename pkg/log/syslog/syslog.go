@@ -78,9 +78,11 @@ func (hook *SyslogHook) Levels() []logrus.Level {
 
 func AddSyslog(proto, raddr, tag string) error {
 	hook, err := NewSyslogHook(proto, raddr, syslog.LOG_INFO, tag)
-	if err := err.(net.Error); err != nil {
-		if !err.Temporary() && !err.Timeout() {
-			return err
+	if err != nil {
+		if err := err.(net.Error); err != nil {
+			if !err.Temporary() && !err.Timeout() {
+				return err
+			}
 		}
 	}
 

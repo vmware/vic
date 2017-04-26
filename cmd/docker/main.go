@@ -138,6 +138,8 @@ func handleFlags() bool {
 	if vchConfig.Diagnostics.SysLogConfig != nil {
 		if err := syslog.AddSyslog(vchConfig.Diagnostics.SysLogConfig.Proto, vchConfig.Diagnostics.SysLogConfig.RAddr, "docker"); err != nil {
 			log.Warnf("failed to connect to syslog server: %s", err)
+		} else {
+			log.Infof("sending logs to syslog endpoint %s:%s", vchConfig.Diagnostics.SysLogConfig.Proto, vchConfig.Diagnostics.SysLogConfig.RAddr)
 		}
 	}
 
