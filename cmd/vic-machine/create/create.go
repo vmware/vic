@@ -1099,7 +1099,7 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 	// generate the certs and keys with names conforming the default the docker client expects
 	files, err := ioutil.ReadDir(c.certPath)
 	if len(files) > 0 {
-		return nil, nil, fmt.Errorf("Specified directory to store certificates, \"%s\", is not empty. Please specify a new path in which to store generated certificates using --cert-path or remove the contents of \"%s\" and run vic-machine again.", c.certPath, c.certPath)
+		return nil, nil, fmt.Errorf("Specified directory to store certificates is not empty. Specify a new path in which to store generated certificates using --cert-path or remove the contents of \"%s\" and run vic-machine again.", c.certPath)
 	}
 
 	err = os.MkdirAll(c.certPath, 0700)
