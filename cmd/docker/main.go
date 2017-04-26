@@ -45,6 +45,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -132,6 +133,12 @@ func handleFlags() bool {
 
 	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	if vchConfig.Diagnostics.SysLogConfig != nil {
+		if err := syslog.AddSyslog(vchConfig.Diagnostics.SysLogConfig.Proto, vchConfig.Diagnostics.SysLogConfig.RAddr, "docker"); err != nil {
+			log.Warnf("failed to connect to syslog server: %s", err)
+		}
 	}
 
 	*cli.portLayerAddr = fmt.Sprintf("%s:%d", *cli.portLayerAddr, *cli.portLayerPort)
