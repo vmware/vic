@@ -26,7 +26,7 @@ import (
 const (
 	//Below is a list of options included in the mount options and a brief reason why.
 	// rw : on by default, for ro the syscall.MS_READONLY flag must be set instead of putting it in the options pointer of the mount call.
-	// "noatime" : this option prevents read's from triggering a write to update the accesstime of an inode. Helps with efficient reads. (Specifed as a flag during the tether operation.)
+	// "noatime" : this option prevents read's from triggering a write to update the accesstime of an inode. Helps with efficient reads. (Specified as a flag during the tether operation.)
 	// "vers=3" : we want to use NFSv3 it is simpler to implement and we do not need all the features of NFSv4 at this time
 	// "rsize=131072" : indicates the maximum read size for data on the NFS server. If the rsize is too big for either the client or server a negotion will occur to determine a supportable size. the value chosen is a default for /bin/mount for ubuntu 16.04
 	// "wsize=131072" : indicates the maximum write size for data on the NFS server. Like rsize it is negotiated if the value is too large. the value chosen is a default for /bin/mount for ubuntu 16.04
