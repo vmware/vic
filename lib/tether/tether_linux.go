@@ -48,6 +48,8 @@ func Mkdev(majorNumber int, minorNumber int) int {
 // ReloadConfig signals the current process, which triggers the signal handler
 // to reload the config.
 func ReloadConfig() error {
+	defer trace.End(trace.Begin(""))
+
 	p, err := os.FindProcess(os.Getpid())
 	if err != nil {
 		return err
@@ -254,6 +256,15 @@ func establishPty(session *SessionConfig) error {
 	go func() {
 		_, gerr := io.CopyBuffer(session.Pty, session.Reader, make([]byte, ioCopyBufferSize))
 		log.Debugf("PTY stdin copy: %s", gerr)
+
+		// ensure that an EOT is delivered to the process - this makes the behaviour on EOF at this layer
+		// consistent between tty and non-tty cases
+		n, gerr := session.Pty.Write([]byte("\x04"))
+		if n != 1 || gerr != nil {
+			log.Errorf("Failed to write EOT to pty, closing directly: %s", gerr)
+			session.Pty.Close()
+		}
+		log.Debug("Written EOT to pty")
 	}()
 
 	return nil

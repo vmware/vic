@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
@@ -53,8 +54,7 @@ const (
 	StateRemoving
 	StateRemoved
 
-	propertyCollectorTimeout = 3 * time.Minute
-	containerLogName         = "output.log"
+	containerLogName = "output.log"
 
 	vmNotSuspendedKey = "msg.suspend.powerOff.notsuspended"
 	vmPoweringOffKey  = "msg.rpc.error.poweringoff"
@@ -594,7 +594,7 @@ func (c *Container) OnEvent(e events.Event) {
 			StateSuspended:
 
 			// container state has changed so we need to update the container attributes
-			ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), constants.PropertyCollectorTimeout)
 			defer cancel()
 
 			if err := c.refresh(ctx); err != nil {
@@ -637,7 +637,7 @@ func (c *Container) OnEvent(e events.Event) {
 	switch e.String() {
 	case events.ContainerRelocated:
 		// container relocated so we need to update the container attributes
-		ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), constants.PropertyCollectorTimeout)
 		defer cancel()
 
 		err := c.refresh(ctx)

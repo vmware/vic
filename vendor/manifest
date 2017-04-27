@@ -706,6 +706,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/matryer/resync",
+			"repository": "https://github.com/matryer/resync",
+			"vcs": "git",
+			"revision": "d39c09a11215c84aab0b65e323fc47dd6e276af1",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/mattn/go-runewidth",
 			"repository": "https://github.com/mattn/go-runewidth",
 			"vcs": "git",
@@ -1168,6 +1176,15 @@
 			"vcs": "git",
 			"revision": "1611bb46e67abc64a71ecc5c3ae67f1cbbc2b921",
 			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/sync/singleflight",
+			"repository": "https://go.googlesource.com/sync",
+			"vcs": "git",
+			"revision": "5a06fca2c336a4b2b2fcb45702e8c47621b2aa2c",
+			"branch": "master",
+			"path": "/singleflight",
 			"notests": true
 		},
 		{

@@ -1520,6 +1520,48 @@
 			}
 		},
 		"/tasks": {
+			"put": {
+				"description": "Initiates an task wait operation",
+				"summary": "Initiates an task wait operation",
+				"operationId": "Wait",
+				"tags": [
+					"tasks"
+				],
+				"consumes": [
+					"application/json",
+					"application/octet-stream"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/TaskWaitConfig"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"404": {
+						"description": "not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Wait of task failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
 			"get": {
 				"description": "Initiates an task inspect operation",
 				"summary": "Initiates an task inspect operation",
@@ -1558,7 +1600,7 @@
 						}
 					},
 					"500": {
-						"description": "Join of task failed",
+						"description": "Inspect of task failed",
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
@@ -3332,9 +3374,14 @@
 		"InteractionBindConfig": {
 			"type": "object",
 			"required": [
-				"handle"
+				"handle",
+				"id"
 			],
 			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
 				"handle": {
 					"type": "object"
 				}
@@ -3343,9 +3390,14 @@
 		"InteractionUnbindConfig": {
 			"type": "object",
 			"required": [
-				"handle"
+				"handle",
+				"id"
 			],
 			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
 				"handle": {
 					"type": "object"
 				}
@@ -3492,6 +3544,22 @@
 			}
 		},
 		"TaskInspectConfig": {
+			"type": "object",
+			"required": [
+				"handle",
+				"id"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"x-nullable": false
+				},
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"TaskWaitConfig": {
 			"type": "object",
 			"required": [
 				"handle",

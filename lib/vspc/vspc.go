@@ -32,31 +32,30 @@ import (
 
 /* Vsphere telnet extension constants */
 const (
-	VmwareExt             byte          = 232
-	KnownSuboptions1      byte          = 0
-	KnownSuboptions2      byte          = 1
-	UnknownSuboptionRcvd1 byte          = 2
-	UnknownSuboptionRcvd2 byte          = 3
-	VmotionBegin          byte          = 40
-	VmotionGoahead        byte          = 41
-	VmotionNotNow         byte          = 43
-	VmotionPeer           byte          = 44
-	VmotionPeerOK         byte          = 45
-	VmotionComplete       byte          = 46
-	VmotionAbort          byte          = 48
-	DoProxy               byte          = 70
-	WillProxy             byte          = 71
-	WontProxy             byte          = 73
-	VMVCUUID              byte          = 80
-	GetVMVCUUID           byte          = 81
-	VMName                byte          = 82
-	GetVMName             byte          = 83
-	VMBiosUUID            byte          = 84
-	GetVMBiosUUID         byte          = 85
-	VMLocationUUID        byte          = 86
-	GetsVMLocationUUID    byte          = 87
-	VMHealthCheckPeriod   time.Duration = 10 * time.Second
-	vspcPort              int           = 2377
+	VmwareExt             byte = 232
+	KnownSuboptions1      byte = 0
+	KnownSuboptions2      byte = 1
+	UnknownSuboptionRcvd1 byte = 2
+	UnknownSuboptionRcvd2 byte = 3
+	VmotionBegin          byte = 40
+	VmotionGoahead        byte = 41
+	VmotionNotNow         byte = 43
+	VmotionPeer           byte = 44
+	VmotionPeerOK         byte = 45
+	VmotionComplete       byte = 46
+	VmotionAbort          byte = 48
+	DoProxy               byte = 70
+	WillProxy             byte = 71
+	WontProxy             byte = 73
+	VMVCUUID              byte = 80
+	GetVMVCUUID           byte = 81
+	VMName                byte = 82
+	GetVMName             byte = 83
+	VMBiosUUID            byte = 84
+	GetVMBiosUUID         byte = 85
+	VMLocationUUID        byte = 86
+	GetsVMLocationUUID    byte = 87
+	vspcPort              int  = 2377
 )
 const remoteConnReadDeadline = 1 * time.Second
 
@@ -97,6 +96,10 @@ func (cvm *cVM) isInVMotion() bool {
 	return cvm.inVmotion
 }
 
+func (cvm *cVM) String() string {
+	return cvm.vmUUID
+}
+
 // Vspc is all the vspc singletons
 type Vspc struct {
 	vmManagerMu sync.Mutex
@@ -134,11 +137,14 @@ func NewVspc() *Vspc {
 	}
 	hdlr := handler{vspc}
 	opts := telnet.ServerOpts{
-		Addr:        fmt.Sprintf("%s:%d", address, port),
-		ServerOpts:  []byte{telnet.Binary, telnet.Sga, telnet.Echo},
-		ClientOpts:  []byte{telnet.Binary, telnet.Sga, VmwareExt},
-		DataHandler: hdlr.dataHdlr,
-		CmdHandler:  hdlr.cmdHdlr,
+		Addr:       fmt.Sprintf("%s:%d", address, port),
+		ServerOpts: []byte{telnet.Binary, telnet.Sga, telnet.Echo},
+		ClientOpts: []byte{telnet.Binary, telnet.Sga, VmwareExt},
+		Handlers: telnet.Handlers{
+			DataHandler:  hdlr.dataHdlr,
+			CmdHandler:   hdlr.cmdHdlr,
+			CloseHandler: hdlr.closeHdlr,
+		},
 	}
 	vspc.Server = telnet.NewServer(opts)
 	vspc.verbose = false
@@ -168,7 +174,6 @@ func (vspc *Vspc) Start() {
 			}
 		}
 	}()
-	go vspc.monitorVMConnections()
 	log.Infof("vSPC started...")
 }
 
@@ -256,39 +261,17 @@ func (vspc *Vspc) relayReads(containervm *cVM, conn net.Conn) {
 func (vspc *Vspc) cvmFromTelnetConn(tc *telnet.Conn) (*cVM, bool) {
 	vspc.vmManagerMu.Lock()
 	defer vspc.vmManagerMu.Unlock()
+
+	return vspc.cvmFromTelnetConnUnlocked(tc)
+}
+
+// cvmFromTelnetConnUnlocked is the unlocked version of cvmFromTelnetConn
+// it expects caller to hold the lock
+func (vspc *Vspc) cvmFromTelnetConnUnlocked(tc *telnet.Conn) (*cVM, bool) {
 	for _, v := range vspc.vmManager {
 		if v.containerConn == tc {
 			return v, true
 		}
 	}
 	return nil, false
-}
-
-// monitorVMConnections is to monitor connections and delete VM recoreds from the vmManager map when the containerVM exits
-func (vspc *Vspc) monitorVMConnections() {
-	ticker := time.NewTicker(VMHealthCheckPeriod)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				vspc.vmManagerMu.Lock()
-
-				for k, vm := range vspc.vmManager {
-					vm.Lock()
-					if !vm.inVmotion && vm.containerConn.IsClosed() { // vm just shut down
-						log.Debugf("(vspc) detected closed connection for VM %s", k)
-						log.Debugf("(vspc) closing connection to the AttachServer")
-						vm.remoteConn.Close()
-						log.Debugf("(vspc) deleting vm records from the vm manager %s", k)
-						delete(vspc.vmManager, k)
-					}
-					vm.Unlock()
-				}
-				vspc.vmManagerMu.Unlock()
-			case <-vspc.doneCh:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 }

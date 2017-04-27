@@ -31,18 +31,12 @@ type connOpts struct {
 	// conn is the underlying connection
 	conn net.Conn
 	fsm  *fsm
-	// cmdHandler is the command handler for the telnet server
-	// it is a callback function when receiving commands issued by the telnet client
-	// it is wrapped by the cmdHandlerWrapper
-	cmdHandler CmdHandlerFunc
 
-	// dataHandler is the data handler of the telnet server
-	// it is a call back function when receiving data from the telnet client
-	// it is wrapped by the dataHandlerWrapper
-	dataHandler DataHandlerFunc
 	serverOpts  map[byte]bool
 	clientOpts  map[byte]bool
 	optCallback optCallBackFunc
+
+	Handlers
 }
 
 // Conn is the struct representing the telnet connection
@@ -166,6 +160,10 @@ func (c *Conn) close() {
 	c.closeDatahandler()
 	c.handlerWriter.Close()
 	log.Infof("telnet connection closed")
+
+	// calling the CloseHandler passed by vspc
+	c.CloseHandler(c)
+
 }
 
 func (c *Conn) closeConnLoopWrite() {
@@ -217,7 +215,7 @@ func (c *Conn) dataHandlerWrapper(w io.Writer, r io.Reader) {
 			return
 		case <-c.dataWrittenCh:
 			if b, _ := ioutil.ReadAll(r); len(b) > 0 {
-				c.dataHandler(w, b, c)
+				c.DataHandler(w, b, c)
 			}
 		}
 	}
@@ -225,7 +223,7 @@ func (c *Conn) dataHandlerWrapper(w io.Writer, r io.Reader) {
 
 func (c *Conn) cmdHandlerWrapper(w io.Writer, r io.Reader) {
 	if cmd, _ := ioutil.ReadAll(r); len(cmd) > 0 {
-		c.cmdHandler(w, cmd, c)
+		c.CmdHandler(w, cmd, c)
 	}
 }
 

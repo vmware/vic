@@ -109,6 +109,12 @@ func (t *multiWriter) Add(writer ...io.Writer) {
 	}
 }
 
+// CloseWriter is an interface that implements structs
+// that close input streams to prevent from writing.
+type CloseWriter interface {
+	CloseWrite() error
+}
+
 // FIXME: provide a mechanism for selectively closing writers
 //  - currently this closes /dev/stdout and logging as well if present
 func (t *multiWriter) Close() error {
@@ -120,9 +126,14 @@ func (t *multiWriter) Close() error {
 
 	log.Debugf("[%p] Close on writers", t)
 	for _, w := range t.writers {
-		// squash closing of stdout/err if bound
-		if c, ok := w.(io.Closer); ok && c != os.Stdout && c != os.Stderr {
-			log.Debugf("[%p] Closing writer %+v", t, w)
+		log.Debugf("[%p] Closing writer %+v", t, w)
+
+		if c, ok := w.(CloseWriter); ok {
+			log.Debugf("[%p] is a CloseWriter", t, w)
+			c.CloseWrite()
+		} else if c, ok := w.(io.Closer); ok && c != os.Stdout && c != os.Stderr {
+			log.Debugf("[%p] is a Closer", t, w)
+			// squash closing of stdout/err if bound
 			c.Close()
 		}
 	}

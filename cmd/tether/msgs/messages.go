@@ -76,6 +76,32 @@ var (
 	}
 )
 
+// PingMsg
+const PingReq = "ping"
+const PingMsg = "Ping"
+
+const UnblockReq = "unblock"
+const UnblockMsg = "Unblock"
+
+// VersionMsg
+const VersionReq = "version"
+
+type VersionMsg struct {
+	Version uint32
+}
+
+func (s *VersionMsg) RequestType() string {
+	return VersionReq
+}
+
+func (s *VersionMsg) Marshal() []byte {
+	return ssh.Marshal(*s)
+}
+
+func (s *VersionMsg) Unmarshal(payload []byte) error {
+	return ssh.Unmarshal(payload, s)
+}
+
 // SignalMsg
 const SignalReq = "signal"
 

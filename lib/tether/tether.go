@@ -61,7 +61,7 @@ type tether struct {
 	ops Operations
 
 	// the reload channel is used to block reloading of the config
-	reload chan bool
+	reload chan struct{}
 
 	// config holds the main configuration for the executor
 	config *ExecutorConfig
@@ -83,7 +83,7 @@ func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &tether{
 		ops:    ops,
-		reload: make(chan bool, 1),
+		reload: make(chan struct{}, 1),
 		config: &ExecutorConfig{
 			pids: make(map[int]*SessionConfig),
 		},
@@ -127,7 +127,7 @@ func (t *tether) setup() error {
 		log.SetOutput(out)
 	}
 
-	t.reload = make(chan bool, 1)
+	t.reload = make(chan struct{}, 1)
 	t.config = &ExecutorConfig{
 		pids: make(map[int]*SessionConfig),
 	}
@@ -190,7 +190,6 @@ func (t *tether) cleanup() {
 	log.SetOutput(os.Stdout)
 
 	// perform basic cleanup
-	t.reload = nil
 	t.ops.Cleanup()
 }
 
@@ -357,7 +356,7 @@ func (t *tether) processSessions() error {
 	// so that we can launch multiple sessions in parallel
 	var wg sync.WaitGroup
 	// to collect the errors back from them
-	resultsCh := make(chan results, len(t.config.Sessions))
+	resultsCh := make(chan results, len(t.config.Sessions)+len(t.config.Execs))
 
 	maps := []struct {
 		sessions map[string]*SessionConfig
@@ -400,8 +399,10 @@ func (t *tether) processSessions() error {
 			}
 
 			// check if session has never been started or is configured for restart
-			if proc == nil || session.Restart {
-				if proc == nil {
+			// if proc is nil, but Started is set then it could be a launch failure
+			if (proc == nil && session.Started == "") || session.Restart {
+				// if we've never been started
+				if proc == nil && session.Started == "" {
 					log.Infof("Launching process for session %s", id)
 					log.Debugf("Launch failures are fatal: %t", m.fatal)
 				} else {
@@ -461,12 +462,20 @@ func (t *tether) Start() error {
 	defer t.cleanup()
 
 	// initial entry, so seed this
-	t.reload <- true
+	t.reload <- struct{}{}
 	for range t.reload {
+		select {
+		case <-t.ctx.Done():
+			log.Warnf("Someone called shutdown, returning from start")
+			return nil
+		default:
+		}
 		log.Info("Loading main configuration")
 
 		// load the config - this modifies the structure values in place
+		t.config.Lock()
 		extraconfig.Decode(t.src, t.config)
+		t.config.Unlock()
 
 		t.setLogLevel()
 
@@ -498,6 +507,8 @@ func (t *tether) Start() error {
 			return err
 		}
 
+		// Danger, Will Robinson! There is a strict ordering here.
+		// We need to start attach server first so that it can unblock the session
 		if err := t.reloadExtensions(); err != nil {
 			log.Error(err)
 			return err
@@ -517,26 +528,61 @@ func (t *tether) Start() error {
 func (t *tether) Stop() error {
 	defer trace.End(trace.Begin(""))
 
-	// TODO: kill all the children
-	if t.reload != nil {
-		close(t.reload)
-	}
-
-	// cancel the context to unblock waiters
+	// cancel the context to signal waiters
 	t.cancel()
+
+	// TODO: kill all the children
+	close(t.reload)
+
 	return nil
 }
 
 func (t *tether) Reload() {
-	log.Infof("Reload triggered")
+	defer trace.End(trace.Begin(""))
 
-	t.reload <- true
+	select {
+	case <-t.ctx.Done():
+		log.Warnf("Someone called shutdown, dropping the reload request")
+		return
+	default:
+		t.reload <- struct{}{}
+	}
 }
 
 func (t *tether) Register(name string, extension Extension) {
 	log.Infof("Registering tether extension " + name)
 
 	t.extensions[name] = extension
+}
+
+// cleanupSession performs some common cleanup work between handling a session exit and
+// handling a failure to launch
+// caller needs to hold session Lock
+func (t *tether) cleanupSession(session *SessionConfig) {
+	// close down the outputs
+	log.Debugf("Calling close on writers")
+	if err := session.Outwriter.Close(); err != nil {
+		log.Warnf("Close for Outwriter returned %s", err)
+	}
+
+	// this is a little ugly, however ssh channel.Close will get invoked by these calls,
+	// whereas CloseWrite will be invoked by the OutWriter.Close so that goes first.
+	if err := session.Errwriter.Close(); err != nil {
+		log.Warnf("Close for Errwriter returned %s", err)
+	}
+	// if we're calling this we don't care about truncation of pending input, so this is
+	// called last
+	log.Debugf("Calling close on reader")
+	if err := session.Reader.Close(); err != nil {
+		log.Warnf("Close for Reader returned %s", err)
+	}
+
+	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
+	if session.ClearToLaunch != nil {
+		log.Debugf("Calling close chan: %s", session.ID)
+		close(session.ClearToLaunch)
+		session.ClearToLaunch = nil
+	}
 }
 
 // handleSessionExit processes the result from the session command, records it in persistent
@@ -554,26 +600,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 		log.Warnf("Wait returned %s", err)
 	}
 
-	log.Debugf("Calling close on reader")
-	if err := session.Reader.Close(); err != nil {
-		log.Warnf("Close for Reader returned %s", err)
-	}
-
-	// close down the outputs
-	log.Debugf("Calling close on writers")
-	if err := session.Outwriter.Close(); err != nil {
-		log.Warnf("Close for Outwriter returned %s", err)
-	}
-	if err := session.Errwriter.Close(); err != nil {
-		log.Warnf("Close for Errwriter returned %s", err)
-	}
-
-	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
-	if session.ClearToLaunch != nil {
-		log.Debugf("Calling close chan")
-		close(session.ClearToLaunch)
-		session.ClearToLaunch = nil
-	}
+	t.cleanupSession(session)
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
@@ -601,8 +628,14 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Lock()
 	defer session.Unlock()
 
-	// encode the result whether success or error
+	var err error
 	defer func() {
+		if session.Started != "true" {
+			// if we didn't launch cleanly then clean up
+			t.cleanupSession(session)
+		}
+
+		// encode the result whether success or error
 		prefix := extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0]
 		log.Debugf("Encoding result of launch for session %s under key: %s", session.ID, prefix)
 		extraconfig.EncodeWithPrefix(t.sink, session, prefix)
@@ -624,6 +657,9 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Cmd.Stdout = nil
 	session.Cmd.Stderr = nil
 
+	// Set StopTime to its default value
+	session.StopTime = 0
+
 	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir)
 	if err != nil {
 		log.Errorf("Path lookup failed for %s: %s", session.Cmd.Path, err)
@@ -635,13 +671,13 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// block until we have a connection
 	if session.RunBlock && session.ClearToLaunch != nil {
-		log.Debugf("Waiting clear signal to launch %s", session.ID)
+		log.Infof("Waiting clear signal to launch %s", session.ID)
 		select {
 		case <-t.ctx.Done():
 			log.Warnf("Waiting to launch %s canceled, bailing out", session.ID)
 			return nil
 		case <-session.ClearToLaunch:
-			log.Debugf("Received the clear signal to launch %s", session.ID)
+			log.Infof("Received the clear signal to launch %s", session.ID)
 		}
 	}
 
@@ -763,7 +799,7 @@ func (t *tether) forkHandler() {
 
 		// trigger a reload of the configuration
 		log.Info("Triggering reload of config after fork")
-		t.reload <- true
+		t.reload <- struct{}{}
 	}
 }
 
