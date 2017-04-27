@@ -22,9 +22,8 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/stringutils"
 
-	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
@@ -46,23 +45,13 @@ type dsBackend struct {
 // Save saves data to the specified path
 func (d *dsBackend) Save(ctx context.Context, r io.Reader, path string) error {
 	// upload to an ephemeral file
-	tmpfile := fmt.Sprintf("%s.tmp", path)
+	tmpfile := fmt.Sprintf("%s-%s.tmp", path, stringutils.GenerateRandomAlphaOnlyString(10))
 	if err := d.ds.Upload(ctx, r, tmpfile); err != nil {
 		return err
 	}
 	log.Debugf("kv store upload of file (%s) was successful", tmpfile)
 
-	moveOperation := func() error {
-		return d.ds.Mv(ctx, tmpfile, path)
-	}
-
-	// we will reattempt the move since it might take some time for the upload to replicate before presenting on VSAN.
-	// XXX: This is a workaround until the VSAN fixes the bug where they return a successful upload before replication finishes.
-	if err := retry.Do(moveOperation, types.IsFileNotFound); err != nil {
-		log.Debugf("failed to move file (%s) to (%s) after attempting to recover from a FileNotFoundFault with error (%s) during a kv store save operation.", tmpfile, path, err.Error())
-		return err
-	}
-	return nil
+	return d.ds.Mv(ctx, tmpfile, path)
 }
 
 func toOsError(err error) error {
