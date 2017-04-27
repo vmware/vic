@@ -219,7 +219,7 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 
 }
 
-func (c *Container) TaskWait(cid, cname, eid string) error {
+func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
 	// obtain a portlayer client
 	client := c.containerProxy.Client()
 
@@ -430,9 +430,9 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 		defer cancel()
 
 		go func() {
-			defer trace.End(trace.Begin("TaskWaitRoutine"))
+			defer trace.End(trace.Begin(eid))
 			// wait property collector
-			if err := c.TaskWait(id, name, eid); err != nil {
+			if err := c.TaskWaitToStart(id, name, eid); err != nil {
 				log.Errorf("Task wait returned %s, canceling the context", err)
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
