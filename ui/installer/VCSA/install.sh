@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+# Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ cleanup () {
     fi
 }
 
+# check for the configs file
 if [[ ! -f "configs" ]] ; then
     echo "Error! Configs file is missing. Please try downloading the VIC UI installer again"
     echo ""
@@ -30,16 +31,29 @@ if [[ ! -f "configs" ]] ; then
     exit 1
 fi
 
-CONFIGS_FILE="configs"
+# load configs variable into env
 while IFS='' read -r line; do
     eval $line
-done < $CONFIGS_FILE
+done < ./configs
 
+# check for the VC IP
 if [[ $VCENTER_IP == "" ]] ; then
     echo "Error! vCenter IP cannot be empty. Please provide a valid IP in the configs file"
     cleanup
     exit 1
 fi
+
+# check for the pllugin manifest file
+if [[ ! -f ../plugin-manifest ]] ; then
+    echo "Error! Plugin manifest was not found!"
+    cleanup
+    exit 1
+fi
+
+# load plugin manifest into env
+while IFS='' read -r p_line; do
+    eval "$p_line"
+done < ../plugin-manifest
 
 read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
 echo -n "Enter your vCenter Administrator Password: "
@@ -48,13 +62,7 @@ echo ""
 
 BASH_ENABLED_ON_VCSA=1
 
-if [[ $VIC_UI_HOST_URL == "NOURL" ]] ; then
-    if [[ $IS_VCENTER_5_5 -eq 1 ]] ; then
-        WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-    else
-        WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-    fi
-
+if [[ $VIC_UI_HOST_URL = "NOURL" ]] ; then
     echo "----------------------------------------"
     echo "Checking if VCSA has Bash shell enabled..."
     echo "Please enter the root password"
@@ -74,11 +82,11 @@ if [[ $VIC_UI_HOST_URL == "NOURL" ]] ; then
 fi
 
 OS=$(uname)
-PLUGIN_BUNDLES=''
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
 COMMONFLAGS="--target $VCENTER_SDK_URL --user $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
-OLD_PLUGIN_FOLDERS=''
-FORCE_INSTALL=''
+OLD_PLUGIN_FOLDERS=""
+FORCE_INSTALL=""
+WEBCLIENT_PLUGINS_FOLDER=""
 
 case $1 in
     "-f")
@@ -102,10 +110,33 @@ if [[ $VIC_UI_HOST_URL != 'NOURL' ]] ; then
 fi
 
 check_prerequisite () {
-    if [[ ! -d ../vsphere-client-serenity ]] ; then
-        echo "Error! VIC UI plugin bundle was not found. Please try downloading the VIC UI installer again"
-        cleanup
-        exit 1
+    # if PLUGIN_TYPE is not specified default to html5 plugin
+    if [[ $PLUGIN_TYPE = 'flex' ]] ; then
+        PLUGIN_TYPE=flex
+        if [[ $IS_VCENTER_5_5 -eq 1 ]] ; then
+            WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+        else
+            WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+        fi
+        key=$key_flex
+    else
+        PLUGIN_TYPE=html5
+        WEBCLIENT_PLUGINS_FOLDER="/usr/lib/vmware-vsphere-ui/plugin-packages/"
+        key=$key_h5c
+    fi
+
+    if [[ $VIC_UI_HOST_URL = "NOURL" ]] ; then
+        if [[ $PLUGIN_TYPE = "html5" ]] ; then
+            plugin_folder="plugin-packages"
+        else
+            plugin_folder="vsphere-client-serenity"
+        fi
+
+        if [[ ! -d ../$plugin_folder ]] ; then
+            echo "Error! VIC UI plugin bundle was not found. Please try downloading the VIC UI installer again"
+            cleanup
+            exit 1
+        fi
     fi
 
     if [[ $(curl -v --head https://$VCENTER_IP -k 2>&1 | grep -i "could not resolve host") ]] ; then
@@ -115,6 +146,7 @@ check_prerequisite () {
     fi
 }
 
+# purpose of this function is to remove an outdated version of vic ui in case it's installed
 remove_old_key_installation () {
     if [[ ! $(ls -la ../vsphere-client-serenity/ | grep -i "com.vmware.vicui") ]] ; then
         $PLUGIN_MANAGER_BIN remove $COMMONFLAGS --key com.vmware.vicui.Vicui > /dev/null
@@ -122,80 +154,57 @@ remove_old_key_installation () {
 }
 
 parse_and_register_plugins () {
-    for d in ../vsphere-client-serenity/* ; do
-        if [[ -d $d ]] ; then
-            echo "Reading plugin-package.xml..."
+    local plugin_url=$VIC_UI_HOST_URL
+    local plugin_flags="--key $key --name $name --version $version --summary $summary --company $company --url $plugin_url"
 
-            while IFS='' read -r p_line; do
-                eval "local $p_line"
-            done < $d/vc_extension_flags
-
-            if [[ ! -d "../vsphere-client-serenity/${key}-${version}" ]] ; then
-                rename_package_folder $d "../vsphere-client-serenity/$key-$version"
-            fi
-
-            local plugin_url="$VIC_UI_HOST_URL"
-            if [[ $plugin_url != 'NOURL' ]] ; then
-                if [[ ! -f "../vsphere-client-serenity/${key}-${version}.zip" ]] ; then
-                    echo "File ${key}-${version}.zip does not exist!"
-                    cleanup
-                    exit 1
-                fi
-                local plugin_url="$plugin_url$key-$version.zip"
-            fi
-
-            local plugin_flags="--key $key --name $name --version $version --summary $summary --company $company --url $plugin_url"
-
-            echo "----------------------------------------"
-            echo "Registering vCenter Server Extension..."
-            echo "----------------------------------------"
-
-            if [[ "$OLD_PLUGIN_FOLDERS" -eq "" ]] ; then
-                OLD_PLUGIN_FOLDERS="$key-*"
-            else
-                OLD_PLUGIN_FOLDERS="$OLD_PLUGIN_FOLDERS $key-*"
-            fi
-
-            if [[ $(echo ${VIC_UI_HOST_URL:0:5} | grep -i "https") ]] ; then
-                $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags --server-thumbprint "$VIC_UI_HOST_THUMBPRINT"
-            else
-                $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags
-            fi
-
-            if [[ $? > 0 ]] ; then
-                echo "-------------------------------------------------------------"
-                echo "Error! Could not register plugin with vCenter Server. Please see the message above"
-                cleanup
-                exit 1
-            fi
+    if [[ $VIC_UI_HOST_URL != "NOURL" ]] ; then
+        #TODO: factor these in integration test 18-1
+        if [[ ! $(echo ${VIC_UI_HOST_URL:0:5} | grep -i "https") ]] ; then
+            echo "-------------------------------------------------------------"
+            echo "Error! VIC_UI_HOST_URL should always start with 'https' in the configs file"
+            cleanup
+            exit 1
         fi
-    done
-}
 
-rename_package_folder () {
-    mv $1 $2
+        if [[ -z $VIC_UI_HOST_THUMBPRINT ]] ; then
+            echo "-------------------------------------------------------------"
+            echo "Error! Please provide VIC_UI_HOST_THUMBPRINT in the configs file"
+            cleanup
+            exit 1
+        fi
+            
+        local plugin_flags="$plugin_flags$key-v$version.zip --server-thumbprint $VIC_UI_HOST_THUMBPRINT"
+    fi
+
+    echo "----------------------------------------"
+    echo "Registering vCenter Server Extension..."
+    echo "----------------------------------------"
+
+    if [[ $OLD_PLUGIN_FOLDERS -eq "" ]] ; then
+        OLD_PLUGIN_FOLDERS="$key-*"
+    else
+        OLD_PLUGIN_FOLDERS="$OLD_PLUGIN_FOLDERS $key-*"
+    fi
+
+    $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags
+
     if [[ $? > 0 ]] ; then
-        echo "Error! Could not rename folder"
+        echo "-------------------------------------------------------------"
+        echo "Error! Could not register plugin with vCenter Server. Please see the message above"
         cleanup
         exit 1
     fi
 }
 
 upload_packages () {
-    for d in ../vsphere-client-serenity/* ; do
-        if [[ -d $d ]] ; then
-            PLUGIN_BUNDLES+="$d "
-        fi
-    done
-
     if [[ $BASH_ENABLED_ON_VCSA -eq 1 ]] ; then
         echo "-------------------------------------------------------------"
         echo "Copying plugin contents to the vSphere Web Client..."
-        echo "Please enter the root password"
+        echo "Please enter the root password of vSphere Client Appliance"
         echo "-------------------------------------------------------------"
-        scp -qr $PLUGIN_BUNDLES root@$VCENTER_IP:/tmp/
+
+        scp -qr ../$plugin_folder/$key-v$version root@$VCENTER_IP:/tmp/
         if [[ $? > 0 ]] ; then
-            echo "-------------------------------------------------------------"
             echo "Error! Could not upload the VIC plugins to the target VCSA"
             cleanup
             exit 1
@@ -208,7 +217,7 @@ upload_packages () {
         echo "steps below, or refer to instructions in the UI installation guide."
         echo ""
         echo ""
-        echo "1) Make the {vic_extracted_folder}/ui/vsphere-client-serenity folder"
+        echo "1) Make the {vic_extracted_folder}/ui/plugin-packages folder"
         echo "   accessible by SSH on the system where you are running this script."
         echo ""
         echo "2) Connect to the target VCSA using the root account"
@@ -217,14 +226,13 @@ upload_packages () {
         echo "   shell.set --enabled True"
         echo "   shell"
         echo ""
-        echo "4) \"scp\" the folder mentioned in 1) to /etc/vmware/vsphere-client/vc-packages/"
+        echo "4) \"scp\" the folder mentioned in 1) to /usr/lib/vmware-vsphere-ui/plugin-packages/"
         echo "   on the target VCSA's location. Create any missing folder missing if any"
-        echo "   (e.g. vc-packages, vsphere-client-serenity)"
         echo ""
-        echo "5) Change owner of the vc-packages folder by typing the following command:"
-        echo "   chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
+        echo "5) Change owner of the plugin-packages folder by typing the following command:"
+        echo "   chown -R vsphere-ui:root /usr/lib/vmware-vsphere-ui/plugin-packages"
         echo ""
-        echo "6) When all done, log out of the shell and log into the Web Client"
+        echo "6) When all done, log out of the shell and log into the vSphere Client"
 
         cleanup
         exit 1
@@ -236,23 +244,26 @@ update_ownership () {
     echo "Updating ownership of the plugin folders..."
     echo "Please enter the root password"
     echo "--------------------------------------------------------------"
-    local PLUGIN_BUNDLES_WITHOUT_PREFIX=$(echo $PLUGIN_BUNDLES | sed 's/\.\.\/vsphere\-client\-serenity\///g')
-    local SSH_COMMANDS_STR="mkdir -p $WEBCLIENT_PLUGINS_FOLDER; cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $OLD_PLUGIN_FOLDERS; cp -rf /tmp/$PLUGIN_BUNDLES_WITHOUT_PREFIX $WEBCLIENT_PLUGINS_FOLDER"
-    if [[ ! $IS_VCENTER_5_5 -eq 1 ]] ; then
-        SSH_COMMANDS_STR="$SSH_COMMANDS_STR; chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
+    local SSH_COMMANDS_STR="mkdir -p $WEBCLIENT_PLUGINS_FOLDER; cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $OLD_PLUGIN_FOLDERS; cp -rf /tmp/$key-v$version $WEBCLIENT_PLUGINS_FOLDER"
+    if [[ $PLUGIN_TYPE == "flex" ]] ; then
+        if [[ ! $IS_VCENTER_5_5 -eq 1 ]] ; then
+            local SSH_COMMANDS_STR="$SSH_COMMANDS_STR; chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
+        fi
+    else
+        local SSH_COMMANDS_STR="$SSH_COMMANDS_STR; chown -R vsphere-ui:root $WEBCLIENT_PLUGINS_FOLDER"
     fi
 
     ssh -t root@$VCENTER_IP $SSH_COMMANDS_STR
     if [[ $? > 0 ]] ; then
         echo "-------------------------------------------------------------"
-        echo "Error! Failed to update the ownership of folders. Please manually set them to vsphere-client:users"
+        echo "Error! Failed to finalize the plugin installation."
         cleanup
         exit 1
     fi
 }
 
-verify_plugin_url () {
-    local PLUGIN_BASENAME=$(find ../vsphere-client-serenity/ -name '*.zip' -print0 | xargs -0 basename)
+verify_plugin_url() {
+    local PLUGIN_BASENAME=$key-v$version.zip
     local CURL_RESPONSE=$(curl -v --head $VIC_UI_HOST_URL$PLUGIN_BASENAME -k 2>&1)
     local RESPONSE_STATUS=$(echo $CURL_RESPONSE | grep -E "HTTP\/.*\s4\d{2}\s.*")
 
@@ -268,13 +279,12 @@ verify_plugin_url () {
         cleanup
         exit 1
     fi
-
 }
 
 check_prerequisite
 remove_old_key_installation
 
-if [[ $VIC_UI_HOST_URL == "NOURL" ]] ; then
+if [[ $VIC_UI_HOST_URL = "NOURL" ]] ; then
     parse_and_register_plugins
     upload_packages
     update_ownership

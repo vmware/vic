@@ -27,6 +27,10 @@ import (
 )
 
 type ExecutorConfig struct {
+	// allow us to lock the maps when config is being updated
+	// subelements tend to have their own locks
+	sync.Mutex
+
 	// The name of the system
 	Name string `vic:"0.1" scope:"read-only" key:"common/name"`
 

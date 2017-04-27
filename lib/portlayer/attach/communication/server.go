@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package attach
+package communication
 
 import (
 	"context"
 	"fmt"
 	"net"
-	"time"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -26,28 +26,34 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// AttachServer waits for TCP client connections on serialOverLANPort, then
+// Server waits for TCP client connections on serialOverLANPort, then
 // once connected, attempts to negotiate an SSH connection to the attached
 // client.  The client is the ssh server.
 type Server struct {
 	port int
 	ip   string
-	l    *net.TCPListener
 
-	connServer *Connector
+	m sync.RWMutex
+	l *net.TCPListener
+	c *Connector
 }
 
-func NewAttachServer(ip string, port int) *Server {
+// NewServer returns a Server instance
+func NewServer(ip string, port int) *Server {
 	defer trace.End(trace.Begin(""))
 
-	return &Server{ip: "localhost", port: port}
+	return &Server{
+		ip:   ip,
+		port: port,
+	}
 }
 
-// Start starts the TCP listener.
+// Start starts the connector with given listener
 func (n *Server) Start(debug bool) error {
 	defer trace.End(trace.Begin(""))
 
-	log.Infof("Attach server listening on %s:%d", n.ip, n.port)
+	n.m.Lock()
+	defer n.m.Unlock()
 
 	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", n.ip, n.port))
 	if err != nil {
@@ -56,42 +62,59 @@ func (n *Server) Start(debug bool) error {
 
 	n.l, err = net.ListenTCP("tcp", addr)
 	if err != nil {
-		err = fmt.Errorf("Attach server error %s: %s", addr, errors.ErrorStack(err))
-		log.Errorf("%s", err)
-		return err
+		return fmt.Errorf("Attach server error %s: %s", addr, errors.ErrorStack(err))
 	}
 
+	log.Infof("Attach server listening on %s:%d", n.ip, n.port)
+
 	// starts serving requests immediately
-	n.connServer = NewConnector(n.l, debug)
+	n.c = NewConnector(n.l, debug)
+	n.c.Start()
 
 	return nil
 }
 
+// Stop stops the connector
 func (n *Server) Stop() error {
 	defer trace.End(trace.Begin(""))
 
+	n.m.Lock()
+	defer n.m.Unlock()
+
 	err := n.l.Close()
-	n.connServer.Stop()
+	n.c.Stop()
+
 	return err
 }
 
+// Addr returns the address of the underlying listener
 func (n *Server) Addr() string {
 	defer trace.End(trace.Begin(""))
+
+	n.m.RLock()
+	defer n.m.RUnlock()
 
 	return n.l.Addr().String()
 }
 
-// Get returns the session interface for the given container.  If the container
+// Interaction returns the session interface for the given container.  If the container
 // cannot be found, this call will wait for the given timeout.
 // id is ID of the container.
-func (n *Server) Get(ctx context.Context, id string, timeout time.Duration) (SessionInteraction, error) {
+func (n *Server) Interaction(ctx context.Context, id string) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
-	return n.connServer.Get(ctx, id, timeout)
+	n.m.RLock()
+	defer n.m.RUnlock()
+
+	return n.c.Interaction(ctx, id)
 }
 
-func (n *Server) Remove(id string) error {
+// RemoveInteraction removes the session interface from underlying connector
+func (n *Server) RemoveInteraction(id string) error {
 	defer trace.End(trace.Begin(id))
 
-	return n.connServer.Remove(id)
+	n.m.Lock()
+	defer n.m.Unlock()
+
+	return n.c.RemoveInteraction(id)
 }

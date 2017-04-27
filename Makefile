@@ -61,7 +61,7 @@ endif
 # Caches dependencies to speed repeated calls
 define godeps
 	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
-	$(if $(filter-out clean distclean mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
+	$(if $(filter-out clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
 			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
@@ -146,7 +146,9 @@ gas: $(GAS)
 misspell: $(MISSPELL)
 
 # convenience targets
-all: components tethers isos vic-machine vic-ui
+revision:
+	@echo HEAD is at $$(git rev-parse HEAD^2)
+all: revision components tethers isos vic-machine vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
@@ -444,9 +446,12 @@ $(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 distro: all
 	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-*
 
+mrrobot:
+	@rm -rf *.xml *.html *.log *.zip VCH-0-*
+
 clean:
 	@echo removing binaries
-	@rm -fr $(BIN)
+	@rm -rf $(BIN)/*
 	@echo removing Go object files
 	@$(GO) clean
 
@@ -467,8 +472,8 @@ clean:
 	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
 
 # removes the yum cache as well as the generated binaries
-distclean:
+distclean: clean
 	@echo removing binaries
-	@rm -fr $(BIN)
+	@rm -rf $(BIN)
 
 include installer/vic-unified-installer.mk

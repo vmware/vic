@@ -27,6 +27,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
@@ -48,18 +49,33 @@ type AttachServer interface {
 	stop() error
 }
 
+// config is a struct that holds Sessions and Execs
+type config struct {
+	Key []byte
+
+	Sessions map[string]*tether.SessionConfig
+	Execs    map[string]*tether.SessionConfig
+}
+
 type attachServerSSH struct {
 	// serializes data access for exported functions
 	m sync.Mutex
 
-	// conn is held directly as it is how we stop the attach server
+	// conn is the underlying net.Conn which carries SSH
+	// held directly as it is how we stop the attach server
 	conn struct {
-		// serializes data access for the underlying conn
 		sync.Mutex
 		conn net.Conn
 	}
 
-	config    *tether.ExecutorConfig
+	// we pass serverConn to the channelMux goroutine so we need to lock it
+	serverConn struct {
+		sync.Mutex
+		*ssh.ServerConn
+	}
+
+	// extension local copy of the bits of config important to attach
+	config    config
 	sshConfig *ssh.ServerConfig
 
 	enabled int32
@@ -68,9 +84,6 @@ type attachServerSSH struct {
 	// between run() and stop()
 	ctx    context.Context
 	cancel context.CancelFunc
-
-	// Used for ordering events between global mux and channel mux
-	askedAndAnswered chan struct{}
 
 	// INTERNAL: must set by testAttachServer only
 	testing bool
@@ -93,13 +106,25 @@ func NewAttachServerSSH() AttachServer {
 }
 
 // Reload - tether.Extension implementation
-func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
+func (t *attachServerSSH) Reload(tconfig *tether.ExecutorConfig) error {
 	defer trace.End(trace.Begin("attach reload"))
 
 	t.m.Lock()
 	defer t.m.Unlock()
 
-	t.config = config
+	// We copy this stuff so that we're not referencing the direct config
+	// structure if/while it's being updated.
+	// The subelements generally have locks or updated in single assignment
+	t.config.Key = tconfig.Key
+	t.config.Sessions = make(map[string]*tether.SessionConfig)
+	for k, v := range tconfig.Sessions {
+		t.config.Sessions[k] = v
+	}
+
+	t.config.Execs = make(map[string]*tether.SessionConfig)
+	for k, v := range tconfig.Execs {
+		t.config.Execs[k] = v
+	}
 
 	err := server.start()
 	if err != nil {
@@ -138,18 +163,34 @@ func (t *attachServerSSH) Stop() error {
 	return server.stop()
 }
 
+func (t *attachServerSSH) reload() error {
+	t.serverConn.Lock()
+	defer t.serverConn.Unlock()
+
+	// push the exec'ed session ids to the portlayer
+	if t.serverConn.ServerConn != nil {
+		msg := msgs.ContainersMsg{
+			IDs: t.sessions(false),
+		}
+		payload := msg.Marshal()
+
+		ok, _, err := t.serverConn.SendRequest(msgs.ContainersReq, true, payload)
+		if !ok || err != nil {
+			return fmt.Errorf("failed to send container ids: %s, %t", err, ok)
+		}
+	}
+	return nil
+}
+
 func (t *attachServerSSH) start() error {
 	defer trace.End(trace.Begin("start attach server"))
 
-	if t == nil {
-		err := fmt.Errorf("attach server is not configured")
-		log.Error(err)
-		return err
-	}
-
+	// if we come here while enabled, reload
 	if t.Enabled() {
-		err := fmt.Errorf("attach server is already enabled")
-		log.Warn(err)
+		log.Debugf("Start called while enabled, reloading")
+		if err := t.reload(); err != nil {
+			log.Warn(err)
+		}
 		return nil
 	}
 
@@ -284,11 +325,6 @@ func backchannel(ctx context.Context, conn net.Conn) error {
 func (t *attachServerSSH) run() error {
 	defer trace.End(trace.Begin("main attach server loop"))
 
-	// we pass serverConn to the channelMux goroutine so we need to lock it
-	var serverConn struct {
-		sync.Mutex
-		*ssh.ServerConn
-	}
 	var established bool
 
 	var chans <-chan ssh.NewChannel
@@ -296,9 +332,9 @@ func (t *attachServerSSH) run() error {
 	var err error
 
 	for t.Enabled() {
-		serverConn.Lock()
-		established = serverConn.ServerConn != nil
-		serverConn.Unlock()
+		t.serverConn.Lock()
+		established = t.serverConn.ServerConn != nil
+		t.serverConn.Unlock()
 
 		// keep waiting for the connection to establish
 		for !established && t.Enabled() {
@@ -333,10 +369,10 @@ func (t *attachServerSSH) run() error {
 				}
 
 				// create the SSH server using underlying t.conn
-				serverConn.Lock()
-				defer serverConn.Unlock()
+				t.serverConn.Lock()
+				defer t.serverConn.Unlock()
 
-				serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(t.conn.conn, t.sshConfig)
+				t.serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(t.conn.conn, t.sshConfig)
 				if err != nil {
 					detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
 					log.Error(detail)
@@ -348,20 +384,21 @@ func (t *attachServerSSH) run() error {
 			established = establishFn() == nil
 		}
 
-		defer func() {
+		globalCleanup := func() {
 			log.Debugf("cleanup on connection")
 
-			serverConn.Lock()
-			defer serverConn.Unlock()
+			t.serverConn.Lock()
+			defer t.serverConn.Unlock()
 
-			if serverConn.ServerConn != nil {
+			if t.serverConn.ServerConn != nil {
 				log.Debugf("closing underlying connection")
-				serverConn.Close()
+				t.serverConn.Close()
+				t.serverConn.ServerConn = nil
 			}
-		}()
+		}
 
 		// Global requests
-		go t.globalMux(reqs)
+		go t.globalMux(reqs, globalCleanup)
 
 		log.Infof("Ready to service attach requests")
 		// Service the incoming channels
@@ -384,9 +421,33 @@ func (t *attachServerSSH) run() error {
 			}
 
 			sessionid := string(bytes)
-			session, ok := t.config.Sessions[sessionid]
-			if !ok {
+
+			s, oks := t.config.Sessions[sessionid]
+			e, oke := t.config.Execs[sessionid]
+			if !oks && !oke {
 				detail := fmt.Sprintf("session %s is invalid", sessionid)
+				attachchan.Reject(ssh.Prohibited, detail)
+				log.Error(detail)
+				continue
+			}
+			// we have sessionid
+			session := s
+			if oke {
+				session = e
+			}
+
+			// session is potentially blocked in launch until we've got the unblock message, so we cannot lock it.
+			// check that session is valid
+			// The detail remains concise as it'll eventually make its way to the user
+			if session.Started != "" && session.Started != "true" {
+				detail := fmt.Sprintf("launch failed with: %s", session.Started)
+				attachchan.Reject(ssh.Prohibited, detail)
+				log.Error(detail)
+				continue
+			}
+
+			if session.StopTime != 0 {
+				detail := fmt.Sprintf("process finished with exit code: %d", session.ExitStatus)
 				attachchan.Reject(ssh.Prohibited, detail)
 				log.Error(detail)
 				continue
@@ -418,10 +479,6 @@ func (t *attachServerSSH) run() error {
 				session.Reader.Remove(channel)
 
 				channel.Close()
-
-				serverConn.Lock()
-				serverConn.ServerConn = nil
-				serverConn.Unlock()
 			}
 
 			detach := cleanup
@@ -445,30 +502,50 @@ func (t *attachServerSSH) run() error {
 			log.Debugf("reader/writers bound for channel for %s", sessionid)
 
 			go t.channelMux(requests, session, detach)
-
-			if session.RunBlock && session.ClearToLaunch != nil && session.Started != "true" {
-				log.Debugf("Unblocking the launch of %s", sessionid)
-				// make sure that portlayer received the container id back
-				session.ClearToLaunch <- <-t.askedAndAnswered
-				log.Debugf("Unblocked the launch of %s", sessionid)
-			}
 		}
 		log.Info("Incoming attach channel closed")
 	}
 	return nil
 }
 
-func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
+func (t *attachServerSSH) sessions(all bool) []string {
+	defer trace.End(trace.Begin(""))
+
+	var keys []string
+
+	// this iterates the local copies of the sessions maps
+	// so we don't need to care whether they're initialized or not
+	// as extension reload comes after that point
+
+	// whether include sessions or not
+	if all {
+		for k, v := range t.config.Sessions {
+			if v.Active && v.StopTime == 0 {
+				keys = append(keys, k)
+			}
+		}
+	}
+
+	for k, v := range t.config.Execs {
+		// skip those that have had launch errors
+		if v.Active && v.StopTime == 0 && (v.Started == "" || v.Started == "true") {
+			keys = append(keys, k)
+		}
+	}
+
+	log.Debugf("Returning %d keys", len(keys))
+	return keys
+}
+
+func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func()) {
 	defer trace.End(trace.Begin("attach server global request handler"))
 
-	// to make sure we close the channel once
-	var once sync.Once
+	// cleanup function passed by the caller
+	defer cleanup()
 
-	// ContainersReq will close this channel
-	t.askedAndAnswered = make(chan struct{})
-
+	// for the actions after we process the request
+	var pendingFn func()
 	for req := range reqchan {
-		var pendingFn func()
 		var payload []byte
 		ok := true
 
@@ -476,21 +553,15 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 
 		switch req.Type {
 		case msgs.ContainersReq:
-			keys := make([]string, len(t.config.Sessions))
-			i := 0
-			for k := range t.config.Sessions {
-				keys[i] = k
-				i++
+			msg := msgs.ContainersMsg{
+				IDs: t.sessions(true),
 			}
-			msg := msgs.ContainersMsg{IDs: keys}
 			payload = msg.Marshal()
-
-			// unblock ^ (above)
-			pendingFn = func() {
-				once.Do(func() {
-					close(t.askedAndAnswered)
-				})
+		case msgs.VersionReq:
+			msg := msgs.VersionMsg{
+				Version: feature.MaxPluginVersion - 1,
 			}
+			payload = msg.Marshal()
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
@@ -518,16 +589,58 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.SessionConfig, cleanup func()) {
 	defer trace.End(trace.Begin("attach server channel request handler"))
 
-	// for the actions after we process the request
-	var pendingFn func()
-
 	// cleanup function passed by the caller
 	defer cleanup()
 
+	// to make sure we close the channel once
+	var once sync.Once
+
+	// for the actions after we process the request
+	var pendingFn func()
 	for req := range in {
 		ok := true
+		abort := false
+
+		log.Infof("received channel mux type %v", req.Type)
 
 		switch req.Type {
+		case msgs.PingReq:
+			log.Infof("Received PingReq for %s", session.ID)
+
+			if string(req.Payload) != msgs.PingMsg {
+				log.Infof("Received corrupted PingReq for %s", session.ID)
+				ok = false
+			}
+		case msgs.UnblockReq:
+			log.Infof("Received UnblockReq for %s", session.ID)
+
+			if string(req.Payload) != msgs.UnblockMsg {
+				log.Infof("Received corrupted UnblockReq for %s", session.ID)
+				ok = false
+				break
+			}
+
+			// if the process has exited, or couldn't launch
+			if session.Started != "" && session.Started != "true" {
+				// we need to force the session closed so that error handling occurs on the callers
+				// side
+				ok = false
+				abort = true
+			} else {
+				// unblock ^ (above)
+				pendingFn = func() {
+					once.Do(func() {
+						launchChan := session.ClearToLaunch
+						if session.RunBlock && launchChan != nil && session.Started == "" {
+							log.Infof("Unblocking the launch of %s", session.Common.ID)
+							// make sure that portlayer received the container id back
+							launchChan <- struct{}{}
+							log.Infof("Unblocked the launch of %s", session.Common.ID)
+						}
+					})
+				}
+			}
+
 		case msgs.WindowChangeReq:
 			session.Lock()
 			pty := session.Pty
@@ -545,25 +658,20 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 				log.Errorf(err.Error())
 			}
 		case msgs.CloseStdinReq:
-			// call Close as the pendingFn so that we can send reply back before closing the channel
-			pendingFn = func() {
-				session.Lock()
-				defer session.Unlock()
+			log.Infof("Received CloseStdinReq for %s", session.ID)
 
-				log.Debugf("Closing stdin for %s", session.ID)
-				session.Reader.Close()
-			}
+			log.Debugf("Configuring reader to propagate EOF for %s", session.ID)
+			session.Reader.PropagateEOF(true)
 		default:
 			ok = false
-			err := fmt.Errorf("ssh request type %s is not supported", req.Type)
-			log.Error(err.Error())
+			log.Error(fmt.Sprintf("ssh request type %s is not supported", req.Type))
 		}
 
 		// payload is ignored on channel specific replies.  The ok is passed, however.
 		if req.WantReply {
 			log.Debugf("Sending channel request reply %t back", ok)
 			if err := req.Reply(ok, nil); err != nil {
-				log.Warnf("Failed to reply a channel request back")
+				log.Warnf("Failed replying to a channel request: %s", err)
 			}
 		}
 
@@ -573,8 +681,11 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 			go pendingFn()
 			pendingFn = nil
 		}
-	}
 
+		if abort {
+			break
+		}
+	}
 }
 
 // The syscall struct

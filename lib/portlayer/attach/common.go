@@ -20,9 +20,9 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
-	"github.com/vmware/vic/pkg/trace"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -45,7 +45,19 @@ func lookupVCHIP() (net.IP, error) {
 	return ips[0], nil
 }
 
-func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
+func toggle(handle *exec.Handle, id string, connected bool) (*exec.Handle, error) {
+	// check to see whether id is in Execs, if so set its RunBlock property to connected
+	session, ok := handle.ExecConfig.Execs[id]
+	if ok {
+		if err := compatible(handle); err != nil {
+			return nil, err
+		}
+
+		if session.Attach {
+			session.RunBlock = connected
+		}
+	}
+
 	// get the virtual device list
 	devices := object.VirtualDeviceList(handle.Config.Hardware.Device)
 
@@ -73,7 +85,7 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	proxyURI := fmt.Sprintf("telnet://%s:%d", ip, constants.SerialOverLANPort)
 
 	if b.ProxyURI == proxyURI && c.Connected == connected {
-		log.Debugf("Already in the desired state (connected: %t, proxyURI: %s)", connected, proxyURI)
+		log.Debugf("Already in the desired state, (connected: %t, proxyURI: %s)", connected, proxyURI)
 		return handle, nil
 	}
 
@@ -97,77 +109,27 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	}
 	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
 
-	// iterate over Sessions and set their RunBlock property to connected
+	// check to see whether id is in Sessions, if so set its RunBlock property to connected
 	// if attach happens before start then this property will be persist in the vmx
-	// if attash happens after start then this propery will be thrown away by commit (one simply cannot change ExtraConfig if the vm is powered on)
-	for _, session := range handle.ExecConfig.Sessions {
-		session.RunBlock = connected
+	// if attach happens after start then this propery will be thrown away by commit (one cannot change persistent extraconfig values if the vm is powered on)
+	session, ok = handle.ExecConfig.Sessions[id]
+	if ok {
+		if session.Attach {
+			session.RunBlock = connected
+		}
 	}
 
 	return handle, nil
 }
 
-// Join adds network backed serial port to the caller and configures them
-func Join(h interface{}) (interface{}, error) {
-	defer trace.End(trace.Begin(""))
+func compatible(h interface{}) error {
+	if handle, ok := h.(*exec.Handle); ok {
+		if handle.DataVersion < feature.ExecSupportedVersion {
+			return fmt.Errorf("attaching exec tasks not supported for this container")
+		}
 
-	handle, ok := h.(*exec.Handle)
-	if !ok {
-		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
+		return nil
 	}
 
-	// Tether serial port - backed by network
-	serial := &types.VirtualSerialPort{
-		VirtualDevice: types.VirtualDevice{
-			Backing: &types.VirtualSerialPortURIBackingInfo{
-				VirtualDeviceURIBackingInfo: types.VirtualDeviceURIBackingInfo{
-					Direction: string(types.VirtualDeviceURIBackingOptionDirectionClient),
-					ProxyURI:  fmt.Sprintf("telnet://0.0.0.0:%d", constants.SerialOverLANPort),
-					// Set it to 0.0.0.0 during Join call, VCH IP will be set when we call Bind
-					ServiceURI: fmt.Sprintf("tcp://127.0.0.1:%d", constants.AttachServerPort),
-				},
-			},
-			Connectable: &types.VirtualDeviceConnectInfo{
-				Connected:         false,
-				StartConnected:    false,
-				AllowGuestControl: true,
-			},
-		},
-		YieldOnPoll: true,
-	}
-	config := &types.VirtualDeviceConfigSpec{
-		Device:    serial,
-		Operation: types.VirtualDeviceConfigSpecOperationAdd,
-	}
-	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
-
-	return handle, nil
-}
-
-// Bind sets the *Connected fields of the VirtualSerialPort
-func Bind(h interface{}) (interface{}, error) {
-	defer trace.End(trace.Begin(""))
-
-	handle, ok := h.(*exec.Handle)
-	if !ok {
-		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
-	}
-	if handle.MigrationError != nil {
-		return nil, fmt.Errorf("Migration failed %s", handle.MigrationError)
-	}
-	return toggle(handle, true)
-}
-
-// Unbind unsets the *Connected fields of the VirtualSerialPort
-func Unbind(h interface{}) (interface{}, error) {
-	defer trace.End(trace.Begin(""))
-
-	handle, ok := h.(*exec.Handle)
-	if !ok {
-		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
-	}
-	if handle.MigrationError != nil {
-		return nil, fmt.Errorf("Migration failed %s", handle.MigrationError)
-	}
-	return toggle(handle, false)
+	return fmt.Errorf("Type assertion failed for %#+v", h)
 }

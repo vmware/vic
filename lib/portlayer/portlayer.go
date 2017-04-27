@@ -137,7 +137,7 @@ func TakeCareOfSerialPorts(sess *session.Session) {
 			}
 
 			// Unbind the network backed VirtualSerialPort
-			unbindHandle, err := attach.Unbind(handle)
+			unbindHandle, err := attach.Unbind(handle, containerID)
 			if err != nil {
 				err := fmt.Errorf("unable to unbind serial port for container %s: %s", containerID, err)
 				log.Error(err)

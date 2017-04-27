@@ -33,11 +33,27 @@ type handler struct {
 	vspc *Vspc
 }
 
+func (h *handler) closeHdlr(tc *telnet.Conn) {
+	h.vspc.vmManagerMu.Lock()
+	defer h.vspc.vmManagerMu.Unlock()
+
+	cvm, exists := h.vspc.cvmFromTelnetConnUnlocked(tc)
+	if exists {
+		cvm.Lock()
+		log.Debugf("(vspc) detected closed connection for VM %s", cvm)
+		log.Debugf("(vspc) closing connection to the AttachServer")
+		cvm.remoteConn.Close()
+		log.Debugf("(vspc) deleting vm records from the vm manager %s", cvm)
+		delete(h.vspc.vmManager, cvm.vmUUID)
+		cvm.Unlock()
+	}
+}
+
 // dataHdlr is the telnet data handler
 func (h *handler) dataHdlr(w io.Writer, b []byte, tc *telnet.Conn) {
 	cvm, exists := h.vspc.cvmFromTelnetConn(tc)
 	if !exists {
-		// the fsm will sense the closed connecrion and perform the necessary cleanup
+		// the fsm will sense the closed connection and perform the necessary cleanup
 		if tc.UnderlyingConnection() != nil {
 			log.Errorln("cannot find a vm associated with this connection.")
 			log.Infoln("closing connection")

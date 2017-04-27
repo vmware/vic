@@ -300,10 +300,12 @@ func TestMultiRead(t *testing.T) {
 func TestReadAdd(t *testing.T) {
 	var wg sync.WaitGroup
 	var wgAdded sync.WaitGroup
+	var wgLeft sync.WaitGroup
 
 	var readers []io.Reader
 	var pipereaders []io.PipeReader
 
+	wgLeft.Add(1)
 	// create & initialize writers and buffers
 	for i := 0; i < count; i++ {
 		reader, writer := io.Pipe()
@@ -321,6 +323,7 @@ func TestReadAdd(t *testing.T) {
 				io.CopyN(writer, bytes.NewReader([]byte(base)), int64(len(base)))
 				wg.Done()
 			}
+			wgLeft.Wait()
 			io.CopyN(writer, bytes.NewReader([]byte(dynamic)), int64(len(dynamic)))
 
 			wgAdded.Done()
@@ -340,13 +343,15 @@ func TestReadAdd(t *testing.T) {
 
 	assert.Equal(t, expected, string(buffer))
 
-	// add the rest of the readers
-	mreader.Add(readersAdded...)
-
 	// close the initial set otherwise they will block
 	for i := range pipereaders {
 		pipereaders[i].Close()
 	}
+
+	wgLeft.Done()
+
+	// add the rest of the readers
+	mreader.Add(readersAdded...)
 
 	expected = strings.Repeat(dynamic, len(readersAdded))
 	// read and ensure io.Copy returns
@@ -361,10 +366,12 @@ func TestReadAdd(t *testing.T) {
 func TestReadRemove(t *testing.T) {
 	var wg sync.WaitGroup
 	var wgRemoved sync.WaitGroup
+	var wgLeft sync.WaitGroup
 
 	var readers []io.Reader
 	var writers []io.Writer
 
+	wgLeft.Add(1)
 	// create & initialize writers and buffers
 	for i := 0; i < count; i++ {
 		reader, writer := io.Pipe()
@@ -386,6 +393,8 @@ func TestReadRemove(t *testing.T) {
 				return
 			}
 
+			wgLeft.Wait()
+
 			io.CopyN(writer, bytes.NewReader([]byte(dynamic)), int64(len(dynamic)))
 
 			wgRemoved.Done()
@@ -402,6 +411,7 @@ func TestReadRemove(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, expected, string(buffer))
+	wgLeft.Done()
 
 	readersLeft := FilterReaders(readers, func(i int) bool { return i%3 != 0 })
 	readersRemoved := FilterReaders(readers, func(i int) bool { return i%3 == 0 })

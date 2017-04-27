@@ -60,7 +60,6 @@ func Join(op *trace.Operation, h interface{}, task *executor.SessionConfig) (int
 	op.Debugf("Adding task (%s): %s", task.Cmd.Path, task.ID)
 
 	tasks[task.ID] = task
-	handle.Reload()
 
 	return handle, nil
 }
