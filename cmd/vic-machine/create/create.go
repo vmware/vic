@@ -1097,7 +1097,12 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 
 	var certs []byte
 	// generate the certs and keys with names conforming the default the docker client expects
-	err := os.MkdirAll(c.certPath, 0700)
+	files, err := ioutil.ReadDir(c.certPath)
+	if len(files) > 0 {
+		return nil, nil, fmt.Errorf("Specified directory to store certificates is not empty. Specify a new path in which to store generated certificates using --cert-path or remove the contents of \"%s\" and run vic-machine again.", c.certPath)
+	}
+
+	err = os.MkdirAll(c.certPath, 0700)
 	if err != nil {
 		log.Errorf("Unable to make directory to hold certificates (set via --cert-path)")
 		return nil, nil, err
@@ -1199,7 +1204,8 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 
 		// If openssl is present, try to generate a browser friendly pfx file (a bundle of the public certificate AND the private key)
 		// The pfx file can be imported directly into keychains for client certificate authentication
-		args := strings.Split(fmt.Sprintf("pkcs12 -export -out ./%[1]s/cert.pfx -inkey ./%[1]s/key.pem -in ./%[1]s/cert.pem -certfile ./%[1]s/ca.pem -password pass:", c.DisplayName), " ")
+		certPath := filepath.Clean(c.certPath)
+		args := strings.Split(fmt.Sprintf("pkcs12 -export -out %[1]s/cert.pfx -inkey %[1]s/key.pem -in %[1]s/cert.pem -certfile %[1]s/ca.pem -password pass:", certPath), " ")
 		// #nosec: Subprocess launching with variable
 		pfx := exec.Command("openssl", args...)
 		out, err := pfx.CombinedOutput()
@@ -1207,7 +1213,7 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 			log.Debug(out)
 			log.Warnf("Failed to generate browser friendly PFX client certificate: %s", err)
 		} else {
-			log.Infof("Generated browser friendly PFX client certificate - certificate in ./%s/cert.pfx", c.DisplayName)
+			log.Infof("Generated browser friendly PFX client certificate - certificate in %s/cert.pfx", certPath)
 		}
 	}
 
@@ -1383,7 +1389,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
-		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert)
+		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert, c.certPath)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
 		if cmd != "" {
 			log.Infof("\t\tRun command: %s", cmd)
@@ -1396,7 +1402,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	log.Infof("Initialization of appliance successful")
 
-	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile)
+	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile, c.certPath)
 	log.Infof("Installer completed successfully")
 	return nil
 }

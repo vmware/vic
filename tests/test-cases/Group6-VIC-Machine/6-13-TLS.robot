@@ -32,7 +32,27 @@ Create VCH - defaults with --no-tls
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
+Create VCH - defaults custom cert path
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
+    ${output}=  Run  bin/vic-machine-linux create ${vicmachinetls} --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --cert-path=${EXECDIR}/foo-bar-certs/
+    Should Contain  ${output}  --tlscacert="${EXECDIR}/foo-bar-certs/ca.pem" --tlscert="${EXECDIR}/foo-bar-certs/cert.pem" --tlskey="${EXECDIR}/foo-bar-certs/key.pem"
+    Should Contain  ${output}  Generating CA certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/ca-key.pem
+    Should Contain  ${output}  Generating server certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/server-key.pem
+    Should Contain  ${output}  Generating client certificate/key pair - private key in ${EXECDIR}/foo-bar-certs/key.pem
+    Should Contain  ${output}  Generated browser friendly PFX client certificate - certificate in ${EXECDIR}/foo-bar-certs/cert.pfx
+
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+
+    ${save_env}=  Run  cat ${EXECDIR}/foo-bar-certs/%{VCH-NAME}.env
+    Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
 
 Create VCH - force accept target thumbprint
     Set Test Environment Variables
