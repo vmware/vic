@@ -59,6 +59,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -1219,7 +1220,7 @@ func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.Host
 		return nil, nil
 	}
 
-	if listRes.Payload[0].ScopeType != "bridge" {
+	if listRes.Payload[0].ScopeType != constants.BridgeScopeType {
 		log.Warnf("port binding for network %s is not bridge type", hostconfig.NetworkMode.NetworkName())
 		return listRes.Payload[0], nil
 	}

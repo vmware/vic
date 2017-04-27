@@ -46,8 +46,10 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
 
     cp /bin/tether ${MOUNTPOINT}/.tether/tether
 
-
-    # linux-vdso.so.1 (0x00007ffc94d0d000)
+    # ldd of xtables-multi yields the following list of libraries we need to
+    # copy into our initrd.  We need these binaries in order to call iptables
+    #
+    # before the switch-root.  linux-vdso.so.1 (0x00007ffc94d0d000)
     # libip4tc.so.0 => /baz/lib/libip4tc.so.0 (0x00007f97fc721000)
     # libip6tc.so.0 => /baz/lib/libip6tc.so.0 (0x00007f97fc519000)
     # libxtables.so.11 => /baz/lib/libxtables.so.11 (0x00007f97fc30c000)

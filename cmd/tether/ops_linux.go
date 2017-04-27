@@ -28,6 +28,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/vmware/vic/lib/iolog"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/netfilter"
@@ -158,7 +159,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	}
 
 	for _, endpoint := range config.Networks {
-		if endpoint.Network.Type == "external" {
+		if endpoint.Network.Type == constants.ExternalScopeType {
 
 			id, err := strconv.Atoi(endpoint.ID)
 			if err != nil {
@@ -224,6 +225,9 @@ func portToRule(p string) (*netfilter.Rule, error) {
 		rule.Protocol = netfilter.UDP
 	case netfilter.TCP:
 		rule.Protocol = netfilter.TCP
+
+	default:
+		return nil, errors.New("unknown protocol")
 	}
 
 	port, err := strconv.Atoi(s[0])
