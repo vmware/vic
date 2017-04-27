@@ -1,16 +1,33 @@
-# Enter the IP of the server running VCSA
+# Enter the IP of VCSA
 VCENTER_IP=""
 
-# Update the following lines if you have a local web server that is accessible from your VCSA and VIC UI zip files are uploaded to it
+# Change the VIC_UI_HOST_URL variable to the URL to the path where
+# the plugin zip files are located. For example, if com.vmware.vic-v1.1.0.zip is
+# available at https://192.168.1.5/com.vmware.vic-v1.1.0.zip,
+# simply type in https://192.168.1.5/
+#
+# NOTE: Installing the plugin by setting VIC_UI_HOST_URL to "NOURL" is deprecated
+# and therefore officially NOT supported. Please use it at your own risk.
+VIC_UI_HOST_URL=""
 
-# Change the following line to the full URL of the path where the zip files are located
-# For example, if vic-ui.zip is available at https://192.168.1.5/vic-ui-plugins/vic-ui.zip, type in: https://192.168.1.5/vic-ui-plugins/
-# Note: each uploaded zip file will be accessed only once when the user logs into vSphere Web Client for the first time after successful installation
-VIC_UI_HOST_URL="NOURL"
-
-# If VIC_UI_HOST_URL starts with "https", enter SHA-1 thumbprint of the web server hosting the vic-ui.zip file
-# The fingerprint should be in the format of A0:B1:C2:... In case you retrieved the fingerprint from Google Chrome make sure to replace spaces with colons (:)
+# Enter the SHA-1 thumbprint of the web server hosting the plugin files.
+# Taking an example above, it should be the SHA-1 thumbprint of
+# the SSL certificate on https://192.168.1.5
+#
+# The fingerprint should be in the format of A0:B1:C2:... In case you retrieved
+# it from Google Chrome make sure to replace spaces with colons (:)
 VIC_UI_HOST_THUMBPRINT=""
 
-# WARNING: VIC UI can run on a vCenter 5.5 setup, but is not officially supported. Use it with your own risk. If you wish to continue change the value from 0 to 1
+# NOTE: Use of the IS_VCENTER_5_5 variable is deprecated and therefore
+# officially NOT supported. Please use it at your own risk.
+# Set the value to 1 when:
+#
+# 1) You need to install the plugin to a vCenter Server 5.5 instance AND
+# 2) You set VIC_UI_HOST_URL to "NOURL"
 IS_VCENTER_5_5=0
+
+# Set the plugin type to install. If you are installing the plugin for the
+# vSphere Client (HTML5 Client), then leave the value as-is. If you are
+# installing it for the vSphere Web Client (Flex Client),
+# then set the value to "flex"
+PLUGIN_TYPE="html5"
