@@ -181,13 +181,6 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 	}
 	defer cancel()
 
-	if ctx.Err() == context.DeadlineExceeded {
-		e := &models.Error{
-			Message: fmt.Sprintf("Deadline for stdout already passed for container %s", params.ID),
-		}
-		return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
-	}
-
 	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
@@ -266,13 +259,6 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 	}
 	defer cancel()
 
-	if ctx.Err() == context.DeadlineExceeded {
-		e := &models.Error{
-			Message: fmt.Sprintf("Deadline for stdout already passed for container %s", params.ID),
-		}
-		return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
-	}
-
 	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {
 		log.Errorf("%s", err.Error())
@@ -305,13 +291,6 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 		ctx, cancel = context.WithDeadline(context.Background(), time.Time(*params.Deadline))
 	}
 	defer cancel()
-
-	if ctx.Err() == context.DeadlineExceeded {
-		e := &models.Error{
-			Message: fmt.Sprintf("Deadline for stderr already passed for container %s", params.ID),
-		}
-		return interaction.NewContainerGetStderrInternalServerError().WithPayload(e)
-	}
 
 	session, err := i.server.Interaction(ctx, params.ID)
 	if err != nil {

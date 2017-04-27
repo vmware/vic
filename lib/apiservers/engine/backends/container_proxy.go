@@ -87,8 +87,8 @@ type VicContainerProxy interface {
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 
-	BindInteraction(handle string, name string, id string) error
-	UnbindInteraction(handle string, name string, id string) error
+	BindInteraction(handle string, name string, id string) (string, error)
+	UnbindInteraction(handle string, name string, id string) (string, error)
 
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
@@ -495,11 +495,11 @@ func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.C
 }
 
 // BindInteraction enables interaction capabilies
-func (c *ContainerProxy) BindInteraction(handle string, name string, id string) error {
+func (c *ContainerProxy) BindInteraction(handle string, name string, id string) (string, error) {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
+		return "", InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
 	}
 
 	bind, err := c.client.Interaction.InteractionBind(
@@ -511,25 +511,24 @@ func (c *ContainerProxy) BindInteraction(handle string, name string, id string) 
 	if err != nil {
 		switch err := err.(type) {
 		case *interaction.InteractionBindInternalServerError:
-			return InternalServerError(err.Payload.Message)
+			return "", InternalServerError(err.Payload.Message)
 		default:
-			return InternalServerError(err.Error())
+			return "", InternalServerError(err.Error())
 		}
 	}
 	handle, ok := bind.Payload.Handle.(string)
 	if !ok {
-		return InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
 	}
-
-	return c.CommitContainerHandle(handle, name, 0)
+	return handle, nil
 }
 
 // UnbindInteraction disables interaction capabilies
-func (c *ContainerProxy) UnbindInteraction(handle string, name string, id string) error {
+func (c *ContainerProxy) UnbindInteraction(handle string, name string, id string) (string, error) {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
+		return "", InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
 	}
 
 	unbind, err := c.client.Interaction.InteractionUnbind(
@@ -539,14 +538,14 @@ func (c *ContainerProxy) UnbindInteraction(handle string, name string, id string
 				ID:     id,
 			}))
 	if err != nil {
-		return InternalServerError(err.Error())
+		return "", InternalServerError(err.Error())
 	}
 	handle, ok := unbind.Payload.Handle.(string)
 	if !ok {
-		return InternalServerError("type assertion failed")
+		return "", InternalServerError("type assertion failed")
 	}
 
-	return c.CommitContainerHandle(handle, name, 0)
+	return handle, nil
 }
 
 // CommitContainerHandle commits any changes to container handle.
@@ -999,6 +998,10 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 		cancel()
 	}()
 
+	EOForCanceled := func(err error) bool {
+		return err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF)
+	}
+
 	if ac.UseStdin {
 		go func() {
 			defer wg.Done()
@@ -1009,17 +1012,12 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 				log.Infof("container attach: stdin (%s) done", ac.ID)
 			}
 
-			// only trigger the cancel of stdout/stderr if it's a client side close that triggered
-			// this, not the exit of one of stdout/stderr
-
-			// TODO: I've no idea what the actual semantic intent is of stdinOnce, so hard to say
-			// if this is actually correct behaviour even without the inCtx check.
 			if !ac.CloseStdin || ac.UseTty {
 				cancel()
 			}
 
 			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
-			if err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF) {
+			if EOForCanceled(err) {
 				errors <- err
 			}
 		}()
@@ -1038,7 +1036,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 			}
 
 			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
-			if err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF) {
+			if EOForCanceled(err) {
 				errors <- err
 			}
 		}()
@@ -1057,7 +1055,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 			}
 
 			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
-			if err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF) {
+			if EOForCanceled(err) {
 				errors <- err
 			}
 		}()
@@ -1787,7 +1785,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdi
 			// streams will get closed as well.
 			// See the closer in container_routes.go:postContainersAttach
 
-			// TO BE CONFIRMED: we're closing this here to disrupt the io.Copy below
+			// We're closing this here to disrupt the io.Copy below
 			// TODO: seems like we should be providing an io.Copy impl with ctx argument that honors
 			// cancelation with the amount of code dedicated to working around it
 

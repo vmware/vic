@@ -411,16 +411,17 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 	handle = resp.Payload.Handle.(string)
 
-	// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
-	attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
-
-	f := func() error { return c.containerProxy.CommitContainerHandle(handle, name, 0) }
-	if attach {
-		f = func() error { return c.containerProxy.BindInteraction(handle, name, eid) }
-	}
-
 	operation := func() error {
-		if err := f(); err != nil {
+		// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
+		attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
+		if attach {
+			handle, err = c.containerProxy.BindInteraction(handle, name, eid)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := c.containerProxy.CommitContainerHandle(handle, name, 0); err != nil {
 			return err
 		}
 
@@ -486,9 +487,7 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 				// This avoids cutting the communication channel for other sessions connected to this
 				// container
 
-				// if err := c.containerProxy.UnbindInteraction(handle, name, eid); err != nil {
-				// 	return err
-				// }
+				// FIXME: call UnbindInteraction/Commit
 			}
 
 			return err
@@ -1676,7 +1675,12 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 		return err
 	}
 
-	if err := c.containerProxy.BindInteraction(handle, name, id); err != nil {
+	handleprime, err := c.containerProxy.BindInteraction(handle, name, id)
+	if err != nil {
+		return err
+	}
+
+	if err := c.containerProxy.CommitContainerHandle(handleprime, name, 0); err != nil {
 		return err
 	}
 
@@ -1722,14 +1726,7 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 			// This avoids cutting the communication channel for other sessions connected to this
 			// container
 
-			// handle, err := c.Handle(id, name)
-			// if err != nil {
-			// 	return err
-			// }
-
-			// if err := c.containerProxy.UnbindInteraction(handle, name, id); err != nil {
-			// 	return err
-			// }
+			// FIXME: call UnbindInteraction/Commit
 		}
 		return err
 	}

@@ -150,11 +150,11 @@ func (c *containerBase) ReloadConfig(ctx context.Context) error {
 	return c.startGuestProgram(ctx, "reload", "")
 }
 
-// WaitForTask waits exec'ed task to set started field or timeout
-func (c *containerBase) WaitForTask(ctx context.Context, id string) error {
+// WaitForExec waits exec'ed task to set started field or timeout
+func (c *containerBase) WaitForExec(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id))
 
-	return c.waitForTask(ctx, id)
+	return c.waitForExec(ctx, id)
 }
 
 // WaitForSession waits non-exec'ed task to set started field or timeout
@@ -374,7 +374,7 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	return c.waitFor(ctx, key)
 }
 
-func (c *containerBase) waitForTask(ctx context.Context, id string) error {
+func (c *containerBase) waitForExec(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id))
 
 	// guestinfo key that we want to wait for

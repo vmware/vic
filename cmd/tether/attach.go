@@ -639,7 +639,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 				pendingFn = func() {
 					once.Do(func() {
 						launchChan := session.ClearToLaunch
-						if session.RunBlock && launchChan != nil && session.Started != "true" {
+						if session.RunBlock && launchChan != nil && session.Started == "" {
 							log.Infof("Unblocking the launch of %s", session.Common.ID)
 							// make sure that portlayer received the container id back
 							launchChan <- struct{}{}

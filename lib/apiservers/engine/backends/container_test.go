@@ -264,16 +264,16 @@ func (m *MockContainerProxy) AddLoggingToContainer(handle string, config types.C
 	return m.mockAddLoggingData[respIdx].retHandle, m.mockAddLoggingData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) BindInteraction(handle string, name string, id string) error {
-	return nil
+func (m *MockContainerProxy) BindInteraction(handle string, name string, id string) (string, error) {
+	return "", nil
 }
 
 func (m *MockContainerProxy) CreateExecTask(handle string, config *types.ExecConfig) (string, string, error) {
 	return "", "", nil
 }
 
-func (m *MockContainerProxy) UnbindInteraction(handle string, name string, id string) error {
-	return nil
+func (m *MockContainerProxy) UnbindInteraction(handle string, name string, id string) (string, error) {
+	return "", nil
 }
 
 func (m *MockContainerProxy) CommitContainerHandle(handle, containerID string, waitTime int32) error {

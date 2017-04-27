@@ -34,7 +34,7 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	}
 
 	if handle.Runtime != nil && handle.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOn {
-		return fmt.Errorf("Incorrect power state for task ID: %s", id)
+		return fmt.Errorf("Unable to wait for task when container %s is not running", id)
 	}
 
 	_, okS := handle.ExecConfig.Sessions[id]
@@ -52,5 +52,9 @@ func Wait(op *trace.Operation, h interface{}, id string) error {
 	if c == nil {
 		return fmt.Errorf("Unknown container ID: %s", handle.ExecConfig.ID)
 	}
-	return c.WaitForTask(ctx, id)
+
+	if okS {
+		return c.WaitForSession(ctx, id)
+	}
+	return c.WaitForExec(ctx, id)
 }
