@@ -966,15 +966,6 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 		}
 	}
 
-	// ensure that the API client connection is shutdown on exit
-	// TODO: see if this is needed, or if callers of postContainersAttach will clean up
-	// on clean exit path
-	//defer func() {
-	//	if stdin != nil {
-	//		stdin.Close()
-	//	}
-	//}()
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

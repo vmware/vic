@@ -479,14 +479,6 @@ func (t *attachServerSSH) run() error {
 				session.Reader.Remove(channel)
 
 				channel.Close()
-
-				t.serverConn.Lock()
-				// set serverConn to nil if not an exec session
-				if oks {
-					log.Debugf("Setting serverConn to nil")
-					t.serverConn.ServerConn = nil
-				}
-				t.serverConn.Unlock()
 			}
 
 			detach := cleanup
