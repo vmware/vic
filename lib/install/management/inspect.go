@@ -89,11 +89,11 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		log.Debugf("No host certificates provided")
 	}
 
-	d.ShowVCH(conf, "", "", "", "")
+	d.ShowVCH(conf, "", "", "", "", "")
 	return nil
 }
 
-func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string) {
+func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string, certpath string) {
 	if d.sshEnabled {
 		log.Infof("")
 		log.Infof("SSH to appliance:")
@@ -109,7 +109,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	log.Infof("Published ports can be reached at:")
 	log.Infof("%s", publicIP.String())
 
-	cmd, env := d.GetDockerAPICommand(conf, key, cert, cacert)
+	cmd, env := d.GetDockerAPICommand(conf, key, cert, cacert, certpath)
 
 	log.Info("")
 	log.Infof("Docker environment variables:")
@@ -128,7 +128,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 }
 
 // GetDockerAPICommand generates values to display for usage of a deployed VCH
-func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string) (cmd, env string) {
+func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, certpath string) (cmd, env string) {
 	var dEnv []string
 	tls := ""
 
@@ -147,7 +147,7 @@ func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfig
 			}
 
 			dEnv = append(dEnv, "DOCKER_TLS_VERIFY=1")
-			info, err := os.Stat(conf.ExecutorConfig.Name)
+			info, err := os.Stat(certpath)
 			if err == nil && info.IsDir() {
 				if abs, err := filepath.Abs(info.Name()); err == nil {
 					dEnv = append(dEnv, fmt.Sprintf("DOCKER_CERT_PATH=%s", abs))
