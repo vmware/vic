@@ -69,8 +69,8 @@ import com.vmware.vise.vim.data.VimObjectReferenceService;
 public class VicUIPropertyProvider implements PropertyProviderAdapter, ClientSessionEndListener {
 	private static final Log _logger = LogFactory.getLog(VicUIPropertyProvider.class);
 	private static final String[] VIC_VM_TYPES = {"isVCH", "isContainer"};
-	private static final String EXTRACONFIG_VCH_PATH = "guestinfo.vice./init/common/name";
-	private static final String EXTRACONFIG_CONTAINER_PATH = "guestinfo.vice./common/name";
+	private static final String EXTRACONFIG_VCH_PATH = "init/common/name";
+	private static final String EXTRACONFIG_CONTAINER_PATH = "common/name";
 	private static final String SERVICE_INSTANCE = "ServiceInstance";
 	private final Set<String> _thumbprints = new HashSet<String>();
 	private final VimObjectReferenceService _vimObjRefService;
