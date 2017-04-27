@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"sync"
 	"time"
 
@@ -32,7 +31,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
@@ -263,23 +261,6 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
-
-	// Convert the management hostname to IP
-	ips, err := net.LookupIP(constants.ManagementHostName)
-	if err != nil {
-		log.Errorf("Unable to look up %s during create of %s: %s", constants.ManagementHostName, config.Metadata.ID, err)
-		return nil, err
-	}
-
-	if len(ips) == 0 {
-		log.Errorf("No IP found for %s during create of %s", constants.ManagementHostName, config.Metadata.ID)
-		return nil, fmt.Errorf("No IP found on %s", constants.ManagementHostName)
-	}
-
-	if len(ips) > 1 {
-		log.Errorf("Multiple IPs found for %s during create of %s: %v", constants.ManagementHostName, config.Metadata.ID, ips)
-		return nil, fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
-	}
 
 	uuid, err := instanceUUID(config.Metadata.ID)
 	if err != nil {
