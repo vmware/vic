@@ -36,7 +36,7 @@ Complex VSAN
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
-    Create A Distributed Switch  vcqaDC
+    Wait Until Keyword Succeeds  10x  3 minutes  Create A Distributed Switch  vcqaDC
 
     Create Three Distributed Port Groups  vcqaDC
 

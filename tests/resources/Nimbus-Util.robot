@@ -403,3 +403,8 @@ Deploy Nimbus NFS Datastore
     Log To Console  Successfully deployed new NFS server - ${user}-${name}
     Close connection
     [Return]  ${user}-${name}  ${ip}
+
+Change ESXi Server Password
+    [Arguments]  ${password}
+    ${out}=  Run  govc host.account.update -id root -password ${password}
+    Should Be Empty  ${out}
