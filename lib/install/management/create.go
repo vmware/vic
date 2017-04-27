@@ -46,10 +46,6 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
-	if err = d.createVolumeStores(conf); err != nil {
-		return errors.Errorf("Exiting because we could not create volume stores due to error: %s", err)
-	}
-
 	if err = d.createAppliance(conf, settings); err != nil {
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
