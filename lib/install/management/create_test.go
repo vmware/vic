@@ -88,9 +88,9 @@ func TestMain(t *testing.T) {
 	}
 }
 
-func getESXData(url *url.URL) *data.Data {
+func getESXData(esxURL *url.URL) *data.Data {
 	result := data.NewData()
-	result.URL = url
+	result.URL = esxURL
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
@@ -107,9 +107,9 @@ func getESXData(url *url.URL) *data.Data {
 	return result
 }
 
-func getVPXData(url *url.URL) *data.Data {
+func getVPXData(vcURL *url.URL) *data.Data {
 	result := data.NewData()
-	result.URL = url
+	result.URL = vcURL
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
