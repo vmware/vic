@@ -315,6 +315,7 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 	for _, e := range endpointsOK.Payload {
 		if len(e.Ports) > 0 {
 			if err = MapPorts(container.HostConfig, e, container.ContainerID); err != nil {
+				log.Errorf(err.Error())
 				return err
 			}
 		}

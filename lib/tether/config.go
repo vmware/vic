@@ -160,6 +160,8 @@ type NetworkEndpoint struct {
 	// DHCP runtime info
 	DHCP *DHCPInfo `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
+	Ports []string `vic:"0.1" scope:"read-only" key:"ports"`
+
 	// whether the network config was successfully applied
 	configured bool `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }

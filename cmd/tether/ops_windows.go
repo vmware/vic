@@ -149,3 +149,7 @@ func (t *operations) Setup(sink tether.Config) error {
 
 	return nil
 }
+
+func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
+	return errors.New("Not implemented on windows")
+}
