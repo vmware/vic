@@ -965,7 +965,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	// map ports
 	if bind {
 		scope, e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
-		if scope != nil && scope.ScopeType == "bridged" {
+		if scope != nil && scope.ScopeType == constants.BridgeScopeType {
 			if err = MapPorts(hostConfig, e, id); err != nil {
 				return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 			}
