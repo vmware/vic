@@ -678,9 +678,9 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 	}
 
 	proto := u.Scheme
-
-	if proto == "" {
-		proto = "udp"
+	if len(proto) == 0 {
+		v.NoteIssue(errors.New("syslog address does not have protocol specified"))
+		return
 	}
 
 	switch proto {
@@ -691,11 +691,7 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 		return
 	}
 
-	host := u.Opaque
-	if len(host) == 0 {
-		host = u.Path
-	}
-
+	host := u.Host
 	if len(host) == 0 {
 		v.NoteIssue(errors.New("syslog address host not specified"))
 		return
