@@ -50,4 +50,7 @@ type Configuration struct {
 
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"storage/image_stores"`
+
+	// ManagingVCH is used to differentiate behavior between VCH and container
+	ManagingVCH bool
 }

@@ -41,6 +41,8 @@ const (
 	Name = "{name}"
 	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
 	CreatingVCH = "CreatingVCH"
+	// VCHPrefix represents VCH executor configuration encoding prefix
+	VCHPrefix = "init"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image

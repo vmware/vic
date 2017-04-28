@@ -28,6 +28,7 @@ import (
 	"github.com/golang/groupcache/lru"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -206,13 +207,19 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 		}
 	}
 
+	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
+	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
+	prefix := extraconfig.DefaultPrefix
+	if Config.ManagingVCH {
+		prefix = config.VCHPrefix
+	}
 	s := h.Spec.Spec()
 	// if runtime is nil, should be fresh container create
 	if h.Runtime == nil || h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff || h.TargetState() == StateStopped {
-		extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
+		extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), h.ExecConfig, prefix)
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	} else {
-		extraconfig.Encode(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig)
+		extraconfig.EncodeWithPrefix(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig, prefix)
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	}
 

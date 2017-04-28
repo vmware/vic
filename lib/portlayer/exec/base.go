@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
 	"github.com/vmware/vic/lib/portlayer/constants"
@@ -76,13 +77,19 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 		vm:         vm,
 	}
 
+	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
+	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
+	prefix := extraconfig.DefaultPrefix
+	if Config.ManagingVCH {
+		prefix = config.VCHPrefix
+	}
 	// construct a working copy of the exec config
 	if c != nil && c.ExtraConfig != nil {
 		var migratedConf map[string]string
 		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
 		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
-		extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
+		extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, prefix)
 	}
 
 	return base
@@ -134,12 +141,18 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 		ExecConfig: &executor.ExecutorConfig{},
 	}
 
+	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
+	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
+	prefix := extraconfig.DefaultPrefix
+	if Config.ManagingVCH {
+		prefix = config.VCHPrefix
+	}
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
-	extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
+	extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, prefix)
 
 	return base, nil
 }
