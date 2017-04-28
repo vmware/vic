@@ -273,9 +273,11 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
 
 		ImageStoreName: config.ImageStoreName,
-		ImageStorePath: &Config.ImageStores[0],
 
 		Metadata: config.Metadata,
+	}
+	if Config.ImageStores != nil {
+		specconfig.ImageStorePath = &Config.ImageStores[0]
 	}
 
 	// if not vsan, set the datastore folder name to containerID
