@@ -141,7 +141,7 @@ func iptables(ctx context.Context, args []string) error {
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable
-	cmd := exec.CommandContext(ctx, "/.tether/iptables", args...)
+	cmd := exec.CommandContext(ctx, "/.tether/lib64/ld-linux-x86-64.so.2", append([]string{"/.tether/iptables"}, args...)...)
 	cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=/.tether/lib:/.tether/lib64")
 	b, err := cmd.CombinedOutput()
 	if err != nil {
