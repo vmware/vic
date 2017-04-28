@@ -510,7 +510,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	case dsScheme:
 		actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
 	default:
-		err = fmt.Errorf("unknown scheme (%s) for Volume (%s)", volume.Device.DiskPath().Scheme, *volume)
+		err = fmt.Errorf("unknown scheme (%s) for Volume (%s)", volume.Device.DiskPath().Scheme, volume.ID)
 	}
 
 	if err != nil {
