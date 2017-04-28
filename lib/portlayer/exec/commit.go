@@ -84,6 +84,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		}
 
 		h.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
+		h.vm.DisableDestroy(ctx)
 		c = newContainer(&h.containerBase)
 		Containers.Put(c)
 		// inform of creation irrespective of remaining operations
