@@ -27,16 +27,13 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/event/events"
-	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/google/uuid"
 )
 
 type State int
@@ -664,19 +661,6 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 	}
 
 	return convertInfraContainers(ctx, sess, vms), nil
-}
-
-func instanceUUID(id string) (string, error) {
-	// generate VM instance uuid, which will be used to query back VM
-	u, err := sys.UUID()
-	if err != nil {
-		return "", err
-	}
-	namespace, err := uuid.Parse(u)
-	if err != nil {
-		return "", errors.Errorf("unable to parse VCH uuid: %s", err)
-	}
-	return uuid.NewSHA1(namespace, []byte(id)).String(), nil
 }
 
 // populate the vm attributes for the specified morefs

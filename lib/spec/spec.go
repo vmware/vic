@@ -38,7 +38,6 @@ const (
 type VirtualMachineConfigSpecConfig struct {
 	// ID of the VM
 	ID         string
-	BiosUUID   string
 	VMFullName string
 
 	// ParentImageID of the VM
@@ -89,7 +88,6 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 
 	s := &types.VirtualMachineConfigSpec{
 		Name: config.VMFullName,
-		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: config.VMPathName,
 		},

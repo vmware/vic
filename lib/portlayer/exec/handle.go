@@ -17,7 +17,6 @@ package exec
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -262,20 +261,12 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
 
-	uuid, err := instanceUUID(config.Metadata.ID)
-	if err != nil {
-		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
-		log.Error(detail)
-		return nil, errors.New(detail)
-	}
-
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
 		NumCPUs:  int32(config.Resources.NumCPUs),
 		MemoryMB: config.Resources.MemoryMB,
 
-		ID:       config.Metadata.ID,
-		Name:     config.Metadata.Name,
-		BiosUUID: uuid,
+		ID:   config.Metadata.ID,
+		Name: config.Metadata.Name,
 
 		ParentImageID: config.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
