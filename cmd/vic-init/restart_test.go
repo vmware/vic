@@ -114,7 +114,4 @@ func TestRestart(t *testing.T) {
 
 	assert.True(t, strings.HasPrefix(string(log), string(out)), "Expected the data to be constant - first invocation doesn't match")
 	assert.True(t, strings.HasSuffix(string(log), string(out)), "Expected the data to be constant - last invocation doesn't match")
-
-	// prevent indefinite wait in tether - normally session exit would trigger this
-	tthr.Stop()
 }

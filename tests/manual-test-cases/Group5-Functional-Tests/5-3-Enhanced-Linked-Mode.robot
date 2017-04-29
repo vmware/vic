@@ -48,14 +48,11 @@ Test
     Remove Environment Variable  GOVC_USERNAME
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_URL  root:@${esx1-ip}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
-    Should Be Empty  ${out}
+    Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
     Set Environment Variable  GOVC_URL  root:@${esx2-ip}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
-    Should Be Empty  ${out}
+    Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
     Set Environment Variable  GOVC_URL  root:@${esx3-ip}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
-    Should Be Empty  ${out}
+    Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
 
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local

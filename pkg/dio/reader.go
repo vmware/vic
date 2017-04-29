@@ -28,14 +28,26 @@ type DynamicMultiReader interface {
 	Add(...io.Reader)
 	Remove(io.Reader)
 	Close() error
+	PropagateEOF(bool)
 }
 
 type multiReader struct {
 	mutex sync.Mutex
 
-	cond    *sync.Cond
-	err     error
-	readers []io.Reader
+	cond           *sync.Cond
+	err            error
+	readers        []io.Reader
+	honorInlineEOF bool
+}
+
+// PropagateEOF toggles whether to return EOF when all readers return EOF.
+// Setting this to true will result in an EOF if there are no readers available
+// when Read is next called
+func (t *multiReader) PropagateEOF(val bool) {
+	t.mutex.Lock()
+	t.honorInlineEOF = val
+	t.cond.Broadcast()
+	t.mutex.Unlock()
 }
 
 func (t *multiReader) Read(p []byte) (int, error) {
@@ -71,6 +83,7 @@ func (t *multiReader) Read(p []byte) (int, error) {
 		t.cond.Wait()
 		log.Debugf("[%p] Woken from sleep %d readers", t, len(t.readers))
 	}
+
 	// stash a copy of the readers slie to iterate later
 	rTmp = make([]io.Reader, len(t.readers))
 	copy(rTmp, t.readers)
@@ -113,8 +126,16 @@ func (t *multiReader) Read(p []byte) (int, error) {
 	}
 
 	// This means readers closed/removed while we iterate
-	if eof != 0 && n == 0 && t.err == nil && eof == len(rTmp) {
+	// if no data is to be returned, there's no major error, and the number of
+	// reported EOFs matches the number of readers on entry to the main loop
+	if n == 0 && t.err == nil && eof == len(rTmp) {
 		log.Debugf("[%p] All of the readers returned EOF (%d)", t, len(rTmp))
+		t.mutex.Lock()
+		// queue up an EOF for the next time around if no new readers are added
+		if t.honorInlineEOF {
+			t.err = io.EOF
+		}
+		t.mutex.Unlock()
 	}
 	return n, nil
 }

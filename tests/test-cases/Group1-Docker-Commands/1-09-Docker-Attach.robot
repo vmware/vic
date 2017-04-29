@@ -42,44 +42,44 @@ Attach to stopped container
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal  ${out}  You cannot attach to a stopped container, start it first
 
-Attach with custom detach keys
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-    Should Be Equal As Integers  ${rc}  0
-    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom
-    Sleep  3
-    Run  echo a > /tmp/fifo
-    ${ret}=  Wait For Process  custom
-    Should Be Equal As Integers  ${ret.rc}  0
-    Should Be Empty  ${ret.stdout}
-    Should Be Empty  ${ret.stderr}
-
-Reattach to container
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-    Should Be Equal As Integers  ${rc}  0
-    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom
-    Sleep  3
-    Run  echo a > /tmp/fifo
-    ${ret}=  Wait For Process  custom
-    Should Be Equal As Integers  ${ret.rc}  0
-    Should Be Empty  ${ret.stdout}
-    Should Be Empty  ${ret.stderr}
-    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom2
-    Sleep  3
-    Run  echo a > /tmp/fifo
-    ${ret}=  Wait For Process  custom2
-    Should Be Equal As Integers  ${ret.rc}  0
-    Should Be Empty  ${ret.stdout}
-    Should Be Empty  ${ret.stderr}
-
 Attach to fake container
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${out}  Error: No such container: fakeContainer
+
+Attach with short input
+    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    Should Be Equal As Integers  ${rc}  0
+    ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
+    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
+    Should Be Equal As Integers  ${rc}  0
+    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox sort
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  5
+    \     Start Process  docker %{VCH-PARAMS} start -ai ${containerID} < ${fifo}  shell=True  alias=custom
+    \     Run  echo one > ${fifo}
+    \     ${ret}=  Wait For Process  custom
+    \     Log  ${ret.stderr}
+    \     Should Be Equal  ${ret.stdout}  one
+    \     Should Be Equal As Integers  ${ret.rc}  0
+    \     Should Be Empty  ${ret.stderr}
+    Run  rm -rf ${tmp}
+
+Attach with short output
+    Run  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox echo one
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  5
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
+    \     Should Be Equal As Integers  ${rc}  0
+    \     Should Be Equal  ${output}  one
+
+Attach with short output with tty
+    Run  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t busybox echo one
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  5
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
+    \     Should Be Equal As Integers  ${rc}  0
+    \     Should Be Equal  ${output}  one

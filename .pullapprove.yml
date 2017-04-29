@@ -13,6 +13,7 @@ groups:
   tether:
     users:
       - caglar10ur
+      - hickeng
     conditions:
       files:
         include:
@@ -142,6 +143,7 @@ groups:
   port-layer-exec-interaction:
     users:
       - caglar10ur
+      - hickeng
     conditions:
       files:
         include:

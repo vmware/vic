@@ -16,6 +16,7 @@ package constants
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vmware/vic/pkg/version"
 )
@@ -37,6 +38,8 @@ const (
 	// vSphere Display name for the VCH's Guest Name and for VAC support
 	defaultAltVCHGuestName       = "Photon - VCH"
 	defaultAltContainerGuestName = "Photon - Container"
+
+	PropertyCollectorTimeout = 3 * time.Minute
 )
 
 func DefaultAltVCHGuestName() string {

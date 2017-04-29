@@ -15,18 +15,23 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/vmware/vic/lib/iolog"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/netfilter"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -128,4 +133,109 @@ func (t *operations) Setup(sink tether.Config) error {
 	}
 
 	return nil
+}
+
+// SetupFirewall sets up firewall rules on the external scope only.  Any
+// portmaps are honored as are port exposes.
+func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
+	// XXX It looks like we'd want to collect the errors here, but we
+	// can't.  Since this is running inside init (tether) and tether
+	// reaps all children, the os.exec package won't be able to collect
+	// the error code in time before the reaper does.  The exec package
+	// calls wait and attempts to collect its child, but the reaper will
+	// have raptured the pid before that.  So, best effort, just keep going.
+	_ = netfilter.Flush(context.Background(), "")
+
+	// default rule set
+	established := &netfilter.Rule{
+		Chain:  netfilter.Input,
+		States: []netfilter.State{netfilter.Established},
+		Target: netfilter.Accept,
+	}
+
+	reject := &netfilter.Rule{
+		Chain:  netfilter.Input,
+		Target: netfilter.Reject,
+	}
+
+	for _, endpoint := range config.Networks {
+		if endpoint.Network.Type == constants.ExternalScopeType {
+
+			id, err := strconv.Atoi(endpoint.ID)
+			if err != nil {
+				log.Errorf("can't apply port rules: %s", err.Error())
+				continue
+			}
+
+			iface, err := t.LinkBySlot(int32(id))
+			if err != nil {
+				log.Errorf("can't apply rules: %s", err.Error())
+				continue
+			}
+
+			ifaceName := iface.Attrs().Name
+			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
+
+			established.Interface = ifaceName
+			_ = established.Commit(context.TODO())
+
+			// handle the ports
+			for _, p := range endpoint.Ports {
+				// parse the port maps
+				r, err := portToRule(p)
+				if err != nil {
+					log.Errorf("can't apply port rule (%s): %s", p, err.Error())
+					continue
+				}
+
+				log.Infof("Applying rule for port %s", p)
+				r.Interface = ifaceName
+				_ = r.Commit(context.TODO())
+			}
+
+			reject.Interface = ifaceName
+			_ = reject.Commit(context.TODO())
+
+			break
+		}
+	}
+
+	return nil
+}
+
+func portToRule(p string) (*netfilter.Rule, error) {
+	if strings.Contains(p, ":") {
+		return nil, errors.New("port maps are TBD")
+	}
+
+	// 9999/tcp
+	s := strings.Split(p, "/")
+	if len(s) != 2 {
+		return nil, errors.New("can't parse port spec: " + p)
+	}
+
+	rule := &netfilter.Rule{
+		Chain:     netfilter.Input,
+		Interface: "external",
+		Target:    netfilter.Accept,
+	}
+
+	switch netfilter.Protocol(s[1]) {
+	case netfilter.UDP:
+		rule.Protocol = netfilter.UDP
+	case netfilter.TCP:
+		rule.Protocol = netfilter.TCP
+
+	default:
+		return nil, errors.New("unknown protocol")
+	}
+
+	port, err := strconv.Atoi(s[0])
+	if err != nil {
+		return nil, err
+	}
+
+	rule.FromPort = port
+
+	return rule, nil
 }

@@ -338,9 +338,7 @@ Setup Network For Simple VC Cluster
     ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds bridge
     Should Contain  ${out}  OK
 
-    Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /${datacenter}/host/${cluster}
-    Should Contain  ${out}  OK
+    Wait Until Keyword Succeeds  10x  3 minutes  Add Host To Distributed Switch  /${datacenter}/host/${cluster}  test-ds
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
@@ -405,3 +403,8 @@ Deploy Nimbus NFS Datastore
     Log To Console  Successfully deployed new NFS server - ${user}-${name}
     Close connection
     [Return]  ${user}-${name}  ${ip}
+
+Change ESXi Server Password
+    [Arguments]  ${password}
+    ${out}=  Run  govc host.account.update -id root -password ${password}
+    Should Be Empty  ${out}

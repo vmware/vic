@@ -27,6 +27,10 @@ import (
 )
 
 type ExecutorConfig struct {
+	// allow us to lock the maps when config is being updated
+	// subelements tend to have their own locks
+	sync.Mutex
+
 	// The name of the system
 	Name string `vic:"0.1" scope:"read-only" key:"common/name"`
 
@@ -155,6 +159,8 @@ type NetworkEndpoint struct {
 
 	// DHCP runtime info
 	DHCP *DHCPInfo `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
+	Ports []string `vic:"0.1" scope:"read-only" key:"ports"`
 
 	// whether the network config was successfully applied
 	configured bool `vic:"0.1" scope:"read-only" recurse:"depth=0"`

@@ -41,6 +41,7 @@ func (handler *TaskHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Hand
 	api.TasksUnbindHandler = tasks.UnbindHandlerFunc(handler.UnbindHandler)
 	api.TasksRemoveHandler = tasks.RemoveHandlerFunc(handler.RemoveHandler)
 	api.TasksInspectHandler = tasks.InspectHandlerFunc(handler.InspectHandler)
+	api.TasksWaitHandler = tasks.WaitHandlerFunc(handler.WaitHandler)
 }
 
 // JoinHandler calls the Join
@@ -65,6 +66,8 @@ func (handler *TaskHandlersImpl) JoinHandler(params tasks.JoinParams) middleware
 	op.Debugf("Path: %#v", params.Config.Path)
 	op.Debugf("WorkingDir: %#v", params.Config.WorkingDir)
 	op.Debugf("OpenStdin: %#v", params.Config.OpenStdin)
+	op.Debugf("Attach: %#v", params.Config.Attach)
+
 	op.Debugf("User: %s", params.Config.User)
 
 	sessionConfig := &executor.SessionConfig{
@@ -132,6 +135,7 @@ func (handler *TaskHandlersImpl) BindHandler(params tasks.BindParams) middleware
 	res := &models.TaskBindResponse{
 		Handle: exec.ReferenceFromHandle(handleprime),
 	}
+
 	return tasks.NewBindOK().WithPayload(res)
 }
 
@@ -215,7 +219,7 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 
 	res := &models.TaskInspectResponse{
 		ID:       t.ID,
-		Running:  t.Started != "",
+		Running:  t.Started == "true",
 		ExitCode: int64(t.ExitStatus),
 		ProcessConfig: &models.ProcessConfig{
 			ExecPath: t.Cmd.Path,
@@ -228,5 +232,35 @@ func (handler *TaskHandlersImpl) InspectHandler(params tasks.InspectParams) midd
 		OpenStderr: t.Attach,
 		Pid:        0,
 	}
+
+	// report launch error if we failed
+	if t.Started != "" && t.Started != "true" {
+		res.ProcessConfig.ErrorMsg = t.Started
+	}
+
 	return tasks.NewInspectOK().WithPayload(res)
+}
+
+// WaitHandler calls wait
+func (handler *TaskHandlersImpl) WaitHandler(params tasks.WaitParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "task.Wait(%s, %s)", params.Config.Handle, params.Config.ID)
+
+	handle := exec.HandleFromInterface(params.Config.Handle)
+	if handle == nil {
+		err := &models.Error{Message: "Failed to get the Handle"}
+		return tasks.NewInspectInternalServerError().WithPayload(err)
+	}
+
+	// wait task to set started field to something
+	err := task.Wait(&op, handle, params.Config.ID)
+	if err != nil {
+		log.Errorf("%s", err.Error())
+
+		return tasks.NewWaitInternalServerError().WithPayload(
+			&models.Error{Message: err.Error()},
+		)
+	}
+
+	return tasks.NewWaitOK()
 }

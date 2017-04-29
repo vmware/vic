@@ -36,7 +36,10 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/attach"
+
+	"github.com/vmware/vic/lib/portlayer/attach/communication"
+
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/serial"
 )
@@ -232,6 +235,9 @@ func attachCase(t *testing.T, runblock bool) {
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
 		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attach",
 			Name: "tether_test_executor",
@@ -283,13 +289,14 @@ func attachCase(t *testing.T, runblock bool) {
 	assert.NoError(t, err)
 	defer sshConn.Close()
 
-	attachClient := ssh.NewClient(sshConn, chans, reqs)
-
+	ssh.NewClient(sshConn, chans, reqs)
+	_, err = communication.ContainerIDs(sshConn)
+	version, err := communication.ContainerVersion(sshConn)
+	assert.NoError(t, err)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, version)
 	if runblock {
-		_, err = attach.SSHls(attachClient)
-		assert.NoError(t, err)
+		sshSession.Unblock()
 	}
-	sshSession, err := attach.SSHAttach(attachClient, cfg.ID)
 	assert.NoError(t, err)
 
 	stdout := sshSession.Stdout()
@@ -301,7 +308,7 @@ func attachCase(t *testing.T, runblock bool) {
 	// read from session into buffer
 	buf := &bytes.Buffer{}
 	done := make(chan bool)
-	go func() { io.CopyN(buf, stdout, int64(len(testBytes))); done <- true }()
+	go func() { io.Copy(buf, stdout); done <- true }()
 
 	// write something to echo
 	log.Debug("sending test data")
@@ -309,8 +316,9 @@ func attachCase(t *testing.T, runblock bool) {
 	log.Debug("sent test data")
 
 	// wait for the close to propagate
-	<-done
 	sshSession.CloseStdin()
+	<-done
+	// sshSession.Close()
 }
 
 func TestAttach(t *testing.T) {
@@ -388,7 +396,7 @@ func TestAttachTTY(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := attach.SSHAttach(client, cfg.ID)
+	session, err := communication.NewSSHInteraction(client, cfg.ID, feature.MaxPluginVersion-1)
 	assert.NoError(t, err)
 
 	stdout := session.Stdout()
@@ -419,6 +427,251 @@ func TestAttachTTY(t *testing.T) {
 	session.CloseStdin()
 
 	assert.Equal(t, refBytes, buf.Bytes())
+}
+
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////
+// TestAttachTTYStdinClose sets up the config for attach testing
+//
+func TestAttachTTYStdinClose(t *testing.T) {
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
+
+	testServer, _ := server.(*testAttachServer)
+
+	cfg := executor.ExecutorConfig{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
+			ID:   "sort",
+			Name: "tether_test_executor",
+		},
+
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
+
+		Sessions: map[string]*executor.SessionConfig{
+			"sort": {
+				Common: executor.Common{
+					ID:   "sort",
+					Name: "tether_test_session",
+				},
+				Tty:    true,
+				Attach: true,
+				Active: true,
+
+				OpenStdin: true,
+				RunBlock:  true,
+
+				Cmd: executor.Cmd{
+					Path: "/usr/bin/sort",
+					// reading from stdin
+					Args: []string{"/usr/bin/sort"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
+	}
+
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
+
+	// wait for updates to occur
+	<-testServer.updated
+
+	if !testServer.enabled {
+		t.Errorf("attach server was not enabled")
+	}
+
+	containerConfig := &ssh.ClientConfig{
+		User: "daemon",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	// create the SSH client from the mocked connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", containerConfig)
+	assert.NoError(t, err)
+	defer sshConn.Close()
+
+	ssh.NewClient(sshConn, chans, reqs)
+	_, err = communication.ContainerIDs(sshConn)
+	assert.NoError(t, err)
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, feature.MaxPluginVersion-1)
+	assert.NoError(t, err)
+
+	// unblock before grabbing stdout - this should buffer in ssh
+	sshSession.Unblock()
+	stdout := sshSession.Stdout()
+
+	// FIXME: the pipe pair are line buffered - how do I disable that so we
+	// don't have odd hangs to diagnose when the trailing \n is missed
+
+	testBytes := []byte("one\ntwo\nthree\n")
+	// after tty translation by sort the above string should result in the following
+	// - we have echo turned on so we get a repeat of the initial string
+	// - all \n bytes are translated to \r\n
+	refBytes := []byte("one\r\ntwo\r\nthree\r\none\r\nthree\r\ntwo\r\n")
+
+	// read from session into buffer
+	buf := &bytes.Buffer{}
+	done := make(chan bool)
+	go func() {
+		io.Copy(buf, stdout)
+		log.Debug("stdout copy complete")
+		done <- true
+	}()
+
+	// write something to echo
+	log.Debug("sending test data")
+	sshSession.Stdin().Write(testBytes)
+	log.Debug("sent test data")
+
+	// wait for the close to propagate
+	sshSession.CloseStdin()
+	<-done
+
+	assert.Equal(t, refBytes, buf.Bytes())
+}
+
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////
+// TestEcho ensures we get back data without a tty and without any stdin interaction
+//
+func TestEcho(t *testing.T) {
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
+
+	testServer, _ := server.(*testAttachServer)
+
+	cfg := executor.ExecutorConfig{
+		ExecutorConfigCommon: executor.ExecutorConfigCommon{
+			ID:   "echo",
+			Name: "tether_test_executor",
+		},
+
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
+
+		Sessions: map[string]*executor.SessionConfig{
+			"echo": {
+				Common: executor.Common{
+					ID:   "echo",
+					Name: "tether_test_session",
+				},
+				Tty:    false,
+				Attach: true,
+				Active: true,
+
+				OpenStdin: true,
+				RunBlock:  true,
+
+				Cmd: executor.Cmd{
+					Path: "/bin/echo",
+					// reading from stdin
+					Args: []string{"/bin/echo", "hello"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
+	}
+
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
+
+	// wait for updates to occur
+	<-testServer.updated
+
+	if !testServer.enabled {
+		t.Errorf("attach server was not enabled")
+	}
+
+	containerConfig := &ssh.ClientConfig{
+		User: "daemon",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	// create the SSH client from the mocked connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", containerConfig)
+	assert.NoError(t, err)
+	defer sshConn.Close()
+
+	ssh.NewClient(sshConn, chans, reqs)
+	_, err = communication.ContainerIDs(sshConn)
+	assert.NoError(t, err)
+	version, err := communication.ContainerVersion(sshConn)
+	assert.NoError(t, err)
+
+	sshSession, err := communication.NewSSHInteraction(sshConn, cfg.ID, version)
+	assert.NoError(t, err)
+
+	// unblock before grabbing stdout - this should buffer in ssh
+	sshSession.Unblock()
+	stdin := sshSession.Stdin()
+	stdout := sshSession.Stdout()
+	stderr := sshSession.Stderr()
+
+	doneStdout := make(chan bool)
+	doneStderr := make(chan bool)
+	doneStdin := make(chan bool)
+
+	// read from session into buffer
+	bufout := &bytes.Buffer{}
+	go func() {
+		io.Copy(bufout, stdout)
+		log.Debug("stdout copy complete")
+		doneStdout <- true
+	}()
+
+	// read from session into buffer
+	buferr := &bytes.Buffer{}
+	go func() {
+		io.Copy(buferr, stderr)
+		log.Debug("stderr copy complete")
+		doneStderr <- true
+	}()
+
+	// nothing being sent, but is attached
+	pr, _, err := os.Pipe()
+	assert.NoError(t, err)
+	go func() {
+		io.Copy(stdin, pr)
+		log.Debug("stdin copy complete")
+		doneStdin <- true
+	}()
+
+	// seeing if premature close of stdin causes problems
+	sshSession.CloseStdin()
+
+	// wait for the close to propagate
+	<-doneStdout
+	assert.Equal(t, "hello\n", string(bufout.Bytes()))
+
+	<-doneStderr
+	assert.Equal(t, "", string(buferr.Bytes()))
+
+	// TODO: remove this when we've verified stdin behaviour
+}
+
+func TestEchoRepeat(t *testing.T) {
+	log.SetLevel(log.WarnLevel)
+
+	for i := 0; i < 10 && !t.Failed(); i++ {
+		TestEcho(t)
+	}
+
+	defer log.SetLevel(log.DebugLevel)
 }
 
 //
@@ -527,7 +780,9 @@ func TestAttachMultiple(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	ids, err := attach.SSHls(client)
+	ids, err := communication.ContainerIDs(client)
+	assert.NoError(t, err)
+	version, err := communication.ContainerVersion(client)
 	assert.NoError(t, err)
 
 	// there's no ordering guarantee in the returned ids
@@ -542,10 +797,10 @@ func TestAttachMultiple(t *testing.T) {
 		}
 	}
 
-	sessionA, err := attach.SSHAttach(client, "tee1")
+	sessionA, err := communication.NewSSHInteraction(client, "tee1", version)
 	assert.NoError(t, err)
 
-	sessionB, err := attach.SSHAttach(client, "tee2")
+	sessionB, err := communication.NewSSHInteraction(client, "tee2", version)
 	assert.NoError(t, err)
 
 	stdoutA := sessionA.Stdout()
@@ -654,7 +909,10 @@ func TestAttachInvalid(t *testing.T) {
 
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	_, err = attach.SSHAttach(client, "invalid")
+	version, err := communication.ContainerVersion(client)
+	assert.NoError(t, err)
+
+	_, err = communication.NewSSHInteraction(client, "invalid", version)
 	tthr.Stop()
 	if err == nil {
 		t.Errorf("Expected to fail on attempt to attach to invalid session")
@@ -672,7 +930,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 	defer testTeardown(t)
 
 	// Start the PL attach server
-	testServer := attach.NewAttachServer("", 8080)
+	testServer := communication.NewAttachServer("", 8080)
 	assert.NoError(t, testServer.Start())
 	defer testServer.Stop()
 
@@ -710,7 +968,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 		return
 	}
 
-	var pty attach.SessionInteraction
+	var pty communication.SessionInteractor
 	pty, err = testServer.Get(context.Background(), "attach", 600*time.Second)
 	if !assert.NoError(t, err) {
 		return
@@ -743,6 +1001,9 @@ func TestReattach(t *testing.T) {
 		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attach",
 			Name: "tether_test_executor",
+		},
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
 		},
 
 		Sessions: map[string]*executor.SessionConfig{
@@ -791,7 +1052,7 @@ func TestReattach(t *testing.T) {
 	assert.NoError(t, err)
 	defer sshConn.Close()
 
-	var sshSession attach.SessionInteraction
+	var sshSession communication.SessionInteractor
 	done := make(chan bool)
 	buf := &bytes.Buffer{}
 	testBytes := []byte("\x1b[32mhello world\x1b[39m!\n")
@@ -802,11 +1063,16 @@ func TestReattach(t *testing.T) {
 			t.Errorf("Failed to get ssh.NewClient")
 		}
 
-		_, err = attach.SSHls(attachClient)
+		_, err = communication.ContainerIDs(sshConn)
 		assert.NoError(t, err)
 
-		sshSession, err = attach.SSHAttach(attachClient, cfg.ID)
+		version, err := communication.ContainerVersion(sshConn)
 		assert.NoError(t, err)
+
+		sshSession, err = communication.NewSSHInteraction(sshConn, cfg.ID, version)
+		assert.NoError(t, err)
+
+		sshSession.Unblock()
 
 		stdout := sshSession.Stdout()
 
@@ -822,7 +1088,7 @@ func TestReattach(t *testing.T) {
 		log.Debug("sent test data")
 	}
 
-	limit := 100
+	limit := 10
 	for i := 0; i <= limit; i++ {
 		if i > 0 {
 			// truncate the buffer for the retach

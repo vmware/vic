@@ -264,6 +264,18 @@ func (m *MockContainerProxy) AddLoggingToContainer(handle string, config types.C
 	return m.mockAddLoggingData[respIdx].retHandle, m.mockAddLoggingData[respIdx].retErr
 }
 
+func (m *MockContainerProxy) BindInteraction(handle string, name string, id string) (string, error) {
+	return "", nil
+}
+
+func (m *MockContainerProxy) CreateExecTask(handle string, config *types.ExecConfig) (string, string, error) {
+	return "", "", nil
+}
+
+func (m *MockContainerProxy) UnbindInteraction(handle string, name string, id string) (string, error) {
+	return "", nil
+}
+
 func (m *MockContainerProxy) CommitContainerHandle(handle, containerID string, waitTime int32) error {
 	respIdx := m.mockRespIndices[5]
 
@@ -328,7 +340,7 @@ func (m *MockContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) e
 	return nil
 }
 
-func (m *MockContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int32) error {
+func (m *MockContainerProxy) Resize(id string, height, width int32) error {
 	return nil
 }
 
@@ -336,12 +348,14 @@ func (m *MockContainerProxy) Rename(vc *viccontainer.VicContainer, newName strin
 	return nil
 }
 
-func (m *MockContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
+func (m *MockContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, clStdin io.ReadCloser, clStdout, clStderr io.Writer) error {
 	return nil
 }
+
 func (m *MockContainerProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
 	return nil
 }
+
 func (m *MockContainerProxy) exitCode(vc *viccontainer.VicContainer) (string, error) {
 	return "", nil
 }

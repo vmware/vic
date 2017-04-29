@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vmware/vic/lib/migration/feature"
 )
 
 func TestWindowChange(t *testing.T) {
@@ -65,6 +67,18 @@ func TestContainers(t *testing.T) {
 
 	tmp := s.Marshal()
 	out := &ContainersMsg{}
+	out.Unmarshal(tmp)
+
+	assert.Equal(t, s, out)
+}
+
+func TestVersion(t *testing.T) {
+	s := &VersionMsg{Version: feature.MaxPluginVersion - 1}
+
+	assert.Equal(t, s.RequestType(), VersionReq)
+
+	tmp := s.Marshal()
+	out := &VersionMsg{}
 	out.Unmarshal(tmp)
 
 	assert.Equal(t, s, out)
