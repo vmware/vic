@@ -58,7 +58,9 @@ type VirtualContainerHostConfigSpec struct {
 	// The base config for the appliance. This includes the networks that are to be attached
 	// and disks to be mounted.
 	// Networks are keyed by interface name
-	executor.ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
+
+	// ExecutorConfig will be encoded separately
+	executor.ExecutorConfig `vic:"0.1" scope:"read-only" key:"init" recurse:"depth=0"`
 
 	// vSphere connection configuration
 	Connection `vic:"0.1" scope:"read-only" key:"connect"`
