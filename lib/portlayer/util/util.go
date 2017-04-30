@@ -61,15 +61,12 @@ func ServiceURL(serviceName string) *url.URL {
 // Update the VM display name on vSphere UI
 func DisplayName(config *spec.VirtualMachineConfigSpecConfig) string {
 
-	nameMaxLen := constants.MaxVMNameLength - constants.ShortIDLen
+	shortID := config.ID[:constants.ShortIDLen]
+	nameMaxLen := constants.MaxVMNameLength - len(shortID)
 	prettyName := config.Name
 	if len(prettyName) > nameMaxLen-1 {
 		prettyName = prettyName[:nameMaxLen-1]
 	}
 
-	if config.ID != "" {
-		shortID := config.ID[:constants.ShortIDLen]
-		return fmt.Sprintf("%s-%s", prettyName, shortID)
-	}
-	return prettyName
+	return fmt.Sprintf("%s-%s", prettyName, shortID)
 }
