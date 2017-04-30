@@ -290,6 +290,16 @@ func (m *Model) Create() error {
 			var spec types.DVSCreateSpec
 			spec.ConfigSpec = &types.VMwareDVSConfigSpec{}
 			spec.ConfigSpec.GetDVSConfigSpec().Name = m.fmtName("DVS", 0)
+			promisc := true
+			dvsPortSetting := types.VMwareDVSPortSetting{
+				SecurityPolicy: &types.DVSSecurityPolicy{
+					AllowPromiscuous: &types.BoolPolicy{
+						Value: &promisc,
+					},
+				},
+			}
+			spec.ConfigSpec.GetDVSConfigSpec().DefaultPortConfig = dvsPortSetting.GetDVPortSetting()
+			spec.ConfigSpec.GetDVSConfigSpec().Host = []types.DistributedVirtualSwitchHostMemberConfigSpec{}
 
 			task, err := folders.NetworkFolder.CreateDVS(ctx, spec)
 			if err != nil {
