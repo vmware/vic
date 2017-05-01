@@ -152,6 +152,8 @@ func NewVspc() *Vspc {
 	// load the vchconfig to get debug level
 	if src, err := extraconfig.GuestInfoSource(); err == nil {
 		extraconfig.Decode(src, &vchconfig)
+		extraconfig.DecodeWithPrefix(src, &vchconfig.ExecutorConfig, config.VCHPrefix)
+
 		if vchconfig.Diagnostics.DebugLevel > 2 {
 			vspc.verbose = true
 		}

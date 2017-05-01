@@ -68,6 +68,8 @@ type VirtualMachineConfigSpecConfig struct {
 
 	// Temporary
 	Metadata *executor.ExecutorConfig
+	// Prefix to encode Metadata
+	ConfigPrefix string
 }
 
 // VirtualMachineConfigSpec type
@@ -124,7 +126,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 
 	// encode the config as optionvalues
 	cfg := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(cfg), config.Metadata)
+	extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), config.Metadata, config.ConfigPrefix)
 	metaCfg := vmomi.OptionValueFromMap(cfg)
 
 	// merge it with the sec

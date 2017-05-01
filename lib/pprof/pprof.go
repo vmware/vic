@@ -58,6 +58,7 @@ func init() {
 
 	vchConfig := new(config.VirtualContainerHostConfigSpec)
 	extraconfig.Decode(src, vchConfig)
+	extraconfig.DecodeWithPrefix(src, &vchConfig.ExecutorConfig, config.VCHPrefix)
 	debugLevel = vchConfig.ExecutorConfig.Diagnostics.DebugLevel
 }
 

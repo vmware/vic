@@ -209,17 +209,14 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
 	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
-	prefix := extraconfig.DefaultPrefix
-	if Config.ManagingVCH {
-		prefix = config.VCHPrefix
-	}
+
 	s := h.Spec.Spec()
 	// if runtime is nil, should be fresh container create
 	if h.Runtime == nil || h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff || h.TargetState() == StateStopped {
-		extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), h.ExecConfig, prefix)
+		extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), h.ExecConfig, h.ConfigPrefix)
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	} else {
-		extraconfig.EncodeWithPrefix(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig, prefix)
+		extraconfig.EncodeWithPrefix(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig, h.ConfigPrefix)
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	}
 
@@ -254,14 +251,19 @@ func (h *Handle) Close() {
 //
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
-func Create(ctx context.Context, vmomiSession *session.Session, config *ContainerCreateConfig) (*Handle, error) {
+func Create(ctx context.Context, vmomiSession *session.Session, conf *ContainerCreateConfig) (*Handle, error) {
 	defer trace.End(trace.Begin("Handle.Create"))
 
+	prefix := extraconfig.DefaultPrefix
+	if Config.ManagingVCH {
+		prefix = config.VCHPrefix
+	}
 	h := &Handle{
 		key:         newHandleKey(),
 		targetState: StateCreated,
 		containerBase: containerBase{
-			ExecConfig: config.Metadata,
+			ExecConfig:   conf.Metadata,
+			ConfigPrefix: prefix,
 		},
 	}
 
@@ -269,30 +271,31 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
 
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
-		NumCPUs:  int32(config.Resources.NumCPUs),
-		MemoryMB: config.Resources.MemoryMB,
+		NumCPUs:  int32(conf.Resources.NumCPUs),
+		MemoryMB: conf.Resources.MemoryMB,
 
-		ID:   config.Metadata.ID,
-		Name: config.Metadata.Name,
+		ID:   conf.Metadata.ID,
+		Name: conf.Metadata.Name,
 
-		ParentImageID: config.ParentImageID,
+		ParentImageID: conf.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
-		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
+		VMPathName:    fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), conf.Metadata.Name, conf.Metadata.Name),
 
-		ImageStoreName: config.ImageStoreName,
+		ImageStoreName: conf.ImageStoreName,
 
-		Metadata: config.Metadata,
+		Metadata:     conf.Metadata,
+		ConfigPrefix: h.ConfigPrefix,
 	}
 	if Config.ImageStores != nil {
 		specconfig.ImageStorePath = &Config.ImageStores[0]
 	}
 
 	// if not vsan, set the datastore folder name to containerID
-	if !vmomiSession.IsVSAN(ctx) {
+	if !vmomiSession.IsVSAN(ctx) && !Config.ManagingVCH {
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
 	}
 
-	specconfig.VMFullName = config.Metadata.Name
+	specconfig.VMFullName = conf.Metadata.Name
 	if !Config.ManagingVCH {
 		specconfig.VMFullName = util.DisplayName(specconfig)
 	}
@@ -321,7 +324,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	// Create a linux guest
 	linux, err := guest.NewLinuxGuest(ctx, vmomiSession, specconfig)
 	if err != nil {
-		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
+		log.Errorf("Failed during linux specific spec generation during create of %s: %s", conf.Metadata.ID, err)
 		return nil, err
 	}
 
