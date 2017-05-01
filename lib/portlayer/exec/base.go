@@ -59,6 +59,8 @@ type containerBase struct {
 	// MigrationError means the errors happens during data migration, some operation might fail for we cannot extract the whole container configuration
 	MigrationError error
 	DataVersion    int
+	// ConfigPrefix is used to encoding/decoding container or VCH guestinfo
+	ConfigPrefix string
 
 	// original - can be pointers so long as refreshes
 	// use different instances of the structures
@@ -79,9 +81,9 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 
 	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
 	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
-	prefix := extraconfig.DefaultPrefix
+	base.ConfigPrefix = extraconfig.DefaultPrefix
 	if Config.ManagingVCH {
-		prefix = config.VCHPrefix
+		base.ConfigPrefix = config.VCHPrefix
 	}
 	// construct a working copy of the exec config
 	if c != nil && c.ExtraConfig != nil {
@@ -89,7 +91,7 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
 		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
-		extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, prefix)
+		extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, base.ConfigPrefix)
 	}
 
 	return base
@@ -135,24 +137,19 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	}
 
 	base := &containerBase{
-		vm:         c.vm,
-		Config:     o.Config,
-		Runtime:    &o.Runtime,
-		ExecConfig: &executor.ExecutorConfig{},
+		vm:           c.vm,
+		Config:       o.Config,
+		Runtime:      &o.Runtime,
+		ExecConfig:   &executor.ExecutorConfig{},
+		ConfigPrefix: c.ConfigPrefix,
 	}
 
-	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
-	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
-	prefix := extraconfig.DefaultPrefix
-	if Config.ManagingVCH {
-		prefix = config.VCHPrefix
-	}
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
-	extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, prefix)
+	extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, base.ConfigPrefix)
 
 	return base, nil
 }
@@ -384,7 +381,18 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 
 	// guestinfo key that we want to wait for
 	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
-	return c.waitFor(ctx, key)
+	// wait for all sessions started
+	for k, s := range c.ExecConfig.Sessions {
+		if s.Active {
+			key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", k), c.ConfigPrefix)[0]
+			err = c.waitFor(ctx, key)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *containerBase) waitForExec(ctx context.Context, id string) error {
@@ -406,4 +414,10 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
+	}
+// VMFolder returns container VM folder in datastore
+// TODO: Expose VM properties here is because VCH management logic is not part of portlayer handlers yet
+// This method can be removed after portlayer handlers support VCH management
+func (c *containerBase) VMFolder(ctx context.Context) (string, error) {
+	return c.vm.FolderName(ctx)
 }
