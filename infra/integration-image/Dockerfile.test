@@ -93,3 +93,5 @@ COPY scripts /opt/vmware/scripts
 ENV PATH="${PATH}:/opt/vmware/scripts"
 
 VOLUME /var/lib/docker
+
+RUN apt-get install -y parted

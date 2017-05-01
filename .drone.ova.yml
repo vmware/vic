@@ -1,0 +1,32 @@
+# After any change to this file you MUST regenerate and checkin
+# a .drone.sec even if no secrets were changed. The secrets file is tied
+# to a specific .drone.yml so artifacts will not be uploaded to (OR DOWNLOADED
+# FROM) Bintray in following builds without an updated .drone.sec
+#
+# When you are ready to submit a pull request, you must regenerate .drone.sec for the vmware/vic repo:
+#
+# $ drone -s https://ci.vmware.run -t ${DRONE_TOKEN} secure --in "secrets.yml" --out ".drone.sec" --repo vmware/vic --yaml ".drone.yml"
+#
+# The secrets file is in our local git repo.  Ask mhagen for access.
+---
+clone:
+  path: github.com/vmware/vic
+  tags: true
+
+build:
+  unified-ova:
+    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.29}
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      PACKER_ESX_HOST: 192.168.254.128
+      PACKER_USER: root
+      PACKER_PASSWORD: vmware1
+      PACKER_LOG: 1
+      BUILD_HARBOR_REVISION: v1.1.0
+      BUILD_ADMIRAL_REVISION: v1.1.0
+      BUILD_VICENGINE_REVISION: 1.1.0
+    commands:
+      - make ova-release
