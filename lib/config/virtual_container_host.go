@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/vmware/govmomi/vim25/types"
@@ -232,7 +233,7 @@ func (t *VirtualContainerHostConfigSpec) SetIsCreating(creating bool) {
 
 // IsCreating is checking if this configuration is for one creating VCH VM
 func (t *VirtualContainerHostConfigSpec) IsCreating() bool {
-	return t.ExecutorConfig.ID == CreatingVCH
+	return strings.HasPrefix(t.ExecutorConfig.ID, CreatingVCH)
 }
 
 // AddNetwork adds a network that will be configured on the appliance VM
