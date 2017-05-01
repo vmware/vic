@@ -1333,16 +1333,15 @@ func dockerStatus(exitCode int, status string, state string, started time.Time, 
 				exitCode = 126
 			} else if strings.Contains(status, "no such") {
 				exitCode = 127
-			} else if status == "true" && exitCode == -1 {
-				// most likely the process was killed via the cli
-				// or received a sigkill
-				exitCode = 137
-			} else if status == "" && exitCode == 0 {
-				// the process was stopped via the cli
-				// or received a sigterm
-				exitCode = 143
+			} else if status == "true" {
+				if exitCode == -1 {
+					// most likely the process was killed via the cli or received a sigkill
+					exitCode = 137
+				} else if exitCode == 0 {
+					// the process was stopped via the cli or received a sigterm
+					exitCode = 143
+				}
 			}
-
 			dockStatus = fmt.Sprintf("Exited (%d) %s ago", exitCode, units.HumanDuration(time.Now().UTC().Sub(finished)))
 		}
 	}
