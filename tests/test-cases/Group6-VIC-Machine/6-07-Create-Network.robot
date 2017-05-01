@@ -110,6 +110,7 @@ Management network - valid
     Cleanup VIC Appliance On Test Server
 
 Connectivity Bridge to Public
+    Pass execution  Test needs refactoring
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
