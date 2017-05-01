@@ -56,9 +56,9 @@ Get resource pool CPU and mem usages
 Set resource pool CPU and mem limits
     [Arguments]  ${cpuval}  ${memval}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} %{TEST_RESOURCE}/%{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} %{TEST_RESOURCE}/%{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} %{VCH-NAME}
     Should Be Equal As Integers  ${rc}  0
 
 *** Test Cases ***
