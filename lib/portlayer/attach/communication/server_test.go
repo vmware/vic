@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package attach
+package communication
 
 import (
 	"net"
@@ -29,15 +29,16 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/pkg/serial"
 )
 
 // Start the server, make 200 client connections, test they connect, then Stop.
 func TestAttachStartStop(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	s := NewAttachServer("", 0)
+	s := NewServer("localhost", 0)
 
-	wg := &sync.WaitGroup{}
+	var wg sync.WaitGroup
 
 	dial := func() {
 		defer wg.Done()
@@ -82,32 +83,37 @@ func TestAttachStartStop(t *testing.T) {
 	}
 	assert.NoError(t, s.Stop())
 
-	_, err := net.Dial("tcp", s.l.Addr().String())
+	_, err := net.Dial("tcp", s.Addr())
 	assert.Error(t, err)
 }
 
 func TestAttachSshSession(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 
-	s := NewAttachServer("", 0)
+	s := NewServer("localhost", 0)
 	assert.NoError(t, s.Start(true))
 	defer s.Stop()
 
 	expectedID := "foo"
 
 	// This should block until the ssh server returns its container ID
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
-		_, err := s.connServer.Get(context.Background(), expectedID, 5*time.Second)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_, err := s.c.Interaction(ctx, expectedID)
 		if !assert.NoError(t, err) {
 			return
 		}
 	}()
 
 	// Dial the attach server.  This is a TCP client
-	networkClientCon, err := net.Dial("tcp", s.l.Addr().String())
+	networkClientCon, err := net.Dial("tcp", s.Addr())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -137,10 +143,19 @@ func TestAttachSshSession(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		exit := 0
 		for req := range reqs {
 			if req.Type == msgs.ContainersReq {
 				msg := msgs.ContainersMsg{IDs: []string{expectedID}}
 				req.Reply(true, msg.Marshal())
+				exit++
+			}
+			if req.Type == msgs.VersionReq {
+				msg := msgs.VersionMsg{Version: feature.MaxPluginVersion - 1}
+				req.Reply(true, msg.Marshal())
+				exit++
+			}
+			if exit == 2 {
 				break
 			}
 		}
@@ -150,7 +165,13 @@ func TestAttachSshSession(t *testing.T) {
 		defer wg.Done()
 		for ch := range chans {
 			assert.Equal(t, ch.ChannelType(), attachChannelType)
-			_, _, _ = ch.Accept()
+			_, reqs, _ = ch.Accept()
+			for req := range reqs {
+				if req.Type == msgs.UnblockReq {
+					req.Reply(true, nil)
+					break
+				}
+			}
 			break
 		}
 	}()

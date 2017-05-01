@@ -37,7 +37,6 @@ Enable SSH and verify
     Remove Files  %{VCH-NAME}.key  %{VCH-NAME}.key.pub
 
 
-*** Test Cases ***
 Check Password Change When Expired
     # generate a key to use for the Test
     ${rc}=  Run And Return Rc  ssh-keygen -t rsa -N "" -f %{VCH-NAME}.key
@@ -66,3 +65,10 @@ Check Password Change When Expired
 
     # delete the keys
     Remove Files  %{VCH-NAME}.key  %{VCH-NAME}.key.pub
+
+Check Error From Incorrect ID
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux debug --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --id=wrong
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Failed to get Virtual Container Host 
+    Should Contain  ${output}  id "wrong" could not be found
+    

@@ -55,7 +55,7 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 			return nil, err
 		}
 		log.Debugf("Appliance is not found")
-		return nil, nil
+		return nil, fmt.Errorf("id %q could not be found", id)
 	}
 	ovm, ok := ref.(*object.VirtualMachine)
 	if !ok {

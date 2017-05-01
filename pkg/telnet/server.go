@@ -28,26 +28,38 @@ type DataHandlerFunc func(w io.Writer, data []byte, tc *Conn)
 // CmdHandlerFunc is the callback function in the event of receiving a command from the telnet client
 type CmdHandlerFunc func(w io.Writer, cmd []byte, tc *Conn)
 
+// CloseHandlerFunc is the callback function in the event of receiving EOF from the telnet client
+type CloseHandlerFunc func(tc *Conn)
+
 var defaultDataHandlerFunc = func(w io.Writer, data []byte, tc *Conn) {}
 
 var defaultCmdHandlerFunc = func(w io.Writer, cmd []byte, tc *Conn) {}
 
+var defaultCloseHandlerFunc = func(tc *Conn) {}
+
+type Handlers struct {
+	DataHandler  DataHandlerFunc
+	CmdHandler   CmdHandlerFunc
+	CloseHandler CloseHandlerFunc
+}
+
 // ServerOpts is the telnet server constructor options
 type ServerOpts struct {
-	Addr        string
-	ServerOpts  []byte
-	ClientOpts  []byte
-	DataHandler DataHandlerFunc
-	CmdHandler  CmdHandlerFunc
+	Addr       string
+	ServerOpts []byte
+	ClientOpts []byte
+
+	Handlers
 }
 
 // Server is the struct representing the telnet server
 type Server struct {
 	ServerOptions map[byte]bool
 	ClientOptions map[byte]bool
-	DataHandler   DataHandlerFunc
-	CmdHandler    CmdHandlerFunc
-	ln            net.Listener
+
+	Handlers
+
+	ln net.Listener
 }
 
 // NewServer is the constructor of the telnet server
@@ -61,15 +73,21 @@ func NewServer(opts ServerOpts) *Server {
 	for _, v := range opts.ClientOpts {
 		ts.ClientOptions[v] = true
 	}
-	ts.DataHandler = opts.DataHandler
-	if ts.DataHandler == nil {
-		ts.DataHandler = defaultDataHandlerFunc
+	ts.DataHandler = defaultDataHandlerFunc
+	if opts.DataHandler != nil {
+		ts.DataHandler = opts.DataHandler
 	}
 
-	ts.CmdHandler = opts.CmdHandler
-	if ts.CmdHandler == nil {
-		ts.CmdHandler = defaultCmdHandlerFunc
+	ts.CmdHandler = defaultCmdHandlerFunc
+	if opts.CmdHandler != nil {
+		ts.CmdHandler = opts.CmdHandler
 	}
+
+	ts.CloseHandler = defaultCloseHandlerFunc
+	if opts.CloseHandler != nil {
+		ts.CloseHandler = opts.CloseHandler
+	}
+
 	ln, err := net.Listen("tcp", opts.Addr)
 	if err != nil {
 		panic(fmt.Sprintf("cannot start telnet server: %v", err))
@@ -83,12 +101,10 @@ func (ts *Server) Accept() (*Conn, error) {
 	conn, _ := ts.ln.Accept()
 	log.Info("connection received")
 	opts := connOpts{
-		conn:        conn,
-		cmdHandler:  ts.CmdHandler,
-		dataHandler: ts.DataHandler,
-		serverOpts:  ts.ServerOptions,
-		clientOpts:  ts.ClientOptions,
-		fsm:         newFSM(),
+		conn:       conn,
+		Handlers:   ts.Handlers,
+		clientOpts: ts.ClientOptions,
+		fsm:        newFSM(),
 	}
 	tc := newConn(&opts)
 	go tc.writeLoop()

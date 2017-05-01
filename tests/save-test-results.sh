@@ -16,6 +16,7 @@
 # Saves test results to reporting server
 
 echo "rpcbind : $REPORTING_SERVER_URL" >>  /etc/hosts.allow
+mkdir -p /run/sendsigs.omit.d
 service rpcbind restart
 mkdir /drone-test-results
 mount $REPORTING_SERVER_URL:/export/drone-test-results /drone-test-results

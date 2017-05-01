@@ -1034,6 +1034,19 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		}
 	}
 
+	if s.Type() == constants.ExternalScopeType {
+		// Check this isn't a port mapping.  On an external network, we
+		// aren't doing any PAT'ing.  We're simply unblocking that port on
+		// the cVM.
+		for _, p := range options.Ports {
+			if strings.Contains(p, ":") {
+				err = fmt.Errorf("external scope includes a port mapping (%s)", p)
+				log.Errorln(err)
+				return err
+			}
+		}
+	}
+
 	// figure out if we need to add a new NIC
 	// if there is already a NIC connected to a
 	// bridge network and we are adding the container
@@ -1076,7 +1089,6 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	ne := &executor.NetworkEndpoint{
 		Common: executor.Common{
 			ID: strconv.Itoa(int(pciSlot)),
-			// Name: this would cause NIC renaming if uncommented
 		},
 		Network: executor.ContainerNetwork{
 			Common: executor.Common{

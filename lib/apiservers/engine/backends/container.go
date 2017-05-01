@@ -55,11 +55,11 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/filter"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -210,6 +210,7 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 		Handle: handle,
 		ID:     eid,
 	}
+
 	params := tasks.NewInspectParamsWithContext(ctx).WithConfig(config)
 	resp, err := client.Tasks.Inspect(params)
 	if err != nil {
@@ -219,13 +220,38 @@ func (c *Container) TaskInspect(cid, cname, eid string) (*models.TaskInspectResp
 
 }
 
+func (c *Container) TaskWaitToStart(cid, cname, eid string) error {
+	// obtain a portlayer client
+	client := c.containerProxy.Client()
+
+	handle, err := c.Handle(cid, cname)
+	if err != nil {
+		return err
+	}
+
+	// wait the Task to start
+	config := &models.TaskWaitConfig{
+		Handle: handle,
+		ID:     eid,
+	}
+
+	params := tasks.NewWaitParamsWithContext(ctx).WithConfig(config)
+	_, err = client.Tasks.Wait(params)
+	if err != nil {
+		switch err := err.(type) {
+		case *tasks.WaitInternalServerError:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	return nil
+}
+
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
 	defer trace.End(trace.Begin(name))
-
-	if !config.Detach {
-		return "", fmt.Errorf("%s only supports detached exec commands at this time", ProductName())
-	}
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -234,38 +260,34 @@ func (c *Container) ContainerExecCreate(name string, config *types.ExecConfig) (
 	}
 	id := vc.ContainerID
 
+	// Is it running?
+	state, err := c.containerProxy.State(vc)
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+	if state.Restarting {
+		return "", ConflictError(fmt.Sprintf("Container %s is restarting, wait until the container is running", id))
+	}
+	if !state.Running {
+		return "", ConflictError(fmt.Sprintf("Container %s is not running", id))
+	}
+
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
 
-	joinconfig := &models.TaskJoinConfig{
-		Handle:    handle,
-		Path:      config.Cmd[0],
-		Args:      config.Cmd[1:],
-		Env:       config.Env,
-		User:      config.User,
-		Attach:    config.AttachStdin || config.AttachStdout || config.AttachStderr,
-		OpenStdin: config.AttachStdin,
-		Tty:       config.Tty,
-	}
-	log.Debugf("JoinConfig: %#v", joinconfig)
+	// set up the environment
+	config.Env = setEnvFromImageConfig(config.Tty, config.Env, vc.Config.Env)
 
-	// obtain a portlayer client
-	client := c.containerProxy.Client()
-
-	// call Join with JoinParams
-	joinparams := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
-	resp, err := client.Tasks.Join(joinparams)
+	handleprime, eid, err := c.containerProxy.CreateExecTask(handle, config)
 	if err != nil {
 		return "", InternalServerError(err.Error())
 	}
-	eid := resp.Payload.ID
 
-	handle = resp.Payload.Handle.(string)
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	err = c.containerProxy.CommitContainerHandle(handleprime, id, 0)
 	if err != nil {
-		return "", InternalServerError(err.Error())
+		return "", err
 	}
 
 	// associate newly created exec task with container
@@ -324,27 +346,30 @@ func (c *Container) ContainerExecInspect(eid string) (*backend.ExecInspect, erro
 // ContainerExecResize changes the size of the TTY of the process
 // running in the exec with the given name to the given height and
 // width.
-func (c *Container) ContainerExecResize(name string, height, width int) error {
-	defer trace.End(trace.Begin(name))
+func (c *Container) ContainerExecResize(eid string, height, width int) error {
+	defer trace.End(trace.Begin(eid))
 
-	// FIXME(caglar10ur)
-
-	// Look up the container name in the metadata cache to get long ID
-	vc := cache.ContainerCache().GetContainerFromExec(name)
+	// Look up the container eid in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return NotFoundError(name)
+		return NotFoundError(eid)
 	}
-	/*
-		// portlayer client
-		client := c.containerProxy.Client()
 
-		resizeParams := containers.NewExecResizeParamsWithContext(ctx).WithHeight(int32(height)).WithWidth(int32(width)).WithID(vc.ContainerID).WithEid(name)
-		_, err := client.Containers.ExecResize(resizeParams)
-		if err != nil {
-			return InternalServerError(err.Error())
-		}
-	*/
-	return nil
+	// Call the port layer to resize
+	plHeight := int32(height)
+	plWidth := int32(width)
+
+	var err error
+	if err = c.containerProxy.Resize(eid, plHeight, plWidth); err == nil {
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
+			"height": fmt.Sprintf("%d", height),
+			"width":  fmt.Sprintf("%d", width),
+		})
+
+		EventService().Log(containerResizeEvent, eventtypes.ContainerEventType, actor)
+	}
+
+	return err
 }
 
 // ContainerExecStart starts a previously set up exec instance. The
@@ -359,6 +384,12 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 	id := vc.ContainerID
 	name := vc.Name
+
+	// grab the task details
+	ec, err := c.TaskInspect(id, name, eid)
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
 
 	handle, err := c.Handle(id, name)
 	if err != nil {
@@ -381,32 +412,103 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 	}
 	handle = resp.Payload.Handle.(string)
 
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
-	if err != nil {
-		return InternalServerError(err.Error())
+	operation := func() error {
+		// exec doesn't have separate attach path so we will decide whether we need interaction/runblocking or not
+		attach := ec.OpenStdin || ec.OpenStdout || ec.OpenStderr
+		if attach {
+			handle, err = c.containerProxy.BindInteraction(handle, name, eid)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := c.containerProxy.CommitContainerHandle(handle, name, 0); err != nil {
+			return err
+		}
+
+		// we need to be able to cancel it
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		go func() {
+			defer trace.End(trace.Begin(eid))
+			// wait property collector
+			if err := c.TaskWaitToStart(id, name, eid); err != nil {
+				log.Errorf("Task wait returned %s, canceling the context", err)
+
+				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
+				// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
+				stdout.Write([]byte(err.Error() + "\r\n"))
+
+				cancel()
+			}
+		}()
+
+		// exec_start event
+		event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
+
+		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
+		EventService().Log(event, eventtypes.ContainerEventType, actor)
+
+		// no need to attach for detached case
+		if !attach {
+			log.Debugf("Detached mode. Returning early.")
+			return nil
+		}
+		EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
+
+		ca := &backend.ContainerAttachConfig{
+			UseStdin:  ec.OpenStdin,
+			UseStdout: ec.OpenStdout,
+			UseStderr: ec.OpenStderr,
+		}
+
+		// set UseStderr to false for Tty case as we merge stdout and stderr
+		if ec.Tty {
+			ca.UseStderr = false
+		}
+
+		ac := &AttachConfig{
+			ID: eid,
+			ContainerAttachConfig: ca,
+			UseTty:                ec.Tty,
+			CloseStdin:            true,
+		}
+
+		err = c.containerProxy.AttachStreams(ctx, ac, stdin, stdout, stderr)
+		if err != nil {
+			if _, ok := err.(DetachError); ok {
+				log.Infof("Detach detected, tearing down connection")
+
+				// QUESTION: why are we returning DetachError? It doesn't seem like an error
+				// fire detach event
+				EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
+
+				// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
+				// This avoids cutting the communication channel for other sessions connected to this
+				// container
+
+				// FIXME: call UnbindInteraction/Commit
+			}
+
+			return err
+		}
+		return nil
 	}
-
-	ec, err := c.TaskInspect(id, name, eid)
-	if err != nil {
-		return InternalServerError(err.Error())
+	if err := retry.Do(operation, IsConflictError); err != nil {
+		return err
 	}
-
-	// exec_start event
-	event := "exec_start: " + ec.ProcessConfig.ExecPath + " " + strings.Join(ec.ProcessConfig.ExecArgs[1:], " ")
-	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
-	EventService().Log(event, eventtypes.ContainerEventType, actor)
-
 	return nil
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
-func (c *Container) ExecExists(name string) (bool, error) {
-	defer trace.End(trace.Begin(name))
+func (c *Container) ExecExists(eid string) (bool, error) {
+	defer trace.End(trace.Begin(eid))
 
-	vc := cache.ContainerCache().GetContainerFromExec(name)
+	vc := cache.ContainerCache().GetContainerFromExec(eid)
 	if vc == nil {
-		return false, NotFoundError(name)
+		return false, NotFoundError(eid)
 	}
 	return true, nil
 }
@@ -603,7 +705,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	plWidth := int32(width)
 
 	var err error
-	if err = c.containerProxy.Resize(vc, plHeight, plWidth); err == nil {
+	if err = c.containerProxy.Resize(vc.ContainerID, plHeight, plWidth); err == nil {
 		actor := CreateContainerEventActorWithAttributes(vc, map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),
@@ -773,6 +875,7 @@ func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostC
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -861,16 +964,18 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 	// map ports
 	if bind {
-		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
-		if err = MapPorts(hostConfig, e, id); err != nil {
-			return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
-		}
-
-		defer func() {
-			if err != nil {
-				UnmapPorts(hostConfig)
+		scope, e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
+		if scope != nil && scope.ScopeType == constants.BridgeScopeType {
+			if err = MapPorts(hostConfig, e, id); err != nil {
+				return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 			}
-		}()
+
+			defer func() {
+				if err != nil {
+					UnmapPorts(hostConfig)
+				}
+			}()
+		}
 	}
 
 	// commit the handle; this will reconfigure and start the vm
@@ -891,6 +996,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(containerStartEvent, eventtypes.ContainerEventType, actor)
+
 	return nil
 }
 
@@ -1097,31 +1203,36 @@ func (c *Container) defaultScope() string {
 	return defaultScope.scope
 }
 
-func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.HostConfig, endpoints []*models.EndpointConfig) *models.EndpointConfig {
+func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.HostConfig, endpoints []*models.EndpointConfig) (*models.ScopeConfig, *models.EndpointConfig) {
 	if len(hostconfig.PortBindings) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// check if the port binding network is a bridge type
 	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(hostconfig.NetworkMode.NetworkName()))
 	if err != nil {
 		log.Error(err)
-		return nil
+		return nil, nil
 	}
 
-	if len(listRes.Payload) != 1 || listRes.Payload[0].ScopeType != "bridge" {
+	if l := len(listRes.Payload); l != 1 {
+		log.Warnf("found %d scopes", l)
+		return nil, nil
+	}
+
+	if listRes.Payload[0].ScopeType != constants.BridgeScopeType {
 		log.Warnf("port binding for network %s is not bridge type", hostconfig.NetworkMode.NetworkName())
-		return nil
+		return listRes.Payload[0], nil
 	}
 
 	// look through endpoints to find the container's IP on the network that has the port binding
 	for _, e := range endpoints {
 		if hostconfig.NetworkMode.NetworkName() == e.Scope || (hostconfig.NetworkMode.IsDefault() && e.Scope == c.defaultScope()) {
-			return e
+			return listRes.Payload[0], e
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ContainerStop looks for the given container and terminates it,
@@ -1567,98 +1678,63 @@ func (c *Container) containerAttach(name string, ca *backend.ContainerAttachConf
 	}
 	id := vc.ContainerID
 
-	client := c.containerProxy.Client()
 	handle, err := c.Handle(id, name)
 	if err != nil {
 		return err
 	}
 
-	bind, err := client.Interaction.InteractionBind(interaction.NewInteractionBindParamsWithContext(ctx).
-		WithConfig(&models.InteractionBindConfig{
-			Handle: handle,
-		}))
+	handleprime, err := c.containerProxy.BindInteraction(handle, name, id)
 	if err != nil {
-		return InternalServerError(err.Error())
-	}
-	handle, ok := bind.Payload.Handle.(string)
-	if !ok {
-		return InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+		return err
 	}
 
-	// commit the handle; this will reconfigure the vm
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
-	if err != nil {
-		switch err := err.(type) {
-		case *containers.CommitNotFound:
-			return NotFoundError(name)
-		case *containers.CommitConflict:
-			return ConflictError(err.Error())
-		case *containers.CommitDefault:
-			return InternalServerError(err.Payload.Message)
-		default:
-			return InternalServerError(err.Error())
-		}
+	if err := c.containerProxy.CommitContainerHandle(handleprime, name, 0); err != nil {
+		return err
 	}
 
-	clStdin, clStdout, clStderr, err := ca.GetStreams()
+	stdin, stdout, stderr, err := ca.GetStreams()
 	if err != nil {
 		return InternalServerError("Unable to get stdio streams for calling client")
 	}
-	defer clStdin.Close()
+	defer stdin.Close()
 
 	if !vc.Config.Tty && ca.MuxStreams {
 		// replace the stdout/stderr with Docker's multiplex stream
-		if ca.UseStdout {
-			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
-		}
 		if ca.UseStderr {
-			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
+			stderr = stdcopy.NewStdWriter(stderr, stdcopy.Stderr)
+		}
+		if ca.UseStdout {
+			stdout = stdcopy.NewStdWriter(stdout, stdcopy.Stdout)
 		}
 	}
 
 	actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 	EventService().Log(containerAttachEvent, eventtypes.ContainerEventType, actor)
-	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+
+	if vc.Config.Tty {
+		ca.UseStderr = false
+	}
+
+	ac := &AttachConfig{
+		ID: id,
+		ContainerAttachConfig: ca,
+		UseTty:                vc.Config.Tty,
+		CloseStdin:            vc.Config.StdinOnce,
+	}
+
+	err = c.containerProxy.AttachStreams(context.Background(), ac, stdin, stdout, stderr)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
+			log.Infof("Detach detected, tearing down connection")
+
 			// fire detach event
-			actor := CreateContainerEventActorWithAttributes(vc, map[string]string{})
 			EventService().Log(containerDetachEvent, eventtypes.ContainerEventType, actor)
 
-			log.Infof("Detach detected, tearing down connection")
-			client = c.containerProxy.Client()
-			handle, err = c.Handle(id, name)
-			if err != nil {
-				return err
-			}
+			// DON'T UNBIND FOR NOW, UNTIL/UNLESS REFERENCE COUNTING IS IN PLACE
+			// This avoids cutting the communication channel for other sessions connected to this
+			// container
 
-			unbind, err := client.Interaction.InteractionUnbind(interaction.NewInteractionUnbindParamsWithContext(ctx).
-				WithConfig(&models.InteractionUnbindConfig{
-					Handle: handle,
-				}))
-			if err != nil {
-				return InternalServerError(err.Error())
-			}
-
-			handle, ok = unbind.Payload.Handle.(string)
-			if !ok {
-				return InternalServerError("type assertion failed")
-			}
-
-			// commit the handle; this will reconfigure the vm
-			_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
-			if err != nil {
-				switch err := err.(type) {
-				case *containers.CommitNotFound:
-					return NotFoundError(name)
-				case *containers.CommitConflict:
-					return ConflictError(err.Error())
-				case *containers.CommitDefault:
-					return InternalServerError(err.Payload.Message)
-				default:
-					return InternalServerError(err.Error())
-				}
-			}
+			// FIXME: call UnbindInteraction/Commit
 		}
 		return err
 	}
@@ -1778,16 +1854,16 @@ func setCreateConfigOptions(config, imageConfig *containertypes.Config) {
 		config.User = imageConfig.User
 	}
 	// set up environment
-	setEnvFromImageConfig(config, imageConfig)
+	config.Env = setEnvFromImageConfig(config.Tty, config.Env, imageConfig.Env)
 }
 
-func setEnvFromImageConfig(config, imageConfig *containertypes.Config) {
+func setEnvFromImageConfig(tty bool, env []string, imgEnv []string) []string {
 	// Set PATH in ENV if needed
-	setPathFromImageConfig(config, imageConfig)
+	env = setPathFromImageConfig(env, imgEnv)
 
-	containerEnv := make(map[string]string, len(config.Env))
-	for _, env := range config.Env {
-		kv := strings.SplitN(env, "=", 2)
+	containerEnv := make(map[string]string, len(env))
+	for _, e := range env {
+		kv := strings.SplitN(e, "=", 2)
 		var val string
 		if len(kv) == 2 {
 			val = kv[1]
@@ -1796,44 +1872,48 @@ func setEnvFromImageConfig(config, imageConfig *containertypes.Config) {
 	}
 
 	// Set TERM to xterm if tty is set, unless user supplied a different TERM
-	if config.Tty {
+	if tty {
 		if _, ok := containerEnv["TERM"]; !ok {
-			config.Env = append(config.Env, "TERM=xterm")
+			env = append(env, "TERM=xterm")
 		}
 	}
 
 	// add remaining environment variables from the image config to the container
 	// config, taking care not to overwrite anything
-	for _, imageEnv := range imageConfig.Env {
+	for _, imageEnv := range imgEnv {
 		key := strings.SplitN(imageEnv, "=", 2)[0]
 		// is environment variable already set in container config?
 		if _, ok := containerEnv[key]; !ok {
 			// no? let's copy it from the image config
-			config.Env = append(config.Env, imageEnv)
+			env = append(env, imageEnv)
 		}
 	}
+
+	return env
 }
 
-func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
+func setPathFromImageConfig(env []string, imgEnv []string) []string {
 	// check if user supplied PATH environment variable at creation time
-	for _, v := range config.Env {
+	for _, v := range env {
 		if strings.HasPrefix(v, "PATH=") {
 			// a PATH is set, bail
-			return
+			return env
 		}
 	}
 
 	// check to see if the image this container is created from supplies a PATH
-	for _, v := range imageConfig.Env {
+	for _, v := range imgEnv {
 		if strings.HasPrefix(v, "PATH=") {
 			// a PATH was found, add it to the config
-			config.Env = append(config.Env, v)
-			return
+			env = append(env, v)
+			return env
 		}
 	}
 
 	// no PATH set, use the default
-	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", defaultEnvPath))
+	env = append(env, fmt.Sprintf("PATH=%s", defaultEnvPath))
+
+	return env
 }
 
 // validateCreateConfig() checks the parameters for ContainerCreate().

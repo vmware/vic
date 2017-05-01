@@ -81,10 +81,15 @@ import (
 type VicContainerProxy interface {
 	CreateContainerHandle(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, string, error)
 	CreateContainerTask(handle string, id string, config types.ContainerCreateConfig) (string, error)
+	CreateExecTask(handle string, config *types.ExecConfig) (string, string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
+
+	BindInteraction(handle string, name string, id string) (string, error)
+	UnbindInteraction(handle string, name string, id string) (string, error)
+
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
@@ -93,9 +98,9 @@ type VicContainerProxy interface {
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
-	Resize(vc *viccontainer.VicContainer, height, width int32) error
+	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
-	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
+	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -113,6 +118,22 @@ type volumeFields struct {
 	ID    string
 	Dest  string
 	Flags string
+}
+
+// AttachConfig wraps backend.ContainerAttachConfig and adds other required fields
+// Similar to https://github.com/docker/docker/blob/master/container/stream/attach.go
+type AttachConfig struct {
+	*backend.ContainerAttachConfig
+
+	// ID of the session
+	ID string
+	// Tells the attach copier that the stream's stdin is a TTY and to look for
+	// escape sequences in stdin to detach from the stream.
+	// When true the escape sequence is not passed to the underlying stream
+	UseTty bool
+	// CloseStdin signals that once done, stdin for the attached stream should be closed
+	// For example, this would close the attached container's stdin.
+	CloseStdin bool
 }
 
 const (
@@ -249,6 +270,40 @@ func (c *ContainerProxy) CreateContainerTask(handle, id string, config types.Con
 	}
 
 	return handle, nil
+}
+
+func (c *ContainerProxy) CreateExecTask(handle string, config *types.ExecConfig) (string, string, error) {
+	defer trace.End(trace.Begin(""))
+
+	if c.client == nil {
+		return "", "", InternalServerError("ContainerProxy.CreateExecTask failed to create a portlayer client")
+	}
+
+	joinconfig := &models.TaskJoinConfig{
+		Handle:    handle,
+		Path:      config.Cmd[0],
+		Args:      config.Cmd[1:],
+		Env:       config.Env,
+		User:      config.User,
+		Attach:    config.AttachStdin || config.AttachStdout || config.AttachStderr,
+		OpenStdin: config.AttachStdin,
+		Tty:       config.Tty,
+	}
+
+	// call Join with JoinParams
+	joinparams := tasks.NewJoinParamsWithContext(ctx).WithConfig(joinconfig)
+	resp, err := c.client.Tasks.Join(joinparams)
+	if err != nil {
+		return "", "", InternalServerError(err.Error())
+	}
+	eid := resp.Payload.ID
+
+	handleprime, ok := resp.Payload.Handle.(string)
+	if !ok {
+		return "", "", InternalServerError(fmt.Sprintf("Type assertion failed on handle from task bind %#+v", handleprime))
+	}
+
+	return handleprime, eid, nil
 }
 
 // AddContainerToScope adds a container, referenced by handle, to a scope.
@@ -434,6 +489,60 @@ func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.C
 	handle, ok := response.Payload.Handle.(string)
 	if !ok {
 		return "", InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return handle, nil
+}
+
+// BindInteraction enables interaction capabilies
+func (c *ContainerProxy) BindInteraction(handle string, name string, id string) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
+	}
+
+	bind, err := c.client.Interaction.InteractionBind(
+		interaction.NewInteractionBindParamsWithContext(ctx).
+			WithConfig(&models.InteractionBindConfig{
+				Handle: handle,
+				ID:     id,
+			}))
+	if err != nil {
+		switch err := err.(type) {
+		case *interaction.InteractionBindInternalServerError:
+			return "", InternalServerError(err.Payload.Message)
+		default:
+			return "", InternalServerError(err.Error())
+		}
+	}
+	handle, ok := bind.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+	return handle, nil
+}
+
+// UnbindInteraction disables interaction capabilies
+func (c *ContainerProxy) UnbindInteraction(handle string, name string, id string) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
+	}
+
+	unbind, err := c.client.Interaction.InteractionUnbind(
+		interaction.NewInteractionUnbindParamsWithContext(ctx).
+			WithConfig(&models.InteractionUnbindConfig{
+				Handle: handle,
+				ID:     id,
+			}))
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+	handle, ok := unbind.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError("type assertion failed")
 	}
 
 	return handle, nil
@@ -809,8 +918,8 @@ func (c *ContainerProxy) createNewAttachClientWithTimeouts(connectTimeout, respo
 	return plClient, transport
 }
 
-func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int32) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+func (c *ContainerProxy) Resize(id string, height, width int32) error {
+	defer trace.End(trace.Begin(id))
 
 	if c.client == nil {
 		return derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy failed to create a portlayer client"),
@@ -818,14 +927,14 @@ func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int
 	}
 
 	plResizeParam := interaction.NewContainerResizeParamsWithContext(ctx).
-		WithID(vc.ContainerID).
+		WithID(id).
 		WithHeight(height).
 		WithWidth(width)
 
 	_, err := c.client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
 		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-			return ResourceNotFoundError(vc.ContainerID, "interaction connection")
+			return ResourceNotFoundError(id, "interaction connection")
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -837,95 +946,109 @@ func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int
 
 // AttachStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
-// clStdin, clStdout, clStderr are the hijacked connection
-func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
+// stdin, stdout, stderr are the hijacked connection
+func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error {
 	// Cancel will close the child connections.
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var wg sync.WaitGroup
+	var wg, outWg sync.WaitGroup
 	errors := make(chan error, 3)
 
 	// For stdin, we only have a timeout for connection.  There can be a long duration before
 	// the first entry so there is no timeout for response.
-	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
+	client, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
 
 	var keys []byte
 	var err error
-	if ca.DetachKeys != "" {
-		keys, err = term.ToBytes(ca.DetachKeys)
+	if ac.DetachKeys != "" {
+		keys, err = term.ToBytes(ac.DetachKeys)
 		if err != nil {
-			return fmt.Errorf("Invalid escape keys (%s) provided", ca.DetachKeys)
+			return fmt.Errorf("Invalid escape keys (%s) provided", ac.DetachKeys)
 		}
 	}
 
-	if ca.UseStdin {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if ac.UseStdin {
 		wg.Add(1)
+	}
+
+	if ac.UseStdout {
+		wg.Add(1)
+		outWg.Add(1)
+	}
+
+	if ac.UseStderr {
+		wg.Add(1)
+		outWg.Add(1)
+	}
+
+	// cancel stdin if all output streams are complete
+	go func() {
+		outWg.Wait()
+		cancel()
+	}()
+
+	EOForCanceled := func(err error) bool {
+		return err != nil && ctx.Err() != context.Canceled && !strings.HasSuffix(err.Error(), swaggerSubstringEOF)
+	}
+
+	if ac.UseStdin {
 		go func() {
 			defer wg.Done()
-			err := copyStdIn(ctx, plClient, vc, clStdin, keys)
+			err := copyStdIn(ctx, client, ac, stdin, keys)
 			if err != nil {
-				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err.Error())
+				log.Errorf("container attach: stdin (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stdin (%s) done", vc.ContainerID)
+				log.Infof("container attach: stdin (%s) done", ac.ID)
 			}
 
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
-				return
+			if !ac.CloseStdin || ac.UseTty {
+				cancel()
 			}
-			cancel()
 
-			errors <- err
+			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
+			if EOForCanceled(err) {
+				errors <- err
+			}
 		}()
 	}
 
-	if ca.UseStdout {
-		wg.Add(1)
+	if ac.UseStdout {
 		go func() {
+			defer outWg.Done()
 			defer wg.Done()
-			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, clStdout)
+
+			err := copyStdOut(ctx, client, ac, stdout, attachAttemptTimeout)
 			if err != nil {
-				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err.Error())
+				log.Errorf("container attach: stdout (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stdout (%s) done", vc.ContainerID)
+				log.Infof("container attach: stdout (%s) done", ac.ID)
 			}
 
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdout as context canceled somewhere else")
-				return
+			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
+			if EOForCanceled(err) {
+				errors <- err
 			}
-			cancel()
-
-			errors <- err
 		}()
 	}
 
-	if ca.UseStderr {
-		wg.Add(1)
+	if ac.UseStderr {
 		go func() {
+			defer outWg.Done()
 			defer wg.Done()
-			err := copyStdErr(ctx, plClient, vc, clStderr)
+
+			err := copyStdErr(ctx, client, ac, stderr)
 			if err != nil {
-				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err.Error())
+				log.Errorf("container attach: stderr (%s): %s", ac.ID, err)
 			} else {
-				log.Infof("container attach: stderr (%s) done", vc.ContainerID)
+				log.Infof("container attach: stderr (%s) done", ac.ID)
 			}
 
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stderr as context canceled somewhere else")
-				return
+			// Check for EOF or canceled context. We can only detect EOF by checking the error string returned by swagger :/
+			if EOForCanceled(err) {
+				errors <- err
 			}
-			cancel()
-
-			errors <- err
 		}()
 	}
 
@@ -935,7 +1058,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 	// close the channel so that we don't leak (if there is an error)/or get blocked (if there are no errors)
 	close(errors)
 
-	log.Infof("cleaned up connections to %s. Checking errors", vc.ContainerID)
+	log.Infof("cleaned up connections to %s. Checking errors", ac.ID)
 	for err := range errors {
 		if err != nil {
 			// check if we got DetachError
@@ -1637,15 +1760,38 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 // ContainerAttach() Utility Functions
 //------------------------------------
 
-func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
+func copyStdIn(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
-	defer stdinWriter.Close()
+	defer stdinReader.Close()
 
 	var detach bool
 
+	done := make(chan struct{})
 	go func() {
-		defer stdinReader.Close()
+		// make sure we get out of io.Copy if context is canceled
+		select {
+		case <-ctx.Done():
+			// This will cause the transport to the API client to be shut down, so all output
+			// streams will get closed as well.
+			// See the closer in container_routes.go:postContainersAttach
+
+			// We're closing this here to disrupt the io.Copy below
+			// TODO: seems like we should be providing an io.Copy impl with ctx argument that honors
+			// cancelation with the amount of code dedicated to working around it
+
+			// TODO: I think this still leaves a race between closing of the API client transport and
+			// copying of the output streams, it's just likely the error will be dropped as the transport is
+			// closed when it occurs.
+			// We should move away from needing to close transports to interrupt reads.
+			stdin.Close()
+		case <-done:
+		}
+	}()
+
+	go func() {
+		defer close(done)
+		defer stdinWriter.Close()
 
 		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
 		// watch the stdin stream for the detach keys.
@@ -1656,10 +1802,10 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		// he/she is using.
 		log.Debugf("copyStdIn writing primer bytes")
 		stdinWriter.Write([]byte(attachStdinInitString))
-		if vc.Config.Tty {
-			_, err = copyEscapable(stdinWriter, clStdin, keys)
+		if ac.UseTty {
+			_, err = copyEscapable(stdinWriter, stdin, keys)
 		} else {
-			_, err = io.Copy(stdinWriter, clStdin)
+			_, err = io.Copy(stdinWriter, stdin)
 		}
 
 		if err != nil {
@@ -1672,16 +1818,20 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		}
 	}()
 
+	id := ac.ID
+
 	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
 	// to set the stdin is synchronous so we need to run in a goroutine
-	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(id)
 	setStdinParams = setStdinParams.WithRawStream(stdinReader)
 
 	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
-	if vc.Config.StdinOnce && !vc.Config.Tty {
+	<-done
+
+	if ac.CloseStdin && !ac.UseTty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
 		log.Errorf("Attach stream has stdinOnce set.  Closing the stdin.")
-		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+		params := interaction.NewContainerCloseStdinParamsWithContext(ctx).WithID(id)
 		_, err := pl.Interaction.ContainerCloseStdin(params)
 		if err != nil {
 			log.Errorf("CloseStdin failed with %s", err)
@@ -1692,11 +1842,13 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	if detach {
 		return DetachError{}
 	}
+
 	return err
 }
 
-func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.Duration, vc *viccontainer.VicContainer, clStdout io.Writer) error {
-	id := vc.ContainerID
+func copyStdOut(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stdout io.Writer, attemptTimeout time.Duration) error {
+	id := ac.ID
+
 	//Calculate how much time to let portlayer attempt
 	plAttemptTimeout := attemptTimeout - attachPLAttemptDiff //assumes personality deadline longer than portlayer's deadline
 	plAttemptDeadline := time.Now().Add(plAttemptTimeout)
@@ -1706,7 +1858,7 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.D
 
 	log.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
 	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(id).WithDeadline(&swaggerDeadline)
-	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, clStdout)
+	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, stdout)
 	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
@@ -1719,14 +1871,14 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.D
 	return nil
 }
 
-func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStderr io.Writer) error {
-	name := vc.ContainerID
-	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(name)
+func copyStdErr(ctx context.Context, pl *client.PortLayer, ac *AttachConfig, stderr io.Writer) error {
+	id := ac.ID
 
-	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)
+	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(id)
+	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, stderr)
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
-			ResourceNotFoundError(name, "interaction connection")
+			ResourceNotFoundError(id, "interaction connection")
 		}
 
 		return InternalServerError(err.Error())

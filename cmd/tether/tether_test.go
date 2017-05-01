@@ -97,7 +97,7 @@ func (t *Mocker) Cleanup() error {
 }
 
 func (t *Mocker) Log() (io.Writer, error) {
-	return &t.LogBuffer, nil
+	return os.Stdout, nil
 }
 
 func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
