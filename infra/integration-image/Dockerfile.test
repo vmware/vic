@@ -7,71 +7,80 @@
 
 FROM golang:1.8
 
-RUN apt-get update
-RUN apt-get install -y jq time
+RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    jq \
+    time \
+    gcc \
+    python-dev \
+    libffi-dev \
+    libssl-dev \
+    sshpass \
+    ant \
+	ant-optional \
+    openjdk-7-jdk \
+    rpcbind \
+    nfs-common \
+    unzip \
+    zip \
+    wget \
+    bzip2 \
+	nodejs \
+	parted \
+    # Add docker in docker support
+    # version: docker:1.13-dind
+    # reference: https://github.com/docker-library/docker/blob/b202ec7e529f5426e2ad7e8c0a8b82cacd406573/1.13/dind/Dockerfile
+    #
+    # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
+    btrfs-tools \
+    e2fsprogs \
+    iptables \
+    xfsprogs \
+    xz-utils && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+
+RUN wget https://bootstrap.pypa.io/get-pip.py && \
+    python ./get-pip.py  && \
+    pip install pyasn1 gsutil robotframework robotframework-sshlibrary robotframework-httplibrary requests dbbot robotframework-selenium2library --upgrade
+
 RUN curl -sSL https://get.docker.com/ | sh
 
-RUN apt-get install -y gcc python-dev libffi-dev libssl-dev
-RUN wget https://bootstrap.pypa.io/get-pip.py
-RUN python ./get-pip.py
-RUN pip install pyasn1 gsutil --upgrade
-RUN pip install robotframework
-RUN pip install robotframework-sshlibrary
-RUN pip install robotframework-httplibrary
-RUN pip install requests
-RUN pip install dbbot
-RUN pip install robotframework-selenium2library
-
-RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/bin
-RUN mv /usr/bin/docker /usr/bin/docker1.11
-
-RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.12.6.tgz && tar --strip-components=1 -xvzf docker-1.12.6.tgz -C /usr/bin
-RUN mv /usr/bin/docker /usr/bin/docker1.12
-
-RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.13.0.tgz && tar --strip-components=1 -xvzf docker-1.13.0.tgz -C /usr/bin
-RUN mv /usr/bin/docker /usr/bin/docker1.13
-
-RUN ln -s /usr/bin/docker1.13 /usr/bin/docker
-
-RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.14.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
-RUN chmod +x /usr/local/bin/govc
-
-RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
-RUN install -t /usr/local/bin drone
-
-RUN apt-get install sshpass
-
-RUN apt-get install -yq ant openjdk-7-jdk
-RUN apt-get install -yq rpcbind nfs-common
-RUN apt-get install unzip
-RUN apt-get install zip
-
-RUN curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-RUN chmod +x /usr/local/bin/docker-compose
+RUN curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.11.2.tgz && \
+    tar --strip-components=1 -xvzf docker-1.11.2.tgz -C /usr/bin &&  \
+    mv /usr/bin/docker /usr/bin/docker1.11 && \
+    curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.12.6.tgz && \
+    tar --strip-components=1 -xvzf docker-1.12.6.tgz -C /usr/bin  && \
+    mv /usr/bin/docker /usr/bin/docker1.12 && \
+    curl -fsSLO https://get.docker.com/builds/Linux/x86_64/docker-1.13.0.tgz && \
+    tar --strip-components=1 -xvzf docker-1.13.0.tgz -C /usr/bin && \
+    mv /usr/bin/docker /usr/bin/docker1.13 && \
+    ln -s /usr/bin/docker1.13 /usr/bin/docker && \
+    curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose
 
 COPY vmware-ovftool /usr/lib/vmware-ovftool
 RUN ln -s /usr/lib/vmware-ovftool/ovftool /usr/local/bin/ovftool
 
-RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_amd64.deb
-RUN  dpkg -i wget_1.18-2ubuntu1_amd64.deb
+RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux_amd64.zip && \
+    unzip packer_0.12.2_linux_amd64.zip -d /usr/bin && \
+	rm packer_0.12.2_linux_amd64.zip
 
-RUN apt-get install -y bzip2
 
-RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux_amd64.zip && unzip packer_0.12.2_linux_amd64.zip -d /usr/bin
+# RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
+RUN curl http://downloads.drone.io/release/linux/amd64/drone.tar.gz | tar zx && \
+    install -t /usr/local/bin drone
 
-RUN curl -sL https://deb.nodesource.com/setup_7.x | bash -
-RUN apt-get install -y nodejs
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.14.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc && \
+    chmod +x /usr/local/bin/govc
+
 
 # Add docker in docker support
-# version: docker:1.13-dind 
+# version: docker:1.13-dind
 # reference: https://github.com/docker-library/docker/blob/b202ec7e529f5426e2ad7e8c0a8b82cacd406573/1.13/dind/Dockerfile
 #
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
-RUN apt-get install -y btrfs-tools \
-        e2fsprogs \
-        iptables \
-        xfsprogs \
-        xz-utils
 
 # set up subuid/subgid so that "--userns-remap=default" works out-of-the-box
 RUN set -x \
@@ -87,11 +96,9 @@ RUN wget "https://raw.githubusercontent.com/docker/docker/${DIND_COMMIT}/hack/di
 
 # This container needs to be run in privileged mode(run with --privileged option) to make it work
 COPY dockerd-entrypoint.sh /usr/local/bin/dockerd-entrypoint.sh
-Run chmod +x /usr/local/bin/dockerd-entrypoint.sh
+RUN chmod +x /usr/local/bin/dockerd-entrypoint.sh
 
 COPY scripts /opt/vmware/scripts
 ENV PATH="${PATH}:/opt/vmware/scripts"
 
 VOLUME /var/lib/docker
-
-RUN apt-get install -y parted

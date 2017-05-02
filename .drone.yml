@@ -9,36 +9,42 @@
 #
 # The secrets file is in our local git repo.  Ask mhagen for access.
 ---
-clone:
-  path: github.com/vmware/vic
-  tags: true
+workspace:
+  base: /go
+  path: src/github.com/vmware/vic
 
-build:
-  prevent-concurrent-builds:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.29}
+pipeline:
+  clone:
+    image: plugins/git
+    tags: true
+    # dont clone submodules
+    recursive: false
+
+  wait-for-build:
+    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:drone05test}
     pull: true
     environment:
       BIN: bin
-      GOPATH: /drone
+      GOPATH: /go
       SHELL: /bin/bash
-      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
-      DRONE_SERVER:  $$DRONE_SERVER
-      DRONE_TOKEN:  $$DRONE_TOKEN
+      TEST_URL_ARRAY: ${TEST_URL_ARRAY}
+      DRONE_SERVER: ${DRONE_SERVER}
+      DRONE_TOKEN: ${DRONE_TOKEN}
     commands:
       - tests/wait_until_previous_builds_complete.sh
 
-  vic:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.29}
+  vic-engine:
+    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:drone05test}
     pull: true
     environment:
       BIN: bin
-      GOPATH: /drone
+      GOPATH: /go
       SHELL: /bin/bash
-      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
-      TEST_USERNAME:  $$TEST_USERNAME
-      TEST_PASSWORD:  $$TEST_PASSWORD
-      BUILD_NUMBER: $$BUILD_NUMBER
-      COMMIT: $$COMMIT
+      TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
+      TEST_USERNAME:  ${TEST_USERNAME}
+      TEST_PASSWORD:  ${TEST_PASSWORD}
+      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
+      COMMIT: ${DRONE_COMMIT}
     commands:
       - make mark
       - make -j3 all
@@ -48,48 +54,12 @@ build:
       - echo `ls vendor/github.com/vmware/govmomi/vim25/types`
       - echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`
       - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
+      - echo VIC_ESX_URL_ARRAY= $VIC_ESX_URL_ARRAY
       - make -j3 test
       - make sincemark
 
-  integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.29}
-    pull: true
-    privileged: true
-    environment:
-      BIN: bin
-      GOPATH: /drone
-      SHELL: /bin/bash
-      LOG_TEMP_DIR: install-logs
-      GITHUB_AUTOMATION_API_KEY:  $$GITHUB_AUTOMATION_API_KEY
-      DRONE_SERVER:  $$DRONE_SERVER
-      DRONE_TOKEN:  $$DRONE_TOKEN
-      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
-      TEST_USERNAME:  $$TEST_USERNAME
-      TEST_PASSWORD:  $$TEST_PASSWORD
-      TEST_DATASTORE: $$TEST_DATASTORE
-      TEST_TIMEOUT: $$TEST_TIMEOUT
-      REPORTING_SERVER_URL: $$REPORTING_SERVER_URL
-      WINDOWS_URL:  $$WINDOWS_URL
-      WINDOWS_USERNAME:  $$WINDOWS_USERNAME
-      WINDOWS_PASSWORD:  $$WINDOWS_PASSWORD
-      GOVC_INSECURE: true
-      GOVC_USERNAME:  $$TEST_USERNAME
-      GOVC_PASSWORD:  $$TEST_PASSWORD
-      GOVC_RESOURCE_POOL:  $$TEST_RESOURCE
-      GOVC_DATASTORE: $$TEST_DATASTORE
-      GS_PROJECT_ID: $$GS_PROJECT_ID
-      GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
-      GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
-      DOMAIN: $$CI_DOMAIN
-    commands:
-      - make mark
-      - tests/integration-test.sh
-      - make sincemark
-    when:
-      success: true
-
-  vicui:
-    image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.29}
+  vic-ui:
+    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:drone05test}
     pull: true
     environment:
       BIN: bin
@@ -98,76 +68,163 @@ build:
       - make vic-ui-plugins
       - make sincemark
     when:
-      success: true
+      status:  success
 
-  bundle:
-    image: golang:1.8
-    pull: true
-    environment:
-      BIN: bin
-      BIN_TEMP_DIR: bin/vic
-      GOPATH: /drone
-      SHELL: /bin/bash
-    commands:
-      - make mark
-      - rm -rf $BIN_TEMP_DIR
-      - mkdir -p $BIN_TEMP_DIR/ui
-      - cp -rf ui/installer/* $BIN_TEMP_DIR/ui
-      - cp LICENSE $BIN_TEMP_DIR
-      - cp doc/bundle/README $BIN_TEMP_DIR
-      - cp $BIN/vic-machine* $BIN_TEMP_DIR
-      - cp $BIN/vic-ui* $BIN_TEMP_DIR
-      - cp $BIN/appliance.iso $BIN_TEMP_DIR
-      - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
-      - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
-      - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - shasum -a 1 $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - md5sum $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - du -ks $BIN/vic_$$BUILD_NUMBER.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
-      - make sincemark
-    when:
-      repo: vmware/vic
-      event: [ push, tag ]
-      branch: [ master, releases/*, refs/tags/* ]
-      success: true
+# build:
+#   prevent-concurrent-builds:
+#     image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.28}
+#     pull: true
+#     environment:
+#       BIN: bin
+#       GOPATH: /drone
+#       SHELL: /bin/bash
+#       TEST_URL_ARRAY:  $$TEST_URL_ARRAY
+#       DRONE_SERVER:  $$DRONE_SERVER
+#       DRONE_TOKEN:  $$DRONE_TOKEN
+#     commands:
+#       - tests/wait_until_previous_builds_complete.sh
 
-notify:
-  slack:
-    webhook_url: $$SLACK_URL
-    channel: mwilliamson-staff
-    username: drone
-    template: >
-      build https://ci.vmware.run/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
-    when:
-      repo: vmware/vic
-      event: [ push, tag ]
-      branch: [ master, releases/*, refs/tags/* ]
-      failure: true
+#   vic:
+#     image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.28}
+#     pull: true
+#     environment:
+#       BIN: bin
+#       GOPATH: /drone
+#       SHELL: /bin/bash
+#       TEST_URL_ARRAY:  $$TEST_URL_ARRAY
+#       TEST_USERNAME:  $$TEST_USERNAME
+#       TEST_PASSWORD:  $$TEST_PASSWORD
+#       BUILD_NUMBER: $$BUILD_NUMBER
+#       COMMIT: $$COMMIT
+#     commands:
+#       - make mark
+#       - make -j3 all
+#       - make sincemark
+#       - make mark
+#       - echo `ls vendor/github.com/vmware/govmomi/vim25/methods`
+#       - echo `ls vendor/github.com/vmware/govmomi/vim25/types`
+#       - echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`
+#       - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
+#       - make -j3 test
+#       - make sincemark
 
-publish:
-  bintray:
-    username: $$BINTRAY_USERNAME
-    api_key: $$BINTRAY_API_KEY
-    artifacts:
-      - file: bin/vic_$$BUILD_NUMBER.tar.gz
-        owner: vmware
-        type: executable
-        repository: vic-repo
-        package: build
-        version: $$BUILD_NUMBER
-        target: vic_$$BUILD_NUMBER.tar.gz
-        publish: true
-    when:
-      repo: vmware/vic
-      event: [ push, tag ]
-      branch: [ master, releases/*, refs/tags/* ]
-      success: true
-  coverage:
-    server: https://coverage.vmware.run
-    token: $$GITHUB_AUTOMATION_API_KEY
-    include: /drone/src/github.com/vmware/vic/.cover/cover.out
-    when:
-      repo: vmware/vic
-      event: [ push, tag ]
-      branch: [ master, releases/*, refs/tags/* ]
-      success: true
+#   integration-test-on-pr:
+#     image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.28}
+#     pull: true
+#     privileged: true
+#     environment:
+#       BIN: bin
+#       GOPATH: /drone
+#       SHELL: /bin/bash
+#       LOG_TEMP_DIR: install-logs
+#       GITHUB_AUTOMATION_API_KEY:  $$GITHUB_AUTOMATION_API_KEY
+#       DRONE_SERVER:  $$DRONE_SERVER
+#       DRONE_TOKEN:  $$DRONE_TOKEN
+#       TEST_URL_ARRAY:  $$TEST_URL_ARRAY
+#       TEST_USERNAME:  $$TEST_USERNAME
+#       TEST_PASSWORD:  $$TEST_PASSWORD
+#       TEST_DATASTORE: $$TEST_DATASTORE
+#       TEST_TIMEOUT: $$TEST_TIMEOUT
+#       REPORTING_SERVER_URL: $$REPORTING_SERVER_URL
+#       WINDOWS_URL:  $$WINDOWS_URL
+#       WINDOWS_USERNAME:  $$WINDOWS_USERNAME
+#       WINDOWS_PASSWORD:  $$WINDOWS_PASSWORD
+#       GOVC_INSECURE: true
+#       GOVC_USERNAME:  $$TEST_USERNAME
+#       GOVC_PASSWORD:  $$TEST_PASSWORD
+#       GOVC_RESOURCE_POOL:  $$TEST_RESOURCE
+#       GOVC_DATASTORE: $$TEST_DATASTORE
+#       GS_PROJECT_ID: $$GS_PROJECT_ID
+#       GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
+#       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
+#       DOMAIN: $$CI_DOMAIN
+#     commands:
+#       - make mark
+#       - tests/integration-test.sh
+#       - make sincemark
+#     when:
+#       success: true
+
+#   vicui:
+#     image: $${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.28}
+#     pull: true
+#     environment:
+#       BIN: bin
+#     commands:
+#       - make mark
+#       - make vic-ui-plugins
+#       - make sincemark
+#     when:
+#       success: true
+
+#   bundle:
+#     image: golang:1.8
+#     pull: true
+#     environment:
+#       BIN: bin
+#       BIN_TEMP_DIR: bin/vic
+#       GOPATH: /drone
+#       SHELL: /bin/bash
+#     commands:
+#       - make mark
+#       - rm -rf $BIN_TEMP_DIR
+#       - mkdir -p $BIN_TEMP_DIR/ui
+#       - cp -rf ui/installer/* $BIN_TEMP_DIR/ui
+#       - cp LICENSE $BIN_TEMP_DIR
+#       - cp doc/bundle/README $BIN_TEMP_DIR
+#       - cp $BIN/vic-machine* $BIN_TEMP_DIR
+#       - cp $BIN/vic-ui* $BIN_TEMP_DIR
+#       - cp $BIN/appliance.iso $BIN_TEMP_DIR
+#       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
+#       - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
+#       - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
+#       - shasum -a 1 $BIN/vic_$$BUILD_NUMBER.tar.gz
+#       - md5sum $BIN/vic_$$BUILD_NUMBER.tar.gz
+#       - du -ks $BIN/vic_$$BUILD_NUMBER.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
+#       - make sincemark
+#     when:
+#       repo: vmware/vic
+#       event: [ push, tag ]
+#       branch: [ master, releases/*, refs/tags/* ]
+#       success: true
+
+# notify:
+#   slack:
+#     webhook_url: $$SLACK_URL
+#     channel: mwilliamson-staff
+#     username: drone
+#     template: >
+#       build https://ci.vmware.run/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
+#     when:
+#       repo: vmware/vic
+#       event: [ push, tag ]
+#       branch: [ master, releases/*, refs/tags/* ]
+#       failure: true
+
+# publish:
+#   bintray:
+#     username: $$BINTRAY_USERNAME
+#     api_key: $$BINTRAY_API_KEY
+#     artifacts:
+#       - file: bin/vic_$$BUILD_NUMBER.tar.gz
+#         owner: vmware
+#         type: executable
+#         repository: vic-repo
+#         package: build
+#         version: $$BUILD_NUMBER
+#         target: vic_$$BUILD_NUMBER.tar.gz
+#         publish: true
+#     when:
+#       repo: vmware/vic
+#       event: [ push, tag ]
+#       branch: [ master, releases/*, refs/tags/* ]
+#       success: true
+#   coverage:
+#     server: https://coverage.vmware.run
+#     token: $$GITHUB_AUTOMATION_API_KEY
+#     include: /drone/src/github.com/vmware/vic/.cover/cover.out
+#     when:
+#       repo: vmware/vic
+#       event: [ push, tag ]
+#       branch: [ master, releases/*, refs/tags/* ]
+#       success: true
