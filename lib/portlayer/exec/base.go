@@ -391,14 +391,12 @@ func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration
 func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id))
 
-	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
 	// wait for all sessions started
 	for k, s := range c.ExecConfig.Sessions {
 		if s.Active {
+			// guestinfo key that we want to wait for
 			key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", k), c.ConfigPrefix)[0]
-			err = c.waitFor(ctx, key)
-			if err != nil {
+			if err := c.waitFor(ctx, key); err != nil {
 				return err
 			}
 		}
@@ -426,7 +424,8 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
-	}
+}
+
 // VMFolder returns container VM folder in datastore
 // TODO: Expose VM properties here is because VCH management logic is not part of portlayer handlers yet
 // This method can be removed after portlayer handlers support VCH management
