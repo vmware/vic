@@ -124,6 +124,8 @@ build:
       - shasum -a 1 $BIN/vic_$$BUILD_NUMBER.tar.gz
       - md5sum $BIN/vic_$$BUILD_NUMBER.tar.gz
       - du -ks $BIN/vic_$$BUILD_NUMBER.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
+      - mkdir bundle
+      - cp $BIN/vic_$$BUILD_NUMBER.tar.gz bundle
       - make sincemark
     when:
       repo: vmware/vic
@@ -145,18 +147,14 @@ notify:
       failure: true
 
 publish:
-  bintray:
-    username: $$BINTRAY_USERNAME
-    api_key: $$BINTRAY_API_KEY
-    artifacts:
-      - file: bin/vic_$$BUILD_NUMBER.tar.gz
-        owner: vmware
-        type: executable
-        repository: vic-repo
-        package: build
-        version: $$BUILD_NUMBER
-        target: vic_$$BUILD_NUMBER.tar.gz
-        publish: true
+  gcs:
+    auth_key: >
+      $$SERVICE_ACCOUNT_KEY
+    source: build
+    target: vic-engine-builds
+    acl:
+      - allUsers:READER
+    cache_control: public,max-age=3600
     when:
       repo: vmware/vic
       event: [ push, tag ]
