@@ -26,7 +26,7 @@ type VmwareDistributedVirtualSwitch struct {
 }
 
 func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgroup_Task) soap.HasFault {
-	task := CreateTask(s, "addDVPortgroupTask", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+	task := CreateTask(s, "addDVPortgroup", func(t *Task) (types.AnyType, types.BaseMethodFault) {
 		f := Map.getEntityParent(s, "Folder").(*Folder)
 
 		for _, spec := range c.Spec {
@@ -69,7 +69,7 @@ func (s *VmwareDistributedVirtualSwitch) AddDVPortgroupTask(c *types.AddDVPortgr
 }
 
 func (s *VmwareDistributedVirtualSwitch) ReconfigureDvsTask(req *types.ReconfigureDvs_Task) soap.HasFault {
-	task := CreateTask(s, "reconfigureDvsTask", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+	task := CreateTask(s, "reconfigureDvs", func(t *Task) (types.AnyType, types.BaseMethodFault) {
 		spec := req.Spec.GetDVSConfigSpec()
 
 		for _, member := range spec.Host {

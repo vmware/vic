@@ -197,49 +197,40 @@ func (a *VirtualApp) DestroyTask(req *types.Destroy_Task) soap.HasFault {
 	return (&ResourcePool{ResourcePool: a.ResourcePool}).DestroyTask(req)
 }
 
-type destroyPoolTask struct {
-	*ResourcePool
-}
+func (p *ResourcePool) DestroyTask(req *types.Destroy_Task) soap.HasFault {
+	task := CreateTask(p, "destroy", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		if strings.HasSuffix(p.Parent.Type, "ComputeResource") {
+			// Can't destroy the root pool
+			return nil, &types.InvalidArgument{}
+		}
 
-func (c *destroyPoolTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
-	if strings.HasSuffix(c.Parent.Type, "ComputeResource") {
-		// Can't destroy the root pool
-		return nil, &types.InvalidArgument{}
-	}
+		pp := Map.Get(*p.Parent).(*ResourcePool)
 
-	p := Map.Get(*c.Parent).(*ResourcePool)
+		parent := &pp.ResourcePool
+		// Remove child reference from rp
+		parent.ResourcePool = RemoveReference(req.This, parent.ResourcePool)
 
-	rp := &p.ResourcePool
-	// Remove child reference from rp
-	rp.ResourcePool = RemoveReference(c.Reference(), rp.ResourcePool)
+		// The grandchildren become children of the parent (rp)
+		parent.ResourcePool = append(parent.ResourcePool, p.ResourcePool.ResourcePool...)
 
-	// The grandchildren become children of the parent (rp)
-	//..........................................hello........hello........hello..........
-	rp.ResourcePool = append(rp.ResourcePool, c.ResourcePool.ResourcePool.ResourcePool...)
+		// And VMs move to the parent
+		vms := p.ResourcePool.Vm
+		for _, vm := range vms {
+			Map.Get(vm).(*VirtualMachine).ResourcePool = &parent.Self
+		}
 
-	// And VMs move to the parent
-	vms := c.ResourcePool.ResourcePool.Vm
-	for _, vm := range vms {
-		Map.Get(vm).(*VirtualMachine).ResourcePool = &rp.Self
-	}
+		parent.Vm = append(parent.Vm, vms...)
 
-	rp.Vm = append(rp.Vm, vms...)
+		Map.Remove(req.This)
 
-	Map.Remove(c.Reference())
-
-	return nil, nil
-}
-
-func (p *ResourcePool) DestroyTask(c *types.Destroy_Task) soap.HasFault {
-	r := &methods.Destroy_TaskBody{}
-
-	task := NewTask(&destroyPoolTask{p})
-
-	r.Res = &types.Destroy_TaskResponse{
-		Returnval: task.Self,
-	}
+		return nil, nil
+	})
 
 	task.Run()
 
-	return r
+	return &methods.Destroy_TaskBody{
+		Res: &types.Destroy_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
 }
