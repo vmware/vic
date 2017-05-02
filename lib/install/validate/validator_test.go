@@ -310,7 +310,7 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"},
 			false,
-			"ds://LocalDS_0/test001",
+			"ds://LocalDS_0",
 			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"}},
 

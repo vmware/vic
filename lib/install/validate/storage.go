@@ -44,7 +44,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	// provide a default path if only a DS name is provided
 	if imageDSpath.Path == "" {
-		imageDSpath.Path = input.DisplayName
+		log.Debug("No path element specified for image store - will use default")
 	}
 
 	if ds != nil {
