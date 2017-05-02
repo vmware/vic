@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
@@ -296,8 +297,10 @@ func Create(ctx context.Context, vmomiSession *session.Session, conf *ContainerC
 	}
 
 	specconfig.VMFullName = conf.Metadata.Name
+	specconfig.AlternateGuestName = constants.DefaultAltVCHGuestName()
 	if !Config.ManagingVCH {
 		specconfig.VMFullName = util.DisplayName(specconfig)
+		specconfig.AlternateGuestName = constants.DefaultAltContainerGuestName()
 	}
 
 	// log only core portions

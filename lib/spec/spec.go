@@ -70,6 +70,8 @@ type VirtualMachineConfigSpecConfig struct {
 	Metadata *executor.ExecutorConfig
 	// Prefix to encode Metadata
 	ConfigPrefix string
+	// OS guest name
+	AlternateGuestName string
 }
 
 // VirtualMachineConfigSpec type

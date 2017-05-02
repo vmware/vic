@@ -21,7 +21,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -71,7 +70,7 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 
 	// Set the guest id
 	s.GuestId = string(types.VirtualMachineGuestOsIdentifierOtherGuest64)
-	s.AlternateGuestName = constants.DefaultAltContainerGuestName()
+	s.AlternateGuestName = config.AlternateGuestName
 
 	return &LinuxGuestType{
 		VirtualMachineConfigSpec: s,
