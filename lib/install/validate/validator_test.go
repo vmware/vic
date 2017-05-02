@@ -462,7 +462,6 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 					assert.Equal(t, test.expectVolumes[key].String(), volume.String())
 				}
 			}
-			log.Print("COMPLETED TEST CASE")
 		} else {
 			assert.True(t, len(v.issues) > 0, "Should have errors")
 		}
