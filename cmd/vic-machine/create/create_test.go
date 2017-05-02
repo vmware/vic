@@ -262,7 +262,7 @@ func TestParseGatewaySpec(t *testing.T) {
 }
 
 func TestProcessVolumeStoreParam(t *testing.T) {
-	posiitveTestCases := []string{
+	positiveTestCases := []string{
 		"nfs://Shared.Volumes.Org/path/to/store:nfs-volumes",
 		"ds://vsphere.target.here/:root-path",
 		"no.scheme.target:/with/path:ds-store",
@@ -281,7 +281,7 @@ func TestProcessVolumeStoreParam(t *testing.T) {
 		"no-label/with/path",
 	}
 
-	for _, v := range posiitveTestCases {
+	for _, v := range positiveTestCases {
 		target, rawString, label, err := processVolumeStoreParam(v)
 
 		assert.NotNil(t, target, v)
