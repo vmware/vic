@@ -24,3 +24,4 @@ VIC Manual Test Suite
 -
 [Group 20 - Security](Group20-Security/TestCases.md)
 -
+[Group 21 - Whitelist](Group21-Registries/TestCases.md)

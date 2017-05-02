@@ -63,7 +63,8 @@ type Data struct {
 
 	BridgeIPRange *net.IPNet
 
-	InsecureRegistries []url.URL
+	InsecureRegistries  []url.URL
+	WhitelistRegistries []url.URL
 
 	HTTPSProxy *url.URL
 	HTTPProxy  *url.URL
