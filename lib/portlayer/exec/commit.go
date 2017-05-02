@@ -144,7 +144,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// nilify ExtraConfig if container configuration is migrated
 			// in this case, VCH and container are in different version. Migrated configuration cannot be written back to old container, to avoid data loss in old version's container
-			if h.Migrated {
+			if h.Migrated && !Config.ManagingVCH {
 				log.Debugf("Nilifying ExtraConfig as configuration of container %s is migrated", h.ExecConfig.ID)
 				s.ExtraConfig = nil
 			}

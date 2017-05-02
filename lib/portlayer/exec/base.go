@@ -89,11 +89,17 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	if c != nil && c.ExtraConfig != nil {
 		var migratedConf map[string]string
 		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
-		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
-		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+		if Config.ManagingVCH {
+			// This data migration will keep new executor configuration in memory only
+			// TODO: after move appliance executor configuration same to container key, this should be removed
+			base.DataVersion, _ = migration.ApplianceDataVersion(containerExecKeyValues)
+			migratedConf, base.Migrated, base.MigrationError = migration.MigrateApplianceConfig(context.Background(), vm.Session, containerExecKeyValues)
+		} else {
+			base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
+			migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+		}
 		extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, base.ConfigPrefix)
 	}
-
 	return base
 }
 
@@ -147,10 +153,16 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
-	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
-	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+	if Config.ManagingVCH {
+		// This data migration will keep new executor configuration in memory only
+		// TODO: after move appliance executor configuration same to container key, this should be removed
+		base.DataVersion, _ = migration.ApplianceDataVersion(containerExecKeyValues)
+		migratedConf, base.Migrated, base.MigrationError = migration.MigrateApplianceConfig(context.Background(), c.vm.Session, containerExecKeyValues)
+	} else {
+		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
+		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+	}
 	extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, base.ConfigPrefix)
-
 	return base, nil
 }
 
