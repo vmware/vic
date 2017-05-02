@@ -37,16 +37,16 @@ echo "Cleanup logs from previous run"
 rm -rf *.zip *.log
 rm -rf bin 60 65
 
-input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
+input=$(gsutil ls -l gs://vic-engine-builds | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 buildNumber=${input:4}
 
 n=0
    until [ $n -ge 5 ]
    do
       echo "Retry.. $n"
-      echo "Downloading bintray file $input"
-      wget https://vmware.bintray.com/vic-repo/$input.tar.gz
-      if [ -f "$input.tar.gz" ]
+      echo "Downloading gcp file $input"
+      wget https://storage.cloud.google.com/vic-engine-builds/$input?authuser=1&_ga=1.42859686.263417928.1484674157
+      if [ -f "$input" ]
       then
       echo "File found.."
       break
@@ -62,7 +62,7 @@ n=0
    do
       mkdir bin
       echo "Extracting .tar.gz"
-      tar xvzf $input.tar.gz -C bin/ --strip 1
+      tar xvzf $input -C bin/ --strip 1
       if [ -f "bin/vic-machine-linux" ]
       then
       echo "tar extraction complete.."
@@ -85,7 +85,7 @@ else
 echo "Tarball extraction passed, Running nightlies test.."
 
 echo "Deleting .tar.gz vic file"
-rm $input.tar.gz
+rm $input
 
 DATE=`date +%m_%d_%H_%M_`
 
@@ -193,7 +193,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr class="d2">
                       <td>
-                      vSphere v6.5 - VIC Bintray Build $buildNumber
+                      vSphere v6.5 - VIC Build $buildNumber
                       </td>
                       <td>
                       </td>
@@ -227,7 +227,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr class="d2">
                       <td>
-                      vSphere v6.0 - VIC Bintray Build $buildNumber
+                      vSphere v6.0 - VIC Build $buildNumber
                       </td>
                       <td>
                       </td>
