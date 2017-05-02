@@ -110,7 +110,6 @@ Management network - valid
     Cleanup VIC Appliance On Test Server
 
 Connectivity Bridge to Public
-    Pass execution  Test needs refactoring
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -132,7 +131,7 @@ Connectivity Bridge to Public
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     Log To Console  Creating public container.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p1 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network -p 8000 --name p1 busybox nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Starting public container
@@ -140,25 +139,32 @@ Connectivity Bridge to Public
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
-    Log To Console  Creating bridge container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 busybox /bin/top
+    Log To Console  Getting IP for public container
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
+
+    Log To Console  Connecting to container on external network from container bridged network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge busybox nc ${ip} 8000
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
+    Log To Console  Creating public container with no ports exposed.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p2 busybox nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
-    Log To Console  Starting bridge container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start b1
+    Log To Console  Starting public container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start p2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
     Log To Console  Getting IP for public container
-    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p2
 
-    Log To Console  Pinging from bridge to public container.
-    ${id}=  Run  docker %{VCH-PARAMS} run -d busybox ping -c 30 ${ip}
+    # we expect this to fail since the port wasn't exposed
+    Log To Console  Connecting to container on external network from container bridged network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge busybox nc ${ip} 8000
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
 
-    Log To Console  Attach to running container.
-    ${out}=  Run  docker %{VCH-PARAMS} attach ${id}
-
-    Should Contain  ${out}  64 bytes from ${ip}
     Log To Console  Ping test succeeded.
 
     Cleanup VIC Appliance On Test Server
