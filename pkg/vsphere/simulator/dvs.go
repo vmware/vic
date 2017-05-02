@@ -85,8 +85,8 @@ func (s *VmwareDistributedVirtualSwitch) ReconfigureDvsTask(req *types.Reconfigu
 				if FindReference(host.Network, s.Self) != nil {
 					return nil, &types.AlreadyExists{Name: host.Name}
 				}
-
-				host.Network = append(host.Network, s.Self)
+				// TODO: dvs should not be part of hostSystem associated networks
+				// host.Network = append(host.Network, s.Self)
 				host.Network = append(host.Network, s.Portgroup...)
 				s.Summary.HostMember = append(s.Summary.HostMember, member.Host)
 
