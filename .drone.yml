@@ -150,7 +150,7 @@ publish:
   gcs:
     auth_key: >
       $$SERVICE_ACCOUNT_KEY
-    source: build
+    source: bundle
     target: vic-engine-builds
     acl:
       - allUsers:READER
