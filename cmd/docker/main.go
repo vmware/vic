@@ -40,11 +40,13 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 
+	"github.com/RackSec/srslog"
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/executor"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -98,6 +100,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := initLogging(); err != nil {
+		log.Fatalf("failed to initialize logging: %s", err)
+	}
+
 	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
@@ -130,22 +136,29 @@ func handleFlags() bool {
 	}
 	extraconfig.Decode(src, &vchConfig)
 
-	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
-		log.SetLevel(log.DebugLevel)
-	}
-
-	if vchConfig.Diagnostics.SysLogConfig != nil {
-		if err := viclog.AddSyslog(vchConfig.Diagnostics.SysLogConfig.Proto, vchConfig.Diagnostics.SysLogConfig.RAddr, "docker"); err != nil {
-			log.Warnf("failed to connect to syslog server: %s", err)
-		} else {
-			log.Infof("sending logs to syslog endpoint %s//:%s", vchConfig.Diagnostics.SysLogConfig.Proto, vchConfig.Diagnostics.SysLogConfig.RAddr)
-		}
-	}
-
 	*cli.portLayerAddr = fmt.Sprintf("%s:%d", *cli.portLayerAddr, *cli.portLayerPort)
 	cli.proto = "tcp"
 
 	return true
+}
+
+func initLogging() error {
+	logcfg := viclog.NewLoggingConfig()
+	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
+		logcfg.Level = log.DebugLevel
+	}
+
+	if vchConfig.Diagnostics.SysLogConfig != nil {
+		logcfg.Syslog = &syslog.SyslogConfig{
+			Network:   vchConfig.Diagnostics.SysLogConfig.Proto,
+			RAddr:     vchConfig.Diagnostics.SysLogConfig.RAddr,
+			Tag:       "vic-docker",
+			Formatter: syslog.RFC3164,
+			Priority:  srslog.LOG_INFO,
+		}
+	}
+
+	return viclog.Init(logcfg)
 }
 
 func loadCAPool() *x509.CertPool {

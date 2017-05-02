@@ -80,6 +80,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/RackSec/srslog",
+			"repository": "https://github.com/RackSec/srslog",
+			"vcs": "git",
+			"revision": "a974ba6f7fb527d2ddc73ee9c05d3e2ccc0af0dc",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/Sirupsen/logrus",
 			"repository": "https://github.com/Sirupsen/logrus",
 			"vcs": "git",

@@ -686,6 +686,8 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 	switch proto {
 	case "udp":
 	case "tcp":
+	case "tcp6":
+	case "udp6":
 	default:
 		v.NoteIssue(fmt.Errorf("syslog address transport should be udp or tcp"))
 		return
@@ -697,7 +699,7 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 		return
 	}
 
-	if strings.LastIndex(host, ":") == -1 {
+	if u.Port() == "" {
 		host += fmt.Sprintf(":%d", defaultSyslogPort)
 	}
 
