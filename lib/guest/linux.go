@@ -49,13 +49,13 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	}
 
 	var scsi types.VirtualSCSIController
-	if config.ImageStorePath != nil {
-		// SCSI controller
-		scsi = spec.NewVirtualSCSIController(scsiBusNumber, scsiKey)
-		// PV SCSI controller
-		pv := spec.NewParaVirtualSCSIController(scsi)
-		s.AddParaVirtualSCSIController(pv)
+	// SCSI controller
+	scsi = spec.NewVirtualSCSIController(scsiBusNumber, scsiKey)
+	// PV SCSI controller
+	pv := spec.NewParaVirtualSCSIController(scsi)
+	s.AddParaVirtualSCSIController(pv)
 
+	if config.ImageStorePath != nil {
 		// Disk
 		disk := spec.NewVirtualSCSIDisk(scsi)
 		s.AddVirtualDisk(disk)
