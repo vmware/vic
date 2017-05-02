@@ -270,6 +270,11 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 		rp.Vm = append(rp.Vm, vm.Reference())
 	}
 
+	switch hs := Map.Get(*vm.Runtime.Host).(type) {
+	case *HostSystem:
+		hs.HostSystem.Vm = append(hs.HostSystem.Vm, vm.Reference())
+	}
+
 	return vm.Reference(), nil
 }
 
