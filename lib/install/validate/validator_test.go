@@ -320,6 +320,13 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	testURL8, _ := url.Parse("")
 	testURL9, _ := url.Parse("ds://")
 
+	// positive nfs case
+	nfsTestURL1, _ := url.Parse("nfs://prod.shared.storage/vchprod/volumes")
+
+	// the two current negative nfs cases for validation
+	nfsTestURL2, _ := url.Parse("nfs:///no/host/here")
+	nfsTestURL3, _ := url.Parse("nfs://no.actual.path")
+
 	tests := []struct {
 		image         string
 		volumes       map[string]*url.URL
@@ -399,6 +406,43 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			true,
 			"",
 			nil},
+		// below here lies the setup for nfs validation checks
+
+		{"LocalDS_0",
+			map[string]*url.URL{"volume1": nfsTestURL1},
+			false,
+			"ds://LocalDS_0/test001",
+			map[string]*url.URL{"volume1": nfsTestURL1}},
+
+		{"LocalDS_0",
+			map[string]*url.URL{"volume1": nfsTestURL1,
+				"volume2": nfsTestURL2},
+			true,
+			"ds://LocalDS_0/test001",
+			map[string]*url.URL{"volume1": nfsTestURL1}},
+		{"LocalDS_0",
+			map[string]*url.URL{"volume1": nfsTestURL1,
+				"volume2": nfsTestURL3},
+			true,
+			"ds://LocalDS_0/test001",
+			map[string]*url.URL{"volume1": nfsTestURL1}},
+		{"LocalDS_0",
+			map[string]*url.URL{"volume1": nfsTestURL3,
+				"volume2": nfsTestURL2},
+			true,
+			"ds://LocalDS_0/test001",
+			nil},
+		// below here lies the mixed store validation checks
+		{"LocalDS_0",
+			map[string]*url.URL{"volume1": testURL1,
+				"volume2": nfsTestURL1,
+				"volume3": nfsTestURL2,
+				"volume4": testURL4,
+			},
+			true,
+			"ds://LocalDS_0/test001",
+			map[string]*url.URL{"volume1": testURL3,
+				"volume2": nfsTestURL1}},
 	}
 
 	for _, test := range tests {
@@ -412,12 +456,18 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			assert.Equal(t, test.expectImage, conf.ImageStores[0].String())
 			conf.ImageStores = conf.ImageStores[1:]
 			for key, volume := range conf.VolumeLocations {
-				assert.Equal(t, test.expectVolumes[key].String(), volume.String())
+				if _, ok := test.expectVolumes[key]; !ok {
+					assert.Fail(t, "Could not find volume store that was expected to present", "volume : %s", volume.String())
+				} else {
+					assert.Equal(t, test.expectVolumes[key].String(), volume.String())
+				}
 			}
+			log.Print("COMPLETED TEST CASE")
 		} else {
 			assert.True(t, len(v.issues) > 0, "Should have errors")
 		}
 		v.issues = nil
+		conf.VolumeLocations = nil
 	}
 }
 

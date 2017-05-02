@@ -58,7 +58,8 @@ const (
 	caCert     = "ca.pem"
 	caKey      = "ca-key.pem"
 
-	nfsInputformat = "nfs://<host>/<url-path>?<mount option as query parameters>:<label>"
+	dsInputFormat  = "<datastore url w/ path>:label"
+	nfsInputFormat = "nfs://<host>/<url-path>?<mount option as query parameters>:<label>"
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -884,20 +885,9 @@ func (c *Create) processVolumeStores() error {
 	defer trace.End(trace.Begin(""))
 	c.VolumeLocations = make(map[string]*url.URL)
 	for _, arg := range c.volumeStores {
-		splitMeta := strings.Split(arg, ":")
-		if len(splitMeta) < 2 {
-			return fmt.Errorf("volume store input must be in format datastore/path:label or %s", nfsInputformat)
-		}
-
-		// divide out the label with the target
-		lastIndex := len(splitMeta)
-		label := splitMeta[lastIndex-1]
-		rawTarget := strings.Join(splitMeta[0:lastIndex-1], ":")
-
-		// raw target input should be in the form of a url
-		urlTarget, err := url.Parse(rawTarget)
+		urlTarget, rawTarget, label, err := processVolumeStoreParam(arg)
 		if err != nil {
-			return fmt.Errorf("parsed url for option --volume-store could not be parsed as a url, valid inputs are datastore/path:label or %s. See -h for usage examples.", nfsInputformat)
+			return err
 		}
 
 		switch urlTarget.Scheme {
@@ -911,7 +901,7 @@ func (c *Create) processVolumeStores() error {
 			}
 
 			if len(urlTarget.RawQuery) > 0 {
-				return fmt.Errorf("volume store input must be in format datastore/path:label or %s", nfsInputformat)
+				return fmt.Errorf("volume store input must be in format datastore/path:label or %s", nfsInputFormat)
 			}
 
 		default:
@@ -922,6 +912,40 @@ func (c *Create) processVolumeStores() error {
 	}
 
 	return nil
+}
+
+// processVolumeStoreParam will pull apart the raw input for -vs and return the parts for the actual store that are needed for validation
+func processVolumeStoreParam(rawVolumeStore string) (*url.URL, string, string, error) {
+	splitMeta := strings.Split(rawVolumeStore, ":")
+	if len(splitMeta) < 2 {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	// divide out the label with the target
+	lastIndex := len(splitMeta)
+	label := splitMeta[lastIndex-1]
+	rawTarget := strings.Join(splitMeta[0:lastIndex-1], ":")
+
+	// This case will check if part of the url is assigned as the label (e.g. ds://No.label.target/some/path)
+	if err := common.CheckUnsupportedChars(label); err != nil {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	if label == "" {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	if rawTarget == "" {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	// raw target input should be in the form of a url
+	urlTarget, err := url.Parse(rawTarget)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("parsed url for option --volume-store could not be parsed as a url, valid inputs are datastore/path:label or %s. See -h for usage examples.", nfsInputFormat)
+	}
+
+	return urlTarget, rawTarget, label, nil
 }
 
 func (c *Create) processRegistries() error {

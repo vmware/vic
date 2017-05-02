@@ -578,30 +578,10 @@ func createMetadataMap(volume *spl.Volume) map[string]string {
 
 func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (spl.VolumeStorer, error) {
 	var err error
-	uid := nfs.DefaultUID
-	gid := nfs.DefaultUID
-
-	vsUID := dsurl.Query().Get(uidQueryKey)
-	vsGID := dsurl.Query().Get(gidQueryKey)
-
-	if vsGID == "" {
-		vsGID = vsUID
-	}
-
-	if vsUID != "" {
-		uid, err = strconv.Atoi(vsUID)
-		if err != nil {
-			op.Errorf("%s", err.Error())
-			return nil, err
-		}
-	}
-
-	if vsGID != "" {
-		gid, err = strconv.Atoi(vsGID)
-		if err != nil {
-			op.Errorf("%s", err.Error())
-			return nil, err
-		}
+	uid, gid, err := parseUIDAndGID(dsurl)
+	if err != nil {
+		op.Errorf("%s", err.Error())
+		return nil, err
 	}
 
 	// XXX replace with the vch name
@@ -613,6 +593,43 @@ func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (spl.
 	}
 
 	return vs, nil
+}
+
+func parseUIDAndGID(queryURL *url.URL) (int, int, error) {
+	var err error
+	uid := nfs.DefaultUID
+	gid := nfs.DefaultUID
+
+	vsUID := queryURL.Query().Get(uidQueryKey)
+	vsGID := queryURL.Query().Get(gidQueryKey)
+
+	if vsGID == "" {
+		vsGID = vsUID
+	}
+
+	if vsUID != "" {
+		uid, err = strconv.Atoi(vsUID)
+		if err != nil {
+			return -1, -1, err
+		}
+	}
+
+	if vsGID != "" {
+		gid, err = strconv.Atoi(vsGID)
+		if err != nil {
+			return -1, -1, err
+		}
+	}
+
+	if uid < 0 {
+		return -1, -1, fmt.Errorf("supplied url (%s) for nfs volume store has invalid uid : (%d)", queryURL.String(), uid)
+	}
+
+	if gid < 0 {
+		return -1, -1, fmt.Errorf("supplied url (%s) for nfs volume store has invalid gid : (%d)", queryURL.String(), gid)
+	}
+
+	return uid, gid, nil
 }
 
 func createVsphereVolumeStore(op trace.Operation, dsurl *url.URL, name string, handlerCtx *HandlerContext) (spl.VolumeStorer, error) {
