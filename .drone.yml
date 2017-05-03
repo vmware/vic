@@ -58,6 +58,44 @@ pipeline:
       - make -j3 test
       - make sincemark
 
+  vic-integration-test-on-pr:
+    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:drone05test}
+    pull: true
+    privileged: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      LOG_TEMP_DIR: install-logs
+      GITHUB_AUTOMATION_API_KEY:  ${GITHUB_AUTOMATION_API_KEY}
+      DRONE_SERVER:  ${DRONE_SERVER}
+      DRONE_TOKEN:  ${DRONE_TOKEN}
+      TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
+      TEST_USERNAME:  ${TEST_USERNAME}
+      TEST_PASSWORD:  ${TEST_PASSWORD}
+      TEST_DATASTORE: ${TEST_DATASTORE}
+      TEST_TIMEOUT: ${TEST_TIMEOUT}
+      # REPORTING_SERVER_URL: $$REPORTING_SERVER_URL
+      # WINDOWS_URL:  $$WINDOWS_URL
+      # WINDOWS_USERNAME:  $$WINDOWS_USERNAME
+      # WINDOWS_PASSWORD:  $$WINDOWS_PASSWORD
+      GOVC_INSECURE: true
+      GOVC_USERNAME:  ${TEST_USERNAME}
+      GOVC_PASSWORD:  ${TEST_PASSWORD}
+      # GOVC_RESOURCE_POOL:  $$TEST_RESOURCE
+      GOVC_DATASTORE: ${TEST_DATASTORE}
+      GS_PROJECT_ID: ${GS_PROJECT_ID}
+      GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
+      GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
+      DOMAIN: ${CI_DOMAIN}
+    commands:
+      - make mark
+      - tests/integration-test.sh
+      - make sincemark
+    when:
+      status:  success
+
+
   vic-ui:
     image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:drone05test}
     pull: true
