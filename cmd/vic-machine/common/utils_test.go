@@ -55,6 +55,7 @@ func TestCheckUnsupportedchars(t *testing.T) {
 
 	for _, test := range tests {
 		err := CheckUnsupportedChars(test.S)
+
 		if err != nil {
 			if test.valid {
 				t.Errorf("got %q, expected pass for %q", err, test.S)
