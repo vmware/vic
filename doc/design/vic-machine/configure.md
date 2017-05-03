@@ -169,14 +169,6 @@ The Configure Rollback is talking about after a successful configure, vic-machin
 
 This feature is nice to have, but as vic-machine upgrade already have this capability, mark it as P0.5.
 
-# Inspect Command Enhancement
-
-- Dump certificates
-```
-vic-machine inspect --cert-path  ./cert/path
-```
-This command will load certificate from cert path, and if not found, dump certificate files into this directory. If the certificate is not configured during creation, no certificate will be created. The default value `--cert-path` is VCH name.
-
 - Set Env
 `vic-machine inspect` should set user env like what `vic-machine create` did, to make sure user can run docker command correctly.
 
