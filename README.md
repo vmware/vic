@@ -1,4 +1,4 @@
-[![Build Status](https://ci.vmware.run/api/badges/vmware/vic/status.svg)](https://ci.vmware.run/vmware/vic) [![Coverage Status](https://coverage.vmware.run/badges/vmware/vic/coverage.svg)](https://coverage.vmware.run/vmware/vic) [![Download](https://api.bintray.com/packages/vmware/vic/Download/images/download.svg)](https://bintray.com/vmware/vic/Download/_latestVersion) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
+[![Build Status](https://ci.vmware.run/api/badges/vmware/vic/status.svg)](https://ci.vmware.run/vmware/vic) [![Coverage Status](https://coverage.vmware.run/badges/vmware/vic/coverage.svg)](https://coverage.vmware.run/vmware/vic) [![Download](https://img.shields.io/badge/download-latest-blue.svg)](https://github.com/vmware/vic/releases/latest) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
 
 
 # vSphere Integrated Containers Engine

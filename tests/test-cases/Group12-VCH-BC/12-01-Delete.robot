@@ -24,8 +24,8 @@ Clean up VIC Appliance And Local Binary
     Run  rm -rf vic.tar.gz vic
 
 Install VIC 0.6.0 to Test Server
-    Log To Console  \nDownloading vic 4890 from bintray...
-    ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_4890.tar.gz -O vic.tar.gz
+    Log To Console  \nDownloading vic 4890 from gcp...
+    ${rc}  ${output}=  Run And Return Rc And Output  wget https://storage.googleapis.com/vic-engine-builds/vic_4890.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
     Set Test Environment Variables
 
