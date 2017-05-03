@@ -103,6 +103,15 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	return base
 }
 
+// VMReference will provide the vSphere vm managed object reference
+func (c *containerBase) VMReference() types.ManagedObjectReference {
+	var moref types.ManagedObjectReference
+	if c.vm != nil {
+		moref = c.vm.Reference()
+	}
+	return moref
+}
+
 // unlocked refresh of container state
 func (c *containerBase) refresh(ctx context.Context) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
