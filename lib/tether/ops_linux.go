@@ -730,9 +730,7 @@ func (t *BaseOperations) MountTarget(ctx context.Context, source url.URL, target
 	}
 
 	rawSource := source.Hostname() + ":/" + source.Path
-	// NOTE: by default we are supporting "NOATIME" and it can be configurable later. this must be specfied as a flag.
-	// Additionally, we must parse out the "ro" option and supply it as a flag as well for this flavor of the mount call.
-	if err := Sys.Syscall.Mount(rawSource, target, nfsFileSystemType, syscall.MS_NOATIME, mountOptions); err != nil {
+	if err := Sys.Syscall.Mount(rawSource, target, nfsFileSystemType, 0, mountOptions); err != nil {
 		log.Errorf("mounting %s on %s failed: %s", source.String(), target, err)
 		return err
 	}
