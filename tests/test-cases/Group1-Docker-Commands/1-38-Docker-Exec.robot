@@ -65,46 +65,50 @@ Exec Echo -t
     \   Should Be Equal As Strings  ${output}  Do. Or do not. There is no try.
 
 Exec Sort
-    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
-    Should Be Equal As Integers  ${rc}  0
-    ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
-    Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  5
-    \     Start Process  docker %{VCH-PARAMS} exec ${output} /bin/sort < ${fifo}  shell=True  alias=custom
-    \     Run  echo one > ${fifo}
-    \     ${ret}=  Wait For Process  custom
-    \     Log  ${ret.stderr}
-    \     Should Be Empty  ${ret.stdout}
-    \     Should Be Equal As Integers  ${ret.rc}  0
-    \     Should Be Empty  ${ret.stderr}
-    Run  rm -rf ${tmp}
+    ${status}=  Get State Of Github Issue  4990
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #4990 has been resolved
+    #${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    #Should Be Equal As Integers  ${rc}  0
+    #${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
+    #${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    #Should Be Equal As Integers  ${rc}  0
+    #:FOR  ${idx}  IN RANGE  0  5
+    #\     Start Process  docker %{VCH-PARAMS} exec ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    #\     Run  echo one > ${fifo}
+    #\     ${ret}=  Wait For Process  custom
+    #\     Log  ${ret.stderr}
+    #\     Should Be Empty  ${ret.stdout}
+    #\     Should Be Equal As Integers  ${ret.rc}  0
+    #\     Should Be Empty  ${ret.stderr}
+    #Run  rm -rf ${tmp}
 
 Exec Sort -i
-    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
-    Should Be Equal As Integers  ${rc}  0
-    ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
-    Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  5
-    \     Start Process  docker %{VCH-PARAMS} exec -i ${output} /bin/sort < ${fifo}  shell=True  alias=custom
-    \     Run  echo one > ${fifo}
-    \     ${ret}=  Wait For Process  custom
-    \     Log  ${ret.stderr}
-    \     Should Be Equal  ${ret.stdout}  one
-    \     Should Be Equal As Integers  ${ret.rc}  0
-    \     Should Be Empty  ${ret.stderr}
-    Run  rm -rf ${tmp}
+    ${status}=  Get State Of Github Issue  4990
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #4990 has been resolved
+    #${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
+    #Should Be Equal As Integers  ${rc}  0
+    #${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
+    #${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    #Should Be Equal As Integers  ${rc}  0
+    #:FOR  ${idx}  IN RANGE  0  5
+    #\     Start Process  docker %{VCH-PARAMS} exec -i ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    #\     Run  echo one > ${fifo}
+    #\     ${ret}=  Wait For Process  custom
+    #\     Log  ${ret.stderr}
+    #\     Should Be Equal  ${ret.stdout}  one
+    #\     Should Be Equal As Integers  ${ret.rc}  0
+    #\     Should Be Empty  ${ret.stderr}
+    #Run  rm -rf ${tmp}
 
 Exec NonExisting
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
