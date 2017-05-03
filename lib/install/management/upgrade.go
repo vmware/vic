@@ -244,12 +244,13 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 
-	if err = d.startAppliance(conf); err != nil {
+	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
+	defer cancel()
+
+	if err = d.StartAppliance(ctx); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
-	defer cancel()
 	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			//context deadline exceeded, replace returned error message
@@ -287,12 +288,13 @@ func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfig
 		log.Infof("Roll back finished - Appliance is kept in powered off status")
 		return nil
 	}
-	if err = d.startAppliance(conf); err != nil {
-		return err
-	}
 
 	ctx, cancel := context.WithTimeout(d.ctx, settings.Timeout)
 	defer cancel()
+	if err = d.StartAppliance(ctx); err != nil {
+		return err
+	}
+
 	if err = d.CheckServiceReady(ctx, conf, nil); err != nil {
 		// do not return error in this case, to make sure clean up continues
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes")

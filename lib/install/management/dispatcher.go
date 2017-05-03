@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/install/pllib"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
@@ -52,14 +53,18 @@ type Dispatcher struct {
 	DockerPort string
 	HostIP     string
 
-	vchPool   *object.ResourcePool
-	vchVapp   *object.VirtualApp
-	appliance *vm.VirtualMachine
+	vchPool     *object.ResourcePool
+	vchVapp     *object.VirtualApp
+	appliance   *vm.VirtualMachine
+	applianceID string
 
 	oldApplianceISO string
 
 	sshEnabled         bool
 	parentResourcepool *compute.ResourcePool
+
+	// delegate VCH VM management to portlayer
+	pl *pllib.Client
 }
 
 type diagnosticLog struct {
@@ -87,6 +92,7 @@ func NewDispatcher(ctx context.Context, s *session.Session, conf *config.Virtual
 	if conf != nil {
 		e.InitDiagnosticLogsFromConf(conf)
 	}
+	e.pl = pllib.NewClient(s)
 	return e
 }
 
@@ -294,19 +300,8 @@ func (d *Dispatcher) opManager(ctx context.Context, vch *vm.VirtualMachine) (*gu
 	return processManager, nil
 }
 
-func (d *Dispatcher) CheckAccessToVCAPI(ctx context.Context, vch *vm.VirtualMachine, target string) (int64, error) {
-	pm, err := d.opManager(ctx, vch)
-	if err != nil {
-		return -1, err
-	}
-	auth := types.NamePasswordAuthentication{}
-	spec := types.GuestProgramSpec{
-		ProgramPath:      "test-vc-api",
-		Arguments:        target,
-		WorkingDirectory: "/",
-		EnvVariables:     []string{},
-	}
-	return pm.StartProgram(ctx, &auth, &spec)
+func (d *Dispatcher) CheckAccessToVCAPI(ctx context.Context, id, target string) (int64, error) {
+	return d.pl.StartGuestProgram(ctx, id, "test-vc-api", target)
 }
 
 // addrToUse given candidateIPs, determines an address in cert that resolves to

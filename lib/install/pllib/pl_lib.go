@@ -314,3 +314,20 @@ func (pl *Client) ChangeState(ctx context.Context, h interface{}, state string) 
 	handle.TargetState()
 	return handle, nil
 }
+
+func (pl *Client) GetExtraConfig(ctx context.Context, id string) (map[string]string, error) {
+	c := exec.Containers.Container(id)
+	if c == nil {
+		return nil, errors.Errorf("%s is not found", id)
+	}
+	return c.VMExtraConfig(ctx)
+}
+
+func (pl *Client) StartGuestProgram(ctx context.Context, id, cmd, args string) (int64, error) {
+	c := exec.Containers.Container(id)
+	if c == nil {
+		return 0, errors.Errorf("%s is not found", id)
+	}
+
+	return c.StartGuestProgram(ctx, cmd, args)
+}

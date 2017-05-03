@@ -24,9 +24,9 @@ import (
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/pllib"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -46,15 +46,23 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
-	if err = d.createAppliance(conf, settings); err != nil {
+	d.applianceID, err = d.createAppliance2(conf, settings)
+	if err != nil {
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
+	// TODO: create image store
+	if err = d.createVolumeStores(conf); err != nil {
+		return errors.Errorf("Exiting because we could not create volume stores due to error: %s", err)
+	}
 
+	if err = d.reconfigureAppliance(conf, settings); err != nil {
+		return errors.Errorf("Reconfiguring the appliance failed with %s. Exiting...", err)
+	}
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
-	return d.startAppliance(conf)
+	return nil
 }
 
 func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -91,14 +99,22 @@ func (d *Dispatcher) createPool(conf *config.VirtualContainerHostConfigSpec, set
 	return nil
 }
 
-func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) StartAppliance(ctx context.Context) error {
 	defer trace.End(trace.Begin(""))
 
+	var h interface{}
 	var err error
-	_, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return d.appliance.PowerOn(ctx)
-	})
 
+	if h = d.pl.NewHandle(ctx, d.applianceID); h == nil {
+		err = errors.Errorf("Unable to get handle %s: %s", d.applianceID, err)
+		return err
+	}
+
+	h, err = d.pl.ChangeState(ctx, h, pllib.Running)
+	if err != nil {
+		return errors.Errorf("Failed to set state %s. Exiting...", err)
+	}
+	err = d.pl.Commit(ctx, h)
 	if err != nil {
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}

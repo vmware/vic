@@ -43,6 +43,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -84,12 +85,14 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 
 	var remoteConf config.VirtualContainerHostConfigSpec
 	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
+	extraconfig.DecodeWithPrefix(extraconfig.MapSource(info), &remoteConf.ExecutorConfig, config.VCHPrefix)
 
 	// if the moref of the target matches where we expect to find it for a VCH, run with it
 	if remoteConf.ExecutorConfig.ID == vm.Reference().String() || remoteConf.IsCreating() {
 		return true, nil
 	}
-
+	log.Infof("vm id: %s", vm.Reference().String())
+	log.Infof("config id: %s", remoteConf.ExecutorConfig.ID)
 	return false, nil
 }
 
@@ -461,6 +464,178 @@ func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, 
 	}
 }
 
+func (d *Dispatcher) createAppliance2(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (string, error) {
+	defer trace.End(trace.Begin(""))
+
+	log.Infof("Creating appliance on target")
+	d.pl.SetParentResources(d.vchVapp, d.vchPool)
+
+	// set VCH ID to CreatingVCH-poolid-vchname to make sure it's unique, so container cache will not override
+	//  other creating VCH in commit, and this id will be updated to vm mobref after VM is created
+	// using CreatingVCH as prefix is to make vic-machine delete works
+	creatingID := fmt.Sprintf("%s-%s-%s", config.CreatingVCH, exec.Config.ResourcePool.Reference().Value, conf.Name)
+	conf.ExecutorConfig.ID = creatingID
+
+	h, err := d.pl.CreateVchHandle(d.ctx, &conf.ExecutorConfig, settings.ApplianceSize.CPU.Limit, settings.ApplianceSize.Memory.Limit)
+	if err != nil {
+		log.Errorf("Unable to create handle: %s", err)
+		return "", err
+	}
+	if h, err = d.pl.AddNetworks(d.ctx, h, conf.ExecutorConfig.Networks); err != nil {
+		return "", err
+	}
+	if h, err = d.pl.AddLogging(h); err != nil {
+		return "", err
+	}
+	if err = d.pl.Commit(d.ctx, h); err != nil {
+		log.Errorf("Unable to create endpoint VM: %s", err)
+		return "", err
+	}
+	mobID, err := d.pl.SetVCHMoref(d.ctx, creatingID)
+	if err != nil {
+		log.Errorf("Unable to set endpoint VM configuration ID: %s", err)
+		return "", err
+	}
+	conf.ExecutorConfig.ID = mobID
+
+	return mobID, nil
+}
+
+func (d *Dispatcher) reconfigureAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	defer trace.End(trace.Begin(d.applianceID))
+	var err error
+	if d.vmPathName, err = d.pl.VCHFolderName(d.ctx, d.applianceID); err != nil {
+		return err
+	}
+	log.Debugf("vm folder name: %q", d.vmPathName)
+
+	// reconfigure vch vm
+	var h interface{}
+	if h = d.pl.NewHandle(d.ctx, d.applianceID); h == nil {
+		err = errors.Errorf("Unable to get handle %s: %s", d.applianceID, err)
+		return err
+	}
+	if h, err = d.addVicAdminTask(h, conf, settings); err != nil {
+		return err
+	}
+	d.setDockerPort(conf, settings)
+	if h, err = d.addPersonaTask(h, conf, settings); err != nil {
+		return err
+	}
+	if h, err = d.addPortlayerTask(h, conf, settings); err != nil {
+		return err
+	}
+	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
+	applianceISOFile := fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)
+	if h, err = d.pl.UpdateApplianceISOFiles(h, applianceISOFile); err != nil {
+		return err
+	}
+
+	extraData, err := d.encodeConfig(conf)
+	if err != nil {
+		return err
+	}
+	if h, err = d.pl.UpdateExtraConfig(h, extraData); err != nil {
+		return err
+	}
+	//TODO: remove oldapplianceiso variable, createappliance and related code
+	return d.pl.Commit(d.ctx, h)
+}
+
+func (d *Dispatcher) addPersonaTask(h interface{}, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (interface{}, error) {
+	personality := executor.Cmd{
+		Path: "/sbin/docker-engine-server",
+		Args: []string{
+			"/sbin/docker-engine-server",
+			//FIXME: hack during config migration
+			"-port=" + d.DockerPort,
+			fmt.Sprintf("-port-layer-port=%d", portLayerPort),
+		},
+		Env: []string{
+			"PATH=/sbin",
+			"GOTRACEBACK=all",
+		},
+	}
+	if settings.HTTPProxy != nil {
+		personality.Env = append(personality.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+	}
+	if settings.HTTPSProxy != nil {
+		personality.Env = append(personality.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+	}
+
+	task := &executor.SessionConfig{
+		// currently needed for iptables interaction
+		// User:  "nobody",
+		// Group: "nobody",
+		Cmd:     personality,
+		Restart: true,
+		Active:  true,
+	}
+	task.ID = "docker-personality"
+	task.Name = "docker-personality"
+	return d.pl.AddTask(d.ctx, h, task)
+}
+
+func (d *Dispatcher) addPortlayerTask(h interface{}, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (interface{}, error) {
+	task := &executor.SessionConfig{
+		Cmd: executor.Cmd{
+			Path: "/sbin/port-layer-server",
+			Args: []string{
+				"/sbin/port-layer-server",
+				"--host=localhost",
+				fmt.Sprintf("--port=%d", portLayerPort),
+			},
+			Env: []string{
+				//FIXME: hack during config migration
+				"VC_URL=" + conf.Target,
+				"DC_PATH=" + settings.DatacenterName,
+				"CS_PATH=" + settings.ClusterPath,
+				"POOL_PATH=" + settings.ResourcePoolPath,
+				"DS_PATH=" + conf.ImageStores[0].Host,
+			},
+		},
+		Restart: true,
+		Active:  true,
+	}
+	task.ID = "port-layer"
+	task.Name = "port-layer"
+	return d.pl.AddTask(d.ctx, h, task)
+}
+
+func (d *Dispatcher) addVicAdminTask(h interface{}, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (interface{}, error) {
+	vicadmin := executor.Cmd{
+		Path: "/sbin/vicadmin",
+		Args: []string{
+			"/sbin/vicadmin",
+			"--dc=" + settings.DatacenterName,
+			"--pool=" + settings.ResourcePoolPath,
+			"--cluster=" + settings.ClusterPath,
+		},
+		Env: []string{
+			"PATH=/sbin:/bin",
+			"GOTRACEBACK=all",
+		},
+		Dir: "/home/vicadmin",
+	}
+	if settings.HTTPProxy != nil {
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+	}
+	if settings.HTTPSProxy != nil {
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+	}
+
+	task := &executor.SessionConfig{
+		User:    "vicadmin",
+		Group:   "vicadmin",
+		Cmd:     vicadmin,
+		Restart: true,
+		Active:  true,
+	}
+	task.ID = "vicadmin"
+	task.Name = "vicadmin"
+	return d.pl.AddTask(d.ctx, h, task)
+}
+
 func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
@@ -704,12 +879,13 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 func (d *Dispatcher) applianceConfiguration(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
-	extraConfig, err := d.appliance.FetchExtraConfig(d.ctx)
+	extraConfig, err := d.pl.GetExtraConfig(d.ctx, d.applianceID)
 	if err != nil {
 		return err
 	}
 
 	extraconfig.Decode(extraconfig.MapSource(extraConfig), conf)
+	extraconfig.DecodeWithPrefix(extraconfig.MapSource(extraConfig), &conf.ExecutorConfig, config.VCHPrefix)
 	return nil
 }
 
@@ -1014,21 +1190,6 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
-	if d.appliance == nil {
-		return errors.New("cannot validate appliance due to missing VM reference")
-	}
-
-	log.Infof("Waiting for IP information")
-	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
-	ctxerr := d.ctx.Err()
-
-	if ctxerr == nil {
-		log.Info("Waiting for major appliance components to launch")
-		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
-			d.waitForKey(k)
-		}
-	}
-
 	// at this point either everything has succeeded or we're going into diagnostics, ignore error
 	// as we're only using it for IP in the success case
 	updateErr := d.applianceConfiguration(conf)
@@ -1043,7 +1204,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 
 	// it's possible we timed out... get updated info having adjusted context to allow it
 	// keeping it short
-	ctxerr = d.ctx.Err()
+	ctxerr := d.ctx.Err()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -1102,7 +1263,7 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	// vic-init will try to reach out to the vSphere target.
 	log.Info("Checking VCH connectivity with vSphere target")
 	// Checking access to vSphere API
-	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target); err == nil {
+	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.applianceID, conf.Target); err == nil {
 		code := int(cd)
 		if code > 0 {
 			log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))
