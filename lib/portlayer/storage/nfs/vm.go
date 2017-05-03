@@ -25,8 +25,8 @@ import (
 
 const (
 	//Below is a list of options included in the mount options and a brief reason why.
-	// "rw" : this indicates that the mount is for reading and writing to/from the mounted filesystem. NOTE: this could be configurable in the future.
-	// "noatime" : this option prevents read's from triggering a write to update the accesstime of an inode. Helps with efficient reads
+	// rw : on by default, for ro the syscall.MS_READONLY flag must be set instead of putting it in the options pointer of the mount call.
+	// "noatime" : this option prevents read's from triggering a write to update the accesstime of an inode. Helps with efficient reads. (Specified as a flag during the tether operation.)
 	// "vers=3" : we want to use NFSv3 it is simpler to implement and we do not need all the features of NFSv4 at this time
 	// "rsize=131072" : indicates the maximum read size for data on the NFS server. If the rsize is too big for either the client or server a negotion will occur to determine a supportable size. the value chosen is a default for /bin/mount for ubuntu 16.04
 	// "wsize=131072" : indicates the maximum write size for data on the NFS server. Like rsize it is negotiated if the value is too large. the value chosen is a default for /bin/mount for ubuntu 16.04
@@ -36,8 +36,7 @@ const (
 	// "sec=sys" : this means the NFS client uses the AUTH_SYS security flavor for all NFS requests on this mount point. This requires UID and GID of the user for permissions. also allows squashing permissions
 	// "mountvers=3" : this is listed as the RPC bind version. However, it is listed as a default by /bin/mount even when RPC is not the protocol used.
 	// "mountProto=TCP" : since the VCH uses TCP we should be using it as well here on the tether. Additionally, the mountProto does effect the initial protocol used for interacting with an nfs server. Keeping everything as the same protocol makes protocol issues easier to detect.
-	// "local_lock=none" : Specifies whether locks are local to the nfs client. We have set this to none since the same volume could be shared among several containers.
-	nfsMountOptions = "rw,noatime,vers=3,rsize=131072,wsize=131072,hard,proto=tcp,timeo=600,sec=sys,mountvers=3,mountproto=tcp,local_lock=none"
+	nfsMountOptions = "vers=3,rsize=131072,wsize=131072,hard,proto=tcp,timeo=600,sec=sys,mountvers=3,mountproto=tcp,nolock"
 )
 
 func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
@@ -60,6 +59,8 @@ func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume,
 func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[string]string) *executor.MountSpec {
 	host := volume.Device.DiskPath()
 	deviceMode := nfsMountOptions + ",addr=" + host.Host
+
+	// Note: rw mode is not specified in the device node since the syscall.Mount defaults to rw. Additional, "noatime" must be indicated with the flag syscall.MS_NOATIME
 	newMountSpec := executor.MountSpec{
 		Source:   host,
 		Path:     mountPath,

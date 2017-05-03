@@ -25,6 +25,18 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 )
 
+const (
+
+	// scheme string for nfs volume store targets
+	NfsScheme = "nfs"
+
+	// scheme string for ds volume store targets
+	DsScheme = "ds"
+
+	// scheme string for volume store targets without a scheme
+	EmptyScheme = ""
+)
+
 // https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2046088
 const unsuppCharsRegex = `%|&|\*|\$|#|@|!|\\|/|:|\?|"|<|>|;|'|\|`
 
@@ -57,6 +69,7 @@ func CheckUnsupportedCharsDatastore(s string) error {
 func checkUnsupportedChars(s string, re *regexp.Regexp) error {
 	st := []byte(s)
 	var v []int
+	// this is validation step for characters in a datastore URI
 	if v = re.FindIndex(st); v == nil {
 		return nil
 	}
