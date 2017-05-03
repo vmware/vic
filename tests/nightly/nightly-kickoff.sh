@@ -37,7 +37,7 @@ echo "Cleanup logs from previous run"
 rm -rf *.zip *.log
 rm -rf bin 60 65
 
-input=$(gsutil ls -l gs://vic-engine-builds | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
+input=$(gsutil ls -l gs://vic-engine-builds | tail -n2 | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 buildNumber=${input:4}
 
 n=0
@@ -45,7 +45,7 @@ n=0
    do
       echo "Retry.. $n"
       echo "Downloading gcp file $input"
-      wget https://storage.cloud.google.com/vic-engine-builds/$input?authuser=1&_ga=1.42859686.263417928.1484674157
+      wget https://storage.googleapis.com/vic-engine-builds/$input
       if [ -f "$input" ]
       then
       echo "File found.."
