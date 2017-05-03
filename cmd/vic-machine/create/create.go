@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -102,16 +103,16 @@ type Create struct {
 	noTLSverify     bool
 	advancedOptions bool
 
-	clientCAs   cli.StringSlice
-	registryCAs cli.StringSlice
+	clientCAs   cli.StringSlice `arg:"tls-ca"`
+	registryCAs cli.StringSlice `arg:"registry-ca"`
 
-	containerNetworks         cli.StringSlice
-	containerNetworksGateway  cli.StringSlice
-	containerNetworksIPRanges cli.StringSlice
-	containerNetworksDNS      cli.StringSlice
-	volumeStores              cli.StringSlice
-	insecureRegistries        cli.StringSlice
-	dns                       cli.StringSlice
+	containerNetworks         cli.StringSlice `arg:"container-network"`
+	containerNetworksGateway  cli.StringSlice `arg:"container-network-gateway"`
+	containerNetworksIPRanges cli.StringSlice `arg:"container-network-ip-range"`
+	containerNetworksDNS      cli.StringSlice `arg:"container-network-dns"`
+	volumeStores              cli.StringSlice `arg:"volume-store"`
+	insecureRegistries        cli.StringSlice `arg:"insecure-registry"`
+	dns                       cli.StringSlice `arg:"dns-server"`
 	clientNetworkName         string
 	clientNetworkGateway      string
 	clientNetworkIP           string
@@ -138,6 +139,28 @@ func NewCreate() *Create {
 	create.Data = data.NewData()
 
 	return create
+}
+
+// SetFields iterates through the fields in the Create struct, searching for fields
+// tagged with the `arg` key. If the value of that tag matches the supplied `flag`
+// string, a nil check is performed. If the field is not nil, then the user supplied
+// this flag on the command line and we need to persist it.
+// This is a workaround for cli.Context.IsSet() returning false when
+// the short option for a cli.StringSlice is supplied instead of the long option.
+// See https://github.com/urfave/cli/issues/314
+func (c *Create) SetFields() map[string]struct{} {
+	result := make(map[string]struct{})
+	create := reflect.ValueOf(c).Elem()
+	for i := 0; i < create.NumField(); i++ {
+		t := create.Type().Field(i)
+		if tag := t.Tag.Get("arg"); tag != "" {
+			ss := create.Field(i)
+			if !ss.IsNil() {
+				result[tag] = struct{}{}
+			}
+		}
+	}
+	return result
 }
 
 // Flags return all cli flags for create
@@ -1273,15 +1296,23 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 	return cakp.CertPEM, skp, nil
 }
 
-func logArguments(cliContext *cli.Context) {
+func (c *Create) logArguments(cliContext *cli.Context) []string {
+	args := []string{}
+	sf := c.SetFields() // StringSlice options set by the user
+
 	for _, f := range cliContext.FlagNames() {
-		if !cliContext.IsSet(f) {
+		_, ok := sf[f]
+		if !cliContext.IsSet(f) && !ok {
 			continue
 		}
 
 		// avoid logging sensitive data
-		if f == "user" || f == "password" || f == "ops-user" || f == "ops-password" {
+		if f == "user" || f == "password" || f == "ops-password" {
 			log.Debugf("--%s=<censored>", f)
+			continue
+		}
+
+		if f == "cert" || f == "cert-path" || f == "key" || f == "registry-ca" || f == "tls-ca" {
 			continue
 		}
 
@@ -1292,49 +1323,67 @@ func logArguments(cliContext *cli.Context) {
 				continue
 			}
 			url.User = nil
-			log.Debugf("--target=%s", url.String())
+			flag := fmt.Sprintf("--target=%s", url.String())
+			log.Debug(flag)
+			args = append(args, flag)
 			continue
 		}
 
 		i := cliContext.Int(f)
 		if i != 0 {
-			log.Debugf("--%s=%d", f, i)
+			flag := fmt.Sprintf("--%s=%d", f, i)
+			log.Debug(flag)
+			args = append(args, flag)
 			continue
 		}
 		d := cliContext.Duration(f)
 		if d != 0 {
-			log.Debugf("--%s=%s", f, d.String())
+			flag := fmt.Sprintf("--%s=%s", f, d.String())
+			log.Debug(flag)
+			args = append(args, flag)
 			continue
 		}
 		x := cliContext.Float64(f)
 		if x != 0 {
-			log.Debugf("--%s=%f", f, x)
-			continue
-		}
-		s := cliContext.String(f)
-		if s != "" {
-			log.Debugf("--%s=%s", f, s)
-			continue
-		}
-		b := cliContext.Bool(f)
-		bT := cliContext.BoolT(f)
-		if b && !bT {
-			log.Debugf("--%s=%t", f, true)
+			flag := fmt.Sprintf("--%s=%f", f, x)
+			log.Debug(flag)
+			args = append(args, flag)
 			continue
 		}
 
-		// put the slices at the end as they cause panics
+		// check for StringSlice before String as the cli String checker
+		// will mistake a StringSlice for a String and jackaroo the formatting
 		match := func() (result bool) {
 			result = false
 			defer func() { recover() }()
 			ss := cliContext.StringSlice(f)
 			if ss != nil {
-				log.Debugf("--%s=%#v", f, ss)
-				return true
+				for _, o := range ss {
+					flag := fmt.Sprintf("--%s=%s", f, o)
+					log.Debug(flag)
+					args = append(args, flag)
+				}
 			}
-			return
+			return ss != nil
 		}()
 		if match {
+			continue
+		}
+
+		s := cliContext.String(f)
+		if s != "" {
+			flag := fmt.Sprintf("--%s=%s", f, s)
+			log.Debug(flag)
+			args = append(args, flag)
+			continue
+		}
+
+		b := cliContext.Bool(f)
+		bT := cliContext.BoolT(f)
+		if b && !bT {
+			flag := fmt.Sprintf("--%s=%t", f, true)
+			log.Debug(flag)
+			args = append(args, flag)
 			continue
 		}
 
@@ -1343,10 +1392,11 @@ func logArguments(cliContext *cli.Context) {
 			defer func() { recover() }()
 			is := cliContext.IntSlice(f)
 			if is != nil {
-				log.Debugf("--%s=%#v", f, is)
-				return true
+				flag := fmt.Sprintf("--%s=%#v", f, is)
+				log.Debug(flag)
+				args = append(args, flag)
 			}
-			return
+			return is != nil
 		}()
 		if match {
 			continue
@@ -1355,10 +1405,13 @@ func logArguments(cliContext *cli.Context) {
 		// generic last because it matches everything
 		g := cliContext.Generic(f)
 		if g != nil {
-			log.Debugf("--%s=%#v", f, g)
-			continue
+			flag := fmt.Sprintf("--%s=%#v", f, g)
+			log.Debug(flag)
+			args = append(args, flag)
 		}
 	}
+
+	return args
 }
 
 func (c *Create) Run(clic *cli.Context) (err error) {
@@ -1384,7 +1437,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	logArguments(clic)
+	args := c.logArguments(clic)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {
@@ -1409,6 +1462,9 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		log.Error("Create cannot continue: configuration validation failed")
 		return err
 	}
+
+	// persist cli args used to create the VCH
+	vchConfig.VicMachineCreateOptions = args
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.ImageFiles = images
@@ -1459,6 +1515,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile, c.certPath)
 	log.Infof("Installer completed successfully")
+
 	return nil
 }
 
