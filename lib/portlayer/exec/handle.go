@@ -280,7 +280,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, conf *ContainerC
 
 		ParentImageID: conf.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
-		VMPathName:    fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), conf.Metadata.Name, conf.Metadata.Name),
+		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
 
 		ImageStoreName: conf.ImageStoreName,
 
@@ -292,8 +292,11 @@ func Create(ctx context.Context, vmomiSession *session.Session, conf *ContainerC
 	}
 
 	// if not vsan, set the datastore folder name to containerID
-	if !vmomiSession.IsVSAN(ctx) && !Config.ManagingVCH {
+	if !vmomiSession.IsVSAN(ctx) {
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
+		if Config.ManagingVCH {
+			specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), conf.Metadata.Name, conf.Metadata.Name)
+		}
 	}
 
 	specconfig.VMFullName = conf.Metadata.Name
