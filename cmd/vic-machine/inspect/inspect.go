@@ -35,8 +35,11 @@ import (
 // Inspect has all input parameters for vic-machine inspect command
 type Inspect struct {
 	*data.Data
+
 	showConfig bool
-	executor   *management.Dispatcher
+	CertPath   string
+
+	executor *management.Dispatcher
 }
 
 func NewInspect() *Inspect {
@@ -45,7 +48,7 @@ func NewInspect() *Inspect {
 	return d
 }
 
-// Flags return all cli flags for inspect
+// Flags returns all cli flags for inspect
 func (i *Inspect) Flags() []cli.Flag {
 	util := []cli.Flag{
 		cli.BoolFlag{
@@ -58,6 +61,12 @@ func (i *Inspect) Flags() []cli.Flag {
 			Value:       3 * time.Minute,
 			Usage:       "Time to wait for inspect",
 			Destination: &i.Timeout,
+		},
+		cli.StringFlag{
+			Name:        "cert-path",
+			Value:       "",
+			Usage:       "The path to check for existing certificates. Defaults to './<vch name>/'",
+			Destination: &i.CertPath,
 		},
 	}
 
@@ -161,7 +170,7 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	log.Info("VCH upgrade status:")
 	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
 
-	if err = executor.InspectVCH(vch, vchConfig); err != nil {
+	if err = executor.InspectVCH(vch, vchConfig, i.CertPath); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
 		return errors.New("inspect failed")
