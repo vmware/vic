@@ -42,7 +42,7 @@ type Data struct {
 	common.Images
 
 	ImageDatastorePath     string
-	VolumeLocations        map[string]*url.URL
+	VolumeLocations        map[string]string
 	ContainerDatastoreName string
 
 	BridgeNetworkName string

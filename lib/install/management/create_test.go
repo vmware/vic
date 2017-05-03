@@ -88,39 +88,31 @@ func TestMain(t *testing.T) {
 	}
 }
 
-func getESXData(esxURL *url.URL) *data.Data {
+func getESXData(url *url.URL) *data.Data {
 	result := data.NewData()
-	result.URL = esxURL
+	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
 	result.BridgeNetworkName = "bridge"
 	result.ManagementNetwork.Name = "VM Network"
 	result.PublicNetwork.Name = "VM Network"
-	result.VolumeLocations = make(map[string]*url.URL)
-	testURL := &url.URL{
-		Host: "LocalDS_0",
-		Path: "volumes/test",
-	}
-	result.VolumeLocations["volume-store"] = testURL
+	result.VolumeLocations = make(map[string]string)
+	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
 	return result
 }
 
-func getVPXData(vcURL *url.URL) *data.Data {
+func getVPXData(url *url.URL) *data.Data {
 	result := data.NewData()
-	result.URL = vcURL
+	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
 	result.PublicNetwork.Name = "VM Network"
 	result.BridgeNetworkName = "DC0_DVPG0"
-	result.VolumeLocations = make(map[string]*url.URL)
-	testURL := &url.URL{
-		Host: "LocalDS_0",
-		Path: "volumes/test",
-	}
-	result.VolumeLocations["volume-store"] = testURL
+	result.VolumeLocations = make(map[string]string)
+	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
 	return result
 }
