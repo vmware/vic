@@ -217,19 +217,20 @@ func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath) (*Virtu
 
 	info, err := vdm.QueryVirtualDiskInfo(op, diskURI.String(), m.vm.Datacenter, true)
 	if err != nil {
+		// scratch doesn't have a parent.
 		op.Errorf("error querying parents (%s): %s", diskURI, err.Error())
-		return nil, err
-	}
+	} else {
 
-	// the last elem in the info list is the disk we just looked up.
-	p := info[len(info)-1]
+		// the last elem in the info list is the disk we just looked up.
+		p := info[len(info)-1]
 
-	if p.Parent != "" {
-		ppth, err := datastore.DatastorePathFromString(p.Parent)
-		if err != nil {
-			return nil, err
+		if p.Parent != "" {
+			ppth, err := datastore.DatastorePathFromString(p.Parent)
+			if err != nil {
+				return nil, err
+			}
+			dsk.ParentDatastoreURI = ppth
 		}
-		dsk.ParentDatastoreURI = ppth
 	}
 
 	return dsk, nil
