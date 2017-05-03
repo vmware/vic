@@ -46,7 +46,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
-	d.applianceID, err = d.createAppliance2(conf, settings)
+	d.applianceID, err = d.createAppliance(conf, settings)
 	if err != nil {
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
