@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ type Task struct {
 func NewTask(runner TaskRunner) *Task {
 	ref := runner.Reference()
 	name := reflect.TypeOf(runner).Elem().Name()
+	name = strings.Replace(name, "VM", "Vm", 1) // "VM" for the type to make go-lint happy, but "Vm" for the vmodl ID
 	return CreateTask(ref, name, runner.Run)
 }
 

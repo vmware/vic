@@ -46,6 +46,9 @@ type StorageHandlersImpl struct {
 const (
 	nfsScheme = "nfs"
 	dsScheme  = "ds"
+
+	uidQueryKey = "uid"
+	gidQueryKey = "gid"
 )
 
 // Configure assigns functions to all the storage api handlers
@@ -75,10 +78,8 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	// expensive metadata lookups.
 	h.imageCache = spl.NewLookupCache(ds)
 
-	// add the volume stores
-	if err = h.configureVolumeStores(op, handlerCtx); err != nil {
-		log.Panicf("Cannot instantiate volume stores: %s", err.Error())
-	}
+	// add the volume stores, errors are logged within this function.
+	h.configureVolumeStores(op, handlerCtx)
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(h.CreateImageStore)
 	api.StorageGetImageHandler = storage.GetImageHandlerFunc(h.GetImage)
@@ -95,7 +96,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	api.StorageGetVolumeHandler = storage.GetVolumeHandlerFunc(h.GetVolume)
 }
 
-func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) error {
+func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) {
 	var (
 		vs  spl.VolumeStorer
 		err error
@@ -108,44 +109,24 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 	for name, dsurl := range spl.Config.VolumeLocations {
 		switch dsurl.Scheme {
 		case nfsScheme:
-			uid := nfs.DefaultUID
-
-			if dsurl.User != nil && dsurl.User.Username() != "" {
-				uid, err = strconv.Atoi(dsurl.User.Username())
-				if err != nil {
-					return err
-				}
-			}
-
-			// XXX replace with the vch name
-			mnt := nfs.NewMount(dsurl, "vic", uint32(uid), uint32(uid))
-			vs, err = nfs.NewVolumeStore(op, name, mnt)
-			if err != nil {
-				return err
-			}
-
+			vs, err = createNFSVolumeStore(op, dsurl, name)
 		case dsScheme:
-			ds, err := datastore.NewHelperFromURL(op, handlerCtx.Session, dsurl)
-			if err != nil {
-				return fmt.Errorf("cannot find datastores: %s", err)
-			}
-
-			vs, err = vsphere.NewVolumeStore(op, name, handlerCtx.Session, ds)
-			if err != nil {
-				return fmt.Errorf("cannot instantiate the volume store: %s", err)
-			}
-
+			vs, err = createVsphereVolumeStore(op, dsurl, name, handlerCtx)
 		default:
-			return fmt.Errorf("unknown scheme for %s", dsurl.String())
+			err = fmt.Errorf("unknown scheme for %s", dsurl.String())
+			log.Error(err.Error())
+		}
+
+		// if an error has been logged skip volume store cache addition
+		if err != nil {
+			continue
 		}
 
 		op.Infof("Adding volume store %s (%s)", name, dsurl.String())
 		if _, err = h.volumeCache.AddStore(op, name, vs); err != nil {
-			return fmt.Errorf("volume addition error %s", err)
+			log.Errorf("volume addition error %s", err)
 		}
 	}
-
-	return nil
 }
 
 // CreateImageStore creates a new image store
@@ -510,7 +491,7 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	case dsScheme:
 		actualHandle, err = vsphere.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
 	default:
-		err = fmt.Errorf("unknown scheme (%s) for Volume (%s)", volume.Device.DiskPath().Scheme, *volume)
+		err = fmt.Errorf("unknown scheme (%s) for Volume (%#v)", volume.Device.DiskPath().Scheme, *volume)
 	}
 
 	if err != nil {
@@ -593,4 +574,77 @@ func createMetadataMap(volume *spl.Volume) map[string]string {
 		stringMap[k] = string(v)
 	}
 	return stringMap
+}
+
+func createNFSVolumeStore(op trace.Operation, dsurl *url.URL, name string) (spl.VolumeStorer, error) {
+	var err error
+	uid, gid, err := parseUIDAndGID(dsurl)
+	if err != nil {
+		op.Errorf("%s", err.Error())
+		return nil, err
+	}
+
+	// XXX replace with the vch name
+	mnt := nfs.NewMount(dsurl, "vic", uint32(uid), uint32(gid))
+	vs, err := nfs.NewVolumeStore(op, name, mnt)
+	if err != nil {
+		op.Errorf("%s", err.Error())
+		return nil, err
+	}
+
+	return vs, nil
+}
+
+func parseUIDAndGID(queryURL *url.URL) (int, int, error) {
+	var err error
+	uid := nfs.DefaultUID
+	gid := nfs.DefaultUID
+
+	vsUID := queryURL.Query().Get(uidQueryKey)
+	vsGID := queryURL.Query().Get(gidQueryKey)
+
+	if vsGID == "" {
+		vsGID = vsUID
+	}
+
+	if vsUID != "" {
+		uid, err = strconv.Atoi(vsUID)
+		if err != nil {
+			return -1, -1, err
+		}
+	}
+
+	if vsGID != "" {
+		gid, err = strconv.Atoi(vsGID)
+		if err != nil {
+			return -1, -1, err
+		}
+	}
+
+	if uid < 0 {
+		return -1, -1, fmt.Errorf("supplied url (%s) for nfs volume store has invalid uid : (%d)", queryURL.String(), uid)
+	}
+
+	if gid < 0 {
+		return -1, -1, fmt.Errorf("supplied url (%s) for nfs volume store has invalid gid : (%d)", queryURL.String(), gid)
+	}
+
+	return uid, gid, nil
+}
+
+func createVsphereVolumeStore(op trace.Operation, dsurl *url.URL, name string, handlerCtx *HandlerContext) (spl.VolumeStorer, error) {
+	ds, err := datastore.NewHelperFromURL(op, handlerCtx.Session, dsurl)
+	if err != nil {
+		err = fmt.Errorf("cannot find datastores: %s", err)
+		op.Errorf("%s", err.Error())
+		return nil, err
+	}
+
+	vs, err := vsphere.NewVolumeStore(op, name, handlerCtx.Session, ds)
+	if err != nil {
+		err = fmt.Errorf("cannot instantiate the volume store: %s", err)
+		op.Errorf("%s", err.Error())
+		return nil, err
+	}
+	return vs, nil
 }

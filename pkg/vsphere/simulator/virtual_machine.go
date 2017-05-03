@@ -162,9 +162,7 @@ func (vm *VirtualMachine) useDatastore(name string) *Datastore {
 
 	ds := Map.FindByName(name, host.Datastore).(*Datastore)
 
-	if Map.FindByName(name, vm.Datastore) == nil {
-		vm.Datastore = append(vm.Datastore, ds.Reference())
-	}
+	vm.Datastore = AddReference(ds.Self, vm.Datastore)
 
 	return ds
 }
@@ -404,7 +402,8 @@ func (c *powerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 func (vm *VirtualMachine) PowerOnVMTask(c *types.PowerOnVM_Task) soap.HasFault {
 	r := &methods.PowerOnVM_TaskBody{}
 
-	task := NewTask(&powerVMTask{vm, types.VirtualMachinePowerStatePoweredOn})
+	runner := &powerVMTask{vm, types.VirtualMachinePowerStatePoweredOn}
+	task := CreateTask(runner.Reference(), "powerOn", runner.Run)
 
 	r.Res = &types.PowerOnVM_TaskResponse{
 		Returnval: task.Self,
@@ -418,7 +417,8 @@ func (vm *VirtualMachine) PowerOnVMTask(c *types.PowerOnVM_Task) soap.HasFault {
 func (vm *VirtualMachine) PowerOffVMTask(c *types.PowerOffVM_Task) soap.HasFault {
 	r := &methods.PowerOffVM_TaskBody{}
 
-	task := NewTask(&powerVMTask{vm, types.VirtualMachinePowerStatePoweredOff})
+	runner := &powerVMTask{vm, types.VirtualMachinePowerStatePoweredOff}
+	task := CreateTask(runner.Reference(), "powerOff", runner.Run)
 
 	r.Res = &types.PowerOffVM_TaskResponse{
 		Returnval: task.Self,
@@ -429,34 +429,8 @@ func (vm *VirtualMachine) PowerOffVMTask(c *types.PowerOffVM_Task) soap.HasFault
 	return r
 }
 
-type destroyVMTask struct {
-	*VirtualMachine
-}
-
-func (c *destroyVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
-	r := c.VirtualMachine.UnregisterVM(&types.UnregisterVM{
-		This: c.VirtualMachine.Reference(),
-	})
-
-	if r.Fault() != nil {
-		return nil, r.Fault().VimFault().(types.BaseMethodFault)
-	}
-
-	// Delete VM files from the datastore (ignoring result for now)
-	m := Map.FileManager()
-	dc := Map.getEntityDatacenter(c.VirtualMachine).Reference()
-
-	_ = m.DeleteDatastoreFileTask(&types.DeleteDatastoreFile_Task{
-		This:       m.Reference(),
-		Name:       c.VirtualMachine.Config.Files.LogDirectory,
-		Datacenter: &dc,
-	})
-
-	return nil, nil
-}
-
 func (vm *VirtualMachine) ReconfigVMTask(req *types.ReconfigVM_Task) soap.HasFault {
-	task := CreateTask(vm, "reconfigVMTask", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+	task := CreateTask(vm, "reconfigVm", func(t *Task) (types.AnyType, types.BaseMethodFault) {
 		err := vm.configure(&req.Spec)
 		if err != nil {
 			return nil, err
@@ -474,18 +448,36 @@ func (vm *VirtualMachine) ReconfigVMTask(req *types.ReconfigVM_Task) soap.HasFau
 	}
 }
 
-func (vm *VirtualMachine) DestroyTask(c *types.Destroy_Task) soap.HasFault {
-	r := &methods.Destroy_TaskBody{}
+func (vm *VirtualMachine) DestroyTask(req *types.Destroy_Task) soap.HasFault {
+	task := CreateTask(vm, "destroy", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		r := vm.UnregisterVM(&types.UnregisterVM{
+			This: req.This,
+		})
 
-	task := NewTask(&destroyVMTask{vm})
+		if r.Fault() != nil {
+			return nil, r.Fault().VimFault().(types.BaseMethodFault)
+		}
 
-	r.Res = &types.Destroy_TaskResponse{
-		Returnval: task.Self,
-	}
+		// Delete VM files from the datastore (ignoring result for now)
+		m := Map.FileManager()
+		dc := Map.getEntityDatacenter(vm).Reference()
+
+		_ = m.DeleteDatastoreFileTask(&types.DeleteDatastoreFile_Task{
+			This:       m.Reference(),
+			Name:       vm.Config.Files.LogDirectory,
+			Datacenter: &dc,
+		})
+
+		return nil, nil
+	})
 
 	task.Run()
 
-	return r
+	return &methods.Destroy_TaskBody{
+		Res: &types.Destroy_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
 }
 
 func (vm *VirtualMachine) UnregisterVM(c *types.UnregisterVM) soap.HasFault {
@@ -504,7 +496,20 @@ func (vm *VirtualMachine) UnregisterVM(c *types.UnregisterVM) soap.HasFault {
 
 	Map.getEntityParent(vm, "Folder").(*Folder).removeChild(c.This)
 
-	// TODO: remove references from HostSystem and Datastore
+	host := Map.Get(*vm.Runtime.Host).(*HostSystem)
+	host.Vm = RemoveReference(vm.Self, host.Vm)
+
+	switch pool := Map.Get(*vm.ResourcePool).(type) {
+	case *ResourcePool:
+		pool.Vm = RemoveReference(vm.Self, pool.Vm)
+	case *VirtualApp:
+		pool.Vm = RemoveReference(vm.Self, pool.Vm)
+	}
+
+	for i := range vm.Datastore {
+		ds := Map.Get(vm.Datastore[i]).(*Datastore)
+		ds.Vm = RemoveReference(vm.Self, ds.Vm)
+	}
 
 	r.Res = new(types.UnregisterVMResponse)
 

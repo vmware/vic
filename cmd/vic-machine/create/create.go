@@ -57,6 +57,9 @@ const (
 	serverKey  = "server-key.pem"
 	caCert     = "ca.pem"
 	caKey      = "ca-key.pem"
+
+	dsInputFormat  = "<datastore url w/ path>:label"
+	nfsInputFormat = "nfs://<host>/<url-path>?<mount option as query parameters>:<label>"
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -183,7 +186,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "volume-store, vs",
 			Value: &c.volumeStores,
-			Usage: "Specify a list of location and label for volume store, e.g. \"datastore/path:label\" or \"datastore:label\".",
+			Usage: "Specify a list of location and label for volume store, nfs stores can have mount options specified as query parameters in the url target. \n\t Examples for a vsphere backed volume store are:  \"datastore/path:label\" or \"datastore:label\" or \"ds://my-datastore-name:store-label\"\n\t Examples for nfs back volume stores are: \"nfs://127.0.0.1/path/to/share/point?uid=1234&gid=5678&proto=tcp:my-volume-store-label\" or \"nfs://my-store/path/to/share/point:my-label\"",
 		},
 
 		// bridge
@@ -880,19 +883,69 @@ func (c *Create) processDNSServers() error {
 
 func (c *Create) processVolumeStores() error {
 	defer trace.End(trace.Begin(""))
-	c.VolumeLocations = make(map[string]string)
+	c.VolumeLocations = make(map[string]*url.URL)
 	for _, arg := range c.volumeStores {
-		if err := common.CheckUnsupportedCharsDatastore(arg); err != nil {
-			return fmt.Errorf("--volume-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err)
+		urlTarget, rawTarget, label, err := processVolumeStoreParam(arg)
+		if err != nil {
+			return err
 		}
-		splitMeta := strings.SplitN(arg, ":", 2)
-		if len(splitMeta) != 2 {
-			return errors.New("Volume store input must be in format datastore/path:label")
+
+		switch urlTarget.Scheme {
+		case common.NfsScheme:
+			// nothing needs to be done here. parsing the url is enough for pre-validation checking of an nfs target.
+		case common.EmptyScheme, common.DsScheme:
+			// a datastore target is our default assumption
+			urlTarget.Scheme = common.DsScheme
+			if err := common.CheckUnsupportedCharsDatastore(rawTarget); err != nil {
+				return fmt.Errorf("--volume-store contains unsupported characters for datastore target: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / : ,", err)
+			}
+
+			if len(urlTarget.RawQuery) > 0 {
+				return fmt.Errorf("volume store input must be in format datastore/path:label or %s", nfsInputFormat)
+			}
+
+		default:
+			return fmt.Errorf("%s", "Please specify a datastore or nfs target. See -vs usage for examples.")
 		}
-		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
+
+		c.VolumeLocations[label] = urlTarget
 	}
 
 	return nil
+}
+
+// processVolumeStoreParam will pull apart the raw input for -vs and return the parts for the actual store that are needed for validation
+func processVolumeStoreParam(rawVolumeStore string) (*url.URL, string, string, error) {
+	splitMeta := strings.Split(rawVolumeStore, ":")
+	if len(splitMeta) < 2 {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	// divide out the label with the target
+	lastIndex := len(splitMeta)
+	label := splitMeta[lastIndex-1]
+	rawTarget := strings.Join(splitMeta[0:lastIndex-1], ":")
+
+	// This case will check if part of the url is assigned as the label (e.g. ds://No.label.target/some/path)
+	if err := common.CheckUnsupportedChars(label); err != nil {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	if label == "" {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	if rawTarget == "" {
+		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
+	}
+
+	// raw target input should be in the form of a url
+	urlTarget, err := url.Parse(rawTarget)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("parsed url for option --volume-store could not be parsed as a url, valid inputs are datastore/path:label or %s. See -h for usage examples.", nfsInputFormat)
+	}
+
+	return urlTarget, rawTarget, label, nil
 }
 
 func (c *Create) processRegistries() error {
@@ -1401,6 +1454,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	}
 
 	log.Infof("Initialization of appliance successful")
+
+	// We must check for the volume stores that are present after the portlayer presents.
 
 	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile, c.certPath)
 	log.Infof("Installer completed successfully")

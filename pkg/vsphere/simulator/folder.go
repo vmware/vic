@@ -87,13 +87,13 @@ func (f *Folder) typeNotSupported() *soap.Fault {
 	return Fault(fmt.Sprintf("%s supports types: %#v", f.Self, f.ChildType), &types.NotSupported{})
 }
 
-type addStandaloneHostTask struct {
+type addStandaloneHost struct {
 	*Folder
 
 	req *types.AddStandaloneHost_Task
 }
 
-func (add *addStandaloneHostTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+func (add *addStandaloneHost) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	host, err := CreateStandaloneHost(add.Folder, add.req.Spec)
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (f *Folder) AddStandaloneHostTask(a *types.AddStandaloneHost_Task) soap.Has
 	r := &methods.AddStandaloneHost_TaskBody{}
 
 	if f.hasChildType("ComputeResource") && f.hasChildType("Folder") {
-		task := NewTask(&addStandaloneHostTask{f, a})
+		task := NewTask(&addStandaloneHost{f, a})
 
 		r.Res = &types.AddStandaloneHost_TaskResponse{
 			Returnval: task.Self,
@@ -217,7 +217,7 @@ func (f *Folder) CreateClusterEx(c *types.CreateClusterEx) soap.HasFault {
 	return r
 }
 
-type createVMTask struct {
+type createVM struct {
 	*Folder
 
 	req *types.CreateVM_Task
@@ -225,7 +225,7 @@ type createVMTask struct {
 	register bool
 }
 
-func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+func (c *createVM) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	vm, err := NewVirtualMachine(&c.req.Config)
 	if err != nil {
 		return nil, err
@@ -263,11 +263,19 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 	c.Folder.putChild(vm)
 
+	host := Map.Get(*vm.Runtime.Host).(*HostSystem)
+	host.Vm = append(host.Vm, vm.Self)
+
+	for i := range vm.Datastore {
+		ds := Map.Get(vm.Datastore[i]).(*Datastore)
+		ds.Vm = append(ds.Vm, vm.Self)
+	}
+
 	switch rp := Map.Get(*vm.ResourcePool).(type) {
 	case *ResourcePool:
-		rp.Vm = append(rp.Vm, vm.Reference())
+		rp.Vm = append(rp.Vm, vm.Self)
 	case *VirtualApp:
-		rp.Vm = append(rp.Vm, vm.Reference())
+		rp.Vm = append(rp.Vm, vm.Self)
 	}
 
 	return vm.Reference(), nil
@@ -276,7 +284,7 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 func (f *Folder) CreateVMTask(c *types.CreateVM_Task) soap.HasFault {
 	r := &methods.CreateVM_TaskBody{}
 
-	task := NewTask(&createVMTask{f, c, false})
+	task := NewTask(&createVM{f, c, false})
 
 	r.Res = &types.CreateVM_TaskResponse{
 		Returnval: task.Self,
@@ -287,13 +295,13 @@ func (f *Folder) CreateVMTask(c *types.CreateVM_Task) soap.HasFault {
 	return r
 }
 
-type registerVMTask struct {
+type registerVM struct {
 	*Folder
 
 	req *types.RegisterVM_Task
 }
 
-func (c *registerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+func (c *registerVM) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	if c.req.AsTemplate {
 		return nil, &types.NotSupported{}
 	}
@@ -327,7 +335,7 @@ func (c *registerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) 
 		c.req.Name = path.Dir(p.Path)
 	}
 
-	create := NewTask(&createVMTask{
+	create := NewTask(&createVM{
 		Folder:   c.Folder,
 		register: true,
 		req: &types.CreateVM_Task{
@@ -355,7 +363,7 @@ func (c *registerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) 
 func (f *Folder) RegisterVMTask(c *types.RegisterVM_Task) soap.HasFault {
 	r := &methods.RegisterVM_TaskBody{}
 
-	task := NewTask(&registerVMTask{f, c})
+	task := NewTask(&registerVM{f, c})
 
 	r.Res = &types.RegisterVM_TaskResponse{
 		Returnval: task.Self,

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 		NewLicenseManager(*s.Content.LicenseManager),
 		NewSearchIndex(*s.Content.SearchIndex),
 		NewViewManager(*s.Content.ViewManager),
+		NewTaskManager(*s.Content.TaskManager),
 	}
 
 	for _, o := range objects {

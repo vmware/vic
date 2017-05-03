@@ -533,3 +533,76 @@ func TestVolumeCreate(t *testing.T) {
 		return
 	}
 }
+
+func TestParseUIDAndGID(t *testing.T) {
+	positiveCases := []url.URL{
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=1234&gid=5678",
+			Path:     "/test/path",
+		},
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=00000000000000&gid=00000000000000000000000000",
+			Path:     "/test/path",
+		},
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=321321321&gid=123123123",
+			Path:     "/test/path",
+		},
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=0&gid=0",
+			Path:     "/test/path",
+		},
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=&gid=",
+			Path:     "/test/path",
+		},
+	}
+
+	negativeCases := []url.URL{
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=Hello&gid=World",
+			Path:     "/test/path",
+		},
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=ASKJHG#!@#LJK$&gid=!@#$$%#@@!",
+			Path:     "/test/path",
+		},
+		{
+			Scheme:   "nfs",
+			Host:     "testURL",
+			RawQuery: "uid=9999999999999999999999999999999999999999999999999&gid=7777777777777777777777777777777777777777777777777777777",
+			Path:     "/test/path",
+		},
+	}
+
+	for _, v := range positiveCases {
+
+		testUID, testGID, err := parseUIDAndGID(&v)
+		assert.Nil(t, err, v.String())
+		assert.NotEqual(t, -1, testUID, v.String())
+		assert.NotEqual(t, -1, testGID, v.String())
+	}
+
+	for _, v := range negativeCases {
+		testUID, testGID, err := parseUIDAndGID(&v)
+		assert.NotNil(t, err, v.String())
+		assert.Equal(t, -1, testUID, v.String())
+		assert.Equal(t, -1, testGID, v.String())
+
+	}
+
+}

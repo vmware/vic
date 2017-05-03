@@ -60,6 +60,7 @@ func NewVolumeStore(op trace.Operation, storeName string, mount MountServer) (*V
 
 	target, err := mount.Mount(op)
 	if err != nil {
+		op.Errorf("error occurred while attempting to mount volumestore (%s). err: (%s)", storeName, err.Error())
 		return nil, err
 	}
 	defer mount.Unmount(op)

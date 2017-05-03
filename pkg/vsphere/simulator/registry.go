@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,22 +24,35 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
+// Map is the default Registry instance.
 var Map = NewRegistry()
 
-type Registry struct {
-	m       sync.Mutex
-	objects map[types.ManagedObjectReference]mo.Reference
-	counter int
+// RegisterObject interface supports callbacks when objects are added and removed from the Registry
+type RegisterObject interface {
+	mo.Reference
+	PutObject(mo.Reference)
+	RemoveObject(types.ManagedObjectReference)
 }
 
+// Registry manages a map of mo.Reference objects
+type Registry struct {
+	m        sync.Mutex
+	objects  map[types.ManagedObjectReference]mo.Reference
+	handlers map[types.ManagedObjectReference]RegisterObject
+	counter  int
+}
+
+// NewRegistry creates a new instances of Registry
 func NewRegistry() *Registry {
 	r := &Registry{
-		objects: make(map[types.ManagedObjectReference]mo.Reference),
+		objects:  make(map[types.ManagedObjectReference]mo.Reference),
+		handlers: make(map[types.ManagedObjectReference]RegisterObject),
 	}
 
 	return r
 }
 
+// TypeName returns the type of the given object.
 func TypeName(item mo.Reference) string {
 	return reflect.TypeOf(item).Elem().Name()
 }
@@ -61,6 +74,11 @@ func (r *Registry) newReference(item mo.Reference) types.ManagedObjectReference 
 	return ref
 }
 
+// AddHandler adds a RegisterObject handler to the Registry.
+func (r *Registry) AddHandler(h RegisterObject) {
+	r.handlers[h.Reference()] = h
+}
+
 // NewEntity sets Entity().Self with a new, unique Value.
 // Useful for creating object instances from templates.
 func (r *Registry) NewEntity(item mo.Entity) mo.Entity {
@@ -70,6 +88,7 @@ func (r *Registry) NewEntity(item mo.Entity) mo.Entity {
 	return item
 }
 
+// PutEntity sets item.Parent to that of parent.Self before adding item to the Registry.
 func (r *Registry) PutEntity(parent mo.Entity, item mo.Entity) mo.Entity {
 	e := item.Entity()
 
@@ -82,6 +101,7 @@ func (r *Registry) PutEntity(parent mo.Entity, item mo.Entity) mo.Entity {
 	return item
 }
 
+// Get returns the object for the given reference.
 func (r *Registry) Get(ref types.ManagedObjectReference) mo.Reference {
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -103,6 +123,7 @@ func (r *Registry) Any(kind string) mo.Entity {
 	return nil
 }
 
+// Put adds a new object to Registry, generating a ManagedObjectReference if not already set.
 func (r *Registry) Put(item mo.Reference) mo.Reference {
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -116,14 +137,24 @@ func (r *Registry) Put(item mo.Reference) mo.Reference {
 
 	r.objects[ref] = item
 
+	for _, h := range r.handlers {
+		h.PutObject(item)
+	}
+
 	return item
 }
 
+// Remove removes an object from the Registry.
 func (r *Registry) Remove(item types.ManagedObjectReference) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
+	for _, h := range r.handlers {
+		h.RemoveObject(item)
+	}
+
 	delete(r.objects, item)
+	delete(r.handlers, item)
 }
 
 // getEntityParent traverses up the inventory and returns the first object of type kind.

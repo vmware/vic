@@ -185,8 +185,8 @@ func ucFirst(s string) string {
 type retrieveResult struct {
 	*types.RetrieveResult
 	req       *types.RetrievePropertiesEx
-	recurse   map[string]bool
 	collected map[types.ManagedObjectReference]bool
+	specs     map[string]*types.TraversalSpec
 }
 
 func (rr *retrieveResult) collectAll(rval reflect.Value, rtype reflect.Type, content *types.ObjectContent) {
@@ -212,8 +212,7 @@ func (rr *retrieveResult) collectAll(rval reflect.Value, rtype reflect.Type, con
 	}
 }
 
-func (rr *retrieveResult) collectFields(rval reflect.Value, fields []string, content *types.ObjectContent) []types.ManagedObjectReference {
-	var refs []types.ManagedObjectReference
+func (rr *retrieveResult) collectFields(rval reflect.Value, fields []string, content *types.ObjectContent) {
 	seen := make(map[string]bool)
 
 	for i := range content.PropSet {
@@ -230,10 +229,6 @@ func (rr *retrieveResult) collectFields(rval reflect.Value, fields []string, con
 
 		val, err := fieldValue(rval, name)
 		if err == nil {
-			if rr.recurse[name] {
-				refs = append(refs, fieldRefs(val)...)
-			}
-
 			prop := types.DynamicProperty{
 				Name: name,
 				Val:  val,
@@ -255,8 +250,6 @@ func (rr *retrieveResult) collectFields(rval reflect.Value, fields []string, con
 			})
 		}
 	}
-
-	return refs
 }
 
 func (rr *retrieveResult) collect(ref types.ManagedObjectReference) {
@@ -277,8 +270,6 @@ func (rr *retrieveResult) collect(ref types.ManagedObjectReference) {
 
 	rtype := rval.Type()
 
-	var refs []types.ManagedObjectReference
-
 	for _, spec := range rr.req.SpecSet {
 		for _, p := range spec.PropSet {
 			if p.Type != ref.Type {
@@ -295,16 +286,54 @@ func (rr *retrieveResult) collect(ref types.ManagedObjectReference) {
 				continue
 			}
 
-			refs = append(refs, rr.collectFields(rval, p.PathSet, &content)...)
+			rr.collectFields(rval, p.PathSet, &content)
 		}
 	}
 
-	rr.Objects = append(rr.Objects, content)
-	rr.collected[ref] = true
-
-	for _, rref := range refs {
-		rr.collect(rref)
+	if len(content.PropSet) != 0 || len(content.MissingSet) != 0 {
+		rr.Objects = append(rr.Objects, content)
 	}
+
+	rr.collected[ref] = true
+}
+
+func (rr *retrieveResult) selectSet(obj reflect.Value, s []types.BaseSelectionSpec, refs *[]types.ManagedObjectReference) types.BaseMethodFault {
+	for _, ss := range s {
+		ts, ok := ss.(*types.TraversalSpec)
+
+		if ok {
+			if ts.Name != "" {
+				rr.specs[ts.Name] = ts
+			}
+		}
+	}
+
+	for _, ss := range s {
+		ts, ok := ss.(*types.TraversalSpec)
+		if !ok {
+			ts = rr.specs[ss.GetSelectionSpec().Name]
+			if ts == nil {
+				return &types.InvalidArgument{InvalidProperty: "undefined TraversalSpec name"}
+			}
+		}
+
+		f, _ := fieldValue(obj, ts.Path)
+
+		for _, ref := range fieldRefs(f) {
+			if isFalse(ts.Skip) {
+				*refs = append(*refs, ref)
+			}
+
+			rval, ok := getObject(ref)
+			if ok {
+				if err := rr.selectSet(rval, ts.SelectSet, refs); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (pc *PropertyCollector) collect(r *types.RetrievePropertiesEx) (*types.RetrieveResult, types.BaseMethodFault) {
@@ -313,8 +342,8 @@ func (pc *PropertyCollector) collect(r *types.RetrievePropertiesEx) (*types.Retr
 	rr := &retrieveResult{
 		RetrieveResult: &types.RetrieveResult{},
 		req:            r,
-		recurse:        make(map[string]bool),
 		collected:      make(map[types.ManagedObjectReference]bool),
+		specs:          make(map[string]*types.TraversalSpec),
 	}
 
 	// Select object references
@@ -333,16 +362,8 @@ func (pc *PropertyCollector) collect(r *types.RetrievePropertiesEx) (*types.Retr
 				refs = append(refs, o.Obj)
 			}
 
-			for _, ss := range o.SelectSet {
-				ts := ss.(*types.TraversalSpec)
-
-				if ts.SelectSet != nil {
-					rr.recurse[ts.Path] = true
-				}
-
-				f, _ := fieldValue(rval, ts.Path)
-
-				refs = append(refs, fieldRefs(f)...)
+			if err := rr.selectSet(rval, o.SelectSet, &refs); err != nil {
+				return nil, err
 			}
 		}
 	}

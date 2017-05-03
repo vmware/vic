@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,43 +62,35 @@ func (f *FileManager) fault(name string, err error, fault types.BaseFileFault) t
 	return fault.(types.BaseMethodFault)
 }
 
-type deleteDatastoreFileTask struct {
-	*FileManager
-
-	req *types.DeleteDatastoreFile_Task
-}
-
-func (s *deleteDatastoreFileTask) Run(Task *Task) (types.AnyType, types.BaseMethodFault) {
-	p, fault := parseDatastorePath(s.req.Name)
-	if fault != nil {
-		return nil, fault
-	}
-
-	ds, fault := s.findDatastore(s.req.Datacenter, p.Datastore)
-	if fault != nil {
-		return nil, fault
-	}
-
-	dir := ds.Info.GetDatastoreInfo().Url
-	file := path.Join(dir, p.Path)
-
-	_, err := os.Stat(file)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, s.fault(file, err, new(types.CannotDeleteFile))
-		}
-	}
-
-	err = os.RemoveAll(file)
-	if err != nil {
-		return nil, s.fault(file, err, new(types.CannotDeleteFile))
-	}
-
-	return nil, nil
-}
-
 func (f *FileManager) DeleteDatastoreFileTask(d *types.DeleteDatastoreFile_Task) soap.HasFault {
-	task := NewTask(&deleteDatastoreFileTask{f, d})
+	task := CreateTask(f, "deleteDatastoreFile", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		p, fault := parseDatastorePath(d.Name)
+		if fault != nil {
+			return nil, fault
+		}
+
+		ds, fault := f.findDatastore(d.Datacenter, p.Datastore)
+		if fault != nil {
+			return nil, fault
+		}
+
+		dir := ds.Info.GetDatastoreInfo().Url
+		file := path.Join(dir, p.Path)
+
+		_, err := os.Stat(file)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, f.fault(file, err, new(types.CannotDeleteFile))
+			}
+		}
+
+		err = os.RemoveAll(file)
+		if err != nil {
+			return nil, f.fault(file, err, new(types.CannotDeleteFile))
+		}
+
+		return nil, nil
+	})
 
 	task.Run()
 
@@ -142,60 +134,52 @@ func (f *FileManager) MakeDirectory(r *types.MakeDirectory) soap.HasFault {
 	return body
 }
 
-type moveDatastoreFileTask struct {
-	*FileManager
+func (f *FileManager) MoveDatastoreFileTask(d *types.MoveDatastoreFile_Task) soap.HasFault {
+	task := CreateTask(f, "moveDatastoreFile", func(t *Task) (types.AnyType, types.BaseMethodFault) {
+		src, fault := parseDatastorePath(d.SourceName)
+		if fault != nil {
+			return nil, fault
+		}
 
-	req *types.MoveDatastoreFile_Task
-}
+		srcDs, fault := f.findDatastore(d.SourceDatacenter, src.Datastore)
+		if fault != nil {
+			return nil, fault
+		}
 
-func (s *moveDatastoreFileTask) Run(Task *Task) (types.AnyType, types.BaseMethodFault) {
-	src, fault := parseDatastorePath(s.req.SourceName)
-	if fault != nil {
-		return nil, fault
-	}
+		srcDir := srcDs.Info.GetDatastoreInfo().Url
+		srcFile := path.Join(srcDir, src.Path)
 
-	srcDs, fault := s.findDatastore(s.req.SourceDatacenter, src.Datastore)
-	if fault != nil {
-		return nil, fault
-	}
+		dst, fault := parseDatastorePath(d.DestinationName)
+		if fault != nil {
+			return nil, fault
+		}
 
-	srcDir := srcDs.Info.GetDatastoreInfo().Url
-	srcFile := path.Join(srcDir, src.Path)
+		dstDs, fault := f.findDatastore(d.DestinationDatacenter, dst.Datastore)
+		if fault != nil {
+			return nil, fault
+		}
 
-	dst, fault := parseDatastorePath(s.req.DestinationName)
-	if fault != nil {
-		return nil, fault
-	}
+		dstDir := dstDs.Info.GetDatastoreInfo().Url
+		dstFile := path.Join(dstDir, dst.Path)
 
-	dstDs, fault := s.findDatastore(s.req.DestinationDatacenter, dst.Datastore)
-	if fault != nil {
-		return nil, fault
-	}
-
-	dstDir := dstDs.Info.GetDatastoreInfo().Url
-	dstFile := path.Join(dstDir, dst.Path)
-
-	if !isTrue(s.req.Force) {
-		_, err := os.Stat(dstFile)
-		if err == nil {
-			return nil, &types.FileAlreadyExists{
-				FileFault: types.FileFault{
-					File: dstFile,
-				},
+		if !isTrue(d.Force) {
+			_, err := os.Stat(dstFile)
+			if err == nil {
+				return nil, &types.FileAlreadyExists{
+					FileFault: types.FileFault{
+						File: dstFile,
+					},
+				}
 			}
 		}
-	}
 
-	err := os.Rename(srcFile, dstFile)
-	if err != nil {
-		return nil, s.fault(srcFile, err, new(types.CannotAccessFile))
-	}
+		err := os.Rename(srcFile, dstFile)
+		if err != nil {
+			return nil, f.fault(srcFile, err, new(types.CannotAccessFile))
+		}
 
-	return nil, nil
-}
-
-func (f *FileManager) MoveDatastoreFileTask(d *types.MoveDatastoreFile_Task) soap.HasFault {
-	task := NewTask(&moveDatastoreFileTask{f, d})
+		return nil, nil
+	})
 
 	task.Run()
 

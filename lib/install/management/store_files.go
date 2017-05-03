@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/store"
@@ -35,6 +36,7 @@ import (
 
 const (
 	volumeRoot = "volumes"
+	dsScheme   = "ds"
 )
 
 func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
@@ -265,6 +267,13 @@ func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostD
 func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 	for _, url := range conf.VolumeLocations {
+
+		// NFS volumestores need only make it into the config of the vch
+		if url.Scheme != dsScheme {
+			log.Debugf("Skipping nfs volume store for vic-machine creation operation : (%s)", url.String())
+			continue
+		}
+
 		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
 		if err != nil {
 			return errors.Errorf("Could not retrieve datastore with host %q due to error %s", url.Host, err)
@@ -294,16 +303,29 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 			return 0
 		}
 
-		volumeStores := new(bytes.Buffer)
+		dsVolumeStores := new(bytes.Buffer)
+		nfsVolumeStores := new(bytes.Buffer)
 		for label, url := range conf.VolumeLocations {
-			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+			switch url.Scheme {
+			case common.DsScheme:
+				dsVolumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+			case common.NfsScheme:
+				nfsVolumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+			}
 		}
-		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI or supplied nfs targets to delete content you do not wish to keep.\n vsphere volumestores:\n%s\n NFS volumestores:\n%s\n", dsVolumeStores.String(), nfsVolumeStores.String())
 		return 0
 	}
 
 	log.Infoln("Removing volume stores")
 	for label, url := range conf.VolumeLocations {
+
+		// NOTE: We cannot remove nfs VolumeStores at vic-machine delete time. We are not guaranteed to be on the correct network for any of the nfs stores.
+		if url.Scheme != dsScheme {
+			log.Warnf("Cannot delete VolumeStore (%s). It may not be reachable by vic-machine and has been skipped by the delete process.", url.String())
+			continue
+		}
+
 		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
 		dsURL, err := datastore.ToURL(url.Path)
 		if err != nil {
