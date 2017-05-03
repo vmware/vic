@@ -103,15 +103,6 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 	return base
 }
 
-// VMReference will provide the vSphere vm managed object reference
-func (c *containerBase) VMReference() types.ManagedObjectReference {
-	var moref types.ManagedObjectReference
-	if c.vm != nil {
-		moref = c.vm.Reference()
-	}
-	return moref
-}
-
 // unlocked refresh of container state
 func (c *containerBase) refresh(ctx context.Context) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
@@ -168,8 +159,8 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 
 func (c *containerBase) ReloadConfig(ctx context.Context) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
-	return c.startGuestProgram(ctx, "reload", "")
+	_, err := c.startGuestProgram(ctx, "reload", "")
+	return err
 }
 
 // WaitForExec waits exec'ed task to set started field or timeout
@@ -186,17 +177,17 @@ func (c *containerBase) WaitForSession(ctx context.Context, id string) error {
 	return c.waitForSession(ctx, id)
 }
 
-func (c *containerBase) startGuestProgram(ctx context.Context, name string, args string) error {
+func (c *containerBase) startGuestProgram(ctx context.Context, name string, args string) (int64, error) {
 	// make sure we have vm
 	if c.vm == nil {
-		return NotYetExistError{c.ExecConfig.ID}
+		return 0, NotYetExistError{c.ExecConfig.ID}
 	}
 
 	defer trace.End(trace.Begin(c.ExecConfig.ID + ":" + name))
 	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
 	m, err := o.ProcessManager(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	spec := types.GuestProgramSpec{
@@ -208,9 +199,7 @@ func (c *containerBase) startGuestProgram(ctx context.Context, name string, args
 		Username: c.ExecConfig.ID,
 	}
 
-	_, err = m.StartProgram(ctx, &auth, &spec)
-
-	return err
+	return m.StartProgram(ctx, &auth, &spec)
 }
 
 func (c *containerBase) start(ctx context.Context) error {
@@ -233,7 +222,16 @@ func (c *containerBase) start(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
 	defer cancel()
 
-	return c.waitForSession(ctx, c.ExecConfig.ID)
+	// wait for all sessions started
+	for k, s := range c.ExecConfig.Sessions {
+		if s.Active {
+			if err := c.waitForSession(ctx, k); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
@@ -265,7 +263,7 @@ func (c *containerBase) kill(ctx context.Context) error {
 	sig := string(ssh.SIGKILL)
 	log.Infof("sending kill -%s %s", sig, c.ExecConfig.ID)
 
-	err := c.startGuestProgram(ctx, "kill", sig)
+	_, err := c.startGuestProgram(ctx, "kill", sig)
 	if err == nil {
 		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
 		timeout, err := c.waitForPowerState(ctx, wait, types.VirtualMachinePowerStatePoweredOff)
@@ -308,7 +306,7 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
 		log.Info(msg)
 
-		err := c.startGuestProgram(ctx, "kill", sig)
+		_, err := c.startGuestProgram(ctx, "kill", sig)
 		if err != nil {
 			return fmt.Errorf("%s: %s", msg, err)
 		}
@@ -391,18 +389,9 @@ func (c *containerBase) waitForPowerState(ctx context.Context, max time.Duration
 func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id))
 
-	// wait for all sessions started
-	for k, s := range c.ExecConfig.Sessions {
-		if s.Active {
-			// guestinfo key that we want to wait for
-			key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", k), c.ConfigPrefix)[0]
-			if err := c.waitFor(ctx, key); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	// guestinfo key that we want to wait for
+	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), c.ConfigPrefix)[0]
+	return c.waitFor(ctx, key)
 }
 
 func (c *containerBase) waitForExec(ctx context.Context, id string) error {
@@ -424,11 +413,4 @@ func (c *containerBase) waitFor(ctx context.Context, key string) error {
 	}
 
 	return nil
-}
-
-// VMFolder returns container VM folder in datastore
-// TODO: Expose VM properties here is because VCH management logic is not part of portlayer handlers yet
-// This method can be removed after portlayer handlers support VCH management
-func (c *containerBase) VMFolder(ctx context.Context) (string, error) {
-	return c.vm.FolderName(ctx)
 }

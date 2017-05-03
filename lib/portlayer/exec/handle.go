@@ -340,3 +340,12 @@ func Create(ctx context.Context, vmomiSession *session.Session, conf *ContainerC
 
 	return h, nil
 }
+
+// VMReference will provide the vSphere vm managed object reference
+func (h *Handle) VMReference() types.ManagedObjectReference {
+	var moref types.ManagedObjectReference
+	if h.vm != nil {
+		moref = h.vm.Reference()
+	}
+	return moref
+}

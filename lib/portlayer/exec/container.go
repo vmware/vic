@@ -396,8 +396,16 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	if num == int64(syscall.SIGKILL) {
 		return c.containerBase.kill(ctx)
 	}
+	_, err := c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
+	return err
+}
 
-	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
+func (c *Container) StartGuestProgram(ctx context.Context, cmd, args string) (int64, error) {
+	if c.vm == nil {
+		return 0, fmt.Errorf("vm not set")
+	}
+
+	return c.startGuestProgram(ctx, cmd, args)
 }
 
 func (c *Container) onStop() {
@@ -544,6 +552,20 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	publishContainerEvent(c.ExecConfig.ID, time.Now(), events.ContainerRemoved)
 
 	return nil
+}
+
+// VMFolder returns container VM folder in datastore
+// TODO: Expose VM properties here is because VCH management logic is not part of portlayer handlers yet
+// This method can be removed after portlayer handlers support VCH management
+func (c *Container) VMFolder(ctx context.Context) (string, error) {
+	return c.vm.FolderName(ctx)
+}
+
+// VMExtraConfig returns container VM extra config
+// TODO: Expose VM properties here is because VCH management logic is not part of portlayer handlers yet
+// This method can be removed after portlayer handlers support VCH management
+func (c *Container) VMExtraConfig(ctx context.Context) (map[string]string, error) {
+	return c.vm.FetchExtraConfig(ctx)
 }
 
 // eventedState will determine the target container
