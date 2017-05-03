@@ -48,9 +48,8 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 		return nil, err
 	}
 
-	var scsi types.VirtualSCSIController
 	// SCSI controller
-	scsi = spec.NewVirtualSCSIController(scsiBusNumber, scsiKey)
+	scsi := spec.NewVirtualSCSIController(scsiBusNumber, scsiKey)
 	// PV SCSI controller
 	pv := spec.NewParaVirtualSCSIController(scsi)
 	s.AddParaVirtualSCSIController(pv)

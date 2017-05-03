@@ -42,7 +42,6 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/portlayer/constants"
-	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -88,8 +87,6 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	if remoteConf.ExecutorConfig.ID == vm.Reference().String() || remoteConf.IsCreating() {
 		return true, nil
 	}
-	log.Infof("vm id: %s", vm.Reference().String())
-	log.Infof("config id: %s", remoteConf.ExecutorConfig.ID)
 	return false, nil
 }
 
@@ -266,7 +263,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	// set VCH ID to CreatingVCH-poolid-vchname to make sure it's unique, so container cache will not override
 	//  other creating VCH in commit, and this id will be updated to vm mobref after VM is created
 	// using CreatingVCH as prefix is to make vic-machine delete works
-	creatingID := fmt.Sprintf("%s-%s-%s", config.CreatingVCH, exec.Config.ResourcePool.Reference().Value, conf.Name)
+	if d.vchVapp != nil {
+
+	}
+	creatingID := fmt.Sprintf("%s-%s-%s", config.CreatingVCH, d.vchPool.Reference().Value, conf.Name)
 	conf.ExecutorConfig.ID = creatingID
 
 	h, err := d.pl.CreateVchHandle(d.ctx, &conf.ExecutorConfig, settings.ApplianceSize.CPU.Limit, settings.ApplianceSize.Memory.Limit)
@@ -331,7 +331,6 @@ func (d *Dispatcher) reconfigureAppliance(conf *config.VirtualContainerHostConfi
 	if h, err = d.pl.UpdateExtraConfig(h, extraData); err != nil {
 		return err
 	}
-	//TODO: remove oldapplianceiso variable, createappliance and related code
 	return d.pl.Commit(d.ctx, h)
 }
 

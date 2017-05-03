@@ -71,7 +71,7 @@ func (pl *Client) SetParentResources(vApp *object.VirtualApp, pool *object.Resou
 	}
 }
 
-// CreateVchHandle returns portlayer create container handle, this handle should be used to reconfigure and commit
+// CreateVchHandle returns portlayer create container handle, before commit, all changes happen in memory only
 func (pl *Client) CreateVchHandle(ctx context.Context, conf *executor.ExecutorConfig, cpu, memory int64) (interface{}, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -137,6 +137,7 @@ func (pl *Client) AddTask(ctx context.Context, h interface{}, t *executor.Sessio
 	return task.Bind(&op, handleprime, t.ID)
 }
 
+// Network portlayer did lots of management for container network scopes, so leverage that is not easy atm. This is to modify network device directly.
 func (pl *Client) AddNetworks(ctx context.Context, h interface{}, networks map[string]*executor.NetworkEndpoint) (interface{}, error) {
 	handle, ok := h.(*exec.Handle)
 	if !ok {
@@ -244,25 +245,7 @@ func (pl *Client) UpdateApplianceISOFiles(h interface{}, newFile string) (interf
 	cd, err := devices.FindCdrom("")
 	if err != nil {
 		log.Errorf("Failed to get CD rom device from appliance: %s", err)
-		//		return handle, err
-		ide, err := devices.FindIDEController("")
-		if err != nil {
-			log.Errorf("Failed to find IDE controller for appliance: %s", err)
-			return nil, err
-		}
-		cdrom, err := devices.CreateCdrom(ide)
-		if err != nil {
-			log.Errorf("Failed to create Cdrom device for appliance: %s", err)
-			return nil, err
-		}
-		cdrom = devices.InsertIso(cdrom, newFile)
-
-		config := &types.VirtualDeviceConfigSpec{
-			Device:    cdrom,
-			Operation: types.VirtualDeviceConfigSpecOperationAdd,
-		}
-		handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
-		return handle, nil
+		return handle, err
 	}
 
 	oldApplianceISO := cd.Backing.(*types.VirtualCdromIsoBackingInfo).FileName
