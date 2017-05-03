@@ -24,9 +24,9 @@ network_address=$(ovfenv --key network.ip0)
 network_conf_file=/etc/systemd/network/09-vic.network
 
 # Set hostname
-[[ x$fqdn != "x" ]] && ( hostnamectl set-hostname $fqdn )
+[[ x$fqdn != "x" ]] && [[ x$fqdn != "xnull" ]] && ( hostnamectl set-hostname $fqdn )
 
-if [[ x$network_address != "x" ]]; then
+if [[ x$network_address != "x" ]] && [[ x$network_address != "xnull" ]]; then
   # If IP is configured via OVF environment, we create a file for systemd-networkd to parse
   network_cidr=$(mask2cdr $(ovfenv --key network.netmask0))
 
