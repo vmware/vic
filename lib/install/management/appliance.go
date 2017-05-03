@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -59,6 +60,9 @@ const (
 
 	// this is generated in the crypto/tls.alert code
 	badTLSCertificate = "tls: bad certificate"
+
+	// This is a constant also used in the lib/apiservers/engine/backends/system.go to assign custom info the docker types.info struct
+	volumeStoresID = "VolumeStores"
 )
 
 var (
@@ -716,7 +720,7 @@ func (d *Dispatcher) waitForKey(key string) {
 }
 
 // isPortLayerRunning decodes the `docker info` response to check if the portlayer is running
-func isPortLayerRunning(res *http.Response) bool {
+func isPortLayerRunning(res *http.Response, conf *config.VirtualContainerHostConfigSpec) bool {
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -729,13 +733,48 @@ func isPortLayerRunning(res *http.Response) bool {
 		log.Debugf("error while unmarshalling res body: %s", err.Error())
 		return false
 	}
+	// At this point the portlayer is up successfully. However, we need to report the Volume Stores that were not created successfully.
+	volumeStoresLine := ""
+
+	for _, value := range sysInfo.SystemStatus {
+		if value[0] == volumeStoresID {
+			log.Debugf("Portlayer has established volume stores (%s)", value[1])
+			volumeStoresLine = value[1]
+			break
+		}
+	}
+
+	allVolumeStoresPresent := confirmVolumeStores(conf, volumeStoresLine)
+	if !allVolumeStoresPresent {
+		log.Warn("Some Volume Stores that were specified were not successfully created, Please check the above output for more information. More Information on failed volume store targets can also be found in the portlayer logs found at the vic admin endpoint.")
+	}
 
 	for _, status := range sysInfo.SystemStatus {
 		if status[0] == sysInfo.Driver {
 			return status[1] == "RUNNING"
 		}
 	}
+
 	return false
+}
+
+// confirmVolumeStores is a helper function that will log and warn the vic-machine user if some of their volumestores did not present in the portlayer
+func confirmVolumeStores(conf *config.VirtualContainerHostConfigSpec, rawVolumeStores string) bool {
+	establishedVolumeStores := make(map[string]struct{})
+
+	splitStores := strings.Split(rawVolumeStores, " ")
+	for _, v := range splitStores {
+		establishedVolumeStores[v] = struct{}{}
+	}
+
+	result := true
+	for k := range conf.VolumeLocations {
+		if _, ok := establishedVolumeStores[k]; !ok {
+			log.Warnf("VolumeStore (%s) specified was not able to be established in the portlayer. Please check network and nfs server configurations.", k)
+			result = false
+		}
+	}
+	return result
 }
 
 // CheckDockerAPI checks if the appliance components are initialized by issuing
@@ -849,7 +888,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 		res, err = client.Do(req)
 		if err == nil {
 			if res.StatusCode == http.StatusOK {
-				if isPortLayerRunning(res) {
+				if isPortLayerRunning(res, conf) {
 					log.Debug("Confirmed port layer is operational")
 					break
 				}

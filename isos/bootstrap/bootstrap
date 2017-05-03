@@ -14,7 +14,8 @@ drivers=("vmxnet3" \
 	"nf_conntrack_ipv4" \
 	"nf_defrag_ipv4" \
 	"ipt_REJECT"\
-	"nf_reject_ipv4")
+	"nf_reject_ipv4"\
+	"nfsv3")
 
 for i in ${drivers[@]}; do
     /usr/sbin/modprobe $i
