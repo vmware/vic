@@ -130,6 +130,7 @@ Connectivity Bridge to Public
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
+    # this container will listen on :8000 and we're passing the -p option to the VCH so it should be exposed
     Log To Console  Creating public container.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network -p 8000 --name p1 busybox nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
@@ -142,6 +143,7 @@ Connectivity Bridge to Public
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
+    # nc is listening, but since we didn't pass the -p flag to docker, the port should not be exposed.
     Log To Console  Creating public container with no ports exposed.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p2 busybox nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
@@ -154,7 +156,7 @@ Connectivity Bridge to Public
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge busybox nc ${ip} 8000
     Should Not Be Equal As Integers  ${rc}  0
 
-    Log To Console  Ping test succeeded.
+    Log To Console  Port connection test from bridge to public networks succeeded.
 
     Cleanup VIC Appliance On Test Server
 
