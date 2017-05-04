@@ -134,11 +134,6 @@ Connectivity Bridge to Public
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network -p 8000 --name p1 busybox nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
-    Log To Console  Starting public container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start p1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
-
     Log To Console  Getting IP for public container
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
@@ -151,11 +146,6 @@ Connectivity Bridge to Public
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p2 busybox nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
-    Log To Console  Starting public container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start p2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
-
     Log To Console  Getting IP for public container
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p2
 
@@ -163,7 +153,6 @@ Connectivity Bridge to Public
     Log To Console  Connecting to container on external network from container bridged network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge busybox nc ${ip} 8000
     Should Not Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
 
     Log To Console  Ping test succeeded.
 
