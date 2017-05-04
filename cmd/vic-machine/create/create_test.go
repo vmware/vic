@@ -260,3 +260,41 @@ func TestParseGatewaySpec(t *testing.T) {
 		}
 	}
 }
+
+func TestProcessVolumeStoreParam(t *testing.T) {
+	positiveTestCases := []string{
+		"nfs://Shared.Volumes.Org/path/to/store:nfs-volumes",
+		"ds://vsphere.target.here/:root-path",
+		"no.scheme.target:/with/path:ds-store",
+		"looooooooooooooooooooooooooooooong.hoooooooooooooooooooooooooooooooost/short/path:long-check",
+		"nfs://0.0.0.0/ip/check:simple-target",
+		"nfs://prod.shared.storage/vch_prod/volumes:test-label",
+		"ds://0.0.0.0/ip/check?myArg=simple&complex=anotherArg:simple-target:test-label",
+	}
+
+	negativeTestCases := []string{
+		"ds://vsphere.rocks.com/no/label/here",
+		"junk-text-%^()!@#:with-label",
+		"junk-text-%^()!@#-no-label",
+		":no-text",
+		"no-label:",
+		"no-label/with/path",
+	}
+
+	for _, v := range positiveTestCases {
+		target, rawString, label, err := processVolumeStoreParam(v)
+
+		assert.NotNil(t, target, v)
+		assert.NotEqual(t, "", rawString, v)
+		assert.NotEqual(t, "", label, v)
+		assert.Nil(t, err, v)
+	}
+
+	for _, v := range negativeTestCases {
+		target, _, _, err := processVolumeStoreParam(v)
+
+		// here "" is possible for rawString and label so we check for err and nil target.
+		assert.Nil(t, target, v)
+		assert.NotNil(t, err, v)
+	}
+}

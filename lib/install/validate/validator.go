@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -559,6 +560,10 @@ func (v *Validator) getAllDatastores(ctx context.Context, conf *config.VirtualCo
 		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
 	}
 	for _, u := range conf.VolumeLocations {
+		//skip non datastore volume stores
+		if u.Scheme != common.DsScheme {
+			continue
+		}
 		datastoreSet = v.getDatastore(ctx, u, datastoreSet)
 	}
 	return datastoreSet

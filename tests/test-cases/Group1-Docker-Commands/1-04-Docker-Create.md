@@ -41,6 +41,7 @@ This test requires that a vSphere server is running and available
 28. Create a container with a custom amount of Memory in Bytes
 29. Create a container using a rest api call without HostConfig in the form data
 30. Create a container, then check the vm display name in vsphere through govc
+31. Create a container, then check the vm Destroy_Task method is disabled in VC through govc
 
 #Expected Outcome:
 * Steps 3-7 should all return without error and printing the container ID on return
@@ -57,6 +58,7 @@ This test requires that a vSphere server is running and available
 * Steps 24-28 should return without error.
 * Step 29 should return without error.
 * Step 30 should show that the VM display name equals to containerName-containerShortID and datastore folder name equal to containerID
+* Step 31 should show that the VM Destroy_Task method is disabled in VC
 
 #Possible Problems:
 None

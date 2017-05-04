@@ -588,3 +588,29 @@ func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) e
 
 	return err
 }
+
+// DisableDestroy attempts to disable the VirtualMachine.Destroy_Task method.
+// When the method is disabled, the VC UI will disable/grey out the VM "delete" action.
+// Requires the "Global.Disable" VC privilege.
+// The VirtualMachine.Destroy_Task method can still be invoked via the API.
+func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
+	if !vm.IsVC() {
+		return
+	}
+
+	m := object.NewAuthorizationManager(vm.Vim25())
+
+	method := []object.DisabledMethodRequest{
+		{
+			Method: "Destroy_Task",
+			Reason: "Managed by VIC Engine",
+		},
+	}
+
+	obj := []types.ManagedObjectReference{vm.Reference()}
+
+	err := m.DisableMethods(ctx, obj, method, "VIC")
+	if err != nil {
+		log.Warnf("failed to disable method %s for %s: %s", method[0].Method, obj[0], err)
+	}
+}
