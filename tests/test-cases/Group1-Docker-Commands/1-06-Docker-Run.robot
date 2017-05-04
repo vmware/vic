@@ -113,7 +113,7 @@ Docker run verify container start and stop time
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${cmdStart}=  Run  date +%s
-    Sleep  1
+    Sleep  3
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop busybox
     Should Be Equal As Integers  ${rc}  0
     Should Be Empty  ${output}
