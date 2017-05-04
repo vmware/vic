@@ -47,6 +47,7 @@ import (
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -71,6 +72,8 @@ var (
 )
 
 func init() {
+	trace.Logger = log.StandardLogger()
+
 	pprof.StartPprof("docker personality", pprof.DockerPort)
 
 	flag.Usage = Usage

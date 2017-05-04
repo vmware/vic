@@ -28,6 +28,7 @@ import (
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/logmgr"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )
@@ -37,6 +38,10 @@ var (
 	config     ExecutorConfig
 	debugLevel int
 )
+
+func init() {
+	trace.Logger = log.StandardLogger()
+}
 
 func main() {
 	defer func() {

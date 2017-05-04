@@ -105,6 +105,8 @@ type logfile struct {
 }
 
 func Init() {
+	trace.Logger = log.StandardLogger()
+
 	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	defer trace.End(trace.Begin(""))

@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/vspc"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var (
@@ -42,6 +43,8 @@ var (
 )
 
 func init() {
+	trace.Logger = log.StandardLogger()
+
 	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
