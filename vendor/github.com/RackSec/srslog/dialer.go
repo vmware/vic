@@ -65,7 +65,7 @@ func (w *Writer) tlsDialer() (serverConn, string, error) {
 	if err == nil {
 		sc = &netConn{conn: c}
 		if hostname == "" {
-			hostname = c.LocalAddr().String()
+			hostname = hostFromAddr(c.LocalAddr())
 		}
 	}
 	return sc, hostname, err
@@ -80,8 +80,17 @@ func (w *Writer) basicDialer() (serverConn, string, error) {
 	if err == nil {
 		sc = &netConn{conn: c}
 		if hostname == "" {
-			hostname = c.LocalAddr().String()
+			hostname = hostFromAddr(c.LocalAddr())
 		}
 	}
 	return sc, hostname, err
+}
+
+func hostFromAddr(addr net.Addr) string {
+	h, _, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return addr.String()
+	}
+
+	return h
 }

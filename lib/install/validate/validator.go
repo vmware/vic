@@ -667,16 +667,11 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *data.Data) {
 	defer trace.End(trace.Begin(""))
 
-	if len(input.SyslogConfig.Addr) == 0 {
+	if input.SyslogConfig.Addr == nil {
 		return
 	}
 
-	u, err := url.Parse(input.SyslogConfig.Addr)
-	if err != nil {
-		v.NoteIssue(err)
-		return
-	}
-
+	u := input.SyslogConfig.Addr
 	network := u.Scheme
 	if len(network) == 0 {
 		v.NoteIssue(errors.New("syslog address does not have network specified"))
