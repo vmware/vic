@@ -82,6 +82,8 @@ type Diagnostics struct {
 	// restartable entities
 	ExitLogs []ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
 
+	// SyslogConfig holds configuration for connecting to a syslog
+	// server
 	SysLogConfig *SysLogConfig `vic:"0.1" scope:"read-only" key:"syslog"`
 }
 
