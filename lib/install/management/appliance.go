@@ -584,7 +584,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	},
 	)
 
-	conf.AddComponent("port-layer", &executor.SessionConfig{
+	cfg := &executor.SessionConfig{
 		Cmd: executor.Cmd{
 			Path: "/sbin/port-layer-server",
 			Args: []string{
@@ -603,8 +603,12 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		},
 		Restart: true,
 		Active:  true,
-	},
-	)
+	}
+	if conf.Diagnostics.SysLogConfig != nil {
+		cfg.Cmd.Env = append(cfg.Cmd.Env, "SYSLOG_ADDR="+conf.Diagnostics.SysLogConfig.Proto+"://"+conf.Diagnostics.SysLogConfig.RAddr)
+	}
+
+	conf.AddComponent("port-layer", cfg)
 
 	// fix up those parts of the config that depend on the final applianceVM folder name
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)

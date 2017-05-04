@@ -15,20 +15,24 @@
 package main
 
 import (
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/loads"
 	"github.com/jessevdk/go-flags"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
+	ploptions "github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/dns"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/vspc"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/log/syslog"
 )
 
 var (
@@ -38,8 +42,6 @@ var (
 )
 
 func init() {
-	log.SetFormatter(viclog.NewTextFormatter())
-
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)
@@ -61,9 +63,6 @@ func init() {
 		}
 	}
 
-}
-
-func main() {
 	if _, err := parser.Parse(); err != nil {
 		if err := err.(*flags.Error); err != nil && err.Type == flags.ErrHelp {
 			os.Exit(0)
@@ -71,6 +70,32 @@ func main() {
 
 		os.Exit(1)
 	}
+
+	logcfg := viclog.NewLoggingConfig()
+	if ploptions.PortLayerOptions.Debug {
+		logcfg.Level = log.DebugLevel
+	}
+
+	if ploptions.PortLayerOptions.SyslogAddr != nil {
+		u, err := url.Parse(*ploptions.PortLayerOptions.SyslogAddr)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		logcfg.Syslog = &syslog.SyslogConfig{
+			Network:   u.Scheme,
+			RAddr:     u.Host,
+			Tag:       "vic-port-layer",
+			Priority:  srslog.LOG_INFO,
+			Formatter: syslog.RFC3164,
+		}
+	}
+
+	log.Infof("%+v", *logcfg)
+	viclog.Init(logcfg)
+}
+
+func main() {
 
 	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 

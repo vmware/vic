@@ -106,7 +106,6 @@ func Init() {
 	log.SetFormatter(viclog.NewTextFormatter())
 
 	defer trace.End(trace.Begin(""))
-	trace.Logger.Level = log.DebugLevel
 	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	// We don't want to run this as root.
