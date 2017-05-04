@@ -32,18 +32,20 @@ import (
 
 	"context"
 
+	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"github.com/vmware/govmomi"
-	"github.com/vmware/govmomi/vim25/soap"
 	vchconfig "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/certificate"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -103,10 +105,35 @@ type logfile struct {
 }
 
 func Init() {
-	log.SetFormatter(viclog.NewTextFormatter())
+	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	defer trace.End(trace.Begin(""))
-	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
+
+	// load the vch config
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Errorf("Unable to load configuration from guestinfo")
+		return
+	}
+
+	extraconfig.Decode(src, &vchConfig)
+
+	logcfg := viclog.NewLoggingConfig()
+	if vchConfig.Diagnostics.DebugLevel > 0 {
+		logcfg.Level = log.DebugLevel
+	}
+
+	if vchConfig.Diagnostics.SysLogConfig != nil {
+		logcfg.Syslog = &syslog.SyslogConfig{
+			Network:   vchConfig.Diagnostics.SysLogConfig.Network,
+			RAddr:     vchConfig.Diagnostics.SysLogConfig.RAddr,
+			Tag:       "vic-admin",
+			Priority:  srslog.LOG_INFO,
+			Formatter: syslog.RFC3164,
+		}
+	}
+
+	viclog.Init(logcfg)
 
 	// We don't want to run this as root.
 	ud := syscall.Getuid()
@@ -126,14 +153,6 @@ func Init() {
 	flag.StringVar(&rootConfig.ClusterPath, "cluster", "", "Path of the cluster")
 	flag.StringVar(&rootConfig.PoolPath, "pool", "", "Path of the resource pool")
 
-	// load the vch config
-	src, err := extraconfig.GuestInfoSource()
-	if err != nil {
-		log.Errorf("Unable to load configuration from guestinfo")
-		return
-	}
-
-	extraconfig.Decode(src, &vchConfig)
 	if vchConfig.HostCertificate == nil {
 		log.Infoln("--no-tls is enabled on the personality")
 		rootConfig.serverCert = &serverCertificate{}

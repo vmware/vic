@@ -86,7 +86,7 @@ func main() {
 
 	if config.Diagnostics.SysLogConfig != nil {
 		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   config.Diagnostics.SysLogConfig.Proto,
+			Network:   config.Diagnostics.SysLogConfig.Network,
 			RAddr:     config.Diagnostics.SysLogConfig.RAddr,
 			Tag:       "vic-init",
 			Priority:  srslog.LOG_INFO,

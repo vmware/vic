@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/api/server/middleware"
@@ -40,7 +41,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 
-	"github.com/RackSec/srslog"
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/executor"
 	"github.com/vmware/vic/lib/config"
@@ -147,7 +147,7 @@ func initLogging() error {
 
 	if vchConfig.Diagnostics.SysLogConfig != nil {
 		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   vchConfig.Diagnostics.SysLogConfig.Proto,
+			Network:   vchConfig.Diagnostics.SysLogConfig.Network,
 			RAddr:     vchConfig.Diagnostics.SysLogConfig.RAddr,
 			Tag:       "vic-docker",
 			Formatter: syslog.RFC3164,

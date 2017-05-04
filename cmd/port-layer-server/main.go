@@ -42,6 +42,8 @@ var (
 )
 
 func init() {
+	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
+
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)
@@ -96,8 +98,6 @@ func init() {
 }
 
 func main() {
-
-	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	server.ConfigureAPI()
 

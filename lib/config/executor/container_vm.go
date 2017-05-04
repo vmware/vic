@@ -87,9 +87,10 @@ type Diagnostics struct {
 	SysLogConfig *SysLogConfig `vic:"0.1" scope:"read-only" key:"syslog"`
 }
 
+// SyslogConfig holds the configuration necessary to connect to a syslog server
 type SysLogConfig struct {
-	// Proto can be udp or tcp
-	Proto string
+	// Network can be udp, tcp, udp6, or tcp6
+	Network string
 	// RAddr is the remote address of the syslog endpoint
 	RAddr string
 }

@@ -677,19 +677,19 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 		return
 	}
 
-	proto := u.Scheme
-	if len(proto) == 0 {
-		v.NoteIssue(errors.New("syslog address does not have protocol specified"))
+	network := u.Scheme
+	if len(network) == 0 {
+		v.NoteIssue(errors.New("syslog address does not have network specified"))
 		return
 	}
 
-	switch proto {
+	switch network {
 	case "udp":
 	case "tcp":
 	case "tcp6":
 	case "udp6":
 	default:
-		v.NoteIssue(fmt.Errorf("syslog address transport should be udp or tcp"))
+		v.NoteIssue(fmt.Errorf("syslog address transport should be udp, tcp, udp6, or tcp6"))
 		return
 	}
 
@@ -704,7 +704,7 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 	}
 
 	conf.Diagnostics.SysLogConfig = &executor.SysLogConfig{
-		Proto: proto,
-		RAddr: host,
+		Network: network,
+		RAddr:   host,
 	}
 }
