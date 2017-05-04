@@ -12,8 +12,7 @@ group_defaults:
 groups:
   contributors:
     required: 2
-    users:
-      - all
+    users: all
 
   tether:
     users:
