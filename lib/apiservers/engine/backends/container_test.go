@@ -332,8 +332,9 @@ func (m *MockContainerProxy) State(vc *viccontainer.VicContainer) (*types.Contai
 	return state, nil
 }
 
-func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
-	return 0, "", "", nil
+func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error) {
+	dockerState := &types.ContainerState{ExitCode: 0}
+	return dockerState, nil
 }
 
 func (m *MockContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
