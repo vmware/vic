@@ -193,4 +193,14 @@ Create a container and check the VM display name and datastore folder name
     ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Run And Return Rc And Output  govc datastore.ls | grep ${id}
     Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Contain  ${output}  ${id}
-    
+
+Create disables VC destroy
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${id}=  Get VM display name  ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${id} | jq .VirtualMachines[].DisabledMethod
+    Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  Destroy_Task
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  Destroy_Task

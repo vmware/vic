@@ -512,6 +512,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 	vm2 := vm.NewVirtualMachineFromVM(d.ctx, d.session, gvm)
 
+	vm2.DisableDestroy(d.ctx)
+
 	// update the displayname to the actual folder name used
 	if d.vmPathName, err = vm2.FolderName(d.ctx); err != nil {
 		log.Errorf("Failed to get canonical name for appliance: %s", err)
