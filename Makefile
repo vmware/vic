@@ -399,7 +399,7 @@ $(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
 VICUI_SOURCE_PATH = "ui/vic-ui"
 VICUI_H5_UI_PATH = "ui/vic-ui-h5c/vic"
 VICUI_H5_SERVICE_PATH = "ui/vic-ui-h5c/vic-service"
-GCP_DOWNLOAD_PATH = "https://storage.cloud.google.com/vic-engine-builds/"
+GCP_DOWNLOAD_PATH = "https://storage.googleapis.com/vic-engine-builds/"
 SDK_PACKAGE_ARCHIVE = "vic-ui-sdk.tar.gz"
 UI_INSTALLER_WIN_UTILS_ARCHIVE = "vic-installation-utils-win.tgz"
 UI_INSTALLER_WIN_PATH = "ui/installer/vCenterForWindows"
