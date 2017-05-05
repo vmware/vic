@@ -679,12 +679,9 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 	}
 
 	switch network {
-	case "udp":
-	case "tcp":
-	case "tcp6":
-	case "udp6":
+	case "udp", "tcp":
 	default:
-		v.NoteIssue(fmt.Errorf("syslog address transport should be udp, tcp, udp6, or tcp6"))
+		v.NoteIssue(fmt.Errorf("syslog address transport should be udp or tcp"))
 		return
 	}
 
