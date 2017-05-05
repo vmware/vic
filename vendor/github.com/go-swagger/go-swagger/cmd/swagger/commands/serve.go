@@ -48,13 +48,10 @@ func (s *ServeCmd) Execute(args []string) error {
 
 	basePath := s.BasePath
 	if basePath == "" {
-		basePath = s.BasePath
-	}
-	if basePath == "" {
 		basePath = "/"
 	}
 
-	listener, err := net.Listen("tcp", net.JoinHostPort(s.Host, strconv.Itoa(s.Port)))
+	listener, err := net.Listen("tcp4", net.JoinHostPort(s.Host, strconv.Itoa(s.Port)))
 	if err != nil {
 		return err
 	}
@@ -103,7 +100,7 @@ func (s *ServeCmd) Execute(args []string) error {
 	}()
 
 	if !s.NoOpen && !s.NoUI {
-		webbrowser.Open(visit)
+		_ = webbrowser.Open(visit)
 	}
 	log.Println("serving docs at", visit)
 	return <-errFuture

@@ -23,8 +23,8 @@ import (
 	"sort"
 
 	"github.com/go-openapi/analysis"
-	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/loads"
+	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/swag"
 )
 
@@ -54,6 +54,11 @@ func GenerateClient(name string, modelNames, operationIDs []string, opts *GenOpt
 	// Validate if needed
 	if opts.ValidateSpec {
 		if err = validateSpec(opts.Spec, specDoc); err != nil {
+			return err
+		}
+		// Restore spec to original
+		opts.Spec, specDoc, err = loadSpec(opts.Spec)
+		if err != nil {
 			return err
 		}
 	}

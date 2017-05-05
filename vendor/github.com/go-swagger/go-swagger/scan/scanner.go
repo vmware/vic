@@ -19,19 +19,18 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	goparser "go/parser"
 	"log"
 	"os"
 	"regexp"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
-
-	"golang.org/x/tools/go/loader"
-
 	"github.com/go-openapi/loads/fmts"
 	"github.com/go-openapi/spec"
 	"github.com/go-openapi/swag"
+	"golang.org/x/tools/go/loader"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -59,18 +58,18 @@ const (
 )
 
 var (
-	rxSwaggerAnnotation  = regexp.MustCompile("swagger:([\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)")
-	rxMeta               = regexp.MustCompile("swagger:meta")
-	rxFileUpload         = regexp.MustCompile("swagger:file")
-	rxStrFmt             = regexp.MustCompile("swagger:strfmt\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)$")
-	rxName               = regexp.MustCompile("swagger:name\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\.]+)$")
-	rxAllOf              = regexp.MustCompile("swagger:allOf\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\.]+)?$")
-	rxModelOverride      = regexp.MustCompile("swagger:model\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)?$")
-	rxDiscriminated      = regexp.MustCompile("swagger:discriminated\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\p{Zs}]+)$")
-	rxResponseOverride   = regexp.MustCompile("swagger:response\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)?$")
-	rxParametersOverride = regexp.MustCompile("swagger:parameters\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\p{Zs}]+)$")
-	rxEnum               = regexp.MustCompile("swagger:enum\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)$")
-	rxDefault            = regexp.MustCompile("swagger:default\\p{Zs}*(\\p{L}[\\p{L}\\p{N}\\p{Pd}\\p{Pc}]+)$")
+	rxSwaggerAnnotation  = regexp.MustCompile(`swagger:([\p{L}\p{N}\p{Pd}\p{Pc}]+)`)
+	rxMeta               = regexp.MustCompile(`swagger:meta`)
+	rxFileUpload         = regexp.MustCompile(`swagger:file`)
+	rxStrFmt             = regexp.MustCompile(`swagger:strfmt\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)$`)
+	rxName               = regexp.MustCompile(`swagger:name\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}\.]+)$`)
+	rxAllOf              = regexp.MustCompile(`swagger:allOf\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}\.]+)?$`)
+	rxModelOverride      = regexp.MustCompile(`swagger:model\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
+	rxDiscriminated      = regexp.MustCompile(`swagger:discriminated\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}\p{Zs}]+)$`)
+	rxResponseOverride   = regexp.MustCompile(`swagger:response\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)?$`)
+	rxParametersOverride = regexp.MustCompile(`swagger:parameters\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}\p{Zs}]+)$`)
+	rxEnum               = regexp.MustCompile(`swagger:enum\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)$`)
+	rxDefault            = regexp.MustCompile(`swagger:default\p{Zs}*(\p{L}[\p{L}\p{N}\p{Pd}\p{Pc}]+)$`)
 	rxRoute              = regexp.MustCompile(
 		"swagger:route\\p{Zs}*" +
 			rxMethod +
@@ -80,7 +79,7 @@ var (
 			rxOpTags +
 			")?\\p{Zs}+" +
 			rxOpID + "\\p{Zs}*$")
-	rxBeginYAMLSpec    = regexp.MustCompile("---\\p{Zs}*$")
+	rxBeginYAMLSpec    = regexp.MustCompile(`---\p{Zs}*$`)
 	rxUncommentHeaders = regexp.MustCompile(`^[\p{Zs}\t/\*-]*`)
 	rxUncommentYAML    = regexp.MustCompile(`^[\p{Zs}\t]*/*`)
 	rxOperation        = regexp.MustCompile(
@@ -93,27 +92,30 @@ var (
 			")?\\p{Zs}+" +
 			rxOpID + "\\p{Zs}*$")
 
-	rxSpace              = regexp.MustCompile("\\p{Zs}+")
-	rxPunctuationEnd     = regexp.MustCompile("\\p{Po}$")
-	rxStripComments      = regexp.MustCompile("^[^\\p{L}\\p{N}\\p{Pd}\\p{Pc}\\+]*")
-	rxStripTitleComments = regexp.MustCompile("^[^\\p{L}]*[Pp]ackage\\p{Zs}+[^\\p{Zs}]+\\p{Zs}*")
+	rxSpace              = regexp.MustCompile(`\p{Zs}+`)
+	rxIndent             = regexp.MustCompile(`\p{Zs}*/*\p{Zs}*[^\p{Zs}]`)
+	rxPunctuationEnd     = regexp.MustCompile(`\p{Po}$`)
+	rxStripComments      = regexp.MustCompile(`^[^\p{L}\p{N}\p{Pd}\p{Pc}\+]*`)
+	rxStripTitleComments = regexp.MustCompile(`^[^\p{L}]*[Pp]ackage\p{Zs}+[^\p{Zs}]+\p{Zs}*`)
+	rxAllowedExtensions  = regexp.MustCompile(`^[Xx]-`)
 
-	rxIn              = regexp.MustCompile("[Ii]n\\p{Zs}*:\\p{Zs}*(query|path|header|body|formData)$")
-	rxRequired        = regexp.MustCompile("[Rr]equired\\p{Zs}*:\\p{Zs}*(true|false)$")
-	rxDiscriminator   = regexp.MustCompile("[Dd]iscriminator\\p{Zs}*:\\p{Zs}*(true|false)$")
-	rxReadOnly        = regexp.MustCompile("[Rr]ead(?:\\p{Zs}*|[\\p{Pd}\\p{Pc}])?[Oo]nly\\p{Zs}*:\\p{Zs}*(true|false)$")
-	rxConsumes        = regexp.MustCompile("[Cc]onsumes\\p{Zs}*:")
-	rxProduces        = regexp.MustCompile("[Pp]roduces\\p{Zs}*:")
-	rxSecuritySchemes = regexp.MustCompile("[Ss]ecurity\\p{Zs}*:")
-	rxSecurity        = regexp.MustCompile("[Ss]ecurity\\p{Zs}*[Dd]efinitions:")
-	rxResponses       = regexp.MustCompile("[Rr]esponses\\p{Zs}*:")
-	rxSchemes         = regexp.MustCompile("[Ss]chemes\\p{Zs}*:\\p{Zs}*((?:(?:https?|HTTPS?|wss?|WSS?)[\\p{Zs},]*)+)$")
-	rxVersion         = regexp.MustCompile("[Vv]ersion\\p{Zs}*:\\p{Zs}*(.+)$")
-	rxHost            = regexp.MustCompile("[Hh]ost\\p{Zs}*:\\p{Zs}*(.+)$")
-	rxBasePath        = regexp.MustCompile("[Bb]ase\\p{Zs}*-*[Pp]ath\\p{Zs}*:\\p{Zs}*" + rxPath + "$")
-	rxLicense         = regexp.MustCompile("[Ll]icense\\p{Zs}*:\\p{Zs}*(.+)$")
-	rxContact         = regexp.MustCompile("[Cc]ontact\\p{Zs}*-?(?:[Ii]info\\p{Zs}*)?:\\p{Zs}*(.+)$")
-	rxTOS             = regexp.MustCompile("[Tt](:?erms)?\\p{Zs}*-?[Oo]f?\\p{Zs}*-?[Ss](?:ervice)?\\p{Zs}*:")
+	rxIn              = regexp.MustCompile(`[Ii]n\p{Zs}*:\p{Zs}*(query|path|header|body|formData)$`)
+	rxRequired        = regexp.MustCompile(`[Rr]equired\p{Zs}*:\p{Zs}*(true|false)$`)
+	rxDiscriminator   = regexp.MustCompile(`[Dd]iscriminator\p{Zs}*:\p{Zs}*(true|false)$`)
+	rxReadOnly        = regexp.MustCompile(`[Rr]ead(?:\p{Zs}*|[\p{Pd}\p{Pc}])?[Oo]nly\p{Zs}*:\p{Zs}*(true|false)$`)
+	rxConsumes        = regexp.MustCompile(`[Cc]onsumes\p{Zs}*:`)
+	rxProduces        = regexp.MustCompile(`[Pp]roduces\p{Zs}*:`)
+	rxSecuritySchemes = regexp.MustCompile(`[Ss]ecurity\p{Zs}*:`)
+	rxSecurity        = regexp.MustCompile(`[Ss]ecurity\p{Zs}*[Dd]efinitions:`)
+	rxResponses       = regexp.MustCompile(`[Rr]esponses\p{Zs}*:`)
+	rxSchemes         = regexp.MustCompile(`[Ss]chemes\p{Zs}*:\p{Zs}*((?:(?:https?|HTTPS?|wss?|WSS?)[\p{Zs},]*)+)$`)
+	rxVersion         = regexp.MustCompile(`[Vv]ersion\p{Zs}*:\p{Zs}*(.+)$`)
+	rxHost            = regexp.MustCompile(`[Hh]ost\p{Zs}*:\p{Zs}*(.+)$`)
+	rxBasePath        = regexp.MustCompile(`[Bb]ase\p{Zs}*-*[Pp]ath\p{Zs}*:\p{Zs}*` + rxPath + "$")
+	rxLicense         = regexp.MustCompile(`[Ll]icense\p{Zs}*:\p{Zs}*(.+)$`)
+	rxContact         = regexp.MustCompile(`[Cc]ontact\p{Zs}*-?(?:[Ii]info\p{Zs}*)?:\p{Zs}*(.+)$`)
+	rxTOS             = regexp.MustCompile(`[Tt](:?erms)?\p{Zs}*-?[Oo]f?\p{Zs}*-?[Ss](?:ervice)?\p{Zs}*:`)
+	rxExtensions      = regexp.MustCompile(`[Ee]xtensions\p{Zs}*:`)
 )
 
 // Many thanks go to https://github.com/yvasiyarov/swagger
@@ -148,6 +150,7 @@ type Opts struct {
 	BasePath   string
 	Input      *spec.Swagger
 	ScanModels bool
+	BuildTags  string
 }
 
 func safeConvert(str string) bool {
@@ -199,6 +202,10 @@ func newAppScanner(opts *Opts, includes, excludes packageFilters) (*appScanner, 
 	var ldr loader.Config
 	ldr.ParserMode = goparser.ParseComments
 	ldr.ImportWithTests(opts.BasePath)
+	if opts.BuildTags != "" {
+		ldr.Build = &build.Default
+		ldr.Build.BuildTags = strings.Split(opts.BuildTags, ",")
+	}
 	prog, err := ldr.Load()
 	if err != nil {
 		return nil, err
@@ -218,6 +225,9 @@ func newAppScanner(opts *Opts, includes, excludes packageFilters) (*appScanner, 
 	}
 	if input.Responses == nil {
 		input.Responses = make(map[string]spec.Response)
+	}
+	if input.Extensions == nil {
+		input.Extensions = make(spec.Extensions)
 	}
 
 	return &appScanner{
@@ -375,10 +385,7 @@ func (a *appScanner) parseRoutes(file *ast.File) error {
 	rp.operations = a.operations
 	rp.definitions = a.definitions
 	rp.responses = a.responses
-	if err := rp.Parse(file, a.input.Paths); err != nil {
-		return err
-	}
-	return nil
+	return rp.Parse(file, a.input.Paths)
 }
 
 func (a *appScanner) parseOperations(file *ast.File) error {
@@ -386,10 +393,7 @@ func (a *appScanner) parseOperations(file *ast.File) error {
 	op.operations = a.operations
 	op.definitions = a.definitions
 	op.responses = a.responses
-	if err := op.Parse(file, a.input.Paths); err != nil {
-		return err
-	}
-	return nil
+	return op.Parse(file, a.input.Paths)
 }
 
 func (a *appScanner) parseParameters(file *ast.File) error {
@@ -529,7 +533,7 @@ type yamlSpecScanner struct {
 	skipHeader     bool
 }
 
-func cleanupScannerLines(lines []string, ur *regexp.Regexp) []string {
+func cleanupScannerLines(lines []string, ur *regexp.Regexp, yamlBlock *regexp.Regexp) []string {
 	// bail early when there is nothing to parse
 	if len(lines) == 0 {
 		return lines
@@ -537,7 +541,31 @@ func cleanupScannerLines(lines []string, ur *regexp.Regexp) []string {
 	seenLine := -1
 	var lastContent int
 	var uncommented []string
+	var startBlock bool
+	var yaml []string
 	for i, v := range lines {
+		if yamlBlock != nil && yamlBlock.MatchString(v) && !startBlock {
+			startBlock = true
+			if seenLine < 0 {
+				seenLine = i
+			}
+			continue
+		}
+		if startBlock {
+			if yamlBlock.MatchString(v) {
+				startBlock = false
+				uncommented = append(uncommented, removeIndent(yaml)...)
+				continue
+			}
+			yaml = append(yaml, v)
+			if v != "" {
+				if seenLine < 0 {
+					seenLine = i
+				}
+				lastContent = i
+			}
+			continue
+		}
 		str := ur.ReplaceAllString(v, "")
 		uncommented = append(uncommented, str)
 		if str != "" {
@@ -547,6 +575,7 @@ func cleanupScannerLines(lines []string, ur *regexp.Regexp) []string {
 			lastContent = i
 		}
 	}
+
 	// fixes issue #50
 	if seenLine == -1 {
 		return nil
@@ -557,7 +586,7 @@ func cleanupScannerLines(lines []string, ur *regexp.Regexp) []string {
 // a shared function that can be used to split given headers
 // into a title and description
 func collectScannerTitleDescription(headers []string) (title, desc []string) {
-	hdrs := cleanupScannerLines(headers, rxUncommentHeaders)
+	hdrs := cleanupScannerLines(headers, rxUncommentHeaders, nil)
 
 	idx := -1
 	for i, line := range hdrs {
@@ -595,7 +624,7 @@ func (sp *yamlSpecScanner) collectTitleDescription() {
 		return
 	}
 	if sp.setTitle == nil {
-		sp.header = cleanupScannerLines(sp.header, rxUncommentHeaders)
+		sp.header = cleanupScannerLines(sp.header, rxUncommentHeaders, nil)
 		return
 	}
 
@@ -649,12 +678,11 @@ COMMENTS:
 	if sp.setDescription != nil {
 		sp.setDescription(sp.Description())
 	}
-
 	return nil
 }
 
 func (sp *yamlSpecScanner) UnmarshalSpec(u func([]byte) error) (err error) {
-	spec := cleanupScannerLines(sp.yamlSpec, rxUncommentYAML)
+	spec := cleanupScannerLines(sp.yamlSpec, rxUncommentYAML, nil)
 	if len(spec) == 0 {
 		return errors.New("no spec available to unmarshal")
 	}
@@ -664,14 +692,7 @@ func (sp *yamlSpecScanner) UnmarshalSpec(u func([]byte) error) (err error) {
 	}
 
 	// remove indention
-	indentLength := strings.Index(spec[0], "-")
-	if indentLength > 0 {
-		for i := range spec {
-			if len(spec[i]) >= indentLength {
-				spec[i] = spec[i][indentLength:]
-			}
-		}
-	}
+	spec = removeIndent(spec)
 
 	// 1. parse yaml lines
 	yamlValue := make(map[interface{}]interface{})
@@ -705,6 +726,19 @@ func (sp *yamlSpecScanner) UnmarshalSpec(u func([]byte) error) (err error) {
 	return
 }
 
+// removes indent base on the first line
+func removeIndent(spec []string) []string {
+	loc := rxIndent.FindStringIndex(spec[0])
+	if loc[1] > 0 {
+		for i := range spec {
+			if len(spec[i]) >= loc[1] {
+				spec[i] = spec[i][loc[1]-1:]
+			}
+		}
+	}
+	return spec
+}
+
 // aggregates lines in header until it sees a tag.
 type sectionedParser struct {
 	header     []string
@@ -727,7 +761,7 @@ func (st *sectionedParser) collectTitleDescription() {
 		return
 	}
 	if st.setTitle == nil {
-		st.header = cleanupScannerLines(st.header, rxUncommentHeaders)
+		st.header = cleanupScannerLines(st.header, rxUncommentHeaders, nil)
 		return
 	}
 
@@ -757,7 +791,7 @@ COMMENTS:
 					break COMMENTS // a new swagger: annotation terminates this parser
 				}
 
-				st.annotation.Parse([]string{line})
+				_ = st.annotation.Parse([]string{line})
 				if len(st.header) > 0 {
 					st.seenTag = true
 				}
@@ -809,7 +843,7 @@ COMMENTS:
 		st.setDescription(st.Description())
 	}
 	for _, mt := range st.matched {
-		if err := mt.Parse(cleanupScannerLines(mt.Lines, rxUncommentHeaders)); err != nil {
+		if err := mt.Parse(cleanupScannerLines(mt.Lines, rxUncommentHeaders, rxBeginYAMLSpec)); err != nil {
 			return err
 		}
 	}

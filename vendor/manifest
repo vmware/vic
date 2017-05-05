@@ -394,7 +394,7 @@
 			"importpath": "github.com/go-openapi/analysis",
 			"repository": "https://github.com/go-openapi/analysis",
 			"vcs": "git",
-			"revision": "d5a75b7d751ca3f11ad5d93cfe97405f2c3f6a47",
+			"revision": "0473cb67199f68b8b7d90e641afd9e79ad36b851",
 			"branch": "master",
 			"notests": true
 		},
@@ -402,7 +402,7 @@
 			"importpath": "github.com/go-openapi/errors",
 			"repository": "https://github.com/go-openapi/errors",
 			"vcs": "git",
-			"revision": "fc3f73a224499b047eda7191e5d22e1e9631e86f",
+			"revision": "03cfca65330da08a5a440053faf994a3c682b5bf",
 			"branch": "master",
 			"notests": true
 		},
@@ -426,7 +426,7 @@
 			"importpath": "github.com/go-openapi/loads",
 			"repository": "https://github.com/go-openapi/loads",
 			"vcs": "git",
-			"revision": "6bb6486231e079ea125c0f39994ed3d0c53399ed",
+			"revision": "ad6217c63d9d12406790ee4acae2aaebd8dc63ec",
 			"branch": "master",
 			"notests": true
 		},
@@ -434,7 +434,7 @@
 			"importpath": "github.com/go-openapi/runtime",
 			"repository": "https://github.com/go-openapi/runtime",
 			"vcs": "git",
-			"revision": "3b13ebb46790d871d74a6c2450fa4b1280f90854",
+			"revision": "2e9e988df6c290425033bacd425e008950c96be6",
 			"branch": "master",
 			"notests": true
 		},
@@ -442,7 +442,7 @@
 			"importpath": "github.com/go-openapi/spec",
 			"repository": "https://github.com/go-openapi/spec",
 			"vcs": "git",
-			"revision": "e072eb2390d3a03736a6eb617d30f48369160447",
+			"revision": "e51c28f07047ad90caff03f6450908720d337e0c",
 			"branch": "master",
 			"notests": true
 		},
@@ -450,7 +450,7 @@
 			"importpath": "github.com/go-openapi/strfmt",
 			"repository": "https://github.com/go-openapi/strfmt",
 			"vcs": "git",
-			"revision": "0cb3db44c13bad3b3f567b762a66751972a310cc",
+			"revision": "93a31ef21ac23f317792fff78f9539219dd74619",
 			"branch": "master",
 			"notests": true
 		},
@@ -458,7 +458,7 @@
 			"importpath": "github.com/go-openapi/swag",
 			"repository": "https://github.com/go-openapi/swag",
 			"vcs": "git",
-			"revision": "96d7b9ebd181a1735a1c9ac87914f2b32fbf56c9",
+			"revision": "24ebf76d720bab64f62824d76bced3184a65490d",
 			"branch": "master",
 			"notests": true
 		},
@@ -474,7 +474,7 @@
 			"importpath": "github.com/go-swagger/go-swagger",
 			"repository": "https://github.com/go-swagger/go-swagger",
 			"vcs": "git",
-			"revision": "04e27555375e7d9a3251bfb35fcb9ae13cec99a1",
+			"revision": "09dfac7631af9732c7bc96408ba3037cc04576ae",
 			"branch": "master"
 		},
 		{
@@ -1350,6 +1350,24 @@
 			"vcs": "",
 			"revision": "31e6fd4bd5a98d8ee7673d24bc54ec73c31810dd",
 			"branch": "master"
+		},
+		{
+			"importpath": "gopkg.in/mgo.v2/bson",
+			"repository": "https://gopkg.in/mgo.v2",
+			"vcs": "git",
+			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
+			"branch": "v2",
+			"path": "/bson",
+			"notests": true
+		},
+		{
+			"importpath": "gopkg.in/mgo.v2/internal/json",
+			"repository": "https://gopkg.in/mgo.v2",
+			"vcs": "git",
+			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
+			"branch": "v2",
+			"path": "internal/json",
+			"notests": true
 		},
 		{
 			"importpath": "gopkg.in/tomb.v1",
