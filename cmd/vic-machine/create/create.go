@@ -17,7 +17,6 @@ package create
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding"
 	"fmt"
 	"io/ioutil"
@@ -1104,26 +1103,17 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 			log.Warnf("Unable to load client certificate - validation of API endpoint will be best effort only: %s", err)
 		}
 
-		clientCert, err := cpair.Certificate()
-		if err != nil || clientCert.Leaf == nil {
-			log.Debugf("Unable to parse client certificate: %s", err)
-			return certs, keypair, nil
-		}
-
-		pool := x509.NewCertPool()
-		if !pool.AppendCertsFromPEM(certs) {
-			log.Debugf("Unable to create CA pool to check client certificate")
-			return certs, keypair, nil
-		}
-
-		opts := x509.VerifyOptions{
-			Roots:     pool,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		}
-
-		_, err = clientCert.Leaf.Verify(opts)
+		clientCert, err := management.VerifyClientCert(certs, cpair)
 		if err != nil {
-			log.Warnf("Client certificate in certificate path does not validate with provided CA - continuing without client certificate")
+			switch err.(type) {
+			case management.CertParseError:
+				log.Debugf("Unable to parse client certificate: %s", err)
+			case management.CreateCAPoolError:
+				log.Debugf("Unable to create CA pool to check client certificate")
+			case management.CertVerifyError:
+				log.Warnf("Client certificate in certificate path does not validate with provided CA - continuing without client certificate")
+			}
+
 			return certs, keypair, nil
 		}
 

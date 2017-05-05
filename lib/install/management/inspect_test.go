@@ -38,14 +38,14 @@ func TestVerifyClientCert(t *testing.T) {
 		os.Remove(ClientKey)
 	}()
 
-	// Validate client certificate created with the right CA
-	err = verifyClientCert(cacert.Bytes(), ".")
+	// Validate client certificate keypair created with the right CA
+	_, err = VerifyClientCert(cacert.Bytes(), kp)
 	assert.NoError(t, err)
 
 	cacert, cakey, err = certificate.CreateRootCA("bar.com", []string{"BarOrg"}, 2048)
 	assert.NoError(t, err)
 
-	// Attempt to validate client certificate created with a different CA
-	err = verifyClientCert(cacert.Bytes(), ".")
+	// Attempt to validate client certificate keypair created with a different CA
+	_, err = VerifyClientCert(cacert.Bytes(), kp)
 	assert.NotNil(t, err)
 }

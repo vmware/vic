@@ -15,6 +15,7 @@
 package management
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
@@ -126,12 +127,20 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 
 		// Check if a valid client cert exists in one of possibleCertPaths
 		certPath = ""
-		for i := range possibleCertPaths {
-			if err = verifyClientCert(conf.CertificateAuthorities, possibleCertPaths[i]); err == nil {
-				certPath = possibleCertPaths[i]
+		for _, path := range possibleCertPaths {
+			certFile := filepath.Join(path, ClientCert)
+			keyFile := filepath.Join(path, ClientKey)
+			ckp := certificate.NewKeyPair(certFile, keyFile, nil, nil)
+			if err = ckp.LoadCertificate(); err != nil {
+				log.Debugf("Unable to load client cert in %s: %s", path, err)
+				continue
+			}
+
+			if _, err = VerifyClientCert(conf.CertificateAuthorities, ckp); err == nil {
+				certPath = path
 				break
 			} else {
-				log.Debugf("Unable to verify client cert in %s: %s", possibleCertPaths[i], err)
+				log.Debugf("Unable to verify client cert in %s: %s", path, err)
 			}
 		}
 	}
@@ -140,41 +149,31 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	return nil
 }
 
-// verifyClientCert checks whether the input path has a client cert that's valid for the VCH.
-func verifyClientCert(ca []byte, path string) error {
+// VerifyClientCert verifies the loaded client cert keypair against the input CA and
+// returns the certificate on success.
+func VerifyClientCert(ca []byte, ckp *certificate.KeyPair) (*tls.Certificate, error) {
 	var err error
 
-	certFile := filepath.Join(path, ClientCert)
-	keyFile := filepath.Join(path, ClientKey)
-	ckp := certificate.NewKeyPair(certFile, keyFile, nil, nil)
-	if err = ckp.LoadCertificate(); err != nil {
-		return err
-	}
-
-	rawCert := &config.RawCertificate{
-		Key:  ckp.KeyPEM,
-		Cert: ckp.CertPEM,
-	}
-	cert, err := rawCert.X509Certificate()
-	if err != nil {
-		return err
+	cert, err := ckp.Certificate()
+	if err != nil || cert.Leaf == nil {
+		return nil, CertParseError{msg: err.Error()}
 	}
 
 	// Add persisted CA to cert pool
-	pool, err := x509.SystemCertPool()
-	if err != nil {
-		log.Debugf("Failed to load system cert pool: %s. Using empty pool.", err)
-		pool = x509.NewCertPool()
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(ca) {
+		return nil, CreateCAPoolError{}
 	}
-	pool.AppendCertsFromPEM(ca)
 
 	opts := x509.VerifyOptions{
 		Roots:     pool,
 		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
-	_, err = cert.Verify(opts)
+	if _, err = cert.Leaf.Verify(opts); err != nil {
+		return nil, CertVerifyError{}
+	}
 
-	return err
+	return cert, nil
 }
 
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string, certpath string) {
