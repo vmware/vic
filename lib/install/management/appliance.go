@@ -263,10 +263,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	// set VCH ID to CreatingVCH-poolid-vchname to make sure it's unique, so container cache will not override
 	//  other creating VCH in commit, and this id will be updated to vm mobref after VM is created
 	// using CreatingVCH as prefix is to make vic-machine delete works
-	if d.vchVapp != nil {
-
-	}
-	creatingID := fmt.Sprintf("%s-%s-%s", config.CreatingVCH, d.vchPool.Reference().Value, conf.Name)
+	creatingID := fmt.Sprintf("%s-%s-%s", config.CreatingVCHPrefix, d.vchPool.Reference().Value, conf.Name)
 	conf.ExecutorConfig.ID = creatingID
 
 	h, err := d.pl.CreateVchHandle(d.ctx, &conf.ExecutorConfig, settings.ApplianceSize.CPU.Limit, settings.ApplianceSize.Memory.Limit)

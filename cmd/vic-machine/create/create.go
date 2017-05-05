@@ -1440,7 +1440,9 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		}
 	}()
 
-	logErr := func() {
+	// error will be checked in check service ready
+	executor.StartAppliance(ctx)
+	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
 		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert, c.certPath)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
@@ -1450,12 +1452,6 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 			log.Infof("\t\tRun %s inspect to find API connection command and run the command if ip address is ready", clic.App.Name)
 		}
 		log.Info("\t\tIf command succeeds, VCH is started. If command fails, VCH failed to install - see documentation for troubleshooting.")
-	}
-
-	// error will be checked in check service ready
-	executor.StartAppliance(ctx)
-	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
-		logErr()
 		return err
 	}
 

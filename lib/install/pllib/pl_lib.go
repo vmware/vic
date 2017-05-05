@@ -158,7 +158,7 @@ func (pl *Client) AddNetworks(ctx context.Context, h interface{}, networks map[s
 			continue
 		}
 
-		moref := new(types.ManagedObjectReference)
+		moref := &types.ManagedObjectReference{}
 		if ok := moref.FromString(endpoint.Network.ID); !ok {
 			return handle, errors.Errorf("serialized managed object reference in unexpected format: %q", endpoint.Network.ID)
 		}

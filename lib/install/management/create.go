@@ -46,10 +46,12 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return err
 	}
 
-	d.applianceID, err = d.createAppliance(conf, settings)
+	appID, err := d.createAppliance(conf, settings)
 	if err != nil {
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
+	d.applianceID = appID
+
 	// TODO: create image store
 	if err = d.createVolumeStores(conf); err != nil {
 		return errors.Errorf("Exiting because we could not create volume stores due to error: %s", err)
@@ -108,7 +110,7 @@ func (d *Dispatcher) StartAppliance(ctx context.Context) error {
 	var err error
 
 	if h = d.pl.NewHandle(ctx, d.applianceID); h == nil {
-		err = errors.Errorf("Unable to get handle %s: %s", d.applianceID, err)
+		err = errors.Errorf("Unable to get handle %s", d.applianceID)
 		return err
 	}
 
