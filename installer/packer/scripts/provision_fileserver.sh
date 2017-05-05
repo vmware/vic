@@ -14,7 +14,10 @@
 # limitations under the License.
 set -euf -o pipefail
 
-mkdir -p /etc/vmware/fileserver
+FILES_DIR="/opt/vmware/fileserver/files"
+
+mkdir -p /etc/vmware/fileserver  # Fileserver config scripts
+mkdir -p $FILES_DIR              # Files to serve
 
 [[ x$BUILD_VICENGINE_REVISION == "x" ]] && ( echo "VIC Engine build not set, failing"; exit 1 )
 
@@ -22,5 +25,5 @@ mkdir -p /etc/vmware/fileserver
 cd /var/tmp
 echo "Downloading VIC Engine ${BUILD_VICENGINE_REVISION}"
 curl -LO "https://storage.cloud.google.com/vic-engine-releases/vic_${BUILD_VICENGINE_REVISION}.tar.gz"
-tar xfz vic_${BUILD_VICENGINE_REVISION}.tar.gz -C /data/fileserver/files vic/ui/vsphere-client-serenity/com.vmware.vic.ui-v${BUILD_VICENGINE_REVISION}.zip vic/ui/plugin-packages/com.vmware.vic-v${BUILD_VICENGINE_REVISION}.zip --strip-components=3
-mv vic_${BUILD_VICENGINE_REVISION}.tar.gz /data/fileserver/files
+tar xfz vic_${BUILD_VICENGINE_REVISION}.tar.gz -C $FILES_DIR vic/ui/vsphere-client-serenity/com.vmware.vic.ui-v${BUILD_VICENGINE_REVISION}.zip vic/ui/plugin-packages/com.vmware.vic-v${BUILD_VICENGINE_REVISION}.zip --strip-components=3
+mv vic_${BUILD_VICENGINE_REVISION}.tar.gz $FILES_DIR
