@@ -16,3 +16,8 @@ This test requires that a vSphere server is running and available
 3. Run inspect for VCH1
 4. Using inspect result to run docker command
 5. Verify docker VM is created under correct VCH resource pool or Virtual App through govc
+6. Install VCH
+7. Issue vic-machine inspect --conf command
+
+#Expected Results
+Steps 6 and 7 should succeed, and output from step 7 should contain expected flags & values
