@@ -15,12 +15,15 @@
 package scan
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/go-openapi/loads/fmts"
 	"github.com/go-openapi/spec"
+	"gopkg.in/yaml.v2"
 )
 
 type validationBuilder interface {
@@ -500,7 +503,54 @@ func (ss *setSchemes) Parse(lines []string) error {
 	return nil
 }
 
-func newSetSecurityDefinitions(rx *regexp.Regexp, setter func([]map[string][]string)) *setSecurityDefinitions {
+func newYAMLBlockParser(rx *regexp.Regexp, setter func(interface{}) error) *yamlBlockParser {
+	return &yamlBlockParser{
+		set: setter,
+		rx:  rx,
+	}
+}
+
+type yamlBlockParser struct {
+	set func(interface{}) error
+	rx  *regexp.Regexp
+}
+
+func (se *yamlBlockParser) Matches(line string) bool {
+	return se.rx.MatchString(line)
+}
+
+func (se *yamlBlockParser) Parse(lines []string) error {
+	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
+		return nil
+	}
+
+	if lines[0] != "---" {
+		lines = append([]string{"---"}, lines...)
+	}
+
+	yamlContent := strings.Join(lines, "\n")
+	var yamlValue interface{}
+	err := yaml.Unmarshal([]byte(yamlContent), &yamlValue)
+	if err != nil {
+		return err
+	}
+
+	var jsonValue json.RawMessage
+	jsonValue, err = fmts.YAMLToJSON(yamlValue)
+	if err != nil {
+		return err
+	}
+
+	var jsonData interface{}
+	err = json.Unmarshal(jsonValue, &jsonData)
+	if err != nil {
+		return err
+	}
+
+	return se.set(jsonData)
+}
+
+func newSetSecurityDefinitions(rx *regexp.Regexp, setter func(spec.SecurityDefinitions)) *setSecurityDefinitions {
 	return &setSecurityDefinitions{
 		set: setter,
 		rx:  rx,
@@ -508,7 +558,7 @@ func newSetSecurityDefinitions(rx *regexp.Regexp, setter func([]map[string][]str
 }
 
 type setSecurityDefinitions struct {
-	set func([]map[string][]string)
+	set func(spec.SecurityDefinitions)
 	rx  *regexp.Regexp
 }
 
@@ -516,7 +566,149 @@ func (ss *setSecurityDefinitions) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
+var (
+	rxSecuritySchemeType          = regexp.MustCompile(`[Tt]ype\p{Zs}*:`)
+	rxSecuritySchemeName          = regexp.MustCompile(`[Nn]ame\p{Zs}*:`)
+	rxSecuritySchemeIn            = regexp.MustCompile(`[Ii]n\p{Zs}*:`)
+	rxSecuritySchemeFlow          = regexp.MustCompile(`[Ff]low\p{Zs}*:`)
+	rxSecuritySchemeDescription   = regexp.MustCompile(`[Dd]escription\p{Zs}*:`)
+	rxSecuritySchemeAuthorization = regexp.MustCompile(`[Aa]uthorizationUrl\p{Zs}*:`)
+	rxSecuritySchemeToken         = regexp.MustCompile(`[Tt]okenUrl\p{Zs}*:`)
+)
+
 func (ss *setSecurityDefinitions) Parse(lines []string) error {
+	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
+		return nil
+	}
+
+	result := spec.SecurityDefinitions{}
+	var scheme spec.SecurityScheme
+	var key string
+	var tp []tagParser
+	for i := 0; i < len(lines); i++ {
+		kv := strings.SplitN(lines[i], ":", 2)
+		if len(kv) <= 1 {
+			return fmt.Errorf("invalid format for securityDefinitions: %s", lines[i])
+		}
+
+		k, v := kv[0], strings.TrimSpace(kv[1])
+
+		if v == "" {
+			if key != "" {
+				result[key] = &scheme
+			}
+			scheme = spec.SecurityScheme{}
+			key = k
+			tp = []tagParser{
+				newSingleLineTagParser("type", newSetField(rxSecuritySchemeType, setSecuritySchemeType(&scheme))),
+				newSingleLineTagParser("name", newSetField(rxSecuritySchemeName, setSecuritySchemeName(&scheme))),
+				newSingleLineTagParser("in", newSetField(rxSecuritySchemeIn, setSecuritySchemeIn(&scheme))),
+				newSingleLineTagParser("flow", newSetField(rxSecuritySchemeFlow, setSecuritySchemeFlow(&scheme))),
+				newSingleLineTagParser("description", newSetField(rxSecuritySchemeDescription, setSecuritySchemeDescription(&scheme))),
+				newSingleLineTagParser("authorizationUrl", newSetField(rxSecuritySchemeAuthorization, setSecuritySchemeAuthorizationURL(&scheme))),
+				newSingleLineTagParser("tokenUrl", newSetField(rxSecuritySchemeToken, setSecuritySchemeTokenURL(&scheme))),
+			}
+			continue
+		} else {
+			for _, p := range tp {
+				if p.Matches(lines[i]) {
+					err := p.Parse([]string{lines[i]})
+					if err != nil {
+						return err
+					}
+					break
+				}
+			}
+		}
+	}
+	if _, ok := result[key]; !ok && key != "" {
+		result[key] = &scheme
+	}
+
+	ss.set(result)
+	return nil
+}
+
+func setSecuritySchemeType(scheme *spec.SecurityScheme) func(string) {
+	return func(val string) { scheme.Type = val }
+}
+
+func setSecuritySchemeName(scheme *spec.SecurityScheme) func(string) {
+	return func(val string) { scheme.Name = val }
+}
+
+func setSecuritySchemeIn(scheme *spec.SecurityScheme) func(string) {
+	return func(val string) { scheme.In = val }
+}
+
+func setSecuritySchemeFlow(scheme *spec.SecurityScheme) func(string) {
+	return func(val string) { scheme.Flow = val }
+}
+
+func setSecuritySchemeDescription(scheme *spec.SecurityScheme) func(string) {
+	return func(val string) { scheme.Description = val }
+}
+
+func setSecuritySchemeAuthorizationURL(scheme *spec.SecurityScheme) func(string) {
+	return func(val string) { scheme.AuthorizationURL = val }
+}
+
+func setSecuritySchemeTokenURL(scheme *spec.SecurityScheme) func(string) {
+	return func(val string) { scheme.TokenURL = val }
+}
+
+func newSetField(rx *regexp.Regexp, setter func(string)) *setField {
+	return &setField{
+		rx:  rx,
+		set: setter,
+	}
+}
+
+type setField struct {
+	set func(string)
+	rx  *regexp.Regexp
+}
+
+func (sf *setField) Matches(line string) bool {
+	return sf.rx.MatchString(line)
+}
+
+func (sf *setField) Parse(lines []string) error {
+	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
+		return nil
+	}
+
+	var value string
+	for _, line := range lines {
+		kv := strings.SplitN(line, ":", 2)
+		if len(kv) > 1 {
+			value = strings.TrimSpace(kv[1])
+			break
+		} else {
+			return fmt.Errorf("expecting `key: value`, got key only for string: %s", line)
+		}
+	}
+	sf.set(value)
+	return nil
+}
+
+func newSetSecurity(rx *regexp.Regexp, setter func([]map[string][]string)) *setSecurity {
+	return &setSecurity{
+		set: setter,
+		rx:  rx,
+	}
+}
+
+type setSecurity struct {
+	set func([]map[string][]string)
+	rx  *regexp.Regexp
+}
+
+func (ss *setSecurity) Matches(line string) bool {
+	return ss.rx.MatchString(line)
+}
+
+func (ss *setSecurity) Parse(lines []string) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -566,19 +758,18 @@ func (ss *setOpResponses) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
-//Tag used when specifying a response to point to a defined swagger:response
+//ResponseTag used when specifying a response to point to a defined swagger:response
 const ResponseTag = "response"
 
-//Tag used when specifying a response to point to a model/schema
+//BodyTag used when specifying a response to point to a model/schema
 const BodyTag = "body"
 
-//Tag used when specifying a response that gives a description of the response
+//DescriptionTag used when specifying a response that gives a description of the response
 const DescriptionTag = "description"
 
 func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef bool, description string, err error) {
 	tags := strings.Split(line, " ")
 	parsedModelOrResponse := false
-	parsedDescription := false
 
 	for i, tagAndValue := range tags {
 		tagValList := strings.SplitN(tagAndValue, ":", 2)
@@ -621,19 +812,16 @@ func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef
 			modelOrResponse = value
 		} else {
 			foundDescription := false
-			if !parsedDescription {
-				if tag == DescriptionTag {
-					foundDescription = true
-				}
+			if tag == DescriptionTag {
+				foundDescription = true
 			}
 			if foundDescription {
 				//Descriptions are special, they make they read the rest of the line
 				descriptionWords := []string{value}
 				if i < len(tags)-1 {
-					descriptionWords = append(descriptionWords, tags[i+1:len(tags)]...)
+					descriptionWords = append(descriptionWords, tags[i+1:]...)
 				}
 				description = strings.Join(descriptionWords, " ")
-				parsedDescription = true
 				break
 			} else {
 				if tag == ResponseTag || tag == BodyTag || tag == DescriptionTag {
@@ -647,7 +835,7 @@ func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef
 		}
 	}
 
-	//TODO: Maybe do, if !parsedModelOrResponse && !parsedDescription {return some error}
+	//TODO: Maybe do, if !parsedModelOrResponse {return some error}
 	return
 }
 

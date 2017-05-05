@@ -347,7 +347,7 @@ func (d *simpleDecDriver) decLen() int {
 		}
 		return int(ui)
 	}
-	d.d.errorf("decLen: Cannot read length: bd%8 must be in range 0..4. Got: %d", d.bd%8)
+	d.d.errorf("decLen: Cannot read length: bd%%8 must be in range 0..4. Got: %d", d.bd%8)
 	return -1
 }
 
@@ -372,7 +372,7 @@ func (d *simpleDecDriver) DecodeBytes(bs []byte, isstring, zerocopy bool) (bsOut
 			bs = d.b[:]
 		}
 	}
-	return decByteSlice(d.r, clen, bs)
+	return decByteSlice(d.r, clen, d.d.h.MaxInitLen, bs)
 }
 
 func (d *simpleDecDriver) DecodeExt(rv interface{}, xtag uint64, ext Ext) (realxtag uint64) {
@@ -510,7 +510,7 @@ func (h *SimpleHandle) newEncDriver(e *Encoder) encDriver {
 }
 
 func (h *SimpleHandle) newDecDriver(d *Decoder) decDriver {
-	return &simpleDecDriver{d: d, r: d.r, h: h, br: d.bytes}
+	return &simpleDecDriver{d: d, h: h, r: d.r, br: d.bytes}
 }
 
 func (e *simpleEncDriver) reset() {
@@ -518,7 +518,7 @@ func (e *simpleEncDriver) reset() {
 }
 
 func (d *simpleDecDriver) reset() {
-	d.r = d.d.r
+	d.r, d.br = d.d.r, d.d.bytes
 	d.bd, d.bdRead = 0, false
 }
 

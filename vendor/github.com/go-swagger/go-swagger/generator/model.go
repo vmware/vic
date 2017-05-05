@@ -252,14 +252,11 @@ func makeGenDefinitionHierarchy(name, pkg, container string, schema spec.Schema,
 
 	}
 
-	var defaultImports []string
-	if pg.GenSchema.HasValidations {
-		defaultImports = []string{
-			"github.com/go-openapi/errors",
-			"github.com/go-openapi/runtime",
-			"github.com/go-openapi/swag",
-			"github.com/go-openapi/validate",
-		}
+	defaultImports := []string{
+		"github.com/go-openapi/errors",
+		"github.com/go-openapi/runtime",
+		"github.com/go-openapi/swag",
+		"github.com/go-openapi/validate",
 	}
 	var extras []GenSchema
 	var extraKeys []string
@@ -417,7 +414,7 @@ func (sg *schemaGenContext) NewAdditionalItems(schema *spec.Schema) *schemaGenCo
 		pg.Path = pg.Path + "+ \".\" + strconv.Itoa(" + indexVar + mod + ")"
 	}
 	pg.IndexVar = indexVar
-	pg.ValueExpr = sg.ValueExpr + "." + swag.ToGoName(sg.Name) + "Items[" + indexVar + "]"
+	pg.ValueExpr = sg.ValueExpr + "." + sg.GoName() + "Items[" + indexVar + "]"
 	pg.Schema = spec.Schema{}
 	if schema != nil {
 		pg.Schema = *schema
@@ -455,7 +452,7 @@ func (sg *schemaGenContext) NewStructBranch(name string, schema spec.Schema) *sc
 		pg.Path = pg.Path + "+\".\"+" + fmt.Sprintf("%q", name)
 	}
 	pg.Name = name
-	pg.ValueExpr = pg.ValueExpr + "." + pascalize(name)
+	pg.ValueExpr = pg.ValueExpr + "." + pascalize(goName(&schema, name))
 	pg.Schema = schema
 	for _, fn := range sg.Schema.Required {
 		if name == fn {
@@ -697,7 +694,6 @@ func (sg *schemaGenContext) buildProperties() error {
 			var tn string
 			if gn, ok := emprop.Schema.Extensions["x-go-name"]; ok {
 				tn = gn.(string)
-				nm = tn
 			} else {
 				tn = swag.ToGoName(nm)
 			}
@@ -726,6 +722,10 @@ func (sg *schemaGenContext) buildProperties() error {
 			sg.GenSchema.HasBaseType = true
 		}
 		sg.MergeResult(emprop, false)
+
+		if customTag, found := emprop.Schema.Extensions["x-go-custom-tag"]; found {
+			emprop.GenSchema.CustomTag = customTag.(string)
+		}
 		sg.GenSchema.Properties = append(sg.GenSchema.Properties, emprop.GenSchema)
 	}
 	sort.Sort(sg.GenSchema.Properties)
@@ -748,8 +748,7 @@ func (sg *schemaGenContext) buildAllOf() error {
 			b, _ := json.MarshalIndent(sch, "", "  ")
 			log.Println("trying", string(b))
 		}
-		var comprop *schemaGenContext
-		comprop = sg.NewCompositionBranch(sch, i)
+		comprop := sg.NewCompositionBranch(sch, i)
 		if err := comprop.makeGenSchema(); err != nil {
 			return err
 		}
@@ -1285,11 +1284,15 @@ func (sg *schemaGenContext) buildAliased() error {
 }
 
 func (sg *schemaGenContext) GoName() string {
-	name, _ := sg.Schema.Extensions.GetString("x-go-name")
+	return goName(&sg.Schema, sg.Name)
+}
+
+func goName(sch *spec.Schema, orig string) string {
+	name, _ := sch.Extensions.GetString("x-go-name")
 	if name != "" {
 		return name
 	}
-	return sg.Name
+	return orig
 }
 
 func (sg *schemaGenContext) makeGenSchema() error {
@@ -1310,6 +1313,7 @@ func (sg *schemaGenContext) makeGenSchema() error {
 	sg.GenSchema.Location = body
 	sg.GenSchema.ValueExpression = sg.ValueExpr
 	sg.GenSchema.KeyVar = sg.KeyVar
+	sg.GenSchema.OriginalName = sg.Name
 	sg.GenSchema.Name = sg.GoName()
 	sg.GenSchema.Title = sg.Schema.Title
 	sg.GenSchema.Description = trimBOM(sg.Schema.Description)
