@@ -15,37 +15,35 @@
 package management
 
 import (
-	"os"
 	"testing"
-
-	"github.com/vmware/vic/pkg/certificate"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestVerifyClientCert(t *testing.T) {
-	cacert, cakey, err := certificate.CreateRootCA("foo.com", []string{"FooOrg"}, 2048)
-	assert.NoError(t, err)
+func TestFindCertPaths(t *testing.T) {
+	vchName := "vch-foo"
 
-	cert, key, err := certificate.CreateClientCertificate("foo.com", []string{"FooOrg"}, 2048, cacert.Bytes(), cakey.Bytes())
-	assert.NoError(t, err)
+	// NOTE: not checking for dockerConfPath since $HOME is dependent on the user
+	// running the test
+	possiblePaths := map[string]bool{
+		vchName: false,
+		".":     false,
+	}
 
-	kp := certificate.NewKeyPair(ClientCert, ClientKey, cert.Bytes(), key.Bytes())
-	err = kp.SaveCertificate()
-	assert.NoError(t, err)
-	defer func() {
-		os.Remove(ClientCert)
-		os.Remove(ClientKey)
-	}()
+	// Get paths when an input certPath is not specified
+	paths := findCertPaths(vchName, "")
+	assert.True(t, len(paths) >= 2)
+	for i := range paths {
+		possiblePaths[paths[i]] = true
+	}
+	assert.True(t, possiblePaths[vchName])
+	assert.True(t, possiblePaths["."])
 
-	// Validate client certificate keypair created with the right CA
-	_, err = VerifyClientCert(cacert.Bytes(), kp)
-	assert.NoError(t, err)
-
-	cacert, cakey, err = certificate.CreateRootCA("bar.com", []string{"BarOrg"}, 2048)
-	assert.NoError(t, err)
-
-	// Attempt to validate client certificate keypair created with a different CA
-	_, err = VerifyClientCert(cacert.Bytes(), kp)
-	assert.NotNil(t, err)
+	// Get paths when an input certPath is specified
+	paths = findCertPaths(vchName, "foopath")
+	for i := range paths {
+		possiblePaths[paths[i]] = true
+	}
+	assert.True(t, len(paths) == 1)
+	assert.True(t, possiblePaths["foopath"])
 }

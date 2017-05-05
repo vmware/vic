@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package management
+package certificate
+
+import "fmt"
 
 // CertParseError is returned when there's an error parsing a cert.
 type CertParseError struct {
@@ -20,19 +22,19 @@ type CertParseError struct {
 }
 
 func (e CertParseError) Error() string {
-	return e.msg
+	return fmt.Sprintf("Unable to parse client certificate: %s", e.msg)
 }
 
 // CreateCAPoolError is returned when there's an error creating a CA cert pool.
 type CreateCAPoolError struct{}
 
 func (e CreateCAPoolError) Error() string {
-	return "error creating CA pool"
+	return "Unable to create CA pool to check client certificate"
 }
 
 // CertVerifyError is returned when the client cert cannot be validated against the CA.
 type CertVerifyError struct{}
 
 func (e CertVerifyError) Error() string {
-	return "error verifying certificate"
+	return "Client certificate in certificate path does not validate with provided CA"
 }

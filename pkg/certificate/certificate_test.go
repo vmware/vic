@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package certificate
 
 import (
 	"crypto/x509"
+	"os"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -91,4 +92,31 @@ func TestFailedValidation(t *testing.T) {
 	_, err = tlsCert.Verify(opts)
 	assert.Error(t, err, "Expected to pass second verify")
 
+}
+
+func TestVerifyClientCert(t *testing.T) {
+	cacert, cakey, err := CreateRootCA("foo.com", []string{"FooOrg"}, 2048)
+	assert.NoError(t, err)
+
+	cert, key, err := CreateClientCertificate("foo.com", []string{"FooOrg"}, 2048, cacert.Bytes(), cakey.Bytes())
+	assert.NoError(t, err)
+
+	kp := NewKeyPair(ClientCert, ClientKey, cert.Bytes(), key.Bytes())
+	err = kp.SaveCertificate()
+	assert.NoError(t, err)
+	defer func() {
+		os.Remove(ClientCert)
+		os.Remove(ClientKey)
+	}()
+
+	// Validate client certificate keypair created with the right CA
+	_, err = VerifyClientCert(cacert.Bytes(), kp)
+	assert.NoError(t, err)
+
+	cacert, cakey, err = CreateRootCA("bar.com", []string{"BarOrg"}, 2048)
+	assert.NoError(t, err)
+
+	// Attempt to validate client certificate keypair created with a different CA
+	_, err = VerifyClientCert(cacert.Bytes(), kp)
+	assert.NotNil(t, err)
 }

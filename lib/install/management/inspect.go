@@ -15,8 +15,6 @@
 package management
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -36,16 +34,6 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-)
-
-// Default certificate file names
-const (
-	ClientCert = "cert.pem"
-	ClientKey  = "key.pem"
-	ServerCert = "server-cert.pem"
-	ServerKey  = "server-key.pem"
-	CACert     = "ca.pem"
-	CAKey      = "ca-key.pem"
 )
 
 func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, certPath string) error {
@@ -105,43 +93,26 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 
 	// Check for valid client cert for a tls-verify configuration
 	if len(conf.CertificateAuthorities) > 0 {
-
-		var possibleCertPaths []string
-		if certPath != "" {
-			log.Infof("cert-path supplied - only checking in %s/ for certs", certPath)
-			possibleCertPaths = append(possibleCertPaths, certPath)
-		} else {
-			possibleCertPaths = append(possibleCertPaths, conf.Name, ".")
-			logMsg := fmt.Sprintf("cert-path not supplied - checking in current directory, %s/", conf.Name)
-
-			dockerConfPath := ""
-			user, err := user.Current()
-			if err == nil {
-				dockerConfPath = filepath.Join(user.HomeDir, ".docker")
-				possibleCertPaths = append(possibleCertPaths, dockerConfPath)
-				logMsg = fmt.Sprintf("%s and %s/", logMsg, dockerConfPath)
-			}
-
-			log.Infof(logMsg)
-		}
+		possibleCertPaths := findCertPaths(conf.Name, certPath)
 
 		// Check if a valid client cert exists in one of possibleCertPaths
 		certPath = ""
 		for _, path := range possibleCertPaths {
-			certFile := filepath.Join(path, ClientCert)
-			keyFile := filepath.Join(path, ClientKey)
+			certFile := filepath.Join(path, certificate.ClientCert)
+			keyFile := filepath.Join(path, certificate.ClientKey)
 			ckp := certificate.NewKeyPair(certFile, keyFile, nil, nil)
 			if err = ckp.LoadCertificate(); err != nil {
 				log.Debugf("Unable to load client cert in %s: %s", path, err)
 				continue
 			}
 
-			if _, err = VerifyClientCert(conf.CertificateAuthorities, ckp); err == nil {
-				certPath = path
-				break
-			} else {
-				log.Debugf("Unable to verify client cert in %s: %s", path, err)
+			if _, err = certificate.VerifyClientCert(conf.CertificateAuthorities, ckp); err != nil {
+				log.Debugf(err.Error())
+				continue
 			}
+
+			certPath = path
+			break
 		}
 	}
 
@@ -149,31 +120,30 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	return nil
 }
 
-// VerifyClientCert verifies the loaded client cert keypair against the input CA and
-// returns the certificate on success.
-func VerifyClientCert(ca []byte, ckp *certificate.KeyPair) (*tls.Certificate, error) {
-	var err error
+// findCertPaths returns candidate paths for client certs depending on whether
+// a certPath was specified in the CLI.
+func findCertPaths(vchName, certPath string) []string {
+	var possibleCertPaths []string
 
-	cert, err := ckp.Certificate()
-	if err != nil || cert.Leaf == nil {
-		return nil, CertParseError{msg: err.Error()}
+	if certPath != "" {
+		log.Infof("cert-path supplied - only checking for certs in %s/", certPath)
+		possibleCertPaths = append(possibleCertPaths, certPath)
+		return possibleCertPaths
 	}
 
-	// Add persisted CA to cert pool
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(ca) {
-		return nil, CreateCAPoolError{}
-	}
+	possibleCertPaths = append(possibleCertPaths, vchName, ".")
+	logMsg := fmt.Sprintf("cert-path not supplied - checking for certs in current directory, %s/", vchName)
 
-	opts := x509.VerifyOptions{
-		Roots:     pool,
-		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	dockerConfPath := ""
+	user, err := user.Current()
+	if err == nil {
+		dockerConfPath = filepath.Join(user.HomeDir, ".docker")
+		possibleCertPaths = append(possibleCertPaths, dockerConfPath)
+		logMsg = fmt.Sprintf("%s and %s/", logMsg, dockerConfPath)
 	}
-	if _, err = cert.Leaf.Verify(opts); err != nil {
-		return nil, CertVerifyError{}
-	}
+	log.Infof(logMsg)
 
-	return cert, nil
+	return possibleCertPaths
 }
 
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string, certpath string) {

@@ -23,8 +23,8 @@ This test requires that a vSphere server is running and available
 10. Inspect the VCH without specifying --cert-path
 
 # Expected Outcome:
-* Steps 1 and 2 should succeed, and output from step 7 should contain expected flags & values
-* Steps 3-10 should complete successfully, however, step 6 should show a warning in the output (see below).
+* Steps 1 should succeed, and output from step 2 should contain expected flags & values
+* Steps 3-10 should complete successfully, however, step 6 should show a warning in the output (see below)
 * The output of steps 4 and 5 should contain the correct `DOCKER_CERT_PATH`.
 * The output of step 6 should not contain a `DOCKER_CERT_PATH` and should contain:
 ```

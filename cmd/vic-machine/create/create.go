@@ -1026,11 +1026,11 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 
 	var keypair *certificate.KeyPair
 	// default names
-	skey := filepath.Join(c.certPath, management.ServerKey)
-	scert := filepath.Join(c.certPath, management.ServerCert)
-	ca := filepath.Join(c.certPath, management.CACert)
-	ckey := filepath.Join(c.certPath, management.ClientKey)
-	ccert := filepath.Join(c.certPath, management.ClientCert)
+	skey := filepath.Join(c.certPath, certificate.ServerKey)
+	scert := filepath.Join(c.certPath, certificate.ServerCert)
+	ca := filepath.Join(c.certPath, certificate.CACert)
+	ckey := filepath.Join(c.certPath, certificate.ClientKey)
+	ccert := filepath.Join(c.certPath, certificate.ClientCert)
 
 	// if specific files are supplied, use those
 	explicit := false
@@ -1103,15 +1103,13 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 			log.Warnf("Unable to load client certificate - validation of API endpoint will be best effort only: %s", err)
 		}
 
-		clientCert, err := management.VerifyClientCert(certs, cpair)
+		clientCert, err := certificate.VerifyClientCert(certs, cpair)
 		if err != nil {
 			switch err.(type) {
-			case management.CertParseError:
-				log.Debugf("Unable to parse client certificate: %s", err)
-			case management.CreateCAPoolError:
-				log.Debugf("Unable to create CA pool to check client certificate")
-			case management.CertVerifyError:
-				log.Warnf("Client certificate in certificate path does not validate with provided CA - continuing without client certificate")
+			case certificate.CertParseError, certificate.CreateCAPoolError:
+				log.Debugf(err.Error())
+			case certificate.CertVerifyError:
+				log.Warnf("%s - continuing without client certificate", err.Error())
 			}
 
 			return certs, keypair, nil
@@ -1167,14 +1165,14 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 		return nil, nil, err
 	}
 
-	c.skey = filepath.Join(c.certPath, management.ServerKey)
-	c.scert = filepath.Join(c.certPath, management.ServerCert)
+	c.skey = filepath.Join(c.certPath, certificate.ServerKey)
+	c.scert = filepath.Join(c.certPath, certificate.ServerCert)
 
-	c.ckey = filepath.Join(c.certPath, management.ClientKey)
-	c.ccert = filepath.Join(c.certPath, management.ClientCert)
+	c.ckey = filepath.Join(c.certPath, certificate.ClientKey)
+	c.ccert = filepath.Join(c.certPath, certificate.ClientCert)
 
-	cakey := filepath.Join(c.certPath, management.CAKey)
-	c.cacert = filepath.Join(c.certPath, management.CACert)
+	cakey := filepath.Join(c.certPath, certificate.CAKey)
+	c.cacert = filepath.Join(c.certPath, certificate.CACert)
 
 	if server && !client {
 		log.Infof("Generating self-signed certificate/key pair - private key in %s", c.skey)
