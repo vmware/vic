@@ -29,7 +29,7 @@ import {
     CONTAINER_VM_PORTMAPPING_KEY,
     CONTAINER_PRETTY_NAME_KEY,
     VCH_VM_CLIENT_IP_KEY,
-    VCH_VM_ENDPOINT_PORT,
+    DOCKER_PERSONALITY_ARGS_KEY,
     VCH_VM_LOG_PORT
 } from '../vm.constants';
 import { VirtualMachine } from '../vm.interface';
@@ -46,7 +46,7 @@ export class DataPropertyService {
     constructor(
         private http: Http,
         private gs: GlobalsService
-    ) {}
+    ) { }
 
     setObjectId(id: string) {
         this._objectId = id;
@@ -86,11 +86,11 @@ export class DataPropertyService {
                 return Observable.throw(err);
             })
             .subscribe(
-                res => {
-                    this.vmInfoSource.next(<VirtualMachine>res);
-                }, err => {
-                    this.vmInfoSource.error(err);
-                }
+            res => {
+                this.vmInfoSource.next(<VirtualMachine>res);
+            }, err => {
+                this.vmInfoSource.error(err);
+            }
             );
     }
 
@@ -112,17 +112,17 @@ export class DataPropertyService {
             this.buildDataUrl(
                 'urn:vic:vic:Root:vic%252Fvic-root',
                 props)
-            )
+        )
             .map(res => res.json())
             .catch((err: Response | any) => {
                 return Observable.throw(err);
             })
             .subscribe(
-                res => {
-                    this.vicObjectSource.next(res);
-                }, err => {
-                    this.vicObjectSource.next(err);
-                }
+            res => {
+                this.vicObjectSource.next(res);
+            }, err => {
+                this.vicObjectSource.next(err);
+            }
             );
     }
 }
@@ -146,33 +146,47 @@ function processVmType(obj: any): any {
         if (obj.powerState === 'poweredOff') {
             return obj;
         }
-    }
 
-    for (let i = 0; i < extConfig.length; i++) {
-        if (extConfig[i].key === VCH_VM_CLIENT_IP_KEY) {
-            const base64_decoded: string = atob(extConfig[i].value);
-            const ipv4: string = base64_decoded.charCodeAt(0) + '.'
-                + base64_decoded.charCodeAt(1) + '.'
-                + base64_decoded.charCodeAt(2) + '.'
-                + base64_decoded.charCodeAt(3);
-            obj.dockerEndpoint = `DOCKER_HOST=tcp://${ipv4}${VCH_VM_ENDPOINT_PORT}`;
-            obj.dockerLog = `https://${ipv4}${VCH_VM_LOG_PORT}`;
-            break;
+        let isUsingTls = true;
+
+        for (let { key, value } of extConfig) {
+            if (key === VCH_VM_CLIENT_IP_KEY) {
+                const base64_decoded: string = atob(value);
+                const ipv4: string = base64_decoded.charCodeAt(0) + '.'
+                    + base64_decoded.charCodeAt(1) + '.'
+                    + base64_decoded.charCodeAt(2) + '.'
+                    + base64_decoded.charCodeAt(3);
+                obj.dockerEndpoint = `DOCKER_HOST=tcp://${ipv4}`;
+                obj.dockerLog = `https://${ipv4}${VCH_VM_LOG_PORT}`;
+                continue;
+            }
+
+            if (key === DOCKER_PERSONALITY_ARGS_KEY) {
+                isUsingTls = value.indexOf('2376') > -1;
+                continue;
+            }
         }
 
-        if (extConfig[i].key === CONTAINER_VM_IMAGE_NAME_KEY) {
-            obj.image_name = extConfig[i].value;
-            continue;
-        }
+        // since the order in which list items are processed is not much guaranteed,
+        // we set the port for Docker API endpoint at the end of the loop
+        obj.dockerEndpoint += isUsingTls ? ':2376' : ':2375';
 
-        if (extConfig[i].key === CONTAINER_PRETTY_NAME_KEY) {
-            obj.container_name = extConfig[i].value;
-            continue;
-        }
+    } else {
+        for (let { key, value } of extConfig) {
+            if (key === CONTAINER_VM_IMAGE_NAME_KEY) {
+                obj.image_name = value;
+                continue;
+            }
 
-        if (extConfig[i].key === CONTAINER_VM_PORTMAPPING_KEY) {
-            obj.portmapping = extConfig[i].value;
-            continue;
+            if (key === CONTAINER_PRETTY_NAME_KEY) {
+                obj.container_name = value;
+                continue;
+            }
+
+            if (key === CONTAINER_VM_PORTMAPPING_KEY) {
+                obj.portmapping = value;
+                continue;
+            }
         }
     }
 
