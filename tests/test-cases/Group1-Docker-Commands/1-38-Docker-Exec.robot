@@ -45,26 +45,30 @@ Exec Echo
     #\   Should Be Equal As Strings  ${output}  Help me, Obi-Wan Kenobi. You're my only hope.
 
 Exec Echo -i
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
-    Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${id} /bin/echo "Your eyes can deceive you. Don't trust them."
-    \   Should Be Equal As Integers  ${rc}  0
-    \   Should Be Equal As Strings  ${output}  Your eyes can deceive you. Don't trust them.
+    ${status}=  Get State Of Github Issue  5038
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #5038 has been resolved
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    # Should Be Equal As Integers  ${rc}  0
+    # Should Not Contain  ${output}  Error
+    # ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    # Should Be Equal As Integers  ${rc}  0
+    # :FOR  ${idx}  IN RANGE  0  5
+    # \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${id} /bin/echo "Your eyes can deceive you. Don't trust them."
+    # \   Should Be Equal As Integers  ${rc}  0
+    # \   Should Be Equal As Strings  ${output}  Your eyes can deceive you. Don't trust them.
 
 Exec Echo -t
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
-    Should Be Equal As Integers  ${rc}  0
-    :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -t ${id} /bin/echo "Do. Or do not. There is no try."
-    \   Should Be Equal As Integers  ${rc}  0
-    \   Should Be Equal As Strings  ${output}  Do. Or do not. There is no try.
+    ${status}=  Get State Of Github Issue  5038
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #5038 has been resolved
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    # Should Be Equal As Integers  ${rc}  0
+    # Should Not Contain  ${output}  Error
+    # ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    # Should Be Equal As Integers  ${rc}  0
+    # :FOR  ${idx}  IN RANGE  0  5
+    # \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -t ${id} /bin/echo "Do. Or do not. There is no try."
+    # \   Should Be Equal As Integers  ${rc}  0
+    # \   Should Be Equal As Strings  ${output}  Do. Or do not. There is no try.
 
 Exec Sort
     ${status}=  Get State Of Github Issue  4990
