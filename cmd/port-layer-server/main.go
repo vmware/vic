@@ -67,6 +67,9 @@ func init() {
 			log.Fatalln(err)
 		}
 	}
+}
+
+func main() {
 
 	if _, err := parser.Parse(); err != nil {
 		if err := err.(*flags.Error); err != nil && err.Type == flags.ErrHelp {
@@ -98,9 +101,6 @@ func init() {
 
 	log.Infof("%+v", *logcfg)
 	viclog.Init(logcfg)
-}
-
-func main() {
 
 	server.ConfigureAPI()
 

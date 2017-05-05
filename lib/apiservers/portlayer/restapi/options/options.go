@@ -30,7 +30,7 @@ type PortLayerOptionsType struct {
 
 	Debug bool `long:"debug" default:"true" description:"Debug logging"`
 
-	SyslogAddr *string `long:"syslog-address" description:"Address of syslog endpoint" required:"false" env:"SYSLOG_ADDR"`
+	SyslogAddr *string `long:"syslog-address" default:"" description:"Address of syslog endpoint" required:"false" env:"SYSLOG_ADDR"`
 }
 
 var (

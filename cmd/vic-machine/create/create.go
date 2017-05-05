@@ -468,8 +468,9 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "syslog-address",
 			Value:       "",
-			Usage:       "Address of the syslog server to send Virtual Container Host logs to. Must be in the format transport://host[:port], where transport is udp, tcp, udp6, or tcp6. port defaults to 514 if not specified",
+			Usage:       "Address of the syslog server to send Virtual Container Host logs to. Must be in the format transport://host[:port], where transport is udp or tcp. port defaults to 514 if not specified",
 			Destination: &c.syslogAddr,
+			Hidden:      true,
 		},
 	}
 
