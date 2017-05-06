@@ -23,9 +23,8 @@ const (
 type Writer struct {
 	Flags Flags
 
-	Error        error
-	Buffer       buffer.Buffer
-	NoEscapeHTML bool
+	Error  error
+	Buffer buffer.Buffer
 }
 
 // Size returns the size of the data that was written out.
@@ -38,24 +37,13 @@ func (w *Writer) DumpTo(out io.Writer) (written int, err error) {
 	return w.Buffer.DumpTo(out)
 }
 
-// BuildBytes returns writer data as a single byte slice. You can optionally provide one byte slice
-// as argument that it will try to reuse.
-func (w *Writer) BuildBytes(reuse ...[]byte) ([]byte, error) {
+// BuildBytes returns writer data as a single byte slice.
+func (w *Writer) BuildBytes() ([]byte, error) {
 	if w.Error != nil {
 		return nil, w.Error
 	}
 
-	return w.Buffer.BuildBytes(reuse...), nil
-}
-
-// ReadCloser returns an io.ReadCloser that can be used to read the data.
-// ReadCloser also resets the buffer.
-func (w *Writer) ReadCloser() (io.ReadCloser, error) {
-	if w.Error != nil {
-		return nil, w.Error
-	}
-
-	return w.Buffer.ReadCloser(), nil
+	return w.Buffer.BuildBytes(), nil
 }
 
 // RawByte appends raw binary data to the buffer.
@@ -68,7 +56,7 @@ func (w *Writer) RawString(s string) {
 	w.Buffer.AppendString(s)
 }
 
-// Raw appends raw binary data to the buffer or sets the error if it is given. Useful for
+// RawByte appends raw binary data to the buffer or sets the error if it is given. Useful for
 // calling with results of MarshalJSON-like functions.
 func (w *Writer) Raw(data []byte, err error) {
 	switch {
@@ -78,21 +66,6 @@ func (w *Writer) Raw(data []byte, err error) {
 		w.Error = err
 	case len(data) > 0:
 		w.Buffer.AppendBytes(data)
-	default:
-		w.RawString("null")
-	}
-}
-
-// RawText encloses raw binary data in quotes and appends in to the buffer.
-// Useful for calling with results of MarshalText-like functions.
-func (w *Writer) RawText(data []byte, err error) {
-	switch {
-	case w.Error != nil:
-		return
-	case err != nil:
-		w.Error = err
-	case len(data) > 0:
-		w.String(string(data))
 	default:
 		w.RawString("null")
 	}
@@ -252,14 +225,10 @@ func (w *Writer) Bool(v bool) {
 
 const chars = "0123456789abcdef"
 
-func isNotEscapedSingleChar(c byte, escapeHTML bool) bool {
+func isNotEscapedSingleChar(c byte) bool {
 	// Note: might make sense to use a table if there are more chars to escape. With 4 chars
 	// it benchmarks the same.
-	if escapeHTML {
-		return c != '<' && c != '>' && c != '&' && c != '\\' && c != '"' && c >= 0x20 && c < utf8.RuneSelf
-	} else {
-		return c != '\\' && c != '"' && c >= 0x20 && c < utf8.RuneSelf
-	}
+	return c != '<' && c != '\\' && c != '"' && c != '>' && c >= 0x20 && c < utf8.RuneSelf
 }
 
 func (w *Writer) String(s string) {
@@ -273,7 +242,7 @@ func (w *Writer) String(s string) {
 	for i := 0; i < len(s); {
 		c := s[i]
 
-		if isNotEscapedSingleChar(c, !w.NoEscapeHTML) {
+		if isNotEscapedSingleChar(c) {
 			// single-width character, no escaping is required
 			i++
 			continue

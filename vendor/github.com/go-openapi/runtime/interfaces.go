@@ -15,9 +15,17 @@
 package runtime
 
 import (
-	"github.com/go-openapi/strfmt"
 	"io"
+	"mime/multipart"
+
+	"github.com/go-openapi/strfmt"
 )
+
+// File represents an uploaded file.
+type File struct {
+	Data   multipart.File
+	Header *multipart.FileHeader
+}
 
 // OperationHandlerFunc an adapter for a function to the OperationHandler interface
 type OperationHandlerFunc func(interface{}) (interface{}, error)

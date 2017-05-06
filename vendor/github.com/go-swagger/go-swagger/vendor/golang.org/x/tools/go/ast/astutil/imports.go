@@ -234,17 +234,16 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 					}
 				}
 
+				gen.Lparen = token.NoPos // drop parens
 				spec := gen.Specs[0].(*ast.ImportSpec)
-
-				// Move the documentation right after the import decl.
 				if spec.Doc != nil {
-					for fset.Position(gen.TokPos).Line+1 < fset.Position(spec.Doc.Pos()).Line {
-						fset.File(gen.TokPos).MergeLine(fset.Position(gen.TokPos).Line)
-					}
+					// Move the documentation above the import statement.
+					gen.TokPos = spec.Doc.End() + 1
 				}
+
 				for _, cg := range f.Comments {
 					if cg.End() < spec.Pos() && fset.Position(cg.End()).Line == fset.Position(spec.Pos()).Line {
-						for fset.Position(gen.TokPos).Line+1 < fset.Position(spec.Pos()).Line {
+						for fset.Position(gen.TokPos).Line != fset.Position(spec.Pos()).Line {
 							fset.File(gen.TokPos).MergeLine(fset.Position(gen.TokPos).Line)
 						}
 						break

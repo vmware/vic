@@ -16,12 +16,9 @@ package strfmt
 
 import (
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"regexp"
 	"time"
-
-	"gopkg.in/mgo.v2/bson"
 
 	"github.com/mailru/easyjson/jlexer"
 	"github.com/mailru/easyjson/jwriter"
@@ -102,7 +99,7 @@ func (d *Date) Scan(raw interface{}) error {
 
 // Value converts Date to a primitive value ready to written to a database.
 func (d Date) Value() (driver.Value, error) {
-	return driver.Value(d.String()), nil
+	return driver.Value(d), nil
 }
 
 func (t Date) MarshalJSON() ([]byte, error) {
@@ -130,23 +127,4 @@ func (t *Date) UnmarshalEasyJSON(in *jlexer.Lexer) {
 		}
 		*t = Date(tt)
 	}
-}
-
-func (t *Date) GetBSON() (interface{}, error) {
-	return bson.M{"data": t.String()}, nil
-}
-
-func (t *Date) SetBSON(raw bson.Raw) error {
-	var m bson.M
-	if err := raw.Unmarshal(&m); err != nil {
-		return err
-	}
-
-	if data, ok := m["data"].(string); ok {
-		rd, err := time.Parse(RFC3339FullDate, data)
-		*t = Date(rd)
-		return err
-	}
-
-	return errors.New("couldn't unmarshal bson raw value as Duration")
 }

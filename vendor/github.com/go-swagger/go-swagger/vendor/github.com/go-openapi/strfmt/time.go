@@ -16,13 +16,10 @@ package strfmt
 
 import (
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
-
-	"gopkg.in/mgo.v2/bson"
 
 	"github.com/mailru/easyjson/jlexer"
 	"github.com/mailru/easyjson/jwriter"
@@ -84,8 +81,7 @@ func ParseDateTime(data string) (DateTime, error) {
 
 // DateTime is a time but it serializes to ISO8601 format with millis
 // It knows how to read 3 different variations of a RFC3339 date time.
-// Most APIs we encounter want either millisecond or second precision times.
-// This just tries to make it worry-free.
+// Most API's we encounter want either millisecond or second precision times. This just tries to make it worry-free.
 //
 // swagger:strfmt date-time
 type DateTime time.Time
@@ -135,7 +131,7 @@ func (t *DateTime) Scan(raw interface{}) error {
 
 // Value converts DateTime to a primitive value ready to written to a database.
 func (t DateTime) Value() (driver.Value, error) {
-	return driver.Value(t.String()), nil
+	return driver.Value(t), nil
 }
 
 func (t DateTime) MarshalJSON() ([]byte, error) {
@@ -163,23 +159,4 @@ func (t *DateTime) UnmarshalEasyJSON(in *jlexer.Lexer) {
 		}
 		*t = tt
 	}
-}
-
-func (t *DateTime) GetBSON() (interface{}, error) {
-	return bson.M{"data": t.String()}, nil
-}
-
-func (t *DateTime) SetBSON(raw bson.Raw) error {
-	var m bson.M
-	if err := raw.Unmarshal(&m); err != nil {
-		return err
-	}
-
-	if data, ok := m["data"].(string); ok {
-		var err error
-		*t, err = ParseDateTime(data)
-		return err
-	}
-
-	return errors.New("couldn't unmarshal bson raw value as Duration")
 }

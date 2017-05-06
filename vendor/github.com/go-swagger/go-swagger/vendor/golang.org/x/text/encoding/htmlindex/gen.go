@@ -26,7 +26,7 @@ type group struct {
 func main() {
 	gen.Init()
 
-	r := gen.Open("https://encoding.spec.whatwg.org", "whatwg", "encodings.json")
+	r := gen.Open("http://www.w3.org/TR", "w3", "encoding/indexes/encodings.json")
 	var groups []group
 	if err := json.NewDecoder(r).Decode(&groups); err != nil {
 		log.Fatalf("Error reading encodings.json: %v", err)
@@ -37,10 +37,9 @@ func main() {
 	fmt.Fprintln(w, "const (")
 	for i, g := range groups {
 		for _, e := range g.Encodings {
-			key := strings.ToLower(e.Name)
-			name := consts[key]
+			name := consts[e.Name]
 			if name == "" {
-				log.Fatalf("No const defined for %s.", key)
+				log.Fatalf("No const defined for %s.", e.Name)
 			}
 			if i == 0 {
 				fmt.Fprintf(w, "%s htmlEncoding = iota\n", name)
@@ -55,7 +54,7 @@ func main() {
 	fmt.Fprintln(w, "var canonical = [numEncodings]string{")
 	for _, g := range groups {
 		for _, e := range g.Encodings {
-			fmt.Fprintf(w, "%q,\n", strings.ToLower(e.Name))
+			fmt.Fprintf(w, "%q,\n", e.Name)
 		}
 	}
 	fmt.Fprint(w, "}\n\n")
@@ -64,9 +63,7 @@ func main() {
 	for _, g := range groups {
 		for _, e := range g.Encodings {
 			for _, l := range e.Labels {
-				key := strings.ToLower(e.Name)
-				name := consts[key]
-				fmt.Fprintf(w, "%q: %s,\n", l, name)
+				fmt.Fprintf(w, "%q: %s,\n", l, consts[e.Name])
 			}
 		}
 	}

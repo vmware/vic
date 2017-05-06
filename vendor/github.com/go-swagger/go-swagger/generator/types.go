@@ -209,6 +209,32 @@ func typeForHeader(header spec.Header) resolvedType {
 	return simpleResolvedType(header.Type, header.Format, header.Items)
 }
 
+//
+// func typeForParameter(param spec.Parameter) string {
+// 	return resolveSimpleType(param.Type, param.Format, param.Items)
+// }
+
+func resolveSimpleType(tn, fmt string, items *spec.Items) string {
+	if fmt != "" {
+		if tpe, ok := typeMapping[strings.Replace(fmt, "-", "", -1)]; ok {
+			return tpe
+		}
+	}
+
+	if tpe, ok := typeMapping[tn]; ok {
+		return tpe
+	}
+
+	if tn == "array" {
+		// TODO: Items can't be nil per spec, this should return an error
+		if items == nil {
+			return "[]interface{}"
+		}
+		return "[]" + resolveSimpleType(items.Type, items.Format, items.Items)
+	}
+	return tn
+}
+
 func newTypeResolver(pkg string, doc *loads.Document) *typeResolver {
 	resolver := typeResolver{ModelsPackage: pkg, Doc: doc}
 	resolver.KnownDefs = make(map[string]struct{}, 64)
@@ -302,7 +328,7 @@ func (t *typeResolver) resolveSchemaRef(schema *spec.Schema, isRequired bool) (r
 		}
 		if er != nil {
 			if Debug {
-				log.Print("error resolving", er)
+				log.Printf("error resolving", er)
 			}
 			err = er
 			return

@@ -91,13 +91,22 @@ func (s *Spec) Execute(args []string) error {
 		info.License = &license
 	}
 
-	doc.Consumes = append(doc.Consumes, s.Consumes...)
-	doc.Produces = append(doc.Produces, s.Produces...)
-	doc.Schemes = append(doc.Schemes, s.Schemes...)
+	for _, cons := range s.Consumes {
+		doc.Consumes = append(doc.Consumes, cons)
+	}
+	for _, prods := range s.Produces {
+		doc.Produces = append(doc.Produces, prods)
+	}
+	for _, scheme := range s.Schemes {
+		doc.Schemes = append(doc.Schemes, scheme)
+	}
 
 	if s.Format == "json" {
 		enc := json.NewEncoder(file)
-		return enc.Encode(doc)
+		if err := enc.Encode(doc); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	b, err := yaml.Marshal(swag.ToDynamicJSON(doc))

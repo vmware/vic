@@ -15,15 +15,25 @@
 package scan
 
 import (
-	"errors"
 	"net/mail"
 	"regexp"
 	"strings"
 
-	"fmt"
-
 	"github.com/go-openapi/spec"
 )
+
+var allSwaggerTags = []string{
+	"Consumes",
+	"Produces",
+	"Schemes",
+	"Host",
+	"BasePath",
+	"Tags",
+	"TOS",
+	"Version",
+	"License",
+	"Contact",
+}
 
 func metaTOSSetter(meta *spec.Info) func([]string) {
 	return func(lines []string) {
@@ -47,26 +57,6 @@ func metaSecuritySetter(meta *spec.Swagger) func([]map[string][]string) {
 	return func(secDefs []map[string][]string) { meta.Security = secDefs }
 }
 
-func metaSecurityDefinitionsSetter(meta *spec.Swagger) func(spec.SecurityDefinitions) {
-	return func(secDefs spec.SecurityDefinitions) { meta.SecurityDefinitions = secDefs }
-}
-
-func metaVendorExtensibleSetter(meta *spec.Swagger) func(interface{}) error {
-	return func(extensions interface{}) error {
-		ext, ok := extensions.(map[string]interface{})
-		if !ok {
-			return errors.New("invalid yaml definition for Extensions, expecting map[string]interface{}")
-		}
-		for k := range ext {
-			if !rxAllowedExtensions.MatchString(k) {
-				return fmt.Errorf("invalid schema extension name, should start from `x-`: %s", k)
-			}
-		}
-		meta.Extensions = ext
-		return nil
-	}
-}
-
 func newMetaParser(swspec *spec.Swagger) *sectionedParser {
 	sp := new(sectionedParser)
 	if swspec.Info == nil {
@@ -86,14 +76,12 @@ func newMetaParser(swspec *spec.Swagger) *sectionedParser {
 		newMultiLineTagParser("Consumes", newMultilineDropEmptyParser(rxConsumes, metaConsumesSetter(swspec))),
 		newMultiLineTagParser("Produces", newMultilineDropEmptyParser(rxProduces, metaProducesSetter(swspec))),
 		newSingleLineTagParser("Schemes", newSetSchemes(metaSchemeSetter(swspec))),
-		newMultiLineTagParser("Security", newSetSecurity(rxSecuritySchemes, metaSecuritySetter(swspec))),
-		newMultiLineTagParser("SecurityDefinitions", newSetSecurityDefinitions(rxSecurity, metaSecurityDefinitionsSetter(swspec))),
+		newSingleLineTagParser("SecurityDefinitions", newSetSecurityDefinitions(rxSecurity, metaSecuritySetter(swspec))),
 		newSingleLineTagParser("Version", &setMetaSingle{swspec, rxVersion, setInfoVersion}),
 		newSingleLineTagParser("Host", &setMetaSingle{swspec, rxHost, setSwaggerHost}),
 		newSingleLineTagParser("BasePath", &setMetaSingle{swspec, rxBasePath, setSwaggerBasePath}),
 		newSingleLineTagParser("Contact", &setMetaSingle{swspec, rxContact, setInfoContact}),
 		newSingleLineTagParser("License", &setMetaSingle{swspec, rxLicense, setInfoLicense}),
-		newMultiLineTagParser("YAMLBlock", newYAMLBlockParser(rxExtensions, metaVendorExtensibleSetter(swspec))),
 	}
 	return sp
 }

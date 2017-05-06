@@ -354,13 +354,8 @@ func (b *codeGenOpBuilder) MakeOperation() (GenOperation, error) {
 	var successResponses []GenResponse
 	if operation.Responses != nil {
 		for _, v := range srs {
-			name, ok := v.Response.Extensions.GetString("x-go-name")
-			if !ok {
-				name = runtime.Statuses[v.Code]
-			}
-			name = swag.ToJSONName(b.Name + " " + name)
 			isSuccess := v.Code/100 == 2
-			gr, err := b.MakeResponse(receiver, name, isSuccess, resolver, v.Code, v.Response)
+			gr, err := b.MakeResponse(receiver, swag.ToJSONName(b.Name+" "+runtime.Statuses[v.Code]), isSuccess, resolver, v.Code, v.Response)
 			if err != nil {
 				return GenOperation{}, err
 			}
@@ -716,7 +711,6 @@ func (b *codeGenOpBuilder) MakeHeaderItem(receiver, paramName, indexVar, path, v
 }
 
 func (b *codeGenOpBuilder) MakeParameterItem(receiver, paramName, indexVar, path, valueExpression, location string, resolver *typeResolver, items, parent *spec.Items) (GenItems, error) {
-	debugLog("making parameter item recv=%s param=%s index=%s valueExpr=%s path=%s location=%s", receiver, paramName, indexVar, valueExpression, path, location)
 	var res GenItems
 	res.resolvedType = simpleResolvedType(items.Type, items.Format, items.Items)
 	res.sharedValidations = sharedValidations{
@@ -736,7 +730,7 @@ func (b *codeGenOpBuilder) MakeParameterItem(receiver, paramName, indexVar, path
 	res.Name = paramName
 	res.Path = path
 	res.Location = location
-	res.ValueExpression = swag.ToVarName(valueExpression)
+	res.ValueExpression = valueExpression
 	res.CollectionFormat = items.CollectionFormat
 	res.Converter = stringConverters[res.GoType]
 	res.Formatter = stringFormatters[res.GoType]

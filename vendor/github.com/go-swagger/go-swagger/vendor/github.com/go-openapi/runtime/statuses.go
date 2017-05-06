@@ -15,7 +15,7 @@
 package runtime
 
 // Statuses lists the most common HTTP status codes to default message
-// taken from https://httpstatuses.com/
+// taken from http://status.es
 var Statuses = map[int]string{
 	100: "Continue",
 	101: "Switching Protocols",

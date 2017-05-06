@@ -80,11 +80,6 @@ func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOp
 		if err = validateSpec(opts.Spec, specDoc); err != nil {
 			return nil, err
 		}
-		// Restore spec to original
-		opts.Spec, specDoc, err = loadSpec(opts.Spec)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	analyzed := analysis.New(specDoc.Spec())
@@ -165,13 +160,8 @@ func baseImport(tgt string) string {
 		log.Fatalln(err)
 	}
 
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		gopath = filepath.Join(os.Getenv("HOME"), "go")
-	}
-
 	var pth string
-	for _, gp := range filepath.SplitList(gopath) {
+	for _, gp := range filepath.SplitList(os.Getenv("GOPATH")) {
 		pp := filepath.Join(filepath.Clean(gp), "src")
 		var np, npp string
 		if goruntime.GOOS == "windows" {
@@ -272,7 +262,8 @@ func (a *appGenerator) Generate() error {
 }
 
 func (a *appGenerator) GenerateSupport(ap *GenApp) error {
-	app := ap
+	var app *GenApp
+	app = ap
 	if ap == nil {
 		ca, err := a.makeCodegenApp()
 		if err != nil {

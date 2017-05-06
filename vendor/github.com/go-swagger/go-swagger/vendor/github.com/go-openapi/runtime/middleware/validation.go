@@ -17,7 +17,6 @@ package middleware
 import (
 	"mime"
 	"net/http"
-	"strings"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
@@ -29,10 +28,6 @@ func newValidation(ctx *Context, next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		matched, _ := ctx.RouteInfo(r)
-		if matched == nil {
-			ctx.NotFound(rw, r)
-			return
-		}
 		_, result := ctx.BindAndValidate(r, matched)
 
 		if result != nil {
@@ -40,7 +35,6 @@ func newValidation(ctx *Context, next http.Handler) http.Handler {
 			return
 		}
 
-		debugLog("no result for %s %s", r.Method, r.URL.EscapedPath())
 		next.ServeHTTP(rw, r)
 	})
 }
@@ -64,7 +58,6 @@ func (ub untypedBinder) BindRequest(r *http.Request, route *MatchedRoute, consum
 
 // ContentType validates the content type of a request
 func validateContentType(allowed []string, actual string) error {
-	debugLog("validating content type for %q against [%s]", actual, strings.Join(allowed, ", "))
 	if len(allowed) == 0 {
 		return nil
 	}
@@ -79,7 +72,6 @@ func validateContentType(allowed []string, actual string) error {
 }
 
 func validateRequest(ctx *Context, request *http.Request, route *MatchedRoute) *validation {
-	debugLog("validating request %s %s", request.Method, request.URL.EscapedPath())
 	validate := &validation{
 		context: ctx,
 		request: request,
@@ -99,7 +91,6 @@ func validateRequest(ctx *Context, request *http.Request, route *MatchedRoute) *
 }
 
 func (v *validation) parameters() {
-	debugLog("validating request parameters for %s %s", v.request.Method, v.request.URL.EscapedPath())
 	if result := v.route.Binder.Bind(v.request, v.route.Params, v.route.Consumer, v.bound); result != nil {
 		if result.Error() == "validation failure list" {
 			for _, e := range result.(*errors.Validation).Value.([]interface{}) {
@@ -113,7 +104,6 @@ func (v *validation) parameters() {
 
 func (v *validation) contentType() {
 	if len(v.result) == 0 && runtime.HasBody(v.request) {
-		debugLog("validating body content type for %s %s", v.request.Method, v.request.URL.EscapedPath())
 		ct, _, err := v.context.ContentType(v.request)
 		if err != nil {
 			v.result = append(v.result, err)
