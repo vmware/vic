@@ -17,7 +17,6 @@ package create
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding"
 	"fmt"
 	"io/ioutil"
@@ -51,13 +50,6 @@ const (
 	MaxVirtualMachineNameLen = 80
 	// Max permitted length of Virtual Switch name
 	MaxDisplayNameLen = 31
-
-	clientCert = "cert.pem"
-	clientKey  = "key.pem"
-	serverCert = "server-cert.pem"
-	serverKey  = "server-key.pem"
-	caCert     = "ca.pem"
-	caKey      = "ca-key.pem"
 
 	dsInputFormat  = "<datastore url w/ path>:label"
 	nfsInputFormat = "nfs://<host>/<url-path>?<mount option as query parameters>:<label>"
@@ -1034,11 +1026,11 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 
 	var keypair *certificate.KeyPair
 	// default names
-	skey := filepath.Join(c.certPath, serverKey)
-	scert := filepath.Join(c.certPath, serverCert)
-	ca := filepath.Join(c.certPath, caCert)
-	ckey := filepath.Join(c.certPath, clientKey)
-	ccert := filepath.Join(c.certPath, clientCert)
+	skey := filepath.Join(c.certPath, certificate.ServerKey)
+	scert := filepath.Join(c.certPath, certificate.ServerCert)
+	ca := filepath.Join(c.certPath, certificate.CACert)
+	ckey := filepath.Join(c.certPath, certificate.ClientKey)
+	ccert := filepath.Join(c.certPath, certificate.ClientCert)
 
 	// if specific files are supplied, use those
 	explicit := false
@@ -1111,26 +1103,15 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 			log.Warnf("Unable to load client certificate - validation of API endpoint will be best effort only: %s", err)
 		}
 
-		clientCert, err := cpair.Certificate()
-		if err != nil || clientCert.Leaf == nil {
-			log.Debugf("Unable to parse client certificate: %s", err)
-			return certs, keypair, nil
-		}
-
-		pool := x509.NewCertPool()
-		if !pool.AppendCertsFromPEM(certs) {
-			log.Debugf("Unable to create CA pool to check client certificate")
-			return certs, keypair, nil
-		}
-
-		opts := x509.VerifyOptions{
-			Roots:     pool,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		}
-
-		_, err = clientCert.Leaf.Verify(opts)
+		clientCert, err := certificate.VerifyClientCert(certs, cpair)
 		if err != nil {
-			log.Warnf("Client certificate in certificate path does not validate with provided CA - continuing without client certificate")
+			switch err.(type) {
+			case certificate.CertParseError, certificate.CreateCAPoolError:
+				log.Debugf(err.Error())
+			case certificate.CertVerifyError:
+				log.Warnf("%s - continuing without client certificate", err.Error())
+			}
+
 			return certs, keypair, nil
 		}
 
@@ -1184,14 +1165,14 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 		return nil, nil, err
 	}
 
-	c.skey = filepath.Join(c.certPath, serverKey)
-	c.scert = filepath.Join(c.certPath, serverCert)
+	c.skey = filepath.Join(c.certPath, certificate.ServerKey)
+	c.scert = filepath.Join(c.certPath, certificate.ServerCert)
 
-	c.ckey = filepath.Join(c.certPath, clientKey)
-	c.ccert = filepath.Join(c.certPath, clientCert)
+	c.ckey = filepath.Join(c.certPath, certificate.ClientKey)
+	c.ccert = filepath.Join(c.certPath, certificate.ClientCert)
 
-	cakey := filepath.Join(c.certPath, caKey)
-	c.cacert = filepath.Join(c.certPath, caCert)
+	cakey := filepath.Join(c.certPath, certificate.CAKey)
+	c.cacert = filepath.Join(c.certPath, certificate.CACert)
 
 	if server && !client {
 		log.Infof("Generating self-signed certificate/key pair - private key in %s", c.skey)
