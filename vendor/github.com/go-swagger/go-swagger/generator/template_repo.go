@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -91,8 +90,7 @@ var FuncMap template.FuncMap = map[string]interface{}{
 		lines := strings.Split(str, "\n")
 		return strings.Join(lines, "\n// ")
 	},
-	"inspect":   pretty.Sprint,
-	"cleanPath": path.Clean,
+	"inspect": pretty.Sprint,
 }
 
 func init() {

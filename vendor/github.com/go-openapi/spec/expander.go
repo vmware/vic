@@ -20,6 +20,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -317,7 +318,7 @@ func normalizeFileRef(ref *Ref, relativeBase string) *Ref {
 			debugLog("joining %s with %s", relativeBase, filePath)
 			if fi, err := os.Stat(filepath.FromSlash(relativeBase)); err == nil {
 				if !fi.IsDir() {
-					relativeBase = filepath.Dir(filepath.FromSlash(relativeBase))
+					relativeBase = path.Dir(relativeBase)
 				}
 			}
 			filePath = filepath.Join(filepath.FromSlash(relativeBase), filepath.FromSlash(filePath))
@@ -326,21 +327,17 @@ func normalizeFileRef(ref *Ref, relativeBase string) *Ref {
 			pwd, err := os.Getwd()
 			if err == nil {
 				debugLog("joining cwd %s with %s", pwd, filePath)
-				filePath = filepath.Join(pwd, filepath.FromSlash(filePath))
+				filePath = filepath.Join(pwd, filePath)
 			}
 		}
 
 		debugLog("cleaning %s", filePath)
-		filePath = filepath.Clean(filepath.FromSlash(filePath))
+		filePath = filepath.Clean(filePath)
 		_, err := os.Stat(filepath.FromSlash(filePath))
 		if err == nil {
-			debugLog("rewriting url %s to scheme \"\" path %s", refURL.String(), filePath)
-			slp := filepath.FromSlash(filePath)
-			if filepath.IsAbs(slp) && filepath.Separator == '\\' && len(slp) > 1 && slp[1] == ':' && ('a' <= slp[0] && slp[0] <= 'z' || 'A' <= slp[0] && slp[0] <= 'Z') {
-				slp = slp[2:]
-			}
+			debugLog("rewriting url to scheme \"\" path %s", filePath)
 			refURL.Scheme = ""
-			refURL.Path = filepath.ToSlash(slp)
+			refURL.Path = filepath.ToSlash(filePath)
 			debugLog("new url with joined filepath: %s", refURL.String())
 			*ref = MustCreateRef(refURL.String())
 		}

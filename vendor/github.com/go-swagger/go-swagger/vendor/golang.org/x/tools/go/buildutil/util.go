@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -76,6 +77,14 @@ func ContainingPackage(ctxt *build.Context, dir, filename string) (*build.Packag
 	}
 
 	return nil, fmt.Errorf("can't find package containing %s", filename)
+}
+
+// dirHasPrefix tests whether the directory dir begins with prefix.
+func dirHasPrefix(dir, prefix string) bool {
+	if runtime.GOOS != "windows" {
+		return strings.HasPrefix(dir, prefix)
+	}
+	return len(dir) >= len(prefix) && strings.EqualFold(dir[:len(prefix)], prefix)
 }
 
 // -- Effective methods of file system interface -------------------------

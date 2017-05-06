@@ -38,7 +38,6 @@ type GenSchema struct {
 	resolvedType
 	sharedValidations
 	Example                 string
-	OriginalName            string
 	Name                    string
 	Suffix                  string
 	Path                    string
@@ -55,7 +54,6 @@ type GenSchema struct {
 	AdditionalItems         *GenSchema
 	Object                  *GenSchema
 	XMLName                 string
-	CustomTag               string
 	Properties              GenSchemaList
 	AllOf                   []GenSchema
 	HasAdditionalProperties bool

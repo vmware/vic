@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/go-openapi/analysis"
+	"github.com/go-openapi/loads/fmts"
 	"github.com/go-openapi/spec"
 	"github.com/go-openapi/swag"
 )
@@ -51,7 +52,7 @@ func init() {
 	defaultLoader = &loader{Match: func(_ string) bool { return true }, Fn: JSONDoc}
 	loaders = defaultLoader
 	spec.PathLoader = loaders.Fn
-	AddLoader(swag.YAMLMatcher, swag.YAMLDoc)
+	AddLoader(fmts.YAMLMatcher, fmts.YAMLDoc)
 }
 
 // AddLoader for a document
@@ -145,11 +146,11 @@ func Analyzed(data json.RawMessage, version string) (*Document, error) {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) > 0 {
 		if trimmed[0] != '{' && trimmed[0] != '[' {
-			yml, err := swag.BytesToYAMLDoc(trimmed)
+			yml, err := fmts.BytesToYAMLDoc(trimmed)
 			if err != nil {
 				return nil, fmt.Errorf("analyzed: %v", err)
 			}
-			d, err := swag.YAMLToJSON(yml)
+			d, err := fmts.YAMLToJSON(yml)
 			if err != nil {
 				return nil, fmt.Errorf("analyzed: %v", err)
 			}

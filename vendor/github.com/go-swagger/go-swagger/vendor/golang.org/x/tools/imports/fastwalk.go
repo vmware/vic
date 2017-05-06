@@ -19,7 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 )
 
 // traverseLink is a sentinel error for fastWalk, similar to filepath.SkipDir.
@@ -49,13 +48,6 @@ func fastWalk(root string, walkFn func(path string, typ os.FileMode) error) erro
 	if n := runtime.NumCPU(); n > numWorkers {
 		numWorkers = n
 	}
-
-	// Make sure to wait for all workers to finish, otherwise
-	// walkFn could still be called after returning. This Wait call
-	// runs after close(e.donec) below.
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
 	w := &walker{
 		fn:       walkFn,
 		enqueuec: make(chan walkItem, numWorkers), // buffered for performance
@@ -66,10 +58,9 @@ func fastWalk(root string, walkFn func(path string, typ os.FileMode) error) erro
 		resc: make(chan error, numWorkers),
 	}
 	defer close(w.donec)
-
+	// TODO(bradfitz): start the workers as needed? maybe not worth it.
 	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go w.doWork(&wg)
+		go w.doWork()
 	}
 	todo := []walkItem{{dir: root}}
 	out := 0
@@ -112,18 +103,13 @@ func fastWalk(root string, walkFn func(path string, typ os.FileMode) error) erro
 
 // doWork reads directories as instructed (via workc) and runs the
 // user's callback function.
-func (w *walker) doWork(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (w *walker) doWork() {
 	for {
 		select {
 		case <-w.donec:
 			return
 		case it := <-w.workc:
-			select {
-			case <-w.donec:
-				return
-			case w.resc <- w.walk(it.dir, !it.callbackDone):
-			}
+			w.resc <- w.walk(it.dir, !it.callbackDone)
 		}
 	}
 }
@@ -171,7 +157,6 @@ func (w *walker) onDirEnt(dirName, baseName string, typ os.FileMode) error {
 	}
 	return err
 }
-
 func (w *walker) walk(root string, runUserCallback bool) error {
 	if runUserCallback {
 		err := w.fn(root, os.ModeDir)

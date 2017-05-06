@@ -155,7 +155,7 @@ func New(host, basePath string, schemes []string) *Runtime {
 	if !strings.HasPrefix(rt.BasePath, "/") {
 		rt.BasePath = "/" + rt.BasePath
 	}
-	rt.Debug = len(os.Getenv("DEBUG")) > 0
+	rt.Debug = os.Getenv("DEBUG") == "1"
 	if len(schemes) > 0 {
 		rt.schemes = schemes
 	}
@@ -230,12 +230,8 @@ func (r *Runtime) Submit(operation *runtime.ClientOperation) (interface{}, error
 
 	// TODO: pick appropriate media type
 	cmt := r.DefaultMediaType
-	for _, mediaType := range operation.ConsumesMediaTypes {
-		// Pick first non-empty media type
-		if mediaType != "" {
-			cmt = mediaType
-			break
-		}
+	if len(operation.ConsumesMediaTypes) > 0 {
+		cmt = operation.ConsumesMediaTypes[0]
 	}
 
 	req, err := request.BuildHTTP(cmt, r.Producers, r.Formats)

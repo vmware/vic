@@ -298,20 +298,17 @@ func (scp *schemaParser) parseDecl(definitions map[string]spec.Schema, decl *sch
 			}
 		}
 	default:
-		log.Printf("WARNING: Missing parser for a %T, skipping model: %s\n", tpe, decl.Name)
-		return nil
+		return fmt.Errorf("this is a bug, missing parser for a %T: %+v", tpe, tpe)
 	}
 
-	if schPtr.Ref.String() == "" {
-		if decl.Name != decl.GoName {
-			schPtr.AddExtension("x-go-name", decl.GoName)
-		}
-		for _, pkgInfo := range scp.program.AllPackages {
-			if pkgInfo.Importable {
-				for _, fil := range pkgInfo.Files {
-					if fil.Pos() == decl.File.Pos() {
-						schPtr.AddExtension("x-go-package", pkgInfo.Pkg.Path())
-					}
+	if decl.Name != decl.GoName {
+		schPtr.AddExtension("x-go-name", decl.GoName)
+	}
+	for _, pkgInfo := range scp.program.AllPackages {
+		if pkgInfo.Importable {
+			for _, fil := range pkgInfo.Files {
+				if fil.Pos() == decl.File.Pos() {
+					schPtr.AddExtension("x-go-package", pkgInfo.Pkg.Path())
 				}
 			}
 		}
@@ -330,9 +327,7 @@ func (scp *schemaParser) parseNamedType(gofile *ast.File, expr ast.Expr, prop sw
 		return scp.parseIdentProperty(pkg, ftpe, prop)
 
 	case *ast.StarExpr: // pointer to something, optional by default
-		if err := scp.parseNamedType(gofile, ftpe.X, prop); err != nil {
-			return err
-		}
+		scp.parseNamedType(gofile, ftpe.X, prop)
 
 	case *ast.ArrayType: // slice type
 		if err := scp.parseNamedType(gofile, ftpe.Elt, prop.Items()); err != nil {
@@ -366,9 +361,7 @@ func (scp *schemaParser) parseNamedType(gofile *ast.File, expr ast.Expr, prop sw
 				if sch.AdditionalProperties.Schema == nil {
 					sch.AdditionalProperties.Schema = new(spec.Schema)
 				}
-				if err := scp.parseNamedType(gofile, ftpe.Value, schemaTypable{sch.AdditionalProperties.Schema, 0}); err != nil {
-					return err
-				}
+				scp.parseNamedType(gofile, ftpe.Value, schemaTypable{sch.AdditionalProperties.Schema, 0})
 				sch.Typed("object", "")
 			}
 		}
@@ -384,7 +377,7 @@ func (scp *schemaParser) parseNamedType(gofile *ast.File, expr ast.Expr, prop sw
 				}
 			}
 		}
-		return fmt.Errorf("expr (%s) is unsupported for a schema", pos)
+		return fmt.Errorf("Expr (%s) is unsupported for a schema", pos)
 	}
 	return nil
 }
@@ -438,7 +431,7 @@ func (scp *schemaParser) parseEmbeddedType(gofile *ast.File, schema *spec.Schema
 			scp.program.Fset.Position(tpe.Pos()),
 		)
 	}
-	return fmt.Errorf("unable to resolve embedded struct for: %v", expr)
+	return fmt.Errorf("unable to resolve embedded struct for: %v\n", expr)
 }
 
 func (scp *schemaParser) parseAllOfMember(gofile *ast.File, schema *spec.Schema, expr ast.Expr, seenPreviously map[string]struct{}) error {
@@ -473,7 +466,7 @@ func (scp *schemaParser) parseAllOfMember(gofile *ast.File, schema *spec.Schema,
 			return fmt.Errorf("embedded struct: %v", err)
 		}
 	default:
-		return fmt.Errorf("unable to resolve allOf member for: %v", expr)
+		return fmt.Errorf("unable to resolve allOf member for: %v\n", expr)
 	}
 
 	sd := newSchemaDecl(file, gd, ts)
@@ -589,7 +582,7 @@ func (scp *schemaParser) parseInterfaceType(gofile *ast.File, bschema *spec.Sche
 				return err
 			}
 
-			if ps.Ref.String() == "" && nm != gnm {
+			if nm != gnm {
 				ps.AddExtension("x-go-name", gnm)
 			}
 			seenProperties[nm] = struct{}{}
@@ -704,7 +697,7 @@ func (scp *schemaParser) parseStructType(gofile *ast.File, bschema *spec.Schema,
 				return err
 			}
 
-			if ps.Ref.String() == "" && nm != gnm {
+			if nm != gnm {
 				ps.AddExtension("x-go-name", gnm)
 			}
 			seenProperties[nm] = struct{}{}
@@ -725,9 +718,8 @@ func (scp *schemaParser) parseStructType(gofile *ast.File, bschema *spec.Schema,
 func (scp *schemaParser) createParser(nm string, schema, ps *spec.Schema, fld *ast.Field) *sectionedParser {
 
 	sp := new(sectionedParser)
-
+	sp.setDescription = func(lines []string) { ps.Description = joinDropLast(lines) }
 	if ps.Ref.String() == "" {
-		sp.setDescription = func(lines []string) { ps.Description = joinDropLast(lines) }
 		sp.taggers = []tagParser{
 			newSingleLineTagParser("maximum", &setMaximum{schemaValidations{ps}, rxf(rxMaximumFmt, "")}),
 			newSingleLineTagParser("minimum", &setMinimum{schemaValidations{ps}, rxf(rxMinimumFmt, "")}),
@@ -816,30 +808,6 @@ func (scp *schemaParser) createParser(nm string, schema, ps *spec.Schema, fld *a
 	return sp
 }
 
-// hasFilePathPrefix reports whether the filesystem path s begins with the
-// elements in prefix.
-//
-// taken from: https://github.com/golang/go/blob/c87520c5981ecdeaa99e7ba636a6088f900c0c75/src/cmd/go/internal/load/path.go#L60-L80
-func hasFilePathPrefix(s, prefix string) bool {
-	sv := strings.ToUpper(filepath.VolumeName(s))
-	pv := strings.ToUpper(filepath.VolumeName(prefix))
-	s = s[len(sv):]
-	prefix = prefix[len(pv):]
-	switch {
-	default:
-		return false
-	case sv != pv:
-		return false
-	case len(s) == len(prefix):
-		return s == prefix
-	case len(s) > len(prefix):
-		if prefix != "" && prefix[len(prefix)-1] == filepath.Separator {
-			return strings.HasPrefix(s, prefix)
-		}
-		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
-	}
-}
-
 func (scp *schemaParser) packageForFile(gofile *ast.File, tpe *ast.Ident) (*loader.PackageInfo, error) {
 	fn := scp.program.Fset.File(gofile.Pos()).Name()
 	if Debug {
@@ -853,13 +821,9 @@ func (scp *schemaParser) packageForFile(gofile *ast.File, tpe *ast.Ident) (*load
 		log.Println("absolute path", fa)
 	}
 	var fgp string
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		gopath = filepath.Join(os.Getenv("HOME"), "go")
-	}
-	for _, p := range append(filepath.SplitList(gopath), runtime.GOROOT()) {
+	for _, p := range append(filepath.SplitList(os.Getenv("GOPATH")), runtime.GOROOT()) {
 		pref := filepath.Join(p, "src")
-		if hasFilePathPrefix(fa, pref) {
+		if filepath.HasPrefix(fa, pref) {
 			fgp = filepath.Dir(strings.TrimPrefix(fa, pref))[1:]
 			break
 		}
@@ -895,16 +859,10 @@ func (scp *schemaParser) packageForSelector(gofile *ast.File, expr ast.Expr) (*l
 					break
 				}
 			} else {
-				pkg := scp.program.Package(pv)
-				if pkg != nil && pth.Name == pkg.Pkg.Name() {
+				parts := strings.Split(pv, "/")
+				if len(parts) > 0 && parts[len(parts)-1] == pth.Name {
 					selPath = pv
 					break
-				} else {
-					parts := strings.Split(pv, "/")
-					if len(parts) > 0 && parts[len(parts)-1] == pth.Name {
-						selPath = pv
-						break
-					}
 				}
 			}
 		}
@@ -1027,11 +985,10 @@ func (scp *schemaParser) parseIdentProperty(pkg *loader.PackageInfo, expr *ast.I
 
 }
 
-// unused
-// func fName() string {
-// 	pc, _, _, _ := runtime.Caller(1)
-// 	return runtime.FuncForPC(pc).Name()
-// }
+func fName() string {
+	pc, _, _, _ := runtime.Caller(1)
+	return runtime.FuncForPC(pc).Name()
+}
 
 func (scp *schemaParser) typeForSelector(gofile *ast.File, expr *ast.SelectorExpr, prop swaggerTypable) error {
 	pkg, err := scp.packageForSelector(gofile, expr.X)
@@ -1161,9 +1118,7 @@ func parseProperty(scp *schemaParser, gofile *ast.File, fld ast.Expr, prop swagg
 		return scp.parseIdentProperty(pkg, ftpe, prop)
 
 	case *ast.StarExpr: // pointer to something, optional by default
-		if err := parseProperty(scp, gofile, ftpe.X, prop); err != nil {
-			return err
-		}
+		parseProperty(scp, gofile, ftpe.X, prop)
 
 	case *ast.ArrayType: // slice type
 		if err := parseProperty(scp, gofile, ftpe.Elt, prop.Items()); err != nil {
@@ -1197,9 +1152,7 @@ func parseProperty(scp *schemaParser, gofile *ast.File, fld ast.Expr, prop swagg
 				if sch.AdditionalProperties.Schema == nil {
 					sch.AdditionalProperties.Schema = new(spec.Schema)
 				}
-				if err := parseProperty(scp, gofile, ftpe.Value, schemaTypable{sch.AdditionalProperties.Schema, 0}); err != nil {
-					return err
-				}
+				parseProperty(scp, gofile, ftpe.Value, schemaTypable{sch.AdditionalProperties.Schema, 0})
 				sch.Typed("object", "")
 			}
 		}

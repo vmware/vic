@@ -22,8 +22,8 @@ import (
 	"github.com/go-openapi/runtime"
 )
 
-// HttpAuthenticator is a function that authenticates a HTTP request
-func HttpAuthenticator(handler func(*http.Request) (bool, interface{}, error)) runtime.Authenticator {
+// httpAuthenticator is a function that authenticates a HTTP request
+func httpAuthenticator(handler func(*http.Request) (bool, interface{}, error)) runtime.Authenticator {
 	return runtime.AuthenticatorFunc(func(params interface{}) (bool, interface{}, error) {
 		if request, ok := params.(*http.Request); ok {
 			return handler(request)
@@ -35,8 +35,7 @@ func HttpAuthenticator(handler func(*http.Request) (bool, interface{}, error)) r
 	})
 }
 
-// ScopedAuthenticator is a function that authenticates a HTTP request against a list of valid scopes
-func ScopedAuthenticator(handler func(*ScopedAuthRequest) (bool, interface{}, error)) runtime.Authenticator {
+func scopedAuthenticator(handler func(*ScopedAuthRequest) (bool, interface{}, error)) runtime.Authenticator {
 	return runtime.AuthenticatorFunc(func(params interface{}) (bool, interface{}, error) {
 		if request, ok := params.(*ScopedAuthRequest); ok {
 			return handler(request)
@@ -56,7 +55,7 @@ type ScopedTokenAuthentication func(string, []string) (interface{}, error)
 
 // BasicAuth creates a basic auth authenticator with the provided authentication function
 func BasicAuth(authenticate UserPassAuthentication) runtime.Authenticator {
-	return HttpAuthenticator(func(r *http.Request) (bool, interface{}, error) {
+	return httpAuthenticator(func(r *http.Request) (bool, interface{}, error) {
 		if usr, pass, ok := r.BasicAuth(); ok {
 			p, err := authenticate(usr, pass)
 			return true, p, err
@@ -83,7 +82,7 @@ func APIKeyAuth(name, in string, authenticate TokenAuthentication) runtime.Authe
 		getToken = func(r *http.Request) string { return r.URL.Query().Get(name) }
 	}
 
-	return HttpAuthenticator(func(r *http.Request) (bool, interface{}, error) {
+	return httpAuthenticator(func(r *http.Request) (bool, interface{}, error) {
 		token := getToken(r)
 		if token == "" {
 			return false, nil, nil
@@ -103,7 +102,7 @@ type ScopedAuthRequest struct {
 // BearerAuth for use with oauth2 flows
 func BearerAuth(name string, authenticate ScopedTokenAuthentication) runtime.Authenticator {
 	const prefix = "Bearer "
-	return ScopedAuthenticator(func(r *ScopedAuthRequest) (bool, interface{}, error) {
+	return scopedAuthenticator(func(r *ScopedAuthRequest) (bool, interface{}, error) {
 		var token string
 		hdr := r.Request.Header.Get("Authorization")
 		if strings.HasPrefix(hdr, prefix) {

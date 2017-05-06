@@ -203,7 +203,7 @@ func (c *Client) opendir(path string) (string, error) {
 		handle, _ := unmarshalString(data)
 		return handle, nil
 	case ssh_FXP_STATUS:
-		return "", normaliseError(unmarshalStatus(id, data))
+		return "", unmarshalStatus(id, data)
 	default:
 		return "", unimplementedPacketErr(typ)
 	}
@@ -284,7 +284,7 @@ func (c *Client) ReadLink(p string) (string, error) {
 		filename, _ := unmarshalString(data) // ignore dummy attributes
 		return filename, nil
 	case ssh_FXP_STATUS:
-		return "", normaliseError(unmarshalStatus(id, data))
+		return "", unmarshalStatus(id, data)
 	default:
 		return "", unimplementedPacketErr(typ)
 	}
@@ -439,7 +439,7 @@ func (c *Client) fstat(handle string) (*FileStat, error) {
 		attr, _ := unmarshalAttrs(data)
 		return attr, nil
 	case ssh_FXP_STATUS:
-		return nil, normaliseError(unmarshalStatus(id, data))
+		return nil, unmarshalStatus(id, data)
 	default:
 		return nil, unimplementedPacketErr(typ)
 	}
@@ -495,7 +495,7 @@ func (c *Client) Remove(path string) error {
 		// some servers, *cough* osx *cough*, return EPERM, not ENODIR.
 		// serv-u returns ssh_FX_FILE_IS_A_DIRECTORY
 		case ssh_FX_PERMISSION_DENIED, ssh_FX_FAILURE, ssh_FX_FILE_IS_A_DIRECTORY:
-			return c.RemoveDirectory(path)
+			return c.removeDirectory(path)
 		}
 	}
 	return err
@@ -518,8 +518,7 @@ func (c *Client) removeFile(path string) error {
 	}
 }
 
-// RemoveDirectory removes a directory path.
-func (c *Client) RemoveDirectory(path string) error {
+func (c *Client) removeDirectory(path string) error {
 	id := c.nextID()
 	typ, data, err := c.sendPacket(sshFxpRmdirPacket{
 		ID:   id,
@@ -641,10 +640,9 @@ func (f *File) Name() string {
 
 const maxConcurrentRequests = 64
 
-// Read reads up to len(b) bytes from the File. It returns the number of bytes
-// read and an error, if any. Read follows io.Reader semantics, so when Read
-// encounters an error or EOF condition after successfully reading n > 0 bytes,
-// it returns the number of bytes read.
+// Read reads up to len(b) bytes from the File. It returns the number of
+// bytes read and an error, if any. EOF is signaled by a zero count with
+// err set to io.EOF.
 func (f *File) Read(b []byte) (int, error) {
 	// Split the read into multiple maxPacket sized concurrent reads
 	// bounded by maxConcurrentRequests. This allows reads with a suitably
@@ -653,7 +651,7 @@ func (f *File) Read(b []byte) (int, error) {
 	inFlight := 0
 	desiredInFlight := 1
 	offset := f.offset
-	ch := make(chan result, 2)
+	ch := make(chan result, 1)
 	type inflightRead struct {
 		b      []byte
 		offset uint64
@@ -690,39 +688,43 @@ func (f *File) Read(b []byte) (int, error) {
 		if inFlight == 0 {
 			break
 		}
-		res := <-ch
-		inFlight--
-		if res.err != nil {
-			firstErr = offsetErr{offset: 0, err: res.err}
-			continue
-		}
-		reqID, data := unmarshalUint32(res.data)
-		req, ok := reqs[reqID]
-		if !ok {
-			firstErr = offsetErr{offset: 0, err: errors.Errorf("sid: %v not found", reqID)}
-			continue
-		}
-		delete(reqs, reqID)
-		switch res.typ {
-		case ssh_FXP_STATUS:
-			if firstErr.err == nil || req.offset < firstErr.offset {
-				firstErr = offsetErr{
-					offset: req.offset,
-					err:    normaliseError(unmarshalStatus(reqID, res.data)),
+		select {
+		case res := <-ch:
+			inFlight--
+			if res.err != nil {
+				firstErr = offsetErr{offset: 0, err: res.err}
+				break
+			}
+			reqID, data := unmarshalUint32(res.data)
+			req, ok := reqs[reqID]
+			if !ok {
+				firstErr = offsetErr{offset: 0, err: errors.Errorf("sid: %v not found", reqID)}
+				break
+			}
+			delete(reqs, reqID)
+			switch res.typ {
+			case ssh_FXP_STATUS:
+				if firstErr.err == nil || req.offset < firstErr.offset {
+					firstErr = offsetErr{
+						offset: req.offset,
+						err:    normaliseError(unmarshalStatus(reqID, res.data)),
+					}
+					break
 				}
+			case ssh_FXP_DATA:
+				l, data := unmarshalUint32(data)
+				n := copy(req.b, data[:l])
+				read += n
+				if n < len(req.b) {
+					sendReq(req.b[l:], req.offset+uint64(l))
+				}
+				if desiredInFlight < maxConcurrentRequests {
+					desiredInFlight++
+				}
+			default:
+				firstErr = offsetErr{offset: 0, err: unimplementedPacketErr(res.typ)}
+				break
 			}
-		case ssh_FXP_DATA:
-			l, data := unmarshalUint32(data)
-			n := copy(req.b, data[:l])
-			read += n
-			if n < len(req.b) {
-				sendReq(req.b[l:], req.offset+uint64(l))
-			}
-			if desiredInFlight < maxConcurrentRequests {
-				desiredInFlight++
-			}
-		default:
-			firstErr = offsetErr{offset: 0, err: unimplementedPacketErr(res.typ)}
 		}
 	}
 	// If the error is anything other than EOF, then there
@@ -748,7 +750,7 @@ func (f *File) WriteTo(w io.Writer) (int64, error) {
 	offset := f.offset
 	writeOffset := offset
 	fileSize := uint64(fi.Size())
-	ch := make(chan result, 2)
+	ch := make(chan result, 1)
 	type inflightRead struct {
 		b      []byte
 		offset uint64
@@ -775,92 +777,83 @@ func (f *File) WriteTo(w io.Writer) (int64, error) {
 
 	var copied int64
 	for firstErr.err == nil || inFlight > 0 {
-		if firstErr.err == nil {
-			for inFlight+len(pendingWrites) < desiredInFlight {
-				b := make([]byte, f.c.maxPacket)
-				sendReq(b, offset)
-				offset += uint64(f.c.maxPacket)
-				if offset > fileSize {
-					desiredInFlight = 1
-				}
+		for inFlight < desiredInFlight && firstErr.err == nil {
+			b := make([]byte, f.c.maxPacket)
+			sendReq(b, offset)
+			offset += uint64(f.c.maxPacket)
+			if offset > fileSize {
+				desiredInFlight = 1
 			}
 		}
 
 		if inFlight == 0 {
-			if firstErr.err == nil && len(pendingWrites) > 0 {
-				return copied, errors.New("internal inconsistency")
-			}
 			break
 		}
-		res := <-ch
-		inFlight--
-		if res.err != nil {
-			firstErr = offsetErr{offset: 0, err: res.err}
-			continue
-		}
-		reqID, data := unmarshalUint32(res.data)
-		req, ok := reqs[reqID]
-		if !ok {
-			firstErr = offsetErr{offset: 0, err: errors.Errorf("sid: %v not found", reqID)}
-			continue
-		}
-		delete(reqs, reqID)
-		switch res.typ {
-		case ssh_FXP_STATUS:
-			if firstErr.err == nil || req.offset < firstErr.offset {
-				firstErr = offsetErr{offset: req.offset, err: normaliseError(unmarshalStatus(reqID, res.data))}
+		select {
+		case res := <-ch:
+			inFlight--
+			if res.err != nil {
+				firstErr = offsetErr{offset: 0, err: res.err}
+				break
 			}
-		case ssh_FXP_DATA:
-			l, data := unmarshalUint32(data)
-			if req.offset == writeOffset {
-				nbytes, err := w.Write(data)
-				copied += int64(nbytes)
-				if err != nil {
-					// We will never receive another DATA with offset==writeOffset, so
-					// the loop will drain inFlight and then exit.
-					firstErr = offsetErr{offset: req.offset + uint64(nbytes), err: err}
+			reqID, data := unmarshalUint32(res.data)
+			req, ok := reqs[reqID]
+			if !ok {
+				firstErr = offsetErr{offset: 0, err: errors.Errorf("sid: %v not found", reqID)}
+				break
+			}
+			delete(reqs, reqID)
+			switch res.typ {
+			case ssh_FXP_STATUS:
+				if firstErr.err == nil || req.offset < firstErr.offset {
+					firstErr = offsetErr{offset: req.offset, err: normaliseError(unmarshalStatus(reqID, res.data))}
 					break
 				}
-				if nbytes < int(l) {
-					firstErr = offsetErr{offset: req.offset + uint64(nbytes), err: io.ErrShortWrite}
-					break
-				}
-				switch {
-				case offset > fileSize:
-					desiredInFlight = 1
-				case desiredInFlight < maxConcurrentRequests:
-					desiredInFlight++
-				}
-				writeOffset += uint64(nbytes)
-				for {
-					pendingData, ok := pendingWrites[writeOffset]
-					if !ok {
-						break
-					}
-					// Give go a chance to free the memory.
-					delete(pendingWrites, writeOffset)
-					nbytes, err := w.Write(pendingData)
-					// Do not move writeOffset on error so subsequent iterations won't trigger
-					// any writes.
+			case ssh_FXP_DATA:
+				l, data := unmarshalUint32(data)
+				if req.offset == writeOffset {
+					nbytes, err := w.Write(data)
+					copied += int64(nbytes)
 					if err != nil {
-						firstErr = offsetErr{offset: writeOffset + uint64(nbytes), err: err}
+						firstErr = offsetErr{offset: req.offset + uint64(nbytes), err: err}
 						break
 					}
-					if nbytes < len(pendingData) {
-						firstErr = offsetErr{offset: writeOffset + uint64(nbytes), err: io.ErrShortWrite}
+					if nbytes < int(l) {
+						firstErr = offsetErr{offset: req.offset + uint64(nbytes), err: io.ErrShortWrite}
 						break
+					}
+					switch {
+					case offset > fileSize:
+						desiredInFlight = 1
+					case desiredInFlight < maxConcurrentRequests:
+						desiredInFlight++
 					}
 					writeOffset += uint64(nbytes)
+					for pendingData, ok := pendingWrites[writeOffset]; ok; pendingData, ok = pendingWrites[writeOffset] {
+						nbytes, err := w.Write(pendingData)
+						if err != nil {
+							firstErr = offsetErr{offset: writeOffset + uint64(nbytes), err: err}
+							break
+						}
+						if nbytes < len(pendingData) {
+							firstErr = offsetErr{offset: writeOffset + uint64(nbytes), err: io.ErrShortWrite}
+							break
+						}
+						writeOffset += uint64(nbytes)
+						inFlight--
+					}
+				} else {
+					// Don't write the data yet because
+					// this response came in out of order
+					// and we need to wait for responses
+					// for earlier segments of the file.
+					inFlight++ // Pending writes should still be considered inFlight.
+					pendingWrites[req.offset] = data
 				}
-			} else {
-				// Don't write the data yet because
-				// this response came in out of order
-				// and we need to wait for responses
-				// for earlier segments of the file.
-				pendingWrites[req.offset] = data
+			default:
+				firstErr = offsetErr{offset: 0, err: unimplementedPacketErr(res.typ)}
+				break
 			}
-		default:
-			firstErr = offsetErr{offset: 0, err: unimplementedPacketErr(res.typ)}
 		}
 	}
 	if firstErr.err != io.EOF {
@@ -890,8 +883,7 @@ func (f *File) Write(b []byte) (int, error) {
 	inFlight := 0
 	desiredInFlight := 1
 	offset := f.offset
-	// chan must have a buffer of max value of (desiredInFlight - inFlight)
-	ch := make(chan result, 2)
+	ch := make(chan result, 1)
 	var firstErr error
 	written := len(b)
 	for len(b) > 0 || inFlight > 0 {
@@ -913,25 +905,28 @@ func (f *File) Write(b []byte) (int, error) {
 		if inFlight == 0 {
 			break
 		}
-		res := <-ch
-		inFlight--
-		if res.err != nil {
-			firstErr = res.err
-			continue
-		}
-		switch res.typ {
-		case ssh_FXP_STATUS:
-			id, _ := unmarshalUint32(res.data)
-			err := normaliseError(unmarshalStatus(id, res.data))
-			if err != nil && firstErr == nil {
-				firstErr = err
+		select {
+		case res := <-ch:
+			inFlight--
+			if res.err != nil {
+				firstErr = res.err
 				break
 			}
-			if desiredInFlight < maxConcurrentRequests {
-				desiredInFlight++
+			switch res.typ {
+			case ssh_FXP_STATUS:
+				id, _ := unmarshalUint32(res.data)
+				err := normaliseError(unmarshalStatus(id, res.data))
+				if err != nil && firstErr == nil {
+					firstErr = err
+					break
+				}
+				if desiredInFlight < maxConcurrentRequests {
+					desiredInFlight++
+				}
+			default:
+				firstErr = unimplementedPacketErr(res.typ)
+				break
 			}
-		default:
-			firstErr = unimplementedPacketErr(res.typ)
 		}
 	}
 	// If error is non-nil, then there may be gaps in the data written to
@@ -951,8 +946,7 @@ func (f *File) ReadFrom(r io.Reader) (int64, error) {
 	inFlight := 0
 	desiredInFlight := 1
 	offset := f.offset
-	// chan must have a buffer of max value of (desiredInFlight - inFlight)
-	ch := make(chan result, 2)
+	ch := make(chan result, 1)
 	var firstErr error
 	read := int64(0)
 	b := make([]byte, f.c.maxPacket)
@@ -977,25 +971,28 @@ func (f *File) ReadFrom(r io.Reader) (int64, error) {
 		if inFlight == 0 {
 			break
 		}
-		res := <-ch
-		inFlight--
-		if res.err != nil {
-			firstErr = res.err
-			continue
-		}
-		switch res.typ {
-		case ssh_FXP_STATUS:
-			id, _ := unmarshalUint32(res.data)
-			err := normaliseError(unmarshalStatus(id, res.data))
-			if err != nil && firstErr == nil {
-				firstErr = err
+		select {
+		case res := <-ch:
+			inFlight--
+			if res.err != nil {
+				firstErr = res.err
 				break
 			}
-			if desiredInFlight < maxConcurrentRequests {
-				desiredInFlight++
+			switch res.typ {
+			case ssh_FXP_STATUS:
+				id, _ := unmarshalUint32(res.data)
+				err := normaliseError(unmarshalStatus(id, res.data))
+				if err != nil && firstErr == nil {
+					firstErr = err
+					break
+				}
+				if desiredInFlight < maxConcurrentRequests {
+					desiredInFlight++
+				}
+			default:
+				firstErr = unimplementedPacketErr(res.typ)
+				break
 			}
-		default:
-			firstErr = unimplementedPacketErr(res.typ)
 		}
 	}
 	if firstErr == io.EOF {
@@ -1083,7 +1080,10 @@ func unmarshalStatus(id uint32, data []byte) error {
 		return &unexpectedIDErr{id, sid}
 	}
 	code, data := unmarshalUint32(data)
-	msg, data, _ := unmarshalStringSafe(data)
+	msg, data, err := unmarshalStringSafe(data)
+	if err != nil {
+		return err
+	}
 	lang, _, _ := unmarshalStringSafe(data)
 	return &StatusError{
 		Code: code,

@@ -15,9 +15,7 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
@@ -31,15 +29,6 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/gorilla/context"
 )
-
-// Debug when true turns on verbose logging
-var Debug = os.Getenv("SWAGGER_DEBUG") != "" || os.Getenv("DEBUG") != ""
-
-func debugLog(format string, args ...interface{}) {
-	if Debug {
-		log.Printf(format, args...)
-	}
-}
 
 // A Builder can create middlewares
 type Builder func(http.Handler) http.Handler
@@ -309,7 +298,7 @@ func (c *Context) ContentType(request *http.Request) (string, string, error) {
 
 // LookupRoute looks a route up and returns true when it is found
 func (c *Context) LookupRoute(request *http.Request) (*MatchedRoute, bool) {
-	if route, ok := c.router.Lookup(request.Method, request.URL.EscapedPath()); ok {
+	if route, ok := c.router.Lookup(request.Method, request.URL.Path); ok {
 		return route, ok
 	}
 	return nil, false
@@ -348,12 +337,12 @@ func (c *Context) ResponseFormat(r *http.Request, offers []string) string {
 
 // AllowedMethods gets the allowed methods for the path of this request
 func (c *Context) AllowedMethods(request *http.Request) []string {
-	return c.router.OtherMethods(request.Method, request.URL.EscapedPath())
+	return c.router.OtherMethods(request.Method, request.URL.Path)
 }
 
 // Authorize authorizes the request
 func (c *Context) Authorize(request *http.Request, route *MatchedRoute) (interface{}, error) {
-	if route == nil || len(route.Authenticators) == 0 {
+	if len(route.Authenticators) == 0 {
 		return nil, nil
 	}
 	if v, ok := context.GetOk(request, ctxSecurityPrincipal); ok {
@@ -388,7 +377,6 @@ func (c *Context) Authorize(request *http.Request, route *MatchedRoute) (interfa
 func (c *Context) BindAndValidate(request *http.Request, matched *MatchedRoute) (interface{}, error) {
 	if v, ok := context.GetOk(request, ctxBoundParams); ok {
 		if val, ok := v.(*validation); ok {
-			debugLog("got cached validation (valid: %t)", len(val.result) == 0)
 			if len(val.result) > 0 {
 				return val.bound, errors.CompositeValidationError(val.result...)
 			}
@@ -402,7 +390,6 @@ func (c *Context) BindAndValidate(request *http.Request, matched *MatchedRoute) 
 	if len(result.result) > 0 {
 		return result.bound, errors.CompositeValidationError(result.result...)
 	}
-	debugLog("no validation errors found")
 	return result.bound, nil
 }
 
