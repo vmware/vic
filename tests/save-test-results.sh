@@ -15,23 +15,23 @@
 
 # Saves test results to reporting server
 
-echo "rpcbind : $REPORTING_SERVER_URL" >>  /etc/hosts.allow
-mkdir -p /run/sendsigs.omit.d
-service rpcbind restart
-mkdir /drone-test-results
-mount $REPORTING_SERVER_URL:/export/drone-test-results /drone-test-results
+# echo "rpcbind : $REPORTING_SERVER_URL" >>  /etc/hosts.allow
+# mkdir -p /run/sendsigs.omit.d
+# service rpcbind restart
+# mkdir /drone-test-results
+# mount $REPORTING_SERVER_URL:/export/drone-test-results /drone-test-results
 
-testresultsdb="vic-all.db"
+# testresultsdb="vic-all.db"
 
-if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
-	testresultsdb="vic-master.db"
-fi
+# if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
+# 	testresultsdb="vic-master.db"
+# fi
 
-# save test result to db
-testresultspath="/drone-test-results/testruns-db/$testresultsdb"
-echo "Saving integration test results to $testresultspath"
-python -m dbbot.run -k -v -b $testresultspath output.xml
+# # save test result to db
+# testresultspath="/drone-test-results/testruns-db/$testresultsdb"
+# echo "Saving integration test results to $testresultspath"
+# python -m dbbot.run -k -v -b $testresultspath output.xml
 
-# copy test run files to build folder
-mkdir -p /drone-test-results/testruns/$DRONE_BUILD_NUMBER
-cp log.html report.html /drone-test-results/testruns/$DRONE_BUILD_NUMBER/
+# # copy test run files to build folder
+# mkdir -p /drone-test-results/testruns/$DRONE_BUILD_NUMBER
+# cp log.html report.html /drone-test-results/testruns/$DRONE_BUILD_NUMBER/
