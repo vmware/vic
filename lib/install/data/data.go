@@ -51,10 +51,7 @@ type Data struct {
 	ManagementNetwork NetworkConfig
 	DNS               []net.IP
 
-	MappedNetworks         map[string]string
-	MappedNetworksGateways map[string]net.IPNet
-	MappedNetworksIPRanges map[string][]ip.Range
-	MappedNetworksDNS      map[string][]net.IP
+	ContainerNetworks
 
 	VCHCPULimitsMHz       int
 	VCHCPUReservationsMHz int
@@ -86,6 +83,20 @@ type Data struct {
 	Rollback    bool
 }
 
+type ContainerNetworks struct {
+	MappedNetworks         map[string]string
+	MappedNetworksGateways map[string]net.IPNet
+	MappedNetworksIPRanges map[string][]ip.Range
+	MappedNetworksDNS      map[string][]net.IP
+}
+
+func (c *ContainerNetworks) IsSet() bool {
+	return len(c.MappedNetworks) > 0 ||
+		len(c.MappedNetworksGateways) > 0 ||
+		len(c.MappedNetworksIPRanges) > 0 ||
+		len(c.MappedNetworksDNS) > 0
+}
+
 // NetworkConfig is used to set IP addr for each network
 type NetworkConfig struct {
 	Name         string
@@ -97,6 +108,10 @@ type NetworkConfig struct {
 // Empty determines if ip and gateway are unset
 func (n *NetworkConfig) Empty() bool {
 	return ip.Empty(n.Gateway) && ip.Empty(n.IP)
+}
+
+func (n *NetworkConfig) IsSet() bool {
+	return n.Name != "" || !n.Empty()
 }
 
 // InstallerData is used to hold the transient installation configuration that shouldn't be serialized
@@ -134,12 +149,35 @@ type InstallerData struct {
 
 func NewData() *Data {
 	d := &Data{
-		Target:                 common.NewTarget(),
-		MappedNetworks:         make(map[string]string),
-		MappedNetworksGateways: make(map[string]net.IPNet),
-		MappedNetworksIPRanges: make(map[string][]ip.Range),
-		MappedNetworksDNS:      make(map[string][]net.IP),
-		Timeout:                3 * time.Minute,
+		Target: common.NewTarget(),
+		ContainerNetworks: ContainerNetworks{
+			MappedNetworks:         make(map[string]string),
+			MappedNetworksGateways: make(map[string]net.IPNet),
+			MappedNetworksIPRanges: make(map[string][]ip.Range),
+			MappedNetworksDNS:      make(map[string][]net.IP),
+		},
+		Timeout: 3 * time.Minute,
 	}
 	return d
+}
+
+// CopyNonEmpty will shallow copy src value to override existing value if the value is set
+// This copy will take care of relationship between variables, that means if any variable in ContainerNetwork or NetworkConfig is not empty, the whole ContainerNetwork or NetworkConfig will be copied
+func (d *Data) CopyNonEmpty(src *Data) {
+	// TODO: Add data copy here for each reconfigure items, to make sure specified variables present in the Data object.
+
+	if src.ClientNetwork.IsSet() {
+		d.ClientNetwork = src.ClientNetwork
+	}
+	if src.PublicNetwork.IsSet() {
+		d.PublicNetwork = src.PublicNetwork
+	}
+	if src.ManagementNetwork.IsSet() {
+		d.ManagementNetwork = src.ManagementNetwork
+	}
+
+	// copy container networks
+	if src.ContainerNetworks.IsSet() {
+		d.ContainerNetworks = src.ContainerNetworks
+	}
 }

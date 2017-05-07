@@ -38,11 +38,14 @@ import (
 )
 
 const (
+	// deprecated snapshot name prefix
 	UpgradePrefix = "upgrade for"
+	// new snapshot name for upgrade and configure are using same process
+	ConfigurePrefix = "reconfigure for"
 )
 
-// Upgrade will try to upgrade vch appliance to new version. If failed will try to roll back to original status.
-func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (err error) {
+// Configure will try to reconfigure vch appliance. If failed will try to roll back to original status.
+func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (err error) {
 	defer trace.End(trace.Begin(conf.Name))
 
 	d.appliance = vch
@@ -61,30 +64,33 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	d.session.Datastore = ds
 	d.setDockerPort(conf, settings)
 
-	if err = d.uploadImages(settings.ImageFiles); err != nil {
-		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
+	if len(settings.ImageFiles) > 0 {
+		// Need to update iso files
+		if err = d.uploadImages(settings.ImageFiles); err != nil {
+			return errors.Errorf("Uploading images failed with %s. Exiting...", err)
+		}
+		conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 	}
-
-	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 
 	// ensure that we wait for components to come up
 	for _, s := range conf.ExecutorConfig.Sessions {
 		s.Started = ""
 	}
 
-	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
+	snapshotName := fmt.Sprintf("%s %s", ConfigurePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
 
 	// check for old snapshot
 	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.ctx)
 
-	if err = d.tryCreateSnapshot(snapshotName, "upgrade snapshot"); err != nil {
+	if err = d.tryCreateSnapshot(snapshotName, "configure snapshot"); err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
 
 	if err = d.update(conf, settings); err == nil {
-		if oldSnapshot != nil && vm.IsUpgradeSnapshot(oldSnapshot, UpgradePrefix) {
+		// compatible with old version's upgrade snapshot name
+		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
 			d.retryDeleteSnapshot(oldSnapshot.Name, conf.Name)
 		}
 		return nil
@@ -240,7 +246,11 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		}
 	}
 
-	if err = d.reconfigVCH(conf, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)); err != nil {
+	isoFile := settings.ApplianceISO
+	if settings.ApplianceISO != "" {
+		fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)
+	}
+	if err = d.reconfigVCH(conf, isoFile); err != nil {
 		return err
 	}
 
@@ -305,12 +315,14 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 
 	spec := &types.VirtualMachineConfigSpec{}
 
-	deviceChange, err := d.switchISO(isoFile)
-	if err != nil {
-		return err
-	}
+	if isoFile != "" {
+		deviceChange, err := d.switchISO(isoFile)
+		if err != nil {
+			return err
+		}
 
-	spec.DeviceChange = deviceChange
+		spec.DeviceChange = deviceChange
+	}
 
 	if conf != nil {
 		// reset service started attribute

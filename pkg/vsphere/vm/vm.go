@@ -359,7 +359,7 @@ func (vm *VirtualMachine) bfsSnapshotTree(q *list.List, compare func(node types.
 }
 
 // helper func that returns true if node is an upgrade snapshot image
-func IsUpgradeSnapshot(node *types.VirtualMachineSnapshotTree, upgradePrefix string) bool {
+func IsConfigureSnapshot(node *types.VirtualMachineSnapshotTree, upgradePrefix string) bool {
 	return node != nil && strings.HasPrefix(node.Name, upgradePrefix)
 }
 

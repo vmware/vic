@@ -112,7 +112,7 @@ func testUpgrade(computePath string, name string, v *validate.Validator, setting
 
 		t.Errorf("Failed to get vch configuration: %s", err)
 	}
-	if err := d.Upgrade(vch, conf, settings); err != nil {
+	if err := d.Configure(vch, conf, settings); err != nil {
 		t.Errorf("Failed to upgrade: %s", err)
 	}
 }
