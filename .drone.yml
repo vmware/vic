@@ -82,6 +82,9 @@ pipeline:
       GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
       DOMAIN: ${CI_DOMAIN}
+      SYSLOG_SERVER: $$SYSLOG_SERVER
+      SYSLOG_USER: $$SYSLOG_USER
+      SYSLOG_PASSWD: $$SYSLOG_PASSWD
     commands:
       - make mark
       - tests/integration-test.sh
