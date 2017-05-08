@@ -87,7 +87,6 @@ pipeline:
     when:
       status:  success
 
-
   vic-ui:
     image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
     pull: true
@@ -144,10 +143,9 @@ pipeline:
       branch: [ master, releases/*, refs/tags/* ]
       status: failure
 
-
-  publish-gcs:
-    auth_key: >
-      $$SERVICE_ACCOUNT_KEY
+  publish-gcs-builds:
+    image: maplain/drone-gcs:latest
+    pull: true
     source: bundle
     target: vic-engine-builds
     acl:
@@ -157,11 +155,11 @@ pipeline:
       repo: vmware/vic
       event: [ push ]
       branch: [ master, releases/* ]
-      success: true
+      status: success
 
-  publish-gcs:
-    auth_key: >
-      $$SERVICE_ACCOUNT_KEY
+  publish-gcs-releases:
+    image: maplain/drone-gcs:latest
+    pull: true
     source: bundle
     target: vic-engine-releases
     acl:
@@ -171,7 +169,7 @@ pipeline:
       repo: vmware/vic
       event: [ push, tag ]
       branch: [ refs/tags/* ]
-      success: true
+      status: success
 
   report-coverage:
     image: plugins/coverage
