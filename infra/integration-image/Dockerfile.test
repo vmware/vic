@@ -64,7 +64,6 @@ RUN curl -fsSLO https://releases.hashicorp.com/packer/0.12.2/packer_0.12.2_linux
     unzip packer_0.12.2_linux_amd64.zip -d /usr/bin && \
 	rm packer_0.12.2_linux_amd64.zip
 
-# RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
 RUN curl http://downloads.drone.io/release/linux/amd64/drone.tar.gz | tar zx && \
     install -t /usr/local/bin drone
 
