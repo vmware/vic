@@ -18,7 +18,7 @@ Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
-${SYSLOG_FILE}  /var/log/daemon.log
+${SYSLOG_FILE}  /var/log/syslog
 
 *** Keywords ***
 Get Remote PID
@@ -28,14 +28,15 @@ Get Remote PID
     [Return]  ${pid}
 
 *** Test Cases ***
-Add remote syslog to VCH
+Verify VCH remote syslog
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --syslog-address tcp://%{SYSLOG_SERVER}:514 ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --syslog-address tcp://%{SYSLOG_SERVER}:514 --debug 1 ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
 
+    # enable ssh
     ${output}=  Run  bin/vic-machine-linux debug --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Should Contain  ${output}  Completed successfully
 
@@ -56,11 +57,11 @@ Add remote syslog to VCH
 
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
     ${keys}=  Get Dictionary Keys  ${proc-pids}
-    :FOR  ${proc}  IN  ${keys}
+    :FOR  ${proc}  IN  @{keys}
     \     ${pid}=  Get From Dictionary  ${proc-pids}  ${proc}
     \     Should Contain  ${out}  %{VCH-IP} ${proc}[${pid}]:
 
-    ${out}  ${rc}=  Run And Return Rc And Output  docker ${VCH-PARAMS} ps -a
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
 
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
