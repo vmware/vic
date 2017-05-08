@@ -1302,6 +1302,7 @@ func (c *Create) processSyslog() error {
 	}
 
 	c.SyslogConfig.Addr = u
+	c.SyslogConfig.Tag = c.DisplayName
 	return nil
 }
 

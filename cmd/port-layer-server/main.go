@@ -94,7 +94,7 @@ func main() {
 			Network:   u.Scheme,
 			RAddr:     u.Host,
 			Tag:       "vic-port-layer",
-			Priority:  srslog.LOG_INFO,
+			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
 			Formatter: syslog.RFC3164,
 		}
 	}

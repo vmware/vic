@@ -87,6 +87,7 @@ type Data struct {
 
 type SyslogConfig struct {
 	Addr *url.URL
+	Tag  string
 }
 
 type ContainerNetworks struct {

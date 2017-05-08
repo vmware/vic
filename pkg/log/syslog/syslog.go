@@ -17,6 +17,8 @@ package syslog
 import (
 	"io"
 	"net"
+	"os"
+	"path/filepath"
 
 	"github.com/RackSec/srslog"
 	"github.com/Sirupsen/logrus"
@@ -137,11 +139,10 @@ func (hook *Hook) Levels() []logrus.Level {
 func (hook *Hook) Run() {
 	close(hook.running)
 	for entry := range hook.entries {
-		if err := hook.writeEntry(entry); err != nil {
-			// force reconnect
-			hook.writer.Close()
-		}
+		hook.writeEntry(entry)
 	}
+
+	logrus.Warnf("exited syslog loop")
 }
 
 func (hook *Hook) writeEntry(entry *logrus.Entry) error {
@@ -245,4 +246,42 @@ func (w *writerWrapper) Close() error {
 	}
 
 	return w.writer.Close()
+}
+
+const maxTagLen = 32
+
+// MakeTag makes an RFC 3164 compliant tag (32 characters or less)
+// using the provided prefix and proc. If both prefix and proc
+// are non-empty, prefix:proc is returned. If prefix is empty
+// and proc is non-empty, proc is returned. If proc is empty, it
+// is set to the current process's executable. If prefix:proc is
+// greater than 32 characters in length, prefix is truncated first,
+// followed by proc getting truncated if the length is still greater
+// 32 characters.
+func MakeTag(prefix, proc string) string {
+	if len(proc) == 0 {
+		proc = filepath.Base(os.Args[0])
+	}
+
+	if len(proc) >= maxTagLen {
+		return proc[:maxTagLen]
+	}
+
+	if len(prefix) > 0 {
+		t := "-" + proc
+		if len(prefix)+len(t) <= maxTagLen {
+			return prefix + ":" + proc
+		}
+
+		prefixLen := maxTagLen - len(t)
+		switch {
+		case prefixLen == 0:
+			return proc
+
+		case prefixLen > 0:
+			return prefix[:prefixLen] + t
+		}
+	}
+
+	return proc
 }

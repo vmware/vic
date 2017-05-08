@@ -154,7 +154,7 @@ func initLogging() error {
 			RAddr:     vchConfig.Diagnostics.SysLogConfig.RAddr,
 			Tag:       "vic-docker",
 			Formatter: syslog.RFC3164,
-			Priority:  srslog.LOG_INFO,
+			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
 		}
 	}
 

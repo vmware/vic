@@ -93,6 +93,9 @@ type SysLogConfig struct {
 	Network string
 	// RAddr is the remote address of the syslog endpoint
 	RAddr string
+	// Tag is the syslog tag to include in the syslog message. This may
+	// be used as a prefix to the full tag by some processes.
+	Tag string
 }
 
 // ExitLog records some basic diagnostics about anomalous exit for restartable entities

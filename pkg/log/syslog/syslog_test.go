@@ -19,6 +19,9 @@ package syslog
 import (
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +35,7 @@ var cfg = &SyslogConfig{
 	Network:   "tcp",
 	RAddr:     "localhost:514",
 	Tag:       "test",
-	Priority:  srslog.LOG_INFO,
+	Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
 	Formatter: RFC3164,
 }
 
@@ -334,4 +337,68 @@ func TestConnect(t *testing.T) {
 	})
 
 	<-time.After(5 * time.Second)
+}
+
+func TestMakeTag(t *testing.T) {
+	p := filepath.Base(os.Args[0])
+	if len(p) > maxTagLen {
+		p = p[:maxTagLen]
+	}
+
+	var tests = []struct {
+		prefix, proc string
+		out          string
+	}{
+		{
+			prefix: "",
+			proc:   "",
+			out:    p,
+		},
+		{
+			prefix: "",
+			proc:   "foo",
+			out:    "foo",
+		},
+		{
+			prefix: "foo",
+			proc:   "",
+			out:    "foo" + ":" + p,
+		},
+		{
+			prefix: "foo",
+			proc:   "bar",
+			out:    "foo:bar",
+		},
+		{
+			prefix: "",
+			proc:   strings.Repeat("a", maxTagLen),
+			out:    strings.Repeat("a", maxTagLen),
+		},
+		{
+			prefix: "",
+			proc:   strings.Repeat("a", maxTagLen) + "c",
+			out:    strings.Repeat("a", maxTagLen),
+		},
+		{
+			prefix: "pre",
+			proc:   strings.Repeat("a", maxTagLen-2) + "c",
+			out:    strings.Repeat("a", maxTagLen-2) + "c",
+		},
+		{
+			prefix: strings.Repeat("a", maxTagLen-1) + "c",
+			proc:   "bar",
+			out:    strings.Repeat("a", maxTagLen-len(":bar")) + "-bar",
+		},
+		{
+			prefix: "bar",
+			proc:   strings.Repeat("a", maxTagLen) + "c",
+			out:    (strings.Repeat("a", maxTagLen) + "c")[:maxTagLen],
+		},
+	}
+
+	for _, te := range tests {
+		out := MakeTag(te.prefix, te.proc)
+		assert.Equal(t, te.out, out)
+		assert.Condition(t, func() bool { return len(out) <= maxTagLen })
+	}
 }
