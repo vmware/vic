@@ -46,12 +46,12 @@ func NewConfigure() *Configure {
 	return configure
 }
 
-// Flags return all cli flags for upgrade
+// Flags return all cli flags for configure
 func (c *Configure) Flags() []cli.Flag {
 	util := []cli.Flag{
 		cli.BoolFlag{
 			Name:        "force, f",
-			Usage:       "Force the configure",
+			Usage:       "Force the configure operation",
 			Destination: &c.Force,
 		},
 		cli.DurationFlag{
@@ -234,12 +234,9 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 
 	if err != nil {
-		// upgrade failed
+		// configure failed
 		executor.CollectDiagnosticLogs()
-		if err == nil {
-			err = errors.New("configure failed")
-		}
-		return err
+		return errors.New("configure failed")
 	}
 
 	log.Infof("Completed successfully")

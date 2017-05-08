@@ -224,10 +224,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		// upgrade failed
 		executor.CollectDiagnosticLogs()
-		if err == nil {
-			err = errors.New("upgrade failed")
-		}
-		return err
+		return errors.New("upgrade failed")
 	}
 
 	log.Infof("Completed successfully")
