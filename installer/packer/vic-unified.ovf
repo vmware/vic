@@ -302,6 +302,30 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <Description>Specifies the port on which fileserver will be published.</Description>
       </Property>
     </ProductSection>
+    <ProductSection ovf:class="cluster_manager" ovf:required="false">
+      <Info>vSphere Container Cluster Manager</Info>
+      <Category>7. vSphere Container Cluster Manager Configuration</Category>
+      <Property ovf:key="deploy" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="true">
+        <Label>7.1. Deploy vSphere Container Cluster Manager</Label>
+        <Description>Specifies whether vSphere Container Cluster Manager is enabled on the appliance.</Description>
+      </Property>
+      <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="5683">
+        <Label>7.2. vSphere Container Cluster Manager Port</Label>
+        <Description>Specifies the port on which vSphere Container Cluster Manager will be published.</Description>
+      </Property>
+      <Property ovf:key="admin" ovf:qualifiers="MinLen(8),MaxLen(128)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>7.3. Admin username</Label>
+        <Description>Specifies the username of client admin to whom a self-signed certificate will be generated.</Description>
+      </Property>
+      <Property ovf:key="ssl_cert" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>7.4. SSL Cert</Label>
+        <Description>Paste in the content of a certificate file. Leave blank for a generated self-signed certificate.</Description>
+      </Property>
+      <Property ovf:key="ssl_cert_key" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>7.5. SSL Cert Key</Label>
+        <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
+      </Property>
+    </ProductSection>
     <ProductSection ovf:class="vm" ovf:required="false">
       <Info>VM specific properties</Info>
       <Property ovf:key="vmname" ovf:type="string" ovf:value="vic"/>

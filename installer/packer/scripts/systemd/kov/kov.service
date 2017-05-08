@@ -1,0 +1,23 @@
+[Unit]
+Description=Kubernetes on Vsphere
+Documentation=https://github.com/vmware/kov
+After=systemd-networkd.service systemd-resolved.service network.service admiral_startup.service fileserver_startup.service admiral.service engine_installer_startup.service
+Requires=docker.service
+Wants=network.service
+
+[Service]
+Type=notify
+RestartSec=5
+TimeoutStartSec=0
+Delegate=yes
+KillMode=process
+Restart=on-abnormal
+ExecStartPre=/etc/vmware/kov/configure_kov.sh
+ExecStart=/usr/bin/kovd --tls-port=${KOVD_EXPOSED_PORT} --tls-host=0.0.0.0 --tls-certificate ${KOVD_CERT_LOCATION} --tls-certificate-key ${KOVD_KEY_LOCATION}
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+
+[Install]
+WantedBy=multi-user.target

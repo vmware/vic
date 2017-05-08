@@ -62,6 +62,8 @@ ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'remote_password=$(PACKER_PASSWORD)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
+			-var 'build_kov_cli_revision=$(BUILD_KOV_CLI_REVISION)' \
+			-var 'build_kovd_revision=$(BUILD_KOVD_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			packer-vic.json
@@ -85,6 +87,8 @@ ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'remote_password=$(PACKER_PASSWORD)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
+			-var 'build_kov_cli_revision=$(BUILD_KOV_CLI_REVISION)' \
+			-var 'build_kovd_revision=$(BUILD_KOVD_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			--on-error=abort packer-vic.json
@@ -105,6 +109,8 @@ vagrant-local: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'iso_file=$(PHOTON_ISO)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
+			-var 'build_kov_cli_revision=$(BUILD_KOV_CLI_REVISION)' \
+			-var 'build_kovd_revision=$(BUILD_KOVD_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			--on-error=abort packer-vic.json
