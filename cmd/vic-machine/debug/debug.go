@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -192,7 +192,7 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	}
 
 	// display the VCH endpoints again for convenience
-	if err = executor.InspectVCH(vch, vchConfig); err != nil {
+	if err = executor.InspectVCH(vch, vchConfig, ""); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
 		return errors.New("debug failed")

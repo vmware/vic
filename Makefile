@@ -399,9 +399,9 @@ $(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
 VICUI_SOURCE_PATH = "ui/vic-ui"
 VICUI_H5_UI_PATH = "ui/vic-ui-h5c/vic"
 VICUI_H5_SERVICE_PATH = "ui/vic-ui-h5c/vic-service"
-BINTRAY_DOWNLOAD_PATH = "https://bintray.com/vmware/vic-repo/download_file?file_path="
+GCP_DOWNLOAD_PATH = "https://storage.googleapis.com/vic-engine-builds/"
 SDK_PACKAGE_ARCHIVE = "vic-ui-sdk.tar.gz"
-UI_INSTALLER_WIN_UTILS_ARCHIVE = "vic_installation_utils_win.tgz"
+UI_INSTALLER_WIN_UTILS_ARCHIVE = "vic-installation-utils-win.tgz"
 UI_INSTALLER_WIN_PATH = "ui/installer/vCenterForWindows"
 ENV_VSPHERE_SDK_HOME = "/tmp/sdk/vc_sdk_min"
 ENV_FLEX_SDK_HOME = "/tmp/sdk/flex_sdk_min"
@@ -416,8 +416,8 @@ vic-ui-plugins:
 	mv ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml ./$(VICUI_SOURCE_PATH)/plugin-package.xml
 	mv ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml ./$(VICUI_H5_UI_PATH)/plugin-package.xml
 	mv ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties
-	wget -nv $(BINTRAY_DOWNLOAD_PATH)$(SDK_PACKAGE_ARCHIVE) -O /tmp/$(SDK_PACKAGE_ARCHIVE)
-	wget -nv $(BINTRAY_DOWNLOAD_PATH)$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -O /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE)
+	wget -nv $(GCP_DOWNLOAD_PATH)$(SDK_PACKAGE_ARCHIVE) -O /tmp/$(SDK_PACKAGE_ARCHIVE)
+	wget -nv $(GCP_DOWNLOAD_PATH)$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -O /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE)
 	tar --warning=no-unknown-keyword -xzf /tmp/$(SDK_PACKAGE_ARCHIVE) -C /tmp/
 	ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME)
 	tar --warning=no-unknown-keyword -xzf /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -C $(UI_INSTALLER_WIN_PATH)

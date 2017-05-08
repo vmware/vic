@@ -10,6 +10,10 @@ group_defaults:
     enabled: false
 
 groups:
+  contributors:
+    required: 2
+    users: all
+
   tether:
     users:
       - caglar10ur

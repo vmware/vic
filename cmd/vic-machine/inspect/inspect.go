@@ -15,6 +15,8 @@
 package inspect
 
 import (
+	"context"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -28,13 +30,14 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"context"
 )
 
 // Inspect has all input parameters for vic-machine inspect command
 type Inspect struct {
 	*data.Data
+
+	showConfig bool
+	CertPath   string
 
 	executor *management.Dispatcher
 }
@@ -45,14 +48,25 @@ func NewInspect() *Inspect {
 	return d
 }
 
-// Flags return all cli flags for inspect
+// Flags returns all cli flags for inspect
 func (i *Inspect) Flags() []cli.Flag {
 	util := []cli.Flag{
+		cli.BoolFlag{
+			Name:        "configuration, conf",
+			Usage:       "Display VCH configuration",
+			Destination: &i.showConfig,
+		},
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
 			Usage:       "Time to wait for inspect",
 			Destination: &i.Timeout,
+		},
+		cli.StringFlag{
+			Name:        "cert-path",
+			Value:       "",
+			Usage:       "The path to check for existing certificates. Defaults to './<vch name>/'",
+			Destination: &i.CertPath,
 		},
 	}
 
@@ -130,15 +144,22 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		return errors.New("inspect failed")
 	}
 
-	log.Infof("")
-	log.Infof("VCH ID: %s", vch.Reference().String())
-
 	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
 		return errors.New("inspect failed")
 	}
+
+	if i.showConfig {
+		options := strings.Join(vchConfig.VicMachineCreateOptions, "\n\t")
+		log.Info("")
+		log.Infof("Target VCH created with the following options: \n\n\t%s\n", options)
+		return nil
+	}
+
+	log.Infof("")
+	log.Infof("VCH ID: %s", vch.Reference().String())
 
 	installerVer := version.GetBuild()
 
@@ -149,7 +170,7 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	log.Info("VCH upgrade status:")
 	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
 
-	if err = executor.InspectVCH(vch, vchConfig); err != nil {
+	if err = executor.InspectVCH(vch, vchConfig, i.CertPath); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
 		return errors.New("inspect failed")

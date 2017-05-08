@@ -8,7 +8,7 @@ To verify vic-machine upgrade can upgrade VCH from a certain version
 This test requires that a vSphere server is running and available
 
 # Test Steps:
-1. Download vic_7315.tar.gz from bintray
+1. Download vic_7315.tar.gz from gcp
 2. Deploy VIC 7315 to vsphere server
 3. Issue docker network create bar, creating a new network called "bar"
 4. Create container with port mapping

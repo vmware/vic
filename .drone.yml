@@ -1,7 +1,7 @@
 # After any change to this file you MUST regenerate and checkin
 # a .drone.sec even if no secrets were changed. The secrets file is tied
 # to a specific .drone.yml so artifacts will not be uploaded to (OR DOWNLOADED
-# FROM) Bintray in following builds without an updated .drone.sec
+# FROM) GCP in following builds without an updated .drone.sec
 #
 # When you are ready to submit a pull request, you must regenerate .drone.sec for the vmware/vic repo:
 #
@@ -124,6 +124,8 @@ build:
       - shasum -a 1 $BIN/vic_$$BUILD_NUMBER.tar.gz
       - md5sum $BIN/vic_$$BUILD_NUMBER.tar.gz
       - du -ks $BIN/vic_$$BUILD_NUMBER.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
+      - mkdir bundle
+      - cp $BIN/vic_$$BUILD_NUMBER.tar.gz bundle
       - make sincemark
     when:
       repo: vmware/vic
@@ -145,22 +147,31 @@ notify:
       failure: true
 
 publish:
-  bintray:
-    username: $$BINTRAY_USERNAME
-    api_key: $$BINTRAY_API_KEY
-    artifacts:
-      - file: bin/vic_$$BUILD_NUMBER.tar.gz
-        owner: vmware
-        type: executable
-        repository: vic-repo
-        package: build
-        version: $$BUILD_NUMBER
-        target: vic_$$BUILD_NUMBER.tar.gz
-        publish: true
+  gcs:
+    auth_key: >
+      $$SERVICE_ACCOUNT_KEY
+    source: bundle
+    target: vic-engine-builds
+    acl:
+      - allUsers:READER
+    cache_control: public,max-age=3600
+    when:
+      repo: vmware/vic
+      event: [ push ]
+      branch: [ master, releases/* ]
+      success: true
+  gcs:
+    auth_key: >
+      $$SERVICE_ACCOUNT_KEY
+    source: bundle
+    target: vic-engine-releases
+    acl:
+      - allUsers:READER
+    cache_control: public,max-age=3600
     when:
       repo: vmware/vic
       event: [ push, tag ]
-      branch: [ master, releases/*, refs/tags/* ]
+      branch: [ refs/tags/* ]
       success: true
   coverage:
     server: https://coverage.vmware.run
