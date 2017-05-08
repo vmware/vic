@@ -43,6 +43,7 @@ func NewHostSystem(host mo.HostSystem) *HostSystem {
 	}{
 		{&hs.ConfigManager.DatastoreSystem, &HostDatastoreSystem{Host: &hs.HostSystem}},
 		{&hs.ConfigManager.NetworkSystem, NewHostNetworkSystem(&hs.HostSystem)},
+		{&hs.ConfigManager.AdvancedOption, NewOptionManager(nil, esx.Setting)},
 	}
 
 	for _, c := range config {

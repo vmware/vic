@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 )
 
 type ServiceInstance struct {
@@ -46,8 +47,12 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 	f := &Folder{Folder: folder}
 	Map.Put(f)
 
+	var setting []types.BaseOptionValue
+
 	if content.About.ApiType == "HostAgent" {
 		CreateDefaultESX(f)
+	} else {
+		setting = vc.Setting
 	}
 
 	objects := []object.Reference{
@@ -58,6 +63,7 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 		NewSearchIndex(*s.Content.SearchIndex),
 		NewViewManager(*s.Content.ViewManager),
 		NewTaskManager(*s.Content.TaskManager),
+		NewOptionManager(s.Content.Setting, setting),
 	}
 
 	for _, o := range objects {

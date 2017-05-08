@@ -81,6 +81,9 @@ type VirtualContainerHostConfigSpec struct {
 
 	// configuration for vic-machine
 	CreateBridgeNetwork bool `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
+
+	// vic-machine create options used to create or reconfigure the VCH
+	VicMachineCreateOptions []string `vic:"0.1" scope:"read-only" key:"vic_machine_create_options"`
 }
 
 // ContainerConfig holds the container configuration for a virtual container host

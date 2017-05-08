@@ -17,6 +17,16 @@ Documentation  Test 5-3 - Enhanced Linked Mode
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
+*** Keywords ***
+# Insert elements from dict2 into dict1, overwriting conflicts in dict1 & returning new dict
+Combine Dictionaries
+    [Arguments]  ${dict1}  ${dict2}
+    ${dict2keys}=  Get Dictionary Keys  ${dict2}
+    :FOR  ${key}  IN  @{dict2keys}
+    \    ${elem}=  Get From Dictionary  ${dict2}  ${key}
+    \    Set To Dictionary  ${dict1}  ${key}  ${elem}
+    [Return]  ${dict1}
+
 *** Test Cases ***
 Test
     ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
@@ -41,18 +51,39 @@ Test
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${esx3-ip}  ${ip}
 
-    ${esx1}  ${esx4-ip}  ${esx2}  ${esx5-ip}  ${esx3}  ${esx6-ip}=  Deploy Multiple Nimbus ESXi Servers in Parallel  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    &{esxes}=  Create Dictionary
+    ${num_of_esxes}=  Evaluate  3
+    :FOR  ${i}  IN RANGE  3
+    # Deploy some ESXi instances
+    \    &{new_esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${num_of_esxes}  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    \    ${esxes}=  Combine Dictionaries  ${esxes}  ${new_esxes}
+
+    # Investigate to see how many were actually deployed
+    \    ${len}=  Get Length  ${esxes}
+    \    ${num_of_esxes}=  Evaluate  3 - ${len}
+
+    # Exit if we've got enough & continue loop if we don't
+    \    Exit For Loop If  ${len} >= 3
+    \    Log To Console  Only got ${len} ESXi instance(s); Trying again
+
+    @{esx-names}=  Get Dictionary Keys  ${esxes}
+    @{esx-ips}=  Get Dictionary Values  ${esxes}
+    ${esx1}=  Get From List  ${esx-names}  0
+    ${esx2}=  Get From List  ${esx-names}  1
+    ${esx3}=  Get From List  ${esx-names}  2
+    ${esx4-ip}=  Get From List  ${esx-ips}  0
+    ${esx5-ip}=  Get From List  ${esx-ips}  1
+    ${esx6-ip}=  Get From List  ${esx-ips}  2
+
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${user}-${name}.vc.0  ${user}-${name}.vc.1  ${user}-${name}.vc.2  ${user}-${name}.vc.3  ${user}-${name}.nfs.0  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2
 
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
     Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_URL  root:@${esx1-ip}
-    Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
-    Set Environment Variable  GOVC_URL  root:@${esx2-ip}
-    Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
-    Set Environment Variable  GOVC_URL  root:@${esx3-ip}
-    Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
+    :FOR  ${ip}  IN  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}
+    \   Log To Console  Changing password for ${ip}
+    \   Set Environment Variable  GOVC_URL  root:@${ip}
+    \   Wait Until Keyword Succeeds  10x  3 minutes  Change ESXi Server Password  e2eFunctionalTest
 
     Set Environment Variable  GOVC_URL  ${vc1-ip}
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
@@ -68,12 +99,10 @@ Test
     Should Be Empty  ${out}
 
     Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
+    :FOR  ${ip}  IN  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}
+    \    Log To Console  Adding ${ip} to VC
+    \    ${out}=  Run  govc cluster.add -hostname=${ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    \    Should Contain  ${out}  OK
 
     Create A Distributed Switch  ha-datacenter
 
@@ -96,12 +125,9 @@ Test
     Should Be Empty  ${out}
 
     Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx4-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx5-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx6-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
+    :FOR  ${ip}  IN  @{esx-ips}
+    \    ${out}=  Run  govc cluster.add -hostname=${ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    \    Should Contain  ${out}  OK
 
     Create A Distributed Switch  ha-datacenter
 

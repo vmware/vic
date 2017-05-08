@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -28,13 +29,14 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, certPath string) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	state, err := vch.PowerState(d.ctx)
@@ -89,8 +91,59 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		log.Debugf("No host certificates provided")
 	}
 
-	d.ShowVCH(conf, "", "", "", "", "")
+	// Check for valid client cert for a tls-verify configuration
+	if len(conf.CertificateAuthorities) > 0 {
+		possibleCertPaths := findCertPaths(conf.Name, certPath)
+
+		// Check if a valid client cert exists in one of possibleCertPaths
+		certPath = ""
+		for _, path := range possibleCertPaths {
+			certFile := filepath.Join(path, certificate.ClientCert)
+			keyFile := filepath.Join(path, certificate.ClientKey)
+			ckp := certificate.NewKeyPair(certFile, keyFile, nil, nil)
+			if err = ckp.LoadCertificate(); err != nil {
+				log.Debugf("Unable to load client cert in %s: %s", path, err)
+				continue
+			}
+
+			if _, err = certificate.VerifyClientCert(conf.CertificateAuthorities, ckp); err != nil {
+				log.Debugf(err.Error())
+				continue
+			}
+
+			certPath = path
+			break
+		}
+	}
+
+	d.ShowVCH(conf, "", "", "", "", certPath)
 	return nil
+}
+
+// findCertPaths returns candidate paths for client certs depending on whether
+// a certPath was specified in the CLI.
+func findCertPaths(vchName, certPath string) []string {
+	var possibleCertPaths []string
+
+	if certPath != "" {
+		log.Infof("cert-path supplied - only checking for certs in %s/", certPath)
+		possibleCertPaths = append(possibleCertPaths, certPath)
+		return possibleCertPaths
+	}
+
+	possibleCertPaths = append(possibleCertPaths, vchName, ".")
+	logMsg := fmt.Sprintf("cert-path not supplied - checking for certs in current directory, %s/", vchName)
+
+	dockerConfPath := ""
+	user, err := user.Current()
+	if err == nil {
+		dockerConfPath = filepath.Join(user.HomeDir, ".docker")
+		possibleCertPaths = append(possibleCertPaths, dockerConfPath)
+		logMsg = fmt.Sprintf("%s and %s/", logMsg, dockerConfPath)
+	}
+	log.Infof(logMsg)
+
+	return possibleCertPaths
 }
 
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string, certpath string) {
@@ -143,7 +196,7 @@ func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfig
 			if key != "" {
 				tls = fmt.Sprintf(" --tlsverify --tlscacert=%q --tlscert=%q --tlskey=%q", cacert, cert, key)
 			} else {
-				tls = fmt.Sprintf(" --tlsverify ")
+				tls = fmt.Sprintf(" --tlsverify")
 			}
 
 			dEnv = append(dEnv, "DOCKER_TLS_VERIFY=1")
@@ -152,6 +205,9 @@ func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfig
 				if abs, err := filepath.Abs(info.Name()); err == nil {
 					dEnv = append(dEnv, fmt.Sprintf("DOCKER_CERT_PATH=%s", abs))
 				}
+			} else {
+				log.Warnf("Unable to find valid client certs")
+				log.Warnf("DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments")
 			}
 		} else {
 			tls = " --tls"

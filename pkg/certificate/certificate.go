@@ -19,6 +19,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -31,6 +32,16 @@ import (
 
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+)
+
+// Default certificate file names
+const (
+	ClientCert = "cert.pem"
+	ClientKey  = "key.pem"
+	ServerCert = "server-cert.pem"
+	ServerKey  = "server-key.pem"
+	CACert     = "ca.pem"
+	CAKey      = "ca-key.pem"
 )
 
 func hashPublicKey(key *rsa.PublicKey) ([]byte, error) {
@@ -318,4 +329,30 @@ func CreateClientCertificate(domain string, org []string, size int, cb, kb []byt
 	}
 
 	return createCertificate(template, cacert, pkey, cakey)
+}
+
+// VerifyClientCert verifies the loaded client cert keypair against the input CA and
+// returns the certificate on success.
+func VerifyClientCert(ca []byte, ckp *KeyPair) (*tls.Certificate, error) {
+	var err error
+
+	cert, err := ckp.Certificate()
+	if err != nil || cert.Leaf == nil {
+		return nil, CertParseError{msg: err.Error()}
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(ca) {
+		return nil, CreateCAPoolError{}
+	}
+
+	opts := x509.VerifyOptions{
+		Roots:     pool,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	if _, err = cert.Leaf.Verify(opts); err != nil {
+		return nil, CertVerifyError{}
+	}
+
+	return cert, nil
 }

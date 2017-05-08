@@ -21,6 +21,25 @@ ${VC_VERSION}  4602587   #6.5 RTM
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 
 *** Keywords ***
+Strip IP
+  [Arguments]  ${string}
+  @{gotIP}=  Split String  ${line}  ${SPACE}
+  ${ip}=  Remove String  @{gotIP}[2]
+  [Return]  ${ip}
+
+Get IP
+  [Arguments]  ${name}
+  ${out}=  Execute Command  nimbus-ctl ip ${user}-${name}
+  @{out}=  Split To Lines  ${out}
+  Set Suite Variable  ${line}  ${EMPTY}
+  :FOR  ${item}  IN  @{out}
+  \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name}
+  \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+
+  ${ip}=  Run Keyword If  '${line}' != '${EMPTY}'  Strip IP  ${line}
+  [Return]  ${ip}
+
+
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
@@ -57,85 +76,51 @@ Deploy Nimbus ESXi Server
     Close connection
     [Return]  ${user}-${name}  ${ip}
 
+Set Host Password
+    [Arguments]  ${ip}  ${NIMBUS_ESX_PASSWORD}
+    Remove Environment Variable  GOVC_PASSWORD
+    Remove Environment Variable  GOVC_USERNAME
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  root:@${ip}
+    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
+    Should Be Empty  ${out}
+    Disable TLS On ESX Host
+    Log To Console  \nNimbus ESXi server IP: ${ip}
+
 Deploy Multiple Nimbus ESXi Servers in Parallel
-    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}
-    ${name1}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
-    ${name2}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
-    ${name3}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    [Arguments]  ${number}  ${user}  ${password}  ${version}=${ESX_VERSION}
+    @{names}=  Create List
+    ${num}=  Convert To Integer  ${number}
+    :FOR  ${x}  IN RANGE  ${num}
+    \     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    \     Append To List  ${names}  ${name}
 
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${out1}=  Deploy Nimbus ESXi Server Async  ${name1}
-    ${out2}=  Deploy Nimbus ESXi Server Async  ${name2}
-    ${out3}=  Deploy Nimbus ESXi Server Async  ${name3}
+    @{processes}=  Create List
+    :FOR  ${name}  IN  @{names}
+    \    ${output}=  Deploy Nimbus ESXi Server Async  ${name}
+    \    Append To List  ${processes}  ${output}
 
-    Wait For Process  ${out1}
-    Wait For Process  ${out2}
-    Wait For Process  ${out3}
+    :FOR  ${process}  IN  @{processes}
+    \    ${pid}=  Convert To Integer  ${process}
+    \    Wait For Process  ${pid}
 
-    ${out}=  Execute Command  nimbus-ctl ip ${user}-${name1}
-
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name1}
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    @{gotIP}=  Split String  ${line}  ${SPACE}
-    ${ip1}=  Remove String  @{gotIP}[2]
-
-    ${out}=  Execute Command  nimbus-ctl ip ${user}-${name2}
-
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name2}
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    @{gotIP}=  Split String  ${line}  ${SPACE}
-    ${ip2}=  Remove String  @{gotIP}[2]
-
-    ${out}=  Execute Command  nimbus-ctl ip ${user}-${name3}
-
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name3}
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    @{gotIP}=  Split String  ${line}  ${SPACE}
-    ${ip3}=  Remove String  @{gotIP}[2]
-
-    Log To Console  \nDeploying Nimbus ESXi server: ${gotIP}
+    &{ips}=  Create Dictionary
+    :FOR  ${name}  IN  @{names}
+    \    ${ip}=  Get IP  ${name}
+    \    ${ip}=  Evaluate  $ip if $ip else ''
+    \    Run Keyword If  '${ip}'  Set To Dictionary  ${ips}  ${name}  ${ip}
 
     # Let's set a password so govc doesn't complain
-    Remove Environment Variable  GOVC_PASSWORD
-    Remove Environment Variable  GOVC_USERNAME
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_URL  root:@${ip1}
-    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
-    Should Be Empty  ${out}
-    Disable TLS On ESX Host
-    Log To Console  Successfully deployed new ESXi server - ${user}-${name1}
-    Log To Console  \nNimbus ESXi server IP: ${ip1}
-
-    Remove Environment Variable  GOVC_PASSWORD
-    Remove Environment Variable  GOVC_USERNAME
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_URL  root:@${ip2}
-    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
-    Should Be Empty  ${out}
-    Disable TLS On ESX Host
-    Log To Console  Successfully deployed new ESXi server - ${user}-${name2}
-    Log To Console  \nNimbus ESXi server IP: ${ip2}
-
-    Remove Environment Variable  GOVC_PASSWORD
-    Remove Environment Variable  GOVC_USERNAME
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_URL  root:@${ip3}
-    ${out}=  Run  govc host.account.update -id root -password ${NIMBUS_ESX_PASSWORD}
-    Should Be Empty  ${out}
-    Disable TLS On ESX Host
-    Log To Console  Successfully deployed new ESXi server - ${user}-${name3}
-    Log To Console  \nNimbus ESXi server IP: ${ip3}
+    ${just_ips}=  Get Dictionary Values  ${ips}
+    :FOR  ${ip}  IN  @{just_ips}
+    \    Log To Console  Successfully deployed new ESXi server - ${ip}
+    \    Set Host Password  ${ip}  ${NIMBUS_ESX_PASSWORD}
 
     Close connection
-    [Return]  ${user}-${name1}  ${ip1}  ${user}-${name2}  ${ip2}  ${user}-${name3}  ${ip3}
+    [Return]  ${ips}
 
 Deploy Nimbus vCenter Server
     [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}
@@ -171,8 +156,7 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ${version}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ob-${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
