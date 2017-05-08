@@ -64,6 +64,15 @@ groups:
         include:
           - "tests/nightly/*"
 
+  log:
+    users:
+      - hmahmood
+      - fdawg4l
+    conditions:
+      files:
+        include:
+          - "pkg/log/*"
+
   vcsim:
     users:
       - dougm
