@@ -119,36 +119,6 @@ func TestLevels(t *testing.T) {
 	}
 }
 
-func TestHookReconnect(t *testing.T) {
-	d := &mockDialer{}
-	w := &MockWriter{}
-	d.On("dial", cfg).Return(w, nil)
-	h, err := NewHook(cfg, d)
-	assert.NotNil(t, h)
-	assert.NoError(t, err)
-	assert.Equal(t, w, h.writer)
-	d.AssertCalled(t, "dial", cfg)
-	d.AssertNumberOfCalls(t, "dial", 1)
-
-	go h.Run()
-
-	<-h.running
-
-	w.On("Debug", mock.Anything).Return(assert.AnError)
-	w.On("Close").Return(nil)
-
-	h.Fire(&logrus.Entry{
-		Message: "test",
-		Level:   logrus.DebugLevel,
-	})
-
-	select {
-	case <-time.After(5 * time.Second):
-		w.AssertCalled(t, "Debug", "test")
-		w.AssertCalled(t, "Close")
-	}
-}
-
 func TestWriterWrapperReconnect(t *testing.T) {
 	d := &mockDialer{}
 	w := &writerWrapper{
