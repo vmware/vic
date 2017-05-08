@@ -93,7 +93,6 @@ func main() {
 		logcfg.Syslog = &syslog.SyslogConfig{
 			Network:   config.Diagnostics.SysLogConfig.Network,
 			RAddr:     config.Diagnostics.SysLogConfig.RAddr,
-			Tag:       syslog.MakeTag(config.Diagnostics.SysLogConfig.Tag, ""),
 			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
 			Formatter: syslog.RFC3164,
 		}

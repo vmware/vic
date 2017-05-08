@@ -152,7 +152,6 @@ func initLogging() error {
 		logcfg.Syslog = &syslog.SyslogConfig{
 			Network:   vchConfig.Diagnostics.SysLogConfig.Network,
 			RAddr:     vchConfig.Diagnostics.SysLogConfig.RAddr,
-			Tag:       "vic-docker",
 			Formatter: syslog.RFC3164,
 			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
 		}

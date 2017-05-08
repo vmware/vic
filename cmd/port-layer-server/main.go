@@ -93,7 +93,6 @@ func main() {
 		logcfg.Syslog = &syslog.SyslogConfig{
 			Network:   u.Scheme,
 			RAddr:     u.Host,
-			Tag:       "vic-port-layer",
 			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
 			Formatter: syslog.RFC3164,
 		}

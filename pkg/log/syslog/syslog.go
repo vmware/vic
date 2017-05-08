@@ -19,6 +19,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/RackSec/srslog"
 	"github.com/Sirupsen/logrus"
@@ -251,36 +252,16 @@ func (w *writerWrapper) Close() error {
 const maxTagLen = 32
 
 // MakeTag makes an RFC 3164 compliant tag (32 characters or less)
-// using the provided prefix and proc. If both prefix and proc
-// are non-empty, prefix:proc is returned. If prefix is empty
-// and proc is non-empty, proc is returned. If proc is empty, it
-// is set to the current process's executable. If prefix:proc is
-// greater than 32 characters in length, prefix is truncated first,
-// followed by proc getting truncated if the length is still greater
-// 32 characters.
-func MakeTag(prefix, proc string) string {
+// using the provided proc. If proc is empty, the name of the current
+// executable is used, trauncated to maxTagLen characters if
+// necessary.
+func MakeTag(proc string) string {
 	if len(proc) == 0 {
 		proc = filepath.Base(os.Args[0])
 	}
-
+	proc = strings.TrimSpace(proc)
 	if len(proc) >= maxTagLen {
 		return proc[:maxTagLen]
-	}
-
-	if len(prefix) > 0 {
-		t := "-" + proc
-		if len(prefix)+len(t) <= maxTagLen {
-			return prefix + ":" + proc
-		}
-
-		prefixLen := maxTagLen - len(t)
-		switch {
-		case prefixLen == 0:
-			return proc
-
-		case prefixLen > 0:
-			return prefix[:prefixLen] + t
-		}
 	}
 
 	return proc

@@ -698,6 +698,5 @@ func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *d
 	conf.Diagnostics.SysLogConfig = &executor.SysLogConfig{
 		Network: network,
 		RAddr:   host,
-		Tag:     input.SyslogConfig.Tag,
 	}
 }

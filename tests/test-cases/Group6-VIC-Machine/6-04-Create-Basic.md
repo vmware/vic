@@ -194,7 +194,7 @@ Short time creation
 
 # Stop VCH creation immediately
 =============================
-1. Interrupt creation process after 2s, 
+1. Interrupt creation process after 2s,
 2. Delete the VCH
 
 ### Expected Outcome

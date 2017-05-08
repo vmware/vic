@@ -316,58 +316,29 @@ func TestMakeTag(t *testing.T) {
 	}
 
 	var tests = []struct {
-		prefix, proc string
-		out          string
+		proc string
+		out  string
 	}{
 		{
-			prefix: "",
-			proc:   "",
-			out:    p,
+			proc: "",
+			out:  p,
 		},
 		{
-			prefix: "",
-			proc:   "foo",
-			out:    "foo",
+			proc: "foo",
+			out:  "foo",
 		},
 		{
-			prefix: "foo",
-			proc:   "",
-			out:    "foo" + ":" + p,
+			proc: strings.Repeat("a", maxTagLen),
+			out:  strings.Repeat("a", maxTagLen),
 		},
 		{
-			prefix: "foo",
-			proc:   "bar",
-			out:    "foo:bar",
-		},
-		{
-			prefix: "",
-			proc:   strings.Repeat("a", maxTagLen),
-			out:    strings.Repeat("a", maxTagLen),
-		},
-		{
-			prefix: "",
-			proc:   strings.Repeat("a", maxTagLen) + "c",
-			out:    strings.Repeat("a", maxTagLen),
-		},
-		{
-			prefix: "pre",
-			proc:   strings.Repeat("a", maxTagLen-2) + "c",
-			out:    strings.Repeat("a", maxTagLen-2) + "c",
-		},
-		{
-			prefix: strings.Repeat("a", maxTagLen-1) + "c",
-			proc:   "bar",
-			out:    strings.Repeat("a", maxTagLen-len(":bar")) + "-bar",
-		},
-		{
-			prefix: "bar",
-			proc:   strings.Repeat("a", maxTagLen) + "c",
-			out:    (strings.Repeat("a", maxTagLen) + "c")[:maxTagLen],
+			proc: strings.Repeat("a", maxTagLen) + "c",
+			out:  strings.Repeat("a", maxTagLen),
 		},
 	}
 
 	for _, te := range tests {
-		out := MakeTag(te.prefix, te.proc)
+		out := MakeTag(te.proc)
 		assert.Equal(t, te.out, out)
 		assert.Condition(t, func() bool { return len(out) <= maxTagLen })
 	}

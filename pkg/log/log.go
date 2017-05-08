@@ -61,6 +61,7 @@ func Init(cfg *LoggingConfig) error {
 			logrus.SetLevel(cfg.Level)
 
 			if cfg.Syslog != nil {
+				cfg.Syslog.Tag = syslog.MakeTag(cfg.Syslog.Tag)
 				hook, err := syslog.NewHook(cfg.Syslog, nil)
 				if err != nil {
 					// not a fatal error, so just log a warning
