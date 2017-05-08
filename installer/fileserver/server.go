@@ -49,7 +49,7 @@ func Init(conf *config) {
 	flag.StringVar(&conf.addr, "addr", ":9443", "Listen address - must include host and port (addr:port)")
 	flag.StringVar(&conf.certPath, "cert", "", "Path to server certificate in PEM format")
 	flag.StringVar(&conf.keyPath, "key", "", "Path to server certificate key in PEM format")
-	flag.StringVar(&conf.serveDir, "dir", "/data/fileserver/files", "Directory to serve")
+	flag.StringVar(&conf.serveDir, "dir", "/opt/vmware/fileserver/files", "Directory to serve")
 
 	flag.Parse()
 
