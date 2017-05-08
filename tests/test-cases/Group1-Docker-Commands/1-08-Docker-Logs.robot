@@ -27,16 +27,6 @@ Grep Logs And Count Lines
     ${linecount}=  Get Line Count  ${output}
     Should Be Equal As Integers  ${linecount}  ${total}
 
-Install VIC with version to Test Server
-  [Arguments]  ${version}=7315
-  Log To Console  \nDownloading vic ${version} from bintray...
-  ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
-  ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
-  Set Environment Variable  TEST_TIMEOUT  20m0s
-  Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}
-  Set Environment Variable  INITIAL-VERSION  ${version}
-  Run  rm -rf vic.tar.gz vic
-
 Upgrade
   ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
   Should Contain  ${output}  Completed successfully

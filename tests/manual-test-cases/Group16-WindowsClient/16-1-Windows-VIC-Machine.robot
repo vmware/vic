@@ -18,7 +18,7 @@ Resource  ../../resources/Util.robot
 Test Setup  Set Test Environment Variables
 
 *** Variables ***
-${ver}  0.6.0
+${ver}  8351
 
 *** Keywords ***
 Cleanup Folders
@@ -30,7 +30,7 @@ Install VCH With TLS
     Open Connection  %{WINDOWS_URL}  prompt=>
     Login  %{WINDOWS_USERNAME}  %{WINDOWS_PASSWORD}
     Cleanup Folders
-    ${output}=  Execute Command  wget https://bintray.com/vmware/vic/download_file?file_path=vic_${ver}.tar.gz -OutFile vic.tar.gz
+    ${output}=  Execute Command  wget https://storage.googleapis.com/vic-engine-builds/vic_${ver}.tar.gz -OutFile vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar
     ${output}=  Execute Command  ./vic/vic-machine-windows.exe create --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD}
@@ -43,7 +43,7 @@ Install VCH Without TLS
     Open Connection  %{WINDOWS_URL}  prompt=>
     Login  %{WINDOWS_USERNAME}  %{WINDOWS_PASSWORD}
     Cleanup Folders
-    ${output}=  Execute Command  wget https://bintray.com/vmware/vic/download_file?file_path=vic_${ver}.tar.gz -OutFile vic.tar.gz
+    ${output}=  Execute Command  wget https://storage.googleapis.com/vic-engine-builds/vic_${ver}.tar.gz -OutFile vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar
     ${output}=  Execute Command  ./vic/vic-machine-windows.exe create --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --no-tls
