@@ -87,7 +87,7 @@ groups:
   unified-installer:
     users:
       - frapposelli
-      - maplain
+      - andrewtchin
     conditions:
       files:
         include:
