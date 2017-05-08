@@ -61,13 +61,13 @@ func (c *Configure) Flags() []cli.Flag {
 			Destination: &c.Timeout,
 		},
 		cli.BoolFlag{
-			Name:        "resetInProgressFlag",
+			Name:        "reset-progress",
 			Usage:       "Reset the UpdateInProgress flag. Warning: Do not reset this flag if another upgrade/configure process is running",
 			Destination: &c.ResetInProgressFlag,
 		},
 		cli.BoolFlag{
 			Name:        "rollback",
-			Usage:       "Roll back VCH configuration to before the previous upgrade/configure",
+			Usage:       "Roll back VCH configuration to before the current upgrade/configure",
 			Destination: &c.Rollback,
 			Hidden:      true,
 		},
@@ -210,7 +210,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 	if updating {
 		log.Error("Configure failed: another upgrade/configure operation is in progress")
-		log.Error("If no other upgrade/configure process is running, use --resetInProgressFlag to reset the VCH upgrade/configure status")
+		log.Error("If no other upgrade/configure process is running, use --reset-progress to reset the VCH upgrade/configure status")
 		return errors.New("configure failed")
 	}
 

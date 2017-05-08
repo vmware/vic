@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCopy(t *testing.T) {
+func TestCopyNonEmpty(t *testing.T) {
 	d := NewData()
 	s := NewData()
 
@@ -29,8 +29,12 @@ func TestCopy(t *testing.T) {
 	s.ClientNetwork.IP.IP = ipAddr
 	s.ClientNetwork.IP.Mask = mask.Mask
 
+	d.PublicNetwork.IP.IP = ipAddr
+	d.PublicNetwork.IP.Mask = mask.Mask
+
 	s.ContainerNetworks.MappedNetworks["container"] = "external"
 	d.CopyNonEmpty(s)
-	assert.Equal(t, s.ClientNetwork.IP.IP, d.ClientNetwork.IP.IP, "ip is not right")
+	assert.Equal(t, s.ClientNetwork.IP.IP, d.ClientNetwork.IP.IP, "client ip is not right")
 	assert.Equal(t, s.ContainerNetworks, d.ContainerNetworks, "container network is not copied")
+	assert.False(t, d.PublicNetwork.IP.IP.Equal(s.PublicNetwork.IP.IP), "public ip should not be changed")
 }

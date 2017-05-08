@@ -254,7 +254,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		}
 	}
 
-	isoFile := settings.ApplianceISO
+	isoFile := ""
 	if settings.ApplianceISO != "" {
 		isoFile = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)
 	}

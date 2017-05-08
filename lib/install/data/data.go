@@ -162,7 +162,8 @@ func NewData() *Data {
 }
 
 // CopyNonEmpty will shallow copy src value to override existing value if the value is set
-// This copy will take care of relationship between variables, that means if any variable in ContainerNetwork or NetworkConfig is not empty, the whole ContainerNetwork or NetworkConfig will be copied
+// This copy will take care of relationship between variables, that means if any variable in ContainerNetwork or
+// NetworkConfig is not empty, the whole ContainerNetwork or NetworkConfig will be copied
 func (d *Data) CopyNonEmpty(src *Data) {
 	// TODO: Add data copy here for each reconfigure items, to make sure specified variables present in the Data object.
 
