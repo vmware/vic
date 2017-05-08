@@ -16,7 +16,7 @@ set -euf -o pipefail
 
 umask 077
 
-data_dir=/data/fileserver
+data_dir=/opt/vmware/fileserver
 cert_dir=${data_dir}/cert
 cert=${cert_dir}/server.crt
 key=${cert_dir}/server.key
