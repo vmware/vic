@@ -39,4 +39,3 @@ tune2fs -L vic-data-v1 /dev/sdb1
 # Seed directories in /data
 mount /dev/sdb1 /data -t ext4
 mkdir -p /data/{admiral,harbor,fileserver}
-mkdir -p /data/fileserver/files
