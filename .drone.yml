@@ -1,6 +1,8 @@
 # After any change to this file you MUST re-sign and checkin the .drone.yml.sig
 # When you are ready to submit a pull request, you must regenerate .drone.yml.sig for the vmware/vic repo:
-# $ drone sign -s https://ci.vcna.io -t ${DRONE_TOKEN} vmware/vic
+# $ export DRONE_SERVER=https://ci.vcna.io
+# $ export DRONE_TOKEN=<token>
+# $ drone sign vmware/vic
 # The secrets file is in our local git repo.  Ask mhagen for access.
 
 ---
