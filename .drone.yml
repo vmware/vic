@@ -176,9 +176,9 @@ pipeline:
   report-coverage:
     image: plugins/coverage
     server: https://coverage.vmware.run
-    token: ${GITHUB_AUTOMATION_API_KEY}
     pattern: .cover/cover.out
     when:
-      branch: [ master, releases/*, refs/tags/* ]
+      branch: [ master, releases/*, refs/tags/*, test-coverage-reporting ]
       repo: vmware/vic
       status: success
+      event: [ push, tag, pull_request ]
