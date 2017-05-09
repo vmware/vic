@@ -24,6 +24,6 @@ mkdir -p $FILES_DIR              # Files to serve
 # Download Build
 cd /var/tmp
 echo "Downloading VIC Engine ${BUILD_VICENGINE_REVISION}"
-curl -LO "https://storage.cloud.google.com/vic-engine-releases/vic_${BUILD_VICENGINE_REVISION}.tar.gz"
+curl -LO "https://storage.googleapis.com/vic-engine-releases/vic_${BUILD_VICENGINE_REVISION}.tar.gz"
 tar xfz vic_${BUILD_VICENGINE_REVISION}.tar.gz -C $FILES_DIR vic/ui/vsphere-client-serenity/com.vmware.vic.ui-v${BUILD_VICENGINE_REVISION}.zip vic/ui/plugin-packages/com.vmware.vic-v${BUILD_VICENGINE_REVISION}.zip --strip-components=3
 mv vic_${BUILD_VICENGINE_REVISION}.tar.gz $FILES_DIR
