@@ -49,15 +49,36 @@ cd "$(git rev-parse --show-toplevel)"
 
 tests=${*#${PWD}/}
 
-drone exec --trusted --yaml <(cat <<CONFIG
----
-clone:
-  path: github.com/vmware/vic
-  tags: true
+# Create a temp drone.yml file
+tempfile() {
+    # tempprefix=$(basename "$0")
+    # mktemp /tmp/${tempprefix}.yml
+		mktemp .tmp.drone.`date +%s`.yml
+		# $(mktemp .tmp.drone.`date +%s`.yml)
+}
 
-build:
-  integration-test:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.29
+cleanup() {
+  echo "removing temp file $tmpYml"
+	rm -f $tmpYml
+}
+tmpYml=$(tempfile)
+#cleanup temp file on exit
+trap cleanup EXIT
+
+cat > $tmpYml <<CONFIG
+---
+workspace:
+  base: /go
+  path: src/github.com/vmware/vic
+
+pipeline:
+  clone:
+    image: plugins/git
+    tags: true
+    # dont clone submodules
+    recursive: false
+  vic-integration-test-on-pr:
+    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN
@@ -67,14 +88,15 @@ build:
       TEST_DATASTORE:   ${GOVC_DATASTORE:-$(basename "$(govc ls datastore)")}
       TEST_RESOURCE:    ${GOVC_RESOURCE_POOL:-$(govc ls host/*/Resources)}
       BRIDGE_NETWORK:   $BRIDGE_NETWORK
-      PUBLIC_NETWORK: $PUBLIC_NETWORK
+      PUBLIC_NETWORK:   $PUBLIC_NETWORK
       DOMAIN:           $DOMAIN
       BIN: bin
-      GOPATH: /drone
+      GOPATH: /go
       SHELL: /bin/bash
       TEST_TIMEOUT: 60s
       GOVC_INSECURE: true
     commands:
       - $cmd ${tests:-tests/test-cases}
 CONFIG
-)
+
+drone exec --privileged --local $tmpYml

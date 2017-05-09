@@ -107,10 +107,9 @@ To help write conforming commit messages, it is recommended to set up the [git-g
 curl https://cdn.rawgit.com/tommarshall/git-good-commit/v0.6.1/hook.sh > .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
 ```
 
-[dronevic]:https://ci.vmware.run/vmware/vic
-[e2edronevic]:https://e2e.ci.vmware.run/vmware/vic
+[dronevic]:https://ci.vcna.io/vmware/vic
 [dronesrc]:https://github.com/drone/drone
-[dronecli]:http://readme.drone.io/usage/getting-started-cli/
+[dronecli]:http://readme.drone.io/0.5/install/cli/
 [commithook]:https://github.com/tommarshall/git-good-commit
 
 ## Automated Testing
@@ -127,8 +126,7 @@ to the commit message or the PR title.
   - To run the `1-01-Docker-Info` suite: `[specific ci=1-01-Docker-Info]`
   - To run all suites under the `Group1-Docker-Commands` group: `[specific ci=Group1-Docker-Commands]`
 
-You can run the tests locally before making a PR or view the Drone build results for [unit tests][dronevic]
-and [integration tests][e2edronevic].
+You can run the tests locally before making a PR or view the Drone build results for [unit tests and integration tests][dronevic]
 
 If you don't have a running ESX required for tests, you can leverage the automated Drone servers for
 running tests. Add `WIP` (work in progress) to the PR title to alert reviewers that the PR is not ready to be merged.
@@ -141,13 +139,13 @@ Developers need to install [Drone CLI][dronecli].
 #### Unit tests
 
 ``` shell
-drone exec --yaml .drone.yml -e VIC_ESX_TEST_URL="<USER>:<PASS>@<ESX IP>"
+drone exec --repo.trusted --secret VIC_ESX_TEST_URL="<USER>:<PASS>@<ESX IP>" .drone.yml
 ```
 
 If you don't have a running ESX, tests requiring an ESX can be skipped with the following:
 
 ``` shell
-drone exec --yaml .drone.yml -e VIC_ESX_TEST_URL=""
+drone exec --repo.trusted
 ```
 
 #### Integration tests
