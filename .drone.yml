@@ -109,6 +109,7 @@ pipeline:
       BIN_TEMP_DIR: bin/vic
       GOPATH: /go
       SHELL: /bin/bash
+      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
     commands:
       - make mark
       - rm -rf $BIN_TEMP_DIR
@@ -120,13 +121,13 @@ pipeline:
       - cp $BIN/vic-ui* $BIN_TEMP_DIR
       - cp $BIN/appliance.iso $BIN_TEMP_DIR
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
-      - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
-      - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - shasum -a 1 $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - md5sum $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - du -ks $BIN/vic_$$BUILD_NUMBER.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
+      - tar czvf $BIN/vic_${BUILD_NUMBER}.tar.gz -C $BIN vic
+      - shasum -a 256 $BIN/vic_${BUILD_NUMBER}.tar.gz
+      - shasum -a 1 $BIN/vic_${BUILD_NUMBER}.tar.gz
+      - md5sum $BIN/vic_${BUILD_NUMBER}.tar.gz
+      - du -ks $BIN/vic_${BUILD_NUMBER}.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
       - mkdir bundle
-      - cp $BIN/vic_$$BUILD_NUMBER.tar.gz bundle
+      - cp $BIN/vic_${BUILD_NUMBER}.tar.gz bundle
       - make sincemark
     when:
       repo: vmware/vic
@@ -176,7 +177,6 @@ pipeline:
   report-coverage:
     image: plugins/coverage
     server: https://coverage.vmware.run
-    token: ${GITHUB_AUTOMATION_API_KEY}
     pattern: .cover/cover.out
     when:
       branch: [ master, releases/*, refs/tags/* ]
