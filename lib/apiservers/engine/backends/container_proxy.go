@@ -96,7 +96,7 @@ type VicContainerProxy interface {
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
-	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
+	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (*types.ContainerState, error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
@@ -799,32 +799,28 @@ func (c *ContainerProxy) exitCode(vc *viccontainer.VicContainer) (string, error)
 			return "", InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
-	// get the exitCode -- ignoring the status, so no start / stop
-	// time needed
-	code, _ := dockerStatus(
-		int(results.Payload.ProcessConfig.ExitCode),
-		results.Payload.ProcessConfig.Status,
-		results.Payload.ContainerConfig.State,
-		time.Time{}, time.Time{})
+	// get the container state
+	dockerState := convert.State(results.Payload)
+	if dockerState == nil {
+		return "", InternalServerError("Unable to determine container state")
+	}
 
-	return strconv.Itoa(code), nil
+	return strconv.Itoa(dockerState.ExitCode), nil
 }
 
 func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (
-	exitCode int32, processStatus string, containerState string, reterr error) {
+	*types.ContainerState, error) {
 
 	defer trace.End(trace.Begin(vc.ContainerID))
 
 	if vc == nil {
-		reterr = InternalServerError("Wait bad arguments")
-		return
+		return nil, InternalServerError("Wait bad arguments")
 	}
 
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
-		reterr = InternalServerError("Wait failed to create a portlayer client")
-		return
+		return nil, InternalServerError("Wait failed to create a portlayer client")
 	}
 
 	params := containers.NewContainerWaitParamsWithContext(ctx).
@@ -837,24 +833,23 @@ func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Durati
 			// since the container wasn't found on the PL lets remove from the local
 			// cache
 			cache.ContainerCache().DeleteContainer(vc.ContainerID)
-			reterr = NotFoundError(vc.ContainerID)
-			return
+			return nil, NotFoundError(vc.ContainerID)
 		case *containers.ContainerWaitInternalServerError:
-			reterr = InternalServerError(err.Payload.Message)
-			return
+			return nil, InternalServerError(err.Payload.Message)
 		default:
-			reterr = InternalServerError(err.Error())
-			return
+			return nil, InternalServerError(err.Error())
 		}
 	}
 
 	if results == nil || results.Payload == nil {
-		reterr = InternalServerError("Unexpected swagger error")
+		return nil, InternalServerError("Unexpected swagger error")
 	}
 
-	ci := results.Payload
-
-	return ci.ProcessConfig.ExitCode, ci.ProcessConfig.Status, ci.ContainerConfig.State, nil
+	dockerState := convert.State(results.Payload)
+	if dockerState == nil {
+		return nil, InternalServerError("Unable to determine container state")
+	}
+	return dockerState, nil
 }
 
 func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
@@ -1373,22 +1368,8 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 	if vc == nil || info == nil || info.ContainerConfig == nil {
 		return nil, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
 	}
-
-	// Set default container state attributes
-	containerState := &types.ContainerState{}
-
-	if info.ProcessConfig != nil {
-		containerState.Pid = int(info.ProcessConfig.Pid)
-		containerState.ExitCode = int(info.ProcessConfig.ExitCode)
-		containerState.Error = info.ProcessConfig.ErrorMsg
-		if info.ProcessConfig.StartTime > 0 {
-			containerState.StartedAt = time.Unix(info.ProcessConfig.StartTime, 0).Format(time.RFC3339Nano)
-		}
-
-		if info.ProcessConfig.StopTime > 0 {
-			containerState.FinishedAt = time.Unix(info.ProcessConfig.StopTime, 0).Format(time.RFC3339Nano)
-		}
-	}
+	// get the docker state
+	containerState := convert.State(info)
 
 	inspectJSON := &types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
@@ -1426,15 +1407,14 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 	}
 
 	if info.ContainerConfig != nil {
+		// set the status to the inspect expected values
 		containerState.Status = strings.ToLower(info.ContainerConfig.State)
 
 		// https://github.com/docker/docker/blob/master/container/state.go#L77
 		if containerState.Status == ContainerStopped {
 			containerState.Status = ContainerExited
 		}
-		if containerState.Status == ContainerRunning {
-			containerState.Running = true
-		}
+
 		inspectJSON.Image = info.ContainerConfig.ImageID
 		inspectJSON.LogPath = info.ContainerConfig.LogPath
 		inspectJSON.RestartCount = int(info.ContainerConfig.RestartCount)

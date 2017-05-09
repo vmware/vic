@@ -790,6 +790,10 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		if state.Status == ContainerError {
 			c.containerProxy.Stop(vc, name, &secs, true)
 		}
+		// if we are starting let the user know they must use the force
+		if state.Status == "Starting" {
+			return derr.NewRequestConflictError(fmt.Errorf("The container is starting.  To remove use -f"))
+		}
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -1295,59 +1299,12 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 		return -1, NotFoundError(name)
 	}
 
-	processExitCode, processStatus, containerState, err := c.containerProxy.Wait(vc, timeout)
+	dockerState, err := c.containerProxy.Wait(vc, timeout)
 	if err != nil {
 		return -1, err
 	}
 
-	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	exitCode, _ := dockerStatus(int(processExitCode), processStatus, containerState, time.Time{}, time.Time{})
-
-	return exitCode, nil
-}
-
-// dockerStatus will evaluate the container state, exit code and
-// process status to return a docker friendly status
-//
-// exitCode is the container process exit code
-// status is the container process status -- stored in the vmx file as "started"
-// started & finished are the process start / finish times
-func dockerStatus(exitCode int, status string, state string, started time.Time, finished time.Time) (int, string) {
-
-	// set docker status to state and we'll change if needed
-	dockStatus := state
-
-	switch state {
-	case "Running":
-		// if we don't have a start date leave the status as the state
-		if !started.IsZero() {
-			dockStatus = fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(started)))
-		}
-	case "Stopped":
-		// if we don't have a finished date then don't process exitCode and return "Stopped" for the status
-		if !finished.IsZero() {
-			// interrogate the process status returned from the portlayer
-			// and based on status text and exit codes set the appropriate
-			// docker exit code
-			if strings.Contains(status, "permission denied") {
-				exitCode = 126
-			} else if strings.Contains(status, "no such") {
-				exitCode = 127
-			} else if status == "true" && exitCode == -1 {
-				// most likely the process was killed via the cli
-				// or received a sigkill
-				exitCode = 137
-			} else if status == "" && exitCode == 0 {
-				// the process was stopped via the cli
-				// or received a sigterm
-				exitCode = 143
-			}
-
-			dockStatus = fmt.Sprintf("Exited (%d) %s ago", exitCode, units.HumanDuration(time.Now().UTC().Sub(finished)))
-		}
-	}
-
-	return exitCode, dockStatus
+	return dockerState.ExitCode, nil
 }
 
 // docker's container.monitorBackend
@@ -1386,27 +1343,6 @@ func (c *Container) ContainerInspect(name string, size bool, version string) (in
 			return nil, InternalServerError(err.Error())
 		}
 	}
-	var started time.Time
-	var stopped time.Time
-
-	if results.Payload.ProcessConfig.StartTime > 0 {
-		started = time.Unix(results.Payload.ProcessConfig.StartTime, 0)
-	}
-	if results.Payload.ProcessConfig.StopTime > 0 {
-		stopped = time.Unix(results.Payload.ProcessConfig.StopTime, 0)
-	}
-
-	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	exitCode, status := dockerStatus(
-		int(results.Payload.ProcessConfig.ExitCode),
-		results.Payload.ProcessConfig.Status,
-		results.Payload.ContainerConfig.State,
-		started, stopped)
-
-	// set the payload values
-	exit := int32(exitCode)
-	results.Payload.ProcessConfig.ExitCode = exit
-	results.Payload.ProcessConfig.Status = status
 
 	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, PortLayerName())
 	if err != nil {
@@ -1553,24 +1489,9 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 
 payloadLoop:
 	for _, t := range containme.Payload {
-		var started time.Time
-		var stopped time.Time
 
-		if t.ProcessConfig.StartTime > 0 {
-			started = time.Unix(t.ProcessConfig.StartTime, 0)
-		}
-
-		if t.ProcessConfig.StopTime > 0 {
-			stopped = time.Unix(t.ProcessConfig.StopTime, 0)
-		}
-
-		// get the docker friendly status
-		exitCode, status := dockerStatus(
-			int(t.ProcessConfig.ExitCode),
-			t.ProcessConfig.Status,
-			t.ContainerConfig.State,
-			started,
-			stopped)
+		// get this containers state
+		dockerState := convert.State(t)
 
 		var labels map[string]string
 		if config.Filters.Include("label") {
@@ -1580,7 +1501,7 @@ payloadLoop:
 			}
 		}
 		listContext.Labels = labels
-		listContext.ExitCode = exitCode
+		listContext.ExitCode = dockerState.ExitCode
 		listContext.ID = t.ContainerConfig.ContainerID
 
 		// prior to further conversion lets determine if this container
@@ -1633,7 +1554,7 @@ payloadLoop:
 			ID:      t.ContainerConfig.ContainerID,
 			Image:   repo,
 			Created: t.ContainerConfig.CreateTime,
-			Status:  status,
+			Status:  dockerState.Status,
 			Names:   names,
 			Command: cmd,
 			SizeRw:  t.ContainerConfig.StorageSize,
