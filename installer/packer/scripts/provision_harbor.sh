@@ -21,7 +21,7 @@ echo "Downloading Harbor ${BUILD_HARBOR_REVISION}"
 curl -L "https://storage.googleapis.com/harbor-dev-builds/harbor-offline-installer-${BUILD_HARBOR_REVISION}.tgz" | tar xz -C /var/tmp
 
 # Start docker service
-systemctl start docker.service 
+systemctl start docker.service
 sleep 2
 # Load Containers in local registry cache
 harbor_containers_bundle=$(find /var/tmp -size +20M -type f -regextype sed -regex ".*/harbor\..*\.t.*z$")

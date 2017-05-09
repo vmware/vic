@@ -471,6 +471,9 @@ clean:
 	@rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
 	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
 
+	@echo removing OVA installer files...
+	@rm -rf installer/packer/vic
+
 # removes the yum cache as well as the generated binaries
 distclean: clean
 	@echo removing binaries
