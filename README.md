@@ -1,5 +1,4 @@
-[![Build Status](https://ci.vmware.run/api/badges/vmware/vic/status.svg)](https://ci.vmware.run/vmware/vic) [![Coverage Status](https://coverage.vmware.run/badges/vmware/vic/coverage.svg)](https://coverage.vmware.run/vmware/vic) [![Download](https://img.shields.io/badge/download-latest-blue.svg)](https://github.com/vmware/vic/releases/latest) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
-
+[![Build Status](https://ci.vcna.io/api/badges/vmware/vic/status.svg)](https://ci.vcna.io/vmware/vic)[![Coverage Status](https://coverage.vmware.run/badges/vmware/vic/coverage.svg)](https://coverage.vmware.run/vmware/vic) [![Download](https://img.shields.io/badge/download-latest-blue.svg)](https://github.com/vmware/vic/releases/latest)(https://bintray.com/vmware/vic/Download/_latestVersion) [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vic)](https://goreportcard.com/report/github.com/vmware/vic)
 
 # vSphere Integrated Containers Engine
 
@@ -60,7 +59,7 @@ Building the project is done with a combination of make and containers, with gol
 
 To build as closely as possible to the formal build:
 ```
-drone exec -trusted -cache -e VIC_ESX_TEST_URL=""
+drone exec --repo.trusted
 ```
 
 To build without modifying the local system:
@@ -142,9 +141,9 @@ The iso image will be created in `$BIN`
 
 ## Building with CI
 
-[dronevic]:https://ci.vmware.run/vmware/vic
+[dronevic]:https://ci.vcna.io/vmware/vic
 [dronesrc]:https://github.com/drone/drone
-[dronecli]:http://readme.drone.io/devs/cli/
+[dronecli]:http://readme.drone.io/0.5/install/cli/
 
 PRs to this repository will trigger builds on our [Drone CI][dronevic].
 
@@ -152,7 +151,7 @@ To build locally with Drone:
 
 Ensure that you have Docker 1.6 or higher installed.
 Install the [Drone command line tools][dronecli].
-From the root directory of the `vic` repository run `drone exec -trusted -cache -e VIC_ESX_TEST_URL=""`
+From the root directory of the `vic` repository run `drone exec --repo.trusted`
 
 ## Common Build Problems
 1. Builds may fail when building either the appliance.iso or bootstrap.iso with the error: `cap_set_file failed - Operation not supported`

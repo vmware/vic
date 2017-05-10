@@ -161,7 +161,16 @@ func newContainer(base *containerBase) *Container {
 		// set state
 		switch base.Runtime.PowerState {
 		case types.VirtualMachinePowerStatePoweredOn:
-			c.state = StateRunning
+			// the containerVM is poweredOn, so set state to starting
+			// then check to see if a start was successful
+			c.state = StateStarting
+			// If any sessions successfully started then set to running
+			for _, s := range base.ExecConfig.Sessions {
+				if s.Started != "" {
+					c.state = StateRunning
+					break
+				}
+			}
 		case types.VirtualMachinePowerStatePoweredOff:
 			// check if any of the sessions was started
 			for _, s := range base.ExecConfig.Sessions {

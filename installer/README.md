@@ -19,9 +19,9 @@ have `ovftool` installed
 First, we have to set the revisions of the components we want to bundle in the OVA:
 
 ```
-export BUILD_HARBOR_REVISION=1.1.0-rc1     # Optional, defaults to dev
-export BUILD_ADMIRAL_REVISION=v1.1.0-rc1   # Optional, defaults to dev
-export BUILD_VICENGINE_REVISION=1.1.0-rc4  # Required
+export BUILD_VICENGINE_REVISION=1.1.1-rc1  # Required (https://console.cloud.google.com/storage/browser/vic-engine-releases)
+export BUILD_HARBOR_REVISION=v1.1.1-rc4    # Optional, defaults to dev (https://console.cloud.google.com/storage/browser/harbor-dev-builds)
+export BUILD_ADMIRAL_REVISION=v1.1.1       # Optional, defaults to dev (https://hub.docker.com/r/vmware/admiral/tags/)
 ```
 
 Then set the required env vars for the build environment and make the release:
@@ -30,7 +30,7 @@ Then set the required env vars for the build environment and make the release:
 export PACKER_ESX_HOST=1.1.1.1
 export PACKER_USER=root
 export PACKER_PASSWORD=password
-export PACKER_LOG=1
+export PACKER_LOG=1  # Optional
 
 make ova-release
 ```

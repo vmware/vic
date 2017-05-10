@@ -61,7 +61,7 @@ shift $((OPTIND-1))
 build="$1"
 job="$2"
 
-export DRONE_SERVER=${DRONE_SERVER:-https://ci.vmware.run}
+export DRONE_SERVER=${DRONE_SERVER:-https://ci.vcna.io}
 
 if [ -z "$DRONE_TOKEN" ] ; then
     echo "DRONE_TOKEN not set (available at $DRONE_SERVER/settings/profile)"
@@ -77,10 +77,10 @@ if [ -z "$job" ] ; then
     job=1
 fi
 
-info=$($drone build info "$repo" "$build")
-state=$(grep Status: <<<"$info" | awk '{print $2}')
+state=$($drone build info "$repo" "$build" --format {{.Status}})
 
-echo "$info"
+
+echo "$state"
 
 case "$state" in
     running)
