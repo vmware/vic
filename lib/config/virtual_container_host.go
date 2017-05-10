@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/vmware/govmomi/vim25/types"
@@ -40,7 +41,9 @@ const (
 	// Name is the container name of the VM
 	Name = "{name}"
 	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
-	CreatingVCH = "CreatingVCH"
+	CreatingVCHPrefix = "CreatingVCH"
+	// VCHPrefix represents VCH executor configuration encoding prefix
+	VCHPrefix = "init"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image
@@ -56,7 +59,9 @@ type VirtualContainerHostConfigSpec struct {
 	// The base config for the appliance. This includes the networks that are to be attached
 	// and disks to be mounted.
 	// Networks are keyed by interface name
-	executor.ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
+
+	// ExecutorConfig will be encoded separately
+	executor.ExecutorConfig `vic:"0.1" scope:"read-only" key:"init" recurse:"depth=0"`
 
 	// vSphere connection configuration
 	Connection `vic:"0.1" scope:"read-only" key:"connect"`
@@ -223,7 +228,7 @@ func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectRefe
 // Reset the property back to empty string if creating is false
 func (t *VirtualContainerHostConfigSpec) SetIsCreating(creating bool) {
 	if creating {
-		t.ExecutorConfig.ID = CreatingVCH
+		t.ExecutorConfig.ID = CreatingVCHPrefix
 	} else {
 		t.ExecutorConfig.ID = ""
 	}
@@ -231,7 +236,7 @@ func (t *VirtualContainerHostConfigSpec) SetIsCreating(creating bool) {
 
 // IsCreating is checking if this configuration is for one creating VCH VM
 func (t *VirtualContainerHostConfigSpec) IsCreating() bool {
-	return t.ExecutorConfig.ID == CreatingVCH
+	return strings.HasPrefix(t.ExecutorConfig.ID, CreatingVCHPrefix)
 }
 
 // AddNetwork adds a network that will be configured on the appliance VM

@@ -26,7 +26,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -43,14 +42,12 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/portlayer/constants"
-	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diag"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -84,12 +81,12 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 
 	var remoteConf config.VirtualContainerHostConfigSpec
 	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
+	extraconfig.DecodeWithPrefix(extraconfig.MapSource(info), &remoteConf.ExecutorConfig, config.VCHPrefix)
 
 	// if the moref of the target matches where we expect to find it for a VCH, run with it
 	if remoteConf.ExecutorConfig.ID == vm.Reference().String() || remoteConf.IsCreating() {
 		return true, nil
 	}
-
 	return false, nil
 }
 
@@ -209,135 +206,6 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	return nil
 }
 
-func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
-	defer trace.End(trace.Begin(""))
-
-	// network name:alias, to avoid create multiple devices for same network
-	slots := make(map[int32]bool)
-	nets := make(map[string]*executor.NetworkEndpoint)
-
-	for name, endpoint := range conf.ExecutorConfig.Networks {
-		if pnic, ok := nets[endpoint.Network.Common.ID]; ok {
-			// there's already a NIC on this network
-			endpoint.Common.ID = pnic.Common.ID
-			log.Infof("Network role %q is sharing NIC with %q", name, pnic.Network.Common.Name)
-			continue
-		}
-
-		moref := new(types.ManagedObjectReference)
-		if ok := moref.FromString(endpoint.Network.ID); !ok {
-			return nil, fmt.Errorf("serialized managed object reference in unexpected format: %q", endpoint.Network.ID)
-		}
-		obj, err := d.session.Finder.ObjectReference(d.ctx, *moref)
-		if err != nil {
-			return nil, fmt.Errorf("unable to reacquire reference for network %q from serialized form: %q", endpoint.Network.Name, endpoint.Network.ID)
-		}
-		network, ok := obj.(object.NetworkReference)
-		if !ok {
-			return nil, fmt.Errorf("reacquired reference for network %q, from serialized form %q, was not a network: %T", endpoint.Network.Name, endpoint.Network.ID, obj)
-		}
-
-		backing, err := network.EthernetCardBackingInfo(d.ctx)
-		if err != nil {
-			err = errors.Errorf("Failed to get network backing info for %q: %s", network, err)
-			return nil, err
-		}
-
-		nic, err := devices.CreateEthernetCard("vmxnet3", backing)
-		if err != nil {
-			err = errors.Errorf("Failed to create Ethernet Card spec for %s", err)
-			return nil, err
-		}
-
-		slot := cspec.AssignSlotNumber(nic, slots)
-		if slot == spec.NilSlot {
-			err = errors.Errorf("Failed to assign stable PCI slot for %q network card", name)
-		}
-
-		endpoint.Common.ID = strconv.Itoa(int(slot))
-		slots[slot] = true
-		log.Debugf("Setting %q to slot %d", name, slot)
-
-		devices = append(devices, nic)
-
-		nets[endpoint.Network.Common.ID] = endpoint
-	}
-	return devices, nil
-}
-
-func (d *Dispatcher) addIDEController(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
-	defer trace.End(trace.Begin(""))
-
-	// IDE controller
-	scsi, err := devices.CreateIDEController()
-	if err != nil {
-		return nil, err
-	}
-	devices = append(devices, scsi)
-	return devices, nil
-}
-
-func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
-	defer trace.End(trace.Begin(""))
-
-	// para virtual SCSI controller
-	scsi, err := devices.CreateSCSIController("pvscsi")
-	if err != nil {
-		return nil, err
-	}
-	devices = append(devices, scsi)
-	return devices, nil
-}
-
-func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
-	defer trace.End(trace.Begin(""))
-
-	var devices object.VirtualDeviceList
-	var err error
-
-	// set to creating VCH
-	conf.SetIsCreating(true)
-
-	cfg, err := d.encodeConfig(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	spec := &spec.VirtualMachineConfigSpec{
-		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
-			Name:               conf.Name,
-			GuestId:            string(types.VirtualMachineGuestOsIdentifierOtherGuest64),
-			AlternateGuestName: constants.DefaultAltVCHGuestName(),
-			Files:              &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:            int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB:           vConf.ApplianceSize.Memory.Limit,
-			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
-			// creation is complete.
-			ExtraConfig: append(vmomi.OptionValueFromMap(cfg), &types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"}),
-		},
-	}
-
-	if devices, err = d.addIDEController(devices); err != nil {
-		return nil, err
-	}
-
-	if devices, err = d.addParaVirtualSCSIController(devices); err != nil {
-		return nil, err
-	}
-
-	if devices, err = d.addNetworkDevices(conf, spec, devices); err != nil {
-		return nil, err
-	}
-
-	deviceChange, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
-	if err != nil {
-		return nil, err
-	}
-
-	spec.DeviceChange = deviceChange
-	return spec.VirtualMachineConfigSpec, nil
-}
-
 func isManagedObjectNotFoundError(err error) bool {
 	if soap.IsSoapFault(err) {
 		_, ok := soap.ToSoapFault(err).VimFault().(types.ManagedObjectNotFound)
@@ -378,81 +246,6 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 	return vmm, nil
 }
 
-func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
-	defer trace.End(trace.Begin(""))
-
-	var devices object.VirtualDeviceList
-	var err error
-
-	vmDevices, err := vm.Device(d.ctx)
-	if err != nil {
-		log.Errorf("Failed to get vm devices for appliance: %s", err)
-		return nil, err
-	}
-	ide, err := vmDevices.FindIDEController("")
-	if err != nil {
-		log.Errorf("Failed to find IDE controller for appliance: %s", err)
-		return nil, err
-	}
-	cdrom, err := devices.CreateCdrom(ide)
-	if err != nil {
-		log.Errorf("Failed to create Cdrom device for appliance: %s", err)
-		return nil, err
-	}
-	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO))
-	devices = append(devices, cdrom)
-	return devices, nil
-}
-
-func (d *Dispatcher) configLogging(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
-	defer trace.End(trace.Begin(""))
-
-	devices, err := vm.Device(d.ctx)
-	if err != nil {
-		log.Errorf("Failed to get vm devices for appliance: %s", err)
-		return nil, err
-	}
-
-	p, err := devices.CreateSerialPort()
-	if err != nil {
-		return nil, err
-	}
-
-	err = vm.AddDevice(d.ctx, p)
-	if err != nil {
-		return nil, err
-	}
-
-	devices, err = vm.Device(d.ctx)
-	if err != nil {
-		log.Errorf("Failed to get vm devices for appliance: %s", err)
-		return nil, err
-	}
-
-	serial, err := devices.FindSerialPort("")
-	if err != nil {
-		log.Errorf("Failed to locate serial port for persistent log configuration: %s", err)
-		return nil, err
-	}
-
-	// TODO: we need to add an accessor for generating paths within the VM directory
-	vmx, err := vm.VMPathName(d.ctx)
-	if err != nil {
-		log.Errorf("Unable to determine path of appliance VM: %s", err)
-		return nil, err
-	}
-
-	// TODO: move this construction into the spec package and update portlayer/logging to use it as well
-	serial.Backing = &types.VirtualSerialPortFileBackingInfo{
-		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			// name consistency with containerVM
-			FileName: fmt.Sprintf("%s/tether.debug", path.Dir(vmx)),
-		},
-	}
-
-	return []types.BaseVirtualDevice{serial}, nil
-}
-
 func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) {
 	if conf.HostCertificate != nil {
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
@@ -461,67 +254,144 @@ func (d *Dispatcher) setDockerPort(conf *config.VirtualContainerHostConfigSpec, 
 	}
 }
 
-func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (string, error) {
 	defer trace.End(trace.Begin(""))
 
 	log.Infof("Creating appliance on target")
+	d.pl.SetParentResources(d.vchVapp, d.vchPool)
 
-	spec, err := d.createApplianceSpec(conf, settings)
+	// set VCH ID to CreatingVCH-poolid-vchname to make sure it's unique, so container cache will not override
+	//  other creating VCH in commit, and this id will be updated to vm mobref after VM is created
+	// using CreatingVCH as prefix is to make vic-machine delete works
+	creatingID := fmt.Sprintf("%s-%s-%s", config.CreatingVCHPrefix, d.vchPool.Reference().Value, conf.Name)
+	conf.ExecutorConfig.ID = creatingID
+
+	h, err := d.pl.CreateVchHandle(d.ctx, &conf.ExecutorConfig, settings.ApplianceSize.CPU.Limit, settings.ApplianceSize.Memory.Limit)
 	if err != nil {
-		log.Errorf("Unable to create appliance spec: %s", err)
-		return err
+		log.Errorf("Unable to create handle: %s", err)
+		return "", err
 	}
-
-	var info *types.TaskInfo
-	// create appliance VM
-	if d.isVC && d.vchVapp != nil {
-		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return d.vchVapp.CreateChildVM(ctx, *spec, d.session.Host)
-		})
-	} else {
-		// if vapp is not created, fall back to create VM under default resource pool
-		folder := d.session.Folders(d.ctx).VmFolder
-		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return folder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
-		})
+	if h, err = d.pl.AddNetworks(d.ctx, h, conf.ExecutorConfig.Networks); err != nil {
+		return "", err
 	}
-
+	if h, err = d.pl.AddLogging(h); err != nil {
+		return "", err
+	}
+	if err = d.pl.Commit(d.ctx, h); err != nil {
+		log.Errorf("Unable to create endpoint VM: %s", err)
+		return "", err
+	}
+	mobID, err := d.pl.SetVCHMoref(d.ctx, creatingID)
 	if err != nil {
-		log.Errorf("Unable to create appliance VM: %s", err)
-		return err
+		log.Errorf("Unable to set endpoint VM configuration ID: %s", err)
+		return "", err
 	}
-	if info.Error != nil || info.State != types.TaskInfoStateSuccess {
-		log.Errorf("Create appliance reported: %s", info.Error.LocalizedMessage)
-	}
+	conf.ExecutorConfig.ID = mobID
 
-	if err = d.createVolumeStores(conf); err != nil {
-		return errors.Errorf("Exiting because we could not create volume stores due to error: %s", err)
-	}
+	return mobID, nil
+}
 
-	// get VM reference and save it
-	moref := info.Result.(types.ManagedObjectReference)
-	conf.SetMoref(&moref)
-	obj, err := d.session.Finder.ObjectReference(d.ctx, moref)
-	if err != nil {
-		log.Errorf("Failed to reacquire reference to appliance VM after creation: %s", err)
-		return err
-	}
-	gvm, ok := obj.(*object.VirtualMachine)
-	if !ok {
-		return fmt.Errorf("Required reference after appliance creation was not for a VM: %T", obj)
-	}
-	vm2 := vm.NewVirtualMachineFromVM(d.ctx, d.session, gvm)
-
-	vm2.DisableDestroy(d.ctx)
-
-	// update the displayname to the actual folder name used
-	if d.vmPathName, err = vm2.FolderName(d.ctx); err != nil {
-		log.Errorf("Failed to get canonical name for appliance: %s", err)
+func (d *Dispatcher) reconfigureAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	defer trace.End(trace.Begin(d.applianceID))
+	var err error
+	if d.vmPathName, err = d.pl.VCHFolderName(d.ctx, d.applianceID); err != nil {
 		return err
 	}
 	log.Debugf("vm folder name: %q", d.vmPathName)
-	log.Debugf("vm inventory path: %q", vm2.InventoryPath)
 
+	// reconfigure vch vm
+	var h interface{}
+	if h = d.pl.NewHandle(d.ctx, d.applianceID); h == nil {
+		err = errors.Errorf("Unable to get handle %s: %s", d.applianceID, err)
+		return err
+	}
+	if h, err = d.addVicAdminTask(h, conf, settings); err != nil {
+		return err
+	}
+	d.setDockerPort(conf, settings)
+	if h, err = d.addPersonaTask(h, conf, settings); err != nil {
+		return err
+	}
+	if h, err = d.addPortlayerTask(h, conf, settings); err != nil {
+		return err
+	}
+	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
+	applianceISOFile := fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)
+	if h, err = d.pl.UpdateApplianceISOFiles(h, applianceISOFile); err != nil {
+		return err
+	}
+
+	extraData, err := d.encodeConfig(conf)
+	if err != nil {
+		return err
+	}
+	if h, err = d.pl.UpdateExtraConfig(h, extraData); err != nil {
+		return err
+	}
+	return d.pl.Commit(d.ctx, h)
+}
+
+func (d *Dispatcher) addPersonaTask(h interface{}, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (interface{}, error) {
+	personality := executor.Cmd{
+		Path: "/sbin/docker-engine-server",
+		Args: []string{
+			"/sbin/docker-engine-server",
+			//FIXME: hack during config migration
+			"-port=" + d.DockerPort,
+			fmt.Sprintf("-port-layer-port=%d", portLayerPort),
+		},
+		Env: []string{
+			"PATH=/sbin",
+			"GOTRACEBACK=all",
+		},
+	}
+	if settings.HTTPProxy != nil {
+		personality.Env = append(personality.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+	}
+	if settings.HTTPSProxy != nil {
+		personality.Env = append(personality.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+	}
+
+	task := &executor.SessionConfig{
+		// currently needed for iptables interaction
+		// User:  "nobody",
+		// Group: "nobody",
+		Cmd:     personality,
+		Restart: true,
+		Active:  true,
+	}
+	task.ID = "docker-personality"
+	task.Name = "docker-personality"
+	return d.pl.AddTask(d.ctx, h, task)
+}
+
+func (d *Dispatcher) addPortlayerTask(h interface{}, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (interface{}, error) {
+	task := &executor.SessionConfig{
+		Cmd: executor.Cmd{
+			Path: "/sbin/port-layer-server",
+			Args: []string{
+				"/sbin/port-layer-server",
+				"--host=localhost",
+				fmt.Sprintf("--port=%d", portLayerPort),
+			},
+			Env: []string{
+				//FIXME: hack during config migration
+				"VC_URL=" + conf.Target,
+				"DC_PATH=" + settings.DatacenterName,
+				"CS_PATH=" + settings.ClusterPath,
+				"POOL_PATH=" + settings.ResourcePoolPath,
+				"DS_PATH=" + conf.ImageStores[0].Host,
+			},
+		},
+		Restart: true,
+		Active:  true,
+	}
+	task.ID = "port-layer"
+	task.Name = "port-layer"
+	return d.pl.AddTask(d.ctx, h, task)
+}
+
+func (d *Dispatcher) addVicAdminTask(h interface{}, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (interface{}, error) {
 	vicadmin := executor.Cmd{
 		Path: "/sbin/vicadmin",
 		Args: []string{
@@ -543,99 +413,16 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
 	}
 
-	conf.AddComponent("vicadmin", &executor.SessionConfig{
+	task := &executor.SessionConfig{
 		User:    "vicadmin",
 		Group:   "vicadmin",
 		Cmd:     vicadmin,
 		Restart: true,
 		Active:  true,
-	},
-	)
-
-	d.setDockerPort(conf, settings)
-
-	personality := executor.Cmd{
-		Path: "/sbin/docker-engine-server",
-		Args: []string{
-			"/sbin/docker-engine-server",
-			//FIXME: hack during config migration
-			"-port=" + d.DockerPort,
-			fmt.Sprintf("-port-layer-port=%d", portLayerPort),
-		},
-		Env: []string{
-			"PATH=/sbin",
-			"GOTRACEBACK=all",
-		},
 	}
-	if settings.HTTPProxy != nil {
-		personality.Env = append(personality.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
-	}
-	if settings.HTTPSProxy != nil {
-		personality.Env = append(personality.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
-	}
-
-	conf.AddComponent("docker-personality", &executor.SessionConfig{
-		// currently needed for iptables interaction
-		// User:  "nobody",
-		// Group: "nobody",
-		Cmd:     personality,
-		Restart: true,
-		Active:  true,
-	},
-	)
-
-	conf.AddComponent("port-layer", &executor.SessionConfig{
-		Cmd: executor.Cmd{
-			Path: "/sbin/port-layer-server",
-			Args: []string{
-				"/sbin/port-layer-server",
-				"--host=localhost",
-				fmt.Sprintf("--port=%d", portLayerPort),
-			},
-			Env: []string{
-				//FIXME: hack during config migration
-				"VC_URL=" + conf.Target,
-				"DC_PATH=" + settings.DatacenterName,
-				"CS_PATH=" + settings.ClusterPath,
-				"POOL_PATH=" + settings.ResourcePoolPath,
-				"DS_PATH=" + conf.ImageStores[0].Host,
-			},
-		},
-		Restart: true,
-		Active:  true,
-	},
-	)
-
-	// fix up those parts of the config that depend on the final applianceVM folder name
-	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
-
-	if len(conf.ImageStores[0].Path) == 0 {
-		conf.ImageStores[0].Path = d.vmPathName
-	}
-
-	// apply the fixed-up configuration
-	spec, err = d.reconfigureApplianceSpec(vm2, conf, settings)
-	if err != nil {
-		log.Errorf("Error while getting appliance reconfig spec: %s", err)
-		return err
-	}
-
-	// reconfig
-	info, err = vm2.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vm2.Reconfigure(ctx, *spec)
-	})
-
-	if err != nil {
-		log.Errorf("Error while setting component parameters to appliance: %s", err)
-		return err
-	}
-	if info.State != types.TaskInfoStateSuccess {
-		log.Errorf("Setting parameters to appliance reported: %s", info.Error.LocalizedMessage)
-		return err
-	}
-
-	d.appliance = vm2
-	return nil
+	task.ID = "vicadmin"
+	task.Name = "vicadmin"
+	return d.pl.AddTask(d.ctx, h, task)
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
@@ -656,69 +443,19 @@ func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (
 	return cfg, nil
 }
 
-func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
-	defer trace.End(trace.Begin(""))
-
-	var devices object.VirtualDeviceList
-	var err error
-
-	spec := &types.VirtualMachineConfigSpec{}
-
-	// create new devices
-	if devices, err = d.configIso(conf, vm, settings); err != nil {
-		return nil, err
-	}
-
-	newDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
-	if err != nil {
-		log.Errorf("Failed to create config spec for appliance: %s", err)
-		return nil, err
-	}
-
-	spec.DeviceChange = newDevices
-
-	// update existing devices
-	if devices, err = d.configLogging(conf, vm, settings); err != nil {
-		return nil, err
-	}
-
-	updateDevices, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationEdit)
-	if err != nil {
-		log.Errorf("Failed to create config spec for logging update: %s", err)
-		return nil, err
-	}
-
-	spec.DeviceChange = append(spec.DeviceChange, updateDevices...)
-
-	cfg, err := d.encodeConfig(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
-	return spec, nil
-}
-
 // applianceConfiguration updates the configuration passed in with the latest from the appliance VM.
 // there's no guarantee of consistency within the configuration at this time
 func (d *Dispatcher) applianceConfiguration(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
-	extraConfig, err := d.appliance.FetchExtraConfig(d.ctx)
+	extraConfig, err := d.pl.GetExtraConfig(d.ctx, d.applianceID)
 	if err != nil {
 		return err
 	}
 
 	extraconfig.Decode(extraconfig.MapSource(extraConfig), conf)
+	extraconfig.DecodeWithPrefix(extraconfig.MapSource(extraConfig), &conf.ExecutorConfig, config.VCHPrefix)
 	return nil
-}
-
-// waitForKey squashes the return values and simpy blocks until the key is updated or there is an error
-func (d *Dispatcher) waitForKey(key string) {
-	defer trace.End(trace.Begin(key))
-
-	d.appliance.WaitForKeyInExtraConfig(d.ctx, key)
-	return
 }
 
 // isPortLayerRunning decodes the `docker info` response to check if the portlayer is running
@@ -1014,21 +751,6 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
-	if d.appliance == nil {
-		return errors.New("cannot validate appliance due to missing VM reference")
-	}
-
-	log.Infof("Waiting for IP information")
-	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
-	ctxerr := d.ctx.Err()
-
-	if ctxerr == nil {
-		log.Info("Waiting for major appliance components to launch")
-		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
-			d.waitForKey(k)
-		}
-	}
-
 	// at this point either everything has succeeded or we're going into diagnostics, ignore error
 	// as we're only using it for IP in the success case
 	updateErr := d.applianceConfiguration(conf)
@@ -1043,7 +765,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 
 	// it's possible we timed out... get updated info having adjusted context to allow it
 	// keeping it short
-	ctxerr = d.ctx.Err()
+	ctxerr := d.ctx.Err()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -1102,7 +824,7 @@ func (d *Dispatcher) CheckServiceReady(ctx context.Context, conf *config.Virtual
 	// vic-init will try to reach out to the vSphere target.
 	log.Info("Checking VCH connectivity with vSphere target")
 	// Checking access to vSphere API
-	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.appliance, conf.Target); err == nil {
+	if cd, err := d.CheckAccessToVCAPI(d.ctx, d.applianceID, conf.Target); err == nil {
 		code := int(cd)
 		if code > 0 {
 			log.Warningf("vSphere API Test: %s %s", conf.Target, diag.UserReadableVCAPITestDescription(code))

@@ -21,7 +21,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -55,10 +54,11 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	pv := spec.NewParaVirtualSCSIController(scsi)
 	s.AddParaVirtualSCSIController(pv)
 
-	// Disk
-	disk := spec.NewVirtualSCSIDisk(scsi)
-	s.AddVirtualDisk(disk)
-
+	if config.ImageStorePath != nil {
+		// Disk
+		disk := spec.NewVirtualSCSIDisk(scsi)
+		s.AddVirtualDisk(disk)
+	}
 	// IDE controller
 	ide := spec.NewVirtualIDEController(ideKey)
 	s.AddVirtualIDEController(ide)
@@ -69,7 +69,7 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 
 	// Set the guest id
 	s.GuestId = string(types.VirtualMachineGuestOsIdentifierOtherGuest64)
-	s.AlternateGuestName = constants.DefaultAltContainerGuestName()
+	s.AlternateGuestName = config.AlternateGuestName
 
 	return &LinuxGuestType{
 		VirtualMachineConfigSpec: s,

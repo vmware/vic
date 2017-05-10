@@ -144,7 +144,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// nilify ExtraConfig if container configuration is migrated
 			// in this case, VCH and container are in different version. Migrated configuration cannot be written back to old container, to avoid data loss in old version's container
-			if h.Migrated {
+			if h.Migrated && !Config.ManagingVCH {
 				log.Debugf("Nilifying ExtraConfig as configuration of container %s is migrated", h.ExecConfig.ID)
 				s.ExtraConfig = nil
 			}
@@ -169,7 +169,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// trigger a configuration reload in the container if needed
 			if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-				err = h.startGuestProgram(ctx, "reload", "")
+				_, err = h.startGuestProgram(ctx, "reload", "")
 				if err != nil {
 					// NOTE: not sure how to handle this error - the change is already applied, it's just not picked up in the container
 				}

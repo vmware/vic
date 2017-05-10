@@ -135,6 +135,7 @@ func Init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
+	extraconfig.DecodeWithPrefix(src, &vchConfig.ExecutorConfig, vchconfig.VCHPrefix)
 	if vchConfig.HostCertificate == nil {
 		log.Infoln("--no-tls is enabled on the personality")
 		rootConfig.serverCert = &serverCertificate{}

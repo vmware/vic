@@ -27,16 +27,13 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/event/events"
-	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/google/uuid"
 )
 
 type State int
@@ -408,8 +405,16 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	if num == int64(syscall.SIGKILL) {
 		return c.containerBase.kill(ctx)
 	}
+	_, err := c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
+	return err
+}
 
-	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
+func (c *Container) StartGuestProgram(ctx context.Context, cmd, args string) (int64, error) {
+	if c.vm == nil {
+		return 0, fmt.Errorf("vm not set")
+	}
+
+	return c.startGuestProgram(ctx, cmd, args)
 }
 
 func (c *Container) onStop() {
@@ -558,6 +563,20 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	return nil
 }
 
+// VMFolder returns container VM folder in datastore
+// TODO: Expose VM properties here is because VCH management logic is not part of portlayer handlers yet
+// This method can be removed after portlayer handlers support VCH management
+func (c *Container) VMFolder(ctx context.Context) (string, error) {
+	return c.vm.FolderName(ctx)
+}
+
+// VMExtraConfig returns container VM extra config
+// TODO: Expose VM properties here is because VCH management logic is not part of portlayer handlers yet
+// This method can be removed after portlayer handlers support VCH management
+func (c *Container) VMExtraConfig(ctx context.Context) (map[string]string, error) {
+	return c.vm.FetchExtraConfig(ctx)
+}
+
 // eventedState will determine the target container
 // state based on the current container state and the vsphere event
 func eventedState(e string, current State) State {
@@ -673,19 +692,6 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 	}
 
 	return convertInfraContainers(ctx, sess, vms), nil
-}
-
-func instanceUUID(id string) (string, error) {
-	// generate VM instance uuid, which will be used to query back VM
-	u, err := sys.UUID()
-	if err != nil {
-		return "", err
-	}
-	namespace, err := uuid.Parse(u)
-	if err != nil {
-		return "", errors.Errorf("unable to parse VCH uuid: %s", err)
-	}
-	return uuid.NewSHA1(namespace, []byte(id)).String(), nil
 }
 
 // populate the vm attributes for the specified morefs

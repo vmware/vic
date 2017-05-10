@@ -1477,6 +1477,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		}
 	}()
 
+	// error will be checked in check service ready
+	executor.StartAppliance(ctx)
 	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
 		executor.CollectDiagnosticLogs()
 		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert, c.certPath)

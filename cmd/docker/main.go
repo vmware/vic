@@ -129,6 +129,7 @@ func handleFlags() bool {
 		log.Fatalf("Unable to load configuration from guestinfo: %s", err)
 	}
 	extraconfig.Decode(src, &vchConfig)
+	extraconfig.DecodeWithPrefix(src, &vchConfig.ExecutorConfig, config.VCHPrefix)
 
 	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
 		log.SetLevel(log.DebugLevel)

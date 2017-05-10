@@ -159,6 +159,7 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 		log.Error(err)
 		return nil, err
 	}
+	extraconfig.DecodeWithPrefix(data, &vchConfig.ExecutorConfig, config.VCHPrefix)
 
 	if vchConfig.IsCreating() {
 		vmRef := vm.Reference()
@@ -195,6 +196,7 @@ func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.Vi
 		err = errors.Errorf("Failed to decode migrated VM configuration %q: %s", vm.Reference(), err)
 		return nil, err
 	}
+	extraconfig.DecodeWithPrefix(data, &vchConfig.ExecutorConfig, config.VCHPrefix)
 
 	return vchConfig, nil
 }

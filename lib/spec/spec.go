@@ -38,7 +38,6 @@ const (
 type VirtualMachineConfigSpecConfig struct {
 	// ID of the VM
 	ID         string
-	BiosUUID   string
 	VMFullName string
 
 	// ParentImageID of the VM
@@ -69,6 +68,10 @@ type VirtualMachineConfigSpecConfig struct {
 
 	// Temporary
 	Metadata *executor.ExecutorConfig
+	// Prefix to encode Metadata
+	ConfigPrefix string
+	// OS guest name
+	AlternateGuestName string
 }
 
 // VirtualMachineConfigSpec type
@@ -89,7 +92,6 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 
 	s := &types.VirtualMachineConfigSpec{
 		Name: config.VMFullName,
-		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: config.VMPathName,
 		},
@@ -126,7 +128,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 
 	// encode the config as optionvalues
 	cfg := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(cfg), config.Metadata)
+	extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), config.Metadata, config.ConfigPrefix)
 	metaCfg := vmomi.OptionValueFromMap(cfg)
 
 	// merge it with the sec

@@ -61,6 +61,11 @@ func ContainerDataVersion(conf map[string]string) (int, error) {
 	return getCurrentID(conf, manager.ContainerVersionKey)
 }
 
+// ApplianceDataVersion returns appliance data version
+func ApplianceDataVersion(conf map[string]string) (int, error) {
+	return getCurrentID(conf, manager.ApplianceVersionKey)
+}
+
 // dataIsOlder returns true if data is older than latest. If error happens, always returns false
 func dataIsOlder(data map[string]string, target string, verKey string) (bool, error) {
 	var currentID int

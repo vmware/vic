@@ -17,10 +17,8 @@ package exec
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
-	"net"
 	"sync"
 	"time"
 
@@ -30,6 +28,7 @@ import (
 	"github.com/golang/groupcache/lru"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/constants"
@@ -209,13 +208,16 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 		}
 	}
 
+	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
+	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
+
 	s := h.Spec.Spec()
 	// if runtime is nil, should be fresh container create
 	if h.Runtime == nil || h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff || h.TargetState() == StateStopped {
-		extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
+		extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), h.ExecConfig, h.ConfigPrefix)
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	} else {
-		extraconfig.Encode(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig)
+		extraconfig.EncodeWithPrefix(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig, h.ConfigPrefix)
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	}
 
@@ -250,68 +252,59 @@ func (h *Handle) Close() {
 //
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
-func Create(ctx context.Context, vmomiSession *session.Session, config *ContainerCreateConfig) (*Handle, error) {
+func Create(ctx context.Context, vmomiSession *session.Session, conf *ContainerCreateConfig) (*Handle, error) {
 	defer trace.End(trace.Begin("Handle.Create"))
 
+	prefix := extraconfig.DefaultPrefix
+	if Config.ManagingVCH {
+		prefix = config.VCHPrefix
+	}
 	h := &Handle{
 		key:         newHandleKey(),
 		targetState: StateCreated,
 		containerBase: containerBase{
-			ExecConfig: config.Metadata,
+			ExecConfig:   conf.Metadata,
+			ConfigPrefix: prefix,
 		},
 	}
 
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
 
-	// Convert the management hostname to IP
-	ips, err := net.LookupIP(constants.ManagementHostName)
-	if err != nil {
-		log.Errorf("Unable to look up %s during create of %s: %s", constants.ManagementHostName, config.Metadata.ID, err)
-		return nil, err
-	}
-
-	if len(ips) == 0 {
-		log.Errorf("No IP found for %s during create of %s", constants.ManagementHostName, config.Metadata.ID)
-		return nil, fmt.Errorf("No IP found on %s", constants.ManagementHostName)
-	}
-
-	if len(ips) > 1 {
-		log.Errorf("Multiple IPs found for %s during create of %s: %v", constants.ManagementHostName, config.Metadata.ID, ips)
-		return nil, fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
-	}
-
-	uuid, err := instanceUUID(config.Metadata.ID)
-	if err != nil {
-		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
-		log.Error(detail)
-		return nil, errors.New(detail)
-	}
-
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
-		NumCPUs:  int32(config.Resources.NumCPUs),
-		MemoryMB: config.Resources.MemoryMB,
+		NumCPUs:  int32(conf.Resources.NumCPUs),
+		MemoryMB: conf.Resources.MemoryMB,
 
-		ID:       config.Metadata.ID,
-		Name:     config.Metadata.Name,
-		BiosUUID: uuid,
+		ID:   conf.Metadata.ID,
+		Name: conf.Metadata.Name,
 
-		ParentImageID: config.ParentImageID,
+		ParentImageID: conf.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
 		VMPathName:    fmt.Sprintf("[%s]", vmomiSession.Datastore.Name()),
 
-		ImageStoreName: config.ImageStoreName,
-		ImageStorePath: &Config.ImageStores[0],
+		ImageStoreName: conf.ImageStoreName,
 
-		Metadata: config.Metadata,
+		Metadata:     conf.Metadata,
+		ConfigPrefix: h.ConfigPrefix,
+	}
+	if Config.ImageStores != nil {
+		specconfig.ImageStorePath = &Config.ImageStores[0]
 	}
 
 	// if not vsan, set the datastore folder name to containerID
 	if !vmomiSession.IsVSAN(ctx) {
 		specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), specconfig.ID, specconfig.ID)
+		if Config.ManagingVCH {
+			specconfig.VMPathName = fmt.Sprintf("[%s] %s/%s.vmx", vmomiSession.Datastore.Name(), conf.Metadata.Name, conf.Metadata.Name)
+		}
 	}
 
-	specconfig.VMFullName = util.DisplayName(specconfig)
+	specconfig.VMFullName = conf.Metadata.Name
+	specconfig.AlternateGuestName = constants.DefaultAltVCHGuestName()
+	if !Config.ManagingVCH {
+		specconfig.VMFullName = util.DisplayName(specconfig)
+		specconfig.AlternateGuestName = constants.DefaultAltContainerGuestName()
+	}
 
 	// log only core portions
 	s := specconfig
@@ -337,7 +330,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 	// Create a linux guest
 	linux, err := guest.NewLinuxGuest(ctx, vmomiSession, specconfig)
 	if err != nil {
-		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
+		log.Errorf("Failed during linux specific spec generation during create of %s: %s", conf.Metadata.ID, err)
 		return nil, err
 	}
 

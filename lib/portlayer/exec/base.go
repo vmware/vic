@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/migration"
 	"github.com/vmware/vic/lib/portlayer/constants"
@@ -58,6 +59,8 @@ type containerBase struct {
 	// MigrationError means the errors happens during data migration, some operation might fail for we cannot extract the whole container configuration
 	MigrationError error
 	DataVersion    int
+	// ConfigPrefix is used to encoding/decoding container or VCH guestinfo
+	ConfigPrefix string
 
 	// original - can be pointers so long as refreshes
 	// use different instances of the structures
@@ -76,15 +79,27 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 		vm:         vm,
 	}
 
+	// this is the first step to use portlayer manage VCH, to avoid upgrade VCH configuration, using different prefix to encoding atm.
+	// TODO: after VCH bootstrap is updated to tether, instead of vic-init, this can be removed
+	base.ConfigPrefix = extraconfig.DefaultPrefix
+	if Config.ManagingVCH {
+		base.ConfigPrefix = config.VCHPrefix
+	}
 	// construct a working copy of the exec config
 	if c != nil && c.ExtraConfig != nil {
 		var migratedConf map[string]string
 		containerExecKeyValues := vmomi.OptionValueMap(c.ExtraConfig)
-		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
-		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
-		extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
+		if Config.ManagingVCH {
+			// This data migration will keep new executor configuration in memory only
+			// TODO: after move appliance executor configuration same to container key, this should be removed
+			base.DataVersion, _ = migration.ApplianceDataVersion(containerExecKeyValues)
+			migratedConf, base.Migrated, base.MigrationError = migration.MigrateApplianceConfig(context.Background(), vm.Session, containerExecKeyValues)
+		} else {
+			base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
+			migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+		}
+		extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, base.ConfigPrefix)
 	}
-
 	return base
 }
 
@@ -128,26 +143,33 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	}
 
 	base := &containerBase{
-		vm:         c.vm,
-		Config:     o.Config,
-		Runtime:    &o.Runtime,
-		ExecConfig: &executor.ExecutorConfig{},
+		vm:           c.vm,
+		Config:       o.Config,
+		Runtime:      &o.Runtime,
+		ExecConfig:   &executor.ExecutorConfig{},
+		ConfigPrefix: c.ConfigPrefix,
 	}
 
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
-	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
-	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
-	extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
-
+	if Config.ManagingVCH {
+		// This data migration will keep new executor configuration in memory only
+		// TODO: after move appliance executor configuration same to container key, this should be removed
+		base.DataVersion, _ = migration.ApplianceDataVersion(containerExecKeyValues)
+		migratedConf, base.Migrated, base.MigrationError = migration.MigrateApplianceConfig(context.Background(), c.vm.Session, containerExecKeyValues)
+	} else {
+		base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
+		migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
+	}
+	extraconfig.DecodeWithPrefix(extraconfig.MapSource(migratedConf), base.ExecConfig, base.ConfigPrefix)
 	return base, nil
 }
 
 func (c *containerBase) ReloadConfig(ctx context.Context) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
-	return c.startGuestProgram(ctx, "reload", "")
+	_, err := c.startGuestProgram(ctx, "reload", "")
+	return err
 }
 
 // WaitForExec waits exec'ed task to set started field or timeout
@@ -164,17 +186,17 @@ func (c *containerBase) WaitForSession(ctx context.Context, id string) error {
 	return c.waitForSession(ctx, id)
 }
 
-func (c *containerBase) startGuestProgram(ctx context.Context, name string, args string) error {
+func (c *containerBase) startGuestProgram(ctx context.Context, name string, args string) (int64, error) {
 	// make sure we have vm
 	if c.vm == nil {
-		return NotYetExistError{c.ExecConfig.ID}
+		return 0, NotYetExistError{c.ExecConfig.ID}
 	}
 
 	defer trace.End(trace.Begin(c.ExecConfig.ID + ":" + name))
 	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
 	m, err := o.ProcessManager(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	spec := types.GuestProgramSpec{
@@ -186,9 +208,7 @@ func (c *containerBase) startGuestProgram(ctx context.Context, name string, args
 		Username: c.ExecConfig.ID,
 	}
 
-	_, err = m.StartProgram(ctx, &auth, &spec)
-
-	return err
+	return m.StartProgram(ctx, &auth, &spec)
 }
 
 func (c *containerBase) start(ctx context.Context) error {
@@ -211,7 +231,16 @@ func (c *containerBase) start(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
 	defer cancel()
 
-	return c.waitForSession(ctx, c.ExecConfig.ID)
+	// wait for all sessions started
+	for k, s := range c.ExecConfig.Sessions {
+		if s.Active {
+			if err := c.waitForSession(ctx, k); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
@@ -243,7 +272,7 @@ func (c *containerBase) kill(ctx context.Context) error {
 	sig := string(ssh.SIGKILL)
 	log.Infof("sending kill -%s %s", sig, c.ExecConfig.ID)
 
-	err := c.startGuestProgram(ctx, "kill", sig)
+	_, err := c.startGuestProgram(ctx, "kill", sig)
 	if err == nil {
 		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
 		timeout, err := c.waitForPowerState(ctx, wait, types.VirtualMachinePowerStatePoweredOff)
@@ -286,7 +315,7 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
 		log.Info(msg)
 
-		err := c.startGuestProgram(ctx, "kill", sig)
+		_, err := c.startGuestProgram(ctx, "kill", sig)
 		if err != nil {
 			return fmt.Errorf("%s: %s", msg, err)
 		}
@@ -370,7 +399,7 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id))
 
 	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
+	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), c.ConfigPrefix)[0]
 	return c.waitFor(ctx, key)
 }
 
