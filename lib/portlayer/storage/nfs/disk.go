@@ -30,14 +30,14 @@ type Volume struct {
 }
 
 func NewVolume(host *url.URL, NFSPath string) Volume {
-	diskLocation := &url.URL{
+	volumeLocation := &url.URL{
 		Scheme: host.Scheme,
 		Host:   host.Host,
 		Path:   path.Join(host.Path, NFSPath),
 	}
 
 	v := Volume{
-		Host: diskLocation,
+		Host: volumeLocation,
 		Path: NFSPath,
 	}
 	return v
