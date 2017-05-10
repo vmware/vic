@@ -61,7 +61,7 @@ When you deploy a VCH, a user account that you specify in `--ops-user` must have
 
 2. (Optional) Go to **Hosts and Clusters** and create a resource pool in which to deploy VCHs.
 
-   By creating a resource pool for VCHs, you can set the correct permissons on just that resource pool rather than on an entire host or cluster. You specify this resource pool in the `vic-machine create --compute-resource` option when you deploy the VCH. For a more granular application of privileges, you can also apply the permissions directly to VCH vApps after deployment, rather than to a resource pool.
+   By creating a resource pool for VCHs, you can set the correct permissions on just that resource pool rather than on an entire host or cluster. You specify this resource pool in the `vic-machine create --compute-resource` option when you deploy the VCH. For a more granular application of privileges, you can also apply the permissions directly to VCH vApps after deployment, rather than to a resource pool.
 
 5. In each of the **Hosts and Clusters**, **Storage**, and **Networking** views, select inventory objects and assign the user group and the appropriate role to each one.
 
