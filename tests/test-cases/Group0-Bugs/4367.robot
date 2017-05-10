@@ -20,8 +20,8 @@ Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Check running twice
-    ${status}=  Get State Of Github Issue  5008
-    Run Keyword If  '${status}' == 'closed'  Fail  Test Group0-Bugs/4367.robot needs to be updated now that Issue #5008 has been resolved
+    ${status}=  Get State Of Github Issue  5015
+    Run Keyword If  '${status}' == 'closed'  Fail  Test Group0-Bugs/4367.robot needs to be updated now that Issue #5015 has been resolved
     #${name}=  Generate Random String  15
     #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -t --name ${name} busybox ls
     #Should Be Equal As Integers  ${rc}  0

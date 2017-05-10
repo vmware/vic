@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,10 @@
 package management
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 
@@ -31,6 +33,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -38,11 +41,19 @@ import (
 )
 
 const (
+	// deprecated snapshot name prefix
 	UpgradePrefix = "upgrade for"
+	// new snapshot name for upgrade and configure are using same process
+	ConfigurePrefix = "reconfigure for"
 )
 
-// Upgrade will try to upgrade vch appliance to new version. If failed will try to roll back to original status.
-func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (err error) {
+var (
+	errSecretKeyNotFound = fmt.Errorf("unable to find guestinfo secret")
+	errNilDatastore      = fmt.Errorf("session's datastore is not set")
+)
+
+// Configure will try to reconfigure vch appliance. If failed will try to roll back to original status.
+func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (err error) {
 	defer trace.End(trace.Begin(conf.Name))
 
 	d.appliance = vch
@@ -61,30 +72,33 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	d.session.Datastore = ds
 	d.setDockerPort(conf, settings)
 
-	if err = d.uploadImages(settings.ImageFiles); err != nil {
-		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
+	if len(settings.ImageFiles) > 0 {
+		// Need to update iso files
+		if err = d.uploadImages(settings.ImageFiles); err != nil {
+			return errors.Errorf("Uploading images failed with %s. Exiting...", err)
+		}
+		conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 	}
-
-	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 
 	// ensure that we wait for components to come up
 	for _, s := range conf.ExecutorConfig.Sessions {
 		s.Started = ""
 	}
 
-	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
+	snapshotName := fmt.Sprintf("%s %s", ConfigurePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
 
 	// check for old snapshot
 	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.ctx)
 
-	if err = d.tryCreateSnapshot(snapshotName, "upgrade snapshot"); err != nil {
+	if err = d.tryCreateSnapshot(snapshotName, "configure snapshot"); err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
 
 	if err = d.update(conf, settings); err == nil {
-		if oldSnapshot != nil && vm.IsUpgradeSnapshot(oldSnapshot, UpgradePrefix) {
+		// compatible with old version's upgrade snapshot name
+		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
 			d.retryDeleteSnapshot(oldSnapshot.Name, conf.Name)
 		}
 		return nil
@@ -240,7 +254,11 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		}
 	}
 
-	if err = d.reconfigVCH(conf, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)); err != nil {
+	isoFile := ""
+	if settings.ApplianceISO != "" {
+		isoFile = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)
+	}
+	if err = d.reconfigVCH(conf, isoFile); err != nil {
 		return err
 	}
 
@@ -305,12 +323,14 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 
 	spec := &types.VirtualMachineConfigSpec{}
 
-	deviceChange, err := d.switchISO(isoFile)
-	if err != nil {
-		return err
-	}
+	if isoFile != "" {
+		deviceChange, err := d.switchISO(isoFile)
+		if err != nil {
+			return err
+		}
 
-	spec.DeviceChange = deviceChange
+		spec.DeviceChange = deviceChange
+	}
 
 	if conf != nil {
 		// reset service started attribute
@@ -381,4 +401,66 @@ func (d *Dispatcher) switchISO(filePath string) ([]types.BaseVirtualDeviceConfig
 
 	d.oldApplianceISO = oldApplianceISO
 	return deviceChange, nil
+}
+
+// extractSecretFromFile reads and extracts the GuestInfoSecretKey value from the input.
+func extractSecretFromFile(rc io.ReadCloser) (string, error) {
+
+	scanner := bufio.NewScanner(rc)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// The line is of the format: key = "value"
+		if strings.HasPrefix(line, extraconfig.GuestInfoSecretKey) {
+
+			tokens := strings.SplitN(line, "=", 2)
+			if len(tokens) < 2 {
+				return "", fmt.Errorf("parse error: unexpected token count in line")
+			}
+
+			// Ensure that the key fully matches the secret key
+			if strings.Trim(tokens[0], ` `) != extraconfig.GuestInfoSecretKey {
+				continue
+			}
+
+			// Trim double quotes and spaces
+			return strings.Trim(tokens[1], `" `), nil
+		}
+	}
+
+	return "", errSecretKeyNotFound
+}
+
+// GuestInfoSecret downloads the VCH's .vmx file and returns the GuestInfoSecretKey
+// value. This function expects the datastore in the dispatcher's session to be set.
+func (d *Dispatcher) GuestInfoSecret(vchName string) (*extraconfig.SecretKey, error) {
+	defer trace.End(trace.Begin(""))
+
+	if d.session.Datastore == nil {
+		return nil, errNilDatastore
+	}
+
+	helper, err := datastore.NewHelper(d.ctx, d.session, d.session.Datastore, d.vmPathName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Download the VCH's .vmx file
+	path := fmt.Sprintf("%s.vmx", vchName)
+	rc, err := helper.Download(d.ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := extractSecretFromFile(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	secretKey := &extraconfig.SecretKey{}
+	if err = secretKey.FromString(secret); err != nil {
+		return nil, err
+	}
+
+	return secretKey, nil
 }

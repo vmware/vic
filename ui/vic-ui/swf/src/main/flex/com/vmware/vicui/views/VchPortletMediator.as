@@ -92,6 +92,7 @@ package com.vmware.vicui.views {
 					   var keyName:String = new String();
 					   var keyVal:String = new String();
 					   var key:String = new String();
+					   var isUsingTls:Boolean = true;
 
 					   for (key in config ) {
 
@@ -115,11 +116,24 @@ package com.vmware.vicui.views {
 							   bytes = base64Decoder.toByteArray();
 							   ip_ipv4 = bytes.readUnsignedByte() + "." + bytes.readUnsignedByte() + "." + bytes.readUnsignedByte() + "." + bytes.readUnsignedByte();
 
-							   _view.dockerApiEndpoint.text = "DOCKER_HOST=tcp://" + ip_ipv4 + AppConstants.VCH_ENDPOINT_PORT;
+							   _view.dockerApiEndpoint.text = "DOCKER_HOST=tcp://" + ip_ipv4;
 							   _view.dockerLog.label = "https://" + ip_ipv4 + AppConstants.VCH_LOG_PORT;
 							   continue;
-
 						   }
+
+						   if (keyName == AppConstants.DOCKER_PERSONALITY_ARGS_PATH) {
+							   // port 2376 is used for tls, and 2375 for no-tls
+							   isUsingTls = keyVal.indexOf("2376") > -1;
+							   continue;
+						   }
+					   }
+
+					   // since the order in which list items are processed is not much guaranteed,
+					   // we set the port for Docker API endpoint at the end of the loop
+					   if (isUsingTls) {
+						   _view.dockerApiEndpoint.text = _view.dockerApiEndpoint.text + ":2376";
+					   } else {
+						   _view.dockerApiEndpoint.text = _view.dockerApiEndpoint.text + ":2375";
 					   }
 				   }
 			   } else {

@@ -30,7 +30,7 @@ fi
 # save test result to db
 testresultspath="/drone-test-results/testruns-db/$testresultsdb"
 echo "Saving integration test results to $testresultspath"
-python -m dbbot.run -k -v -b $testresultspath output.xml
+python -m dbbot.run -k  -b $testresultspath output.xml
 
 # copy test run files to build folder
 mkdir -p /drone-test-results/testruns/$DRONE_BUILD_NUMBER
