@@ -1,6 +1,6 @@
 # Summary
 
-* [Introduction](README.md)
+* [Version 0.8](README.md)
 * [Interoperability with Other VMware Software](interop.md)
 * [VCH Administration](vch_admin.md)
   * [Obtain vic-machine Version Information](vic_machine_version.md)
