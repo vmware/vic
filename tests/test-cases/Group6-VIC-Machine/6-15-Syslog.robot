@@ -43,7 +43,8 @@ Verify VCH remote syslog
     Get Docker Params  ${output}  ${true}
 
     # make sure we use ip address, and not fqdn
-    ${vch-ip}=  Run  dig +short %{VCH-IP}
+    ${ip}=  Run  dig +short %{VCH-IP}
+    ${vch-ip}=  Set Variable If  '${ip}' == ''  %{VCH-IP}  ${ip}
 
     ${vch-conn}=  Open Connection  ${vch-ip}
     Login  root  password
