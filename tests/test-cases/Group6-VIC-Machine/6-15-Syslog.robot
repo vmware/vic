@@ -42,7 +42,10 @@ Verify VCH remote syslog
 
     Get Docker Params  ${output}  ${true}
 
-    ${vch-conn}=  Open Connection  %{VCH-IP}
+    # make sure we use ip address, and not fqdn
+    ${vch-ip}=  Run  dig +short %{VCH-IP}
+
+    ${vch-conn}=  Open Connection  ${vch-ip}
     Login  root  password
 
     @{procs}=  Create List  port-layer-server  docker-engine-server  vic-init  vicadmin
@@ -59,11 +62,11 @@ Verify VCH remote syslog
     ${keys}=  Get Dictionary Keys  ${proc-pids}
     :FOR  ${proc}  IN  @{keys}
     \     ${pid}=  Get From Dictionary  ${proc-pids}  ${proc}
-    \     Should Contain  ${out}  %{VCH-IP} ${proc}[${pid}]:
+    \     Should Contain  ${out}  ${vch-ip} ${proc}[${pid}]:
 
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
 
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
     ${pid}=  Get From Dictionary  ${proc-pids}  docker-engine-server
-    Should Contain  ${out}  docker-engine-server[${pid}]: Calling GET /v1.25/containers/json?all=1
+    Should Contain  ${out}  ${vch-ip} docker-engine-server[${pid}]: Calling GET /v1.25/containers/json?all=1
