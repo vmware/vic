@@ -132,14 +132,19 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 		cs.preDockerStat = &types.StatsJSON{}
 	}
 
+	// go routine to stop on Context.Cancel
+	go func() {
+		<-cs.config.Ctx.Done()
+		close(metric)
+		cs.Stop()
+	}()
+
 	// go routine will decode metrics received from the portLayer and
 	// send them to the encoding routine
 	go func() {
 		for {
 			select {
 			case <-cs.config.Ctx.Done():
-				close(metric)
-				cs.Stop()
 				return
 			default:
 				for dec.More() {
@@ -164,7 +169,6 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 		for range ticker.C {
 			select {
 			case <-cs.config.Ctx.Done():
-				cs.Stop()
 				ticker.Stop()
 				return
 			case nm := <-metric:
