@@ -1,6 +1,6 @@
 # Summary
 
-* [Introduction](README.md)
+* [Version 0.8](README.md)
 * [Overview of vSphere Integrated Containers Engine for vSphere Administrators](introduction.md)
   * [Networks Used by vSphere Integrated Containers Engine](networks.md)
 * [Download vSphere Integrated Containers](download_vic.md)
