@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/vmware/vic/cmd/vic-machine/configure"
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	"github.com/vmware/vic/cmd/vic-machine/debug"
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
@@ -53,12 +54,20 @@ func main() {
 	upgrade := upgrade.NewUpgrade()
 	debug := debug.NewDebug()
 	updateFw := update.NewUpdateFw()
+	configure := configure.NewConfigure()
 	app.Commands = []cli.Command{
 		{
 			Name:   "create",
 			Usage:  "Deploy VCH",
 			Action: create.Run,
 			Flags:  create.Flags(),
+		},
+		{
+			Name:   "configure",
+			Usage:  "Update VCH configuration",
+			Action: configure.Run,
+			Flags:  configure.Flags(),
+			Hidden: true,
 		},
 		{
 			Name:   "delete",
