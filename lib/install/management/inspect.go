@@ -206,6 +206,7 @@ func (d *Dispatcher) GetDockerAPICommand(conf *config.VirtualContainerHostConfig
 					dEnv = append(dEnv, fmt.Sprintf("DOCKER_CERT_PATH=%s", abs))
 				}
 			} else {
+				log.Infof("")
 				log.Warnf("Unable to find valid client certs")
 				log.Warnf("DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments")
 			}
