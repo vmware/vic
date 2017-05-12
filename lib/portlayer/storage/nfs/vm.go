@@ -40,7 +40,7 @@ const (
 )
 
 func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("handle.ID(%s), volume(%s), mountPath(%s)", handle.ExecConfig.ID, volume.ID, mountPath)))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle.ID(%s), volume(%s), mountPath(%s), diskPath(%#v)", handle.ExecConfig.ID, volume.ID, mountPath, volume.Device.DiskPath())))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
 		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec config", volume.ID, handle.ExecConfig.ID)
