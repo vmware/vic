@@ -65,6 +65,8 @@ const (
 	RFC3164 Formatter = iota
 )
 
+var defDialer = &defaultDialer{d: &syslogDialer{}}
+
 func NewHook(cfg *SyslogConfig, d dialer) (*Hook, error) {
 	hook := &Hook{
 		entries: make(chan *logrus.Entry, maxLogBuffer),
@@ -72,9 +74,7 @@ func NewHook(cfg *SyslogConfig, d dialer) (*Hook, error) {
 	}
 
 	if d == nil {
-		d = &defaultDialer{
-			d: &syslogDialer{},
-		}
+		d = defDialer
 	}
 
 	var err error
@@ -105,6 +105,10 @@ func (d *defaultDialer) dial(cfg *SyslogConfig) (Writer, error) {
 		dialer: d.d,
 		cfg:    *cfg,
 	}, nil
+}
+
+func Dial(cfg *SyslogConfig) (Writer, error) {
+	return defDialer.dial(cfg)
 }
 
 type syslogDialer struct{}
