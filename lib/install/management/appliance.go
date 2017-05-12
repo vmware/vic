@@ -676,8 +676,6 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 			err = errors.Errorf("Failed to get VM %q datastore path: %s", name, err.Error())
 			return nil, err
 		}
-		log.Debug("getting secret key")
-
 		s, err := d.GuestInfoSecret(name, path, ds)
 		if err != nil {
 			return nil, err
