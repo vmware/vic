@@ -165,6 +165,24 @@ func (c *client) requestPacket(cl *dhcp4client.Client, op *dhcp4.Packet) (dhcp4.
 	return c.setOptions(rp)
 }
 
+func logDHCPPacketNoOptions(p dhcp4.Packet) {
+	log.Debugf("OpCode: %d, HType: %d, HLen: %d, Hops: %d, XId: %+v, Secs: %+v, Flags: %+v, CIAddr: %s, "+
+		"YIAddr: %s, SIAddr: %s, GIAddr: %s, CHAddr: %s, Cookie: %+v, Broadcast: %v",
+		p.OpCode(), p.HType(), p.HLen(), p.Hops(), p.XId(), p.Secs(), p.Flags(),
+		p.CIAddr().String(), p.YIAddr().String(), p.SIAddr().String(), p.GIAddr().String(), p.CHAddr().String(),
+		p.Cookie(), p.Broadcast())
+}
+
+func logDHCPPacketAndOptions(p dhcp4.Packet, o dhcp4.Options) {
+	logDHCPPacketNoOptions(p)
+	log.Debugf("Options: %+v", o)
+}
+
+func logDHCPPacket(p dhcp4.Packet) {
+	o := p.ParseOptions()
+	logDHCPPacketAndOptions(p, o)
+}
+
 func (c *client) request(cl *dhcp4client.Client) (bool, dhcp4.Packet, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -206,6 +224,8 @@ func (c *client) request(cl *dhcp4client.Client) (bool, dhcp4.Packet, error) {
 	}
 
 	opts := ack.ParseOptions()
+	logDHCPPacketAndOptions(ack, opts)
+
 	if dhcp4.MessageType(opts[dhcp4.OptionDHCPMessageType][0]) == dhcp4.NAK {
 		return false, nil, fmt.Errorf("Got NAK from DHCP server")
 	}
