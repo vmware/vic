@@ -81,6 +81,18 @@ type Diagnostics struct {
 	// ExitLogs is a best effort record of the time of process death and the cause for
 	// restartable entities
 	ExitLogs []ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
+
+	// SyslogConfig holds configuration for connecting to a syslog
+	// server
+	SysLogConfig *SysLogConfig `vic:"0.1" scope:"read-only" key:"syslog"`
+}
+
+// SyslogConfig holds the configuration necessary to connect to a syslog server
+type SysLogConfig struct {
+	// Network can be udp, tcp, udp6, or tcp6
+	Network string
+	// RAddr is the remote address of the syslog endpoint
+	RAddr string
 }
 
 // ExitLog records some basic diagnostics about anomalous exit for restartable entities

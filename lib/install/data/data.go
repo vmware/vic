@@ -81,6 +81,13 @@ type Data struct {
 
 	ScratchSize string
 	Rollback    bool
+
+	SyslogConfig SyslogConfig
+}
+
+type SyslogConfig struct {
+	Addr *url.URL
+	Tag  string
 }
 
 type ContainerNetworks struct {

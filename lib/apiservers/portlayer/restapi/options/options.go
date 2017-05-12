@@ -29,6 +29,8 @@ type PortLayerOptionsType struct {
 	DatastorePath  string `long:"datastore" default:"/ha-datacenter/datastore/*" description:"Datastore path" env:"DS_PATH" required:"true"`
 
 	Debug bool `long:"debug" default:"true" description:"Debug logging"`
+
+	SyslogAddr *string `long:"syslog-address" default:"" description:"Address of syslog endpoint" required:"false" env:"SYSLOG_ADDR"`
 }
 
 var (

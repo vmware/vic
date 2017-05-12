@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   wait-for-build:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
@@ -31,7 +31,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
@@ -57,7 +57,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     privileged: true
     environment:
@@ -82,6 +82,9 @@ pipeline:
       GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
       DOMAIN: ${CI_DOMAIN}
+      SYSLOG_SERVER: ${SYSLOG_SERVER}
+      SYSLOG_USER: ${SYSLOG_USER}
+      SYSLOG_PASSWD: ${SYSLOG_PASSWD}
     commands:
       - make mark
       - tests/integration-test.sh
@@ -90,7 +93,7 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin

@@ -14,6 +14,8 @@
 
 package main
 
+import "github.com/vmware/vic/lib/config/executor"
+
 type ExecutorConfig struct {
 	// Diagnostics holds basic diagnostics data
 	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
@@ -22,4 +24,7 @@ type ExecutorConfig struct {
 type Diagnostics struct {
 	// Should debugging be enabled on whatever component this is and at what level
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"debug"`
+	// SyslogConfig holds configuration for connecting to a syslog
+	// server
+	SysLogConfig *executor.SysLogConfig `vic:"0.1" scope:"read-only" key:"syslog"`
 }

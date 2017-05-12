@@ -53,13 +53,13 @@ tests=${*#${PWD}/}
 tempfile() {
     # tempprefix=$(basename "$0")
     # mktemp /tmp/${tempprefix}.yml
-		mktemp .tmp.drone.`date +%s`.yml
-		# $(mktemp .tmp.drone.`date +%s`.yml)
+    mktemp .tmp.drone.XXXXX.yml
+    # $(mktemp .tmp.drone.`date +%s`.yml)
 }
 
 cleanup() {
-  echo "removing temp file $tmpYml"
-	rm -f $tmpYml
+    echo "removing temp file $tmpYml"
+    rm -f $tmpYml
 }
 tmpYml=$(tempfile)
 #cleanup temp file on exit
@@ -78,7 +78,7 @@ pipeline:
     # dont clone submodules
     recursive: false
   vic-integration-test-on-pr:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     environment:
       GITHUB_AUTOMATION_API_KEY: $GITHUB_TOKEN

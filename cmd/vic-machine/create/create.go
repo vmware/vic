@@ -123,6 +123,8 @@ type Create struct {
 	httpsProxy string
 	httpProxy  string
 
+	syslogAddr string
+
 	executor *management.Dispatcher
 }
 
@@ -462,6 +464,14 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.httpProxy,
 			Hidden:      true,
 		},
+
+		cli.StringFlag{
+			Name:        "syslog-address",
+			Value:       "",
+			Usage:       "Address of the syslog server to send Virtual Container Host logs to. Must be in the format transport://host[:port], where transport is udp or tcp. port defaults to 514 if not specified",
+			Destination: &c.syslogAddr,
+			Hidden:      true,
+		},
 	}
 
 	util := []cli.Flag{
@@ -584,6 +594,10 @@ func (c *Create) processParams() error {
 	}
 
 	if err := c.processProxies(); err != nil {
+		return err
+	}
+
+	if err := c.processSyslog(); err != nil {
 		return err
 	}
 
@@ -1277,10 +1291,23 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 	return cakp.CertPEM, skp, nil
 }
 
+func (c *Create) processSyslog() error {
+	if len(c.syslogAddr) == 0 {
+		return nil
+	}
+
+	u, err := url.Parse(c.syslogAddr)
+	if err != nil {
+		return err
+	}
+
+	c.SyslogConfig.Addr = u
+	return nil
+}
+
 func (c *Create) logArguments(cliContext *cli.Context) []string {
 	args := []string{}
 	sf := c.SetFields() // StringSlice options set by the user
-
 	for _, f := range cliContext.FlagNames() {
 		_, ok := sf[f]
 		if !cliContext.IsSet(f) && !ok {

@@ -37,12 +37,15 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
+
+const defaultSyslogPort = 514
 
 type Validator struct {
 	TargetPath        string
@@ -298,6 +301,8 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(ctx, conf)
+
+	v.syslog(conf, input)
 
 	// TODO: determine if this is where we should turn the noted issues into message
 	return conf, v.ListIssues()
@@ -657,4 +662,41 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
 
 	return &dconfig
+}
+
+func (v *Validator) syslog(conf *config.VirtualContainerHostConfigSpec, input *data.Data) {
+	defer trace.End(trace.Begin(""))
+
+	if input.SyslogConfig.Addr == nil {
+		return
+	}
+
+	u := input.SyslogConfig.Addr
+	network := u.Scheme
+	if len(network) == 0 {
+		v.NoteIssue(errors.New("syslog address does not have network specified"))
+		return
+	}
+
+	switch network {
+	case "udp", "tcp":
+	default:
+		v.NoteIssue(fmt.Errorf("syslog address transport should be udp or tcp"))
+		return
+	}
+
+	host := u.Host
+	if len(host) == 0 {
+		v.NoteIssue(errors.New("syslog address host not specified"))
+		return
+	}
+
+	if u.Port() == "" {
+		host += fmt.Sprintf(":%d", defaultSyslogPort)
+	}
+
+	conf.Diagnostics.SysLogConfig = &executor.SysLogConfig{
+		Network: network,
+		RAddr:   host,
+	}
 }
