@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/netfilter"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -106,10 +107,23 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 
 	// wrap output in a LogWriter to serialize it into our persisted
 	// containerVM output format, using iolog.LogClock for timestamps
-	lw := iolog.NewLogWriter(f, iolog.LogClock{})
+	writers := []io.Writer{iolog.NewLogWriter(f, iolog.LogClock{})}
+
+	if session.Diagnostics.SysLogConfig != nil {
+		sw, err := syslog.Dial(&syslog.SyslogConfig{
+			Network: session.Diagnostics.SysLogConfig.Network,
+			RAddr:   session.Diagnostics.SysLogConfig.RAddr,
+		})
+		if err != nil {
+			log.Warnf("could not connect to syslog endpoint: %s", err)
+		}
+		if sw != nil {
+			writers = append(writers, sw)
+		}
+	}
 
 	// use multi-writer so it goes to both screen and session log
-	return dio.MultiWriter(lw, os.Stdout), dio.MultiWriter(lw, os.Stderr), nil
+	return dio.MultiWriter(append(writers, os.Stdout)...), dio.MultiWriter(append(writers, os.Stderr)...), nil
 }
 
 func (t *operations) Setup(sink tether.Config) error {
