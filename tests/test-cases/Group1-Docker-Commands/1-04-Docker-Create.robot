@@ -113,7 +113,10 @@ Create a container from an image that has not been pulled yet
     Should Not Contain  ${output}  Error
 
 Create a container with no command specified
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create alpine
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull centos:6.6
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create centos:6.6
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No command specified
 

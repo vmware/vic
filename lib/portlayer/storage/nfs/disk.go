@@ -16,21 +16,28 @@ package nfs
 
 import (
 	"net/url"
+	"path"
 )
 
 //  Volume identifies an NFS based volume
 type Volume struct {
 
-	// This is the nfs host the the volume belongs to
+	// VS Host + Path to the actual volume
 	Host *url.URL
 
-	// Path on the Host where the volume is located
+	// Path of the volume from the volumestore target
 	Path string
 }
 
 func NewVolume(host *url.URL, NFSPath string) Volume {
+	volumeLocation := &url.URL{
+		Scheme: host.Scheme,
+		Host:   host.Host,
+		Path:   path.Join(host.Path, NFSPath),
+	}
+
 	v := Volume{
-		Host: host,
+		Host: volumeLocation,
 		Path: NFSPath,
 	}
 	return v
@@ -45,5 +52,6 @@ func (v Volume) DiskPath() url.URL {
 	if v.Host == nil {
 		return url.URL{}
 	}
+
 	return *v.Host
 }

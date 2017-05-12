@@ -15,21 +15,21 @@
 *** Settings ***
 Documentation  Test 5-14 - Remove Container OOB
 Resource  ../../resources/Util.robot
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
+#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 Docker run an image from a container that was removed OOB
-    ${status}=  Get State Of Github Issue  2928
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-14-Remove-Container-OOB.robot needs to be updated now that Issue #2928 has been resolved
-    Log  Issue \#2928 is blocking implementation  WARN
-#    Create a Simple VC Cluster
+    ${status}=  Get State Of Github Issue  3845
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-14-Remove-Container-OOB.robot needs to be updated now that Issue #3845 has been resolved
+    #${esx1}  ${esx2}  ${esx3}  ${vc}  ${esx1-ip}  ${esx2-ip}  ${esx3-ip}  ${vc-ip}=  Create a Simple VC Cluster
+    #Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
 
-#    Install VIC Appliance To Test Server
+    #Install VIC Appliance To Test Server
 
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -itd busybox /bin/top 
-#    Should Be Equal As Integers  ${rc}  0
-#    Destroy VM OOB  ${container}
-#    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -itd busybox /bin/top 
-#    Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name removeOOB busybox /bin/top
+    #Should Be Equal As Integers  ${rc}  0
+    #Destroy VM OOB  removeOOB*
+    #${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox /bin/top
+    #Should Be Equal As Integers  ${rc}  0
