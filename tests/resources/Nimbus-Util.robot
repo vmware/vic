@@ -183,10 +183,10 @@ Deploy Nimbus Testbed
     \   ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  is up. IP:
-    \   Exit For Loop If  ${status}
+    \   Return From Keyword If  ${status}  ${out}
     \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
     \   Sleep  5 minutes
-    [Return]  ${out}
+    Fail  Deploy Nimbus Testbed Failed 5 times over the course of more than 25 minutes
 
 Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
