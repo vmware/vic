@@ -253,14 +253,14 @@ const maxTagLen = 32
 
 // MakeTag makes an RFC 3164 compliant tag (32 characters or less)
 // using the provided proc. If proc is empty, the name of the current
-// executable is used, trauncated to maxTagLen characters if
+// executable is used, truncated to maxTagLen characters if
 // necessary.
 func MakeTag(proc string) string {
 	if len(proc) == 0 {
 		proc = filepath.Base(os.Args[0])
 	}
 	proc = strings.TrimSpace(proc)
-	if len(proc) >= maxTagLen {
+	if len(proc) > maxTagLen {
 		return proc[:maxTagLen]
 	}
 
