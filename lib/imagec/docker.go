@@ -368,7 +368,7 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 
 	switch schemaVersion {
 	case 1: //schema 1, signed manifest
-		return decodeManifestSchema1(manifestFileName, options)
+		return decodeManifestSchema1(manifestFileName, options, url.Hostname())
 	case 2: //schema 2
 		return decodeManifestSchema2(manifestFileName, options)
 	}
@@ -381,7 +381,7 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 // defined Manifest structure and returns the digest of the manifest as a string.
 // For historical reason, we did not use the Docker's defined schema1.Manifest
 // instead of our own and probably should do so in the future.
-func decodeManifestSchema1(filename string, options Options) (interface{}, string, error) {
+func decodeManifestSchema1(filename string, options Options, registry string) (interface{}, string, error) {
 	// Read the entire file into []byte for json.Unmarshal
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -395,11 +395,14 @@ func decodeManifestSchema1(filename string, options Options) (interface{}, strin
 		return nil, "", err
 	}
 
-	if manifest.Name != options.Image {
+	// Compare the requested image's name and tag with the manifest's fields.
+	// Make an exception for gcr images, as some gcr manifests have these fields
+	// set to "unused" - see GitHub #4985
+	if manifest.Name != options.Image && registry != gcrURL {
 		return nil, "", fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.Image, manifest.Name)
 	}
 
-	if manifest.Tag != options.Tag {
+	if manifest.Tag != options.Tag && registry != gcrURL {
 		return nil, "", fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.Tag, manifest.Tag)
 	}
 
