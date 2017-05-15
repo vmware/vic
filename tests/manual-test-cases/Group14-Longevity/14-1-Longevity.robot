@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 14-1 - Longevity
 Resource  ../../resources/Util.robot
+Test Teardown  Run Keyword If Test Failed  Run  govc logs.download
 
 *** Test Cases ***
 Longevity
