@@ -16,9 +16,8 @@
 
 # Get the latest code from vmware/vic repo
 cd ~/go/src/github.com/vmware/vic
-git checkout master
-git remote update
-git rebase upstream/master
+git fetch
+git reset --hard origin/master
 
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
