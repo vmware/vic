@@ -131,4 +131,9 @@ Issue docker pull on digest outputted by previous pull
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Downloaded
-    
+
+Pull images from gcr.io
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_containers/hyperkube:v1.6.2
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/gb-redisslave:v1
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v11
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v12
