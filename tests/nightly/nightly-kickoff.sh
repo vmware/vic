@@ -37,7 +37,7 @@ echo "Cleanup logs from previous run"
 rm -rf *.zip *.log
 rm -rf bin 60 65
 
-input=$(gsutil ls -l gs://vic-engine-builds | tail -n2 | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
+input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 buildNumber=${input:4}
 
 n=0
