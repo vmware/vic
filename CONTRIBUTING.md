@@ -131,6 +131,13 @@ You can run the tests locally before making a PR or view the Drone build results
 If you don't have a running ESX required for tests, you can leverage the automated Drone servers for
 running tests. Add `WIP` (work in progress) to the PR title to alert reviewers that the PR is not ready to be merged.
 
+If your Drone build needs to be restarted, fork the build:
+```shell
+export DRONE_TOKEN=<Drone Token>
+export DRONE_SERVER=https://ci.vcna.io
+
+drone build start --fork vmware/vic <Build Number>
+```
 
 ### Testing locally
 
