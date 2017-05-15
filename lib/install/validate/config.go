@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/license"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/portlayer/constants"
@@ -81,9 +82,6 @@ func (e *FirewallMisconfiguredAllowedIPError) Error() string {
 
 // CheckFirewall verifies that host firewall configuration allows tether traffic and outputs results
 func (v *Validator) CheckFirewall(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
-	if v.DisableFirewallCheck {
-		return
-	}
 	defer trace.End(trace.Begin(""))
 
 	mgmtIP := v.GetMgmtIP(conf)
@@ -257,10 +255,22 @@ func (v *Validator) CheckIPInNets(checkIP net.IPNet, allowedIPs []string, allowe
 	return false
 }
 
+func isMethodNotFoundError(err error) bool {
+	if soap.IsSoapFault(err) {
+		_, ok := soap.ToSoapFault(err).VimFault().(types.MethodNotFound)
+		return ok
+	}
+
+	return false
+}
+
 // FirewallEnabled checks if the host firewall is enabled
 func (v *Validator) FirewallEnabled(host *object.HostSystem) (bool, error) {
 	esxfw, err := esxcli.GetFirewallInfo(host)
 	if err != nil {
+		if isMethodNotFoundError(err) {
+			return true, nil // vcsim does not support esxcli; assume firewall is enabled in this case
+		}
 		return false, err
 	}
 	if esxfw.Enabled {
