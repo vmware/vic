@@ -121,6 +121,7 @@ docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/
 Alternatively, the iso image can be built locally.  Again, ensure `GOPATH` is set, but also ensure the following packages are installed. This will attempt to install the following packages if not present using apt-get:
 
 ```
+apt-get install \
 	curl \
 	cpio \
 	tar \
