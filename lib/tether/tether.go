@@ -582,7 +582,7 @@ func (t *tether) cleanupSession(session *SessionConfig) {
 		log.Debugf("Calling close chan: %s", session.ID)
 		close(session.ClearToLaunch)
 		session.ClearToLaunch = nil
-		// rest Runblock to unblock process start next time
+		// reset Runblock to unblock process start next time
 		session.RunBlock = false
 	}
 }
