@@ -40,8 +40,9 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 )
 
-type TestValidator struct {
-	Validator
+func init() {
+	// Globally enable the vSPC firewall rule by modifying the source template directly
+	simulator.EnableRuleset(&esx.HostFirewallInfo, "vSPC") // TODO: can't use management.RulesetID here due to import cycle
 }
 
 func TestParseURL(t *testing.T) {
@@ -157,7 +158,6 @@ func TestMain(t *testing.T) {
 		ds, _ = validator.Session.Finder.Datastore(validator.Context, "LocalDS_2")
 		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = `😗`
 
-		validator.DisableFirewallCheck = true
 		t.Logf("session pool: %s", validator.Session.Pool)
 		if err = createPool(ctx, validator.Session, input.ComputeResourcePath, "validator", t); err != nil {
 			t.Errorf("Unable to create resource pool: %s", err)
@@ -595,8 +595,6 @@ func TestValidateWithFolders(t *testing.T) {
 			t.Fatalf("%d: expected error", i)
 		}
 
-		validator.DisableFirewallCheck = true
-
 		_, err = validator.Validate(ctx, input)
 		if i == len(steps)-1 {
 			if err != nil {
@@ -749,7 +747,7 @@ func TestValidateWithESX(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		validator.DisableFirewallCheck = true
+
 		validator.AllowEmptyDC()
 
 		_, err = validator.Validate(ctx, input)

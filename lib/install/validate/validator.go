@@ -63,9 +63,8 @@ type Validator struct {
 	isVC   bool
 	issues []error
 
-	DisableFirewallCheck bool
-	DisableDRSCheck      bool
-	allowEmptyDC         bool
+	DisableDRSCheck bool
+	allowEmptyDC    bool
 }
 
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {

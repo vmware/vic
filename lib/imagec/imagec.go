@@ -133,6 +133,9 @@ const (
 	// DefaultDockerURL holds the URL of Docker registry
 	DefaultDockerURL = "registry-1.docker.io"
 
+	// gcrURL holds the URL of the Google container registry
+	gcrURL = "gcr.io"
+
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
 
