@@ -29,6 +29,10 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
+const (
+	uploadRetryCount = 5
+)
+
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(conf.Name))
 
@@ -121,14 +125,24 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 			defer wg.Done()
 
 			log.Infof("\t%q", image)
-			err := d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
-			if err != nil {
-				log.Errorf("\t\tUpload failed for %q: %s", image, err)
+
+			var uploadErr error
+			for i := 1; i < uploadRetryCount; i++ {
+				uploadErr := d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
+				if uploadErr == nil {
+					break
+				}
+				log.Infof("Upload failed - retrying %d times - upload failed with error: %s", ((uploadRetryCount - 1) - i), uploadErr.Error())
+				uploadErr = nil
+			}
+
+			if uploadErr != nil {
+				log.Errorf("\t\tUpload failed for %q: %s", image, uploadErr)
 				if d.force {
 					log.Warnf("\t\tContinuing despite failures (due to --force option)")
 					log.Warnf("\t\tNote: The VCH will not function without %q...", image)
 				} else {
-					results <- err
+					results <- uploadErr
 				}
 			}
 		}(key, image)
