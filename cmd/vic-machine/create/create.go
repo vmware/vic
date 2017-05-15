@@ -304,13 +304,13 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "container-network-gateway, cng",
 			Value:  &c.containerNetworksGateway,
-			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.1/16.",
+			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.1/16",
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
 			Name:   "container-network-ip-range, cnr",
 			Value:  &c.containerNetworksIPRanges,
-			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. vsphere-net:172.16.0.0/24, vsphere-net:172.16.0.10-20.",
+			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. vsphere-net:172.16.0.0/24, vsphere-net:172.16.0.10-172.16.0.20",
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
