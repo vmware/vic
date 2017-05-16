@@ -15,6 +15,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -25,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/errors"
@@ -422,7 +424,7 @@ func (c *Container) onStop() {
 	}
 }
 
-func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.ReadCloser, error) {
+func (c *Container) LogReader(ctx context.Context, tail int, follow bool, since int64) (io.ReadCloser, error) {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -459,7 +461,27 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 		return nil, err
 	}
 
-	if tail >= 0 {
+	if since > 0 {
+		err = file.TailFunc(tail, func(line int, message string) bool {
+			if tail <= line && tail != -1 {
+				return false
+			}
+
+			buf := bytes.NewBufferString(message)
+
+			entry, err := iolog.ParseLogEntry(buf)
+			if err != nil {
+				log.Errorf("Error parsing log entry: %s", err.Error())
+				return false
+			}
+
+			if entry.Timestamp.Unix() <= since {
+				return false
+			}
+
+			return true
+		})
+	} else if tail >= 0 {
 		err = file.Tail(tail)
 		if err != nil {
 			return nil, err
