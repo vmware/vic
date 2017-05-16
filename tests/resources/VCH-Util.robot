@@ -300,7 +300,7 @@ Cleanup Dangling VMs On Test Server
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
-    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
+    \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
