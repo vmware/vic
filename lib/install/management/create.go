@@ -128,12 +128,12 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 			var uploadErr error
 			for i := 1; i < uploadRetryCount; i++ {
+				uploadErr = nil
 				uploadErr := d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 				if uploadErr == nil {
 					break
 				}
 				log.Infof("Upload failed - retrying %d times - upload failed with error: %s", ((uploadRetryCount - 1) - i), uploadErr.Error())
-				uploadErr = nil
 			}
 
 			if uploadErr != nil {
