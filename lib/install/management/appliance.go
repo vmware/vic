@@ -668,12 +668,12 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 		// set session datastore to where the VM is running
 		ds, err := d.getImageDatastore(vm, nil, true)
 		if err != nil {
-			err = errors.Errorf("Failure finding image store from VCH VM %q: %s", name, err.Error())
+			err = errors.Errorf("Failure finding image store from VCH VM %q: %s", name, err)
 			return nil, err
 		}
 		path, err := vm.FolderName(d.ctx)
 		if err != nil {
-			err = errors.Errorf("Failed to get VM %q datastore path: %s", name, err.Error())
+			err = errors.Errorf("Failed to get VM %q datastore path: %s", name, err)
 			return nil, err
 		}
 		s, err := d.GuestInfoSecret(name, path, ds)
@@ -683,9 +683,9 @@ func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]stri
 		d.secret = s
 	}
 
-	var conf config.VirtualContainerHostConfigSpec
-	extraconfig.Decode(d.secret.Source(extraconfig.MapSource(cfg)), &conf)
-	return &conf, nil
+	conf := &config.VirtualContainerHostConfigSpec{}
+	extraconfig.Decode(d.secret.Source(extraconfig.MapSource(cfg)), conf)
+	return conf, nil
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
