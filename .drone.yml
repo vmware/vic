@@ -112,7 +112,6 @@ pipeline:
       BIN_TEMP_DIR: bin/vic
       GOPATH: /go
       SHELL: /bin/bash
-      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
     commands:
       - make mark
       - rm -rf $BIN_TEMP_DIR
@@ -124,18 +123,18 @@ pipeline:
       - cp $BIN/vic-ui* $BIN_TEMP_DIR
       - cp $BIN/appliance.iso $BIN_TEMP_DIR
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
-      - tar czvf $BIN/vic_${BUILD_NUMBER}.tar.gz -C $BIN vic
-      - shasum -a 256 $BIN/vic_${BUILD_NUMBER}.tar.gz
-      - shasum -a 1 $BIN/vic_${BUILD_NUMBER}.tar.gz
-      - md5sum $BIN/vic_${BUILD_NUMBER}.tar.gz
-      - du -ks $BIN/vic_${BUILD_NUMBER}.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
+      - tar czvf $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz -C $BIN vic
+      - shasum -a 256 $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz
+      - shasum -a 1 $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz
+      - md5sum $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz
+      - du -ks $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
       - mkdir bundle
-      - cp $BIN/vic_${BUILD_NUMBER}.tar.gz bundle
+      - cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle
       - make sincemark
     when:
       repo: vmware/vic
-      event: [ push, tag ]
-      branch: [ master, releases/*, refs/tags/* ]
+      # event: [ push, tag ]
+      # branch: [ master, releases/*, refs/tags/* ]
       status: success
 
   notify-slack:
@@ -153,14 +152,14 @@ pipeline:
     image: maplain/drone-gcs:latest
     pull: true
     source: bundle
-    target: vic-engine-builds
+    target: vic-engine-builds-jake
     acl:
       - allUsers:READER
     cache_control: public,max-age=3600
     when:
       repo: vmware/vic
-      event: [ push ]
-      branch: [ master, releases/* ]
+      # event: [ push ]
+      # branch: [ master, releases/* ]
       status: success
 
   publish-gcs-releases:
