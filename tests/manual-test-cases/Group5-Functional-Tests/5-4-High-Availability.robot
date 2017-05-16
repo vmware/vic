@@ -18,16 +18,6 @@ Resource  ../../resources/Util.robot
 Suite Teardown  Nimbus Cleanup  ${list}
 
 *** Keywords ***
-Check VM Info
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info \*
-    Should Be Equal  ${rc}  0
-    Log To Console  ${output}
-
-Check ImageStore
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=nfsDatastore %{VCH-NAME}/VIC
-    Should Be Equal  ${rc}  0
-    Log To Console  ${output}
-
 Run Regression Test With More Log Information
     Check ImageStore
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -91,6 +81,9 @@ Run Regression Test With More Log Information
 
 *** Test Cases ***
 Test
+    ${status}=  Get State Of Github Issue  4858
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 5-4-High-Availability.robot needs to be updated now that Issue #4858 has been resolved
+
     Log To Console  \nStarting test...
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -180,7 +173,8 @@ Test
     @{output}=  Split To Lines  ${output}
     ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
 
-    Check VM Info
+    ${info}=  Get VM Info  \*
+    Log  ${info}
 
     # Abruptly power off the host
     Open Connection  ${curHost}  prompt=:~]
@@ -188,14 +182,16 @@ Test
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
 
-    Check VM Info
+    ${info}=  Get VM Info  \*
+    Log  ${info}
 
     # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
     Sleep  4 minutes
     Run VIC Machine Inspect Command
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
 
-    Check VM Info
+    ${info}=  Get VM Info  \*
+    Log  ${info}
 
     # check running containers are still running
     :FOR  ${c}  IN  @{running}
