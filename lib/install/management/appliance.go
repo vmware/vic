@@ -643,10 +643,43 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
-	if d.secret == nil {
-		log.Debug("generating new config secret key")
+	log.Debug("generating new config secret key")
 
-		s, err := extraconfig.NewSecretKey()
+	s, err := extraconfig.NewSecretKey()
+	if err != nil {
+		return nil, err
+	}
+	d.secret = s
+
+	cfg := make(map[string]string)
+	extraconfig.Encode(d.secret.Sink(extraconfig.MapSink(cfg)), conf)
+	log.Infof("config: %#v", cfg)
+	return cfg, nil
+}
+
+func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]string) (*config.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
+	name, err := vm.Name(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get vm name %q: %s", vm.Reference(), err)
+		return nil, err
+	}
+	// set session datastore to where the VM is running
+	ds, err := d.getImageDatastore(vm, nil, true)
+	if err != nil {
+		err = errors.Errorf("Failure finding image store from VCH VM %q: %s", name, err.Error())
+		return nil, err
+	}
+	path, err := vm.FolderName(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get VM %q datastore path: %s", name, err.Error())
+		return nil, err
+	}
+	if d.secret == nil {
+		log.Debug("getting secret key")
+
+		s, err := d.GuestInfoSecret(name, path, ds)
 		if err != nil {
 			return nil, err
 		}
@@ -654,10 +687,9 @@ func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (
 		d.secret = s
 	}
 
-	cfg := make(map[string]string)
-	extraconfig.Encode(d.secret.Sink(extraconfig.MapSink(cfg)), conf)
-
-	return cfg, nil
+	var conf config.VirtualContainerHostConfigSpec
+	extraconfig.Decode(d.secret.Source(extraconfig.MapSource(cfg)), &conf)
+	return &conf, nil
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
