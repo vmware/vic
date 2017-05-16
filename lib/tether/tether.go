@@ -683,8 +683,6 @@ func (t *tether) launch(session *SessionConfig) error {
 		}
 		// reset RunBlock to unblock process start next time
 		session.RunBlock = false
-		prefix := extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0]
-		extraconfig.EncodeWithPrefix(t.sink, session, prefix)
 	}
 
 	pid := 0
