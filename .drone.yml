@@ -133,8 +133,8 @@ pipeline:
       - make sincemark
     when:
       repo: vmware/vic
-      # event: [ push, tag ]
-      # branch: [ master, releases/*, refs/tags/* ]
+      event: [ push, tag ]
+      branch: [ master, releases/*, refs/tags/* ]
       status: success
 
   notify-slack:
@@ -152,14 +152,14 @@ pipeline:
     image: maplain/drone-gcs:latest
     pull: true
     source: bundle
-    target: vic-engine-builds-jake
+    target: vic-engine-builds
     acl:
       - allUsers:READER
     cache_control: public,max-age=3600
     when:
       repo: vmware/vic
-      # event: [ push ]
-      # branch: [ master, releases/* ]
+      event: [ push ]
+      branch: [ master, releases/* ]
       status: success
 
   publish-gcs-releases:
