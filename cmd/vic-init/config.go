@@ -17,6 +17,8 @@ package main
 import "github.com/vmware/vic/lib/config/executor"
 
 type ExecutorConfig struct {
+	ExecutorConfigCommon `vic:"0.1" scope:"read-only" key:"common"`
+
 	// Diagnostics holds basic diagnostics data
 	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
 }
@@ -27,4 +29,10 @@ type Diagnostics struct {
 	// SyslogConfig holds configuration for connecting to a syslog
 	// server
 	SysLogConfig *executor.SysLogConfig `vic:"0.1" scope:"read-only" key:"syslog"`
+}
+
+// Common data (specifically for a containerVM) between managed entities, across execution environments.
+type ExecutorConfigCommon struct {
+	// Convenience field to record a human readable name
+	Name string `vic:"0.1" scope:"read-only" key:"name"`
 }

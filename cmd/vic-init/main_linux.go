@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
@@ -90,11 +89,11 @@ func main() {
 	}
 
 	if config.Diagnostics.SysLogConfig != nil {
-		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   config.Diagnostics.SysLogConfig.Network,
-			RAddr:     config.Diagnostics.SysLogConfig.RAddr,
-			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
-			Formatter: syslog.RFC3164,
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  config.Diagnostics.SysLogConfig.Network,
+			RAddr:    config.Diagnostics.SysLogConfig.RAddr,
+			Priority: syslog.LOG_INFO | syslog.LOG_DAEMON,
+			Tag:      syslog.MakeTag(config.Name, ""),
 		}
 	}
 

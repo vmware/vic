@@ -20,7 +20,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/loads"
 	"github.com/jessevdk/go-flags"
@@ -90,11 +89,10 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   u.Scheme,
-			RAddr:     u.Host,
-			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
-			Formatter: syslog.RFC3164,
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  u.Scheme,
+			RAddr:    u.Host,
+			Priority: syslog.LOG_INFO | syslog.LOG_DAEMON,
 		}
 	}
 

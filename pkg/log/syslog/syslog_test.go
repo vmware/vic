@@ -18,54 +18,50 @@ package syslog
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/RackSec/srslog"
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-var cfg = &SyslogConfig{
-	Network:   "tcp",
-	RAddr:     "localhost:514",
-	Tag:       "test",
-	Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
-	Formatter: RFC3164,
-}
+var (
+	network  = "tcp"
+	raddr    = "localhost:514"
+	tag      = "test"
+	priority = LOG_INFO | LOG_DAEMON
+)
 
 func TestNewSyslogHook(t *testing.T) {
 	// other errors should still result in a hook being created
 	d := &mockDialer{}
-	d.On("dial", cfg).Return(nil, assert.AnError)
-	h, err := NewHook(cfg, d)
+	d.On("dial").Return(nil, assert.AnError)
+	h, err := NewHook(network, raddr, priority, tag)
 	assert.Nil(t, h)
 	assert.Error(t, err)
 	assert.EqualError(t, err, assert.AnError.Error())
-	d.AssertCalled(t, "dial", cfg)
+	d.AssertCalled(t, "dial")
 	d.AssertNumberOfCalls(t, "dial", 1)
 
 	d = &mockDialer{}
 	w := &MockWriter{}
-	d.On("dial", cfg).Return(w, nil)
-	h, err = NewHook(cfg, d)
+	d.On("dial").Return(w, nil)
+	h, err = NewHook(network, raddr, priority, tag)
 	assert.NotNil(t, h)
 	assert.NoError(t, err)
 	assert.Equal(t, w, h.writer)
-	d.AssertCalled(t, "dial", cfg)
+	d.AssertCalled(t, "dial")
 	d.AssertNumberOfCalls(t, "dial", 1)
 }
 
 func TestLevels(t *testing.T) {
 	m := &MockWriter{}
 	d := &mockDialer{}
-	d.On("dial", mock.Anything).Return(m, nil)
-	h, err := NewHook(cfg, d)
+	d.On("dial").Return(m, nil)
+	h, err := NewHook(network, raddr, priority, tag)
 
 	assert.NotNil(t, h)
 	assert.NoError(t, err)
@@ -119,14 +115,13 @@ func TestLevels(t *testing.T) {
 	}
 }
 
-func TestWriterWrapperReconnect(t *testing.T) {
+func TestWriterReconnect(t *testing.T) {
 	d := &mockDialer{}
-	w := &writerWrapper{
+	w := &writer{
 		dialer: d,
-		cfg:    *cfg,
 	}
 
-	d.On("dial", &w.cfg).Return(nil, assert.AnError)
+	d.On("dial").Return(nil, assert.AnError)
 	calls := []struct {
 		fm string
 		f  func(string) error
@@ -142,49 +137,39 @@ func TestWriterWrapperReconnect(t *testing.T) {
 	for _, c := range calls {
 		err := c.f("test")
 		assert.NoError(t, err)
-		d.AssertCalled(t, "dial", &w.cfg)
+		d.AssertCalled(t, "dial")
 		i++
 		d.AssertNumberOfCalls(t, "dial", i)
 	}
 
 	mw := &MockWriter{}
 	d = &mockDialer{}
-	d.On("dial", &w.cfg).Return(mw, nil)
+	d.On("dial").Return(mw, nil)
 	w.dialer = d
 	for _, c := range calls {
 		mw.On(c.fm, "test").Return(nil)
 		err := c.f("test")
 		assert.NoError(t, err)
-		d.AssertCalled(t, "dial", &w.cfg)
+		d.AssertCalled(t, "dial")
 		d.AssertNumberOfCalls(t, "dial", 1)
 	}
 
 	// no reconnect in the case of Close()
 	d = &mockDialer{}
-	d.On("dial", &w.cfg).Return(mw, nil)
-	w = &writerWrapper{
-		dialer: d,
-		cfg:    *cfg,
-	}
-
+	d.On("dial").Return(mw, nil)
 	mw.On("Close").Return(nil)
-	w.Close()
-	d.AssertNotCalled(t, "dial", &w.cfg)
-
-	w.writer = mw
-	w.Close()
-	mw.AssertCalled(t, "Close")
+	mw.Close()
+	d.AssertNotCalled(t, "dial")
 }
 
-func TestWriterWrapperWrite(t *testing.T) {
+func TestWriterWrite(t *testing.T) {
 	d := &mockDialer{}
-	w := &writerWrapper{
+	w := &writer{
 		dialer: d,
-		cfg:    *cfg,
 	}
 
 	mw := &MockWriter{}
-	d.On("dial", &w.cfg).Return(mw, nil)
+	d.On("dial").Return(mw, nil)
 
 	var tests = []struct {
 		b   []byte
@@ -214,8 +199,8 @@ func TestWriterWrapperWrite(t *testing.T) {
 func TestMaxLogBuffer(t *testing.T) {
 	d := &mockDialer{}
 	w := &MockWriter{}
-	d.On("dial", cfg).Return(w, nil)
-	h, err := NewHook(cfg, d)
+	d.On("dial").Return(w, nil)
+	h, err := NewHook(network, raddr, priority, tag)
 	assert.NotNil(t, h)
 	assert.NoError(t, err)
 	assert.Equal(t, h.writer, w)
@@ -229,10 +214,6 @@ func TestMaxLogBuffer(t *testing.T) {
 
 	w.On("Debug", mock.Anything).Return(nil)
 
-	go h.Run()
-
-	<-h.running
-
 	select {
 	case <-time.After(5 * time.Second):
 		for i := 0; i < maxLogBuffer; i++ {
@@ -243,63 +224,18 @@ func TestMaxLogBuffer(t *testing.T) {
 	}
 }
 
-func TestDefaultDialer(t *testing.T) {
-	var tests = []error{
-		&net.AddrError{},
-		&net.ParseError{},
-	}
-
-	for _, te := range tests {
-		md := &mockDialer{}
-		dd := &defaultDialer{
-			d: md,
-		}
-
-		md.On("dial", cfg).Return(nil, te)
-		w, err := dd.dial(cfg)
-		assert.Nil(t, w)
-		assert.Error(t, err)
-		assert.IsType(t, te, err)
-		md.AssertCalled(t, "dial", cfg)
-		md.AssertNumberOfCalls(t, "dial", 1)
-	}
-
-	tests = []error{
-		assert.AnError,
-	}
-
-	for _, te := range tests {
-		md := &mockDialer{}
-		dd := &defaultDialer{
-			d: md,
-		}
-
-		md.On("dial", cfg).Return(nil, te)
-		w, err := dd.dial(cfg)
-		assert.NotNil(t, w)
-		assert.NoError(t, err)
-		md.AssertCalled(t, "dial", cfg)
-		md.AssertNumberOfCalls(t, "dial", 1)
-	}
-}
-
 func TestConnect(t *testing.T) {
 	// attempt a connection to a server that
 	// does not exist
-	h, err := NewHook(&SyslogConfig{
-		Network:   "tcp",
-		RAddr:     "foo:514",
-		Tag:       "test",
-		Formatter: RFC3164,
-		Priority:  srslog.LOG_INFO,
-	}, nil)
+	h, err := NewHook(
+		"tcp",
+		"foo:514",
+		LOG_INFO,
+		"test",
+	)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, h)
-
-	go h.Run()
-
-	<-h.running
 
 	h.Fire(&logrus.Entry{
 		Message: "foo",
@@ -311,35 +247,35 @@ func TestConnect(t *testing.T) {
 
 func TestMakeTag(t *testing.T) {
 	p := filepath.Base(os.Args[0])
-	if len(p) > maxTagLen {
-		p = p[:maxTagLen]
-	}
-
 	var tests = []struct {
-		proc string
-		out  string
+		prefix string
+		proc   string
+		out    string
 	}{
 		{
-			proc: "",
-			out:  p,
+			prefix: "",
+			proc:   "",
+			out:    p,
 		},
 		{
-			proc: "foo",
-			out:  "foo",
+			prefix: "",
+			proc:   "foo",
+			out:    "foo",
 		},
 		{
-			proc: strings.Repeat("a", maxTagLen),
-			out:  strings.Repeat("a", maxTagLen),
+			prefix: "foo",
+			proc:   "",
+			out:    "foo" + sep + p,
 		},
 		{
-			proc: strings.Repeat("a", maxTagLen) + "c",
-			out:  strings.Repeat("a", maxTagLen),
+			prefix: "bar",
+			proc:   "foo",
+			out:    "bar" + sep + "foo",
 		},
 	}
 
 	for _, te := range tests {
-		out := MakeTag(te.proc)
+		out := MakeTag(te.prefix, te.proc)
 		assert.Equal(t, te.out, out)
-		assert.Condition(t, func() bool { return len(out) <= maxTagLen })
 	}
 }

@@ -15,258 +15,158 @@
 package syslog
 
 import (
-	"io"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/RackSec/srslog"
 	"github.com/Sirupsen/logrus"
 )
 
-type SyslogConfig struct {
-	Network   string
-	RAddr     string
-	Tag       string
-	Priority  srslog.Priority
-	Formatter Formatter
+// The Priority is a combination of the syslog facility and
+// severity. For example, LOG_ALERT | LOG_FTP sends an alert severity
+// message from the FTP facility. The default severity is LOG_EMERG;
+// the default facility is LOG_KERN.
+type Priority int
+
+const severityMask = 0x07
+const facilityMask = 0xf8
+
+const (
+	// Severity.
+
+	// From /usr/include/sys/syslog.h.
+	// These are the same on Linux, BSD, and OS X.
+	LOG_EMERG Priority = iota
+	LOG_ALERT
+	LOG_CRIT
+	LOG_ERR
+	LOG_WARNING
+	LOG_NOTICE
+	LOG_INFO
+	LOG_DEBUG
+)
+
+const (
+	// Facility.
+
+	// From /usr/include/sys/syslog.h.
+	// These are the same up to LOG_FTP on Linux, BSD, and OS X.
+	LOG_KERN Priority = iota << 3
+	LOG_USER
+	LOG_MAIL
+	LOG_DAEMON
+	LOG_AUTH
+	LOG_SYSLOG
+	LOG_LPR
+	LOG_NEWS
+	LOG_UUCP
+	LOG_CRON
+	LOG_AUTHPRIV
+	LOG_FTP
+	_ // unused
+	_ // unused
+	_ // unused
+	_ // unused
+	LOG_LOCAL0
+	LOG_LOCAL1
+	LOG_LOCAL2
+	LOG_LOCAL3
+	LOG_LOCAL4
+	LOG_LOCAL5
+	LOG_LOCAL6
+	LOG_LOCAL7
+)
+
+// New establishes a new connection to the system log daemon. Each
+// write to the returned writer sends a log message with the given
+// priority and prefix.
+func New(priority Priority, tag string) (Writer, error) {
+	return Dial("", "", priority, tag)
 }
 
-type dialer interface {
-	dial(*SyslogConfig) (Writer, error)
-}
+// Dial establishes a connection to a log daemon by connecting to
+// address raddr on the specified network. Each write to the returned
+// writer sends a log message with the given facility, severity and
+// tag.
+// If network is empty, Dial will connect to the local syslog server.
+func Dial(network, raddr string, priority Priority, tag string) (Writer, error) {
+	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
+		return nil, errors.New("log/syslog: invalid priority")
+	}
 
-type Hook struct {
-	entries chan *logrus.Entry
-	writer  Writer
-	cfg     SyslogConfig
-
-	// for testing
-	running chan struct{}
-}
-
-type Writer interface {
-	io.WriteCloser
-
-	Emerg(string) error
-	Crit(string) error
-	Err(string) error
-	Warning(string) error
-	Info(string) error
-	Debug(string) error
+	return dial(priority, tag, newDialer(network, raddr))
 }
 
 const maxLogBuffer = 100
 
-type Formatter int
+func dial(priority Priority, tag string, d dialer) (Writer, error) {
+	tag = MakeTag("", tag)
+	hostname, _ := os.Hostname()
 
-const (
-	RFC3164 Formatter = iota
-)
-
-var defDialer = &defaultDialer{d: &syslogDialer{}}
-
-func NewHook(cfg *SyslogConfig, d dialer) (*Hook, error) {
-	hook := &Hook{
-		entries: make(chan *logrus.Entry, maxLogBuffer),
-		running: make(chan struct{}),
+	w := &writer{
+		priority: priority,
+		tag:      tag,
+		hostname: hostname,
+		dialer:   d,
+		msgs:     make(chan *msg, maxLogBuffer),
+		done:     make(chan struct{}),
 	}
 
-	if d == nil {
-		d = defDialer
-	}
+	go func() {
+		defer func() {
+			logger.Infof("exiting syslog writer loop")
+			if w.conn != nil {
+				w.conn.Close()
+			}
+			close(w.done)
+		}()
 
-	var err error
-	hook.writer, err = d.dial(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return hook, nil
-}
-
-type defaultDialer struct {
-	// for testing purposes
-	d dialer
-}
-
-func (d *defaultDialer) dial(cfg *SyslogConfig) (Writer, error) {
-	w, err := d.d.dial(cfg)
-	if err != nil {
-		switch err.(type) {
-		case *net.AddrError, *net.ParseError:
-			return nil, err
-		}
-	}
-
-	return &writerWrapper{
-		writer: w,
-		dialer: d.d,
-		cfg:    *cfg,
-	}, nil
-}
-
-func Dial(cfg *SyslogConfig) (Writer, error) {
-	return defDialer.dial(cfg)
-}
-
-type syslogDialer struct{}
-
-func (d *syslogDialer) dial(cfg *SyslogConfig) (Writer, error) {
-	w, err := srslog.Dial(cfg.Network, cfg.RAddr, cfg.Priority, cfg.Tag)
-	if w != nil {
-		switch cfg.Formatter {
-		case RFC3164:
-			w.SetFormatter(srslog.RFC3164Formatter)
+		if err := w.connect(); err != nil {
+			switch err.(type) {
+			case *net.ParseError, *net.AddrError:
+				logger.Errorf("could not connec to syslog server (will not try again): %s", err)
+				return
+			}
 		}
 
-		return w, nil
-	}
+		for m := range w.msgs {
+			if m == nil {
+				// writer closed
+				return
+			}
 
-	return nil, err
+			for _, s := range strings.SplitAfter(m.msg, "\n") {
+				if _, err := w.writeAndRetry(m.p, m.tag, s); err != nil {
+					logger.Debugf("could not write syslog message: %s", err)
+				}
+			}
+		}
+	}()
+
+	return w, nil
 }
 
-func (hook *Hook) Fire(entry *logrus.Entry) error {
-	select {
-	case hook.entries <- entry:
-	default:
-		// drop log entry
-	}
+const sep = "/"
 
-	return nil
-}
-
-func (hook *Hook) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (hook *Hook) Run() {
-	close(hook.running)
-	for entry := range hook.entries {
-		hook.writeEntry(entry)
-	}
-
-	logrus.Warnf("exited syslog loop")
-}
-
-func (hook *Hook) writeEntry(entry *logrus.Entry) error {
-	// just use the message since the timestamp
-	// is added by the syslog package
-	line := entry.Message
-
-	switch entry.Level {
-	case logrus.PanicLevel:
-		return hook.writer.Crit(line)
-	case logrus.FatalLevel:
-		return hook.writer.Crit(line)
-	case logrus.ErrorLevel:
-		return hook.writer.Err(line)
-	case logrus.WarnLevel:
-		return hook.writer.Warning(line)
-	case logrus.InfoLevel:
-		return hook.writer.Info(line)
-	case logrus.DebugLevel:
-		return hook.writer.Debug(line)
-	}
-
-	return nil
-}
-
-type writerWrapper struct {
-	writer Writer
-	cfg    SyslogConfig
-	dialer dialer
-}
-
-func (w *writerWrapper) withRetry(f func()) {
-	if w.writer == nil {
-		w.writer, _ = w.dialer.dial(&w.cfg)
-	}
-
-	if w.writer != nil {
-		f()
-	}
-}
-
-func (w *writerWrapper) Write(b []byte) (n int, err error) {
-	w.withRetry(func() {
-		n, err = w.writer.Write(b)
-	})
-
-	return
-}
-
-func (w *writerWrapper) Emerg(m string) (err error) {
-	w.withRetry(func() {
-		err = w.writer.Emerg(m)
-	})
-
-	return
-}
-
-func (w *writerWrapper) Crit(m string) (err error) {
-	w.withRetry(func() {
-		err = w.writer.Crit(m)
-	})
-
-	return
-}
-
-func (w *writerWrapper) Err(m string) (err error) {
-	w.withRetry(func() {
-		err = w.writer.Err(m)
-	})
-
-	return
-}
-
-func (w *writerWrapper) Warning(m string) (err error) {
-	w.withRetry(func() {
-		err = w.writer.Warning(m)
-	})
-
-	return
-}
-
-func (w *writerWrapper) Info(m string) (err error) {
-	w.withRetry(func() {
-		err = w.writer.Info(m)
-	})
-
-	return
-}
-
-func (w *writerWrapper) Debug(m string) (err error) {
-	w.withRetry(func() {
-		err = w.writer.Debug(m)
-	})
-
-	return
-}
-
-func (w *writerWrapper) Close() error {
-	if w.writer == nil {
-		return nil
-	}
-
-	return w.writer.Close()
-}
-
-const maxTagLen = 32
-
-// MakeTag makes an RFC 3164 compliant tag (32 characters or less)
-// using the provided proc. If proc is empty, the name of the current
-// executable is used, truncated to maxTagLen characters if
-// necessary.
-func MakeTag(proc string) string {
+// MakeTag returns prfeix + sep + proc if prefix is not empty.
+// If proc is empty, proc is set to filepath.Base(os.Args[0]).
+// If prefix is empty, MakeTag returns proc.
+func MakeTag(prefix, proc string) string {
 	if len(proc) == 0 {
 		proc = filepath.Base(os.Args[0])
 	}
-	proc = strings.TrimSpace(proc)
-	if len(proc) > maxTagLen {
-		return proc[:maxTagLen]
+
+	if len(prefix) > 0 {
+		return prefix + sep + proc
 	}
 
 	return proc
+}
+
+var logger = logrus.New()
+
+func init() {
+	logger.Level = logrus.DebugLevel
 }

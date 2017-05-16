@@ -32,7 +32,6 @@ import (
 
 	"context"
 
-	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi"
@@ -126,11 +125,11 @@ func Init() {
 	}
 
 	if vchConfig.Diagnostics.SysLogConfig != nil {
-		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   vchConfig.Diagnostics.SysLogConfig.Network,
-			RAddr:     vchConfig.Diagnostics.SysLogConfig.RAddr,
-			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
-			Formatter: syslog.RFC3164,
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  vchConfig.Diagnostics.SysLogConfig.Network,
+			RAddr:    vchConfig.Diagnostics.SysLogConfig.RAddr,
+			Priority: syslog.LOG_INFO | syslog.LOG_DAEMON,
+			Tag:      syslog.MakeTag(vchConfig.Name, ""),
 		}
 	}
 
