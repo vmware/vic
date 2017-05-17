@@ -140,6 +140,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	return vmm, nil
 }
 
+// GetVCHConfig queries VCH configuration and decrypts secret information
 func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -166,7 +167,7 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 	return vchConfig, nil
 }
 
-// GetNoSecretVCHConfig query vch configure from vm configuration, without decrypt secret information
+// GetNoSecretVCHConfig queries vch configure from vm configuration, without decrypting secret information
 // this method is used to accommodate old vch version without secret information
 func (d *Dispatcher) GetNoSecretVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
@@ -190,7 +191,7 @@ func (d *Dispatcher) GetNoSecretVCHConfig(vm *vm.VirtualMachine) (*config.Virtua
 	return vchConfig, nil
 }
 
-// FetchAndMigrateVCHConfig query VCH guestinfo, and try to migrate older version data to latest if the data is old
+// FetchAndMigrateVCHConfig queries VCH guestinfo, and try to migrate older version data to latest if the data is old
 func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
