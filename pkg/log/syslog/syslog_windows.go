@@ -14,8 +14,8 @@
 
 package syslog
 
-func newDialer(network, address string) dialer {
-	return &defaultDialer{
+func newNetDialer(network, address string) netDialer {
+	return &defaultNetDialer{
 		network: network,
 		address: address,
 	}
