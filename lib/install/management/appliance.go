@@ -643,49 +643,21 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
-	log.Debug("generating new config secret key")
-
-	s, err := extraconfig.NewSecretKey()
-	if err != nil {
-		return nil, err
-	}
-	d.secret = s
-
-	cfg := make(map[string]string)
-	extraconfig.Encode(d.secret.Sink(extraconfig.MapSink(cfg)), conf)
-	return cfg, nil
-}
-
-func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]string) (*config.VirtualContainerHostConfigSpec, error) {
-	defer trace.End(trace.Begin(""))
-
 	if d.secret == nil {
-		name, err := vm.Name(d.ctx)
-		if err != nil {
-			err = errors.Errorf("Failed to get vm name %q: %s", vm.Reference(), err)
-			return nil, err
-		}
-		// set session datastore to where the VM is running
-		ds, err := d.getImageDatastore(vm, nil, true)
-		if err != nil {
-			err = errors.Errorf("Failure finding image store from VCH VM %q: %s", name, err)
-			return nil, err
-		}
-		path, err := vm.FolderName(d.ctx)
-		if err != nil {
-			err = errors.Errorf("Failed to get VM %q datastore path: %s", name, err)
-			return nil, err
-		}
-		s, err := d.GuestInfoSecret(name, path, ds)
+		log.Debug("generating new config secret key")
+
+		s, err := extraconfig.NewSecretKey()
 		if err != nil {
 			return nil, err
 		}
+
 		d.secret = s
 	}
 
-	conf := &config.VirtualContainerHostConfigSpec{}
-	extraconfig.Decode(d.secret.Source(extraconfig.MapSource(cfg)), conf)
-	return conf, nil
+	cfg := make(map[string]string)
+	extraconfig.Encode(d.secret.Sink(extraconfig.MapSink(cfg)), conf)
+
+	return cfg, nil
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {

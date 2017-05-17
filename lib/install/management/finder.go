@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -150,9 +151,10 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 		return nil, err
 	}
 
-	kv := vmomi.OptionValueMap(mapConfig)
-	vchConfig, err := d.decryptVCHConfig(vm, kv)
-	if err != nil {
+	data := vmomi.OptionValueSource(mapConfig)
+	vchConfig := &config.VirtualContainerHostConfigSpec{}
+	result := extraconfig.Decode(data, vchConfig)
+	if result == nil {
 		err = errors.Errorf("Failed to decode VM configuration %q: %s", vm.Reference(), err)
 		log.Error(err)
 		return nil, err
@@ -185,7 +187,16 @@ func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.Vi
 	if !migrated {
 		log.Debugf("No need to migrate configuration for %q", vm.Reference())
 	}
-	return d.decryptVCHConfig(vm, newMap)
+
+	data := extraconfig.MapSource(newMap)
+	vchConfig := &config.VirtualContainerHostConfigSpec{}
+	result := extraconfig.Decode(data, vchConfig)
+	if result == nil {
+		err = errors.Errorf("Failed to decode migrated VM configuration %q: %s", vm.Reference(), err)
+		return nil, err
+	}
+
+	return vchConfig, nil
 }
 
 func (d *Dispatcher) SearchVCHs(computePath string) ([]*vm.VirtualMachine, error) {
