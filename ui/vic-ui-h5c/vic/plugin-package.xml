@@ -20,6 +20,7 @@
          Otherwise put version="6.5.0" to have your plugin loaded only by vSphere Client 6.5.0 and up.
        -->
       <pluginPackage id="com.vmware.vsphere.client" version="6.0.0" />
+      <pluginPackage id="com.vmware.vsphere.client.html" version="6.5.0" />
 
       <!-- you may add dependencies on other plugin packages if necessary -->
    </dependencies>

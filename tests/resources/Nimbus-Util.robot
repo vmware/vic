@@ -236,7 +236,7 @@ Create a VSAN Cluster
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
     Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=vcqaDC test-ds
+    ${out}=  Wait Until Keyword Succeeds  10x  3 minutes  Run  govc dvs.create -dc=vcqaDC test-ds
     Should Contain  ${out}  OK
 
     Log To Console  Create three new distributed switch port groups for management and vm network traffic
