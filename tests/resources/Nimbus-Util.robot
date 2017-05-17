@@ -29,11 +29,11 @@ Strip IP
 
 Get IP
   [Arguments]  ${name}
-  ${out}=  Execute Command  nimbus-ctl ip ${user}-${name}
+  ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-${name}
   @{out}=  Split To Lines  ${out}
   Set Suite Variable  ${line}  ${EMPTY}
   :FOR  ${item}  IN  @{out}
-  \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name}
+  \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  %{NIMBUS_USER}-${name}
   \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
 
   ${ip}=  Run Keyword If  '${line}' != '${EMPTY}'  Strip IP  ${line}
@@ -88,7 +88,7 @@ Set Host Password
     Log To Console  \nNimbus ESXi server IP: ${ip}
 
 Deploy Multiple Nimbus ESXi Servers in Parallel
-    [Arguments]  ${number}  ${user}  ${password}  ${version}=${ESX_VERSION}
+    [Arguments]  ${number}  ${user}=%{NIMBUS_USER}  ${password}=%{NIMBUS_PASSWORD}  ${version}=${ESX_VERSION}
     @{names}=  Create List
     ${num}=  Convert To Integer  ${number}
     :FOR  ${x}  IN RANGE  ${num}
@@ -270,12 +270,9 @@ Create a VSAN Cluster
 Create a Simple VC Cluster
     [Arguments]  ${datacenter}=ha-datacenter  ${cluster}=cls  ${esx_number}=3  ${network}=True
     Log To Console  \nStarting simple VC cluster deploy...
-    ${esx_names}=  Create List
-    ${esx_ips}=  Create List
-    :FOR  ${IDX}  IN RANGE  ${esx_number}
-    \   ${esx}  ${esx_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}  False
-    \   Append To List  ${esx_names}  ${esx}
-    \   Append To List  ${esx_ips}  ${esx_ip}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${esx_number}  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
+    @{esx_names}=  Get Dictionary Keys  ${esxes}
+    @{esx_ips}=  Get Dictionary Values  ${esxes}
 
     ${vc}  ${vc_ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
