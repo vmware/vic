@@ -125,7 +125,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	}
 	if vm == nil {
 		if vapp != nil {
-			err = errors.Errorf("virtual app %q is found, but is not VCH, please choose different name", d.vchPoolPath)
+			err = errors.Errorf("Found virtual app %q, but it is not a VCH. Please choose a different virtual app.", d.vchPoolPath)
 			log.Error(err)
 			return err
 		}
@@ -134,10 +134,10 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 
 	log.Debugf("Appliance is found")
 	if ok, verr := d.isVCH(vm); !ok {
-		verr = errors.Errorf("VM %q is found, but is not VCH appliance, please choose different name", conf.Name)
+		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("Appliance %q exists, to install with same name, please delete it first.", conf.Name)
+	err = errors.Errorf("Virtual app %q already exists. Please delete it before reinstalling.", conf.Name)
 	return err
 }
 
