@@ -160,7 +160,7 @@ Create VCH - Existing VCH name
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
-    Should Contain  ${output}  exists, to install with same name, please delete it first
+    Should Contain  ${output}  already exists. Please delete it before reinstalling.
 
     Cleanup VIC Appliance On Test Server
 
