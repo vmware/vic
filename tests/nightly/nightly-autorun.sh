@@ -21,4 +21,4 @@ git reset --hard origin/master
 
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
-sudo ./tests/nightly/nightly-kickoff.sh > nightly_$now.txt
+sudo ./tests/nightly/nightly-kickoff.sh > nightly_$now.txt 2>&1
