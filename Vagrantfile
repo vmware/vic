@@ -17,14 +17,16 @@ Vagrant.configure(2) do |config|
     end
 
     vic_dev.vm.provider :virtualbox do |v, _override|
-      v.memory = 2048
+      v.memory = 4096
       v.cpus = 2
     end
 
     [:vmware_fusion, :vmware_workstation].each do |visor|
       vic_dev.vm.provider visor do |v, _override|
-        v.memory = 2048
+        v.memory = 4096
         v.cpus = 2
+
+        v.vmx["ethernet0.pcislotnumber"] = "32"
       end
     end
 

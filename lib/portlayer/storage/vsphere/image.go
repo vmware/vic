@@ -421,7 +421,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 }
 
 func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*portlayer.Image, error) {
-	defer trace.End(trace.Begin(store.String()))
+	defer trace.End(trace.Begin(store.String() + "/" + ID))
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
@@ -494,6 +494,11 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 		}
 
 		ID := file.Path
+
+		// filter out scratch
+		if ID == portlayer.Scratch.ID {
+			continue
+		}
 
 		// GetImage verifies the image is good by calling verifyImage.
 		img, err := v.GetImage(op, store, ID)

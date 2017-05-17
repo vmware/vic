@@ -485,7 +485,7 @@ func (c *Create) Flags() []cli.Flag {
 
 		cli.BoolFlag{
 			Name:        "force, f",
-			Usage:       "Force the install, removing existing if present",
+			Usage:       "Ignore error messages and proceed",
 			Destination: &c.Force,
 		},
 		cli.DurationFlag{
