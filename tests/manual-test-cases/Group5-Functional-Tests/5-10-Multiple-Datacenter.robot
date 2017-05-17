@@ -42,7 +42,7 @@ Test
     \    ${num_of_esxes}=  Evaluate  ${num_of_esxes} - ${len}
 
     # Exit if we've got enough & continue loop if we don't
-    \    Exit For Loop If  ${len} >= ${num_of_esxes}
+    \    Exit For Loop If  ${num_of_esxes} <= 0
     \    Log To Console  Only got ${len} ESXi instance(s); Trying again
 
     @{esx-names}=  Get Dictionary Keys  ${esxes}
