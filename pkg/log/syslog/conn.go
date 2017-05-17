@@ -61,3 +61,20 @@ func (c *rfc3164Conn) Local() bool {
 func (c *rfc3164Conn) Close() error {
 	return c.c.Close()
 }
+
+type netDialer interface {
+	dial() (conn, error)
+}
+
+type defaultNetDialer struct {
+	network, address string
+}
+
+func (d *defaultNetDialer) dial() (conn, error) {
+	c, err := net.DialTimeout(d.network, d.address, defaultDialTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rfc3164Conn{c: c}, nil
+}

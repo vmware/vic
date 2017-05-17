@@ -36,20 +36,21 @@ var (
 )
 
 func TestNewSyslogHook(t *testing.T) {
-	// other errors should still result in a hook being created
+	// error case
 	d := &mockDialer{}
 	d.On("dial").Return(nil, assert.AnError)
-	h, err := NewHook(network, raddr, priority, tag)
+	h, err := newHook(d)
 	assert.Nil(t, h)
 	assert.Error(t, err)
 	assert.EqualError(t, err, assert.AnError.Error())
 	d.AssertCalled(t, "dial")
 	d.AssertNumberOfCalls(t, "dial", 1)
 
+	// no error
 	d = &mockDialer{}
 	w := &MockWriter{}
 	d.On("dial").Return(w, nil)
-	h, err = NewHook(network, raddr, priority, tag)
+	h, err = newHook(d)
 	assert.NotNil(t, h)
 	assert.NoError(t, err)
 	assert.Equal(t, w, h.writer)
@@ -61,7 +62,7 @@ func TestLevels(t *testing.T) {
 	m := &MockWriter{}
 	d := &mockDialer{}
 	d.On("dial").Return(m, nil)
-	h, err := NewHook(network, raddr, priority, tag)
+	h, err := newHook(d)
 
 	assert.NotNil(t, h)
 	assert.NoError(t, err)
@@ -116,15 +117,15 @@ func TestLevels(t *testing.T) {
 }
 
 func TestWriterReconnect(t *testing.T) {
-	d := &mockDialer{}
+	dn := &mockNetDialer{}
 	w := &writer{
-		dialer: d,
+		dialer: dn,
 	}
 
-	d.On("dial").Return(nil, assert.AnError)
+	dn.On("dial").Return(nil, assert.AnError)
 	calls := []struct {
-		fm string
-		f  func(string) error
+		fname string
+		f     func(string) error
 	}{
 		{"Emerg", w.Emerg},
 		{"Crit", w.Crit},
@@ -137,29 +138,27 @@ func TestWriterReconnect(t *testing.T) {
 	for _, c := range calls {
 		err := c.f("test")
 		assert.NoError(t, err)
-		d.AssertCalled(t, "dial")
+		dn.AssertCalled(t, "dial")
 		i++
-		d.AssertNumberOfCalls(t, "dial", i)
+		dn.AssertNumberOfCalls(t, "dial", i)
 	}
 
 	mw := &MockWriter{}
-	d = &mockDialer{}
-	d.On("dial").Return(mw, nil)
-	w.dialer = d
+	dn = &mockNetDialer{}
+	w.dialer = dn
 	for _, c := range calls {
-		mw.On(c.fm, "test").Return(nil)
+		mw.On(c.fname, "test").Return(nil)
 		err := c.f("test")
 		assert.NoError(t, err)
-		d.AssertCalled(t, "dial")
-		d.AssertNumberOfCalls(t, "dial", 1)
+		dn.AssertCalled(t, "dial")
+		dn.AssertNumberOfCalls(t, "dial", 1)
 	}
 
 	// no reconnect in the case of Close()
-	d = &mockDialer{}
-	d.On("dial").Return(mw, nil)
+	dn = &mockNetDialer{}
 	mw.On("Close").Return(nil)
 	mw.Close()
-	d.AssertNotCalled(t, "dial")
+	dn.AssertNotCalled(t, "dial")
 }
 
 func TestWriterWrite(t *testing.T) {

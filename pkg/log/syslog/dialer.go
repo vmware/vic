@@ -14,26 +14,10 @@
 
 package syslog
 
-import (
-	"net"
-	"time"
-)
+import "time"
 
 const defaultDialTimeout = 10 * time.Second
 
 type dialer interface {
-	dial() (conn, error)
-}
-
-type defaultDialer struct {
-	network, address string
-}
-
-func (d *defaultDialer) dial() (conn, error) {
-	c, err := net.DialTimeout(d.network, d.address, defaultDialTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	return &rfc3164Conn{c: c}, nil
+	dial() (Writer, error)
 }

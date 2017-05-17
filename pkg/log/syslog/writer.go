@@ -44,7 +44,7 @@ type writer struct {
 	once sync.Once
 	done chan struct{}
 
-	dialer dialer
+	dialer netDialer
 	conn   conn
 
 	parent *writer

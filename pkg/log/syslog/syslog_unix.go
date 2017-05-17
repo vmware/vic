@@ -31,12 +31,12 @@ func (u *unixSyslogDialer) dial() (conn, error) {
 	return nil, errors.New("Unix syslog delivery error")
 }
 
-func newDialer(network, address string) dialer {
+func newNetDialer(network, address string) netDialer {
 	if network == "" {
 		return &unixSyslogDialer{}
 	}
 
-	return &defaultDialer{
+	return &defaultNetDialer{
 		network: network,
 		address: address,
 	}

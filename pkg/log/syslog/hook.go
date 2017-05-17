@@ -21,10 +21,19 @@ type Hook struct {
 }
 
 func NewHook(network, raddr string, priority Priority, tag string) (*Hook, error) {
+	return newHook(&defaultDialer{
+		network:  network,
+		raddr:    raddr,
+		priority: priority,
+		tag:      tag,
+	})
+}
+
+func newHook(d dialer) (*Hook, error) {
 	hook := &Hook{}
 
 	var err error
-	hook.writer, err = Dial(network, raddr, priority, tag)
+	hook.writer, err = d.dial()
 	if err != nil {
 		return nil, err
 	}

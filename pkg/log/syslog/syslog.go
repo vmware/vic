@@ -92,24 +92,36 @@ func New(priority Priority, tag string) (Writer, error) {
 // tag.
 // If network is empty, Dial will connect to the local syslog server.
 func Dial(network, raddr string, priority Priority, tag string) (Writer, error) {
-	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
-		return nil, errors.New("log/syslog: invalid priority")
+	d := &defaultDialer{
+		network:  network,
+		raddr:    raddr,
+		tag:      tag,
+		priority: priority,
 	}
 
-	return dial(priority, tag, newDialer(network, raddr))
+	return d.dial()
 }
 
 const maxLogBuffer = 100
 
-func dial(priority Priority, tag string, d dialer) (Writer, error) {
-	tag = MakeTag("", tag)
+type defaultDialer struct {
+	network, raddr, tag string
+	priority            Priority
+}
+
+func (d *defaultDialer) dial() (Writer, error) {
+	if d.priority < 0 || d.priority > LOG_LOCAL7|LOG_DEBUG {
+		return nil, errors.New("log/syslog: invalid priority")
+	}
+
+	tag := MakeTag("", d.tag)
 	hostname, _ := os.Hostname()
 
 	w := &writer{
-		priority: priority,
+		priority: d.priority,
 		tag:      tag,
 		hostname: hostname,
-		dialer:   d,
+		dialer:   newNetDialer(d.network, d.raddr),
 		msgs:     make(chan *msg, maxLogBuffer),
 		done:     make(chan struct{}),
 	}
