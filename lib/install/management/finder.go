@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -139,6 +140,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	return vmm, nil
 }
 
+// GetVCHConfig queries VCH configuration and decrypts secret information
 func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -165,7 +167,31 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 	return vchConfig, nil
 }
 
-// FetchAndMigrateVCHConfig query VCH guestinfo, and try to migrate older version data to latest if the data is old
+// GetNoSecretVCHConfig queries vch configure from vm configuration, without decrypting secret information
+// this method is used to accommodate old vch version without secret information
+func (d *Dispatcher) GetNoSecretVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
+	//this is the appliance vm
+	mapConfig, err := vm.FetchExtraConfigBaseOptions(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get VM extra config of %q: %s", vm.Reference(), err)
+		log.Error(err)
+		return nil, err
+	}
+
+	kv := vmomi.OptionValueMap(mapConfig)
+	vchConfig := &config.VirtualContainerHostConfigSpec{}
+	extraconfig.Decode(extraconfig.MapSource(kv), vchConfig)
+
+	if vchConfig.IsCreating() {
+		vmRef := vm.Reference()
+		vchConfig.SetMoref(&vmRef)
+	}
+	return vchConfig, nil
+}
+
+// FetchAndMigrateVCHConfig queries VCH guestinfo, and try to migrate older version data to latest if the data is old
 func (d *Dispatcher) FetchAndMigrateVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
