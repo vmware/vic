@@ -49,8 +49,17 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		return err
 	}
 
-	clientIP := conf.ExecutorConfig.Networks["client"].Assigned.IP
-	publicIP := conf.ExecutorConfig.Networks["public"].Assigned.IP
+	var clientIP net.IP
+	var publicIP net.IP
+
+	clientNet := conf.ExecutorConfig.Networks["client"]
+	if clientNet != nil {
+		clientIP = clientNet.Assigned.IP
+	}
+	publicNet := conf.ExecutorConfig.Networks["public"]
+	if publicNet != nil {
+		publicIP = publicNet.Assigned.IP
+	}
 
 	if ip.IsUnspecifiedIP(clientIP) {
 		err = errors.Errorf("No client IP address assigned")
