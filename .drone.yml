@@ -51,7 +51,7 @@ pipeline:
       - echo `ls vendor/github.com/vmware/govmomi/vim25/types`
       - echo `ls vendor/github.com/docker/docker/vendor/github.com/opencontainers/runc/libcontainer/system`
       - export VIC_ESX_URL_ARRAY="`tests/get_test_url.sh`"
-      - make -j3 test
+      - make -j9 test
       - make sincemark
     when:
       status:  success
