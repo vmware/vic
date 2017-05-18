@@ -17,6 +17,7 @@ package syslog
 import (
 	"errors"
 	"io"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -40,12 +41,13 @@ type writer struct {
 	tag      string
 	hostname string
 
-	msgs chan *msg
-	once sync.Once
-	done chan struct{}
+	msgs          chan *msg
+	once          sync.Once
+	done, running chan struct{}
 
-	dialer netDialer
-	conn   conn
+	dialer    netDialer
+	conn      net.Conn
+	formatter formatter
 
 	parent *writer
 }
@@ -54,6 +56,19 @@ type msg struct {
 	p   Priority
 	tag string
 	msg string
+}
+
+func newWriter(priority Priority, tag, hostname string, dialer netDialer, f formatter) *writer {
+	return &writer{
+		priority:  priority,
+		tag:       tag,
+		hostname:  hostname,
+		dialer:    dialer,
+		msgs:      make(chan *msg, maxLogBuffer),
+		done:      make(chan struct{}),
+		running:   make(chan struct{}),
+		formatter: f,
+	}
 }
 
 // connect makes a connection to the syslog server.
@@ -68,6 +83,9 @@ func (w *writer) connect() (err error) {
 	w.conn, err = w.dialer.dial()
 	if err == nil {
 		logger.Info("successfully connected to syslog server")
+		if w.hostname == "" {
+			w.hostname, _, _ = net.SplitHostPort(w.conn.LocalAddr().String())
+		}
 	}
 	return
 }
@@ -170,18 +188,17 @@ func (w *writer) writeAndRetry(p Priority, tag, s string) (int, error) {
 // write generates and writes a syslog formatted string. The
 // format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
 func (w *writer) write(p Priority, tag, msg string) (int, error) {
+	s := w.formatter.Format(p, time.Now(), w.hostname, tag, msg)
 	// ensure it ends in a \n
-	if !strings.HasSuffix(msg, "\n") {
-		msg = msg + "\n"
+	if !strings.HasSuffix(s, "\n") {
+		s = s + "\n"
 	}
-
-	_, err := w.conn.Write(p, time.Now(), w.hostname, tag, msg)
+	_, err := w.conn.Write([]byte(s))
 	if err != nil {
 		return 0, err
 	}
-	// Note: return the length of the input, not the number of
-	// bytes printed by Fprintf, because this must behave like
-	// an io.Writer.
+
+	// return len(msg), since we want to behave as an io.Writer
 	return len(msg), nil
 }
 
@@ -192,4 +209,38 @@ func (w *writer) WithTag(tag string) Writer {
 		priority: w.priority,
 		parent:   w,
 	}
+}
+
+func (w *writer) run() {
+	defer func() {
+		logger.Infof("exiting syslog writer loop")
+		if w.conn != nil {
+			w.conn.Close()
+		}
+		close(w.done)
+	}()
+
+	if err := w.connect(); err != nil {
+		switch err.(type) {
+		case *net.ParseError, *net.AddrError:
+			logger.Errorf("could not connec to syslog server (will not try again): %s", err)
+			return
+		}
+	}
+
+	close(w.running)
+
+	for m := range w.msgs {
+		if m == nil {
+			// writer closed
+			return
+		}
+
+		for _, s := range strings.SplitAfter(m.msg, "\n") {
+			if _, err := w.writeAndRetry(m.p, m.tag, s); err != nil {
+				logger.Debugf("could not write syslog message: %s", err)
+			}
+		}
+	}
+
 }

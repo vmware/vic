@@ -16,10 +16,8 @@ package syslog
 
 import (
 	"errors"
-	"net"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -117,45 +115,9 @@ func (d *defaultDialer) dial() (Writer, error) {
 	tag := MakeTag("", d.tag)
 	hostname, _ := os.Hostname()
 
-	w := &writer{
-		priority: d.priority,
-		tag:      tag,
-		hostname: hostname,
-		dialer:   newNetDialer(d.network, d.raddr),
-		msgs:     make(chan *msg, maxLogBuffer),
-		done:     make(chan struct{}),
-	}
+	w := newWriter(d.priority, tag, hostname, newNetDialer(d.network, d.raddr), newFormatter(d.network, RFC3164))
 
-	go func() {
-		defer func() {
-			logger.Infof("exiting syslog writer loop")
-			if w.conn != nil {
-				w.conn.Close()
-			}
-			close(w.done)
-		}()
-
-		if err := w.connect(); err != nil {
-			switch err.(type) {
-			case *net.ParseError, *net.AddrError:
-				logger.Errorf("could not connec to syslog server (will not try again): %s", err)
-				return
-			}
-		}
-
-		for m := range w.msgs {
-			if m == nil {
-				// writer closed
-				return
-			}
-
-			for _, s := range strings.SplitAfter(m.msg, "\n") {
-				if _, err := w.writeAndRetry(m.p, m.tag, s); err != nil {
-					logger.Debugf("could not write syslog message: %s", err)
-				}
-			}
-		}
-	}()
+	go w.run()
 
 	return w, nil
 }
@@ -182,3 +144,9 @@ var logger = logrus.New()
 func init() {
 	logger.Level = logrus.DebugLevel
 }
+
+type Format int
+
+const (
+	RFC3164 Format = iota
+)

@@ -15,7 +15,7 @@ type unixSyslogDialer struct{}
 
 // unixSyslog opens a connection to the syslog daemon running on the
 // local machine using a Unix domain socket.
-func (u *unixSyslogDialer) dial() (conn, error) {
+func (u *unixSyslogDialer) dial() (net.Conn, error) {
 	logTypes := []string{"unixgram", "unix"}
 	logPaths := []string{"/dev/log", "/var/run/syslog", "/var/run/log"}
 	for _, network := range logTypes {
@@ -24,7 +24,7 @@ func (u *unixSyslogDialer) dial() (conn, error) {
 			if err != nil {
 				continue
 			} else {
-				return &localConn{c: conn}, nil
+				return conn, nil
 			}
 		}
 	}
