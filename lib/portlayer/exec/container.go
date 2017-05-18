@@ -560,8 +560,9 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 // eventedState will determine the target container
 // state based on the current container state and the vsphere event
-func eventedState(e string, current State) State {
-	switch e {
+func eventedState(e events.Event, current State) State {
+	defer trace.End(trace.Begin(fmt.Sprintf("event %s received for id: %d", e.String(), e.EventID())))
+	switch e.String() {
 	case events.ContainerPoweredOn:
 		// are we in the process of starting
 		if current != StateStarting {
@@ -586,14 +587,14 @@ func eventedState(e string, current State) State {
 }
 
 func (c *Container) OnEvent(e events.Event) {
+	defer trace.End(trace.Begin(fmt.Sprintf("event %s received for id: %d", e.String(), e.EventID())))
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	if c.vm == nil {
 		return
 	}
-
-	newState := eventedState(e.String(), c.state)
+	newState := eventedState(e, c.state)
 	// do we have a state change
 	if newState != c.state {
 		switch newState {

@@ -117,8 +117,11 @@ func (ec *EventCollector) Start() error {
 	// we don't want the event listener to timeout
 	ctx := context.Background()
 
-	// events per page
-	pageSize := int32(1)
+	// pageSize is the number of events on the last page of the eventCollector
+	// as new events are added the oldest are removed.  Originally this value
+	// was 1 and we encountered missed events due to them being evicted
+	// before being processed.  A setting of 25 should provide ample buffer.
+	pageSize := int32(25)
 	// bool to follow the stream
 	followStream := true
 	// don't exceed the govmomi object limit
@@ -152,12 +155,11 @@ func (ec *EventCollector) Start() error {
 // may provide more flexibility
 func evented(ec *EventCollector, page []types.BaseEvent) {
 	if ec.callback == nil {
+		log.Warn("No callback defined for EventManager")
 		return
 	}
 
 	for i := range page {
-		var event events.Event
-
 		// what type of event do we have
 		switch page[i].(type) {
 		case *types.VmGuestShutdownEvent,
@@ -169,11 +171,16 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 			*types.VmMigratedEvent,
 			*types.DrsVmMigratedEvent,
 			*types.VmRelocatedEvent:
-			event = NewVMEvent(page[i])
-		}
 
-		if event != nil {
-			ec.callback(event)
+			// we have an event we need to process
+			ec.callback(NewVMEvent(page[i]))
+		case *types.VmReconfiguredEvent:
+			// reconfigures happen often, so completely ignore for now
+			return
+		default:
+			// log the skipped event
+			e := page[i].GetEvent()
+			log.Debugf("vSphere Event %s for eventID(%d) ignored by the event collector", e.FullFormattedMessage, int(e.Key))
 		}
 	}
 
