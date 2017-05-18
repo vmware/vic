@@ -69,7 +69,7 @@ func NewEventManager(collectors ...collector.Collector) *Manager {
 			subs := mgr.subs.subscribers[e.Topic()]
 			mgr.subs.mu.RUnlock()
 
-			log.Debugf("Found %d subscribers to %s: %s", len(subs), e.Topic(), e.Message())
+			log.Debugf("Found %d subscribers to id: %d - %s: %s", len(subs), e.EventID(), e.Topic(), e.Message())
 
 			for sub, s := range subs {
 				log.Debugf("Event manager calling back to %s", sub)
