@@ -44,7 +44,7 @@ pipeline:
       COMMIT: ${DRONE_COMMIT}
     commands:
       - make mark
-      - make -j3 all
+      - make -j9 all
       - make sincemark
       - make mark
       - echo `ls vendor/github.com/vmware/govmomi/vim25/methods`
