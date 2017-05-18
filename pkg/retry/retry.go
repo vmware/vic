@@ -32,7 +32,7 @@ const (
 	DefaultMaxElapsedTime      = 1 * time.Minute
 )
 
-// Retry retries the given function until DefaultMaxInterval while sleeping some time between unsuccessful attempts
+// Do retries the given function until DefaultMaxInterval time passes, while sleeping some time between unsuccessful attempts
 // if retryOnError returns true, continue retry, otherwise, return error
 func Do(operation func() error, retryOnError func(err error) bool) error {
 	return RetryWithConfiguredTime(operation, retryOnError, DefaultMaxElapsedTime)
