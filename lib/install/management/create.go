@@ -19,18 +19,20 @@ import (
 	"fmt"
 	"path"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 const (
-	uploadRetryCount = 5
+	uploadRetryLimit = 5 * time.Minute
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -123,18 +125,14 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	for key, image := range files {
 		go func(key string, image string) {
 			defer wg.Done()
-
 			log.Infof("\t%q", image)
 
-			var uploadErr error
-			for i := 1; i < uploadRetryCount; i++ {
-				uploadErr = d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
-				if uploadErr == nil {
-					break
-				}
-				log.Infof("Upload failed - retrying %d times - upload failed with error: %s", ((uploadRetryCount - 1) - i), uploadErr.Error())
+			// function that is passed to retry
+			operationForRetry := func() error {
+				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 			}
 
+			uploadErr := retry.RetryWithConfiguredTime(operationForRetry, RetryOnError, uploadRetryLimit)
 			if uploadErr != nil {
 				log.Errorf("\t\tUpload failed for %q: %s", image, uploadErr)
 				if d.force {
@@ -153,4 +151,12 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		return err
 	}
 	return nil
+}
+
+// RetryOnError This function simply returns true if err != nil, it is used for the upload retry functionality.
+func RetryOnError(err error) bool {
+	if err != nil {
+		return true
+	}
+	return false
 }

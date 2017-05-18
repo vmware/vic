@@ -32,9 +32,15 @@ const (
 	DefaultMaxElapsedTime      = 1 * time.Minute
 )
 
-// Retry retries the given function DefaultRetryCount times while sleeping some time between unsuccessful attempts
+// Retry retries the given function until DefaultMaxInterval while sleeping some time between unsuccessful attempts
 // if retryOnError returns true, continue retry, otherwise, return error
 func Do(operation func() error, retryOnError func(err error) bool) error {
+	return RetryWithConfiguredTime(operation, retryOnError, DefaultMaxElapsedTime)
+}
+
+// RetryWithConfiguredTime will retry with an exponential back off until "maxRetryTime" worth of sleeping has occurred.
+// this allows users of this function to customize how long they intend to retry a function before giving up on the operation.
+func RetryWithConfiguredTime(operation func() error, retryOnError func(err error) bool, maxRetryTime time.Duration) error {
 	defer trace.End(trace.Begin(""))
 
 	var err error
@@ -45,7 +51,7 @@ func Do(operation func() error, retryOnError func(err error) bool) error {
 		RandomizationFactor: DefaultRandomizationFactor,
 		Multiplier:          DefaultMultiplier,
 		MaxInterval:         DefaultMaxInterval,
-		MaxElapsedTime:      DefaultMaxElapsedTime,
+		MaxElapsedTime:      maxRetryTime,
 		Clock:               backoff.SystemClock,
 	}
 	// Reset the interval back to the initial retry interval and restart the timer
