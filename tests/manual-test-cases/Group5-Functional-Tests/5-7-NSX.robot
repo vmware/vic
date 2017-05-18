@@ -27,7 +27,7 @@ Test
     Set Environment Variable  TEST_URL_ARRAY  10.160.21.102
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
-    Set Environment Variable  BRIDGE_NETWORK  DPortGroup
+    Set Environment Variable  BRIDGE_NETWORK  vxw-dvs-53-virtualwire-1-sid-5001-nsx-switch
     Set Environment Variable  PUBLIC_NETWORK  'VM Network'
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
