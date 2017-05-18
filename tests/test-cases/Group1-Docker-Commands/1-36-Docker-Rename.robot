@@ -100,6 +100,9 @@ Name resolution for a created container after renaming+starting it
     Should Contain  ${output}  2 packets transmitted, 2 packets received 
 
 Name resolution for a running container after renaming+restarting it
+    ${rc}  ${output}=  Run And Return Rc And Output  govc session.ls | wc -l
+    Should Be Equal As Integers  ${rc}  0
+    Log To Console  \n ${output} vSphere Sessions
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont8-name1 busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
