@@ -11,7 +11,7 @@ group_defaults:
 
 groups:
   contributors:
-    required: 2
+    required: 3
     teams:
       - vic-maintainers
 
