@@ -96,7 +96,7 @@ type SessionConfig struct {
 	OpenStdin bool `vic:"0.1" scope:"read-only" key:"openstdin"`
 
 	// Delay launching the Cmd until an attach request comes
-	RunBlock bool `vic:"0.1" scope:"read-only" key:"runblock"`
+	RunBlock bool `vic:"0.1" scope:"read-write" key:"runblock"`
 
 	// Should this config be activated or not
 	Active bool `vic:"0.1" scope:"read-only" key:"active"`
