@@ -132,7 +132,16 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 			}
 
-			uploadErr := retry.RetryWithConfiguredTime(operationForRetry, RetryOnError, uploadRetryLimit)
+			// Build our retry config
+			backoffConf := &retry.BackoffConfig{
+				InitialInterval:     retry.DefaultInitialInterval,
+				RandomizationFactor: retry.DefaultRandomizationFactor,
+				Multiplier:          retry.DefaultRandomizationFactor,
+				MaxInterval:         retry.DefaultMaxInterval,
+				MaxElapsedTime:      uploadRetryLimit,
+			}
+
+			uploadErr := retry.DoWithConfig(operationForRetry, RetryOnError, backoffConf)
 			if uploadErr != nil {
 				log.Errorf("\t\tUpload failed for %q: %s", image, uploadErr)
 				if d.force {

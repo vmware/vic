@@ -32,26 +32,43 @@ const (
 	DefaultMaxElapsedTime      = 1 * time.Minute
 )
 
+// simplified config for configuring a back off object. Callers should populate and supply this to DoWithConfig
+type BackoffConfig struct {
+	InitialInterval     time.Duration
+	RandomizationFactor float64
+	Multiplier          float64
+	MaxInterval         time.Duration
+
+	// this field will indicate the maximum amount of "sleep" time that will occur.
+	MaxElapsedTime time.Duration
+}
+
 // Do retries the given function until DefaultMaxInterval time passes, while sleeping some time between unsuccessful attempts
 // if retryOnError returns true, continue retry, otherwise, return error
 func Do(operation func() error, retryOnError func(err error) bool) error {
-	return RetryWithConfiguredTime(operation, retryOnError, DefaultMaxElapsedTime)
-}
-
-// RetryWithConfiguredTime will retry with an exponential back off until "maxRetryTime" worth of sleeping has occurred.
-// this allows users of this function to customize how long they intend to retry a function before giving up on the operation.
-func RetryWithConfiguredTime(operation func() error, retryOnError func(err error) bool, maxRetryTime time.Duration) error {
-	defer trace.End(trace.Begin(""))
-
-	var err error
-	var next time.Duration
-
-	b := &backoff.ExponentialBackOff{
+	bConf := &BackoffConfig{
 		InitialInterval:     DefaultInitialInterval,
 		RandomizationFactor: DefaultRandomizationFactor,
 		Multiplier:          DefaultMultiplier,
 		MaxInterval:         DefaultMaxInterval,
-		MaxElapsedTime:      maxRetryTime,
+		MaxElapsedTime:      DefaultMaxElapsedTime,
+	}
+
+	return DoWithConfig(operation, retryOnError, bConf)
+}
+
+// DoWithConfig will attempt an operation while retrying using an exponential back off based on the config supplied by the caller. The retry decider is the supplied function retryOnError
+func DoWithConfig(operation func() error, retryOnError func(err error) bool, config *BackoffConfig) error {
+	defer trace.End(trace.Begin(""))
+
+	var err error
+	var next time.Duration
+	b := &backoff.ExponentialBackOff{
+		InitialInterval:     config.MaxInterval,
+		RandomizationFactor: config.RandomizationFactor,
+		Multiplier:          config.Multiplier,
+		MaxInterval:         config.MaxInterval,
+		MaxElapsedTime:      config.MaxElapsedTime,
 		Clock:               backoff.SystemClock,
 	}
 	// Reset the interval back to the initial retry interval and restart the timer
