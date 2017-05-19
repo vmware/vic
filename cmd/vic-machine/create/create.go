@@ -1617,6 +1617,11 @@ func splitVnetParam(p string) (vnet string, value string, err error) {
 	}
 
 	if len(mapped) > 1 {
+		// Make sure the alias does not contain spaces
+		if strings.Contains(mapped[1], " ") {
+			err = fmt.Errorf("The network alias supplied in %q cannot contain spaces.", p)
+			return
+		}
 		value = mapped[1]
 	}
 
