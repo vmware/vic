@@ -1610,8 +1610,8 @@ func splitVnetParam(p string) (vnet string, value string, err error) {
 		return
 	}
 
-	if strings.Contains(vnet, " ") && len(mapped) == 1 {
-		err = fmt.Errorf("A network name must be supplied for container network port group %s", p)
+	if strings.Contains(vnet, " ") && (len(mapped) == 1 || (len(mapped) == 2 && len(mapped[1]) == 0)) {
+		err = fmt.Errorf("A network name must be supplied for port group %s", p)
 		return
 	}
 

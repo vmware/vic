@@ -82,8 +82,7 @@ Management network - invalid
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --management-network=AAAAAAAAAA ${vicmachinetls}
-    Should Contain  ${output}  --management-network: network 'AAAAAAAAAA' not found
+    ${output}=  Run  bin/vic-machine-linux create --nexecutionnetwork 'AAAAAAAAAA' not found
     Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
@@ -228,7 +227,6 @@ Bridge network - vCenter none
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
 
-
 Bridge network - ESX none
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
 
@@ -246,7 +244,6 @@ Bridge network - ESX none
     Cleanup VIC Appliance On Test Server
 
 Bridge network - invalid
-    Pass execution  asdf
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -292,9 +289,6 @@ Bridge network - reused port group
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{BRIDGE_NETWORK} ${vicmachinetls}
     Should Contain  ${output}  the bridge network must not be shared with another network role
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --management-network=%{BRIDGE_NETWORK} ${vicmachinetls}
-    Should Contain  ${output}  the bridge network must not be shared with another network role
-
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --client-network=%{BRIDGE_NETWORK} ${vicmachinetls}
     Should Contain  ${output}  the bridge network must not be shared with another network role
 
@@ -329,13 +323,45 @@ Bridge network - valid with IP range
     Pass execution  Test not implemented
 
 Container network invalid 1
-    Pass execution  Test not implemented
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces' ${vicmachinetls}
+    Should Contain  ${output}  A network name must be supplied for port group VM Network With Spaces
+    Should Contain  ${output}  vic-machine-linux create failed
 
 Container network invalid 2
-    Pass execution  Test not implemented
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces': ${vicmachinetls}
+    Should Contain  ${output}  A network name must be supplied for port group VM Network With Spaces
+    Should Contain  ${output}  vic-machine-linux create failed
 
 Container network 1
-    Pass execution  Test not implemented
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    Log To Console  Create a portgroup with a space in it's name
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN 'VM Network With Spaces'
+
+    Log To Console  Create a bridge portgroup.
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces':vmnet ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+
+    ${out}=  Run  govc host.portgroup.remove 'VM Network With Spaces'
+    ${out}=  Run  govc host.portgroup.remove 'bridge'
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  %{VCH-NAME}
 
 Container network 2
     Pass execution  Test not implemented
