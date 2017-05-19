@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 7-01 - Regression
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  certs=${false}  vol=default --insecure-registry=harbor.ci.drone.local
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}  vol=default
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Default Tags  regression
 
