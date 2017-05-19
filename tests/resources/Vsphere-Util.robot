@@ -111,6 +111,11 @@ Get VM Info
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
 
+Check ImageStore
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=%{TEST_DATASTORE} %{VCH-NAME}/VIC
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+
 vMotion A VM
     [Arguments]  ${vm}
     ${host}=  Get VM Host Name  ${vm}

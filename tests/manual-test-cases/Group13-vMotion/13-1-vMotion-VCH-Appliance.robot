@@ -60,9 +60,8 @@ Step 6-9
     Run Regression Tests
     ${host}=  Get VM Host Name  %{VCH-NAME}/%{VCH-NAME}
     ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
-    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources %{VCH-NAME}/%{VCH-NAME}
-    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources %{VCH-NAME}/%{VCH-NAME}
-    Set Environment Variable  VCH-NAME  "%{VCH-NAME} (1)"
+    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} %{VCH-NAME}/%{VCH-NAME}
+    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} %{VCH-NAME}/%{VCH-NAME}
     Run Regression Tests
 
 Step 10-13
@@ -84,10 +83,9 @@ Step 10-13
 
     ${host}=  Get VM Host Name  %{VCH-NAME}/%{VCH-NAME}
     ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
-    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources %{VCH-NAME}/%{VCH-NAME}
-    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources %{VCH-NAME}/%{VCH-NAME}
-    Set Environment Variable  VCH-NAME  "%{VCH-NAME} (1)"
-
+    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} %{VCH-NAME}/%{VCH-NAME}
+    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} %{VCH-NAME}/%{VCH-NAME}
+    
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container1}
