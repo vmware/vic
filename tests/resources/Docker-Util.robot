@@ -17,9 +17,6 @@ Documentation  This resource provides helper functions for docker operations
 Library  OperatingSystem
 Library  Process
 
-*** Variables ***
-${busybox}  harbor.ci.drone.local/library/busybox
-
 *** Keywords ***
 Run Docker Info
     [Arguments]  ${docker-params}
