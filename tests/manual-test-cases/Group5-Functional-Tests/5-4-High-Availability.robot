@@ -211,17 +211,3 @@ Test
 
 Run Regression Tests
     Run Regression Test With More Log Information
-
-Restart VCH
-    Reboot VM  %{VCH-NAME}
-
-    Log To Console  Getting VCH IP ...
-    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new-vch-ip}
-    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
-
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
-
-Run Regression Test
-    Run Regression Test With More Log Information
