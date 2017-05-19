@@ -32,7 +32,10 @@ import (
 )
 
 const (
-	uploadRetryLimit = 5 * time.Minute
+	uploadRetryLimit      = 5
+	uploadMaxElapsedTime  = 30 * time.Minute
+	uploadMaxInterval     = 1 * time.Minute
+	uploadInitialInterval = 10 * time.Second
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -126,22 +129,40 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		go func(key string, image string) {
 			defer wg.Done()
 			log.Infof("\t%q", image)
-
 			// function that is passed to retry
 			operationForRetry := func() error {
 				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 			}
 
-			// Build our retry config
-			backoffConf := &retry.BackoffConfig{
-				InitialInterval:     retry.DefaultInitialInterval,
-				RandomizationFactor: retry.DefaultRandomizationFactor,
-				Multiplier:          retry.DefaultRandomizationFactor,
-				MaxInterval:         retry.DefaultMaxInterval,
-				MaxElapsedTime:      uploadRetryLimit,
+			//counter for retry decider
+			retryCount := uploadRetryLimit
+
+			// decider for our retry, will retry the upload uploadRetryLimit times
+			uploadRetryDecider := func(err error) bool {
+				if err == nil {
+					return false
+				}
+
+				// decrease the count
+				retryCount--
+				if retryCount < 0 {
+					log.Infof("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+					return false
+				}
+				log.Debugf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+				return true
 			}
 
-			uploadErr := retry.DoWithConfig(operationForRetry, RetryOnError, backoffConf)
+			// Build our retry config
+			backoffConf := &retry.BackoffConfig{
+				InitialInterval:     uploadInitialInterval,
+				RandomizationFactor: retry.DefaultRandomizationFactor,
+				Multiplier:          retry.DefaultRandomizationFactor,
+				MaxInterval:         uploadMaxInterval,
+				MaxElapsedTime:      uploadMaxElapsedTime,
+			}
+
+			uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
 			if uploadErr != nil {
 				log.Errorf("\t\tUpload failed for %q: %s", image, uploadErr)
 				if d.force {
@@ -160,12 +181,4 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		return err
 	}
 	return nil
-}
-
-// RetryOnError This function simply returns true if err != nil, it is used for the upload retry functionality.
-func RetryOnError(err error) bool {
-	if err != nil {
-		return true
-	}
-	return false
 }

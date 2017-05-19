@@ -64,7 +64,7 @@ func DoWithConfig(operation func() error, retryOnError func(err error) bool, con
 	var err error
 	var next time.Duration
 	b := &backoff.ExponentialBackOff{
-		InitialInterval:     config.MaxInterval,
+		InitialInterval:     config.InitialInterval,
 		RandomizationFactor: config.RandomizationFactor,
 		Multiplier:          config.Multiplier,
 		MaxInterval:         config.MaxInterval,
@@ -96,4 +96,12 @@ func DoWithConfig(operation func() error, retryOnError func(err error) bool, con
 		time.Sleep(next)
 		continue
 	}
+}
+
+// OnError is the simplest of retry deciders. If an error occurs it will indicate a retry is needed.
+func OnError(err error) bool {
+	if err != nil {
+		return true
+	}
+	return false
 }
