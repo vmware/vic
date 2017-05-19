@@ -231,11 +231,6 @@ func (w *writer) run() {
 	close(w.running)
 
 	for m := range w.msgs {
-		if m == nil {
-			// writer closed
-			return
-		}
-
 		for _, s := range strings.SplitAfter(m.msg, "\n") {
 			if _, err := w.writeAndRetry(m.p, m.tag, s); err != nil {
 				logger.Debugf("could not write syslog message: %s", err)
