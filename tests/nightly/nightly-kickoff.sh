@@ -113,7 +113,7 @@ done
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i on vSphere 6.0"
-    drone exec --trusted -e test="pybot --variable ESX_VERSION:3620759 --variable VC_VERSION:3634791 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot --variable ESX_VERSION:5251623 --variable VC_VERSION:5326079 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then

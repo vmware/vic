@@ -113,7 +113,7 @@ Get VM Info
 
 Check ImageStore
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=%{TEST_DATASTORE} %{VCH-NAME}/VIC
-    Should Be Equal  ${rc}  0
+    Should Be Equal As Integers  ${rc}  0
     Log  ${output}
 
 vMotion A VM

@@ -582,6 +582,8 @@ func (t *tether) cleanupSession(session *SessionConfig) {
 		log.Debugf("Calling close chan: %s", session.ID)
 		close(session.ClearToLaunch)
 		session.ClearToLaunch = nil
+		// reset Runblock to unblock process start next time
+		session.RunBlock = false
 	}
 }
 
@@ -679,6 +681,8 @@ func (t *tether) launch(session *SessionConfig) error {
 		case <-session.ClearToLaunch:
 			log.Infof("Received the clear signal to launch %s", session.ID)
 		}
+		// reset RunBlock to unblock process start next time
+		session.RunBlock = false
 	}
 
 	pid := 0
