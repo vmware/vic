@@ -121,10 +121,6 @@ This test requires that a vSphere server is running and available
 1. Create with container network <Net With Spaces>
 2. Verify create failed with a network name must be supplied for <Net With Space>
 
-## Container network - space in network name invalid 2
-1. Create with container network <Net With Spaces>:
-2. Verify create failed with a network name must be supplied for <Net With Space>
-
 ## Container network - space in network name valid
 1. Create with container network: <Net With Spaces>:vmnet
 2. Verify create passed

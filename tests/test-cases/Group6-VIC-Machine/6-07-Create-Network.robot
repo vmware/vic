@@ -339,21 +339,17 @@ Container network - space in network name invalid
     Should Contain  ${output}  A network alias must be supplied when network name "VM Network With Spaces" contains spaces.
     Should Contain  ${output}  vic-machine-linux create failed
 
-    # Delete the portgroup added by env vars keyword
-    Cleanup VCH Bridge Network  %{VCH-NAME}
-
-Container network - space in network name invalid 2
-    Set Test Environment Variables
-    # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces': ${vicmachinetls}
     Should Contain  ${output}  A network alias must be supplied when network name "VM Network With Spaces:" contains spaces.
     Should Contain  ${output}  vic-machine-linux create failed
 
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'vm-network':'vm network' ${vicmachinetls}
+    Should Contain  ${output}  The network alias supplied in "vm-network:vm network" cannot contain spaces.
+    Should Contain  ${output}  vic-machine-linux create failed
+
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
+
 
 Container network - space in network name valid
     Set Test Environment Variables
