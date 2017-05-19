@@ -1,3 +1,81 @@
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+*** Settings ***
+Documentation  Test 6-07 - Verify vic-machine create network function
+Resource  ../../resources/Util.robot
+Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+
+*** Test Cases ***
+Public network - default
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    ${info}=  Get VM Info  %{VCH-NAME}
+    Should Contain  ${info}  VM Network
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Public network - invalid
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --public-network=AAAAAAAAAA ${vicmachinetls}
+    Should Contain  ${output}  --public-network: network 'AAAAAAAAAA' not found
+    Should Contain  ${output}  vic-machine-linux create failed
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  %{VCH-NAME}
+
+Public network - invalid vCenter
+    Pass execution  Test not implemented
+
+Public network - DHCP
+    Pass execution  Test not implemented
+
+Public network - valid
+    Pass execution  Test not implemented
+
+Management network - none
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    ${status}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "management" is sharing NIC with "public"
+    ${status2}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "public" is sharing NIC with "management"
+    ${status3}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "public" is sharing NIC with "client"
+    ${status4}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "management" is sharing NIC with "client"
+    Should Be True  ${status} | ${status2} | ${status3} | ${status4}
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
 Management network - invalid
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
@@ -10,6 +88,12 @@ Management network - invalid
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
+
+Management network - invalid vCenter
+    Pass execution  Test not implemented
+
+Management network - unreachable
+    Pass execution  Test not implemented
 
 Management network - valid
     Set Test Environment Variables
