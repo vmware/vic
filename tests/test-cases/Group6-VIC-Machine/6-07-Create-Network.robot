@@ -119,10 +119,10 @@ Connectivity Bridge to Public
     ${out}=  Run  govc host.portgroup.remove vm-network
 
     Log To Console  Create a public portgroup.
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN vm-network
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 vm-network
 
     Log To Console  Create a bridge portgroup.
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
 
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --no-tlsverify
 
@@ -170,10 +170,10 @@ Connectivity Bridge to Management
     ${out}=  Run  govc host.portgroup.remove management
 
     Log To Console  Create a bridge portgroup
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
 
     Log To Console  Create a management portgroup.
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN management
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 management
 
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --compute-resource=%{TEST_RESOURCE} --container-network management --container-network vm-network --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --no-tlsverify
 
@@ -244,7 +244,23 @@ Bridge network - ESX none
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
-Bridge network - invalid
+Bridge network - valid ESX
+    Run Keyword If  '%{HOST_TYPE}' != 'ESXi'  Pass Execution  Test skipped on vCenter
+
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  %{VCH-NAME}
+
+Bridge network - invalid vCenter
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
+
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -256,11 +272,6 @@ Bridge network - invalid
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
-
-Bridge network - invalid vCenter
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
-
-    Pass execution  Test not implemented
 
 Bridge network - non-DPG
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
@@ -289,6 +300,9 @@ Bridge network - reused port group
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{BRIDGE_NETWORK} ${vicmachinetls}
     Should Contain  ${output}  the bridge network must not be shared with another network role
+
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --management-network=%{BRIDGE_NETWORK} ${vicmachinetls}
+     Should Contain  ${output}  the bridge network must not be shared with another network role
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --client-network=%{BRIDGE_NETWORK} ${vicmachinetls}
     Should Contain  ${output}  the bridge network must not be shared with another network role
@@ -323,46 +337,70 @@ Bridge network - invalid bridge network range
 Bridge network - valid with IP range
     Pass execution  Test not implemented
 
-Container network invalid 1
+Container network port group invalid 1
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces' ${vicmachinetls}
-    Should Contain  ${output}  A network name must be supplied for port group VM Network With Spaces
+    Should Contain  ${output}  A network name must be supplied for port group "VM Network With Spaces"
     Should Contain  ${output}  vic-machine-linux create failed
 
-Container network invalid 2
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  %{VCH-NAME}
+
+Container network port group invalid 2
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces': ${vicmachinetls}
-    Should Contain  ${output}  A network name must be supplied for port group VM Network With Spaces
+    Should Contain  ${output}  A network name must be supplied for port group "VM Network With Spaces:"
     Should Contain  ${output}  vic-machine-linux create failed
 
-Container network 1
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  %{VCH-NAME}
+    
+Container network port group 1
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     Log To Console  Create a portgroup with a space in it's name
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN 'VM Network With Spaces'
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 'VM Network With Spaces'
 
     Log To Console  Create a bridge portgroup.
-    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitch0 bridge
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces':vmnet ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
 
+    Run Regression Tests
+
+    ${output}=  Run  docker %{VCH-PARAMS} network ls
+    Should Contain  ${output}  vmnet
+
+    # Clean up port groups
     ${out}=  Run  govc host.portgroup.remove 'VM Network With Spaces'
     ${out}=  Run  govc host.portgroup.remove 'bridge'
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
+    Cleanup VIC Appliance On Test Server
+
+Container network invalid 1
+    Pass execution  Test not implemented
+
+Container network invalid 2
+    Pass execution  Test not implemented
+
+Container network 1
+    Pass execution  Test not implemented
 
 Container network 2
     Pass execution  Test not implemented

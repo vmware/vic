@@ -75,9 +75,9 @@ This test requires that a vSphere server is running and available
 1. Create without bridge network provided in ESXi
 2. Integration test pass
 
-## Bridge network - invalid
-1. Create with wrong network name provided for bridge network
-2. Verify create failed for network is not found
+## Bridge network - valid ESX
+1. Create with any name provided for bridge network
+2. Verify create succeeded
 
 ## Bridge network - invalid vCenter
 3. Create with distribute virtual switch as bridge network name
@@ -117,6 +117,20 @@ This test requires that a vSphere server is running and available
 
 
 # Container network
+
+## Container network port group invalid 1
+1. Create with container network <Net With Spaces>
+2. Verify create failed with a network name must be supplied for <Net With Space>
+
+## Container network port group invalid 2
+1. Create with container network <Net With Spaces>:
+2. Verify create failed with a network name must be supplied for <Net With Space>
+
+## Container network port group 1
+1. Create with container network: <Net With Spaces>:vmnet
+2. Verify create passed
+3. Regression test passed
+4. Verify docker network ls command to show net1 network
 
 ## Container network invalid 1
 1. Create with invalid container network: <WrongNet>:alias
