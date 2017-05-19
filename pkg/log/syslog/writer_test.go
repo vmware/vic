@@ -17,7 +17,6 @@ package syslog
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -44,31 +43,9 @@ func TestWriterReconnect(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	assertExpectations(t, func() bool {
-		return dn.AssertNumberOfCalls(t, "dial", 1+len(calls))
-	})
-
-	// no reconnect in the case of Close()
-	dn = &mockNetDialer{}
-	w.dialer = dn
 	w.Close()
-	dn.AssertNotCalled(t, "dial")
-}
 
-func assertExpectations(t *testing.T, f func() bool) {
-	ticker := time.NewTicker(1 * time.Second)
-	for i := 0; i < 5; i++ {
-		select {
-		case <-ticker.C:
-			if f() {
-				ticker.Stop()
-				return
-			}
-		}
-	}
-
-	// fail after 5 iterations
-	assert.FailNow(t, "timed out waiting for write")
+	dn.AssertNumberOfCalls(t, "dial", 1+len(calls))
 }
 
 func TestWriterWrite(t *testing.T) {
@@ -83,6 +60,7 @@ func TestWriterWrite(t *testing.T) {
 	c := &MockNetConn{}
 	c.On("LocalAddr").Return(a)
 	c.On("Write", []byte("test\n")).Return(len(msg), nil)
+	c.On("Close").Return(nil)
 
 	dn := &mockNetDialer{}
 	dn.On("dial").Return(c, nil)
@@ -93,12 +71,12 @@ func TestWriterWrite(t *testing.T) {
 	assert.Equal(t, len(msg), n)
 
 	go w.run()
-
 	<-w.running
 
-	assertExpectations(t, func() bool {
-		return c.AssertExpectations(t) && dn.AssertNumberOfCalls(t, "dial", 1)
-	})
+	w.Close()
+
+	c.AssertExpectations(t)
+	dn.AssertNumberOfCalls(t, "dial", 1)
 }
 
 func TestMaxLogBuffer(t *testing.T) {
@@ -109,6 +87,7 @@ func TestMaxLogBuffer(t *testing.T) {
 	a := &MockAddr{}
 	a.On("String").Return("foo")
 	c.On("LocalAddr").Return(a)
+	c.On("Close").Return(nil)
 
 	dn.On("dial").Return(c, nil)
 	w := newWriter(priority, tag, "", dn, f)
@@ -124,13 +103,74 @@ func TestMaxLogBuffer(t *testing.T) {
 
 	<-w.running
 
-	assertExpectations(t, func() bool {
-		for i := 0; i < maxLogBuffer; i++ {
-			if !f.AssertCalled(t, "Format", priority, mock.Anything, "", tag, fmt.Sprintf("%d", i)) ||
-				!c.AssertCalled(t, "Write", []byte(fmt.Sprintf("%d\n", i))) {
-				return false
-			}
+	w.Close()
+
+	for i := 0; i < maxLogBuffer; i++ {
+		if !f.AssertCalled(t, "Format", priority, mock.Anything, "", tag, fmt.Sprintf("%d", i)) ||
+			!c.AssertCalled(t, "Write", []byte(fmt.Sprintf("%d\n", i))) {
 		}
-		return f.AssertNumberOfCalls(t, "Format", maxLogBuffer) && f.AssertNotCalled(t, "Format", priority, mock.Anything, "", tag, fmt.Sprintf("%d", maxLogBuffer))
-	})
+	}
+
+	f.AssertNumberOfCalls(t, "Format", maxLogBuffer)
+	f.AssertNotCalled(t, "Format", priority, mock.Anything, "", tag, fmt.Sprintf("%d", maxLogBuffer))
+}
+
+func TestWriterReconnectWrite(t *testing.T) {
+	dn := &mockNetDialer{}
+	c := &MockNetConn{}
+	a := &MockAddr{}
+	a.On("String").Return("addr:123")
+	c.On("LocalAddr").Return(a)
+	c.On("Close").Return(nil)
+
+	dn.On("dial").Return(nil, assert.AnError)
+	f := &mockFormatter{}
+	w := newWriter(priority, tag, "", dn, f)
+
+	go w.run()
+	<-w.running
+
+	dn.AssertNumberOfCalls(t, "dial", 1)
+
+	dn = &mockNetDialer{}
+	dn.On("dial").Return(c, nil)
+	w.dialer = dn
+
+	f.On("Format", priority, mock.Anything, "addr", tag, "test").Return("test")
+	c.On("Write", []byte("test\n")).Return(len("test"), nil)
+
+	w.Write([]byte("test"))
+	w.Close()
+
+	dn.AssertNumberOfCalls(t, "dial", 1)
+	c.AssertNumberOfCalls(t, "Write", 1) // 1 call to writer.write
+	f.AssertNumberOfCalls(t, "Format", 1)
+}
+
+func TestWriterReconnectWriteError(t *testing.T) {
+	dn := &mockNetDialer{}
+	c := &MockNetConn{}
+	a := &MockAddr{}
+	a.On("String").Return("addr:123")
+	c.On("LocalAddr").Return(a)
+	c.On("Close").Return(nil)
+
+	dn.On("dial").Return(c, nil)
+	f := &mockFormatter{}
+	w := newWriter(priority, tag, "", dn, f)
+
+	go w.run()
+	<-w.running
+
+	dn.AssertNumberOfCalls(t, "dial", 1)
+
+	f.On("Format", priority, mock.Anything, "addr", tag, "test").Return("test")
+	c.On("Write", []byte("test\n")).Return(0, assert.AnError)
+
+	w.Write([]byte("test"))
+
+	w.Close()
+
+	f.AssertExpectations(t)
+	c.AssertExpectations(t)
 }
