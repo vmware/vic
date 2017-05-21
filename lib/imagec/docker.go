@@ -401,22 +401,19 @@ func decodeManifestSchema1(filename string, options Options, registry string) (i
 	}
 
 	manifest := &Manifest{}
-
 	err = json.Unmarshal(content, manifest)
 	if err != nil {
 		return nil, "", err
 	}
 
-	// Compare the requested image's name with the manifest's name.
-	// Make an exception for gcr images, as some gcr manifests have these fields
-	// set to "unused" - see GitHub #4985
-	if manifest.Name != options.Image && registry != gcrURL {
-		return nil, "", fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.Image, manifest.Name)
+	// Verify schema 1 manifest's fields per
+	// docker/docker/distribution/pull_v2.go:verifySchema1Manifest()
+	numFSLayers := len(manifest.FSLayers)
+	if numFSLayers == 0 {
+		return nil, "", fmt.Errorf("no FSlayers in manifest")
 	}
-	if _, digested := options.Reference.(reference.Canonical); !digested {
-		if manifest.Tag != options.Tag && registry != gcrURL {
-			return nil, "", fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.Tag, manifest.Tag)
-		}
+	if numFSLayers != len(manifest.History) {
+		return nil, "", fmt.Errorf("length of history not equal to number of layers")
 	}
 
 	digest, err := getManifestDigest(content, options.Reference)
