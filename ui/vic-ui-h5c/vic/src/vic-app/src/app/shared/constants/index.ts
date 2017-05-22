@@ -16,3 +16,4 @@
 
 export * from './resources.path';
 export * from './portlets.text';
+export * from './vicvms';

@@ -38,6 +38,7 @@ import com.vmware.utils.ssl.ThumbprintHostNameVerifier;
 import com.vmware.utils.ssl.ThumbprintTrustManager;
 import com.vmware.vic.model.ContainerVm;
 import com.vmware.vic.model.VirtualContainerHostVm;
+import com.vmware.vic.model.constants.*;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.InvalidPropertyFaultMsg;
 import com.vmware.vim25.ManagedObjectReference;
@@ -66,14 +67,13 @@ public class PropFetcher implements ClientSessionEndListener {
 	private static final Log _logger = LogFactory.getLog(PropFetcher.class);
 	private static VimPortType _vimPort = initializeVimPort();
 	private static final String[] VIC_VM_TYPES = {"isVCH", "isContainer"};
-	private static final String EXTRACONFIG_VCH_PATH = "init/common/name";
-	private static final String EXTRACONFIG_CONTAINER_PATH = "common/name";
 	private static final String SERVICE_INSTANCE = "ServiceInstance";
 	private static final Set<String> _thumbprints = new HashSet<String>();
 	private static final String[] VM_PROPERTIES_TO_FETCH = new String[]{
-        "name", "config.guestFullName", "config.extraConfig",
-        "overallStatus", "summary", "resourceConfig",
-        "resourcePool", "runtime.powerState"
+        BaseVm.VM_NAME, BaseVm.Config.VM_GUESTFULLNAME,
+        BaseVm.Config.VM_EXTRACONFIG, BaseVm.VM_OVERALL_STATUS,
+        BaseVm.VM_SUMMARY, BaseVm.VM_RESOURCECONFIG,
+        BaseVm.VM_RESOURCEPOOL, BaseVm.Runtime.VM_POWERSTATE_FULLPATH
     };
 	private static final String VM_GUESTNAME_VCH_IDENTIFIER = "Photon - VCH";
 	private static final String[] VM_GUESTNAME_CONTAINER_IDENTIFIER =
@@ -152,7 +152,7 @@ public class PropFetcher implements ClientSessionEndListener {
 
         ManagedObjectReference viewMgrRef = service.getViewManager();
         List<String> vmList = new ArrayList<String>();
-        vmList.add("VirtualMachine");
+        vmList.add(VsphereObjects.VirtualMachine);
         try {
             ManagedObjectReference cViewRef = _vimPort.createContainerView(
                 viewMgrRef,
@@ -161,7 +161,7 @@ public class PropFetcher implements ClientSessionEndListener {
                 true);
             
             PropertySpec propertySpec = new PropertySpec();
-            propertySpec.setType("VirtualMachine");
+            propertySpec.setType(VsphereObjects.VirtualMachine);
             List<String> pSpecPathSet = propertySpec.getPathSet();
             for (String vmProp : VM_PROPERTIES_TO_FETCH) {
                 pSpecPathSet.add(vmProp);
@@ -199,13 +199,14 @@ public class PropFetcher implements ClientSessionEndListener {
                     // the desired VIC VM (VCH or Container)
                     List<DynamicProperty> dpList = objC.getPropSet();
                     for (DynamicProperty dp : dpList) {
-                        if (dp.getName().equals("config.guestFullName")) {
+                        if (dp.getName().equals(
+                                BaseVm.Config.VM_GUESTFULLNAME)) {
                             String guestName = ((String)dp.getVal());
                             if (isVch) {
                                 if (guestName.contains(
                                         VM_GUESTNAME_VCH_IDENTIFIER)) {
                                     PropertyValue pv = new PropertyValue();
-                                    pv.propertyName = "vm";
+                                    pv.propertyName = VsphereObjects.VmPropertyValueKey;
                                     pv.value = new VirtualContainerHostVm(objC, serviceGuid);
                                     pvList.add(pv);
                                 }
@@ -215,7 +216,7 @@ public class PropFetcher implements ClientSessionEndListener {
                                     // exit the loop
                                     if (guestName.contains(containerIdentifier)) {
                                         PropertyValue pv = new PropertyValue();
-                                        pv.propertyName = "vm";
+                                        pv.propertyName = VsphereObjects.VmPropertyValueKey;
                                         pv.value = new ContainerVm(objC, serviceGuid);
                                         pvList.add(pv);
                                         break;
@@ -271,7 +272,7 @@ public class PropFetcher implements ClientSessionEndListener {
 
 		ManagedObjectReference viewMgrRef = service.getViewManager();
 		List<String> vmList = new ArrayList<String>();
-		vmList.add("VirtualMachine");
+		vmList.add(VsphereObjects.VirtualMachine);
 		ManagedObjectReference cViewRef = _vimPort.createContainerView(
 				viewMgrRef,
 				mor,
@@ -279,13 +280,13 @@ public class PropFetcher implements ClientSessionEndListener {
 				true);
 
 		PropertySpec propertySpec = new PropertySpec();
-		propertySpec.setType("VirtualMachine");
+		propertySpec.setType(VsphereObjects.VirtualMachine);
 		List<String> pSpecPathSet = propertySpec.getPathSet();
-		pSpecPathSet.add("name");
-		pSpecPathSet.add("summary");
-		pSpecPathSet.add("overallStatus");
-		pSpecPathSet.add("runtime.powerState");
-		pSpecPathSet.add("config.extraConfig");
+		pSpecPathSet.add(BaseVm.VM_NAME);
+		pSpecPathSet.add(BaseVm.VM_SUMMARY);
+		pSpecPathSet.add(BaseVm.VM_OVERALL_STATUS);
+		pSpecPathSet.add(BaseVm.Runtime.VM_POWERSTATE_FULLPATH);
+		pSpecPathSet.add(BaseVm.Config.VM_EXTRACONFIG);
 
 		// set the root traversal spec
 		TraversalSpec tSpec = new TraversalSpec();
@@ -302,8 +303,8 @@ public class PropFetcher implements ClientSessionEndListener {
 
 		// set traversal node for VirtualApp->VirtualMachine
 		TraversalSpec tSpecVappVm = new TraversalSpec();
-		tSpecVappVm.setType("VirtualApp");
-		tSpecVappVm.setPath("vm");
+		tSpecVappVm.setType(VsphereObjects.VirtualApp);
+		tSpecVappVm.setPath(VsphereObjects.VmPropertyValueKey);
 		tSpecVappVm.setSkip(false);
 		tSpec.getSelectSet().add(tSpecVappVm);
 
@@ -314,8 +315,6 @@ public class PropFetcher implements ClientSessionEndListener {
 		List<PropertyFilterSpec> propertyFilterSpecs = new ArrayList<PropertyFilterSpec>();
 		propertyFilterSpecs.add(propertyFilterSpec);
 		RetrieveOptions ro = new RetrieveOptions();
-		// TODO: pagination
-		//ro.setMaxObjects(arg0);
 
 		RetrieveResult props = _vimPort.retrievePropertiesEx(
 				service.getPropertyCollector(),
@@ -325,7 +324,7 @@ public class PropFetcher implements ClientSessionEndListener {
 			for (ObjectContent objC : props.getObjects()) {
 				// each managed object reference found will be added to resultItem.properties
 				PropertyValue pv = new PropertyValue();
-				pv.propertyName = "vm";
+				pv.propertyName = VsphereObjects.VmPropertyValueKey;
 				if (isVch) {
 					pv.value = new VirtualContainerHostVm(objC, serverGuid);
 				} else {
@@ -381,7 +380,7 @@ public class PropFetcher implements ClientSessionEndListener {
 
 		PropertySpec propertySpec = new PropertySpec();
 		propertySpec.setAll(Boolean.FALSE);
-		propertySpec.setType("VirtualMachine");
+		propertySpec.setType(VsphereObjects.VirtualMachine);
 		propertySpec.getPathSet().add("config");
 
 		ObjectSpec objectSpec = new ObjectSpec();
@@ -406,12 +405,14 @@ public class PropFetcher implements ClientSessionEndListener {
 						List<OptionValue> extraConfigs = config.getExtraConfig();
 						for(OptionValue option : extraConfigs) {
 
-							if(option.getKey().equals(EXTRACONFIG_CONTAINER_PATH)) {
+							if(option.getKey().equals(
+							        Container.VM_EXTRACONFIG_CONTAINER_KEY)) {
 								pv_is_container.value = true;
 								break;
 							}
 
-							if(option.getKey().equals(EXTRACONFIG_VCH_PATH)) {
+							if(option.getKey().equals(
+							        Vch.VM_EXTRACONFIG_VCH_KEY)) {
 								pv_is_vch.value = true;
 								break;
 							}

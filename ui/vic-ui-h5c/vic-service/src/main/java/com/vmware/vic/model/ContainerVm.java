@@ -19,6 +19,7 @@ package com.vmware.vic.model;
 
 import java.util.List;
 
+import com.vmware.vic.model.constants.Container;
 import com.vmware.vim25.ArrayOfOptionValue;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.ManagedEntityStatus;
@@ -30,14 +31,17 @@ import com.vmware.vim25.VirtualMachineSummary;
 
 public class ContainerVm extends VicBaseVm {
 	private static final String EXTRACONFIG_CONTAINER_NAME_KEY =
-			"common/name";
+			Container.VM_EXTRACONFIG_CONTAINER_KEY;
 	private static final String EXTRACONFIG_IMAGE_NAME_KEY =
-			"guestinfo.vice./repo";
+			Container.VM_EXTRACONFIG_IMAGE_NAME_KEY;
 	private static final String EXTRACONFIG_PORTMAPPING_KEY =
-			"guestinfo.vice./networks|bridge/ports~";
-	private static final String VM_KEY_CONTAINERNAME = "containerName";
-	private static final String VM_KEY_IMAGENAME = "imageName";
-	private static final String VM_KEY_PORTMAPPING = "portMapping";
+			Container.VM_EXTRACONFIG_PORTMAPPING_KEY;
+	private static final String VM_CONTAINERNAME_KEY =
+	        Container.VM_CONTAINERNAME_KEY;
+	private static final String VM_IMAGENAME_KEY =
+	        Container.VM_IMAGENAME_KEY;
+	private static final String VM_PORTMAPPING_KEY =
+	        Container.VM_PORTMAPPING_KEY;
 	private String _containerName = null;
 	private String _imageName = null;
 	private String _portMapping = null;
@@ -47,18 +51,31 @@ public class ContainerVm extends VicBaseVm {
 		processDynamicProperties(objContent.getPropSet());
 	}
 
+	/**
+	 * Getter for Docker Container's name
+	 */
 	public String getContainerName() {
 		return _containerName;
 	}
 
+	/**
+     * Getter for Docker Container's imageName
+     */
 	public String getImageName() {
 		return _imageName;
 	}
 
+	/**
+     * Getter for Docker Container's portMapping
+     */
 	public String getPortMapping() {
 		return _portMapping;
 	}
 
+	/**
+     * Property getter
+     * @param property : property to retrieve
+     */
 	@Override
 	public Object getProperty(String property) {
 		if ("objectRef".equals(property)) {
@@ -77,11 +94,11 @@ public class ContainerVm extends VicBaseVm {
 			return _guestMemoryUsage;
 		} else if (VM_KEY_COMMITTEDSTORAGE.equals(property)) {
 			return _committedStorage;
-		} else if (VM_KEY_CONTAINERNAME.equals(property)) {
+		} else if (VM_CONTAINERNAME_KEY.equals(property)) {
 			return _containerName;
-		} else if (VM_KEY_IMAGENAME.equals(property)) {
+		} else if (VM_IMAGENAME_KEY.equals(property)) {
 			return _imageName;
-		} else if (VM_KEY_PORTMAPPING.equals(property)) {
+		} else if (VM_PORTMAPPING_KEY.equals(property)) {
 			return _portMapping;
 		} else if (VM_KEY_RESOURCECONFIG.equals(property)) {
             return _resourceConfig;
@@ -91,6 +108,11 @@ public class ContainerVm extends VicBaseVm {
 		return UNSUPPORTED_PROPERTY;
 	}
 
+	/**
+     * Process DynamicProperty[] and extract information
+     * needed for the ContainerVm model
+     * @param dpsList : DynamicProperty list from ObjectContent.getPropSet()
+     */
 	@Override
 	protected void processDynamicProperties(List<DynamicProperty> dpsList) {
 		for (DynamicProperty dp : dpsList) {

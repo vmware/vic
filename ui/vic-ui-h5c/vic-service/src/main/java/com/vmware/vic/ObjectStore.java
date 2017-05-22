@@ -172,4 +172,5 @@ public class ObjectStore {
 	public URI createUri(String type, String id) {
 		return _modelObjectUriResolver.createUri(type, id);
 	}
+
 }

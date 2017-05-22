@@ -24,6 +24,7 @@ import {
     Globals,
     GlobalsService,
     I18nService,
+    Vic18nService,
     RefreshService,
     AppAlertComponent,
     AppAlertService
@@ -59,6 +60,7 @@ import { AppComponent } from './app.component';
         Globals,
         GlobalsService,
         I18nService,
+        Vic18nService,
         RefreshService,
         DataPropertyService,
         VicVmViewService,
