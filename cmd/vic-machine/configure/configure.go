@@ -104,6 +104,13 @@ func (c *Configure) processParams() error {
 	return nil
 }
 
+// copyChangedConf should copy all configuration change specified by user to old configuration
+// currently we cannot automatically override old configuration with any difference in the new configuration, because there are some configuration set in VCH
+// creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
+func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
+	//TODO: copy changed data
+}
+
 func (c *Configure) Run(clic *cli.Context) (err error) {
 	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
 	defer func() {
@@ -185,19 +192,21 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return errors.New("configure failed")
 	}
 
-	// TODO: Convert guestinfo *VirtualContainerHost back to *Data, decrypt secret data
-	oldData := &data.Data{}
-	// oldData, err := converter.GtoD(vchConfig)
+	// Convert guestinfo *VirtualContainerHost back to *Data, decrypt secret data
+	oldData, err := validate.NewDataFromConfig(ctx, validator.Session.Finder, vchConfig)
 	// using new configuration override configuration query from guestinfo
 	oldData.CopyNonEmpty(c.Data)
 	c.Data = oldData
 
 	// evaluate merged configuration
-	vchConfig, err = validator.Validate(ctx, c.Data)
+	newConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {
 		log.Error("Create cannot continue: configuration validation failed")
 		return err
 	}
+
+	// TODO: copy changed configuration here
+	c.copyChangedConf(vchConfig, newConfig)
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.Timeout = c.Timeout

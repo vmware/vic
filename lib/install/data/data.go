@@ -189,4 +189,5 @@ func (d *Data) CopyNonEmpty(src *Data) {
 	if src.ContainerNetworks.IsSet() {
 		d.ContainerNetworks = src.ContainerNetworks
 	}
+	d.Timeout = src.Timeout
 }
