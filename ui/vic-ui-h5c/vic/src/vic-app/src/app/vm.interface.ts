@@ -21,3 +21,94 @@ export interface VirtualMachine {
     isVCH: boolean;
     isContainer: boolean;
 }
+
+export interface VchVmResponse {
+    id: string;
+    type: string;
+    name: string;
+    clientIp: string;
+    isUsingTls: boolean;
+    powerState: string;
+    overallStatus: string;
+    overallCpuUsage: number;
+    guestMemoryUsage: number;
+    committedStorage: number;
+    resourcePool: {
+        value: string;
+        type: string;
+    };
+    resourceConfig: {
+        entity: {
+            value: string;
+            type: string;
+        };
+        changeVersion: any | null;
+        lastModified: string | null;
+        cpuAllocation: {
+            reservation: number;
+            expandableReservation: boolean;
+            limit: number;
+            shares: {
+                shares: number;
+                level: string;
+            };
+            overheadLimit: number | null;
+        };
+        memoryAllocation: {
+            reservation: number;
+            expandableReservation: boolean;
+            limit: number;
+            shares: {
+                shares: number;
+                level: string;
+            };
+            overheadLimit: number | null;
+        }
+    };
+}
+
+export interface ContainerVmResponse {
+    id: string;
+    type: string;
+    containerName: string;
+    imageName: string;
+    portMapping?: string | null;
+    name: string;
+    powerState: string;
+    overallStatus: string;
+    overallCpuUsage: number;
+    guestMemoryUsage: number;
+    committedStorage: number;
+    resourcePool: {
+        value: string;
+        type: string;
+    };
+    resourceConfig: {
+        entity: {
+            value: string;
+            type: string;
+        };
+        changeVersion: any | null;
+        lastModified: string | null;
+        cpuAllocation: {
+            reservation: number;
+            expandableReservation: boolean;
+            limit: number;
+            shares: {
+                shares: number;
+                level: string;
+            };
+            overheadLimit: number | null;
+        };
+        memoryAllocation: {
+            reservation: number;
+            expandableReservation: boolean;
+            limit: number;
+            shares: {
+                shares: number;
+                level: string;
+            };
+            overheadLimit: number | null;
+        }
+    };
+}

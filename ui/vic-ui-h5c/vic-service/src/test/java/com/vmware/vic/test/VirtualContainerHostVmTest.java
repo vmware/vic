@@ -69,7 +69,7 @@ public class VirtualContainerHostVmTest extends Common {
 		assertFalse(_vm.getProperty("clientIp").equals(ModelObject.UNSUPPORTED_PROPERTY));
 		assertFalse(_vm.getProperty("overallCpuUsage").equals(ModelObject.UNSUPPORTED_PROPERTY));
 		assertFalse(_vm.getProperty("guestMemoryUsage").equals(ModelObject.UNSUPPORTED_PROPERTY));
-		assertFalse(_vm.getProperty("commitedStorage").equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty("committedStorage").equals(ModelObject.UNSUPPORTED_PROPERTY));
 		assertTrue(_vm.getProperty("iDontExist").equals(ModelObject.UNSUPPORTED_PROPERTY));
 	}
 
@@ -81,6 +81,6 @@ public class VirtualContainerHostVmTest extends Common {
 		assertEquals(_vm.getClientIp(), "10.17.109.187");
 		assertEquals(_vm.getOverallCpuUsage(), 1000);
 		assertEquals(_vm.getGuestMemoryUsage(), 500);
-		assertEquals(_vm.getCommitedStorage(), (long)123456789);
+		assertEquals(_vm.getCommittedStorage(), (long)123456789);
 	}
 }

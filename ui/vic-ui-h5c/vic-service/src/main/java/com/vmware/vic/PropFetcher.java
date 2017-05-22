@@ -70,6 +70,15 @@ public class PropFetcher implements ClientSessionEndListener {
 	private static final String EXTRACONFIG_CONTAINER_PATH = "common/name";
 	private static final String SERVICE_INSTANCE = "ServiceInstance";
 	private static final Set<String> _thumbprints = new HashSet<String>();
+	private static final String[] VM_PROPERTIES_TO_FETCH = new String[]{
+        "name", "config.guestFullName", "config.extraConfig",
+        "overallStatus", "summary", "resourceConfig",
+        "resourcePool", "runtime.powerState"
+    };
+	private static final String VM_GUESTNAME_VCH_IDENTIFIER = "Photon - VCH";
+	private static final String[] VM_GUESTNAME_CONTAINER_IDENTIFIER =
+        new String[]{
+            "Photon - Container", "Redhat - Container", "Windows - Container"};
 	private final UserSessionService _userSessionService;
 	private final VimObjectReferenceService _vimObjectReferenceService;
 
@@ -114,6 +123,122 @@ public class PropFetcher implements ClientSessionEndListener {
 		_userSessionService = userSessionService;
 		_vimObjectReferenceService = vimObjectReferenceService;
 	}
+
+	/**
+     * Get VIC VMs
+     * @param isVch : true for VCHs and false for Container VMs 
+     * @return ResultItem object containing either VCH VM(s) or Container VM(s)
+     *         based on the isVch boolean value
+     */
+	public ResultItem getVicVms(boolean isVch) {
+        List<PropertyValue> pvList = new ArrayList<PropertyValue>();
+        ResultItem resultItem = new ResultItem();
+
+        String serviceGuid = null;
+        ServerInfo[] sInfos = _userSessionService.getUserSession().serversInfo;
+        for (ServerInfo sInfo : sInfos) {
+            if (sInfo.serviceGuid != null) {
+                // TODO: 
+                serviceGuid = sInfo.serviceGuid;
+                break;
+            }
+        }
+
+        ServiceContent service = getServiceContent(serviceGuid);
+        if (service == null) {
+            _logger.error("Failed to retrieve ServiceContent!");
+            return null;
+        }
+
+        ManagedObjectReference viewMgrRef = service.getViewManager();
+        List<String> vmList = new ArrayList<String>();
+        vmList.add("VirtualMachine");
+        try {
+            ManagedObjectReference cViewRef = _vimPort.createContainerView(
+                viewMgrRef,
+                service.getRootFolder(),
+                vmList,
+                true);
+            
+            PropertySpec propertySpec = new PropertySpec();
+            propertySpec.setType("VirtualMachine");
+            List<String> pSpecPathSet = propertySpec.getPathSet();
+            for (String vmProp : VM_PROPERTIES_TO_FETCH) {
+                pSpecPathSet.add(vmProp);
+            }
+
+            // set the root traversal spec
+            TraversalSpec tSpec = new TraversalSpec();
+            tSpec.setName("traverseEntities");
+            tSpec.setPath("view");
+            tSpec.setSkip(false);
+            tSpec.setType("ContainerView");
+
+            // set objectspec and attach the root traversal spec
+            ObjectSpec objectSpec = new ObjectSpec();
+            objectSpec.setObj(cViewRef);
+            objectSpec.setSkip(Boolean.TRUE);
+            objectSpec.getSelectSet().add(tSpec);
+
+            PropertyFilterSpec propertyFilterSpec = new PropertyFilterSpec();
+            propertyFilterSpec.getPropSet().add(propertySpec);
+            propertyFilterSpec.getObjectSet().add(objectSpec);
+
+            List<PropertyFilterSpec> propertyFilterSpecs = new ArrayList<PropertyFilterSpec>();
+            propertyFilterSpecs.add(propertyFilterSpec);
+            RetrieveOptions ro = new RetrieveOptions();
+
+            RetrieveResult props = _vimPort.retrievePropertiesEx(
+                    service.getPropertyCollector(),
+                    propertyFilterSpecs,
+                    ro);
+            // TODO: refactor this block to make it look cleaner
+            if (props != null) {
+                for (ObjectContent objC : props.getObjects()) {
+                    // look for config.guestFullName to determine if the VM is
+                    // the desired VIC VM (VCH or Container)
+                    List<DynamicProperty> dpList = objC.getPropSet();
+                    for (DynamicProperty dp : dpList) {
+                        if (dp.getName().equals("config.guestFullName")) {
+                            String guestName = ((String)dp.getVal());
+                            if (isVch) {
+                                if (guestName.contains(
+                                        VM_GUESTNAME_VCH_IDENTIFIER)) {
+                                    PropertyValue pv = new PropertyValue();
+                                    pv.propertyName = "vm";
+                                    pv.value = new VirtualContainerHostVm(objC, serviceGuid);
+                                    pvList.add(pv);
+                                }
+                            } else {
+                                for (String containerIdentifier : VM_GUESTNAME_CONTAINER_IDENTIFIER) {
+                                    // if guestFullName matches one of the patterns add it to list and
+                                    // exit the loop
+                                    if (guestName.contains(containerIdentifier)) {
+                                        PropertyValue pv = new PropertyValue();
+                                        pv.propertyName = "vm";
+                                        pv.value = new ContainerVm(objC, serviceGuid);
+                                        pvList.add(pv);
+                                        break;
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            resultItem.properties = pvList.toArray(new PropertyValue[]{});
+
+            return resultItem;
+
+        } catch (InvalidPropertyFaultMsg e) {
+            _logger.error(e);
+        } catch (RuntimeFaultFaultMsg e) {
+            _logger.error(e);
+        }
+        
+        return null;
+    }
 
 	/**
 	 * Get VMs belonging to a given vApp object reference.

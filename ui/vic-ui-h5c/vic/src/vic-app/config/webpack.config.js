@@ -30,7 +30,7 @@ function getPath(env) {
         path.resolve(getRoot(), '../main/webapp/resources/build-dev/');
 }
 
-module.exports = function(env) {
+module.exports = function (env) {
     const base = {
         context: path.resolve(__dirname, '../'),
         devtool: env.is_production ? 'source-map' : 'cheap-module-source-map',
@@ -49,8 +49,7 @@ module.exports = function(env) {
             extensions: [".ts", ".js", ".scss", ".css", ".json", ".html"]
         },
         module: {
-            rules: [
-                {
+            rules: [{
                     test: /\.js$/,
                     enforce: 'pre',
                     loader: 'source-map-loader',
@@ -106,7 +105,7 @@ module.exports = function(env) {
                 chunksSortMode: 'dependency'
             }),
             new ExtractTextPlugin({
-                filename: 'clarity-ui-min.css',
+                filename: 'clarity-*-min.css',
                 disable: false,
                 allChunks: true
             }),
@@ -114,17 +113,18 @@ module.exports = function(env) {
                 name: ['vendor', 'manifest'],
                 minChunks: Infinity
             }),
-            new CopyWebpackPlugin([
-                {
-                    from: path.resolve(getRoot(), 'src/assets'),
-                    to: path.resolve(getPath(env), 'assets')
-                },{
-                    from: path.resolve(getRoot(), 'node_modules/clarity-ui/clarity-ui.min.css'),
-                    to: path.resolve(getPath(env))
-                }], {
-                    ignore: ['*.scss', 'index.html']
-                }
-            )
+            new CopyWebpackPlugin([{
+                from: path.resolve(getRoot(), 'src/assets'),
+                to: path.resolve(getPath(env), 'assets')
+            }, {
+                from: path.resolve(getRoot(), 'node_modules/clarity-ui/clarity-ui.min.css'),
+                to: path.resolve(getPath(env))
+            }, {
+                from: path.resolve(getRoot(), 'node_modules/clarity-icons/clarity-icons.min.css'),
+                to: path.resolve(getPath(env))
+            }], {
+                ignore: ['*.scss', 'index.html']
+            })
         ],
         performance: {
             hints: false
@@ -141,7 +141,7 @@ module.exports = function(env) {
             search: /production\:.*/,
             replace: env.is_production ? 'production: true' : 'production: false'
         }
-    },{
+    }, {
         test: /index\.html$/,
         enforce: 'post',
         loader: 'string-replace-loader',
@@ -180,7 +180,7 @@ module.exports = function(env) {
                 flags: 'g'
             },
             include: [/src/]
-        },{
+        }, {
             test: /\.scss$/,
             use: [
                 'style-loader',

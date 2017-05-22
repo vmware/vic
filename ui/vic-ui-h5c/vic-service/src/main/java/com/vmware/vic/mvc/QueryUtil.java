@@ -24,10 +24,21 @@ package com.vmware.vic.mvc;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.vmware.vic.model.ContainerVm;
+import com.vmware.vic.model.ModelObject;
+import com.vmware.vic.model.VirtualContainerHostVm;
+import com.vmware.vic.utils.VicVmComparator;
 import com.vmware.vise.data.Constraint;
 import com.vmware.vise.data.PropertySpec;
 import com.vmware.vise.data.ResourceSpec;
@@ -36,6 +47,8 @@ import com.vmware.vise.data.query.Conjoiner;
 import com.vmware.vise.data.query.DataService;
 import com.vmware.vise.data.query.ObjectIdentityConstraint;
 import com.vmware.vise.data.query.ObjectReferenceService;
+import com.vmware.vise.data.query.OrderingCriteria;
+import com.vmware.vise.data.query.OrderingPropertySpec;
 import com.vmware.vise.data.query.PropertyValue;
 import com.vmware.vise.data.query.QuerySpec;
 import com.vmware.vise.data.query.RelationalConstraint;
@@ -43,6 +56,8 @@ import com.vmware.vise.data.query.RequestSpec;
 import com.vmware.vise.data.query.Response;
 import com.vmware.vise.data.query.ResultItem;
 import com.vmware.vise.data.query.ResultSet;
+import com.vmware.vise.data.query.ResultSpec;
+import com.vmware.vise.data.query.SortType;
 
 /**
  * General Query utility class for the DataService
@@ -51,6 +66,7 @@ import com.vmware.vise.data.query.ResultSet;
 public class QueryUtil {
 
    private static ObjectReferenceService _objectReferenceService;
+   private static final Log _logger = LogFactory.getLog(QueryUtil.class);
 
    public static void setObjectReferenceService(
             ObjectReferenceService objectReferenceService) {
@@ -498,4 +514,234 @@ public class QueryUtil {
       return propSpec;
    }
 
+   /**
+    * Implementation of DataAccessController's /list API
+    * @throws Exception 
+    */
+   @SuppressWarnings("unchecked")
+static ResultSet getListData(
+         DataService dataService, String targetType, String[] requestedProperties,
+         int offset, int maxResultCount, String[] sortParams,
+         String[] filterParams) throws Exception {
+
+      Constraint constraint = new Constraint();
+      constraint.targetType = targetType;
+      QuerySpec query = QueryUtil.buildQuerySpec(constraint, requestedProperties);
+      ResultSpec rs = new ResultSpec();
+      rs.offset = offset;
+      rs.maxResultCount = maxResultCount;
+
+      if (sortParams != null && sortParams.length == 2) {
+         String sortField = sortParams[0];
+         String sortDirection = sortParams[1];
+
+         OrderingPropertySpec orderPropSpec = new OrderingPropertySpec();
+         orderPropSpec.type = constraint.targetType;
+         orderPropSpec.propertyNames = new String[] {sortField};
+         orderPropSpec.orderingType = SortType.ASCENDING;
+         if ("desc".equalsIgnoreCase(sortDirection)) {
+            orderPropSpec.orderingType = SortType.DESCENDING;
+         }
+         rs.order = new OrderingCriteria();
+         rs.order.orderingProperties = new OrderingPropertySpec[] { orderPropSpec };
+      }
+      query.resultSpec = rs;
+
+      RequestSpec requestSpec = new RequestSpec();
+      requestSpec.querySpec = new QuerySpec[]{query};
+
+      // Execute data queries to get counts.
+      Response response = dataService.getData(requestSpec);
+      ResultSet[] resultSetArray = response.resultSet;
+
+      // return an empty resultset upon when resultSet array is empty
+      if (resultSetArray.length == 0) {
+          ResultSet emptyResultSet = new ResultSet();
+          emptyResultSet.totalMatchedObjectCount = 0;
+          emptyResultSet.items = new ResultItem[] {};
+          _logger.warn("No entry for response.resultSet");
+          return emptyResultSet;
+      }
+
+      ResultSet resultSet = resultSetArray[0];
+      resultSet.totalMatchedObjectCount = 0;
+      if (resultSet.error != null) {
+          throw resultSet.error;
+      }
+
+      int totalMatchedObjectCount = 0;
+      if (resultSet.items.length > 0) {
+          PropertyValue[] pvs = resultSet.items[0].properties;
+          for (PropertyValue pv : pvs) {
+              if ("match".equals(pv.propertyName)) {
+                  resultSet.totalMatchedObjectCount +=
+                      (int)pv.value;
+              } else if ("results".equals(pv.propertyName)) {
+                  // returns # of items found
+                  Map<String, Object> adjustedResults = adjustItems(
+                      (HashMap<String, ModelObject>) pv.value,
+                      offset,
+                      maxResultCount,
+                      resultSet.totalMatchedObjectCount,
+                      rs.order,
+                      filterParams
+                  );
+                  pv.value = adjustedResults.get("results");
+                  totalMatchedObjectCount =
+                      (int)adjustedResults.get("totalMatchedObjectCount");
+              }
+          }
+
+          if (filterParams != null && filterParams.length > 0) {
+              resultSet.totalMatchedObjectCount = totalMatchedObjectCount;
+          }
+      }
+
+      return resultSet;
+   }
+
+   /**
+    * Handles pagination, sort and filter
+    *
+    * @param vAppVmsMap: vApp-VMs map
+    * @param offset: index to include from
+    * @param maxResultCount: page size
+    * @param totalMatchedObjectCount: # of all items
+    * @param order: OrderingCriteria instance
+    * @param filterParams: filtering criteria
+    * @return adjusted Map
+    */
+   private static Map<String, Object> adjustItems(
+		   Map<String, ModelObject> vmsMap,
+		   int offset,
+		   int maxResultCount,
+		   int totalMatchedObjectCount,
+		   OrderingCriteria order,
+		   String[] filterParams) {
+
+	   // map to return
+	   Map<String, Object> resultMap = new HashMap<String, Object>();
+
+	   // NavigableMap to contain sorted TreeMap
+	   NavigableMap<String, Object> results = new TreeMap<String, Object>();
+
+	   // # of records matching the provided filters
+	   // this would replace totalMatchedObjectCount ONLY if there is at least
+	   // one filter active
+	   int numOfAllRecordsMatchingFilters = 0;
+
+	   // return empty results for
+	   // 1. offset is smaller than 0
+	   // 2. offset is greater than or equal to total # of matched objects
+	   // 3. page size is 0
+	   if (offset < -1 ||
+		   offset >= totalMatchedObjectCount ||
+		   maxResultCount == 0) {
+		   resultMap.put("totalMatchedObjectCount", 0);
+		   resultMap.put("results", results);
+		   return resultMap;
+	   }
+
+	   // filters results based on the given criteria
+	   if (filterParams != null && filterParams.length > 0) {
+		   Set<String> keys = vmsMap.keySet();
+		   Map<String, ModelObject> filteredVmsMap =
+	           new HashMap<String, ModelObject>();
+
+		   for (String key : keys) {
+			   if (!vmsMap.containsKey(key)) {
+				   continue;
+			   }
+
+			   // filters out VMs not matching the criteria
+			   if (vmMatchesFilterCriteria(vmsMap.get(key), filterParams)) {
+			       filteredVmsMap.put(key, vmsMap.get(key));
+			       numOfAllRecordsMatchingFilters++;
+			   }
+		   }
+
+		   // updates totalmatchedObjectCount and vmsMap
+		   vmsMap = filteredVmsMap;
+		   totalMatchedObjectCount = numOfAllRecordsMatchingFilters;
+	   }
+
+	   int endIndex = offset + maxResultCount - 1;
+	   if (totalMatchedObjectCount == 0) {
+		   endIndex = totalMatchedObjectCount;
+	   } else if ((endIndex >= totalMatchedObjectCount) || (maxResultCount < 0)) {
+		   endIndex = totalMatchedObjectCount - 1;
+	   }
+
+	   if (order != null && order.orderingProperties.length > 0) {
+		   SortType sortType = order.orderingProperties[0].orderingType;
+		   String orderBy = order.orderingProperties[0].propertyNames[0];
+		   results = new TreeMap<String, Object>(
+				   new VicVmComparator(
+						   vmsMap,
+						   orderBy,
+						   sortType.equals(SortType.DESCENDING)
+					   )
+			   );
+		   results.putAll(vmsMap);
+	   }
+
+	   // returns the sorted/filtered/paginated sub map
+	   resultMap.put("totalMatchedObjectCount", totalMatchedObjectCount);
+
+	   if (results.size() == 0) {
+		   resultMap.put("results", results);
+	   } else {
+		   String[] vAppKeys = results.keySet().toArray(new String[]{});
+		   resultMap.put("results",
+			   results.subMap(vAppKeys[offset], true, vAppKeys[endIndex], true));
+	   }
+
+	   return resultMap;
+   }
+
+   private static boolean vmMatchesFilterCriteria(
+		   ModelObject mo, String[] filterParams) {
+	   for (String filterParam : filterParams) {
+		   String[] params = filterParam.split("=");
+		   if (!getVmPropValue(mo, params[0])
+				   .contains(params[1].toLowerCase().trim())) {
+			   return false;
+		   }
+	   }
+	   return true;
+   }
+
+   private static String getVmPropValue(ModelObject mo, String property) {
+	   if (mo instanceof VirtualContainerHostVm) {
+		   if ("name".equals(property)) {
+			   return ((VirtualContainerHostVm) mo).getName().toLowerCase();
+		   } else if ("vchIp".equals(property)) {
+			   return ((VirtualContainerHostVm) mo).getClientIp().toLowerCase();
+		   } else if ("overallStatus".equals(property)) {
+			   return ((VirtualContainerHostVm) mo).getOverallStatus()
+					   .toLowerCase();
+		   }
+		   return null;
+	   } else if (mo instanceof ContainerVm) {
+		   if ("containerName".equals(property)) {
+		       return ((ContainerVm) mo).getContainerName().toLowerCase();
+		   } else if ("powerState".equals(property)) {
+		       return ((ContainerVm) mo).getPowerState().toLowerCase();
+		   } else if ("guestMemoryUsage".equals(property)) {
+		       return Integer.toString(((ContainerVm) mo).getGuestMemoryUsage());
+		   } else if ("overallCpuUsage".equals(property)) {
+		       return Integer.toString(((ContainerVm) mo).getOverallCpuUsage());
+		   } else if ("committedStorage".equals(property)) {
+		       return Long.toString(((ContainerVm) mo).getCommittedStorage());
+		   } else if ("portMapping".equals(property)) {
+		       String pm = ((ContainerVm) mo).getPortMapping();
+		       return pm != null ? pm.toLowerCase() : "";
+		   } else if ("name".equals(property)) {
+		       return ((ContainerVm) mo).getName().toLowerCase();
+		   } else if ("imageName".equals(property)) {
+		       return ((ContainerVm) mo).getImageName().toLowerCase();
+		   }
+	   }
+	   return null;
+   }
 }
