@@ -1,6 +1,6 @@
 # Building:
 # cp -R /usr/lib/vmware-ovftool/ .
-# docker build --no-cache -t vic-test -f Dockerfile.test .
+# docker build --no-cache -t vic-test -f Dockerfile .
 # docker tag vic-test gcr.io/eminent-nation-87317/vic-integration-test:1.x
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-integration-test:1.x
