@@ -173,7 +173,7 @@ Test
     @{output}=  Split To Lines  ${output}
     ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
 
-    ${info}=  Get VM Info  \*
+    ${info}=  Run  govc vm.info \*
     Log  ${info}
 
     # Abruptly power off the host
@@ -182,7 +182,7 @@ Test
     ${out}=  Execute Command  poweroff -d 0 -f
     Close connection
 
-    ${info}=  Get VM Info  \*
+    ${info}=  Run  govc vm.info \*
     Log  ${info}
 
     # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
@@ -190,7 +190,7 @@ Test
     Run VIC Machine Inspect Command
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
 
-    ${info}=  Get VM Info  \*
+    ${info}=  Run  govc vm.info \*
     Log  ${info}
 
     # check running containers are still running
@@ -210,18 +210,4 @@ Test
     \     Should Be Equal As Integers  ${rc}  0
 
 Run Regression Tests
-    Run Regression Test With More Log Information
-
-Restart VCH
-    Reboot VM  %{VCH-NAME}
-
-    Log To Console  Getting VCH IP ...
-    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
-    Log To Console  New VCH IP is ${new-vch-ip}
-    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
-
-    # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
-
-Run Regression Test
     Run Regression Test With More Log Information

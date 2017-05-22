@@ -24,6 +24,7 @@ import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.ManagedEntityStatus;
 import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.OptionValue;
+import com.vmware.vim25.ResourceConfigSpec;
 import com.vmware.vim25.VirtualMachinePowerState;
 import com.vmware.vim25.VirtualMachineSummary;
 
@@ -68,6 +69,8 @@ public class ContainerVm extends VicBaseVm {
 			return _overallStatus;
 		} else if (VM_KEY_POWERSTATE.equals(property)) {
 			return _powerState;
+		} else if (VM_KEY_GUESTFULLNAME.equals(property)) {
+            return _guestFullName;
 		} else if (VM_KEY_OVERALLCPUUSAGE.equals(property)) {
 			return _overallCpuUsage;
 		} else if (VM_KEY_GUESTMEMORYUSAGE.equals(property)) {
@@ -80,7 +83,11 @@ public class ContainerVm extends VicBaseVm {
 			return _imageName;
 		} else if (VM_KEY_PORTMAPPING.equals(property)) {
 			return _portMapping;
-		}
+		} else if (VM_KEY_RESOURCECONFIG.equals(property)) {
+            return _resourceConfig;
+        } else if (VM_KEY_RESOURCEPOOL.equals(property)) {
+            return _resourcePool;
+        }
 		return UNSUPPORTED_PROPERTY;
 	}
 
@@ -97,7 +104,11 @@ public class ContainerVm extends VicBaseVm {
 				processVmSummary((VirtualMachineSummary)dp.getVal());
 			} else if (dp.getName().equals(VM_KEY_CONFIG_EXTRACONFIG)) {
 				processExtraConfig((ArrayOfOptionValue)dp.getVal());
-			}
+			} else if (dp.getName().equals(VM_KEY_RESOURCECONFIG)) {
+                _resourceConfig = (ResourceConfigSpec)dp.getVal();
+            } else if (dp.getName().equals(VM_KEY_RESOURCEPOOL)) {
+                _resourcePool = (Object)dp.getVal();
+            }
 		}
 	}
 

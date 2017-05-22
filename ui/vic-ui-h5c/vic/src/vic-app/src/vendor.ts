@@ -20,3 +20,5 @@ import 'zone.js/dist/zone';
 import 'mutationobserver-shim';
 require('../node_modules/@webcomponents/custom-elements/custom-elements.min.js');
 import 'clarity-icons';
+import 'clarity-icons/shapes/essential-shapes';
+import 'clarity-icons/shapes/technology-shapes';

@@ -20,10 +20,7 @@ package com.vmware.vic;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -35,22 +32,10 @@ import com.vmware.vic.model.RootInfo;
 import com.vmware.vic.model.VmQueryResult;
 import com.vmware.vic.utils.ConfigLoader;
 import com.vmware.vim25.InvalidPropertyFaultMsg;
-import com.vmware.vim.binding.vmodl.ManagedObjectReference;
 import com.vmware.vim25.RuntimeFaultFaultMsg;
-import com.vmware.vise.data.Constraint;
-import com.vmware.vise.data.PropertySpec;
-import com.vmware.vise.data.ResourceSpec;
-import com.vmware.vise.data.query.CompositeConstraint;
-import com.vmware.vise.data.query.Conjoiner;
 import com.vmware.vise.data.query.DataService;
-import com.vmware.vise.data.query.ObjectIdentityConstraint;
 import com.vmware.vise.data.query.PropertyValue;
-import com.vmware.vise.data.query.QuerySpec;
-import com.vmware.vise.data.query.RequestSpec;
-import com.vmware.vise.data.query.Response;
 import com.vmware.vise.data.query.ResultItem;
-import com.vmware.vise.data.query.ResultSet;
-import com.vmware.vise.data.query.ResultSpec;
 import com.vmware.vise.vim.data.VimObjectReferenceService;
 
 public class ObjectStore {
@@ -65,13 +50,6 @@ public class ObjectStore {
 	private final static String ROOT_TYPE = VicUIDataAdapter.ROOT_TYPE;
 	private final static String VCH_TYPE = VicUIDataAdapter.VCH_TYPE;
 	private final static String CONTAINER_TYPE = VicUIDataAdapter.CONTAINER_TYPE;
-	private final static String VIC_VAPP_IDENTIFIER =
-			"vSphere Integrated Containers";
-	private final static String[] VAPP_PROPERTIES_TO_FETCH = new String[]{
-			"name", "overallStatus", "summary.config.entity",
-			"summary.quickStats", "summary.config.cpuAllocation",
-			"summary.config.memoryAllocation", "vAppConfig.annotation", "vm"};
-	private final static String RESOURCE_ID_FOR_ALL_VICVMS = "vic/ALL";
 	private final static Log _logger = LogFactory.getLog(ObjectStore.class);
 
 	public ObjectStore(
@@ -115,20 +93,12 @@ public class ObjectStore {
 	 */
 	private Root getRootObject() {
 		synchronized(_currentRootObject) {
-			List<ResultItem> vicVappResultItems = getVicVappResultItems();
-			int numberOfVchs = vicVappResultItems.size();
-			int numberOfContainers = 0;
+			ResultItem vchsRi = _propFetcher.getVicVms(true);
+			ResultItem containersRi = _propFetcher.getVicVms(false);
 
-			// calculates the number of vch vms and container vms
-			for (ResultItem ri : vicVappResultItems) {
-				for (PropertyValue pv : ri.properties) {
-					if (pv.propertyName == "vm") {
-						Object[] vmRefs = (Object[])pv.value;
-						// # of container VMs = All VMs - VCH VM
-						numberOfContainers += (vmRefs.length - 1);
-					}
-				}
-			}
+			int numberOfVchs = vchsRi.properties.length;
+			int numberOfContainers = containersRi.properties.length;
+
 			Root rootObj = new Root(
 					new RootInfo(new String[]{
 							_configLoader.getProp(UI_VERSION_CONFIG_KEY)}),
@@ -183,163 +153,23 @@ public class ObjectStore {
 	 * @return VmQueryResult containing results for VCH VMs or Container VMs
 	 */
 	private VmQueryResult getVms(URI uri, boolean isVch) {
-		String resourceId = _modelObjectUriResolver.getId(uri);
-		List<ResultItem> vicVappResultItems = null;
-
-		if (RESOURCE_ID_FOR_ALL_VICVMS.equals(resourceId)) {
-			vicVappResultItems = getVicVappResultItems();
-		} else {
-			vicVappResultItems = getVicVappResultItems(uri);
+		ResultItem vmsRi = _propFetcher.getVicVms(isVch);
+		Map<String, ModelObject> resultsMap = new HashMap<String, ModelObject>();
+		for (PropertyValue pv : vmsRi.properties) {
+		    if (pv.propertyName == "vm") {
+		        ModelObject mo = (ModelObject)pv.value;
+		        resultsMap.put(mo.getId(), mo);
+		    }
 		}
 
-		Map<Object, ResultItem> vAppVmsMap = new HashMap<Object, ResultItem>();
-		for (ResultItem ri : vicVappResultItems) {
-			ResultItem result = null;
-			Object vAppObjReference = null;
-			for (PropertyValue pv : ri.properties) {
-				if (pv.propertyName == "summary.config.entity") {
-					try {
-						vAppObjReference = pv.value;
-						result = _propFetcher.getVmsBelongingToMor(
-								vAppObjReference, isVch);
-					} catch (InvalidPropertyFaultMsg | RuntimeFaultFaultMsg e) {
-						_logger.error(e.getMessage());
-					}
-				}
-			}
-			ResultItem rri = new ResultItem();
-			List<PropertyValue> pvList = new ArrayList<PropertyValue>();
-			PropertyValue vAppPropertyValues = new PropertyValue();
-			vAppPropertyValues.propertyName = "vAppPropertyValues";
-			vAppPropertyValues.value = ri.properties;
-			pvList.add(vAppPropertyValues);
-			PropertyValue vmsResultItem = new PropertyValue();
-			vmsResultItem.propertyName = "vmsResultItem";
-			vmsResultItem.value = result;
-			pvList.add(vmsResultItem);
-			rri.properties = pvList.toArray(new PropertyValue[]{});
-
-			vAppVmsMap.put(vAppObjReference, rri);
-		}
 		VmQueryResult vmQueryResult = new VmQueryResult(
-				uri,
-				vAppVmsMap,
+				resultsMap,
 				_objectRefService);
 
 		return vmQueryResult;
 	}
 
-	/**
-	 * Get all vApp ManagedObjectReferences
-	 * @return ArrayList containing ResultItem objects for
-               vApp ManagedObjectReferences
-	 */
-	private List<ResultItem> getVicVappResultItems() {
-		PropertySpec propertySpec = new PropertySpec();
-		propertySpec.propertyNames = VAPP_PROPERTIES_TO_FETCH;
-		propertySpec.type = "VirtualApp";
-		PropertySpec[] propertySpecs = new PropertySpec[]{propertySpec};
-
-		Constraint constraint = new Constraint();
-		constraint.targetType = "VirtualApp";
-		List<Constraint> propertyConstraints = new ArrayList<Constraint>();
-		propertyConstraints.add(constraint);
-		CompositeConstraint cConstraint = new CompositeConstraint();
-		cConstraint.conjoiner = Conjoiner.OR;
-		cConstraint.nestedConstraints = propertyConstraints.toArray(new Constraint[]{});
-		List<ResultItem> riList = getResultItemsFromDataService(cConstraint, propertySpecs);
-		List<ResultItem> filtered = filterVicVapps(riList);
-
-		return filtered;
-	}
-
-	/**
-	 * Get vApp specified by URI
-	 * @param uri
-	 * @return ArrayList containing ResultItem object for the
-	 *         specified vApp ManagedObjectReference
-	 */
-	private List<ResultItem> getVicVappResultItems(URI uri) {
-		PropertySpec propertySpec = new PropertySpec();
-		propertySpec.propertyNames = VAPP_PROPERTIES_TO_FETCH;
-		propertySpec.type = "VirtualApp";
-		PropertySpec[] propertySpecs = new PropertySpec[]{propertySpec};
-
-		ObjectIdentityConstraint oic = new ObjectIdentityConstraint();
-		oic.targetType = "VirtualApp";
-
-		ManagedObjectReference vAppMor = new ManagedObjectReference(
-				oic.targetType,
-				_modelObjectUriResolver.getObjectId(uri),
-				_modelObjectUriResolver.getServerGuid(uri));
-
-		oic.target = vAppMor;
-		CompositeConstraint cConstraint = new CompositeConstraint();
-		cConstraint.conjoiner = Conjoiner.OR;
-		cConstraint.targetType = "VirtualApp";
-		cConstraint.nestedConstraints = new Constraint[]{oic};
-		List<ResultItem> riList = getResultItemsFromDataService(cConstraint, propertySpecs);
-
-		return riList;
-	}
-
-	/**
-	 * Call vSphere Client DataService to fetch information on vSphere objects
-	 * @param constraint
-	 * @param propertySpecs
-	 * @return ArrayList containing ResultItem objects for the retrieved data
-	 */
-	private List<ResultItem> getResultItemsFromDataService(
-			CompositeConstraint constraint,
-			PropertySpec[] propertySpecs) {
-
-		QuerySpec qSpec = new QuerySpec();
-		qSpec.resourceSpec = new ResourceSpec();
-		qSpec.resourceSpec.constraint = constraint;
-		qSpec.resourceSpec.propertySpecs = propertySpecs;
-		qSpec.resultSpec = new ResultSpec();
-
-		RequestSpec reqSpec = new RequestSpec();
-		reqSpec.querySpec = new QuerySpec[]{qSpec};
-
-		Response response = _dataService.getData(reqSpec);
-
-		if ((response == null) || (response.resultSet.length == 0)) {
-			return new ArrayList<ResultItem>();
-		}
-
-		for (ResultSet rs : response.resultSet) {
-			if (rs.error != null) {
-				_logger.error(rs.error.getMessage());
-				rs.error.printStackTrace();
-				continue;
-			}
-		}
-
-		return Arrays.asList(response.resultSet[0].items);
-	}
-
-	/**
-	 * Filter out vApps that are not a vSphere Integrated Container appliance
-	 * @param resultItems
-	 * @return ArrayList containing ResultItems containing all vApps
-	 *         that are vSphere Integrated Container appliances
-	 */
-	private List<ResultItem> filterVicVapps(List<ResultItem> resultItems) {
-		List<ResultItem> results = new ArrayList<ResultItem>();
-		if (resultItems == null) {
-			return results;
-		}
-
-		for (ResultItem ri : resultItems.toArray(new ResultItem[]{})) {
-			for (PropertyValue pv : ri.properties) {
-				if (pv.propertyName == "vAppConfig.annotation") {
-					if (VIC_VAPP_IDENTIFIER.equals(pv.value)) {
-						results.add(ri);
-					}
-				}
-			}
-		}
-		return results;
+	public URI createUri(String type, String id) {
+		return _modelObjectUriResolver.createUri(type, id);
 	}
 }

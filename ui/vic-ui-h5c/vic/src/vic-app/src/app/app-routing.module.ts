@@ -17,17 +17,20 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
-import { APP_CONFIG }  from './shared/index';
+import { APP_CONFIG } from './shared/index';
 import { AppRoutingComponent } from './app-routing.component';
 import { VicSummaryPortletComponent } from './summary-portlet/summary-portlet.component';
 import { VicSummaryViewComponent } from './summary-view/summary-view.component';
+import { VicVchViewComponent } from './vch-view/vch-view.component';
 
 const appRoutes: Routes = [
     { path: 'index.html', component: AppRoutingComponent },
     { path: 'portlet', component: VicSummaryPortletComponent },
     { path: 'portlet/:id', component: VicSummaryPortletComponent },
     { path: 'summary-view', component: VicSummaryViewComponent },
-    { path: 'summary-view/:id', component: VicSummaryViewComponent }
+    { path: 'summary-view/:id', component: VicSummaryViewComponent },
+    { path: 'vch-view', component: VicVchViewComponent },
+    { path: 'vch-view/:id', component: VicVchViewComponent }
 ];
 
 export const extensionToRoutes = {};
@@ -39,7 +42,8 @@ extensionToRoutes[APP_CONFIG.packageName + '.objectView.containerView'] = '/obje
 export const routedComponents = [
     AppRoutingComponent,
     VicSummaryPortletComponent,
-    VicSummaryViewComponent
+    VicSummaryViewComponent,
+    VicVchViewComponent
 ];
 
 @NgModule({
@@ -50,4 +54,4 @@ export const routedComponents = [
         RouterModule
     ]
 })
-export class AppRoutingModule {}
+export class AppRoutingModule { }
