@@ -20,24 +20,32 @@ import { Subject } from 'rxjs/Subject';
 import { Http } from '@angular/http';
 
 import { VirtualContainerHost } from '../vch-view/vch.model';
+import { ContainerVm } from '../container-view/container.model';
 import { GlobalsService } from '../shared/globals.service';
 import { getVchResponseStub } from '../services/mocks/vch.response';
+import { getContainerResponseStub } from '../services/mocks/container.response';
 
-const ALL_VCHS_URL = '/ui/vic/rest/data/list/?targetType=vic:VirtualContainerHostVm' +
-    '&properties=match,results';
+const ALL_VCHS_URL = '/ui/vic/rest/data/list/?targetType=' +
+    'vic:VirtualContainerHostVm&properties=match,results';
+const ALL_CONTAINERS_URL = '/ui/vic/rest/data/list/?targetType=' +
+    'vic:ContainerVm&properties=match,results';
 
 @Injectable()
 export class VicVmViewService {
     private vchsSubj: Subject<VirtualContainerHost[]>;
+    private containersSubj: Subject<ContainerVm[]>;
     public vchs$: Observable<VirtualContainerHost[]>;
+    public containers$: Observable<ContainerVm[]>;
 
     constructor(
         private http: Http,
         private gs: GlobalsService
     ) {
-        // sets up subject and observable
+        // sets up subjects and observables
         this.vchsSubj = new Subject<VirtualContainerHost[]>();
+        this.containersSubj = new Subject<ContainerVm[]>();
         this.vchs$ = this.vchsSubj.asObservable();
+        this.containers$ = this.containersSubj.asObservable();
     }
 
     /**
@@ -84,6 +92,55 @@ export class VicVmViewService {
                 }
 
                 this.vchsSubj.next(vchsArray);
+            });
+    }
+
+    /**
+     * Queries vic-service and gets a list of Container VMs
+     * @param params : query parameters to query backend with
+     */
+    reloadContainers(params: {
+        offset?: number,
+        maxResultCount?: number,
+        sorting?: string,
+        filter?: string
+    }) {
+        let containersArray: ContainerVm[] = [];
+        let containersDataResponse;
+
+        // uses mocked data if app is running in standalone (dev) mode
+        if (!this.gs.isPluginMode()) {
+            containersDataResponse = getContainerResponseStub().results;
+            containersArray = [];
+
+            for (let objectId in containersDataResponse) {
+                if (containersDataResponse.hasOwnProperty(objectId)) {
+                    containersArray.push(
+                        new ContainerVm(containersDataResponse[objectId]));
+                }
+            }
+
+            this.containersSubj.next(containersArray);
+            return;
+        }
+
+        // makes a GET request to vic-service and emits data fetched
+        this.http.get(this.buildQueryString(ALL_CONTAINERS_URL, params))
+            .map(response => response.json())
+            .subscribe(data => {
+                try {
+                    for (let objectId in data.data) {
+                        if (data.data.hasOwnProperty(objectId)) {
+                            containersArray.push(
+                                new ContainerVm(data.data[objectId]));
+                        }
+                    }
+                } catch (e) {
+                    this.containersSubj.error(e);
+                    return;
+                }
+
+                this.containersSubj.next(containersArray);
             });
     }
 

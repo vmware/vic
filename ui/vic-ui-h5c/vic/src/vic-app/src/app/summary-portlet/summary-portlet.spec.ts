@@ -103,7 +103,7 @@ describe('VIC Summary Portlet Components', () => {
                 ClarityModule
             ]
         })
-        .compileComponents();
+            .compileComponents();
     }));
 
     beforeEach(() => {

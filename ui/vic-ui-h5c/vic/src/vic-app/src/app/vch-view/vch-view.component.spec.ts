@@ -15,14 +15,20 @@
 */
 
 import { TestBed, async, ComponentFixture } from '@angular/core/testing';
+import { HttpModule } from '@angular/http';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import { By } from '@angular/platform-browser';
 
 import { JASMINE_TIMEOUT } from '../testing/jasmine.constants';
-import { GlobalsService, Globals } from '../shared/globals.service';
-import { RefreshService } from '../shared/refresh.service';
-import { AppAlertService } from '../shared/app-alert.service';
+import {
+    RefreshService,
+    AppAlertService,
+    I18nService,
+    Vic18nService,
+    Globals,
+    GlobalsService,
+} from '../shared';
 import { VicVmViewService } from '../services/vm-view.service';
 import { VicVchViewComponent } from './vch-view.component';
 import { VirtualContainerHost } from './vch.model';
@@ -87,13 +93,16 @@ describe('VicVchViewComponent', () => {
                 GlobalsService,
                 Globals,
                 RefreshService,
-                AppAlertService
+                AppAlertService,
+                Vic18nService,
+                I18nService
             ],
             declarations: [
                 VicVchViewComponent
             ],
             imports: [
-                ClarityModule.forRoot()
+                ClarityModule.forRoot(),
+                HttpModule
             ]
         }).compileComponents();
         fixture = TestBed.createComponent<VicVchViewComponent>(VicVchViewComponent);

@@ -38,6 +38,9 @@ import org.apache.commons.logging.LogFactory;
 import com.vmware.vic.model.ContainerVm;
 import com.vmware.vic.model.ModelObject;
 import com.vmware.vic.model.VirtualContainerHostVm;
+import com.vmware.vic.model.constants.BaseVm;
+import com.vmware.vic.model.constants.Container;
+import com.vmware.vic.model.constants.Vch;
 import com.vmware.vic.utils.VicVmComparator;
 import com.vmware.vise.data.Constraint;
 import com.vmware.vise.data.PropertySpec;
@@ -713,32 +716,32 @@ static ResultSet getListData(
 
    private static String getVmPropValue(ModelObject mo, String property) {
 	   if (mo instanceof VirtualContainerHostVm) {
-		   if ("name".equals(property)) {
+		   if (BaseVm.VM_NAME.equals(property)) {
 			   return ((VirtualContainerHostVm) mo).getName().toLowerCase();
-		   } else if ("vchIp".equals(property)) {
+		   } else if (Vch.VM_VCH_IP.equals(property)) {
 			   return ((VirtualContainerHostVm) mo).getClientIp().toLowerCase();
-		   } else if ("overallStatus".equals(property)) {
+		   } else if (BaseVm.VM_OVERALL_STATUS.equals(property)) {
 			   return ((VirtualContainerHostVm) mo).getOverallStatus()
 					   .toLowerCase();
 		   }
 		   return null;
 	   } else if (mo instanceof ContainerVm) {
-		   if ("containerName".equals(property)) {
+		   if (Container.VM_CONTAINERNAME_KEY.equals(property)) {
 		       return ((ContainerVm) mo).getContainerName().toLowerCase();
-		   } else if ("powerState".equals(property)) {
+		   } else if (BaseVm.Runtime.VM_POWERSTATE_BASENAME.equals(property)) {
 		       return ((ContainerVm) mo).getPowerState().toLowerCase();
-		   } else if ("guestMemoryUsage".equals(property)) {
+		   } else if (BaseVm.VM_GUESTMEMORYUSAGE.equals(property)) {
 		       return Integer.toString(((ContainerVm) mo).getGuestMemoryUsage());
-		   } else if ("overallCpuUsage".equals(property)) {
+		   } else if (BaseVm.VM_OVERALLCPUUSAGE.equals(property)) {
 		       return Integer.toString(((ContainerVm) mo).getOverallCpuUsage());
-		   } else if ("committedStorage".equals(property)) {
+		   } else if (BaseVm.VM_COMMITTEDSTORAGE.equals(property)) {
 		       return Long.toString(((ContainerVm) mo).getCommittedStorage());
-		   } else if ("portMapping".equals(property)) {
+		   } else if (Container.VM_PORTMAPPING_KEY.equals(property)) {
 		       String pm = ((ContainerVm) mo).getPortMapping();
 		       return pm != null ? pm.toLowerCase() : "";
-		   } else if ("name".equals(property)) {
+		   } else if (BaseVm.VM_NAME.equals(property)) {
 		       return ((ContainerVm) mo).getName().toLowerCase();
-		   } else if ("imageName".equals(property)) {
+		   } else if (Container.VM_IMAGENAME_KEY.equals(property)) {
 		       return ((ContainerVm) mo).getImageName().toLowerCase();
 		   }
 	   }

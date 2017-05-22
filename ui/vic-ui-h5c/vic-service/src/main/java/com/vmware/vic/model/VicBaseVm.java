@@ -19,6 +19,8 @@ package com.vmware.vic.model;
 
 import java.util.List;
 
+import com.vmware.vic.model.constants.BaseVm;
+import com.vmware.vic.model.constants.Vch;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.ManagedEntityStatus;
 import com.vmware.vim25.ManagedObjectReference;
@@ -30,18 +32,27 @@ import com.vmware.vim25.VirtualMachineStorageSummary;
 import com.vmware.vim25.VirtualMachineSummary;
 
 public abstract class VicBaseVm extends ModelObject {
-	protected static final String VM_KEY_NAME = "name";
-	protected static final String VM_KEY_OVERALL_STATUS = "overallStatus";
-	protected static final String VM_KEY_POWERSTATE = "runtime.powerState";
-	protected static final String VM_KEY_SUMMARY = "summary";
-	protected static final String VM_KEY_GUESTFULLNAME = "config.guestFullName";
-	protected static final String VM_KEY_CONFIG_EXTRACONFIG = "config.extraConfig";
-	protected static final String VM_KEY_RESOURCECONFIG = "resourceConfig";
-	protected static final String VM_KEY_RESOURCEPOOL = "resourcePool";
-	protected static final String VM_KEY_CLIENT_IP = "clientIp";
-	protected static final String VM_KEY_OVERALLCPUUSAGE = "overallCpuUsage";
-	protected static final String VM_KEY_GUESTMEMORYUSAGE = "guestMemoryUsage";
-	protected static final String VM_KEY_COMMITTEDSTORAGE = "committedStorage";
+	protected static final String VM_KEY_NAME = BaseVm.VM_NAME;
+	protected static final String VM_KEY_OVERALL_STATUS =
+	        BaseVm.VM_OVERALL_STATUS;
+	protected static final String VM_KEY_POWERSTATE =
+	        BaseVm.Runtime.VM_POWERSTATE_FULLPATH;
+	protected static final String VM_KEY_SUMMARY = BaseVm.VM_SUMMARY;
+	protected static final String VM_KEY_GUESTFULLNAME =
+	        BaseVm.Config.VM_GUESTFULLNAME;
+	protected static final String VM_KEY_CONFIG_EXTRACONFIG =
+	        BaseVm.Config.VM_EXTRACONFIG;
+	protected static final String VM_KEY_RESOURCECONFIG =
+	        BaseVm.VM_RESOURCECONFIG;
+	protected static final String VM_KEY_RESOURCEPOOL =
+	        BaseVm.VM_RESOURCEPOOL;
+	protected static final String VM_KEY_CLIENT_IP = Vch.VM_CLIENT_IP;
+	protected static final String VM_KEY_OVERALLCPUUSAGE =
+	        BaseVm.VM_OVERALLCPUUSAGE;
+	protected static final String VM_KEY_GUESTMEMORYUSAGE =
+	        BaseVm.VM_GUESTMEMORYUSAGE;
+	protected static final String VM_KEY_COMMITTEDSTORAGE =
+	        BaseVm.VM_COMMITTEDSTORAGE;
 	protected final ManagedObjectReference _objectRef;
 	protected String _vmName = null;
 	protected String _guestFullName = null;

@@ -22,9 +22,20 @@ import {
 import { Subscription } from 'rxjs/Subscription';
 import { State } from 'clarity-angular';
 import { VirtualContainerHost } from './vch.model';
-import { GlobalsService } from '../shared/globals.service';
+import {
+    GlobalsService,
+    RefreshService,
+    Vic18nService
+} from '../shared';
 import { VicVmViewService } from '../services/vm-view.service';
-import { RefreshService } from '../shared/refresh.service';
+import {
+    VSPHERE_VM_SUMMARY_KEY,
+    DOCKER_ENGINE_PORT_NOTLS,
+    DOCKER_ENGINE_PORT_TLS,
+    VSPHERE_SERVEROBJ_VIEWEXT_KEY,
+    VSPHERE_VITREE_HOSTCLUSTERVIEW_KEY,
+    WS_VCH
+} from '../shared/constants';
 
 @Component({
     selector: 'vic-vch-view',
@@ -32,6 +43,7 @@ import { RefreshService } from '../shared/refresh.service';
     templateUrl: './vch-view.template.html'
 })
 export class VicVchViewComponent implements OnInit, OnDestroy {
+    public readonly WS_VCH_CONSTANTS = WS_VCH;
     private refreshSubscription: Subscription;
     public isDgLoading: boolean = true;
     public vchs: VirtualContainerHost[] = [];
@@ -44,7 +56,8 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
     constructor(
         private vmViewService: VicVmViewService,
         private refreshService: RefreshService,
-        private gs: GlobalsService
+        private gs: GlobalsService,
+        public vicI18n: Vic18nService
     ) {
         // subscribes to the global refresh event
         this.refreshSubscription = this.refreshService
@@ -74,7 +87,8 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
      * @return DOCKER_HOST environment variable
      */
     getDockerEndpointString(item: VirtualContainerHost): string {
-        return `DOCKER_HOST=${item.vchIp}:${item.isUsingTls ? '2376' : '2375'}`;
+        return `DOCKER_HOST=${item.vchIp}:${item.isUsingTls ?
+            DOCKER_ENGINE_PORT_TLS : DOCKER_ENGINE_PORT_NOTLS}`;
     }
 
     /**
@@ -113,12 +127,13 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
      */
     navigateToObject(objectId: string) {
         if (objectId.indexOf('VirtualMachine') > -1) {
-            this.gs.getWebPlatform().sendNavigationRequest('vsphere.core.vm.summary', objectId);
+            this.gs.getWebPlatform().sendNavigationRequest(
+                VSPHERE_VM_SUMMARY_KEY, objectId);
         } else {
             window.parent.location.href = '/ui/#?extensionId=' +
-                'vsphere.core.inventory.serverObjectViewsExtension&' +
+                VSPHERE_SERVEROBJ_VIEWEXT_KEY + '&' +
                 'objectId=' + objectId + '&' +
-                'navigator=vsphere.core.viTree.hostsAndClustersView';
+                'navigator=' + VSPHERE_VITREE_HOSTCLUSTERVIEW_KEY;
         }
     }
 }
