@@ -255,7 +255,6 @@ Bridge network - invalid
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls}
     Should Contain  ${output}  vic-machine-linux create failed
-    Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
