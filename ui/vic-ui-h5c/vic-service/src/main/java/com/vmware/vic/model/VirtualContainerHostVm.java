@@ -26,34 +26,61 @@ import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.ManagedEntityStatus;
 import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.OptionValue;
+import com.vmware.vim25.ResourceConfigSpec;
 import com.vmware.vim25.VirtualMachinePowerState;
 import com.vmware.vim25.VirtualMachineSummary;
 
 public class VirtualContainerHostVm extends VicBaseVm {
 	private static final String EXTRACONFIG_CLIENT_IP_KEY =
 			"guestinfo.vice..init.networks|client.assigned.IP";
+	private static final String EXTRACONFIG_DOCKER_PERSONALITY_ARGS_KEY =
+            "guestinfo.vice./init/sessions|docker-personality/cmd/Args~";
+	private static final String VM_KEY_IS_USING_TLS = "isUsingTls";
+	private static final String DOCKER_ENGINE_SERVER_TLS_PORT = "2376";
 	private String _clientIp = null;
+	private boolean _isUsingTls = true;
 
 	public VirtualContainerHostVm(ObjectContent objContent, String serverGuid) {
 		super(objContent, serverGuid);
 		processDynamicProperties(objContent.getPropSet());
 	}
 
+	/**
+	 * Getter for VCH VM's IP
+	 */
 	public String getClientIp() {
 		return _clientIp;
 	}
 
+	/**
+	 * Getter for isUsingTls
+	 */
+	public boolean getIsUsingTls() {
+	    return _isUsingTls;
+	}
+
+	/**
+	 * Process DynamicProperty[] and extract information
+	 * needed for the VirtualContainerHostVm model
+	 * @param dpsList : DynamicProperty list from ObjectContent.getPropSet()
+	 */
 	@Override
 	protected void processDynamicProperties(List<DynamicProperty> dpsList) {
 		for (DynamicProperty dp : dpsList) {
 			if (dp.getName().equals(VM_KEY_NAME)) {
 				_vmName = (String)dp.getVal();
+			} else if (dp.getName().equals(VM_KEY_GUESTFULLNAME)) {
+			    _guestFullName = (String)dp.getVal();
 			} else if (dp.getName().equals(VM_KEY_OVERALL_STATUS)) {
 				_overallStatus = (ManagedEntityStatus)dp.getVal();
 			} else if (dp.getName().equals(VM_KEY_POWERSTATE)) {
 				_powerState = (VirtualMachinePowerState)dp.getVal();
 			} else if (dp.getName().equals(VM_KEY_SUMMARY)) {
 				processVmSummary((VirtualMachineSummary)dp.getVal());
+			} else if (dp.getName().equals(VM_KEY_RESOURCECONFIG)) {
+			    _resourceConfig = (ResourceConfigSpec)dp.getVal();
+			} else if (dp.getName().equals(VM_KEY_RESOURCEPOOL)) {
+			    _resourcePool = (Object)dp.getVal();
 			} else if (dp.getName().equals(VM_KEY_CONFIG_EXTRACONFIG)) {
 				processExtraConfig((ArrayOfOptionValue)dp.getVal());
 			}
@@ -61,7 +88,9 @@ public class VirtualContainerHostVm extends VicBaseVm {
 	}
 
 	/**
-	 * Extract VCH IP from config.extraConfig
+	 * Extract VCH IP from config.extraConfig. Also determine
+	 * if VCH appliance uses TLS by looking for a string pattern
+	 * "2376" in docker engine server arguments
 	 * @param ovs
 	 */
 	private void processExtraConfig(ArrayOfOptionValue ovs) {
@@ -78,12 +107,22 @@ public class VirtualContainerHostVm extends VicBaseVm {
 						}
 					}
 					_clientIp = sb.toString();
-					break;
+					continue;
+				}
+
+				if (EXTRACONFIG_DOCKER_PERSONALITY_ARGS_KEY.equals(key)) {
+				    _isUsingTls = ((String)ov.getValue()).indexOf(
+				            DOCKER_ENGINE_SERVER_TLS_PORT) > -1;
+				    continue;
 				}
 			}
 		}
 	}
 
+	/**
+	 * Property getter
+	 * @param property : property to retrieve
+	 */
 	@Override
 	public Object getProperty(String property) {
 		if ("objectRef".equals(property)) {
@@ -94,6 +133,8 @@ public class VirtualContainerHostVm extends VicBaseVm {
 			return _overallStatus;
 		} else if (VM_KEY_POWERSTATE.equals(property)) {
 			return _powerState;
+		} else if (VM_KEY_GUESTFULLNAME.equals(property)) {
+		    return _guestFullName;
 		} else if (VM_KEY_CLIENT_IP.equals(property)) {
 			return _clientIp;
 		} else if (VM_KEY_OVERALLCPUUSAGE.equals(property)) {
@@ -102,6 +143,12 @@ public class VirtualContainerHostVm extends VicBaseVm {
 			return _guestMemoryUsage;
 		} else if (VM_KEY_COMMITTEDSTORAGE.equals(property)) {
 			return _committedStorage;
+		} else if (VM_KEY_IS_USING_TLS.equals(property)) {
+		    return _isUsingTls;
+		} else if (VM_KEY_RESOURCECONFIG.equals(property)) {
+		    return _resourceConfig;
+		} else if (VM_KEY_RESOURCEPOOL.equals(property)) {
+		    return _resourcePool;
 		}
 		return UNSUPPORTED_PROPERTY;
 	}

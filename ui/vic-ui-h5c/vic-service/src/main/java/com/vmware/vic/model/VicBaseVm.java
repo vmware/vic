@@ -23,6 +23,7 @@ import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.ManagedEntityStatus;
 import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.ObjectContent;
+import com.vmware.vim25.ResourceConfigSpec;
 import com.vmware.vim25.VirtualMachinePowerState;
 import com.vmware.vim25.VirtualMachineQuickStats;
 import com.vmware.vim25.VirtualMachineStorageSummary;
@@ -33,13 +34,19 @@ public abstract class VicBaseVm extends ModelObject {
 	protected static final String VM_KEY_OVERALL_STATUS = "overallStatus";
 	protected static final String VM_KEY_POWERSTATE = "runtime.powerState";
 	protected static final String VM_KEY_SUMMARY = "summary";
+	protected static final String VM_KEY_GUESTFULLNAME = "config.guestFullName";
 	protected static final String VM_KEY_CONFIG_EXTRACONFIG = "config.extraConfig";
+	protected static final String VM_KEY_RESOURCECONFIG = "resourceConfig";
+	protected static final String VM_KEY_RESOURCEPOOL = "resourcePool";
 	protected static final String VM_KEY_CLIENT_IP = "clientIp";
 	protected static final String VM_KEY_OVERALLCPUUSAGE = "overallCpuUsage";
 	protected static final String VM_KEY_GUESTMEMORYUSAGE = "guestMemoryUsage";
-	protected static final String VM_KEY_COMMITTEDSTORAGE = "commitedStorage";
+	protected static final String VM_KEY_COMMITTEDSTORAGE = "committedStorage";
 	protected final ManagedObjectReference _objectRef;
 	protected String _vmName = null;
+	protected String _guestFullName = null;
+	protected ResourceConfigSpec _resourceConfig = null;
+	protected Object _resourcePool = null;
 	protected int _overallCpuUsage;
 	protected int _guestMemoryUsage;
 	protected long _committedStorage;
@@ -86,6 +93,10 @@ public abstract class VicBaseVm extends ModelObject {
 	public String getPowerState() {
 		return _powerState.toString();
 	}
+	
+	public String getGuestFullName() {
+	    return _guestFullName;
+	}
 
 	public int getOverallCpuUsage() {
 		return _overallCpuUsage;
@@ -95,8 +106,16 @@ public abstract class VicBaseVm extends ModelObject {
 		return _guestMemoryUsage;
 	}
 
-	public long getCommitedStorage() {
+	public long getCommittedStorage() {
 		return _committedStorage;
+	}
+	
+	public ResourceConfigSpec getResourceConfig() {
+	    return _resourceConfig;
+	}
+	
+	public Object getResourcePool() {
+	    return _resourcePool;
 	}
 
 }

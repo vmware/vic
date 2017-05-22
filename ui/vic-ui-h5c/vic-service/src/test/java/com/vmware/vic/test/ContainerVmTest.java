@@ -89,7 +89,7 @@ public class ContainerVmTest extends Common {
 		assertTrue(_vm.getProperty("imageName").equals("busybox"));
 		assertTrue(_vm.getProperty("overallCpuUsage").equals(1000));
 		assertTrue(_vm.getProperty("guestMemoryUsage").equals(500));
-		assertTrue(_vm.getProperty("commitedStorage").equals((long)123456789));
+		assertTrue(_vm.getProperty("committedStorage").equals((long)123456789));
 		assertTrue(_vm.getProperty("iDontExist").equals(ModelObject.UNSUPPORTED_PROPERTY));
 	}
 
@@ -104,7 +104,7 @@ public class ContainerVmTest extends Common {
 		assertEquals(_vm.getImageName(), "busybox");
 		assertEquals(_vm.getOverallCpuUsage(), 1000);
 		assertEquals(_vm.getGuestMemoryUsage(), 500);
-		assertEquals(_vm.getCommitedStorage(), (long)123456789);
+		assertEquals(_vm.getCommittedStorage(), (long)123456789);
 	}
 
 	@Test
@@ -139,7 +139,7 @@ public class ContainerVmTest extends Common {
 		assertTrue(_vm.getProperty("portMapping").equals("8080:80/tcp"));
 		assertTrue(_vm.getProperty("overallCpuUsage").equals(1000));
 		assertTrue(_vm.getProperty("guestMemoryUsage").equals(500));
-		assertTrue(_vm.getProperty("commitedStorage").equals((long)123456789));
+		assertTrue(_vm.getProperty("committedStorage").equals((long)123456789));
 		assertTrue(_vm.getProperty("iDontExist").equals(ModelObject.UNSUPPORTED_PROPERTY));
 	}
 
@@ -154,6 +154,6 @@ public class ContainerVmTest extends Common {
 		assertEquals(_vm.getPortMapping(), "8080:80/tcp");
 		assertEquals(_vm.getOverallCpuUsage(), 1000);
 		assertEquals(_vm.getGuestMemoryUsage(), 500);
-		assertEquals(_vm.getCommitedStorage(), (long)123456789);
+		assertEquals(_vm.getCommittedStorage(), (long)123456789);
 	}
 }
