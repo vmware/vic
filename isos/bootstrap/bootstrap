@@ -47,6 +47,9 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
 
     cp /bin/tether ${MOUNTPOINT}/.tether/tether
 
+    echo 'tether tmpfs size before copying libraries: '
+    df -k ${MOUNTPOINT}/.tether
+
     # ldd of xtables-multi yields the following list of libraries we need to
     # copy into our initrd.  We need these binaries in order to call iptables
     #
@@ -67,6 +70,9 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     cp -a /lib/libm.* /lib/libm-* /lib/libgcc_s* /lib/libip*tc* /lib/libxtables* /lib/libdl* /lib/libc.so* /lib/libc-* ${MOUNTPOINT}/.tether/lib
     cp -a /lib64/ld-* ${MOUNTPOINT}/.tether/lib64
 
+    echo 'tether tmpfs size after copying libraries: '
+    df -k ${MOUNTPOINT}/.tether
+
     mkdir -p ${MOUNTPOINT}/usr/lib
     cp -r /usr/lib/iptables ${MOUNTPOINT}/usr/lib/
 
@@ -74,6 +80,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
 
     echo "switching to the new mount"
     systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
+    echo "switched to the new mount"
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard
