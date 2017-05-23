@@ -174,4 +174,5 @@ From the root directory of the `vic` repository run `drone exec --repo.trusted`
 
 ## License
 
+
 VIC Engine is available under the [Apache 2 license](LICENSE).
