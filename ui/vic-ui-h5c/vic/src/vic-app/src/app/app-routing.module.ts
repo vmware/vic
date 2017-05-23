@@ -22,6 +22,7 @@ import { AppRoutingComponent } from './app-routing.component';
 import { VicSummaryPortletComponent } from './summary-portlet/summary-portlet.component';
 import { VicSummaryViewComponent } from './summary-view/summary-view.component';
 import { VicVchViewComponent } from './vch-view/vch-view.component';
+import { VicContainerViewComponent } from './container-view/container-view.component';
 
 const appRoutes: Routes = [
     { path: 'index.html', component: AppRoutingComponent },
@@ -30,7 +31,9 @@ const appRoutes: Routes = [
     { path: 'summary-view', component: VicSummaryViewComponent },
     { path: 'summary-view/:id', component: VicSummaryViewComponent },
     { path: 'vch-view', component: VicVchViewComponent },
-    { path: 'vch-view/:id', component: VicVchViewComponent }
+    { path: 'vch-view/:id', component: VicVchViewComponent },
+    { path: 'container-view', component: VicContainerViewComponent },
+    { path: 'container-view/:id', component: VicContainerViewComponent }
 ];
 
 export const extensionToRoutes = {};
@@ -43,7 +46,8 @@ export const routedComponents = [
     AppRoutingComponent,
     VicSummaryPortletComponent,
     VicSummaryViewComponent,
-    VicVchViewComponent
+    VicVchViewComponent,
+    VicContainerViewComponent
 ];
 
 @NgModule({

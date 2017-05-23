@@ -22,6 +22,9 @@ import java.util.Map;
 import com.vmware.vic.model.ContainerVm;
 import com.vmware.vic.model.ModelObject;
 import com.vmware.vic.model.VirtualContainerHostVm;
+import com.vmware.vic.model.constants.BaseVm;
+import com.vmware.vic.model.constants.Container;
+import com.vmware.vic.model.constants.Vch;
 
 /**
  * Comparator for VIC VMs
@@ -71,34 +74,34 @@ public class VicVmComparator implements Comparator<String> {
 	 */
 	private String getStringPropertyFromVm(ModelObject mo) {
 		if (mo instanceof VirtualContainerHostVm) {
-			if ("id".equals(compareBy)) {
+			if (BaseVm.ID.equals(compareBy)) {
 				return ((VirtualContainerHostVm) mo).getId();
-			} else if ("name".equals(compareBy)) {
+			} else if (BaseVm.VM_NAME.equals(compareBy)) {
 				return ((VirtualContainerHostVm) mo).getName();
-			} else if ("vchIp".equals(compareBy)) {
+			} else if (Vch.VM_VCH_IP.equals(compareBy)) {
 				return ((VirtualContainerHostVm) mo).getClientIp();
-			} else if ("overallStatus".equals(compareBy)) {
+			} else if (BaseVm.VM_OVERALL_STATUS.equals(compareBy)) {
 				return ((VirtualContainerHostVm) mo).getOverallStatus();
 			}
 		} else if (mo instanceof ContainerVm) {
-			if ("id".equals(compareBy)) {
+			if (BaseVm.ID.equals(compareBy)) {
 			    return ((ContainerVm) mo).getId();
-			} else if ("containerName".equals(compareBy)) {
+			} else if (Container.VM_CONTAINERNAME_KEY.equals(compareBy)) {
 			    return ((ContainerVm) mo).getContainerName();
-			} else if ("powerState".equals(compareBy)) {
+			} else if (BaseVm.Runtime.VM_POWERSTATE_BASENAME.equals(compareBy)) {
 			    return ((ContainerVm) mo).getPowerState();
-			} else if ("guestMemoryUsage".equals(compareBy)) {
+			} else if (BaseVm.VM_GUESTMEMORYUSAGE.equals(compareBy)) {
 			    return Integer.toString(((ContainerVm) mo).getGuestMemoryUsage());
-			} else if ("overallCpuUsage".equals(compareBy)) {
+			} else if (BaseVm.VM_OVERALLCPUUSAGE.equals(compareBy)) {
                 return Integer.toString(((ContainerVm) mo).getOverallCpuUsage());
-			} else if ("committedStorage".equals(compareBy)) {
+			} else if (BaseVm.VM_COMMITTEDSTORAGE.equals(compareBy)) {
                 return Long.toString(((ContainerVm) mo).getCommittedStorage());
-			} else if ("portMapping".equals(compareBy)) {
+			} else if (Container.VM_PORTMAPPING_KEY.equals(compareBy)) {
 			    String pm = ((ContainerVm) mo).getPortMapping();
                 return pm != null ? pm : "";
-			} else if ("name".equals(compareBy)) {
+			} else if (BaseVm.VM_NAME.equals(compareBy)) {
 			    return ((ContainerVm) mo).getName();
-			} else if ("imageName".equals(compareBy)) {
+			} else if (Container.VM_IMAGENAME_KEY.equals(compareBy)) {
 			    return ((ContainerVm) mo).getImageName();
 			}
 		}

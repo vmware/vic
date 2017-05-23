@@ -21,6 +21,7 @@ import java.util.List;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.vmware.vic.model.constants.Vch;
 import com.vmware.vim25.ArrayOfOptionValue;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.ManagedEntityStatus;
@@ -32,11 +33,11 @@ import com.vmware.vim25.VirtualMachineSummary;
 
 public class VirtualContainerHostVm extends VicBaseVm {
 	private static final String EXTRACONFIG_CLIENT_IP_KEY =
-			"guestinfo.vice..init.networks|client.assigned.IP";
+			Vch.VM_EXTRACONFIG_CLIENT_IP_KEY;
 	private static final String EXTRACONFIG_DOCKER_PERSONALITY_ARGS_KEY =
-            "guestinfo.vice./init/sessions|docker-personality/cmd/Args~";
-	private static final String VM_KEY_IS_USING_TLS = "isUsingTls";
+            Vch.VM_EXTRACONFIG_DOCKER_PERSONALITY_ARGS_KEY;
 	private static final String DOCKER_ENGINE_SERVER_TLS_PORT = "2376";
+	private static final String VM_KEY_IS_USING_TLS = Vch.VM_IS_USING_TLS;
 	private String _clientIp = null;
 	private boolean _isUsingTls = true;
 

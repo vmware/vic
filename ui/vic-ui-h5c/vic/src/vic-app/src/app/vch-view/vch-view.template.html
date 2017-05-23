@@ -1,8 +1,16 @@
 <clr-datagrid (clrDgRefresh)="refreshGrid($event)" [clrDgLoading]="isDgLoading">
-    <clr-dg-column [clrDgField]="'name'">Name</clr-dg-column>
-    <clr-dg-column [clrDgField]="'overallStatus'">Status</clr-dg-column>
-    <clr-dg-column [clrDgField]="'vchIp'">Docker API Endpoint</clr-dg-column>
-    <clr-dg-column [clrDgField]="'vchIp'">VCH Admin Portal</clr-dg-column>
+    <clr-dg-column [clrDgField]="'name'">
+        {{vicI18n.translate(this.WS_VCH_CONSTANTS.DG.COLUMNS, 'NAME')}}
+    </clr-dg-column>
+    <clr-dg-column [clrDgField]="'overallStatus'">
+        {{vicI18n.translate(this.WS_VCH_CONSTANTS.DG.COLUMNS, 'OVERALL_STATUS')}}
+    </clr-dg-column>
+    <clr-dg-column [clrDgField]="'vchIp'">
+        {{vicI18n.translate(this.WS_VCH_CONSTANTS.DG.COLUMNS, 'DOCKER_API_ENDPOINT')}}
+    </clr-dg-column>
+    <clr-dg-column [clrDgField]="'vchIp'">
+        {{vicI18n.translate(this.WS_VCH_CONSTANTS.DG.COLUMNS, 'VCH_ADMIN_PORTAL')}}
+    </clr-dg-column>
 
     <clr-dg-row *ngFor="let item of vchs">
         <clr-dg-cell>
