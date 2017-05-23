@@ -519,6 +519,9 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
+	// enable Destroy
+	c.vm.EnableDestroy(ctx)
+
 	//removes the vm from vsphere, but detaches the disks first
 	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.DeleteExceptDisks(ctx)
