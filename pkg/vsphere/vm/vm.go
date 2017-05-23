@@ -618,7 +618,7 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 	}
 }
 
-// EnableDestroy attempts to enable the VitualMachine.Destroy_Task method
+// EnableDestroy attempts to enable the VirtualMachine.Destroy_Task method
 // so that the VC UI can enable the VM "delete" action.
 func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
 	if !vm.IsVC() {
