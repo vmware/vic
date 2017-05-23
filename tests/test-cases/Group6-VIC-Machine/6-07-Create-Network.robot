@@ -245,7 +245,6 @@ Bridge network - ESX none
     Cleanup VIC Appliance On Test Server
 
 Bridge network - invalid
-    Pass execution  Skipping test
     Run Keyword If  '%{HOST_TYPE}' != 'ESXi'  Pass Execution  Test skipped on vCenter
 
     Set Test Environment Variables
@@ -254,7 +253,7 @@ Bridge network - invalid
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls}
-    Should Contain  ${output}  vic-machine-linux create failed
+    Should Contain  ${output}  Installer completed successfully
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
