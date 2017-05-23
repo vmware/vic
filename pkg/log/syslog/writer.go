@@ -82,7 +82,7 @@ func (w *writer) connect() (err error) {
 
 	w.conn, err = w.dialer.dial()
 	if err == nil {
-		logger.Info("successfully connected to syslog server")
+		Logger.Info("successfully connected to syslog server")
 		if w.hostname == "" {
 			w.hostname, _, _ = net.SplitHostPort(w.conn.LocalAddr().String())
 		}
@@ -213,7 +213,7 @@ func (w *writer) WithTag(tag string) Writer {
 
 func (w *writer) run() {
 	defer func() {
-		logger.Infof("exiting syslog writer loop")
+		Logger.Infof("exiting syslog writer loop")
 		if w.conn != nil {
 			w.conn.Close()
 		}
@@ -223,7 +223,7 @@ func (w *writer) run() {
 	if err := w.connect(); err != nil {
 		switch err.(type) {
 		case *net.ParseError, *net.AddrError:
-			logger.Errorf("could not connec to syslog server (will not try again): %s", err)
+			Logger.Errorf("could not connec to syslog server (will not try again): %s", err)
 			return
 		}
 	}
@@ -233,7 +233,7 @@ func (w *writer) run() {
 	for m := range w.msgs {
 		for _, s := range strings.SplitAfter(m.msg, "\n") {
 			if _, err := w.writeAndRetry(m.p, m.tag, s); err != nil {
-				logger.Debugf("could not write syslog message: %s", err)
+				Logger.Debugf("could not write syslog message: %s", err)
 			}
 		}
 	}

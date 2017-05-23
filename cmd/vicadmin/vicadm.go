@@ -122,6 +122,7 @@ func Init() {
 	logcfg := viclog.NewLoggingConfig()
 	if vchConfig.Diagnostics.DebugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
 	}
 
 	if vchConfig.Diagnostics.SysLogConfig != nil {
@@ -129,7 +130,6 @@ func Init() {
 			Network:  vchConfig.Diagnostics.SysLogConfig.Network,
 			RAddr:    vchConfig.Diagnostics.SysLogConfig.RAddr,
 			Priority: syslog.LOG_INFO | syslog.LOG_DAEMON,
-			Tag:      syslog.MakeTag(vchConfig.Name, ""),
 		}
 	}
 

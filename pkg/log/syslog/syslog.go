@@ -139,12 +139,10 @@ func MakeTag(prefix, proc string) string {
 	return proc
 }
 
-var logger = logrus.New()
+// Logger is the logger object used by the package
+var Logger = logrus.New()
 
-func init() {
-	logger.Level = logrus.DebugLevel
-}
-
+// Format is the syslog format, e.g. RFC 3164
 type Format int
 
 const (

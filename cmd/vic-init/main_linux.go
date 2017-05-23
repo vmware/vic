@@ -86,6 +86,7 @@ func main() {
 	logcfg := viclog.NewLoggingConfig()
 	if debugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
 	}
 
 	if config.Diagnostics.SysLogConfig != nil {
@@ -93,7 +94,6 @@ func main() {
 			Network:  config.Diagnostics.SysLogConfig.Network,
 			RAddr:    config.Diagnostics.SysLogConfig.RAddr,
 			Priority: syslog.LOG_INFO | syslog.LOG_DAEMON,
-			Tag:      syslog.MakeTag(config.Name, ""),
 		}
 	}
 

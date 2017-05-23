@@ -81,6 +81,7 @@ func main() {
 	logcfg := viclog.NewLoggingConfig()
 	if ploptions.PortLayerOptions.Debug {
 		logcfg.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
 	}
 
 	if ploptions.PortLayerOptions.SyslogAddr != nil {
