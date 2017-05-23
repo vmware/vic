@@ -24,10 +24,12 @@ import (
 	"github.com/docker/go-units"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -38,6 +40,39 @@ const (
 // Finder is defined for easy to test
 type Finder interface {
 	ObjectReference(ctx context.Context, ref types.ManagedObjectReference) (object.Reference, error)
+}
+
+func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d *data.Data) error {
+	// display name
+	name, err := vm.Name(ctx)
+	if err != nil {
+		return err
+	}
+	d.DisplayName = name
+
+	// compute resource
+	parent, err := vm.ResourcePool(ctx)
+	if err != nil {
+		return err
+	}
+	var mrp mo.ResourcePool
+	if err = parent.Properties(ctx, parent.Reference(), []string{"parent"}, &mrp); err != nil {
+		return err
+	}
+
+	if mrp.Parent == nil {
+		return fmt.Errorf("Failed to get parent resource pool")
+	}
+	or, err := finder.ObjectReference(ctx, *mrp.Parent)
+	if err != nil {
+		return err
+	}
+	rp, ok := or.(*object.ResourcePool)
+	if !ok {
+		return fmt.Errorf("parent resource %s is not resource pool", mrp.Parent)
+	}
+	d.ComputeResourcePath = rp.InventoryPath
+	return nil
 }
 
 // NewDataFromConfig translate VirtualContainerHostConfigSpec back to data.Data object

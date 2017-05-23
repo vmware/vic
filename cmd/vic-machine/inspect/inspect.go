@@ -155,7 +155,7 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	}
 
 	if i.showConfig {
-		err = i.showCommand(ctx, validator.Session.Finder, vchConfig)
+		err = i.showCommand(ctx, validator.Session.Finder, vchConfig, vch)
 		if err != nil {
 			log.Error("Failed to print Virtual Container Host configuration")
 			log.Error(err)
@@ -187,9 +187,12 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	return nil
 }
 
-func (i Inspect) showCommand(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec) error {
+func (i Inspect) showCommand(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
 	data, err := validate.NewDataFromConfig(ctx, finder, conf)
 	if err != nil {
+		return err
+	}
+	if err = validate.SetDataFromVM(ctx, finder, vm, data); err != nil {
 		return err
 	}
 	mapOptions, err := converter.DataToOption(data)
