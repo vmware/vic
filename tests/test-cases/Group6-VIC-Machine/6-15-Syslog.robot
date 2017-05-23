@@ -75,4 +75,5 @@ Verify VCH remote syslog
 
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
     ${pid}=  Get From Dictionary  ${proc-pids}  docker-engine-server
-    Should Contain  ${out}  ${vch-ip} docker-engine-server[${pid}]: Calling GET /v1.25/containers/json?all=1
+    ${host}=  Get From Dictionary  ${proc-hosts}  docker-engine-server
+    Should Contain  ${out}  ${host} docker-engine-server[${pid}]: Calling GET /v1.25/containers/json?all=1
