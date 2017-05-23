@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	Destroy_Task = "Destroy_Task"
+	DestroyTask  = "Destroy_Task"
 	UpdateStatus = "UpdateInProgress"
 )
 
@@ -605,7 +605,7 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 
 	method := []object.DisabledMethodRequest{
 		{
-			Method: Destroy_Task,
+			Method: DestroyTask,
 			Reason: "Managed by VIC Engine",
 		},
 	}
@@ -629,7 +629,7 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
 
 	obj := []types.ManagedObjectReference{vm.Reference()}
 
-	err := m.EnableMethods(ctx, obj, []string{Destroy_Task}, "VIC")
+	err := m.EnableMethods(ctx, obj, []string{DestroyTask}, "VIC")
 	if err != nil {
 		log.Warnf("Failed to enable Destroy_Task for %s: %s", obj[0], err)
 	}
