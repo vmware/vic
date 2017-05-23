@@ -325,7 +325,8 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 	return diffID, nil
 }
 
-// tagOrDigest returns an image's tag or digest based on the image reference.
+// tagOrDigest returns an image's digest if it's pulled by digest, or its tag
+// otherwise.
 func tagOrDigest(r reference.Named, tag string) string {
 	if digested, ok := r.(reference.Canonical); ok {
 		return digested.Digest().String()
@@ -406,16 +407,6 @@ func decodeManifestSchema1(filename string, options Options, registry string) (i
 		return nil, "", err
 	}
 
-	// Verify schema 1 manifest's fields per
-	// docker/docker/distribution/pull_v2.go:verifySchema1Manifest()
-	numFSLayers := len(manifest.FSLayers)
-	if numFSLayers == 0 {
-		return nil, "", fmt.Errorf("no FSlayers in manifest")
-	}
-	if numFSLayers != len(manifest.History) {
-		return nil, "", fmt.Errorf("length of history not equal to number of layers")
-	}
-
 	digest, err := getManifestDigest(content, options.Reference)
 	if err != nil {
 		return nil, "", err
@@ -423,10 +414,19 @@ func decodeManifestSchema1(filename string, options Options, registry string) (i
 
 	manifest.Digest = digest
 
+	// Verify schema 1 manifest's fields per docker/docker/distribution/pull_v2.go
+	numFSLayers := len(manifest.FSLayers)
+	if numFSLayers == 0 {
+		return nil, "", fmt.Errorf("no FSLayers in manifest")
+	}
+	if numFSLayers != len(manifest.History) {
+		return nil, "", fmt.Errorf("length of history not equal to number of layers")
+	}
+
 	return manifest, digest, nil
 }
 
-// verifyDigest checks the manifest digest against the received payload.
+// verifyManifestDigest checks the manifest digest against the received payload.
 func verifyManifestDigest(digested reference.Canonical, bytes []byte) error {
 	verifier, err := ddigest.NewDigestVerifier(digested.Digest())
 	if err != nil {
@@ -482,7 +482,9 @@ func getManifestDigest(content []byte, ref reference.Named) (string, error) {
 
 	log.Debugf("Canonical Bytes: %d", len(bytes))
 
-	// Verify the manifest digest if the image is pulled by digest.
+	// Verify the manifest digest if the image is pulled by digest. If the image
+	// is not pulled by digest, we proceed without this check because we don't
+	// have a digest to verify the received content with.
 	// https://docs.docker.com/registry/spec/api/#content-digests
 	if digested, ok := ref.(reference.Canonical); ok {
 		if err := verifyManifestDigest(digested, bytes); err != nil {

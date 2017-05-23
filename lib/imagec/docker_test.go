@@ -18,12 +18,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/reference"
-	"github.com/docker/libtrust"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
+	UbuntuTaggedRef      = "library/ubuntu:latest"
 	UbuntuDigest         = "ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+	UbuntuDigestSHA      = "sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
 	UbuntuDigestManifest = `{
    "schemaVersion": 1,
    "name": "library/ubuntu",
@@ -77,36 +78,28 @@ const (
 `
 )
 
-func manifestPayload(manifest string) ([]byte, error) {
-	jsonSig, err := libtrust.ParsePrettySignature([]byte(manifest), "signatures")
-	if err != nil {
-		return nil, err
-	}
-	bytes, err := jsonSig.Payload()
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes, nil
-}
-
-func TestVerifyManifestDigest(t *testing.T) {
-	ref, err := reference.ParseNamed(UbuntuDigest)
+func TestGetManifestDigest(t *testing.T) {
+	// Get the manifest content when the image is not pulled by digest
+	ref, err := reference.ParseNamed(UbuntuTaggedRef)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	digested, ok := ref.(reference.Canonical)
+	digest, err := getManifestDigest([]byte(UbuntuDigestManifest), ref)
+	assert.NoError(t, err)
+	assert.Equal(t, digest, UbuntuDigestSHA)
+
+	// Get and verify the manifest content with the correct digest
+	ref, err = reference.ParseNamed(UbuntuDigest)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	_, ok := ref.(reference.Canonical)
 	assert.True(t, ok)
+	digest, err = getManifestDigest([]byte(UbuntuDigestManifest), ref)
+	assert.NoError(t, err)
+	assert.Equal(t, digest, UbuntuDigestSHA)
 
-	bytes, err := manifestPayload(UbuntuDigestManifest)
-	assert.NoError(t, err)
-	// Verify the manifest content with the correct digest
-	err = verifyManifestDigest(digested, bytes)
-	assert.NoError(t, err)
-
-	bytes, err = manifestPayload(DefaultManifest)
-	assert.NoError(t, err)
-	// Attempt to verify an incorrect manifest content with the digest
-	err = verifyManifestDigest(digested, bytes)
+	// Attempt to get and verify an incorrect manifest content with the digest
+	digest, err = getManifestDigest([]byte(DefaultManifest), ref)
 	assert.NotNil(t, err)
 }
