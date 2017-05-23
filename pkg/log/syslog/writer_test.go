@@ -16,7 +16,9 @@ package syslog
 
 import (
 	"fmt"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -173,4 +175,59 @@ func TestWriterReconnectWriteError(t *testing.T) {
 
 	f.AssertExpectations(t)
 	c.AssertExpectations(t)
+}
+
+func TestWriterWithTag(t *testing.T) {
+	f := &mockFormatter{}
+	f.On("Format", priority, mock.Anything, "addr", "child", "child").Return("child")
+	f.On("Format", priority, mock.Anything, "addr", "gchild", "gchild").Return("gchild")
+
+	dn := &mockNetDialer{}
+	c := &MockNetConn{}
+	a := &MockAddr{}
+	a.On("String").Return("addr:123")
+	c.On("LocalAddr").Return(a)
+	c.On("Close").Return(nil)
+	c.On("Write", []byte("child\n")).Return(len("child"), nil)
+	c.On("Write", []byte("gchild\n")).Return(len("gchild"), nil)
+
+	dn.On("dial").Return(c, nil)
+
+	w := newWriter(priority, tag, "", dn, f)
+
+	child := w.WithTag("child")
+	child.Write([]byte("child"))
+
+	gchild := child.WithTag("gchild")
+	gchild.Write([]byte("gchild"))
+
+	go w.run()
+	<-w.running
+
+	w.Close()
+
+	f.AssertExpectations(t)
+	c.AssertExpectations(t)
+}
+
+func TestWriterInitialConnectError(t *testing.T) {
+
+	var tests = []error{
+		&net.ParseError{},
+		&net.AddrError{},
+	}
+
+	for _, e := range tests {
+		dn := &mockNetDialer{}
+		dn.On("dial").Return(nil, e)
+
+		w := newWriter(priority, tag, "", dn, &mockFormatter{})
+		w.run()
+
+		select {
+		case <-w.running:
+			assert.FailNow(t, "writer should not run when connect() fails initially")
+		case <-time.After(2 * time.Second):
+		}
+	}
 }

@@ -63,3 +63,18 @@ func TestMakeTag(t *testing.T) {
 		assert.Equal(t, te.out, out)
 	}
 }
+
+func TestDefaultDialerBadPriority(t *testing.T) {
+	d := &defaultDialer{
+		priority: -1,
+	}
+
+	w, err := d.dial()
+	assert.Nil(t, w)
+	assert.Error(t, err)
+
+	d.priority = (LOG_LOCAL7 | LOG_DEBUG) + 1
+	w, err = d.dial()
+	assert.Nil(t, w)
+	assert.Error(t, err)
+}
