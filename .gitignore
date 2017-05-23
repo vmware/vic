@@ -14,6 +14,7 @@ install-*.tar.gz
 *.html
 *.xml
 *.gas
+*.pyc
 package.list
 *container-logs.zip
 integration_logs*

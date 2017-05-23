@@ -108,7 +108,7 @@ public class VicUIDataAdapter implements DataProviderAdapter {
 				querySpec.resourceSpec.propertySpecs);
 		rs.queryName = querySpec.name;
 		rs.totalMatchedObjectCount = (items != null) ? items.size() : 0;
-		rs.items = items.toArray(new ResultItem[items.size()]); // TODO: consider pagination
+		rs.items = items.toArray(new ResultItem[]{});
 
 		return rs;
 	}
@@ -175,11 +175,17 @@ public class VicUIDataAdapter implements DataProviderAdapter {
 			Constraint constraint,
 			PropertySpec[] propertySpecs) {
 		List<ResultItem> items = new ArrayList<ResultItem>();
+		URI objectUri = null;
 
-		// simple constraint is used in collection view and collection view
-		// only needs to show vic:Root
 		if (ROOT_TYPE.equals(constraint.targetType)) {
-			URI objectUri = _objectStore.getRootUri();
+			objectUri = _objectStore.getRootUri();
+		} else if (VCH_TYPE.equals(constraint.targetType)) {
+			objectUri = _objectStore.createUri(VCH_TYPE, "vic/ALL");
+		} else if (CONTAINER_TYPE.equals(constraint.targetType)) {
+			objectUri = _objectStore.createUri(CONTAINER_TYPE, "vic/ALL");
+		}
+
+		if (objectUri != null) {
 			ModelObject mo = _objectStore.getObj(objectUri);
 			if (mo == null) {
 				_logger.error("ModelObject for " + objectUri + " does not exist!");
@@ -190,6 +196,7 @@ public class VicUIDataAdapter implements DataProviderAdapter {
 				items.add(ri);
 			}
 		}
+
 		return items;
 	}
 

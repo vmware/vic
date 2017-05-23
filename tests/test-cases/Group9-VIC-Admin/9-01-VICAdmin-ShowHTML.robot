@@ -102,14 +102,19 @@ Get Container Logs
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container}  Error
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} start ${container}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
-    Should Be Equal As Integers  ${rc}  0
-    Log  ${output}
     ${vmName}=  Get VM Display Name  ${container}
-    Should Contain  ${output}  ${vmName}/vmware.log
-    Should Contain  ${output}  ${vmName}/tether.debug
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | (cd /tmp; tar xvzf - ${vmName}/tether.debug ${vmName}/vmware.log)
+    Log  ${output}
+    ${rc}  ${output}=  Run And Return Rc and Output  ls -l /tmp/${vmName}/vmware.log
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc and Output  ls -l /tmp/${vmName}/tether.debug
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc and Output  grep 'prepping for switch to container filesystem' /tmp/${vmName}/tether.debug
+    Should Be Equal As Integers  ${rc}  0
+    Run  rm -f /tmp/${vmName}/tether.debug /tmp/${vmName}/vmware.log
 
 Get VICAdmin Log
     Login And Save Cookies
