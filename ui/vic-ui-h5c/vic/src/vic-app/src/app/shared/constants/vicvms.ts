@@ -14,10 +14,8 @@
  limitations under the License.
 */
 
-export * from './app-config';
-export * from './app-alert.component';
-export * from './app-alert.service';
-export * from './globals.service';
-export * from './refresh.service';
-export * from './i18n.service';
-export * from './vic-i18n.service';
+export const VM_GUESTMEMORYUSAGE = 'guestMemoryUsage';
+export const VM_OVERALLCPUUSAGE = 'overallCpuUsage';
+export const VM_COMMITTEDSTORAGE = 'committedStorage';
+export const DOCKER_ENGINE_PORT_TLS = '2376';
+export const DOCKER_ENGINE_PORT_NOTLS = '2375';

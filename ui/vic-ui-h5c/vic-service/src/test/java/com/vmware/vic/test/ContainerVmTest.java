@@ -26,10 +26,13 @@ import org.junit.Test;
 import com.vmware.vic.ModelObjectUriResolver;
 import com.vmware.vic.model.ContainerVm;
 import com.vmware.vic.model.ModelObject;
+import com.vmware.vic.model.constants.BaseVm;
+import com.vmware.vic.model.constants.Container;
 import com.vmware.vim25.ManagedEntityStatus;
 import com.vmware.vim25.VirtualMachinePowerState;
 
 public class ContainerVmTest extends Common {
+    private static final String VM_TYPE_CONTAINERVM = "vic:ContainerVm";
 	private ContainerVm _vm;
 
 	private ContainerVm createMockContainerVmWithoutPortMapping() {
@@ -62,7 +65,7 @@ public class ContainerVmTest extends Common {
 	public void testGetTypeForContainerVmWithoutPortMapping() {
 		_vm = createMockContainerVmWithoutPortMapping();
 		assertNotNull(_vm);
-		assertEquals("vic:ContainerVm", _vm.getType());
+		assertEquals(VM_TYPE_CONTAINERVM, _vm.getType());
 	}
 
 	@Test
@@ -76,21 +79,29 @@ public class ContainerVmTest extends Common {
 		_vm = createMockContainerVmWithoutPortMapping();
 		ModelObjectUriResolver uriResolver = new ModelObjectUriResolver();
 		URI uri = _vm.getUri(uriResolver);
-		assertEquals("urn:vic:vic:ContainerVm:server1/id1", uri.toString());
+		assertEquals(String.format(
+		        "urn:vic:%s:%s", VM_TYPE_CONTAINERVM, "server1/id1"),
+		        uri.toString());
 	}
 
 	@Test
 	public void testGetPropertyForContainerVmWithoutPortMapping() {
 		_vm = createMockContainerVmWithoutPortMapping();
-		assertTrue(_vm.getProperty("name").equals("container vm 1"));
-		assertTrue(_vm.getProperty("overallStatus").equals(ManagedEntityStatus.GREEN));
-		assertTrue(_vm.getProperty("runtime.powerState").equals(VirtualMachinePowerState.POWERED_ON));
-		assertTrue(_vm.getProperty("containerName").equals("container without portmapping info"));
-		assertTrue(_vm.getProperty("imageName").equals("busybox"));
-		assertTrue(_vm.getProperty("overallCpuUsage").equals(1000));
-		assertTrue(_vm.getProperty("guestMemoryUsage").equals(500));
-		assertTrue(_vm.getProperty("committedStorage").equals((long)123456789));
-		assertTrue(_vm.getProperty("iDontExist").equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertTrue(_vm.getProperty(BaseVm.VM_NAME).equals("container vm 1"));
+		assertTrue(_vm.getProperty(BaseVm.VM_OVERALL_STATUS)
+		        .equals(ManagedEntityStatus.GREEN));
+		assertTrue(_vm.getProperty(BaseVm.Runtime.VM_POWERSTATE_FULLPATH)
+	            .equals(VirtualMachinePowerState.POWERED_ON));
+		assertTrue(_vm.getProperty(Container.VM_CONTAINERNAME_KEY)
+		        .equals("container without portmapping info"));
+		assertTrue(_vm.getProperty(Container.VM_IMAGENAME_KEY)
+		        .equals("busybox"));
+		assertTrue(_vm.getProperty(BaseVm.VM_OVERALLCPUUSAGE).equals(1000));
+		assertTrue(_vm.getProperty(BaseVm.VM_GUESTMEMORYUSAGE).equals(500));
+		assertTrue(_vm.getProperty(BaseVm.VM_COMMITTEDSTORAGE)
+		        .equals((long)123456789));
+		assertTrue(_vm.getProperty("iDontExist")
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
 	}
 
 	@Test
@@ -131,16 +142,22 @@ public class ContainerVmTest extends Common {
 	@Test
 	public void testGetPropertyForContainerVmWithPortMapping() {
 		_vm = createMockContainerVmWithPortMapping();
-		assertTrue(_vm.getProperty("name").equals("container vm 2"));
-		assertTrue(_vm.getProperty("overallStatus").equals(ManagedEntityStatus.GRAY));
-		assertTrue(_vm.getProperty("runtime.powerState").equals(VirtualMachinePowerState.SUSPENDED));
-		assertTrue(_vm.getProperty("containerName").equals("container with portmapping info"));
-		assertTrue(_vm.getProperty("imageName").equals("nginx"));
-		assertTrue(_vm.getProperty("portMapping").equals("8080:80/tcp"));
-		assertTrue(_vm.getProperty("overallCpuUsage").equals(1000));
-		assertTrue(_vm.getProperty("guestMemoryUsage").equals(500));
-		assertTrue(_vm.getProperty("committedStorage").equals((long)123456789));
-		assertTrue(_vm.getProperty("iDontExist").equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertTrue(_vm.getProperty(BaseVm.VM_NAME).equals("container vm 2"));
+		assertTrue(_vm.getProperty(BaseVm.VM_OVERALL_STATUS)
+		        .equals(ManagedEntityStatus.GRAY));
+		assertTrue(_vm.getProperty(BaseVm.Runtime.VM_POWERSTATE_FULLPATH)
+		        .equals(VirtualMachinePowerState.SUSPENDED));
+		assertTrue(_vm.getProperty(Container.VM_CONTAINERNAME_KEY)
+		        .equals("container with portmapping info"));
+		assertTrue(_vm.getProperty(Container.VM_IMAGENAME_KEY).equals("nginx"));
+		assertTrue(_vm.getProperty(Container.VM_PORTMAPPING_KEY)
+		        .equals("8080:80/tcp"));
+		assertTrue(_vm.getProperty(BaseVm.VM_OVERALLCPUUSAGE).equals(1000));
+		assertTrue(_vm.getProperty(BaseVm.VM_GUESTMEMORYUSAGE).equals(500));
+		assertTrue(_vm.getProperty(BaseVm.VM_COMMITTEDSTORAGE)
+		        .equals((long)123456789));
+		assertTrue(_vm.getProperty("iDontExist")
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
 	}
 
 	@Test
