@@ -72,7 +72,8 @@ export class I18nService {
     * @returns {any}
     */
    public translate(key: string, params: string|string[] = null): string {
-      if (this.gs.isPluginMode()) {
+      if (this.gs.isPluginMode() &&
+          this.gs.getWebPlatform().getString) {
          // SDK's getString allows compatibility with vSphere Flex Client
          return this.gs.getWebPlatform().getString(this.bundleName, key, params);
       }

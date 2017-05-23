@@ -20,3 +20,4 @@ export * from './app-alert.service';
 export * from './globals.service';
 export * from './refresh.service';
 export * from './i18n.service';
+export * from './vic-i18n.service';
