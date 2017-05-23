@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -118,16 +117,15 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 func (d *Dispatcher) uploadImages(files map[string]string) error {
 	defer trace.End(trace.Begin(""))
 
-	var wg sync.WaitGroup
-
 	// upload the images
 	log.Infof("Uploading images for container")
 
-	wg.Add(len(files))
-	results := make(chan error, len(files))
+	results := make(chan error)
+	logMsgs := make(chan string)
+	uploadCount := len(files)
 	for key, image := range files {
 		go func(key string, image string) {
-			defer wg.Done()
+			finalMessage := ""
 			log.Infof("\t%q", image)
 			// function that is passed to retry
 			operationForRetry := func() error {
@@ -146,10 +144,10 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				// decrease the count
 				retryCount--
 				if retryCount < 0 {
-					log.Infof("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+					logMsgs <- fmt.Sprintf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
 					return false
 				}
-				log.Debugf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+				logMsgs <- fmt.Sprintf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
 				return true
 			}
 
@@ -157,28 +155,59 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 			backoffConf := &retry.BackoffConfig{
 				InitialInterval:     uploadInitialInterval,
 				RandomizationFactor: retry.DefaultRandomizationFactor,
-				Multiplier:          retry.DefaultRandomizationFactor,
+				Multiplier:          retry.DefaultMultiplier,
 				MaxInterval:         uploadMaxInterval,
 				MaxElapsedTime:      uploadMaxElapsedTime,
 			}
 
 			uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
 			if uploadErr != nil {
-				log.Errorf("\t\tUpload failed for %q: %s", image, uploadErr)
+				finalMessage = fmt.Sprintf("\t\tUpload failed for %q: %s\n", image, uploadErr)
 				if d.force {
-					log.Warnf("\t\tContinuing despite failures (due to --force option)")
-					log.Warnf("\t\tNote: The VCH will not function without %q...", image)
+					finalMessage = fmt.Sprintf("%s\t\tContinuing despite failures (due to --force option)\n", finalMessage)
+					finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
+					results <- errors.New(finalMessage)
 				} else {
-					results <- uploadErr
+					results <- errors.New(finalMessage)
 				}
 			}
+			results <- nil
 		}(key, image)
 	}
-	wg.Wait()
-	close(results)
 
-	for err := range results {
-		return err
+	var resultErrs []string
+	for {
+		select {
+		case msg := <-logMsgs:
+			log.Infof("%s", msg)
+
+		case uploadResult := <-results:
+			if uploadResult != nil {
+				resultErrs = append(resultErrs, uploadResult.Error())
+			}
+
+			uploadCount--
+
+			// once this is hit the upload attempts are over
+			if uploadCount == 0 {
+				if len(logMsgs) > 0 {
+					log.Infof("%s", <-logMsgs)
+				}
+
+				for uploadErr := range resultErrs {
+					log.Error(uploadErr)
+				}
+
+				close(logMsgs)
+				close(results)
+
+				if len(resultErrs) > 0 {
+					return errors.New("Unable to upload isos.")
+				}
+
+				return nil
+			}
+		}
 	}
-	return nil
+
 }
