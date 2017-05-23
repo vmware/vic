@@ -26,7 +26,7 @@ var (
 	network  = "tcp"
 	raddr    = "localhost:514"
 	tag      = "test"
-	priority = LOG_INFO | LOG_DAEMON
+	priority = Info | Daemon
 )
 
 func TestMakeTag(t *testing.T) {
@@ -73,7 +73,7 @@ func TestDefaultDialerBadPriority(t *testing.T) {
 	assert.Nil(t, w)
 	assert.Error(t, err)
 
-	d.priority = (LOG_LOCAL7 | LOG_DEBUG) + 1
+	d.priority = (Local7 | Debug) + 1
 	w, err = d.dial()
 	assert.Nil(t, w)
 	assert.Error(t, err)

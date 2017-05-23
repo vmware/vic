@@ -129,7 +129,7 @@ func Init() {
 		logcfg.Syslog = &viclog.SyslogConfig{
 			Network:  vchConfig.Diagnostics.SysLogConfig.Network,
 			RAddr:    vchConfig.Diagnostics.SysLogConfig.RAddr,
-			Priority: syslog.LOG_INFO | syslog.LOG_DAEMON,
+			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
 

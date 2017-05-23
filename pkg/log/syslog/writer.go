@@ -105,52 +105,52 @@ func (w *writer) Close() error {
 	return nil
 }
 
-// Emerg logs a message with severity LOG_EMERG, ignoring the severity
+// Emerg logs a message with severity Emerg, ignoring the severity
 // passed to New.
 func (w *writer) Emerg(m string) error {
-	return w.queueWrite(LOG_EMERG, w.tag, m)
+	return w.queueWrite(Emerg, w.tag, m)
 }
 
-// Alert logs a message with severity LOG_ALERT, ignoring the severity
+// Alert logs a message with severity Alert, ignoring the severity
 // passed to New.
 func (w *writer) Alert(m string) error {
-	return w.queueWrite(LOG_ALERT, w.tag, m)
+	return w.queueWrite(Alert, w.tag, m)
 }
 
-// Crit logs a message with severity LOG_CRIT, ignoring the severity
+// Crit logs a message with severity Crit, ignoring the severity
 // passed to New.
 func (w *writer) Crit(m string) error {
-	return w.queueWrite(LOG_CRIT, w.tag, m)
+	return w.queueWrite(Crit, w.tag, m)
 }
 
-// Err logs a message with severity LOG_ERR, ignoring the severity
+// Err logs a message with severity Err, ignoring the severity
 // passed to New.
 func (w *writer) Err(m string) error {
-	return w.queueWrite(LOG_ERR, w.tag, m)
+	return w.queueWrite(Err, w.tag, m)
 }
 
-// Warning logs a message with severity LOG_WARNING, ignoring the
+// Warning logs a message with severity Warning, ignoring the
 // severity passed to New.
 func (w *writer) Warning(m string) error {
-	return w.queueWrite(LOG_WARNING, w.tag, m)
+	return w.queueWrite(Warning, w.tag, m)
 }
 
-// Notice logs a message with severity LOG_NOTICE, ignoring the
+// Notice logs a message with severity Notice, ignoring the
 // severity passed to New.
 func (w *writer) Notice(m string) error {
-	return w.queueWrite(LOG_NOTICE, w.tag, m)
+	return w.queueWrite(Notice, w.tag, m)
 }
 
-// Info logs a message with severity LOG_INFO, ignoring the severity
+// Info logs a message with severity Info, ignoring the severity
 // passed to New.
 func (w *writer) Info(m string) error {
-	return w.queueWrite(LOG_INFO, w.tag, m)
+	return w.queueWrite(Info, w.tag, m)
 }
 
-// Debug logs a message with severity LOG_DEBUG, ignoring the severity
+// Debug logs a message with severity Debug, ignoring the severity
 // passed to New.
 func (w *writer) Debug(m string) error {
-	return w.queueWrite(LOG_DEBUG, w.tag, m)
+	return w.queueWrite(Debug, w.tag, m)
 }
 
 func (w *writer) queueWrite(p Priority, tag, s string) error {

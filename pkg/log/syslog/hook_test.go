@@ -110,7 +110,7 @@ func TestConnect(t *testing.T) {
 	h, err := NewHook(
 		"tcp",
 		"foo:514",
-		LOG_INFO,
+		Info,
 		"test",
 	)
 

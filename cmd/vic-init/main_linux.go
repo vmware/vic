@@ -93,7 +93,7 @@ func main() {
 		logcfg.Syslog = &viclog.SyslogConfig{
 			Network:  config.Diagnostics.SysLogConfig.Network,
 			RAddr:    config.Diagnostics.SysLogConfig.RAddr,
-			Priority: syslog.LOG_INFO | syslog.LOG_DAEMON,
+			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
 
