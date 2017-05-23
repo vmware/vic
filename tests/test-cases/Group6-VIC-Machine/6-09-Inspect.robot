@@ -26,10 +26,10 @@ Inspect VCH configuration
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
     Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
-    Should Contain  ${output}  --image-store=%{TEST_DATASTORE}
+    Should Contain  ${output}  --image-store=ds://%{TEST_DATASTORE}
     Should Contain  ${output}  --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  --timeout=
-    Should Contain  ${output}  --volume-store=%{TEST_DATASTORE}/test
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/test
     Should Contain  ${output}  --appliance-iso=bin/appliance.iso
     Should Contain  ${output}  --bootstrap-iso=bin/bootstrap.iso
     Should Contain  ${output}  --force=true
