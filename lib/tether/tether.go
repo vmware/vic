@@ -330,13 +330,13 @@ func (t *tether) initializeSessions() error {
 					cfg := session.Diagnostics.SysLogConfig
 					var w syslog.Writer
 					if writer == nil {
-						writer, err = syslog.Dial(cfg.Network, cfg.RAddr, syslog.LOG_INFO|syslog.LOG_DAEMON, fmt.Sprintf("%s", t.config.ID[:12]))
+						writer, err = syslog.Dial(cfg.Network, cfg.RAddr, syslog.LOG_INFO|syslog.LOG_DAEMON, fmt.Sprintf("%s", t.config.ID[:shortLen]))
 						if err != nil {
 							log.Warnf("could not connect to syslog server: %s", err)
 						}
 						w = writer
 					} else {
-						w = writer.WithTag(fmt.Sprintf("%s", t.config.ID[:12]))
+						w = writer.WithTag(fmt.Sprintf("%s", t.config.ID[:shortLen]))
 					}
 
 					if w != nil {
