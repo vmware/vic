@@ -16,6 +16,7 @@ package inspect
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/cmd/vic-machine/converter"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -152,9 +155,12 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	}
 
 	if i.showConfig {
-		options := strings.Join(vchConfig.VicMachineCreateOptions, "\n\t")
-		log.Info("")
-		log.Infof("Target VCH created with the following options: \n\n\t%s\n", options)
+		err = i.showCommand(ctx, validator.Session.Finder, vchConfig)
+		if err != nil {
+			log.Error("Failed to print Virtual Container Host configuration")
+			log.Error(err)
+			return errors.New("inspect failed")
+		}
 		return nil
 	}
 
@@ -178,6 +184,28 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 
 	log.Infof("Completed successfully")
 
+	return nil
+}
+
+func (i Inspect) showCommand(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec) error {
+	data, err := validate.NewDataFromConfig(ctx, finder, conf)
+	if err != nil {
+		return err
+	}
+	mapOptions, err := converter.DataToOption(data)
+	if err != nil {
+		return err
+	}
+
+	var options []string
+	for k, o := range mapOptions {
+		for _, s := range o {
+			options = append(options, fmt.Sprintf("--%s=%s", k, s))
+		}
+	}
+	strOptions := strings.Join(options, "\n\t")
+	log.Info("")
+	log.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
 	return nil
 }
 

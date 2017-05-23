@@ -61,8 +61,10 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 		return
 	}
 
-	d.CertPEM = conf.Certificate.HostCertificate.Cert
-	d.KeyPEM = conf.Certificate.HostCertificate.Key
+	if conf.Certificate.HostCertificate != nil {
+		d.CertPEM = conf.Certificate.HostCertificate.Cert
+		d.KeyPEM = conf.Certificate.HostCertificate.Key
+	}
 	d.ClientCAs = conf.Certificate.CertificateAuthorities
 	d.RegistryCAs = conf.RegistryCertificateAuthorities
 
@@ -107,9 +109,9 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	if err = setImageStore(d, conf); err != nil {
 		return
 	}
-	d.VolumeLocations = conf.VolumeLocations
+	setVolumeLocations(d, conf)
 	d.InsecureRegistries = conf.InsecureRegistries
-	if d.ScratchSize, err = getHumanSize(conf.ScratchSize, "MB"); err != nil {
+	if d.ScratchSize, err = getHumanSize(conf.ScratchSize, "KB"); err != nil {
 		return
 	}
 	if conf.Diagnostics.SysLogConfig != nil {
@@ -129,6 +131,7 @@ func getHumanSize(size int64, unit string) (string, error) {
 	hsize = strings.Replace(hsize, " ", "", -1)
 	return hsize, nil
 }
+
 func setImageStore(d *data.Data, conf *config.VirtualContainerHostConfigSpec) error {
 	if len(conf.ImageStores) != 1 {
 		return fmt.Errorf("no image store or multiple image store configured")
@@ -139,9 +142,28 @@ func setImageStore(d *data.Data, conf *config.VirtualContainerHostConfigSpec) er
 		if len(path) > 1 && path[len(path)-1] != "" {
 			imageURL.Path = strings.Join(path[:len(path)-1], "/")
 		}
+		if imageURL.Scheme != "" && len(path) == 1 {
+			imageURL.Path = ""
+		}
 	}
 	d.ImageDatastorePath = urlString(imageURL)
 	return nil
+}
+
+func setVolumeLocations(d *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	d.VolumeLocations = make(map[string]*url.URL, len(conf.VolumeLocations))
+
+	var dsURL object.DatastorePath
+	for k, v := range conf.VolumeLocations {
+		if ok := dsURL.FromString(v.Path); !ok {
+			log.Debugf("%s is not datastore path", v.Path)
+			d.VolumeLocations[k] = v
+			continue
+		}
+		u := *v
+		u.Path = dsURL.Path
+		d.VolumeLocations[k] = &u
+	}
 }
 
 func urlString(u url.URL) string {
