@@ -42,6 +42,7 @@ type Finder interface {
 	ObjectReference(ctx context.Context, ref types.ManagedObjectReference) (object.Reference, error)
 }
 
+// SetDataFromVM set value based on VCH VM properties
 func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d *data.Data) error {
 	// display name
 	name, err := vm.Name(ctx)
@@ -72,11 +73,13 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 		return fmt.Errorf("parent resource %s is not resource pool", mrp.Parent)
 	}
 	d.ComputeResourcePath = rp.InventoryPath
+
+	// TODO: set VCH resource limits and VCH endpoint VM resource limits
 	return nil
 }
 
-// NewDataFromConfig translate VirtualContainerHostConfigSpec back to data.Data object
-// This method do not touch any configuration for VCH VM or resource pool, which should be retrieved from VM or vApp attributes
+// NewDataFromConfig converts VirtualContainerHostConfigSpec back to data.Data object
+// This method does not touch any configuration for VCH VM or resource pool, which should be retrieved from VM or vApp attributes
 func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualContainerHostConfigSpec) (d *data.Data, err error) {
 	if conf == nil {
 		return
@@ -137,7 +140,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 		d.DNS = conf.ExecutorConfig.Networks[config.PublicNetworkName].Network.Nameservers
 	}
 
-	if err = setHttpProxies(d, conf); err != nil {
+	if err = setHTTPProxies(d, conf); err != nil {
 		return
 	}
 
@@ -205,14 +208,13 @@ func urlString(u url.URL) string {
 	if u.Scheme == "" {
 		if u.Path == "" {
 			return u.Host
-		} else {
-			return fmt.Sprintf("%s/%s", u.Host, u.Path)
 		}
+		return fmt.Sprintf("%s/%s", u.Host, u.Path)
 	}
 	return u.String()
 }
 
-func setHttpProxies(d *data.Data, conf *config.VirtualContainerHostConfigSpec) error {
+func setHTTPProxies(d *data.Data, conf *config.VirtualContainerHostConfigSpec) error {
 	persona := conf.Sessions[config.PublicNetworkName]
 	if persona == nil {
 		return nil

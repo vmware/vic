@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -91,13 +92,13 @@ func testConvertVolumeStore(t *testing.T) {
 	}{
 		{
 			in: map[string]*url.URL{
-				"default": &url.URL{
+				"default": {
 					Scheme: "ds",
 					Host:   "vsan",
 					Path:   "path/volume",
 				},
 
-				"noSchema": &url.URL{
+				"noSchema": {
 					Host: "vsan",
 					Path: "path1",
 				},
@@ -494,24 +495,24 @@ func testGuestinfo(t *testing.T) {
 	}
 
 	commands := map[string][]string{
-		"target":      []string{"https://10.192.171.116"},
-		"thumbprint":  []string{"9F:F0:DF:BA:7F:E2:89:F0:98:E4:A6:D1:58:24:68:74:8A:9B:25:6F"},
-		"name":        []string{"test1"},
-		"image-store": []string{"vsanDatastore"},
-		"volume-store": []string{
+		"target":      {"https://10.192.171.116"},
+		"thumbprint":  {"9F:F0:DF:BA:7F:E2:89:F0:98:E4:A6:D1:58:24:68:74:8A:9B:25:6F"},
+		"name":        {"test1"},
+		"image-store": {"vsanDatastore"},
+		"volume-store": {
 			"vsanDatastore/volumes/default:default",
 			"vsanDatastore/volumes/vol1:vol1",
 		},
-		"bridge-network": []string{"bridge"},
-		"public-network": []string{"external"},
-		"container-network": []string{"management:vnet",
+		"bridge-network": {"bridge"},
+		"public-network": {"external"},
+		"container-network": {"management:vnet",
 			"vm-network:vmnet",
 		},
-		"container-network-gateway":  []string{"management:10.10.10.1/24"},
-		"container-network-ip-range": []string{"management:10.10.10.0/24"},
+		"container-network-gateway":  {"management:10.10.10.1/24"},
+		"container-network-ip-range": {"management:10.10.10.0/24"},
 
-		"no-tlsverify": []string{"true"},
-		"debug":        []string{"3"},
+		"no-tlsverify": {"true"},
+		"debug":        {"3"},
 	}
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.DecodeWithPrefix(extraconfig.MapSource(kv), conf, "")

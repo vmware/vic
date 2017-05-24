@@ -15,7 +15,6 @@
 package converter
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -25,33 +24,20 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/govmomi/find"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
-	cmdTag   = "cmd"
-	labelTag = "label"
-
+	cmdTag         = "cmd"
+	labelTag       = "label"
 	parentTagValue = "parent"
 
 	optionSeparator = "-"
-	pathSeparator   = "/"
 
 	keyAfterValueLabel = "value-key"
 	valueAfterKeyLabel = "key-value"
-
-	publicNetwork          = "public"
-	bridgeNetwork          = "bridge"
-	clientNetwork          = "client"
-	containerNetworkOption = "container-network"
-	dnsServerOption        = "dns-server"
-	dnsSuffix              = "dns"
-
-	substr = "$$$"
 )
 
 var (
@@ -64,8 +50,6 @@ var (
 
 type converter func(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error
 type labelConverter func(dest map[string][]string, key string) error
-
-var objectFinder *find.Finder
 
 func init() {
 	kindConverters[reflect.Struct] = convertStruct
@@ -82,7 +66,7 @@ func init() {
 	kindConverters[reflect.Float32] = convertPrimitive
 	kindConverters[reflect.Float64] = convertPrimitive
 
-	typeConverters["url.URL"] = convertUrl
+	typeConverters["url.URL"] = convertURL
 	typeConverters["net.IPNet"] = convertIPNet
 	typeConverters["net.IP"] = convertIP
 	typeConverters["ip.Range"] = convertIPRange
@@ -93,10 +77,8 @@ func init() {
 	labelHandlers[valueAfterKeyLabel] = valueAfterKeyLabelHandler
 }
 
-func Init(finder *find.Finder) {
-	objectFinder = finder
-}
-
+// DataToOption convert data.Data structure to vic-machine create command options based on tags defined in data.Data structure
+// Note: need to make sure the tags are consistent with command line option name
 func DataToOption(data *data.Data) (map[string][]string, error) {
 	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(ConverterLogLevel)
@@ -112,14 +94,12 @@ func DataToOption(data *data.Data) (map[string][]string, error) {
 
 func convert(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
 	t := src.Type().String()
-	fConverter, ok := typeConverters[t]
-	if ok {
-		return fConverter(src, prefix, tags, dest)
+	if converter, ok := typeConverters[t]; ok {
+		return converter(src, prefix, tags, dest)
 
 	}
-	kConverter, ok := kindConverters[src.Kind()]
-	if ok {
-		return kConverter(src, prefix, tags, dest)
+	if converter, ok := kindConverters[src.Kind()]; ok {
+		return converter(src, prefix, tags, dest)
 	}
 	log.Debugf("Skipping unsupported field, interface: %#v, kind %s", src, src.Kind())
 	return nil
@@ -255,7 +235,7 @@ func calculateKey(tags reflect.StructTag, prefix string) string {
 	return fmt.Sprintf("%s%s%s", prefix, optionSeparator, tag)
 }
 
-func convertUrl(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
+func convertURL(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
 
 	if prefix == "" {
@@ -522,30 +502,4 @@ func addValues(dest map[string][]string, key string, values []string) {
 	for _, v := range values {
 		addValue(dest, key, v)
 	}
-}
-
-func getNameFromID(ctx context.Context, mobID string) (string, error) {
-	moref := new(types.ManagedObjectReference)
-	ok := moref.FromString(mobID)
-	if !ok {
-		return "", fmt.Errorf("could not restore serialized managed object reference: %s", mobID)
-	}
-
-	if objectFinder == nil {
-		return "", fmt.Errorf("finder is not set")
-	}
-
-	obj, err := objectFinder.ObjectReference(ctx, *moref)
-	if err != nil {
-		return "", err
-	}
-	type common interface {
-		ObjectName(ctx context.Context) (string, error)
-	}
-	name, err := obj.(common).ObjectName(ctx)
-	if err != nil {
-		return "", err
-	}
-	log.Debugf("%s name: %s", mobID, name)
-	return name, nil
 }
