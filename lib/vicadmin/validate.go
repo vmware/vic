@@ -20,6 +20,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"path"
 	"sort"
 	"strings"
@@ -172,17 +173,15 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 
 	// Network Connection Check
 	hosts := []string{
-		"google.com:80",
-		"docker.io:443",
+		"http://google.com",
+		"https://docker.io",
 	}
 	nwErrors := []error{}
 
 	for _, host := range hosts {
-		conn, err := net.DialTimeout("tcp", host, time.Minute/2)
+		_, err := http.Get(host)
 		if err != nil {
 			nwErrors = append(nwErrors, err)
-		} else {
-			conn.Close()
 		}
 	}
 
