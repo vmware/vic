@@ -29,7 +29,7 @@
          <list>
             <!-- This is required to render the controller responses as Json -->
             <bean
-               class="org.springframework.web.servlet.view.json.MappingJacksonJsonView" />
+               class="org.springframework.web.servlet.view.json.MappingJackson2JsonView" />
          </list>
       </property>
    </bean>

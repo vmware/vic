@@ -83,10 +83,10 @@ Correct container count
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  Containers: 0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${cid}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
@@ -127,19 +127,19 @@ Check updated resource pool CPU and memory usages
 
     ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem usages  ${output}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
     Sleep  60s  wait for vsphere stats update

@@ -16,10 +16,14 @@
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { GlobalsService, RefreshService } from '../shared/index';
+import { Vic18nService } from '../shared/vic-i18n.service';
 import { DataPropertyService } from '../services/data-property.service';
 import { Subscription } from 'rxjs/Rx';
 
-import { VIC_LOGO_100X100 } from '../shared/constants/index';
+import {
+    VIC_LOGO_100X100,
+    WS_SUMMARY
+} from '../shared/constants/index';
 
 @Component({
     selector: 'vic-summary-view',
@@ -31,7 +35,9 @@ import { VIC_LOGO_100X100 } from '../shared/constants/index';
             <ul class="summary-items-list">
                 <li id="vendor">
                     <span class="summary-label">
-                        Vendor
+                        {{vicI18n.translate(
+                            this.WS_SUMMARY_CONSTANTS,
+                            'VENDOR')}}
                     </span>
                     <span class="summary-value">
                         VMware
@@ -39,7 +45,9 @@ import { VIC_LOGO_100X100 } from '../shared/constants/index';
                 </li>
                 <li id="version">
                     <span class="summary-label">
-                        Version
+                        {{vicI18n.translate(
+                            this.WS_SUMMARY_CONSTANTS,
+                            'VERSION')}}
                     </span>
                     <span class="summary-value">
                         {{ pluginVersion }}
@@ -47,7 +55,9 @@ import { VIC_LOGO_100X100 } from '../shared/constants/index';
                 </li>
                 <li id="vch_len">
                     <span class="summary-label">
-                        Virtual Container Hosts
+                        {{vicI18n.translate(
+                            this.WS_SUMMARY_CONSTANTS,
+                            'VCH')}}
                     </span>
                     <span class="summary-value">
                         {{ vchVmsLen }}
@@ -63,11 +73,13 @@ export class VicSummaryViewComponent implements OnInit, OnDestroy {
     public vicLogoPath: string;
     public pluginVersion: string;
     public vchVmsLen: number;
+    public readonly WS_SUMMARY_CONSTANTS = WS_SUMMARY;
     private rootInfoSubscription: Subscription;
     private refreshSubscription: Subscription;
 
     constructor(
         private gs: GlobalsService,
+        public vicI18n: Vic18nService,
         private refreshService: RefreshService,
         private dataPropertyService: DataPropertyService
     ) {

@@ -54,7 +54,7 @@ IF %target_vc_version% EQU 6.5 (
 )
 
 SET PLUGIN_FLAGS=--key %key:"=% --name %name% --version %version:"=% --summary %summary% --company %company%
-SET PLUGIN_URL=%vic_ui_host_url%%key%-%version%.zip
+SET PLUGIN_URL=%vic_ui_host_url%%key%-v%version%.zip
 IF /I %vic_ui_host_url% NEQ NOURL (
     IF %vic_ui_host_url:~-1,1% NEQ / (
         SET vic_ui_host_url=%vic_ui_host_url%/
