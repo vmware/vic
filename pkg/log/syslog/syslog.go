@@ -107,8 +107,12 @@ type defaultDialer struct {
 	priority            Priority
 }
 
+func validPriority(priority Priority) bool {
+	return priority >= 0 && priority <= Local7|Debug
+}
+
 func (d *defaultDialer) dial() (Writer, error) {
-	if d.priority < 0 || d.priority > Local7|Debug {
+	if !validPriority(d.priority) {
 		return nil, errors.New("log/syslog: invalid priority")
 	}
 

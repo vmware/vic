@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -210,6 +209,39 @@ func TestWriterWithTag(t *testing.T) {
 	c.AssertExpectations(t)
 }
 
+func TestWriterWithPriority(t *testing.T) {
+	f := &mockFormatter{}
+	f.On("Format", Err|Daemon, mock.Anything, "addr", tag, "err").Return("err")
+	f.On("Format", Debug|Daemon, mock.Anything, "addr", tag, "debug").Return("debug")
+
+	dn := &mockNetDialer{}
+	c := &MockNetConn{}
+	a := &MockAddr{}
+	a.On("String").Return("addr:123")
+	c.On("LocalAddr").Return(a)
+	c.On("Close").Return(nil)
+	c.On("Write", []byte("err\n")).Return(len("err"), nil)
+	c.On("Write", []byte("debug\n")).Return(len("debug"), nil)
+
+	dn.On("dial").Return(c, nil)
+
+	w := newWriter(priority, tag, "", dn, f)
+
+	errw := w.WithPriority(Err | Daemon)
+	errw.Write([]byte("err"))
+
+	debugw := errw.WithPriority(Debug | Daemon)
+	debugw.Write([]byte("debug"))
+
+	go w.run()
+	<-w.running
+
+	w.Close()
+
+	f.AssertExpectations(t)
+	c.AssertExpectations(t)
+}
+
 func TestWriterInitialConnectError(t *testing.T) {
 
 	var tests = []error{
@@ -227,7 +259,7 @@ func TestWriterInitialConnectError(t *testing.T) {
 		select {
 		case <-w.running:
 			assert.FailNow(t, "writer should not run when connect() fails initially")
-		case <-time.After(2 * time.Second):
+		default:
 		}
 	}
 }

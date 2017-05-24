@@ -341,7 +341,7 @@ func (t *tether) initializeSessions() error {
 
 					if w != nil {
 						stdout.Add(w)
-						stderr.Add(w)
+						stderr.Add(w.WithPriority(syslog.Err | syslog.Daemon))
 					}
 				}
 

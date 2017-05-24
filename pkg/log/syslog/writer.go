@@ -34,6 +34,7 @@ type Writer interface {
 	Debug(string) error
 
 	WithTag(tag string) Writer
+	WithPriority(priority Priority) Writer
 }
 
 type writer struct {
@@ -207,6 +208,19 @@ func (w *writer) WithTag(tag string) Writer {
 		hostname: w.hostname,
 		tag:      tag,
 		priority: w.priority,
+		parent:   w,
+	}
+}
+
+func (w *writer) WithPriority(priority Priority) Writer {
+	if !validPriority(priority) {
+		return nil
+	}
+
+	return &writer{
+		hostname: w.hostname,
+		tag:      w.tag,
+		priority: priority,
 		parent:   w,
 	}
 }
