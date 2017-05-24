@@ -203,10 +203,11 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 
 	progress.Message(progressOutput, "", "Digest: "+ic.ManifestDigest)
 
+	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
 	if layerCount > 0 {
-		progress.Message(progressOutput, "", "Status: Downloaded newer image for "+ic.Image+":"+ic.Tag)
+		progress.Message(progressOutput, "", "Status: Downloaded newer image for "+ic.Image+":"+tagOrDigest)
 	} else {
-		progress.Message(progressOutput, "", "Status: Image is up to date for "+ic.Image+":"+ic.Tag)
+		progress.Message(progressOutput, "", "Status: Image is up to date for "+ic.Image+":"+tagOrDigest)
 	}
 
 	return nil

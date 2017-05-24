@@ -89,9 +89,8 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		return nil, err
 	}
 
-	// Get the tags from the repo cache for this image
-	// TODO: remove this -- we have it in the image above
-	tags := cache.RepositoryCache().Tags(img.ImageID)
+	tags := img.Tags
+	digests := img.Digests
 
 	// did the user pass an id or partial id
 	userRefIsID = cache.ImageCache().IsImageID(imageRef)
@@ -102,8 +101,8 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 			fmt.Errorf("conflict: unable to delete %s (must be forced) - image is referenced in one or more repositories", t)
 	}
 
-	// if we have an ID or only 1 tag lets delete the vmdk(s) via the PL
-	if userRefIsID || len(tags) == 1 {
+	// if we have an ID or only 1 tag/digest lets delete the vmdk(s) via the PL
+	if userRefIsID || len(tags) == 1 || len(digests) == 1 {
 		log.Infof("Deleting image via PL %s (%s)", img.ImageID, img.ID)
 
 		// storeName is the uuid of the host this service is running on.
@@ -193,6 +192,11 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		// remove from cache, but don't save -- we'll do that afer all
 		// updates
 		refNamed, _ := cache.RepositoryCache().Remove(tags[i], false)
+		deletedRes = append(deletedRes, types.ImageDelete{Untagged: refNamed})
+	}
+
+	for i := range digests {
+		refNamed, _ := cache.RepositoryCache().Remove(digests[i], false)
 		deletedRes = append(deletedRes, types.ImageDelete{Untagged: refNamed})
 	}
 
@@ -346,7 +350,7 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 
 	options := imagec.Options{
 		Destination: os.TempDir(),
-		Reference:   ref.String(),
+		Reference:   ref,
 		Timeout:     imagec.DefaultHTTPTimeout,
 		Outstream:   outStream,
 		RegistryCAs: RegistryCertPool,
