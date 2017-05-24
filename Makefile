@@ -146,9 +146,7 @@ gas: $(GAS)
 misspell: $(MISSPELL)
 
 # convenience targets
-revision:
-	@echo HEAD is at $$(git rev-parse HEAD^2)
-all: revision components tethers isos vic-machine vic-ui
+all: components tethers isos vic-machine vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
