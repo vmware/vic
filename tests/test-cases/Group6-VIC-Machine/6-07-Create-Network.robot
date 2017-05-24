@@ -361,7 +361,7 @@ Container network - space in network name valid
     Log To Console  Create a bridge portgroup.
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces':vmnet ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=bridge --container-network 'VM Network With Spaces':vmnet --insecure-registry harbor.ci.drone.local ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
