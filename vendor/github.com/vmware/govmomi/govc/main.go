@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2014-2017 VMware, Inc. All Rights Reserved.
+Copyright (c) 2014-2015 VMware, Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -61,7 +61,6 @@ import (
 	_ "github.com/vmware/govmomi/govc/metric"
 	_ "github.com/vmware/govmomi/govc/metric/interval"
 	_ "github.com/vmware/govmomi/govc/object"
-	_ "github.com/vmware/govmomi/govc/option"
 	_ "github.com/vmware/govmomi/govc/permissions"
 	_ "github.com/vmware/govmomi/govc/pool"
 	_ "github.com/vmware/govmomi/govc/role"
