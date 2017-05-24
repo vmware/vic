@@ -164,8 +164,8 @@ func convertMap(src reflect.Value, prefix string, tags reflect.StructTag, dest m
 
 	handler, hasHandler := labelHandlers[tags.Get(labelTag)]
 	// use tempMap to avoid duplicate processing
-	tempMap := make(map[string][]string)
 	for _, pkey := range src.MapKeys() {
+		tempMap := make(map[string][]string)
 		if pkey.Kind() != reflect.String {
 			log.Errorf("Unsupported map key type interface: %s, kind %s", src, src.Kind())
 			continue
@@ -184,7 +184,6 @@ func convertMap(src reflect.Value, prefix string, tags reflect.StructTag, dest m
 		}
 		for k, v := range tempMap {
 			addValues(dest, k, v)
-			delete(tempMap, k)
 		}
 	}
 	return nil
@@ -247,7 +246,7 @@ func convertURL(src reflect.Value, prefix string, tags reflect.StructTag, dest m
 
 	u, ok := src.Interface().(url.URL)
 	if !ok {
-		return fmt.Errorf(src.Type().String() + " is not URL")
+		panic(fmt.Sprintf(src.Type().String() + " is not URL"))
 	}
 	v := u.String()
 	if u.Scheme == "" {
@@ -277,7 +276,7 @@ func convertIPNet(src reflect.Value, prefix string, tags reflect.StructTag, dest
 
 	ipNet, ok := src.Interface().(net.IPNet)
 	if !ok {
-		return fmt.Errorf(src.Type().String() + " is not IPNet")
+		panic(fmt.Sprintf(src.Type().String() + " is not IPNet"))
 	}
 	if ip.IsUnspecifiedSubnet(&ipNet) {
 		return nil
@@ -301,7 +300,7 @@ func convertIP(src reflect.Value, prefix string, tags reflect.StructTag, dest ma
 
 	ipAddr, ok := src.Interface().(net.IP)
 	if !ok {
-		return fmt.Errorf(src.Type().String() + " is not IP")
+		panic(fmt.Sprintf(src.Type().String() + " is not IP"))
 	}
 	if ip.IsUnspecifiedIP(ipAddr) {
 		return nil
@@ -325,7 +324,7 @@ func convertIPRange(src reflect.Value, prefix string, tags reflect.StructTag, de
 
 	ipRange, ok := src.Interface().(ip.Range)
 	if !ok {
-		return fmt.Errorf(src.Type().String() + " is not ip range")
+		panic(fmt.Sprintf(src.Type().String() + " is not ip range"))
 	}
 	v := ipRange.String()
 	if v == "" {
@@ -390,6 +389,8 @@ func convertPrimitive(src reflect.Value, prefix string, tags reflect.StructTag, 
 			return nil
 		}
 		v = strconv.FormatFloat(src.Float(), 'E', -1, 64)
+	default:
+		panic(fmt.Sprintf("%s is not supported type", src.Kind()))
 	}
 	log.Debugf("%s=%s", prefix, v)
 
@@ -411,7 +412,7 @@ func convertNetwork(src reflect.Value, prefix string, tags reflect.StructTag, de
 
 	network, ok := src.Interface().(data.NetworkConfig)
 	if !ok {
-		return fmt.Errorf(src.Type().String() + " is not NetworkConfig")
+		panic(fmt.Sprintf(src.Type().String() + " is not NetworkConfig"))
 	}
 	if !network.IsSet() {
 		return nil
@@ -452,14 +453,16 @@ func convertContainerNetworks(src reflect.Value, prefix string, tags reflect.Str
 
 	networks, ok := src.Interface().(data.ContainerNetworks)
 	if !ok {
-		return fmt.Errorf(src.Type().String() + " is not ContainerNetworks")
+		panic(fmt.Sprintf(src.Type().String() + " is not ContainerNetworks"))
 	}
 	if !networks.IsSet() {
 		return nil
 	}
 
+	newMappedNetworks := make(map[string]string, len(networks.MappedNetworks))
 	for k, v := range networks.MappedNetworks {
 		if k == v {
+			newMappedNetworks[v] = k
 			continue
 		}
 		if dns, ok := networks.MappedNetworksDNS[k]; ok {
@@ -474,13 +477,13 @@ func convertContainerNetworks(src reflect.Value, prefix string, tags reflect.Str
 			networks.MappedNetworksIPRanges[v] = ipRange
 			delete(networks.MappedNetworksIPRanges, k)
 		}
-		delete(networks.MappedNetworks, k)
-		networks.MappedNetworks[v] = k
+		newMappedNetworks[v] = k
 	}
+	networks.MappedNetworks = newMappedNetworks
 	return convertStruct(reflect.ValueOf(networks), prefix, tags, dest)
 }
 
-// addValue will apend value without duplicates
+// addValue will append value without duplicates
 func addValue(dest map[string][]string, key, value string) {
 	slice, _ := dest[key]
 	found := false

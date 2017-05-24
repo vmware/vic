@@ -171,8 +171,11 @@ func getHumanSize(size int64, unit string) (string, error) {
 }
 
 func setImageStore(d *data.Data, conf *config.VirtualContainerHostConfigSpec) error {
-	if len(conf.ImageStores) != 1 {
-		return fmt.Errorf("no image store or multiple image store configured")
+	if len(conf.ImageStores) == 0 {
+		return fmt.Errorf("no image store configured")
+	}
+	if len(conf.ImageStores) > 1 {
+		return fmt.Errorf(fmt.Sprintf("%d image store configured", len(conf.ImageStores)))
 	}
 	imageURL := conf.ImageStores[0]
 	if imageURL.Path != "" {
