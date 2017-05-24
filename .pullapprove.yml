@@ -29,6 +29,7 @@ groups:
     users:
       - mhagen-vmware
       - rajanashok
+      - rogeliosanchez
     conditions:
       files:
         include:
@@ -60,6 +61,7 @@ groups:
     users:
       - rajanashok
       - mhagen-vmware
+      - rogeliosanchez
     conditions:
       files:
         include:
