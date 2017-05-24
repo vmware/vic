@@ -35,7 +35,6 @@ Inspect VCH configuration
     Should Contain  ${output}  --force=true
     Should Contain  ${output}  --bridge-network=%{BRIDGE_NETWORK}
     Should Contain  ${output}  --public-network=VM Network
-    Should Not Contain  ${output}  --insecure-registry
     Should Not Contain  ${output}  --cpu
     Should Be Equal As Integers  0  ${rc}
 
