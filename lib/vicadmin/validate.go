@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"path"
 	"sort"
 	"strings"
@@ -176,15 +177,39 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		"http://google.com",
 		"https://docker.io",
 	}
+
 	nwErrors := []error{}
 
+	// create a http client with a custom transport. The transport uses the [s/h]proxy defined in vicmachine create if applicable.
+	client := &http.Client{Timeout: 30 * time.Second}
+	vchArgs := make(map[string]string)
+	for _, args := range vch.VicMachineCreateOptions {
+		splitArgs := strings.Split(args, "=")
+		vchArgs[splitArgs[0]] = splitArgs[1]
+	}
+	//priority given to https proxies
+	proxy := ""
+	if sproxy := vchArgs["--https-proxy"]; sproxy != "" {
+		proxy = sproxy
+	} else if hproxy := vchArgs["--http-proxy"]; hproxy != "" {
+		proxy = hproxy
+	}
+	if proxy != "" {
+		url, err := url.Parse(proxy)
+		if err != nil {
+			nwErrors = append(nwErrors, err)
+		} else {
+			client.Transport = &http.Transport{Proxy: http.ProxyURL(url)}
+		}
+	}
+
+	// preform the wan check
 	for _, host := range hosts {
-		_, err := http.Get(host)
+		_, err := client.Get(host)
 		if err != nil {
 			nwErrors = append(nwErrors, err)
 		}
 	}
-
 	if len(nwErrors) > 0 {
 		v.NetworkStatus = BadStatus
 		for _, err := range nwErrors {
