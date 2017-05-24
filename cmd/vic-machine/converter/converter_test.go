@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -64,6 +65,7 @@ func TestMain(t *testing.T) {
 	//	ConverterLogLevel = log.DebugLevel
 	//	trace.Logger.Level = log.DebugLevel
 
+	testInit(t)
 	testConvertImageStore(t)
 	testConvertVolumeStore(t)
 	testConvertVCHName(t)
@@ -74,6 +76,54 @@ func TestMain(t *testing.T) {
 	testConvertClientNetwork(t)
 	testConvertMgmtNetwork(t)
 	testGuestinfo(t)
+}
+
+func testInit(t *testing.T) {
+	var ok bool
+	_, ok = kindConverters[reflect.Struct]
+	assert.True(t, ok, fmt.Sprintf("Struct converter is not found"))
+	_, ok = kindConverters[reflect.Slice]
+	assert.True(t, ok, fmt.Sprintf("Slice converter is not found"))
+	_, ok = kindConverters[reflect.Map]
+	assert.True(t, ok, fmt.Sprintf("Map converter is not found"))
+	_, ok = kindConverters[reflect.String]
+	assert.True(t, ok, fmt.Sprintf("String converter is not found"))
+	_, ok = kindConverters[reflect.Ptr]
+	assert.True(t, ok, fmt.Sprintf("Pointer converter is not found"))
+	_, ok = kindConverters[reflect.Int]
+	assert.True(t, ok, fmt.Sprintf("Int converter is not found"))
+	_, ok = kindConverters[reflect.Int8]
+	assert.True(t, ok, fmt.Sprintf("Int8 converter is not found"))
+	_, ok = kindConverters[reflect.Int16]
+	assert.True(t, ok, fmt.Sprintf("Int16 converter is not found"))
+	_, ok = kindConverters[reflect.Int32]
+	assert.True(t, ok, fmt.Sprintf("Int32 converter is not found"))
+	_, ok = kindConverters[reflect.Int64]
+	assert.True(t, ok, fmt.Sprintf("Int64 converter is not found"))
+	_, ok = kindConverters[reflect.Bool]
+	assert.True(t, ok, fmt.Sprintf("Bool converter is not found"))
+	_, ok = kindConverters[reflect.Float32]
+	assert.True(t, ok, fmt.Sprintf("Float32 converter is not found"))
+	_, ok = kindConverters[reflect.Float64]
+	assert.True(t, ok, fmt.Sprintf("Float64 converter is not found"))
+
+	_, ok = typeConverters["url.URL"]
+	assert.True(t, ok, fmt.Sprintf("url.URL converter is not found"))
+	_, ok = typeConverters["net.IPNet"]
+	assert.True(t, ok, fmt.Sprintf("net.IPNet converter is not found"))
+	_, ok = typeConverters["net.IP"]
+	assert.True(t, ok, fmt.Sprintf("net.IP converter is not found"))
+	_, ok = typeConverters["ip.Range"]
+	assert.True(t, ok, fmt.Sprintf("ip.Range converter is not found"))
+	_, ok = typeConverters["data.NetworkConfig"]
+	assert.True(t, ok, fmt.Sprintf("data.NetworkConfig converter is not found"))
+	_, ok = typeConverters["data.ContainerNetworks"]
+	assert.True(t, ok, fmt.Sprintf("data.ContainerNetworks converter is not found"))
+
+	_, ok = labelHandlers[keyAfterValueLabel]
+	assert.True(t, ok, fmt.Sprintf("value-key handler is not found"))
+	_, ok = labelHandlers[valueAfterKeyLabel]
+	assert.True(t, ok, fmt.Sprintf("key-value handler is not found"))
 }
 
 func testConvertImageStore(t *testing.T) {
