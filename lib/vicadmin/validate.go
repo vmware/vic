@@ -203,7 +203,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		}
 	}
 
-	// preform the wan check
+	// perform the wan check
 	for _, host := range hosts {
 		_, err := client.Get(host)
 		if err != nil {
