@@ -124,3 +124,11 @@ Get VICAdmin Log
 
 Check that VIC logs do not contain sensitive data
     Scrape Logs For The Password
+
+Wan Routes Through Proxy
+    Cleanup VIC Appliance On Test Server
+    Install VIC Appliance To Test Server  certs=${false}  additional-args=--http-proxy=http://0.0.0.0:12345
+
+    Login And Save Cookies
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -sk %{VIC-ADMIN} -b /tmp/cookies-%{VCH-NAME}
+    Should contain  ${output}  <div class="sixty">Registry and Internet Connectivity<span class="error-message">
