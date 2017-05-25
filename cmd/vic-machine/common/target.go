@@ -42,26 +42,30 @@ func NewTarget() *Target {
 func (t *Target) TargetFlags() []cli.Flag {
 	return []cli.Flag{
 		cli.GenericFlag{
-			Name:  "target, t",
-			Value: flags.NewURLFlag(&t.URL),
-			Usage: "REQUIRED. ESXi or vCenter connection URL, specifying a datacenter if multiple exist e.g. root:password@VC-FQDN/datacenter",
+			Name:   "target, t",
+			Value:  flags.NewURLFlag(&t.URL),
+			Usage:  "REQUIRED. ESXi or vCenter connection URL, specifying a datacenter if multiple exist e.g. root:password@VC-FQDN/datacenter",
+			EnvVar: "VIC_MACHINE_URL",
 		},
 		cli.StringFlag{
 			Name:        "user, u",
 			Value:       "",
 			Usage:       "ESX or vCenter user",
 			Destination: &t.User,
+			EnvVar:      "VIC_MACHINE_USER",
 		},
 		cli.GenericFlag{
-			Name:  "password, p",
-			Value: flags.NewOptionalString(&t.Password),
-			Usage: "ESX or vCenter password",
+			Name:   "password, p",
+			Value:  flags.NewOptionalString(&t.Password),
+			Usage:  "ESX or vCenter password",
+			EnvVar: "VIC_MACHINE_PASSWORD",
 		},
 		cli.StringFlag{
 			Name:        "thumbprint",
 			Value:       "",
 			Destination: &t.Thumbprint,
 			Usage:       "ESX or vCenter host certificate thumbprint",
+			EnvVar:      "VIC_MACHINE_THUMBPRINT",
 		},
 	}
 }
