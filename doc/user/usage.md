@@ -38,6 +38,11 @@ Replace the `<fields>` in the following example with values specific to your env
 - --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targeting ESXi or only one datacenter is configured.
 - --compute-resource is the compute resource where VCH will be deployed to. This should be the name of a cluster or resource pool, e.g. `myCluster` (vCenter), or `myPool` .
 - --thumbprint is the thumbprint of the server's certificate, required if the certificate cannot be validated with a trusted certificate authority (`--force` will accept whatever certificate is presented)
+- Note: environment variables can be set instead of these options:
+    - --target => VIC\_MACHINE\_URL
+    - --user => VIC\_MACHINE\_USER
+    - --password => VIC\_MACHINE\_PASSWORD
+    - --thumbprint => VIC\_MACHINE_THUMBPRINT
 
 ```
 vic-machine-linux create --target <target-host>[/datacenter] --user <root> --password <password> --thumbprint <certificate thumbprint> --compute-resource <cluster or resource pool name> --image-store <datastore name> --name <vch-name> --no-tlsverify

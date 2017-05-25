@@ -17,6 +17,7 @@ This test requires that an vSphere server is running and available.
 3. Issue a docker pull command to the new VIC appliance using a tag that isn't the default latest
     * ubuntu:14.04
 4. Issue a docker pull command to the new VIC appliance using a digest
+    * nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
     * ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
 5. Issue a docker pull command to the new VIC appliance using a different repo than the default
     * myregistry.local:5000/testing/test-image

@@ -1610,7 +1610,18 @@ func splitVnetParam(p string) (vnet string, value string, err error) {
 		return
 	}
 
+	// If the supplied vSphere network contains spaces then the user must supply a network alias. Guest info won't receive a name with spaces.
+	if strings.Contains(vnet, " ") && (len(mapped) == 1 || (len(mapped) == 2 && len(mapped[1]) == 0)) {
+		err = fmt.Errorf("A network alias must be supplied when network name %q contains spaces.", p)
+		return
+	}
+
 	if len(mapped) > 1 {
+		// Make sure the alias does not contain spaces
+		if strings.Contains(mapped[1], " ") {
+			err = fmt.Errorf("The network alias supplied in %q cannot contain spaces.", p)
+			return
+		}
 		value = mapped[1]
 	}
 

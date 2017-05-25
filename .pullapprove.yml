@@ -29,6 +29,7 @@ groups:
     users:
       - mhagen-vmware
       - rajanashok
+      - rogeliosanchez
     conditions:
       files:
         include:
@@ -60,6 +61,7 @@ groups:
     users:
       - rajanashok
       - mhagen-vmware
+      - rogeliosanchez
     conditions:
       files:
         include:
@@ -168,6 +170,7 @@ groups:
   port-layer-storage:
     users:
       - fdawg4l
+      - matthewavery
     conditions:
       files:
         include:
@@ -185,6 +188,7 @@ groups:
   package-kv-store:
     users:
       - fdawg4l
+      - matthewavery
     conditions:
       files:
         include:
