@@ -22,7 +22,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// The Priority is a combination of the syslog facility and
+// Priority is a combination of the syslog facility and
 // severity. For example, Alert | Ftp sends an alert severity
 // message from the FTP facility. The default severity is Emerg;
 // the default facility is Kern.

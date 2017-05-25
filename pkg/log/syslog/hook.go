@@ -55,9 +55,7 @@ func (hook *Hook) writeEntry(entry *logrus.Entry) error {
 	line := entry.Message
 
 	switch entry.Level {
-	case logrus.PanicLevel:
-		return hook.writer.Crit(line)
-	case logrus.FatalLevel:
+	case logrus.PanicLevel, logrus.FatalLevel:
 		return hook.writer.Crit(line)
 	case logrus.ErrorLevel:
 		return hook.writer.Err(line)
