@@ -146,7 +146,7 @@ func (ic *ICache) IsImageID(id string) bool {
 
 // Get parses input to retrieve a cached image
 func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(idOrRef))
 	ic.m.RLock()
 	defer ic.m.RUnlock()
 
@@ -168,7 +168,6 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 	var config *metadata.ImageConfig
 	if imgDigest != "" {
 		config = ic.getImageByDigest(imgDigest)
-		// config = ic.getImageByDigest(string(imgDigest))
 	} else {
 		config = ic.getImageByNamed(named)
 	}
@@ -187,7 +186,7 @@ func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 }
 
 func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(digest.String()))
 	var config *metadata.ImageConfig
 	config, ok := ic.cacheByID[string(digest)]
 	if !ok {

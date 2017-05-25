@@ -23,6 +23,8 @@ This test requires that a vSphere server is running and available
 10. Issue docker rmi busybox to the VIC appliance
 11. Issue docker rmi -f busybox to the VIC appliance
 12. Issue docker rmi fakeImage to the VIC appliance
+13. Issue a docker pull by digest
+14. Issue a docker rmi by digest
 
 #Expected Outcome:
 * Step 3 and 7 should result in success and the image should be removed from inventory
@@ -35,6 +37,7 @@ Failed to remove image (busybox): Error response from daemon: conflict: unable t
 ```
 Failed to remove image (fakeImage): Error response from daemon: No such image: fakeImage:latest
 ```
+* Steps 13-14 should result in success and the output of step 14 should contain the digest of the rmi'd image
 
 #Possible Problems:
 None
