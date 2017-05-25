@@ -64,7 +64,7 @@ type ExecutorConfigCommon struct {
 	ID string `vic:"0.1" scope:"read-only" key:"id"`
 
 	// Convenience field to record a human readable name
-	Name string `vic:"0.1" scope:"read-only" key:"name"`
+	Name string `vic:"0.1" scope:"hidden" key:"name"`
 
 	// Freeform notes related to the entity
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
