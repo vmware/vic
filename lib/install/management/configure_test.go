@@ -96,13 +96,16 @@ func TestGuestInfoSecret(t *testing.T) {
 		}
 
 		// Attempt to extract the secret without setting the session's datastore
-		secret, err := d.GuestInfoSecret(name, name, nil)
+		d.session.Datastore = nil
+		secret, err := d.GuestInfoSecret(name)
 		assert.Nil(t, secret)
 		assert.Equal(t, err, errNilDatastore)
 
+		d.session.Datastore = ds
+
 		// Attempt to extract the secret with an empty .vmx file
 		// TODO: simulator should write ExtraConfig to the .vmx file
-		secret, err = d.GuestInfoSecret(name, name, ds)
+		secret, err = d.GuestInfoSecret(name)
 		assert.Nil(t, secret)
 		assert.Equal(t, err, errSecretKeyNotFound)
 
@@ -114,7 +117,7 @@ func TestGuestInfoSecret(t *testing.T) {
 		}
 
 		// Attempt to extract the secret from an incorrectly populated .vmx file
-		secret, err = d.GuestInfoSecret(name, name, ds)
+		secret, err = d.GuestInfoSecret(name)
 		assert.Nil(t, secret)
 		assert.Error(t, err)
 
@@ -125,7 +128,7 @@ func TestGuestInfoSecret(t *testing.T) {
 		}
 
 		// Attempt to extract the secret from an incorrectly populated .vmx file
-		secret, err = d.GuestInfoSecret(name, name, ds)
+		secret, err = d.GuestInfoSecret(name)
 		assert.Nil(t, secret)
 		assert.Equal(t, err, errSecretKeyNotFound)
 
@@ -136,7 +139,7 @@ func TestGuestInfoSecret(t *testing.T) {
 		}
 
 		// Extract the secret from a correctly populated .vmx file
-		secret, err = d.GuestInfoSecret(name, name, ds)
+		secret, err = d.GuestInfoSecret(name)
 		assert.NoError(t, err)
 		assert.Equal(t, secret.String(), secretKey.String())
 	}
