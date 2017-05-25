@@ -25,7 +25,14 @@ import (
 type LoggingConfig struct {
 	Formatter logrus.Formatter
 	Level     logrus.Level
-	Syslog    *syslog.SyslogConfig
+	Syslog    *SyslogConfig
+}
+
+type SyslogConfig struct {
+	Network  string
+	RAddr    string
+	Tag      string
+	Priority syslog.Priority
 }
 
 var initializer struct {
@@ -43,6 +50,7 @@ func NewLoggingConfig() *LoggingConfig {
 func Init(cfg *LoggingConfig) error {
 	initializer.once.Do(
 		func() {
+
 			var err error
 
 			logger := logrus.StandardLogger()
@@ -60,15 +68,20 @@ func Init(cfg *LoggingConfig) error {
 			logrus.SetFormatter(cfg.Formatter)
 			logrus.SetLevel(cfg.Level)
 
+			logrus.Debugf("log cfg: %+v", *cfg)
+
 			if cfg.Syslog != nil {
-				cfg.Syslog.Tag = syslog.MakeTag(cfg.Syslog.Tag)
-				hook, err := syslog.NewHook(cfg.Syslog, nil)
+				logrus.Debugf("syslog cfg: %+v", *cfg.Syslog)
+				hook, err := syslog.NewHook(
+					cfg.Syslog.Network,
+					cfg.Syslog.RAddr,
+					cfg.Syslog.Priority,
+					cfg.Syslog.Tag,
+				)
 				if err != nil {
 					// not a fatal error, so just log a warning
 					logrus.Warnf("error trying to initialize syslog: %s", err)
 				} else {
-					go hook.Run()
-
 					logrus.AddHook(hook)
 				}
 			}
