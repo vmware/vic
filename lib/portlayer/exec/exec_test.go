@@ -15,7 +15,6 @@
 package exec
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
@@ -30,28 +29,31 @@ import (
 var containerEvents []events.Event
 
 func TestEventedState(t *testing.T) {
+	id := "123439"
+	container := newTestContainer(id)
+	addTestVM(container)
 	// poweredOn event
-	event := events.ContainerPoweredOn
+	event := createVMEvent(container, StateRunning)
 	assert.EqualValues(t, StateStarting, eventedState(event, StateStarting))
 	assert.EqualValues(t, StateRunning, eventedState(event, StateRunning))
 	assert.EqualValues(t, StateRunning, eventedState(event, StateStopped))
 	assert.EqualValues(t, StateRunning, eventedState(event, StateSuspended))
 
-	// powerOff event
-	event = events.ContainerPoweredOff
+	// // powerOff event
+	event = createVMEvent(container, StateStopped)
 	assert.EqualValues(t, StateStopping, eventedState(event, StateStopping))
 	assert.EqualValues(t, StateStopped, eventedState(event, StateStopped))
 	assert.EqualValues(t, StateStopped, eventedState(event, StateRunning))
 
-	// suspended event
-	event = events.ContainerSuspended
+	// // suspended event
+	event = createVMEvent(container, StateSuspended)
 	assert.EqualValues(t, StateSuspending, eventedState(event, StateSuspending))
 	assert.EqualValues(t, StateSuspended, eventedState(event, StateSuspended))
 	assert.EqualValues(t, StateSuspended, eventedState(event, StateRunning))
 
 	// removed event
-	event = events.ContainerRemoved
-	assert.EqualValues(t, StateRemoved, eventedState(event, StateRunning))
+	event = createVMEvent(container, StateRemoved)
+	assert.EqualValues(t, StateRemoved, eventedState(event, StateRemoved))
 	assert.EqualValues(t, StateRemoved, eventedState(event, StateStopped))
 	assert.EqualValues(t, StateRemoving, eventedState(event, StateRemoving))
 }
@@ -81,10 +83,6 @@ func TestPublishContainerEvent(t *testing.T) {
 	assert.Equal(t, events.ContainerPoweredOff, containerEvents[0].String())
 }
 
-func containerCallback(ee events.Event) {
-	containerEvents = append(containerEvents, ee)
-}
-
 func TestVMRemovedEventCallback(t *testing.T) {
 
 	NewContainerCache()
@@ -109,20 +107,7 @@ func TestVMRemovedEventCallback(t *testing.T) {
 	Containers.Put(container)
 
 	container.vm.EnterFixingState()
-
-	cID, _ := strconv.Atoi(id)
-	vmwEve := &types.VmRemovedEvent{
-		VmEvent: types.VmEvent{
-			Event: types.Event{
-				CreatedTime: time.Now().UTC(),
-				Key:         int32(cID),
-				Vm: &types.VmEventArgument{
-					Vm: container.vm.Reference(),
-				},
-			},
-		},
-	}
-	vmEvent := vsphere.NewVMEvent(vmwEve)
+	vmEvent := createVMEvent(container, StateRemoved)
 
 	mgr.Publish(vmEvent)
 	time.Sleep(time.Millisecond * 30)
@@ -133,4 +118,58 @@ func TestVMRemovedEventCallback(t *testing.T) {
 	time.Sleep(time.Millisecond * 30)
 	assertMsg = "Container should be removed now that it has left fixing state"
 	assert.True(t, Containers.Container(id) == nil, assertMsg)
+}
+
+func containerCallback(ee events.Event) {
+	containerEvents = append(containerEvents, ee)
+}
+
+func createVMEvent(container *Container, state State) *vsphere.VMEvent {
+	// event to return
+	var vmEvent *vsphere.VMEvent
+	// basic event info
+	vme := types.Event{
+		CreatedTime: time.Now().UTC(),
+		Key:         int32(101),
+		Vm: &types.VmEventArgument{
+			Vm: container.vm.Reference(),
+		},
+	}
+
+	switch state {
+	case StateSuspended:
+		// suspended
+		vmwEve := &types.VmSuspendedEvent{
+			VmEvent: types.VmEvent{
+				Event: vme,
+			},
+		}
+		vmEvent = vsphere.NewVMEvent(vmwEve)
+	case StateStopped:
+		// poweredOff
+		vmwEve := &types.VmPoweredOffEvent{
+			VmEvent: types.VmEvent{
+				Event: vme,
+			},
+		}
+		vmEvent = vsphere.NewVMEvent(vmwEve)
+	case StateRemoved:
+		// removed
+		vmwEve := &types.VmRemovedEvent{
+			VmEvent: types.VmEvent{
+				Event: vme,
+			},
+		}
+		vmEvent = vsphere.NewVMEvent(vmwEve)
+	default:
+		// poweredOn
+		vmwEve := &types.VmPoweredOnEvent{
+			VmEvent: types.VmEvent{
+				Event: vme,
+			},
+		}
+		vmEvent = vsphere.NewVMEvent(vmwEve)
+	}
+
+	return vmEvent
 }

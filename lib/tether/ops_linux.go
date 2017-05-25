@@ -475,8 +475,13 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 }
 
 func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
-	ns := endpoint.Network.Assigned.Nameservers
 	gw := endpoint.Network.Assigned.Gateway
+	ns := endpoint.Network.Assigned.Nameservers
+	// if `--dns-server` option is supplied at VCH creation, do not overwrite with
+	// dhcp-provided name servers, and make sure they appear at the top of the list
+	if len(endpoint.Network.Nameservers) > 0 {
+		ns = append(endpoint.Network.Nameservers, ns...)
+	}
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
 	if len(ns) > 0 {

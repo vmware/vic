@@ -27,10 +27,13 @@ import java.net.URI;
 import com.vmware.vic.ModelObjectUriResolver;
 import com.vmware.vic.model.ModelObject;
 import com.vmware.vic.model.VirtualContainerHostVm;
+import com.vmware.vic.model.constants.BaseVm;
+import com.vmware.vic.model.constants.Vch;
 import com.vmware.vim25.ManagedEntityStatus;
 import com.vmware.vim25.VirtualMachinePowerState;
 
 public class VirtualContainerHostVmTest extends Common {
+    private static final String VM_TYPE_VCHVM = "vic:VirtualContainerHostVm";
 	private VirtualContainerHostVm _vm;
 
 	@Before
@@ -46,7 +49,7 @@ public class VirtualContainerHostVmTest extends Common {
 
 	@Test
 	public void testGetType() {
-		assertEquals("vic:VirtualContainerHostVm", _vm.getType());
+		assertEquals(VM_TYPE_VCHVM, _vm.getType());
 	}
 
 	@Test
@@ -58,18 +61,27 @@ public class VirtualContainerHostVmTest extends Common {
 	public void testGetUri() {
 		ModelObjectUriResolver uriResolver = new ModelObjectUriResolver();
 		URI uri = _vm.getUri(uriResolver);
-		assertEquals("urn:vic:vic:VirtualContainerHostVm:server1/id1", uri.toString());
+		assertEquals(String.format(
+                "urn:vic:%s:%s", VM_TYPE_VCHVM, "server1/id1"),
+                uri.toString());
 	}
 
 	@Test
 	public void testGetProperty() {
-		assertFalse(_vm.getProperty("name").equals(ModelObject.UNSUPPORTED_PROPERTY));
-		assertFalse(_vm.getProperty("overallStatus").equals(ModelObject.UNSUPPORTED_PROPERTY));
-		assertFalse(_vm.getProperty("runtime.powerState").equals(ModelObject.UNSUPPORTED_PROPERTY));
-		assertFalse(_vm.getProperty("clientIp").equals(ModelObject.UNSUPPORTED_PROPERTY));
-		assertFalse(_vm.getProperty("overallCpuUsage").equals(ModelObject.UNSUPPORTED_PROPERTY));
-		assertFalse(_vm.getProperty("guestMemoryUsage").equals(ModelObject.UNSUPPORTED_PROPERTY));
-		assertFalse(_vm.getProperty("commitedStorage").equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty(BaseVm.VM_NAME)
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty(BaseVm.VM_OVERALL_STATUS)
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty(BaseVm.Runtime.VM_POWERSTATE_FULLPATH)
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty(Vch.VM_CLIENT_IP)
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty(BaseVm.VM_OVERALLCPUUSAGE)
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty(BaseVm.VM_GUESTMEMORYUSAGE)
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
+		assertFalse(_vm.getProperty(BaseVm.VM_COMMITTEDSTORAGE)
+		        .equals(ModelObject.UNSUPPORTED_PROPERTY));
 		assertTrue(_vm.getProperty("iDontExist").equals(ModelObject.UNSUPPORTED_PROPERTY));
 	}
 
@@ -81,6 +93,6 @@ public class VirtualContainerHostVmTest extends Common {
 		assertEquals(_vm.getClientIp(), "10.17.109.187");
 		assertEquals(_vm.getOverallCpuUsage(), 1000);
 		assertEquals(_vm.getGuestMemoryUsage(), 500);
-		assertEquals(_vm.getCommitedStorage(), (long)123456789);
+		assertEquals(_vm.getCommittedStorage(), (long)123456789);
 	}
 }

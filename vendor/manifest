@@ -80,6 +80,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/RackSec/srslog",
+			"repository": "https://github.com/RackSec/srslog",
+			"vcs": "git",
+			"revision": "a974ba6f7fb527d2ddc73ee9c05d3e2ccc0af0dc",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/Sirupsen/logrus",
 			"repository": "https://github.com/Sirupsen/logrus",
 			"vcs": "git",
@@ -1013,7 +1021,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "35ddbd457a017bd933712fbbab56f4d6cacb32b5",
+			"revision": "8bff8355d10c46dcac74d3d64b2d38740f9e3dcd",
 			"branch": "master"
 		},
 		{

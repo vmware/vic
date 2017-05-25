@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   wait-for-build:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
@@ -31,7 +31,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
@@ -57,7 +57,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     privileged: true
     environment:
@@ -82,6 +82,9 @@ pipeline:
       GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
       DOMAIN: ${CI_DOMAIN}
+      SYSLOG_SERVER: ${SYSLOG_SERVER}
+      SYSLOG_USER: ${SYSLOG_USER}
+      SYSLOG_PASSWD: ${SYSLOG_PASSWD}
     commands:
       - make mark
       - tests/integration-test.sh
@@ -90,7 +93,7 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: ${TEST_BUILD_IMAGE=gcr.io/eminent-nation-87317/vic-integration-test:1.30}
+    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
@@ -109,7 +112,6 @@ pipeline:
       BIN_TEMP_DIR: bin/vic
       GOPATH: /go
       SHELL: /bin/bash
-      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
     commands:
       - make mark
       - rm -rf $BIN_TEMP_DIR
@@ -121,13 +123,13 @@ pipeline:
       - cp $BIN/vic-ui* $BIN_TEMP_DIR
       - cp $BIN/appliance.iso $BIN_TEMP_DIR
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
-      - tar czvf $BIN/vic_${BUILD_NUMBER}.tar.gz -C $BIN vic
-      - shasum -a 256 $BIN/vic_${BUILD_NUMBER}.tar.gz
-      - shasum -a 1 $BIN/vic_${BUILD_NUMBER}.tar.gz
-      - md5sum $BIN/vic_${BUILD_NUMBER}.tar.gz
-      - du -ks $BIN/vic_${BUILD_NUMBER}.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
+      - tar czvf $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz -C $BIN vic
+      - shasum -a 256 $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz
+      - shasum -a 1 $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz
+      - md5sum $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz
+      - du -ks $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz | awk '{print $1 / 1024}' | { read x; echo $x MB; }
       - mkdir bundle
-      - cp $BIN/vic_${BUILD_NUMBER}.tar.gz bundle
+      - cp $BIN/vic_${DRONE_BUILD_NUMBER}.tar.gz bundle
       - make sincemark
     when:
       repo: vmware/vic

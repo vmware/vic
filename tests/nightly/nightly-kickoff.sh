@@ -37,7 +37,7 @@ echo "Cleanup logs from previous run"
 rm -rf *.zip *.log
 rm -rf bin 60 65
 
-input=$(gsutil ls -l gs://vic-engine-builds | tail -n2 | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
+input=$(gsutil ls -l gs://vic-engine-builds/vic_* | grep -v TOTAL | sort -k2 -r | head -n1 | xargs | cut -d ' ' -f 3 | cut -d '/' -f 4)
 buildNumber=${input:4}
 
 n=0
@@ -113,7 +113,7 @@ done
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i on vSphere 6.0"
-    drone exec --trusted -e test="pybot --variable ESX_VERSION:3620759 --variable VC_VERSION:3634791 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot --variable ESX_VERSION:5251623 --variable VC_VERSION:5326079 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then

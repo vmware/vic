@@ -144,7 +144,7 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		return errors.New("inspect failed")
 	}
 
-	vchConfig, err := executor.GetVCHConfig(vch)
+	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)

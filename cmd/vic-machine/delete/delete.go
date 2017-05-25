@@ -144,7 +144,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	log.Infof("")
 	log.Infof("VCH ID: %s", vch.Reference().String())
 
-	vchConfig, err := executor.GetVCHConfig(vch)
+	vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)

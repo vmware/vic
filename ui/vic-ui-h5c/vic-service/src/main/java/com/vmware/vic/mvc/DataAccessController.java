@@ -39,9 +39,12 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.vmware.vic.model.ModelObject;
 import com.vmware.vise.data.query.DataService;
 import com.vmware.vise.data.query.ObjectReferenceService;
 import com.vmware.vise.data.query.PropertyValue;
+import com.vmware.vise.data.query.ResultItem;
+import com.vmware.vise.data.query.ResultSet;
 
 /**
  * A generic controller to serve HTTP JSON GET requests to the endpoint "/data".
@@ -90,7 +93,9 @@ public class DataAccessController {
    @ResponseBody
    public Map<String, Object> getProperties(
             @PathVariable("objectId") String encodedObjectId,
-            @RequestParam(value = "properties", required = true) String properties)
+            @RequestParam(value = "properties", required = true) String properties,
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "pageSize", defaultValue = "10") int pageSize)
             throws Exception {
 
       Object ref = getDecodedReference(encodedObjectId);
@@ -140,6 +145,75 @@ public class DataAccessController {
       PropertyValue []result = QueryUtil.getPropertiesForRelatedObjects(
             _dataService, ref, relation, targetType, props);
       return result;
+   }
+
+   /**
+    * Gets a list items of the given type and extract the given properties
+    *
+    * @param targetType  object type
+    *
+    * @param properties
+    *    List of properties to request for the matched objects, i.e. prop1,prop2,prop3.
+    *
+    * @param offset
+    *    The offset into the result of items.
+    *    If the offset is N then items from N to N + maxResultCount - 1 will be returned.
+    *    If empty, it will default to 0.
+    *
+    * @param maxResultCount
+    *    The max number of items to retrieve. By default all results are retrieved.
+    *
+    * @param sorting
+    *    A pair of strings: the property to sort on and the sorting direction,
+    *    i.e. prop1,asc  or prop2,desc. By defaut "name,asc" will be used
+    *
+    * @return
+    *    Returns a map where "data" is a list of items and "totalResultCount" is a total
+    *    number of items satisfying the constraint.
+    *
+    * @throws Exception
+    */
+   @RequestMapping(value = "/list/")
+   @ResponseBody
+   public Map<String, Object> getListDataEx(
+         @RequestParam(value="targetType") String targetType,
+         @RequestParam(value="properties") String properties,
+         @RequestParam(value="offset", defaultValue="0") int offset,
+         @RequestParam(value="maxResultCount", defaultValue="-1") int maxResultCount,
+         @RequestParam(value="sorting", required = false) String sorting,
+         @RequestParam(value="filter", required = false) String filter) throws Exception {
+
+      String[] props = properties.split(",");
+      String[] sortParams = (sorting != null) ? sorting.split(",") : null;
+      String[] filterParams = (filter != null && !filter.isEmpty()) ?
+              filter.split(",") : null;
+      ResultSet rs = QueryUtil.getListData(
+            _dataService, targetType, props,
+            offset, maxResultCount, sortParams, filterParams);
+      return transformListDataToMap(rs);
+   }
+
+   /**
+    * @return a map for the /list API above.
+    */
+   @SuppressWarnings("unchecked")
+private  Map<String, Object> transformListDataToMap(ResultSet rs) {
+       Map<String, ModelObject> vmsMap = null;
+       int vmsLen = 0;
+
+      for (ResultItem ri : rs.items) {
+         for (PropertyValue pv : ri.properties) {
+            if ("results".equals(pv.propertyName)) {
+               vmsMap = (Map<String, ModelObject>)pv.value;
+            } else if ("match".equals(pv.propertyName)) {
+                vmsLen = (int)pv.value;
+            }
+         }
+      }
+      Map<String, Object> resultObject = new HashMap<String, Object>();
+      resultObject.put("data", vmsMap);
+      resultObject.put("totalResultCount", vmsLen);
+      return resultObject;
    }
 
    /**

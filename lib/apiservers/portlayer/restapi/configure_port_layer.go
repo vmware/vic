@@ -30,16 +30,11 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/portlayer"
-	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
-
-func init() {
-	trace.Logger.Level = log.DebugLevel
-}
 
 type handler interface {
 	Configure(api *operations.PortLayerAPI, handlerCtx *handlers.HandlerContext)
@@ -72,10 +67,6 @@ func configureFlags(api *operations.PortLayerAPI) {
 }
 
 func configureAPI(api *operations.PortLayerAPI) http.Handler {
-	if options.PortLayerOptions.Debug {
-		log.SetLevel(log.DebugLevel)
-	}
-
 	api.Logger = log.Printf
 
 	ctx := context.Background()

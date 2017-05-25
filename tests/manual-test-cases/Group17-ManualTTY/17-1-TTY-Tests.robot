@@ -99,6 +99,16 @@ Stop a container stuck in starting state
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  poweredOff
 
+Start a container after docker run
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${name}=  Generate Random String  15
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it --name ${name} busybox /bin/date
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${name}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+
 Attach with custom detach keys
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
     ${out}=  Run  docker %{VCH-PARAMS} pull busybox

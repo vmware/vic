@@ -25,10 +25,11 @@ systemctl start docker
 echo "Docker started"
 
 # pull admiral image
+ADMIRAL_IMAGE="vmware/admiral:vic_${BUILD_ADMIRAL_REVISION}"
 echo "Pulling Admiral Docker image.."
-echo "Downloading Admiral ${BUILD_ADMIRAL_REVISION}"
-docker pull vmware/admiral:vic_${BUILD_ADMIRAL_REVISION}
-docker tag vmware/admiral:vic_${BUILD_ADMIRAL_REVISION} vmware/admiral:ova
+echo "Downloading Admiral ${ADMIRAL_IMAGE}"
+docker pull ${ADMIRAL_IMAGE}
+docker tag ${ADMIRAL_IMAGE} vmware/admiral:ova
 echo "Pulled Admiral image"
 
 # stop docker

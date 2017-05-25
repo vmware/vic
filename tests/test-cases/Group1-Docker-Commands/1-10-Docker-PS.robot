@@ -79,8 +79,8 @@ Docker ps only running containers
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
     Create several containers
-    ${status}=  Get State Of Github Issue  4997
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #4997 has been resolved
+    ${status}=  Get State Of Github Issue  5235
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #5235 has been resolved
     #Wait Until Keyword Succeeds  5x  5 seconds  Check Length of PS  ${len+1}
 
 Docker ps all containers

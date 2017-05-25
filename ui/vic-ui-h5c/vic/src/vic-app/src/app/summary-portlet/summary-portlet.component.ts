@@ -16,7 +16,6 @@
 
 import {
     Component,
-    AfterViewInit,
     OnDestroy,
     ChangeDetectorRef
 } from '@angular/core';
@@ -40,8 +39,7 @@ import { VM_PROPERTIES_TO_EXTRACT } from '../vm.constants';
     `
 })
 
-export class VicSummaryPortletComponent implements
-    AfterViewInit, OnDestroy {
+export class VicSummaryPortletComponent implements OnDestroy {
     public activeVm: VirtualMachine;
     private refreshSubscription: Subscription;
     private vmInfoSubscription: Subscription;
@@ -73,17 +71,18 @@ export class VicSummaryPortletComponent implements
                 console.error('data fetch failed!', err);
             }
         );
-    }
 
-    ngAfterViewInit() {
-        setTimeout(() => {
-            // set up objectId in data property service
-            this.route.params.subscribe((params: any) => {
-                this.service.setObjectId(params.id);
-                this.service.fetchVmInfo(VM_PROPERTIES_TO_EXTRACT, this.stubType);
-                console.log(`objectId set to ${params.id}`);
-            });
-        });
+        // set up objectId in data property service
+        let paramsIntervalTimer = setInterval(() => {
+            if (this.route && this.route.params) {
+                this.route.params.subscribe((params: any) => {
+                    this.service.setObjectId(params.id);
+                    this.service.fetchVmInfo(VM_PROPERTIES_TO_EXTRACT, this.stubType);
+                    console.log(`objectId set to ${params.id}`);
+                });
+                clearInterval(paramsIntervalTimer);
+            }
+        }, 5);
     }
 
     ngOnDestroy() {

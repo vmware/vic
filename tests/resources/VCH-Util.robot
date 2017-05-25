@@ -174,11 +174,11 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tlsverify
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tlsverify
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
@@ -300,7 +300,7 @@ Cleanup Dangling VMs On Test Server
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
     \   Log To Console  Destroying dangling VCH: ${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
-    \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
+    \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network

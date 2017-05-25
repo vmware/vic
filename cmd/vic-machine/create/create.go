@@ -123,6 +123,8 @@ type Create struct {
 	httpsProxy string
 	httpProxy  string
 
+	syslogAddr string
+
 	executor *management.Dispatcher
 }
 
@@ -302,13 +304,13 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "container-network-gateway, cng",
 			Value:  &c.containerNetworksGateway,
-			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.1/16.",
+			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.1/16",
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
 			Name:   "container-network-ip-range, cnr",
 			Value:  &c.containerNetworksIPRanges,
-			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. vsphere-net:172.16.0.0/24, vsphere-net:172.16.0.10-20.",
+			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. vsphere-net:172.16.0.0/24, vsphere-net:172.16.0.10-172.16.0.20",
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
@@ -462,6 +464,14 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.httpProxy,
 			Hidden:      true,
 		},
+
+		cli.StringFlag{
+			Name:        "syslog-address",
+			Value:       "",
+			Usage:       "Address of the syslog server to send Virtual Container Host logs to. Must be in the format transport://host[:port], where transport is udp or tcp. port defaults to 514 if not specified",
+			Destination: &c.syslogAddr,
+			Hidden:      true,
+		},
 	}
 
 	util := []cli.Flag{
@@ -475,7 +485,7 @@ func (c *Create) Flags() []cli.Flag {
 
 		cli.BoolFlag{
 			Name:        "force, f",
-			Usage:       "Force the install, removing existing if present",
+			Usage:       "Ignore error messages and proceed",
 			Destination: &c.Force,
 		},
 		cli.DurationFlag{
@@ -584,6 +594,10 @@ func (c *Create) processParams() error {
 	}
 
 	if err := c.processProxies(); err != nil {
+		return err
+	}
+
+	if err := c.processSyslog(); err != nil {
 		return err
 	}
 
@@ -1277,10 +1291,23 @@ func (c *Create) generateCertificates(server bool, client bool) ([]byte, *certif
 	return cakp.CertPEM, skp, nil
 }
 
+func (c *Create) processSyslog() error {
+	if len(c.syslogAddr) == 0 {
+		return nil
+	}
+
+	u, err := url.Parse(c.syslogAddr)
+	if err != nil {
+		return err
+	}
+
+	c.SyslogConfig.Addr = u
+	return nil
+}
+
 func (c *Create) logArguments(cliContext *cli.Context) []string {
 	args := []string{}
 	sf := c.SetFields() // StringSlice options set by the user
-
 	for _, f := range cliContext.FlagNames() {
 		_, ok := sf[f]
 		if !cliContext.IsSet(f) && !ok {
@@ -1583,7 +1610,18 @@ func splitVnetParam(p string) (vnet string, value string, err error) {
 		return
 	}
 
+	// If the supplied vSphere network contains spaces then the user must supply a network alias. Guest info won't receive a name with spaces.
+	if strings.Contains(vnet, " ") && (len(mapped) == 1 || (len(mapped) == 2 && len(mapped[1]) == 0)) {
+		err = fmt.Errorf("A network alias must be supplied when network name %q contains spaces.", p)
+		return
+	}
+
 	if len(mapped) > 1 {
+		// Make sure the alias does not contain spaces
+		if strings.Contains(mapped[1], " ") {
+			err = fmt.Errorf("The network alias supplied in %q cannot contain spaces.", p)
+			return
+		}
 		value = mapped[1]
 	}
 

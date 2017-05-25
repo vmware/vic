@@ -103,7 +103,7 @@ func (l *List) prettyPrint(ctx context.Context, cli *cli.Context, vchs []*vm.Vir
 	installerVer := version.GetBuild()
 	for _, vch := range vchs {
 
-		vchConfig, err := executor.GetVCHConfig(vch)
+		vchConfig, err := executor.GetNoSecretVCHConfig(vch)
 		var version string
 		if err != nil {
 			log.Error("Failed to get Virtual Container Host configuration")

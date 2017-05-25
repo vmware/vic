@@ -338,8 +338,10 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 			sess.Started = ""
 			sess.Active = true
 		}
-		cfg := make(map[string]string)
-		extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+		cfg, err := d.encodeConfig(conf)
+		if err != nil {
+			return err
+		}
 		spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	}
 
@@ -431,16 +433,15 @@ func extractSecretFromFile(rc io.ReadCloser) (string, error) {
 	return "", errSecretKeyNotFound
 }
 
-// GuestInfoSecret downloads the VCH's .vmx file and returns the GuestInfoSecretKey
-// value. This function expects the datastore in the dispatcher's session to be set.
-func (d *Dispatcher) GuestInfoSecret(vchName string) (*extraconfig.SecretKey, error) {
+// GuestInfoSecret downloads the VCH's .vmx file and returns the GuestInfoSecretKey value.
+func (d *Dispatcher) GuestInfoSecret(vchName, vmPath string, ds *object.Datastore) (*extraconfig.SecretKey, error) {
 	defer trace.End(trace.Begin(""))
 
-	if d.session.Datastore == nil {
+	if ds == nil {
 		return nil, errNilDatastore
 	}
 
-	helper, err := datastore.NewHelper(d.ctx, d.session, d.session.Datastore, d.vmPathName)
+	helper, err := datastore.NewHelper(d.ctx, d.session, ds, vmPath)
 	if err != nil {
 		return nil, err
 	}

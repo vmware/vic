@@ -223,6 +223,8 @@ func (t *interaction) Ping() error {
 func (t *interaction) Unblock() error {
 	defer trace.End(trace.Begin(""))
 
+	var reset bool
+
 	if t.version < feature.ExecSupportedVersion {
 		log.Warnf("Running container does not support Unblock request, skipping.")
 		return nil
@@ -232,9 +234,13 @@ func (t *interaction) Unblock() error {
 		ok, err := t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg))
 		if !ok || err != nil {
 			log.Errorf("failed to unblock the other side: %s", err)
-			t.unblocked.Reset()
+			// #5038: resync package is not reentrant so we need to call Reset after this
+			reset = true
 		}
 	})
 
+	if reset {
+		t.unblocked.Reset()
+	}
 	return nil
 }
