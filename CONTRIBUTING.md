@@ -179,7 +179,7 @@ discussion.
 For VIC engineers, you should set the priority based on the below guidelines.  Everyone else, do not set the priority of a new issue.
 
 #### Priorities
-Label: priority/high - critical customer issues, critical bugs that are blocking CI or development. Be careful with this label, as it will block sprint planning. We want to limit the number of priority/high issues as much as possible.
+Label: priority/high - critical customer issues, critical bugs that are blocking CI or development.  Research spikes are also considered high priority as they will block future feature development. Be careful with this label, as it will block sprint planning. We want to limit the number of priority/high issues as much as possible.
 
 Label: priority/medium - features that we have committed to deliver in the current release cycle, bugs/tech debt that are important to fix but are not critically blocking anything.
 
