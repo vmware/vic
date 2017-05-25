@@ -84,6 +84,6 @@ This test requires that a vSphere environment be running and available
 3. None of the downloaded logs contain the vch or vSphere password
 
 ##Wan Routes Through Proxy
-1. Start a vch with a proxy defined at a localhost port. The proxy isn't actually running, so all requests will fail.
+1. Start a vch with a proxy defined at a localhost port. The proxy isn't actually running, so all requests will fail. IF the wan requests fail we know they were routed through the proxy.
 2. Log in to VICAdmin
 3. Verify wan health check is not successful.
