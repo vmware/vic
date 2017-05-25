@@ -67,6 +67,8 @@ const (
 	GoodStatus     = template.HTML(`<i class="icon-ok"></i>`)
 	BadStatus      = template.HTML(`<i class="icon-attention"></i>`)
 	DefaultVCHName = ` `
+	HTTPSProxy     = "--https-proxy"
+	HTTPProxy      = "--http-proxy"
 )
 
 func GetMgmtIP() net.IPNet {
@@ -188,11 +190,11 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		vchArgs[splitArgs[0]] = splitArgs[1]
 	}
 	// priority given to https proxies
-	proxy := vchArgs["--https-proxy"]
-	if proxy == "" {
-		proxy = vchArgs["--http-proxy"]
+	proxy, ok := vchArgs[HTTPSProxy]
+	if !ok {
+		proxy, ok = vchArgs[HTTPProxy]
 	}
-	if proxy != "" {
+	if ok {
 		url, err := url.Parse(proxy)
 		if err != nil {
 			nwErrors = append(nwErrors, err)
