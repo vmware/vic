@@ -187,12 +187,10 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		splitArgs := strings.Split(args, "=")
 		vchArgs[splitArgs[0]] = splitArgs[1]
 	}
-	//priority given to https proxies
-	proxy := ""
-	if sproxy := vchArgs["--https-proxy"]; sproxy != "" {
-		proxy = sproxy
-	} else if hproxy := vchArgs["--http-proxy"]; hproxy != "" {
-		proxy = hproxy
+	// priority given to https proxies
+	proxy := vchArgs["--https-proxy"]
+	if proxy == "" {
+		proxy = vchArgs["--http-proxy"]
 	}
 	if proxy != "" {
 		url, err := url.Parse(proxy)
