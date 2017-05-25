@@ -20,7 +20,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/loads"
 	"github.com/jessevdk/go-flags"
@@ -82,6 +81,7 @@ func main() {
 	logcfg := viclog.NewLoggingConfig()
 	if ploptions.PortLayerOptions.Debug {
 		logcfg.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
 	}
 
 	if ploptions.PortLayerOptions.SyslogAddr != nil {
@@ -90,11 +90,10 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   u.Scheme,
-			RAddr:     u.Host,
-			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
-			Formatter: syslog.RFC3164,
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  u.Scheme,
+			RAddr:    u.Host,
+			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
 

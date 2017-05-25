@@ -51,10 +51,14 @@ Verify VCH remote syslog
 
     @{procs}=  Create List  port-layer-server  docker-engine-server  vic-init  vicadmin
     &{proc-pids}=  Create Dictionary
+    &{proc-hosts}=  Create Dictionary
 
     :FOR  ${proc}  IN  @{procs}
     \     ${pid}=  Get Remote PID  ${proc}
     \     Set To Dictionary  ${proc-pids}  ${proc}  ${pid}
+    \     Set To Dictionary  ${proc-hosts}  ${proc}  ${vch-ip}
+
+    Set To Dictionary  ${proc-hosts}  vic-init  Photon
 
     ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
@@ -63,7 +67,8 @@ Verify VCH remote syslog
     ${keys}=  Get Dictionary Keys  ${proc-pids}
     :FOR  ${proc}  IN  @{keys}
     \     ${pid}=  Get From Dictionary  ${proc-pids}  ${proc}
-    \     Should Contain  ${out}  ${vch-ip} ${proc}[${pid}]:
+    \     ${host}=  Get From Dictionary  ${proc-hosts}  ${proc}
+    \     Should Contain  ${out}  ${host} ${proc}[${pid}]:
 
     ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0

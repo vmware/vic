@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -288,6 +289,8 @@ func (t *tether) initializeSessions() error {
 		"Execs":    t.config.Execs,
 	}
 
+	var writer syslog.Writer
+
 	// we need to iterate over both sessions and execs
 	for name, m := range maps {
 
@@ -322,6 +325,25 @@ func (t *tether) initializeSessions() error {
 
 				session.wait = &sync.WaitGroup{}
 				session.extraconfigKey = name
+
+				if session.Diagnostics.SysLogConfig != nil {
+					cfg := session.Diagnostics.SysLogConfig
+					var w syslog.Writer
+					if writer == nil {
+						writer, err = syslog.Dial(cfg.Network, cfg.RAddr, syslog.Info|syslog.Daemon, fmt.Sprintf("%s", t.config.ID[:shortLen]))
+						if err != nil {
+							log.Warnf("could not connect to syslog server: %s", err)
+						}
+						w = writer
+					} else {
+						w = writer.WithTag(fmt.Sprintf("%s", t.config.ID[:shortLen]))
+					}
+
+					if w != nil {
+						stdout.Add(w)
+						stderr.Add(w.WithPriority(syslog.Err | syslog.Daemon))
+					}
+				}
 
 				return nil
 			}()
