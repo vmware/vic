@@ -278,6 +278,11 @@ func (c *createVM) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 		rp.Vm = append(rp.Vm, vm.Self)
 	}
 
+	switch hs := Map.Get(*vm.Runtime.Host).(type) {
+	case *HostSystem:
+		hs.HostSystem.Vm = append(hs.HostSystem.Vm, vm.Reference())
+	}
+
 	return vm.Reference(), nil
 }
 
@@ -410,8 +415,16 @@ func (f *Folder) CreateDVSTask(c *types.CreateDVS_Task) soap.HasFault {
 		if Map.FindByName(dvs.Name, f.ChildEntity) != nil {
 			return nil, &types.InvalidArgument{InvalidProperty: "name"}
 		}
-
 		dvs.Uuid = uuid.New().String()
+		fmt.Printf("\n\nI ran \n\n")
+		// TODO: loop over c.Spec.ConfigSpec.GetDVSConfigSpec().Host to create Host feild
+		configInfo := types.DVSConfigInfo{
+			DefaultPortConfig: c.Spec.ConfigSpec.GetDVSConfigSpec().DefaultPortConfig,
+			Host:              []types.DistributedVirtualSwitchHostMember{},
+			Name:              c.Spec.ConfigSpec.GetDVSConfigSpec().Name,
+			Uuid:              dvs.Uuid,
+		}
+		dvs.Config = configInfo.GetDVSConfigInfo()
 
 		f.putChild(dvs)
 
