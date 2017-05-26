@@ -18,14 +18,16 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/ip"
+	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -44,9 +46,16 @@ var (
 	kindConverters = make(map[reflect.Kind]converter)
 	typeConverters = make(map[string]converter)
 	labelHandlers  = make(map[string]labelConverter)
-
-	ConverterLogLevel = log.InfoLevel
 )
+
+var log = &logrus.Logger{
+	Out: os.Stderr,
+	// We're using our own text formatter to skip the \n and \t escaping logrus
+	// was doing on non TTY Out (we redirect to a file) descriptors.
+	Formatter: viclog.NewTextFormatter(),
+	Hooks:     make(logrus.LevelHooks),
+	Level:     logrus.InfoLevel,
+}
 
 type converter func(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error
 type labelConverter func(dest map[string][]string, key string) error
@@ -77,12 +86,17 @@ func init() {
 	labelHandlers[valueAfterKeyLabel] = valueAfterKeyLabelHandler
 }
 
+func EnableLog() {
+	log.Level = logrus.DebugLevel
+}
+
+func DisableLog() {
+	log.Level = logrus.InfoLevel
+}
+
 // DataToOption convert data.Data structure to vic-machine create command options based on tags defined in data.Data structure
 // Note: need to make sure the tags are consistent with command line option name
 func DataToOption(data *data.Data) (map[string][]string, error) {
-	defer log.SetLevel(log.GetLevel())
-	log.SetLevel(ConverterLogLevel)
-
 	result := make(map[string][]string)
 
 	if data == nil {

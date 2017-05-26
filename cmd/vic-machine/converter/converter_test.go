@@ -62,7 +62,7 @@ func (c testObject) ObjectName(ctx context.Context) (string, error) {
 }
 
 func TestMain(t *testing.T) {
-	//	ConverterLogLevel = log.DebugLevel
+	//	EnableLog()
 	//	trace.Logger.Level = log.DebugLevel
 
 	testInit(t)

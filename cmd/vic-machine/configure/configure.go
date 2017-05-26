@@ -194,6 +194,11 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 
 	// Convert guestinfo *VirtualContainerHost back to *Data, decrypt secret data
 	oldData, err := validate.NewDataFromConfig(ctx, validator.Session.Finder, vchConfig)
+	if err != nil {
+		log.Error("Configuring cannot continue: configuration conversion failed")
+		log.Error(err)
+		return err
+	}
 	// using new configuration override configuration query from guestinfo
 	oldData.CopyNonEmpty(c.Data)
 	c.Data = oldData
@@ -201,11 +206,11 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	// evaluate merged configuration
 	newConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {
-		log.Error("Create cannot continue: configuration validation failed")
+		log.Error("Configuring cannot continue: configuration validation failed")
 		return err
 	}
 
-	// TODO: copy changed configuration here
+	// TODO: copy changed configuration here. https://github.com/vmware/vic/issues/2911
 	c.copyChangedConf(vchConfig, newConfig)
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)

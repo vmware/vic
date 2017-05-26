@@ -82,6 +82,7 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 // This method does not touch any configuration for VCH VM or resource pool, which should be retrieved from VM or vApp attributes
 func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualContainerHostConfigSpec) (d *data.Data, err error) {
 	if conf == nil {
+		err = fmt.Errorf("configuration is empty")
 		return
 	}
 
@@ -175,7 +176,7 @@ func setImageStore(d *data.Data, conf *config.VirtualContainerHostConfigSpec) er
 		return fmt.Errorf("no image store configured")
 	}
 	if len(conf.ImageStores) > 1 {
-		return fmt.Errorf(fmt.Sprintf("%d image store configured", len(conf.ImageStores)))
+		return fmt.Errorf("%d image stores configured", len(conf.ImageStores))
 	}
 	imageURL := conf.ImageStores[0]
 	if imageURL.Path != "" {
