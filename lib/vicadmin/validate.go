@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -67,8 +68,6 @@ const (
 	GoodStatus     = template.HTML(`<i class="icon-ok"></i>`)
 	BadStatus      = template.HTML(`<i class="icon-attention"></i>`)
 	DefaultVCHName = ` `
-	HTTPSProxy     = "--https-proxy"
-	HTTPProxy      = "--http-proxy"
 )
 
 func GetMgmtIP() net.IPNet {
@@ -182,19 +181,14 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 
 	nwErrors := []error{}
 
-	// create a http client with a custom transport. The transport uses the [s/h]proxy defined in vicmachine create if applicable.
+	// create a http client with a custom transport using the proxy from env vars
 	client := &http.Client{Timeout: 30 * time.Second}
-	vchArgs := make(map[string]string)
-	for _, args := range vch.VicMachineCreateOptions {
-		splitArgs := strings.Split(args, "=")
-		vchArgs[splitArgs[0]] = splitArgs[1]
-	}
 	// priority given to https proxies
-	proxy, ok := vchArgs[HTTPSProxy]
-	if !ok {
-		proxy, ok = vchArgs[HTTPProxy]
+	proxy := os.Getenv("VICADMIN_HTTPS_PROXY")
+	if proxy == "" {
+		proxy = os.Getenv("VICADMIN_HTTP_PROXY")
 	}
-	if ok {
+	if proxy != "" {
 		url, err := url.Parse(proxy)
 		if err != nil {
 			nwErrors = append(nwErrors, err)
