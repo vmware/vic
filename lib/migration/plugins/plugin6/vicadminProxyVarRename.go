@@ -83,10 +83,10 @@ func (p *VicadminProxyVarRename) Migrate(ctx context.Context, s *session.Session
 	newEnvs := make([]string, 0)
 	for _, envVar := range oldStruct.Sessions["vicadmin"].Cmd.Env {
 		if strings.Contains(envVar, oldHProxy) {
-			proxyVarValue := strings.Split(envVar, "=")[1:]
+			proxyVarValue := strings.Split(envVar, "=")[1]
 			newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", newHProxy, proxyVarValue))
 		} else if strings.Contains(envVar, oldSProxy) {
-			proxyVarValue := strings.Split(envVar, "=")[1:]
+			proxyVarValue := strings.Split(envVar, "=")[1]
 			newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", newSProxy, proxyVarValue))
 		} else {
 			newEnvs = append(newEnvs, envVar)
