@@ -23,6 +23,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/pkg/vsphere/toolbox/hgfs"
 )
 
 const (
@@ -40,6 +42,8 @@ var (
 
 		// Required to invoke guest power operations (shutdown, reboot)
 		"tools.capability.statechange",
+
+		"tools.capability.hgfs_server toolbox 1",
 	}
 
 	netInterfaceAddrs = net.InterfaceAddrs
@@ -80,6 +84,7 @@ func NewService(rpcIn Channel, rpcOut Channel) *Service {
 	s.RegisterHandler("Capabilities_Register", s.CapabilitiesRegister)
 
 	s.VixCommand = registerVixRelayedCommandHandler(s)
+	s.VixCommand.FileServer = hgfs.NewServer()
 	s.PowerCommand = registerPowerCommandHandler(s)
 
 	return s
