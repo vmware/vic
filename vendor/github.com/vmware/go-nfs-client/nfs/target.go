@@ -1,3 +1,6 @@
+// Copyright © 2017 VMware, Inc. All Rights Reserved.
+// SPDX-License-Identifier: BSD-2-Clause
+//
 package nfs
 
 import (
@@ -7,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fdawg4l/go-nfs-client/nfs/rpc"
-	"github.com/fdawg4l/go-nfs-client/nfs/util"
-	"github.com/fdawg4l/go-nfs-client/nfs/xdr"
+	"github.com/vmware/go-nfs-client/nfs/rpc"
+	"github.com/vmware/go-nfs-client/nfs/util"
+	"github.com/vmware/go-nfs-client/nfs/xdr"
 )
 
 type Target struct {
