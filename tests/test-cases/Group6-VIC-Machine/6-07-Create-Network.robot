@@ -244,7 +244,7 @@ Bridge network - ESX none
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
-Bridge network - invalid
+Bridge network - create bridge network if it doesn't exist
     Run Keyword If  '%{HOST_TYPE}' != 'ESXi'  Pass Execution  Test skipped on vCenter
 
     Set Test Environment Variables
@@ -257,6 +257,7 @@ Bridge network - invalid
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
+    Cleanup VIC Appliance On Test Server
 
 Bridge network - invalid vCenter
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
