@@ -26,7 +26,8 @@ import {
     Globals,
     GlobalsService,
     I18nService,
-    RefreshService
+    Vic18nService,
+    RefreshService,
 } from '../shared/index';
 import { DataPropertyService } from '../services/data-property.service';
 import { AppErrorHandler } from '../shared/appErrorHandler';
@@ -61,6 +62,8 @@ describe('VIC object view: Summary tab', () => {
                 AppAlertService,
                 Globals,
                 GlobalsService,
+                I18nService,
+                Vic18nService,
                 RefreshService
             ],
             imports: [
@@ -93,4 +96,6 @@ describe('VIC object view: Summary tab', () => {
         expect(span_uiVersion.nativeElement.textContent.trim()).toBe('1.1', 'should be 1.1');
         expect(span_vchVmsLen.nativeElement.textContent.trim()).toBe('1', 'should be 1');
     });
+
+    // TODO: i18n test
 });

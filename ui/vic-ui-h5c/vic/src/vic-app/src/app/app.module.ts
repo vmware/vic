@@ -24,12 +24,14 @@ import {
     Globals,
     GlobalsService,
     I18nService,
+    Vic18nService,
     RefreshService,
     AppAlertComponent,
     AppAlertService
 } from './shared/index';
 import { ActionDevService } from './services/action-dev.service';
 import { DataPropertyService } from './services/data-property.service';
+import { VicVmViewService } from './services/vm-view.service';
 import { AppErrorHandler } from './shared/appErrorHandler';
 
 import { AppRoutingModule, routedComponents } from './app-routing.module';
@@ -58,8 +60,10 @@ import { AppComponent } from './app.component';
         Globals,
         GlobalsService,
         I18nService,
+        Vic18nService,
         RefreshService,
         DataPropertyService,
+        VicVmViewService,
         { provide: ErrorHandler, useClass: AppErrorHandler }
     ],
     bootstrap: [AppComponent]

@@ -35,6 +35,7 @@ import (
 	dlayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/reference"
 	"github.com/docker/libtrust"
 
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
@@ -123,14 +124,15 @@ func LearnRegistryURL(options *Options) (string, error) {
 
 // LearnAuthURL returns the URL of the OAuth endpoint
 func LearnAuthURL(options Options) (*url.URL, error) {
-	defer trace.End(trace.Begin(options.Image + "/" + options.Tag))
+	defer trace.End(trace.Begin(options.Reference.String()))
 
 	url, err := url.Parse(options.Registry)
 	if err != nil {
 		return nil, err
 	}
-	url.Path = path.Join(url.Path, options.Image, "manifests", options.Tag)
 
+	tagOrDigest := tagOrDigest(options.Reference, options.Tag)
+	url.Path = path.Join(url.Path, options.Image, "manifests", tagOrDigest)
 	log.Debugf("URL: %s", url)
 
 	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
@@ -323,9 +325,19 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 	return diffID, nil
 }
 
+// tagOrDigest returns an image's digest if it's pulled by digest, or its tag
+// otherwise.
+func tagOrDigest(r reference.Named, tag string) string {
+	if digested, ok := r.(reference.Canonical); ok {
+		return digested.Digest().String()
+	}
+
+	return tag
+}
+
 // FetchImageManifest fetches the image manifest file
 func FetchImageManifest(ctx context.Context, options Options, schemaVersion int, progressOutput progress.Output) (interface{}, string, error) {
-	defer trace.End(trace.Begin(options.Image + "/" + options.Tag))
+	defer trace.End(trace.Begin(options.Reference.String()))
 
 	if schemaVersion != 1 && schemaVersion != 2 {
 		return nil, "", fmt.Errorf("Unknown schema version %d requested!", schemaVersion)
@@ -335,8 +347,9 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 	if err != nil {
 		return nil, "", err
 	}
-	url.Path = path.Join(url.Path, options.Image, "manifests", options.Tag)
 
+	tagOrDigest := tagOrDigest(options.Reference, options.Tag)
+	url.Path = path.Join(url.Path, options.Image, "manifests", tagOrDigest)
 	log.Debugf("URL: %s", url)
 
 	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
@@ -368,7 +381,7 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 
 	switch schemaVersion {
 	case 1: //schema 1, signed manifest
-		return decodeManifestSchema1(manifestFileName, options)
+		return decodeManifestSchema1(manifestFileName, options, url.Hostname())
 	case 2: //schema 2
 		return decodeManifestSchema2(manifestFileName, options)
 	}
@@ -381,7 +394,7 @@ func FetchImageManifest(ctx context.Context, options Options, schemaVersion int,
 // defined Manifest structure and returns the digest of the manifest as a string.
 // For historical reason, we did not use the Docker's defined schema1.Manifest
 // instead of our own and probably should do so in the future.
-func decodeManifestSchema1(filename string, options Options) (interface{}, string, error) {
+func decodeManifestSchema1(filename string, options Options, registry string) (interface{}, string, error) {
 	// Read the entire file into []byte for json.Unmarshal
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -389,28 +402,44 @@ func decodeManifestSchema1(filename string, options Options) (interface{}, strin
 	}
 
 	manifest := &Manifest{}
-
 	err = json.Unmarshal(content, manifest)
 	if err != nil {
 		return nil, "", err
 	}
 
-	if manifest.Name != options.Image {
-		return nil, "", fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.Image, manifest.Name)
-	}
-
-	if manifest.Tag != options.Tag {
-		return nil, "", fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.Tag, manifest.Tag)
-	}
-
-	digest, err := getManifestDigest(content)
+	digest, err := getManifestDigest(content, options.Reference)
 	if err != nil {
 		return nil, "", err
 	}
 
 	manifest.Digest = digest
 
+	// Verify schema 1 manifest's fields per docker/docker/distribution/pull_v2.go
+	numFSLayers := len(manifest.FSLayers)
+	if numFSLayers == 0 {
+		return nil, "", fmt.Errorf("no FSLayers in manifest")
+	}
+	if numFSLayers != len(manifest.History) {
+		return nil, "", fmt.Errorf("length of history not equal to number of layers")
+	}
+
 	return manifest, digest, nil
+}
+
+// verifyManifestDigest checks the manifest digest against the received payload.
+func verifyManifestDigest(digested reference.Canonical, bytes []byte) error {
+	verifier, err := ddigest.NewDigestVerifier(digested.Digest())
+	if err != nil {
+		return err
+	}
+	if _, err = verifier.Write(bytes); err != nil {
+		return err
+	}
+	if !verifier.Verified() {
+		return fmt.Errorf("image manifest verification failed for digest %s", digested.Digest())
+	}
+
+	return nil
 }
 
 // decodeManifestSchema2() reads a manifest schema 2 and creates a Docker
@@ -439,7 +468,7 @@ func decodeManifestSchema2(filename string, options Options) (interface{}, strin
 	return manifest, string(digest), nil
 }
 
-func getManifestDigest(content []byte) (string, error) {
+func getManifestDigest(content []byte, ref reference.Named) (string, error) {
 	jsonSig, err := libtrust.ParsePrettySignature(content, "signatures")
 	if err != nil {
 		return "", err
@@ -452,6 +481,17 @@ func getManifestDigest(content []byte) (string, error) {
 	}
 
 	log.Debugf("Canonical Bytes: %d", len(bytes))
+
+	// Verify the manifest digest if the image is pulled by digest. If the image
+	// is not pulled by digest, we proceed without this check because we don't
+	// have a digest to verify the received content with.
+	// https://docs.docker.com/registry/spec/api/#content-digests
+	if digested, ok := ref.(reference.Canonical); ok {
+		if err := verifyManifestDigest(digested, bytes); err != nil {
+			return "", err
+		}
+	}
+
 	digest := ddigest.FromBytes(bytes)
 	// Correct Manifest Digest
 	log.Debugf("Manifest Digest: %v", digest)

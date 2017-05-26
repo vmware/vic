@@ -31,8 +31,20 @@ Pull ubuntu
 Pull non-default tag
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx:alpine
 
-Pull an image based on digest
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+Pull images based on digest
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  No such image:
+    Should Contain  ${output}  Digest: sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+    Should Contain  ${output}  Status: Downloaded newer image for library/nginx:sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  No such image:
+    Should Contain  ${output}  Digest: sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
+    Should Contain  ${output}  Status: Downloaded newer image for library/ubuntu:sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
 
 Pull an image with the full docker registry URL
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
@@ -121,14 +133,22 @@ Pull image by multiple tags
     Should Be Equal  ${id1}  ${id2}
 
 Issue docker pull on digest outputted by previous pull
-    ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox | grep Digest | awk '{print $2}'
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Be Empty  ${output}
-    ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox@${output}
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Downloaded
-    
+    ${status}=  Get State Of Github Issue  5187
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-02-Docker-Pull.robot needs to be updated now that Issue #5187 has been resolved
+
+    # ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox | grep Digest | awk '{print $2}'
+    # Log  ${output}
+    # Should Be Equal As Integers  ${rc}  0
+    # Should Not Be Empty  ${output}
+    # ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox@${output}
+    # Log  ${output}
+    # Should Be Equal As Integers  ${rc}  0
+    # Should Contain  ${output}  Downloaded
+
+Pull images from gcr.io
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_containers/hyperkube:v1.6.2
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/gb-redisslave:v1
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v11
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  gcr.io/google_samples/cassandra:v12

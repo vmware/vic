@@ -17,8 +17,9 @@ set -euf -o pipefail
 BUILD_HARBOR_REVISION="${BUILD_HARBOR_REVISION:-dev}"
 
 # Download Build
-echo "Downloading Harbor ${BUILD_HARBOR_REVISION}"
-curl -L "https://storage.googleapis.com/harbor-dev-builds/harbor-offline-installer-${BUILD_HARBOR_REVISION}.tgz" | tar xz -C /var/tmp
+HARBOR_URL="https://storage.googleapis.com/harbor-dev-builds/harbor-offline-installer-${BUILD_HARBOR_REVISION}.tgz"
+echo "Downloading Harbor ${BUILD_HARBOR_REVISION}: ${HARBOR_URL}"
+curl -L ${HARBOR_URL}  | tar xz -C /var/tmp
 
 # Start docker service
 systemctl start docker.service

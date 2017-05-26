@@ -74,8 +74,6 @@ func TestDelete(t *testing.T) {
 			t.Errorf("Failed to validator: %s", err)
 		}
 
-		validator.DisableFirewallCheck = true
-
 		conf, err := validator.Validate(ctx, input)
 		if err != nil {
 			log.Errorf("Failed to validate conf: %s", err)

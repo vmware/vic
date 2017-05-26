@@ -15,6 +15,7 @@
 package main
 
 import (
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,10 +26,13 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
+	ploptions "github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/dns"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/vspc"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/log/syslog"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var (
@@ -38,7 +42,9 @@ var (
 )
 
 func init() {
-	log.SetFormatter(viclog.NewTextFormatter())
+	trace.Logger = log.StandardLogger()
+
+	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
@@ -60,10 +66,10 @@ func init() {
 			log.Fatalln(err)
 		}
 	}
-
 }
 
 func main() {
+
 	if _, err := parser.Parse(); err != nil {
 		if err := err.(*flags.Error); err != nil && err.Type == flags.ErrHelp {
 			os.Exit(0)
@@ -72,7 +78,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
+	logcfg := viclog.NewLoggingConfig()
+	if ploptions.PortLayerOptions.Debug {
+		logcfg.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
+	}
+
+	if ploptions.PortLayerOptions.SyslogAddr != nil {
+		u, err := url.Parse(*ploptions.PortLayerOptions.SyslogAddr)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  u.Scheme,
+			RAddr:    u.Host,
+			Priority: syslog.Info | syslog.Daemon,
+		}
+	}
+
+	log.Infof("%+v", *logcfg)
+	viclog.Init(logcfg)
 
 	server.ConfigureAPI()
 

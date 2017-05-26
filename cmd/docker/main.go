@@ -45,6 +45,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -70,8 +71,8 @@ var (
 )
 
 func init() {
-	log.SetFormatter(viclog.NewTextFormatter())
-	trace.Logger.Level = log.DebugLevel
+	trace.Logger = log.StandardLogger()
+
 	pprof.StartPprof("docker personality", pprof.DockerPort)
 
 	flag.Usage = Usage
@@ -96,6 +97,10 @@ func main() {
 
 	if !ok {
 		os.Exit(1)
+	}
+
+	if err := initLogging(); err != nil {
+		log.Fatalf("failed to initialize logging: %s", err)
 	}
 
 	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
@@ -130,14 +135,28 @@ func handleFlags() bool {
 	}
 	extraconfig.Decode(src, &vchConfig)
 
-	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
-		log.SetLevel(log.DebugLevel)
-	}
-
 	*cli.portLayerAddr = fmt.Sprintf("%s:%d", *cli.portLayerAddr, *cli.portLayerPort)
 	cli.proto = "tcp"
 
 	return true
+}
+
+func initLogging() error {
+	logcfg := viclog.NewLoggingConfig()
+	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
+		logcfg.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
+	}
+
+	if vchConfig.Diagnostics.SysLogConfig != nil {
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  vchConfig.Diagnostics.SysLogConfig.Network,
+			RAddr:    vchConfig.Diagnostics.SysLogConfig.RAddr,
+			Priority: syslog.Info | syslog.Daemon,
+		}
+	}
+
+	return viclog.Init(logcfg)
 }
 
 func loadCAPool() *x509.CertPool {

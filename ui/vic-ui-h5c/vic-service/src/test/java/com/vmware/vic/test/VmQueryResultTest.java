@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 
 import com.vmware.vic.model.ContainerVm;
+import com.vmware.vic.model.ModelObject;
 import com.vmware.vic.model.VirtualContainerHostVm;
 import com.vmware.vic.model.VmQueryResult;
 import com.vmware.vim25.ManagedEntityStatus;
@@ -41,41 +42,6 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class VmQueryResultTest extends Common {
-	private ResultItem mockResultItem() {
-		ResultItem ri = new ResultItem();
-		List<PropertyValue> pvList = new ArrayList<PropertyValue>();
-		PropertyValue pvVmsResultItem = new PropertyValue();
-		pvVmsResultItem.propertyName = "vmsResultItem";
-		pvVmsResultItem.value = getMockedVmsResultItem();
-		pvList.add(pvVmsResultItem);
-
-		PropertyValue pvVappPropertyValues = new PropertyValue();
-		pvVappPropertyValues.propertyName = "vAppPropertyValues";
-		pvVappPropertyValues.value = getVappPropertyValuesArray();
-		pvList.add(pvVappPropertyValues);
-
-		ri.properties = pvList.toArray(new PropertyValue[]{});
-		return ri;
-	}
-
-	private ResultItem getMockedVmsResultItem() {
-		ResultItem ri = new ResultItem();
-		List<PropertyValue> pvList = new ArrayList<PropertyValue>();
-
-		PropertyValue pvVchVm = new PropertyValue();
-		pvVchVm.propertyName = "vm";
-		pvVchVm.value = getMockedVchVm();
-		pvList.add(pvVchVm);
-
-		PropertyValue pvContainerVm = new PropertyValue();
-		pvContainerVm.propertyName = "vm";
-		pvContainerVm.value = getMockedContainerVm();
-		pvList.add(pvContainerVm);
-
-		ri.properties = pvList.toArray(new PropertyValue[]{});
-		return ri;
-	}
-
 	private VirtualContainerHostVm getMockedVchVm() {
 		return getMockedVirtualContainerHostVm(
 				"server3",
@@ -98,32 +64,37 @@ public class VmQueryResultTest extends Common {
 				"8088:80/tcp");
 	}
 
-	private PropertyValue[] getVappPropertyValuesArray() {
-		// not necessary so we're returning an empty array
-		List<PropertyValue> pvList = new ArrayList<PropertyValue>();
-		return pvList.toArray(new PropertyValue[]{});
-	}
-
 	/**
 	 * Set up vApp where there is one vApp which has one VCH VM
 	   and one Container VM in it.
 	 */
 	@Test
-	public void prepareVmQueryResult() {
-		URI uri = null;
-		Map<Object, ResultItem> vAppMap = new HashMap<Object, ResultItem>();
-
-		Object keyObj = new Object();
-		ResultItem ri = mockResultItem();
-		vAppMap.put(keyObj, ri);
+	public void vmQueryResultForVch() {
+		Map<String, ModelObject> vmsMap = new HashMap<String, ModelObject>();
+		vmsMap.put("id5", getMockedVchVm());
 
 		VimObjectReferenceService objRefService = mock(VimObjectReferenceService.class);
-		when(objRefService.getServerGuid(keyObj)).thenReturn("server-1");
-		when(objRefService.getValue(keyObj)).thenReturn("vapp-id-1");
 
 		// create an instance based on mocked data
-		VmQueryResult vmQueryResult = new VmQueryResult(uri, vAppMap, objRefService);
+		VmQueryResult vmQueryResult = new VmQueryResult(vmsMap, objRefService);
 		assertNotNull(vmQueryResult);
-		assertEquals(vmQueryResult.getProperty("match"), 2);
+		assertEquals(vmQueryResult.getProperty("match"), 1);
 	}
+	
+	/**
+     * Set up vApp where there is one vApp which has one VCH VM
+       and one Container VM in it.
+     */
+    @Test
+    public void vmQueryResultForContainer() {
+        Map<String, ModelObject> vmsMap = new HashMap<String, ModelObject>();
+        vmsMap.put("id7", getMockedContainerVm());
+
+        VimObjectReferenceService objRefService = mock(VimObjectReferenceService.class);
+
+        // create an instance based on mocked data
+        VmQueryResult vmQueryResult = new VmQueryResult(vmsMap, objRefService);
+        assertNotNull(vmQueryResult);
+        assertEquals(vmQueryResult.getProperty("match"), 1);
+    }
 }

@@ -263,6 +263,7 @@ func Create(ctx context.Context, vmomiSession *session.Session, config *Containe
 
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
+	h.ExecConfig.Diagnostics.SysLogConfig = Config.SysLogConfig
 
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(constants.ManagementHostName)

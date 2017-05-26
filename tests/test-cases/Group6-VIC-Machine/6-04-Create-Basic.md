@@ -12,6 +12,18 @@ This test requires that a vSphere server is running and available
 
 
 
+DNS Servers
+=======
+
+### Create VCH - supply DNS server
+1. Create VCH while supplying the `--dns-server` option twice with values `1.1.1.1` and `2.2.2.2`
+2. Enable SSH on the VCH using the `vic-machine debug` command
+3. SSH into the VCH run `cat /etc/resolv.conf`
+
+
+### Expected Outcome
+* The top two lines of the output from `cat /etc/resolv.conf` should contain `1.1.1.1` and `2.2.2.2` in that order.
+
 Image size
 =======
 
@@ -194,7 +206,7 @@ Short time creation
 
 # Stop VCH creation immediately
 =============================
-1. Interrupt creation process after 2s, 
+1. Interrupt creation process after 2s,
 2. Delete the VCH
 
 ### Expected Outcome

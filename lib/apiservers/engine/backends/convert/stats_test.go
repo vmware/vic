@@ -156,6 +156,7 @@ func TestContainerStatsListener(t *testing.T) {
 
 	config.Cancel()
 	<-config.Ctx.Done()
+
 	// verify we stopped listening
 	assert.True(t, success(cStats))
 }

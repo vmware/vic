@@ -99,7 +99,6 @@ func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*
 
 		// XXX after creating the indx and populating the map, we can put the rest in a go routine
 
-		// Fall out here if there are no images.  We should at least have a scratch.
 		images, err := c.DataStore.ListImages(op, store, nil)
 		if err != nil {
 			return nil, err

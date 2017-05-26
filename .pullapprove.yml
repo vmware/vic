@@ -11,8 +11,9 @@ group_defaults:
 
 groups:
   contributors:
-    required: 2
-    users: all
+    required: 3
+    teams:
+      - vic-maintainers
 
   tether:
     users:
@@ -28,6 +29,7 @@ groups:
     users:
       - mhagen-vmware
       - rajanashok
+      - rogeliosanchez
     conditions:
       files:
         include:
@@ -59,10 +61,20 @@ groups:
     users:
       - rajanashok
       - mhagen-vmware
+      - rogeliosanchez
     conditions:
       files:
         include:
           - "tests/nightly/*"
+
+  log:
+    users:
+      - hmahmood
+      - fdawg4l
+    conditions:
+      files:
+        include:
+          - "pkg/log/*"
 
   vcsim:
     users:
@@ -158,6 +170,7 @@ groups:
   port-layer-storage:
     users:
       - fdawg4l
+      - matthewavery
     conditions:
       files:
         include:
@@ -175,6 +188,7 @@ groups:
   package-kv-store:
     users:
       - fdawg4l
+      - matthewavery
     conditions:
       files:
         include:

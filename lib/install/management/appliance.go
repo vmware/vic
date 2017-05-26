@@ -125,7 +125,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 	}
 	if vm == nil {
 		if vapp != nil {
-			err = errors.Errorf("virtual app %q is found, but is not VCH, please choose different name", d.vchPoolPath)
+			err = errors.Errorf("Found virtual app %q, but it is not a VCH. Please choose a different virtual app.", d.vchPoolPath)
 			log.Error(err)
 			return err
 		}
@@ -134,10 +134,10 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 
 	log.Debugf("Appliance is found")
 	if ok, verr := d.isVCH(vm); !ok {
-		verr = errors.Errorf("VM %q is found, but is not VCH appliance, please choose different name", conf.Name)
+		verr = errors.Errorf("Found virtual machine %q, but it is not a VCH. Please choose a different virtual app.", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("Appliance %q exists, to install with same name, please delete it first.", conf.Name)
+	err = errors.Errorf("Virtual app %q already exists. Please delete it before reinstalling.", conf.Name)
 	return err
 }
 
@@ -584,7 +584,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	},
 	)
 
-	conf.AddComponent("port-layer", &executor.SessionConfig{
+	cfg := &executor.SessionConfig{
 		Cmd: executor.Cmd{
 			Path: "/sbin/port-layer-server",
 			Args: []string{
@@ -603,8 +603,12 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		},
 		Restart: true,
 		Active:  true,
-	},
-	)
+	}
+	if conf.Diagnostics.SysLogConfig != nil {
+		cfg.Cmd.Env = append(cfg.Cmd.Env, "SYSLOG_ADDR="+conf.Diagnostics.SysLogConfig.Network+"://"+conf.Diagnostics.SysLogConfig.RAddr)
+	}
+
+	conf.AddComponent("port-layer", cfg)
 
 	// fix up those parts of the config that depend on the final applianceVM folder name
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
@@ -639,21 +643,49 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 }
 
 func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
-	if d.secret == nil {
-		log.Debug("generating new config secret key")
+	log.Debug("generating new config secret key")
 
-		s, err := extraconfig.NewSecretKey()
-		if err != nil {
-			return nil, err
-		}
-
-		d.secret = s
+	s, err := extraconfig.NewSecretKey()
+	if err != nil {
+		return nil, err
 	}
+	d.secret = s
 
 	cfg := make(map[string]string)
 	extraconfig.Encode(d.secret.Sink(extraconfig.MapSink(cfg)), conf)
-
 	return cfg, nil
+}
+
+func (d *Dispatcher) decryptVCHConfig(vm *vm.VirtualMachine, cfg map[string]string) (*config.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
+	if d.secret == nil {
+		name, err := vm.Name(d.ctx)
+		if err != nil {
+			err = errors.Errorf("Failed to get vm name %q: %s", vm.Reference(), err)
+			return nil, err
+		}
+		// set session datastore to where the VM is running
+		ds, err := d.getImageDatastore(vm, nil, true)
+		if err != nil {
+			err = errors.Errorf("Failure finding image store from VCH VM %q: %s", name, err)
+			return nil, err
+		}
+		path, err := vm.FolderName(d.ctx)
+		if err != nil {
+			err = errors.Errorf("Failed to get VM %q datastore path: %s", name, err)
+			return nil, err
+		}
+		s, err := d.GuestInfoSecret(name, path, ds)
+		if err != nil {
+			return nil, err
+		}
+		d.secret = s
+	}
+
+	conf := &config.VirtualContainerHostConfigSpec{}
+	extraconfig.Decode(d.secret.Source(extraconfig.MapSource(cfg)), conf)
+	return conf, nil
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {

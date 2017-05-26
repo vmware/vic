@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/vic/lib/tether"
 	viclog "github.com/vmware/vic/pkg/log"
+	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/logmgr"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -38,9 +39,7 @@ var (
 )
 
 func init() {
-	// use the same logger as the log files
 	trace.Logger = log.StandardLogger()
-	log.SetFormatter(viclog.NewTextFormatter())
 }
 
 func main() {
@@ -78,22 +77,35 @@ func main() {
 
 	src, err := extraconfig.GuestInfoSourceWithPrefix("init")
 	if err != nil {
-		log.Error(err)
-		return
+		log.Fatal(err)
 	}
 
 	extraconfig.Decode(src, &config)
-
 	debugLevel = config.Diagnostics.DebugLevel
+
+	logcfg := viclog.NewLoggingConfig()
+	if debugLevel > 0 {
+		logcfg.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
+	}
+
+	if config.Diagnostics.SysLogConfig != nil {
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  config.Diagnostics.SysLogConfig.Network,
+			RAddr:    config.Diagnostics.SysLogConfig.RAddr,
+			Priority: syslog.Info | syslog.Daemon,
+		}
+	}
+
+	viclog.Init(logcfg)
+
 	if debugLevel > 2 {
 		enableShell()
 	}
-	setLogLevels()
 
 	sink, err := extraconfig.GuestInfoSinkWithPrefix("init")
 	if err != nil {
-		log.Error(err)
-		return
+		log.Fatal(err)
 	}
 
 	// create the tether
@@ -121,18 +133,10 @@ func main() {
 
 	err = tthr.Start()
 	if err != nil {
-		log.Error(err)
-		return
+		log.Fatal(err)
 	}
 
 	log.Info("Clean exit from init")
-}
-
-func setLogLevels() {
-	if debugLevel > 0 {
-		log.SetLevel(log.DebugLevel)
-	}
-
 }
 
 // exit cleanly shuts down the system

@@ -26,6 +26,9 @@ func TestDefaultGuestNicProto(t *testing.T) {
 	info := p.V3
 
 	for _, nic := range info.Nics {
+		if len(nic.MacAddress) == 0 {
+			continue
+		}
 		_, err := net.ParseMAC(nic.MacAddress)
 		if err != nil {
 			t.Errorf("invalid MAC %s: %s", nic.MacAddress, err)

@@ -36,9 +36,9 @@ Power Off VM OOB
 
 Destroy VM OOB
     [Arguments]  ${vm}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"*-${vm}"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy %{VCH-NAME}/"${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "*-${vm}"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
 
 Put Host Into Maintenance Mode
@@ -110,6 +110,11 @@ Get VM Info
     ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info -r ${vm}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
+
+Check ImageStore
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -R -ds=%{TEST_DATASTORE} %{VCH-NAME}/VIC
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
 
 vMotion A VM
     [Arguments]  ${vm}

@@ -42,27 +42,54 @@ ${tls_not_disabled}  False
 *** Keywords ***
 # Requires vc credential for govc
 Deploy VIC-OVA To Test Server
-    [Arguments]  ${dhcp}=False  ${build}=False  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=%{TEST_DATASTORE}  ${cluster}=%{TEST_RESOURCE}  ${datacenter}=%{TEST_DATACENTER}
+    [Arguments]  ${dhcp}=True  ${protocol}=http  ${build}=False  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${cluster}=%{TEST_RESOURCE}  ${datacenter}=%{TEST_DATACENTER}   
+    Set Global Variable  ${ova_path}  bin/vic-1.1.1-${rev}.ova
     Run Keyword if  ${build}  Build Unified OVA
     ${rev}=  Run  git rev-parse --short HEAD
-    Set Test Variable  ${ova_path}  bin/vic-1.1.0-${rev}.ova
 
     Log To Console  \nCleanup environment...
     Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc vm.destroy ${ova_target_vm_name}
     Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc object.destroy /${datacenter}/vm/${ova_target_vm_name}
 
     Log To Console  \nStarting to deploy unified-ova to test server...
-    Run Keyword If  ${dhcp}  Log To Console  ovftool --datastore=${datastore} ${ova_options} ${ova_path} 'vi://${user}:${password}@${host}/${datacenter}/host/${cluster}'
-    ...  ELSE  Log To Console  ovftool --datastore=${datastore} ${ova_options_with_network} ${ova_path} 'vi://${user}:${password}@${host}/${datacenter}/host/${cluster}'
-    ${out}=  Run Keyword If  ${dhcp}  Run  ovftool --datastore=${datastore} ${ova_options} ${ova_path} 'vi://${user}:${password}@${host}/${datacenter}/host/${cluster}'
-    ...  ELSE  Run  ovftool --datastore=${datastore} ${ova_options_with_network} ${ova_path} 'vi://${user}:${password}@${host}/${datacenter}/host/${cluster}'
-    Log  ${out}
+    Run Keyword If  ${dhcp}  Log To Console  ovftool --datastore=${datastore} ${ova_options} ${ova_path} 'vi://${user}:${password}@${host}/${cluster}'
+    ...  ELSE  Log To Console  ovftool --datastore=${datastore} ${ova_options_with_network} ${ova_path} 'vi://${user}:${password}@${host}/${cluster}'
+    ${out}=  Run Keyword If  ${dhcp}  Run  ovftool --datastore=${datastore} ${ova_options} --net:"Network"="vm-network" ${ova_path} 'vi://${user}:${password}@${host}/${cluster}'
+    ...  ELSE  Run  ovftool --datastore=${datastore} ${ova_options_with_network} ${ova_path} 'vi://${user}:${password}@${host}/${cluster}'
+    
+    Should Contain  ${out}  Received IP address:
+    Should Not Contain  ${out}  None
 
-    Log To Console  \n${out}
-    @{out}=  Split To Lines  ${out}
-    Should Contain  @{out}[-1]  Completed successfully 
+    ${out}=  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc ls /ha-datacenter/host/cls/
+    ${out}=  Split To Lines  ${out}
+    ${idx}=  Set Variable  1
+    :FOR  ${line}  IN  @{out}
+    \   Continue For Loop If  '${line}' == '/ha-datacenter/host/cls/Resources'
+    \   ${ip}=  Fetch From Right  ${line}  /
+    \   Set Suite Variable  ${esx${idx}-ip}  ${ip}
+    \   ${idx}=  Evaluate  ${idx}+1
 
-    Log To Console  \nUnified OVA is deployed successfully
+    Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc host.esxcli -host.ip=${esx1-ip} system settings advanced set -o /Net/GuestIPHack -i 1
+    Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc host.esxcli -host.ip=${esx2-ip} system settings advanced set -o /Net/GuestIPHack -i 1
+    Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc host.esxcli -host.ip=${esx3-ip} system settings advanced set -o /Net/GuestIPHack -i 1
+
+    ${ip}=  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc vm.ip -esxcli vic-unified-ova-integration-test
+
+    Set Environment Variable  HARBOR_IP  ${ip}
+    
+    Log To Console  \nHarbor IP: %{HARBOR_IP}
+    
+    Log To Console  Waiting for Harbor to Come Up...
+    :FOR  ${i}  IN RANGE  20
+    \  ${out}=  Run  curl -k ${protocol}://%{HARBOR_IP}
+    \  Log  ${out}
+    \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
+    \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Not Contain  ${out}  Connection refused
+    \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Contain  ${out}  <title>Harbor</title>
+    \  Return From Keyword If  ${status}  %{HARBOR_IP}
+    \  Sleep  30s
+    Fail  Harbor failed to come up properly!
+    [Return]  %{HARBOR_IP}
 
 # Requires vc credential for govc
 Cleanup VIC-OVA On Test Server  
@@ -86,4 +113,4 @@ Build Unified OVA
 
 Remove OVA Artifacts Locally
     ${rev}=  Run  git rev-parse --short HEAD
-    Remove Files  bin/vic-1.1.0-${rev}.ova bin/vic-1.1.0-${rev}.ovf bin/vic-1.1.0-${rev}.mk bin/vic-1.1.0-${rev}-disk*.vmdk
+    Remove Files  bin/vic-1.1.1-${rev}.ova bin/vic-1.1.1-${rev}.ovf bin/vic-1.1.1-${rev}.mk bin/vic-1.1.1-${rev}-disk*.vmdk

@@ -38,7 +38,10 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
-const UpdateStatus = "UpdateInProgress"
+const (
+	DestroyTask  = "Destroy_Task"
+	UpdateStatus = "UpdateInProgress"
+)
 
 type InvalidState struct {
 	r types.ManagedObjectReference
@@ -602,7 +605,7 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 
 	method := []object.DisabledMethodRequest{
 		{
-			Method: "Destroy_Task",
+			Method: DestroyTask,
 			Reason: "Managed by VIC Engine",
 		},
 	}
@@ -611,6 +614,23 @@ func (vm *VirtualMachine) DisableDestroy(ctx context.Context) {
 
 	err := m.DisableMethods(ctx, obj, method, "VIC")
 	if err != nil {
-		log.Warnf("failed to disable method %s for %s: %s", method[0].Method, obj[0], err)
+		log.Warnf("Failed to disable method %s for %s: %s", method[0].Method, obj[0], err)
+	}
+}
+
+// EnableDestroy attempts to enable the VirtualMachine.Destroy_Task method
+// so that the VC UI can enable the VM "delete" action.
+func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
+	if !vm.IsVC() {
+		return
+	}
+
+	m := object.NewAuthorizationManager(vm.Vim25())
+
+	obj := []types.ManagedObjectReference{vm.Reference()}
+
+	err := m.EnableMethods(ctx, obj, []string{DestroyTask}, "VIC")
+	if err != nil {
+		log.Warnf("Failed to enable Destroy_Task for %s: %s", obj[0], err)
 	}
 }

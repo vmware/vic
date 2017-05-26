@@ -19,6 +19,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/event"
 )
 
@@ -28,6 +29,8 @@ var Config Configuration
 type Configuration struct {
 	// Turn on debug logging
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/diagnostics/debug"`
+
+	SysLogConfig *executor.SysLogConfig `vic:"0.1" scope:"read-only" key:"init/diagnostics/syslog"`
 
 	// Port Layer - exec
 	config.Container `vic:"0.1" scope:"read-only" key:"container"`
