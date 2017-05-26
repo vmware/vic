@@ -16,8 +16,8 @@
 Documentation  This resource contains any keywords related to using the Nimbus cluster
 
 *** Variables ***
-${ESX_VERSION}  server:release:ob-latest:super-main
-${VC_VERSION}  vcva:release:ob-latest:super-main
+${ESX_VERSION}  4564106
+${VC_VERSION}  4602587
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 
 *** Keywords ***
@@ -156,7 +156,7 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ob-${version}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
