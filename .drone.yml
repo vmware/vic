@@ -176,13 +176,13 @@ pipeline:
       branch: [ refs/tags/* ]
       status: success
 
-  notify:
-    downstream:
+  trigger-downstream:
+      image: plugins/downstream
+      server: https://ci.vcna.io
+      token: ${DRONE_TOKEN}
+      fork: true
       repositories:
-        -vmware/vic-product
-      when:
-        event: [ push, tag ]
-        success: true
+        - vmware/vic-product
 
   report-coverage:
     image: plugins/coverage
