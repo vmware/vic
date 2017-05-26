@@ -15,38 +15,25 @@
 package toolbox
 
 import (
-	"net"
-	"reflect"
-	"testing"
+	"fmt"
+	"os"
 )
 
-func TestDefaultGuestNicProto(t *testing.T) {
-	p := DefaultGuestNicInfo()
+func fileExtendedInfoFormat(info os.FileInfo) string {
+	const format = "<fxi>" +
+		"<Name>%s</Name>" +
+		"<ft>%d</ft>" +
+		"<fs>%d</fs>" +
+		"<mt>%d</mt>" +
+		"<ct>%d</ct>" +
+		"<at>%d</at>" +
+		"</fxi>"
 
-	info := p.V3
+	props := 0
+	size := info.Size()
+	mtime := info.ModTime().Unix()
+	ctime := 0
+	atime := 0
 
-	for _, nic := range info.Nics {
-		if len(nic.MacAddress) == 0 {
-			continue
-		}
-		_, err := net.ParseMAC(nic.MacAddress)
-		if err != nil {
-			t.Errorf("invalid MAC %s: %s", nic.MacAddress, err)
-		}
-	}
-
-	b, err := EncodeXDR(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var dp GuestNicInfo
-	err = DecodeXDR(b, &dp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(p, &dp) {
-		t.Error("decode mismatch")
-	}
+	return fmt.Sprintf(format, info.Name(), props, size, mtime, ctime, atime)
 }

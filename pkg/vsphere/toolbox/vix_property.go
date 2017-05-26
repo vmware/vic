@@ -33,14 +33,20 @@ const (
 
 // Property ID enum as defined in open-vm-tools/lib/include/vixOpenSource.h
 const (
-	VixPropertyGuestToolsAPIOptions     = 4501
-	VixPropertyGuestOsFamily            = 4502
-	VixPropertyGuestOsVersion           = 4503
-	VixPropertyGuestToolsProductNam     = 4511
-	VixPropertyGuestToolsVersion        = 4500
-	VixPropertyGuestName                = 4505
-	VixPropertyGuestOsVersionShort      = 4520
-	VixPropertyGuestStartProgramEnabled = 4540
+	VixPropertyGuestToolsAPIOptions = 4501
+	VixPropertyGuestOsFamily        = 4502
+	VixPropertyGuestOsVersion       = 4503
+	VixPropertyGuestToolsProductNam = 4511
+	VixPropertyGuestToolsVersion    = 4500
+	VixPropertyGuestName            = 4505
+	VixPropertyGuestOsVersionShort  = 4520
+
+	VixPropertyGuestStartProgramEnabled     = 4540
+	VixPropertyGuestListProcessesEnabled    = 4541
+	VixPropertyGuestTerminateProcessEnabled = 4542
+
+	VixPropertyGuestInitiateFileTransferFromGuestEnabled = 4556
+	VixPropertyGuestInitiateFileTransferToGuestEnabled   = 4557
 )
 
 type VixProperty struct {
