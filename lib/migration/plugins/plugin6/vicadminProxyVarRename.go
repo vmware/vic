@@ -80,7 +80,7 @@ func (p *VicadminProxyVarRename) Migrate(ctx context.Context, s *session.Session
 		return &errors.DecodeError{}
 	}
 	//translate old proxy env var keys into to proxy env var keys
-	newEnvs := make([]string, 0)
+	var newEnvs []string
 	for _, envVar := range oldStruct.Sessions["vicadmin"].Cmd.Env {
 		if strings.Contains(envVar, oldHProxy) {
 			proxyVarValue := strings.Split(envVar, "=")[1]
