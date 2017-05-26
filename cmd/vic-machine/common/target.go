@@ -45,7 +45,7 @@ func (t *Target) TargetFlags() []cli.Flag {
 			Name:   "target, t",
 			Value:  flags.NewURLFlag(&t.URL),
 			Usage:  "REQUIRED. ESXi or vCenter connection URL, specifying a datacenter if multiple exist e.g. root:password@VC-FQDN/datacenter",
-			EnvVar: "VIC_MACHINE_URL",
+			EnvVar: "VIC_MACHINE_TARGET",
 		},
 		cli.StringFlag{
 			Name:        "user, u",
