@@ -40,12 +40,14 @@ Public network - invalid
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Run Keyword And Ignore Error  Run  govc host.portgroup.remove  AAAAAAAAAA
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --public-network=AAAAAAAAAA ${vicmachinetls}
     Should Contain  ${output}  --public-network: network 'AAAAAAAAAA' not found
     Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
+    Run Keyword And Ignore Error  Run  govc host.portgroup.remove  AAAAAAAAAA
     Cleanup VCH Bridge Network  %{VCH-NAME}
 
 Public network - invalid vCenter
@@ -81,12 +83,14 @@ Management network - invalid
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Run Keyword And Ignore Error  Run  govc host.portgroup.remove  AAAAAAAAAA
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --management-network=AAAAAAAAAA ${vicmachinetls}
     Should Contain  ${output}  --management-network: network 'AAAAAAAAAA' not found
     Should Contain  ${output}  vic-machine-linux create failed
 
     # Delete the portgroup added by env vars keyword
+    Run Keyword And Ignore Error  Run  govc host.portgroup.remove  AAAAAAAAAA
     Cleanup VCH Bridge Network  %{VCH-NAME}
 
 Management network - invalid vCenter
@@ -251,11 +255,13 @@ Bridge network - create bridge network if it doesn't exist
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Run Keyword And Ignore Error  Run  govc host.portgroup.remove  AAAAAAAAAA
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
 
     # Delete the portgroup added by env vars keyword
+    Run Keyword And Ignore Error  Run  govc host.portgroup.remove  AAAAAAAAAA
     Cleanup VCH Bridge Network  %{VCH-NAME}
     Cleanup VIC Appliance On Test Server
 
