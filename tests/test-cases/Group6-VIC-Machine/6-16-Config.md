@@ -9,12 +9,11 @@ Verify vic-machine configure
 
 # Environment:
 This test requires that a vSphere server is running and available
-This test requires that a syslog server is running and available
 
 # Test Steps
 1. Deploy VCH
 2. Configure VCH
-3. VCH still function well
+3. Run a variety of docker commands
 
 # Expected Outcome
 * All steps should succeed
