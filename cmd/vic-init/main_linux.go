@@ -38,10 +38,6 @@ var (
 	debugLevel int
 )
 
-func init() {
-	trace.Logger = log.StandardLogger()
-}
-
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -86,6 +82,7 @@ func main() {
 	logcfg := viclog.NewLoggingConfig()
 	if debugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		trace.Logger.Level = log.DebugLevel
 		syslog.Logger.Level = log.DebugLevel
 	}
 

@@ -104,8 +104,6 @@ type logfile struct {
 }
 
 func Init() {
-	trace.Logger = log.StandardLogger()
-
 	_ = pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	defer trace.End(trace.Begin(""))
@@ -122,6 +120,7 @@ func Init() {
 	logcfg := viclog.NewLoggingConfig()
 	if vchConfig.Diagnostics.DebugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		trace.Logger.Level = log.DebugLevel
 		syslog.Logger.Level = log.DebugLevel
 	}
 
