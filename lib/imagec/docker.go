@@ -39,6 +39,7 @@ import (
 	"github.com/docker/libtrust"
 
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
+	registryutils "github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -73,49 +74,21 @@ type Manifest struct {
 func LearnRegistryURL(options *Options) (string, error) {
 	defer trace.End(trace.Begin(options.Registry))
 
-	req := func(schema string, skipVerify bool) (string, error) {
-		registry := fmt.Sprintf("%s://%s/v2/", schema, options.Registry)
+	log.Debugf("Trying https scheme for %#v", options)
 
-		url, err := url.Parse(registry)
-		if err != nil {
-			return "", err
-		}
-		log.Debugf("URL: %s", url)
-
-		fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
-			Timeout:            options.Timeout,
-			Username:           options.Username,
-			Password:           options.Password,
-			InsecureSkipVerify: skipVerify,
-			RootCAs:            options.RegistryCAs,
-		})
-
-		headers, err := fetcher.Head(url)
-		if err != nil {
-			return "", err
-		}
-		// v2 API requires this check
-		if headers.Get("Docker-Distribution-API-Version") != "registry/2.0" {
-			return "", fmt.Errorf("Missing Docker-Distribution-API-Version header")
-		}
-		return registry, nil
-	}
-
-	log.Debugf("Trying https scheme")
-
-	registry, err := req("https", options.InsecureSkipVerify)
+	registry, err := registryutils.Reachable(options.Registry, "https", options.Username, options.Password, options.RegistryCAs, options.Timeout, options.InsecureSkipVerify)
 
 	if err != nil && options.InsecureAllowHTTP {
 		// try https without verification
 		log.Debugf("Trying https without verification, last error: %+v", err)
-		registry, err = req("https", true)
+		registry, err = registryutils.Reachable(options.Registry, "https", options.Username, options.Password, options.RegistryCAs, options.Timeout, true)
 		if err == nil {
 			// Success, set InsecureSkipVerify to true
 			options.InsecureSkipVerify = true
 		} else {
 			// try http
 			log.Debugf("Falling back to http")
-			registry, err = req("http", options.InsecureSkipVerify)
+			registry, err = registryutils.Reachable(options.Registry, "http", options.Username, options.Password, options.RegistryCAs, options.Timeout, options.InsecureSkipVerify)
 		}
 	}
 
