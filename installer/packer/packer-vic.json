@@ -251,7 +251,8 @@
     },
     {
       "type": "shell",
-      "environment_vars": ["BUILD_VICENGINE_REVISION={{user `build_vicengine_revision`}}"],
+      "environment_vars": ["BUILD_VICENGINE_REVISION={{user `build_vicengine_revision`}}",
+                           "BUILD_VICENGINE_DEV_REVISION={{user `build_vicengine_dev_revision`}}"],
       "script": "scripts/provision_fileserver.sh"
     },
     {
