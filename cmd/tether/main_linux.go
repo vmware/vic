@@ -37,7 +37,7 @@ func init() {
 	log.SetFormatter(viclog.NewTextFormatter())
 
 	// use the same logger for trace and other logging
-	trace.Logger = log.StandardLogger()
+	trace.Logger.Level = log.DebugLevel
 	log.SetLevel(log.DebugLevel)
 
 	// init and start the HUP handler
