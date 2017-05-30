@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package plugin6
+package plugin7
 
 import (
 	"context"
@@ -31,7 +31,12 @@ import (
 
 // Translates the proxy environment variables from the old appliance to the new appliance for vic admin
 const (
-	target = manager.ApplianceConfigure
+	target      = manager.ApplianceConfigure
+	oldHProxy   = "HTTP_PROXY"
+	newHProxy   = "VICADMIN_HTTP_PROXY"
+	oldSProxy   = "HTTPS_PROXY"
+	newSProxy   = "VICADMIN_HTTPS_PROXY"
+	sessionName = "vicadmin"
 )
 
 func init() {
@@ -61,13 +66,6 @@ type Cmd struct {
 	Env []string `vic:"0.1" scope:"read-only" key:"Env"`
 }
 
-const (
-	oldHProxy = "HTTP_PROXY"
-	newHProxy = "VICADMIN_HTTP_PROXY"
-	oldSProxy = "HTTPS_PROXY"
-	newSProxy = "VICADMIN_HTTPS_PROXY"
-)
-
 func (p *VicadminProxyVarRename) Migrate(ctx context.Context, s *session.Session, data interface{}) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%d", feature.VicadminProxyVarRenameVersion)))
 	if data == nil {
@@ -80,20 +78,25 @@ func (p *VicadminProxyVarRename) Migrate(ctx context.Context, s *session.Session
 		return &errors.DecodeError{}
 	}
 	//translate old proxy env var keys into to proxy env var keys
-	var newEnvs []string
-	for _, envVar := range oldStruct.Sessions["vicadmin"].Cmd.Env {
-		if strings.Contains(envVar, oldHProxy) {
-			proxyVarValue := strings.Split(envVar, "=")[1]
-			newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", newHProxy, proxyVarValue))
-		} else if strings.Contains(envVar, oldSProxy) {
-			proxyVarValue := strings.Split(envVar, "=")[1]
-			newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", newSProxy, proxyVarValue))
-		} else {
-			newEnvs = append(newEnvs, envVar)
-		}
-	}
 
-	oldStruct.Sessions["vicadmin"].Cmd.Env = newEnvs
+	if oldStruct.Sessions != nil && oldStruct.Sessions[sessionName] != nil && oldStruct.Sessions[sessionName].Cmd.Env != nil {
+		var newEnvs []string
+		for _, envVar := range oldStruct.Sessions[sessionName].Cmd.Env {
+			envVarArgs := strings.Split(envVar, "=")
+			envVarValue := ""
+			if len(envVarArgs) > 1 {
+				envVarValue = envVarArgs[1]
+			}
+			if strings.Contains(envVar, oldHProxy) {
+				newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", newHProxy, envVarValue))
+			} else if strings.Contains(envVar, oldSProxy) {
+				newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", newSProxy, envVarValue))
+			} else {
+				newEnvs = append(newEnvs, envVar)
+			}
+		}
+		oldStruct.Sessions[sessionName].Cmd.Env = newEnvs
+	}
 
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), oldStruct)
