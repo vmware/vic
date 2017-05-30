@@ -128,7 +128,7 @@ func (ec *EventCollector) Start() error {
 	force := false
 
 	//TODO: need a proper way to handle failures / status
-	go func(page int32, follow bool, ff bool, refs []types.ManagedObjectReference, ec *EventCollector) error {
+	go func(pageSize int32, follow bool, ff bool, refs []types.ManagedObjectReference, ec *EventCollector) error {
 		// the govmomi event listener can only be configured once per session -- so if it's already listening it
 		// will be replaced
 		//
@@ -176,7 +176,7 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 			ec.callback(NewVMEvent(page[i]))
 		case *types.VmReconfiguredEvent:
 			// reconfigures happen often, so completely ignore for now
-			return
+			continue
 		default:
 			// log the skipped event
 			e := page[i].GetEvent()

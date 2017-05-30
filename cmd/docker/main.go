@@ -71,8 +71,6 @@ var (
 )
 
 func init() {
-	trace.Logger = log.StandardLogger()
-
 	pprof.StartPprof("docker personality", pprof.DockerPort)
 
 	flag.Usage = Usage
@@ -145,6 +143,7 @@ func initLogging() error {
 	logcfg := viclog.NewLoggingConfig()
 	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		trace.Logger.Level = log.DebugLevel
 		syslog.Logger.Level = log.DebugLevel
 	}
 
