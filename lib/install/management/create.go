@@ -127,12 +127,13 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 		go func(key string, image string) {
 			finalMessage := ""
 			log.Infof("\t%q", image)
-			// function that is passed to retry
+
+			// upload function that is passed to retry
 			operationForRetry := func() error {
 				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 			}
 
-			//counter for retry decider
+			// counter for retry decider
 			retryCount := uploadRetryLimit
 
 			// decider for our retry, will retry the upload uploadRetryLimit times
@@ -141,7 +142,6 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 					return false
 				}
 
-				// decrease the count
 				retryCount--
 				if retryCount < 0 {
 					logMsgs <- fmt.Sprintf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
@@ -151,7 +151,7 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 				return true
 			}
 
-			// Build our retry config
+			// Build retry config
 			backoffConf := &retry.BackoffConfig{
 				InitialInterval:     uploadInitialInterval,
 				RandomizationFactor: retry.DefaultRandomizationFactor,
