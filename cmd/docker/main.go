@@ -101,7 +101,7 @@ func main() {
 		log.Fatalf("failed to initialize logging: %s", err)
 	}
 
-	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
+	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
