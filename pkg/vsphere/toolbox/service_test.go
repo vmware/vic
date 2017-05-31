@@ -16,6 +16,7 @@ package toolbox
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/vmware/govmomi/vim25/types"
 )
@@ -274,7 +276,7 @@ func TestServiceErrors(t *testing.T) {
 
 var (
 	testESX = flag.Bool("toolbox.testesx", false, "Test toolbox service against ESX (vmtoolsd must not be running)")
-	testPID = flag.Int("toolbox.testpid", 0, "PID to return from toolbox start command")
+	testPID = flag.Int64("toolbox.testpid", 0, "PID to return from toolbox start command")
 	testOn  = flag.String("toolbox.powerState", "", "Power state of VM prior to starting the test")
 )
 
@@ -326,15 +328,32 @@ func TestServiceRunESX(t *testing.T) {
 	}
 
 	if *testPID != 0 {
-		wg.Add(1)
-		service.VixCommand.ProcessStartCommand = func(r *VixMsgStartProgramRequest) (int, error) {
+		service.VixCommand.ProcessStartCommand = func(m *ProcessManager, r *VixMsgStartProgramRequest) (int64, error) {
+			wg.Add(1)
 			defer wg.Done()
 
-			if r.ProgramPath != "/bin/date" {
-				t.Errorf("ProgramPath=%q", r.ProgramPath)
-			}
+			switch r.ProgramPath {
+			case "/bin/date":
+				return *testPID, nil
+			case "sleep":
+				p := NewProcessFunc(func(ctx context.Context, arg string) error {
+					d, err := time.ParseDuration(arg)
+					if err != nil {
+						return err
+					}
 
-			return *testPID, nil
+					select {
+					case <-ctx.Done():
+						return &ProcessError{Err: ctx.Err(), ExitCode: 42}
+					case <-time.After(d):
+					}
+
+					return nil
+				})
+				return m.Start(r, p)
+			default:
+				return m.Start(r, NewProcess())
+			}
 		}
 	}
 
