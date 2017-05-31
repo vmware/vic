@@ -21,6 +21,7 @@ const (
 	RenameSupportedVersion
 	MigrateRegistryVersion
 	ExecSupportedVersion
+	VicadminProxyVarRenameVersion
 
 	// Add new feature flag here
 
