@@ -81,7 +81,7 @@ func (p *VicadminProxyVarRename) Migrate(ctx context.Context, s *session.Session
 	// translate old proxy env var keys into to proxy env var keys
 	// skip upgrading if the proxy isn't defined or something is wrong with the the vicadmin executor
 	if oldStruct.Sessions == nil || oldStruct.Sessions[sessionName] == nil || oldStruct.Sessions[sessionName].Cmd.Env == nil {
-		log.Debugln("vicadmin Session found. skipping proxy rename")
+		log.Debugln("vicadmin session not found. skipping proxy rename")
 	} else {
 		var newEnvs []string
 		for _, envVar := range oldStruct.Sessions[sessionName].Cmd.Env {
