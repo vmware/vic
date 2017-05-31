@@ -17,6 +17,9 @@
     <clr-dg-column [clrDgField]="'portMapping'">
         {{vicI18n.translate(this.WS_CONTAINER_CONSTANTS.DG.COLUMNS, 'PORT_MAPPING')}}
     </clr-dg-column>
+    <clr-dg-column [clrDgField]="'parentObjectName'">
+        {{vicI18n.translate(this.WS_CONTAINER_CONSTANTS.DG.COLUMNS, 'VCH_NAME')}}
+    </clr-dg-column>
     <clr-dg-column [clrDgField]="'name'">
         {{vicI18n.translate(this.WS_CONTAINER_CONSTANTS.DG.COLUMNS, 'VM_NAME')}}
     </clr-dg-column>
@@ -42,6 +45,11 @@
         </clr-dg-cell>
         <clr-dg-cell>
             <span>{{item.portMapping || '-'}}</span>
+        </clr-dg-cell>
+        <clr-dg-cell>
+            <a href="#" (click)="navigateToObject(item.parentObj.id)">
+                    {{item.parentObjectName}}
+                </a>
         </clr-dg-cell>
         <clr-dg-cell>
             <a href="#" (click)="navigateToObject(item.id)">

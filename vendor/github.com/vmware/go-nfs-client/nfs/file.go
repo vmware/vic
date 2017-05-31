@@ -1,14 +1,19 @@
+// Copyright © 2017 VMware, Inc. All Rights Reserved.
+// SPDX-License-Identifier: BSD-2-Clause
+//
 package nfs
 
 import (
 	"io"
 	"os"
 
-	"github.com/fdawg4l/go-nfs-client/nfs/rpc"
-	"github.com/fdawg4l/go-nfs-client/nfs/util"
-	"github.com/fdawg4l/go-nfs-client/nfs/xdr"
+	"github.com/vmware/go-nfs-client/nfs/rpc"
+	"github.com/vmware/go-nfs-client/nfs/util"
+	"github.com/vmware/go-nfs-client/nfs/xdr"
 )
 
+// File wraps the NfsProc3Read and NfsProc3Write methods to implement a
+// io.ReadWriteCloser.
 type File struct {
 	*Target
 
@@ -34,7 +39,7 @@ func (f *File) Read(p []byte) (int, error) {
 			Attrs Fattr
 		}
 		Count uint32
-		Eof   uint32
+		EOF   uint32
 		Data  struct {
 			Length uint32
 		}
@@ -73,7 +78,7 @@ func (f *File) Read(p []byte) (int, error) {
 		return n, err
 	}
 
-	if readres.Eof != 0 {
+	if readres.EOF != 0 {
 		err = io.EOF
 	}
 
@@ -124,6 +129,7 @@ func (f *File) Write(p []byte) (int, error) {
 	return int(writeSize), nil
 }
 
+// Close commits the file
 func (f *File) Close() error {
 	type CommitArg struct {
 		rpc.Header

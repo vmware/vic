@@ -1,3 +1,6 @@
+// Copyright © 2017 VMware, Inc. All Rights Reserved.
+// SPDX-License-Identifier: BSD-2-Clause
+//
 // Copyright 2016 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

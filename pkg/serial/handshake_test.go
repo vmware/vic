@@ -23,6 +23,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const (
+	timeout = 10 * time.Second
+)
+
 type readErr struct {
 	err error
 	n   int
@@ -104,7 +108,10 @@ func NewFakeConnection(t time.Duration) (*BiChannel, *BiChannel) {
 
 func TestHandshakeServerNormalCaseScenario(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+	clientConn, serverConn := NewFakeConnection(timeout)
 
 	go func() {
 		buf := make([]byte, 10)
@@ -115,11 +122,11 @@ func TestHandshakeServerNormalCaseScenario(t *testing.T) {
 			return
 		}
 
-		if buf[0] != flagAck || buf[1] != 201 || buf[2] < 128 {
-			t.Errorf("Error, unexpected data: %x", buf[:3])
+		if buf[0] != flagAck || buf[1] != 201 {
+			t.Errorf("Error, unexpected data: %v", buf[:3])
 			return
 		}
-		clientConn.Write([]byte{flagAck, incrementByte(buf[2])})
+		clientConn.Write([]byte{flagAck, buf[2] + 1})
 	}()
 
 	if e := HandshakeServer(serverConn); e != nil {
@@ -129,7 +136,10 @@ func TestHandshakeServerNormalCaseScenario(t *testing.T) {
 
 func TestHandshakeServerLotsOfTrashOnTheLine(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 10)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+	clientConn, serverConn := NewFakeConnection(timeout)
 
 	go func() {
 		buf := make([]byte, 10)
@@ -142,53 +152,59 @@ func TestHandshakeServerLotsOfTrashOnTheLine(t *testing.T) {
 		clientConn.Write([]byte(x))
 		clientConn.Write([]byte{flagSyn, 200})
 
-		for {
-			n, e := clientConn.Read(buf)
-			if e != nil {
-				t.Errorf("Unexpected server error: %v", e)
-				return
-			}
-
-			if n < 3 {
-				continue
-			}
-
-			data := buf[n-3:]
-			if data[0] == flagNak {
-				continue
-			}
-
-			if data[0] != flagAck || data[1] != 201 || data[2] < 128 {
-				t.Errorf("Error, unexpected data: %x", data[:3])
-				return
-			}
-			clientConn.Write([]byte{flagAck, incrementByte(data[2])})
+		n, e := clientConn.Read(buf)
+		if e != nil {
+			t.Errorf("Unexpected server error: %v", e)
+			return
 		}
+
+		if n < 3 {
+			t.Errorf("Unexpected server error: %v", e)
+			return
+		}
+
+		if buf[0] == flagNak {
+			t.Errorf("Unexpected server error: %v", e)
+			return
+		}
+
+		if buf[0] != flagAck || buf[1] != 201 {
+			t.Errorf("Error, unexpected data: %x", buf[:3])
+			return
+		}
+		clientConn.Write([]byte{flagAck, buf[2] + 1})
 	}()
 
-	for {
-		if e := HandshakeServer(serverConn); e == nil {
-			break
-		} else {
-			if _, ok := e.(*HandshakeError); !ok {
-				t.Errorf("Unexpected error: %v", e)
-				return
-			}
+	e := HandshakeServer(serverConn)
+	if e != nil {
+		if _, ok := e.(*HandshakeError); !ok {
+			t.Errorf("Unexpected error: %v", e)
+			return
+		}
+	}
+	if e != nil {
+		e = HandshakeServer(serverConn)
+		if _, ok := e.(*HandshakeError); !ok {
+			t.Errorf("Unexpected error: %v", e)
 		}
 	}
 }
 
 func TestHandshakeServerComportSync(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+	clientConn, serverConn := NewFakeConnection(timeout)
 
 	go func() {
 		buf := make([]byte, 10)
+		// this is the sequence we see from Linux serial driver on the real world
 		clientConn.Write([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22})
 
-		clientConn.Write([]byte{flagSyn, 200})
-
 		for {
+			clientConn.Write([]byte{flagSyn, 200})
+
 			n, e := clientConn.Read(buf)
 			if e != nil {
 				t.Errorf("Unexpected server error: %v", e)
@@ -204,11 +220,12 @@ func TestHandshakeServerComportSync(t *testing.T) {
 				continue
 			}
 
-			if data[0] != flagAck || data[1] != 201 || data[2] < 128 {
+			if data[0] != flagAck || data[1] != 201 {
 				t.Errorf("Error, unexpected data: %x", data[:3])
 				return
 			}
-			clientConn.Write([]byte{flagAck, incrementByte(data[2])})
+			clientConn.Write([]byte{flagAck, data[2] + 1})
+			break
 		}
 	}()
 
@@ -226,7 +243,10 @@ func TestHandshakeServerComportSync(t *testing.T) {
 
 func TestHandshakeServerAckNakResponse(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+	clientConn, serverConn := NewFakeConnection(timeout)
 
 	go func() {
 		buf := make([]byte, 10)
@@ -241,7 +261,7 @@ func TestHandshakeServerAckNakResponse(t *testing.T) {
 		}
 
 		data := buf[n-3:]
-		if data[0] != flagAck || data[1] != 201 || data[2] < 128 {
+		if data[0] != flagAck || data[1] != 201 {
 			t.Errorf("Error, unexpected data: %x", data[:3])
 			return
 		}
@@ -249,6 +269,7 @@ func TestHandshakeServerAckNakResponse(t *testing.T) {
 		clientConn.Write([]byte{flagAck, data[2]})
 		if n, err := clientConn.Read(buf); n != 1 || err != nil || buf[0] != flagNak {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
 
 		clientConn.Write([]byte{flagSyn, 200})
@@ -260,17 +281,17 @@ func TestHandshakeServerAckNakResponse(t *testing.T) {
 		}
 
 		data = buf[n-3:]
-		if data[0] != flagAck || data[1] != 201 || data[2] < 128 {
+		if data[0] != flagAck || data[1] != 201 {
 			t.Errorf("Error, unexpected data: %x", data[:3])
 			return
 		}
 
 		// intentional error. 99 in a wrong code.
-		clientConn.Write([]byte{99, incrementByte(data[2])})
+		clientConn.Write([]byte{99, data[2] + 1})
 		if n, err := clientConn.Read(buf); n != 1 || err != nil || buf[0] != flagNak {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
-
 	}()
 
 	e := HandshakeServer(serverConn)
@@ -290,22 +311,30 @@ func TestHandshakeServerAckNakResponse(t *testing.T) {
 
 func TestHandshakeClientNormalConnection(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	clientConn, serverConn := NewFakeConnection(timeout)
 
 	go func() {
 		pos := byte(200)
 		buf := make([]byte, 1024)
-		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagSyn || buf[1] < 128 {
+		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagSyn {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
-		serverConn.Write([]byte{flagAck, incrementByte(buf[1]), pos})
+		serverConn.Write([]byte{flagAck, buf[1] + 1, pos})
 
-		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagAck || buf[1] != incrementByte(pos) {
+		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagAck || buf[1] != pos+1 {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
+
+		serverConn.Write([]byte{flagAck})
 	}()
 
-	e := HandshakeClient(clientConn, false)
+	e := HandshakeClient(clientConn)
 	if e != nil {
 		t.Errorf("Unexpected error: %v", e)
 	}
@@ -313,24 +342,29 @@ func TestHandshakeClientNormalConnection(t *testing.T) {
 
 func TestHandshakeClientWrongServerAckPos(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+	clientConn, serverConn := NewFakeConnection(timeout)
 
 	go func() {
 		pos := byte(200)
 		buf := make([]byte, 1024)
-		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagSyn || buf[1] < 128 {
+		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagSyn {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
 
 		// writing the wrong buf[1] that supposed to be incremented.
 		serverConn.Write([]byte{flagAck, buf[1], pos})
 
-		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagAck || buf[1] != incrementByte(pos) {
+		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagAck || buf[1] != pos+1 {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
 	}()
 
-	err, ok := HandshakeClient(clientConn, false).(*HandshakeError)
+	err, ok := HandshakeClient(clientConn).(*HandshakeError)
 	if !ok {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -338,24 +372,29 @@ func TestHandshakeClientWrongServerAckPos(t *testing.T) {
 
 func TestHandshakeClientWrongServerAck(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+	clientConn, serverConn := NewFakeConnection(timeout)
 
 	go func() {
 		pos := byte(200)
 		buf := make([]byte, 1024)
-		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagSyn || buf[1] < 128 {
+		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagSyn {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
 
 		// writing 90 instead of flagAck
-		serverConn.Write([]byte{90, incrementByte(buf[1]), pos})
+		serverConn.Write([]byte{90, buf[1] + 1, pos})
 
-		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagAck || buf[1] != incrementByte(pos) {
+		if n, err := serverConn.Read(buf); n != 2 || err != nil || buf[0] != flagAck || buf[1] != pos+1 {
 			t.Errorf("Unexpected data or error %d, %v", n, err)
+			return
 		}
 	}()
 
-	err, ok := HandshakeClient(clientConn, false).(*HandshakeError)
+	err, ok := HandshakeClient(clientConn).(*HandshakeError)
 	if !ok {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -363,13 +402,16 @@ func TestHandshakeClientWrongServerAck(t *testing.T) {
 
 func TestHandshakeServerVsClient(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+	clientConn, serverConn := NewFakeConnection(timeout)
 	w := sync.WaitGroup{}
 	w.Add(2)
 
 	go func() {
 		defer w.Done()
-		err := HandshakeClient(clientConn, false)
+		err := HandshakeClient(clientConn)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}

@@ -147,10 +147,7 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	for {
 		select {
 		case <-ticker.C:
-			// FIXME: need to implement timeout of purging hangs with no content
-			// on the pipe
-			// serial.PurgeIncoming(ctx, conn)
-			err := serial.HandshakeClient(conn, true)
+			err := serial.HandshakeClient(conn)
 			if err != nil {
 				if err == io.EOF {
 					// with unix pipes the open will block until both ends are open, therefore

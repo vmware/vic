@@ -20,5 +20,7 @@ package com.vmware.vic.model.constants;
 public class VsphereObjects {
     public static final String VirtualMachine = "VirtualMachine";
     public static final String VmPropertyValueKey = "vm";
+    public static final String NamePropertyKey = "name";
     public static final String VirtualApp = "VirtualApp";
+    public static final String ResourcePool = "ResourcePool";
 }

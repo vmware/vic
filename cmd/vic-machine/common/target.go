@@ -28,11 +28,11 @@ import (
 )
 
 type Target struct {
-	URL *url.URL
+	URL *url.URL `cmd:"target"`
 
 	User       string
 	Password   *string
-	Thumbprint string
+	Thumbprint string `cmd:"thumbprint"`
 }
 
 func NewTarget() *Target {
