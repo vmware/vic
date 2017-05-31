@@ -49,7 +49,8 @@ if [[ x${engine_installer_cert} != "x" && x${engine_installer_key} != "x" ]]; th
 fi
 
 FILESERVER_DIR="/opt/vmware/fileserver/files"
-if [ ! -d "${FILESERVER_DIR}" ]; then
+FILE_COUNT=$(find ${FILESERVER_DIR} -name "vic*.tar.gz" | wc -l)
+if [ ! -d "${FILESERVER_DIR}" ] || [ ${FILE_COUNT} -ne 1] ; then
 	echo "Fileserver files not present. Unable to get VIC Engine tarball"
 	systemctl stop engine_installer
 	exit 1
