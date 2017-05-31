@@ -309,7 +309,7 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <Label>6.3. vCenter Admin Username</Label>
         <Description>Username of the vCenter admin user. Leave blank if not using VIC Engine Install Wizard.</Description>
       </Property>
-      <Property ovf:key="admin_password" ovf:password="true" ovf:qualifiers="MinLen(0),MaxLen(i65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+      <Property ovf:key="admin_password" ovf:password="true" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>6.4. vCenter Admin Password</Label>
         <Description>Password of the vCenter admin user. Leave blank if not using VIC Engine Install Wizard.</Description>
       </Property>
