@@ -49,6 +49,9 @@ const (
 	PersonaService   = "docker-personality"
 	PortLayerService = "port-layer"
 	VicAdminService  = "vicadmin"
+
+	GeneralHTTPProxy  = "HTTP_PROXY"
+	GeneralHTTPSProxy = "HTTPS_PROXY"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image

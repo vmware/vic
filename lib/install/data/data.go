@@ -190,4 +190,8 @@ func (d *Data) CopyNonEmpty(src *Data) {
 		d.ContainerNetworks = src.ContainerNetworks
 	}
 	d.Timeout = src.Timeout
+	if src.HTTPProxy != nil || src.HTTPSProxy != nil {
+		d.HTTPProxy = src.HTTPProxy
+		d.HTTPSProxy = src.HTTPSProxy
+	}
 }
