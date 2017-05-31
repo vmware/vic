@@ -89,7 +89,7 @@ func main() {
 	extraconfig.Decode(src, &vchConfig)
 
 	logcfg := viclog.NewLoggingConfig()
-	if vchConfig.Diagnostics.DebugLevel {
+	if vchConfig.Diagnostics.DebugLevel > 0 {
 		logcfg.Level = log.DebugLevel
 		trace.Logger.Level = log.DebugLevel
 		syslog.Logger.Level = log.DebugLevel
