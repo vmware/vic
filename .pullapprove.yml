@@ -168,6 +168,7 @@ groups:
 
   port-layer-storage:
     users:
+      - jzt
       - matthewavery
     conditions:
       files:
@@ -185,6 +186,7 @@ groups:
 
   package-kv-store:
     users:
+      - jzt
       - matthewavery
     conditions:
       files:
