@@ -32,7 +32,7 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
-	OpsUser     string
+	OpsUser     string `cmd:"ops-user"`
 	OpsPassword *string
 
 	CertPEM     []byte
@@ -41,61 +41,61 @@ type Data struct {
 	RegistryCAs []byte
 	common.Images
 
-	ImageDatastorePath     string
-	VolumeLocations        map[string]*url.URL
+	ImageDatastorePath     string              `cmd:"image-store"`
+	VolumeLocations        map[string]*url.URL `cmd:"volume-store" label:"value-key"`
 	ContainerDatastoreName string
 
-	BridgeNetworkName string
-	ClientNetwork     NetworkConfig
-	PublicNetwork     NetworkConfig
-	ManagementNetwork NetworkConfig
-	DNS               []net.IP
+	BridgeNetworkName string        `cmd:"bridge-network"`
+	ClientNetwork     NetworkConfig `cmd:"client-network"`
+	PublicNetwork     NetworkConfig `cmd:"public-network"`
+	ManagementNetwork NetworkConfig `cmd:"management-network"`
+	DNS               []net.IP      `cmd:"dns-server"`
 
-	ContainerNetworks
+	ContainerNetworks `cmd:"container-network"`
 
-	VCHCPULimitsMHz       int
-	VCHCPUReservationsMHz int
-	VCHCPUShares          *types.SharesInfo
+	VCHCPULimitsMHz       int               `cmd:"cpu"`
+	VCHCPUReservationsMHz int               `cmd:"cpu-reservation"`
+	VCHCPUShares          *types.SharesInfo `cmd:"cpu-shares"`
 
-	VCHMemoryLimitsMB       int
-	VCHMemoryReservationsMB int
-	VCHMemoryShares         *types.SharesInfo
+	VCHMemoryLimitsMB       int               `cmd:"memory"`
+	VCHMemoryReservationsMB int               `cmd:"memory-reservation"`
+	VCHMemoryShares         *types.SharesInfo `cmd:"memory-shares"`
 
-	BridgeIPRange *net.IPNet
+	BridgeIPRange *net.IPNet `cmd:"bridge-network-range"`
 
-	InsecureRegistries  []url.URL
-	WhitelistRegistries []url.URL
+	InsecureRegistries  []url.URL `cmd:"insecure-registry"`
+	WhitelistRegistries []url.URL `cmd:"whitelist-registry"`
 
-	HTTPSProxy *url.URL
-	HTTPProxy  *url.URL
+	HTTPSProxy *url.URL `cmd:"https-proxy"`
+	HTTPProxy  *url.URL `cmd:"http-proxy"`
 
-	NumCPUs  int
-	MemoryMB int
+	NumCPUs  int `cmd:"endpoint-cpu"`
+	MemoryMB int `cmd:"endpoint-memory"`
 
 	Timeout time.Duration
 
 	Force               bool
-	UseRP               bool
+	UseRP               bool `cmd:"use-rp"`
 	ResetInProgressFlag bool
 
-	AsymmetricRouting bool
+	AsymmetricRouting bool `cmd:"asymmetric-routes"`
 
-	ScratchSize string
+	ScratchSize string `cmd:"base-image-size"`
 	Rollback    bool
 
-	SyslogConfig SyslogConfig
+	SyslogConfig SyslogConfig `cmd:"syslog"`
 }
 
 type SyslogConfig struct {
-	Addr *url.URL
+	Addr *url.URL `cmd:"address"`
 	Tag  string
 }
 
 type ContainerNetworks struct {
-	MappedNetworks         map[string]string
-	MappedNetworksGateways map[string]net.IPNet
-	MappedNetworksIPRanges map[string][]ip.Range
-	MappedNetworksDNS      map[string][]net.IP
+	MappedNetworks         map[string]string     `cmd:"parent" label:"key-value"`
+	MappedNetworksGateways map[string]net.IPNet  `cmd:"gateway" label:"key-value"`
+	MappedNetworksIPRanges map[string][]ip.Range `cmd:"ip-range" label:"key-value"`
+	MappedNetworksDNS      map[string][]net.IP   `cmd:"dns" label:"key-value"`
 }
 
 func (c *ContainerNetworks) IsSet() bool {
@@ -107,10 +107,10 @@ func (c *ContainerNetworks) IsSet() bool {
 
 // NetworkConfig is used to set IP addr for each network
 type NetworkConfig struct {
-	Name         string
+	Name         string `cmd:"parent"`
 	Destinations []net.IPNet
 	Gateway      net.IPNet
-	IP           net.IPNet
+	IP           net.IPNet `cmd:"ip"`
 }
 
 // Empty determines if ip and gateway are unset
@@ -189,4 +189,5 @@ func (d *Data) CopyNonEmpty(src *Data) {
 	if src.ContainerNetworks.IsSet() {
 		d.ContainerNetworks = src.ContainerNetworks
 	}
+	d.Timeout = src.Timeout
 }

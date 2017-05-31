@@ -17,6 +17,7 @@ package hgfs
 import (
 	"bytes"
 	"encoding/base64"
+	"io"
 	"testing"
 )
 
@@ -38,6 +39,7 @@ func TestProtocolEncoding(t *testing.T) {
 
 	// base64 encoded packets below were captured from vmtoolsd during:
 	// govc guest.download /etc/hosts -
+	// govc guest.upload /etc/hosts /tmp/hosts
 	tests := []struct {
 		pkt string
 		dec interface{}
@@ -89,6 +91,30 @@ func TestProtocolEncoding(t *testing.T) {
 		{
 			"AQAAAP8AAAA8AAAANAAAAAAAAIAqAAAAAAAAAAIAAAAAAAAAX81yPBnUNgAAAAAAAAAAAAAAAAAAAAAA",
 			new(ReplyDestroySessionV4),
+		},
+		{
+			"AQAAAP8AAACZAAAANAAAAAAAAIAYAAAAAAAAAAEAAAAAAAAAyXxnMKrzOwAAAAAAAAAAAAsIAAAAAAAAAQAAAAQAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUAAAAAAAAAAAAAAAAAAAAcm9vdAB0bXAAcmVzb2x2LmNvbmYA",
+			new(RequestOpenV3),
+		},
+		{
+			"AQAAAP8AAABEAAAANAAAAAAAAIAYAAAAAAAAAAIAAAAAAAAAyXxnMKrzOwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+			new(ReplyOpenV3),
+		},
+		{
+			"AQAAAP8AAADJAAAANAAAAAAAAIAQAAAAAAAAAAEAAAAAAAAAyXxnMKrzOwAAAAAAAAAAAAAAAIAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUAAAAcm9vdAB0bXAAcmVzb2x2LmNvbmYA",
+			new(RequestSetattrV2),
+		},
+		{
+			"AQAAAP8AAAA8AAAANAAAAAAAAIAQAAAAAAAAAAIAAAAAAAAAyXxnMKrzOwAAAAAAAAAAAAAAAAAAAAAA",
+			new(ReplySetattrV2),
+		},
+		{
+			"AQAAAP8AAACTAAAANAAAAAAAAIAaAAAAAAAAAAEAAAAAAAAAyXxnMKrzOwAAAAAAAAAAAAAAAAABAAAAAAAAAABGAAAAAAAAAAAAAABuYW1lc2VydmVyIDEwLjExOC42NS4xCm5hbWVzZXJ2ZXIgMTAuMTE4LjY1LjIKc2VhcmNoIGVuZy52bXdhcmUuY29tIAoK",
+			new(RequestWriteV3),
+		},
+		{
+			"AQAAAP8AAABAAAAANAAAAAAAAIAaAAAAAAAAAAIAAAAAAAAAyXxnMKrzOwAAAAAAAAAAAEYAAAAAAAAAAAAAAA==",
+			new(ReplyWriteV3),
 		},
 	}
 
@@ -147,5 +173,24 @@ func TestFileName(t *testing.T) {
 		if fs != fn {
 			t.Errorf("%d: %v != %v", i, fn, fs)
 		}
+	}
+}
+
+func TestProtocolMarshal(t *testing.T) {
+	var buf []byte
+	var x uint64
+	err := UnmarshalBinary(buf, x)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	status := err.(*Status)
+	if status.Error() != io.EOF.Error() {
+		t.Errorf("err=%s", status.Err)
+	}
+
+	status.Err = nil
+	if status.Error() == "" {
+		t.Error("status")
 	}
 }

@@ -26,4 +26,5 @@ public class Container {
     public static final String VM_CONTAINERNAME_KEY = "containerName";
     public static final String VM_IMAGENAME_KEY = "imageName";
     public static final String VM_PORTMAPPING_KEY = "portMapping";
+    public static final String PARENT_NAME_KEY = "parentObjectName";
 }

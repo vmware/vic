@@ -524,6 +524,58 @@ func (f *FileName) Path() string {
 	return strings.Join(cp, "/")
 }
 
+// FileNameV3 as defined in hgfsProto.h:HgfsFileNameV3
+type FileNameV3 struct {
+	Length   uint32
+	Flags    uint32
+	CaseType int32
+	ID       uint32
+	Name     string
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (f *FileNameV3) MarshalBinary() ([]byte, error) {
+	name := f.Name
+	f.Length = uint32(len(f.Name))
+	if f.Length == 0 {
+		// field is defined as 'char name[1];', this byte is required for min sizeof() validation
+		name = "\x00"
+	}
+	return MarshalBinary(&f.Length, &f.Flags, &f.CaseType, &f.ID, name)
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (f *FileNameV3) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	fields := []interface{}{
+		&f.Length, &f.Flags, &f.CaseType, &f.ID,
+	}
+
+	for _, p := range fields {
+		if err := binary.Read(buf, binary.LittleEndian, p); err != nil {
+			return err
+		}
+	}
+
+	f.Name = string(buf.Next(int(f.Length)))
+
+	return nil
+}
+
+// FromString converts name to a FileNameV3
+func (f *FileNameV3) FromString(name string) {
+	p := new(FileName)
+	p.FromString(name)
+	f.Name = p.Name
+	f.Length = p.Length
+}
+
+// Path converts FileNameV3 to a string
+func (f *FileNameV3) Path() string {
+	return (&FileName{Name: f.Name, Length: f.Length}).Path()
+}
+
 // FileType
 const (
 	FileTypeRegular = iota
@@ -589,6 +641,30 @@ func (r *ReplyGetattrV2) UnmarshalBinary(data []byte) error {
 	return UnmarshalBinary(data, &r.Reply, &r.Attr, &r.SymlinkTarget)
 }
 
+// RequestSetattrV2 as defined in hgfsProto.h:HgfsRequestSetattrV2
+type RequestSetattrV2 struct {
+	Request
+	Hints    uint64
+	Attr     AttrV2
+	Handle   uint32
+	FileName FileName
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *RequestSetattrV2) MarshalBinary() ([]byte, error) {
+	return MarshalBinary(&r.Request, &r.Hints, &r.Attr, &r.Handle, &r.FileName)
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *RequestSetattrV2) UnmarshalBinary(data []byte) error {
+	return UnmarshalBinary(data, &r.Request, &r.Hints, &r.Attr, &r.Handle, &r.FileName)
+}
+
+// ReplySetattrV2 as defined in hgfsProto.h:HgfsReplySetattrV2
+type ReplySetattrV2 struct {
+	Header Reply
+}
+
 // OpenMode
 const (
 	OpenModeReadOnly = iota
@@ -649,6 +725,59 @@ type ReplyClose struct {
 	Reply
 }
 
+// Lock type
+const (
+	LockNone = iota
+	LockOpportunistic
+	LockExclusive
+	LockShared
+	LockBatch
+	LockLease
+)
+
+// RequestOpenV3 as defined in hgfsProto.h:HgfsRequestOpenV3
+type RequestOpenV3 struct {
+	Mask           uint64
+	OpenMode       int32
+	OpenFlags      int32
+	SpecialPerms   uint8
+	OwnerPerms     uint8
+	GroupPerms     uint8
+	OtherPerms     uint8
+	AttrFlags      uint64
+	AllocationSize uint64
+	DesiredAccess  uint32
+	ShareAccess    uint32
+	DesiredLock    int32
+	Reserved1      uint64
+	Reserved2      uint64
+	FileName       FileNameV3
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *RequestOpenV3) MarshalBinary() ([]byte, error) {
+	return MarshalBinary(&r.Mask, &r.OpenMode, &r.OpenFlags,
+		&r.SpecialPerms, &r.OwnerPerms, &r.GroupPerms, &r.OtherPerms,
+		&r.AttrFlags, &r.AllocationSize, &r.DesiredAccess, &r.ShareAccess,
+		&r.DesiredLock, &r.Reserved1, &r.Reserved2, &r.FileName)
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *RequestOpenV3) UnmarshalBinary(data []byte) error {
+	return UnmarshalBinary(data, &r.Mask, &r.OpenMode, &r.OpenFlags,
+		&r.SpecialPerms, &r.OwnerPerms, &r.GroupPerms, &r.OtherPerms,
+		&r.AttrFlags, &r.AllocationSize, &r.DesiredAccess, &r.ShareAccess,
+		&r.DesiredLock, &r.Reserved1, &r.Reserved2, &r.FileName)
+}
+
+// ReplyOpenV3 as defined in hgfsProto.h:HgfsReplyOpenV3
+type ReplyOpenV3 struct {
+	Handle       uint32
+	AcquiredLock int32
+	Flags        int32
+	Reserved     uint32
+}
+
 // RequestReadV3 as defined in hgfsProto.h:HgfsRequestReadV3
 type RequestReadV3 struct {
 	Handle       uint32
@@ -671,11 +800,36 @@ func (r *ReplyReadV3) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
 func (r *ReplyReadV3) UnmarshalBinary(data []byte) error {
-	buf := bytes.NewBuffer(data)
+	return UnmarshalBinary(data, &r.ActualSize, &r.Reserved, &r.Payload)
+}
 
-	_ = binary.Read(buf, binary.LittleEndian, &r.ActualSize)
-	_ = binary.Read(buf, binary.LittleEndian, &r.Reserved)
-	r.Payload = buf.Bytes()
+// Write flags
+const (
+	WriteAppend = 1
+)
 
-	return nil
+// RequestWriteV3 as defined in hgfsProto.h:HgfsRequestWriteV3
+type RequestWriteV3 struct {
+	Handle       uint32
+	WriteFlags   uint8
+	Offset       uint64
+	RequiredSize uint32
+	Reserved     uint64
+	Payload      []byte
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *RequestWriteV3) MarshalBinary() ([]byte, error) {
+	return MarshalBinary(&r.Handle, &r.WriteFlags, &r.Offset, &r.RequiredSize, &r.Reserved, r.Payload)
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *RequestWriteV3) UnmarshalBinary(data []byte) error {
+	return UnmarshalBinary(data, &r.Handle, &r.WriteFlags, &r.Offset, &r.RequiredSize, &r.Reserved, &r.Payload)
+}
+
+// ReplyWriteV3 as defined in hgfsProto.h:HgfsReplyWriteV3
+type ReplyWriteV3 struct {
+	ActualSize uint32
+	Reserved   uint64
 }

@@ -141,8 +141,14 @@ if [ -n "$test" ] ; then
         echo "'$out' != '$$'" 1>&2
     fi
 
-    echo "Testing copy file from guest via govc..."
-    govc guest.download -vm "$vm" /etc/lsb-release -
+    echo "Testing file copy to and from guest via govc..."
+    dest="/tmp/$(basename "$0")"
+
+    govc guest.upload -f -vm "$vm" -perm 0640 -gid 10 "$0" "$dest"
+
+    govc guest.download -vm "$vm" "$dest" - | md5sum --quiet -c <(<"$0" md5sum)
+    # TODO: switch govc guest.ls when toolbox supports it
+    ssh "${opts[@]}" "core@${ip}" ls -l "$dest" | grep "rw-r-----. 1 core wheel"
 
     echo "Waiting for tests to complete..."
     wait

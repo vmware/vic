@@ -16,6 +16,7 @@ package hgfs
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -108,6 +109,23 @@ func (c *Client) GetAttr(name string) (*AttrV2, uint32) {
 	return &res.Attr, p.Status
 }
 
+func (c *Client) SetAttr(name string, attr AttrV2) uint32 {
+	req := new(RequestSetattrV2)
+	res := new(ReplySetattrV2)
+
+	req.FileName.FromString(name)
+
+	req.Attr = attr
+
+	p := c.Dispatch(OpSetattrV2, req, res)
+
+	if p.Status != StatusSuccess {
+		return p.Status
+	}
+
+	return p.Status
+}
+
 func (c *Client) Open(name string, write ...bool) (uint32, uint32) {
 	req := new(RequestOpen)
 	res := new(ReplyOpen)
@@ -121,6 +139,37 @@ func (c *Client) Open(name string, write ...bool) (uint32, uint32) {
 	p := c.Dispatch(OpOpen, req, res)
 	if p.Status != StatusSuccess {
 		return 0, p.Status
+	}
+
+	return res.Handle, p.Status
+}
+
+func (c *Client) OpenWrite(name string) (uint32, uint32) {
+	req := new(RequestOpenV3)
+	res := new(ReplyOpenV3)
+
+	req.OpenMode = OpenModeWriteOnly
+	req.OpenFlags = OpenCreateEmpty
+	req.FileName.FromString(name)
+
+	p := c.Dispatch(OpOpenV3, req, res)
+	if p.Status != StatusSuccess {
+		return 0, p.Status
+	}
+
+	// cover the unsupported lock type path
+	req.DesiredLock = LockOpportunistic
+	status := c.Dispatch(OpOpenV3, req, res).Status
+	if status != StatusOperationNotSupported {
+		return 0, status
+	}
+
+	// cover the unsupported open mode path
+	req.DesiredLock = LockNone
+	req.OpenMode = OpenCreateSafe
+	status = c.Dispatch(OpOpenV3, req, res).Status
+	if status != StatusAccessDenied {
+		return 0, status
 	}
 
 	return res.Handle, p.Status
@@ -142,6 +191,7 @@ func TestStaleSession(t *testing.T) {
 	invalid := []func() uint32{
 		func() uint32 { _, status := c.Open("enoent"); return status },
 		func() uint32 { return c.Dispatch(OpReadV3, new(RequestReadV3), new(ReplyReadV3)).Status },
+		func() uint32 { return c.Dispatch(OpWriteV3, new(RequestWriteV3), new(ReplyWriteV3)).Status },
 		func() uint32 { return c.Close(0) },
 		c.DestroySession,
 	}
@@ -288,6 +338,14 @@ func TestReadV3(t *testing.T) {
 func TestWriteV3(t *testing.T) {
 	Trace = testing.Verbose()
 
+	f, err := ioutil.TempFile("", "toolbox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+
+	name := f.Name()
+
 	c := NewClient()
 	c.CreateSession()
 
@@ -296,4 +354,92 @@ func TestWriteV3(t *testing.T) {
 	if status != StatusAccessDenied {
 		t.Errorf("status=%d", status)
 	}
+
+	handle, status := c.OpenWrite(name)
+	if status != StatusSuccess {
+		t.Fatalf("status=%d", status)
+	}
+
+	payload := []byte("one two three\n")
+	size := uint32(len(payload))
+
+	req := &RequestWriteV3{
+		Handle:       handle,
+		WriteFlags:   WriteAppend,
+		Offset:       0,
+		RequiredSize: size,
+		Payload:      payload,
+	}
+
+	res := new(ReplyReadV3)
+
+	status = c.Dispatch(OpWriteV3, req, res).Status
+
+	if status != StatusSuccess {
+		t.Errorf("status=%d", status)
+	}
+
+	if size != res.ActualSize {
+		t.Errorf("%d vs %d", size, res.ActualSize)
+	}
+
+	status = c.Dispatch(OpWriteV3, new(RequestWriteV3), new(ReplyWriteV3)).Status
+	if status != StatusInvalidHandle {
+		t.Fatalf("status=%d", status)
+	}
+
+	status = c.Close(handle)
+	if status != StatusSuccess {
+		t.Errorf("status=%d", status)
+	}
+
+	attr, _ := c.GetAttr(name)
+	if attr.Size != uint64(size) {
+		t.Errorf("%d vs %d", size, attr.Size)
+	}
+
+	attr.OwnerPerms |= PermExec
+
+	errors := []struct {
+		err    error
+		status uint32
+	}{
+		{os.ErrPermission, StatusOperationNotPermitted},
+		{os.ErrNotExist, StatusNoSuchFileOrDir},
+		{os.ErrExist, StatusFileExists},
+		{nil, StatusSuccess},
+	}
+
+	for _, e := range errors {
+		c.s.chown = func(_ string, _ int, _ int) error {
+			return e.err
+		}
+
+		status = c.SetAttr(name, *attr)
+		if status != e.status {
+			t.Errorf("status=%d", status)
+		}
+	}
+
+	c.s.chown = func(_ string, _ int, _ int) error {
+		return nil
+	}
+
+	for _, e := range errors {
+		c.s.chmod = func(_ string, _ os.FileMode) error {
+			return e.err
+		}
+
+		status = c.SetAttr(name, *attr)
+		if status != e.status {
+			t.Errorf("status=%d", status)
+		}
+	}
+
+	status = c.DestroySession()
+	if status != StatusSuccess {
+		t.Errorf("status=%d", status)
+	}
+
+	_ = os.Remove(name)
 }
