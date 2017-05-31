@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   wait-for-build:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
+    image: harbor/library/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
@@ -31,7 +31,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
+    image: harbor/library/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
@@ -57,7 +57,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
+    image: harbor/library/vic-integration-test:1.31
     pull: true
     privileged: true
     environment:
@@ -93,7 +93,7 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: gcr.io/eminent-nation-87317/vic-integration-test:1.31
+    image: harbor/library/vic-integration-test:1.31
     pull: true
     environment:
       BIN: bin
