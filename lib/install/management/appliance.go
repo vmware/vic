@@ -537,10 +537,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		Dir: "/home/vicadmin",
 	}
 	if settings.HTTPProxy != nil {
-		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("VICADMIN_HTTP_PROXY=%s", settings.HTTPProxy.String()))
 	}
 	if settings.HTTPSProxy != nil {
-		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("VICADMIN_HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
 	}
 
 	conf.AddComponent(config.VicAdminService, &executor.SessionConfig{
