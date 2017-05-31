@@ -16,6 +16,8 @@
 
 package com.vmware.vic.utils;
 
+import java.text.NumberFormat;
+import java.text.ParsePosition;
 import java.util.Comparator;
 import java.util.Map;
 
@@ -51,20 +53,69 @@ public class VicVmComparator implements Comparator<String> {
 	 */
 	@Override
 	public int compare(String a, String b) {
-		try {
-		    ModelObject mo_A = (ModelObject) base.get(a);
-	        ModelObject mo_B = (ModelObject) base.get(b);
-			int result = 0;
-			result = getStringPropertyFromVm(mo_A)
-				.compareTo(getStringPropertyFromVm(mo_B));
-			if (result == 0) {
-			    result = mo_A.hashCode() - mo_B.hashCode();
-			}
+	    ModelObject modObjA = (ModelObject) base.get(a);
+	    ModelObject modObjB = (ModelObject) base.get(b);
 
-			return result * (this.reverse ? -1 : 1);
-		} catch (IndexOutOfBoundsException e) {
-			return 0;
-		}
+        return compareValues(modObjA, modObjB);
+	}
+
+	/**
+	 * Compare ModelObjects a and b based on compareBy and reverse.
+	 * This is basically a compareTo() & compare() wrapper for string,
+	 * integer, long, and double types
+	 * @param modObjA : ModelObject a
+	 * @param modObjB : ModelObject b
+	 * @return compare result
+	 */
+	private int compareValues(ModelObject modObjA, ModelObject modObjB) {
+	    int result = 0;
+	    String valueA = getStringPropertyFromVm(modObjA);
+	    String valueB = getStringPropertyFromVm(modObjB);
+	    Number numA = tryParseNumericValue(valueA);
+	    Number numB = tryParseNumericValue(valueB);
+
+	    // if either numA or numB ends up null then string comparison is used
+	    if (numA == null || numB == null) {
+	        result = getStringPropertyFromVm(modObjA)
+	                .compareTo(getStringPropertyFromVm(modObjB));
+	    } else {
+	        if (numA instanceof Long &&
+	                numB instanceof Long) {
+	            result = Long.compare(numA.longValue(), numB.longValue());
+	        } else if (numA instanceof Integer &&
+	                numB instanceof Integer) {
+	            result = Integer.compare(numA.intValue(), numB.intValue());
+	        } else if (numA instanceof Double &&
+	                numB instanceof Double) {
+	            result = Double.compare(numA.doubleValue(), numB.doubleValue());
+	        }
+	    }
+
+	    // in case the values are the same between modObjA and modObjB,
+	    // compare by hashcode 
+	    if (result == 0) {
+            result = modObjA.hashCode() - modObjB.hashCode();
+        }
+
+	    return result * (this.reverse ? -1 : 1);
+	}
+
+	/**
+	 * Check if the passed string is numeric and return the parsed result
+	 * If it's not numeric, return null
+	 * @param value : value of the String type
+	 * @return a Number instance if numeric, or null otherwise
+	 */
+	private Number tryParseNumericValue(String value) {
+	    NumberFormat formatter = NumberFormat.getInstance();
+	    ParsePosition pos = new ParsePosition(0);
+	    Number parsed = formatter.parse(value, pos);
+	    // if the position is not the same as string's length
+	    // then it means parse was not completely successful
+	    if (value.length() != pos.getIndex()) {
+	        return null;
+	    }
+	    return parsed;
 	}
 
 	/**

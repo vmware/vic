@@ -80,7 +80,7 @@ describe('VicVchViewService', () => {
 
     it('should process a properly formatted response', async(() => {
         const mockResponse = getVchResponseStub();
-        service.reloadVchs({
+        service.getVchsData({
             offset: 0,
             maxResultCount: 10,
             sorting: 'id,asc'
@@ -101,7 +101,7 @@ describe('VicVchViewService', () => {
     it('should return an error when processing a malformed vch response', async(() => {
         const mockResponse = getMalformedVchResponseStub();
 
-        service.reloadVchs({
+        service.getVchsData({
             offset: 0,
             maxResultCount: 10,
             sorting: 'id,asc'
