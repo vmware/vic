@@ -5,7 +5,7 @@ group_defaults:
     auto: true
   approve_by_comment:
     enabled: true
-    approve_regex: 'Approved|:shipit:|:sheep::it:|:\+1:|LGTM|lgtm'
+    approve_regex: 'Approved|:shipit:|:sheep::it:|:\+1:|LGTM|lgtm|yolo|YOLO'
   reset_on_push:
     enabled: false
 
