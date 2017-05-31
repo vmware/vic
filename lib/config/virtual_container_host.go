@@ -41,6 +41,14 @@ const (
 	Name = "{name}"
 	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
 	CreatingVCH = "CreatingVCH"
+
+	PublicNetworkName     = "public"
+	ClientNetworkName     = "client"
+	ManagementNetworkName = "management"
+
+	PersonaService   = "docker-personality"
+	PortLayerService = "port-layer"
+	VicAdminService  = "vicadmin"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image
@@ -103,7 +111,7 @@ type Container struct {
 // RegistryConfig defines the registries virtual container host can talk to
 type Registry struct {
 	// Whitelist of registries
-	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" key:"whitelist_registries"`
 	// Blacklist of registries
 	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Insecure registries

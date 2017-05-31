@@ -145,7 +145,7 @@ Create VCH - full params
 
 Create VCH - using environment variables
     Set Test Environment Variables
-    Set Environment Variable  VIC_MACHINE_URL  %{TEST_URL}
+    Set Environment Variable  VIC_MACHINE_TARGET  %{TEST_URL}
     Set Environment Variable  VIC_MACHINE_USER  %{TEST_USERNAME}
     Set Environment Variable  VIC_MACHINE_PASSWORD  %{TEST_PASSWORD}
     Set Environment Variable  VIC_MACHINE_THUMBPRINT  %{TEST_THUMBPRINT}
@@ -159,7 +159,7 @@ Create VCH - using environment variables
 
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
-    Remove Environment Variable  VIC_MACHINE_URL
+    Remove Environment Variable  VIC_MACHINE_TARGET
     Remove Environment Variable  VIC_MACHINE_USER
     Remove Environment Variable  VIC_MACHINE_PASSWORD
     Remove Environment Variable  VIC_MACHINE_THUMBPRINT

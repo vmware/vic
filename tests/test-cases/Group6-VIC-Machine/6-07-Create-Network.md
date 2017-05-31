@@ -75,9 +75,9 @@ This test requires that a vSphere server is running and available
 1. Create without bridge network provided in ESXi
 2. Integration test pass
 
-## Bridge network - valid
+## Bridge network - create bridge network if it doesn't exist
 1. Create with wrong network name provided for bridge network
-2. Verify create failed for network is not found
+2. Verify create failed for network is not found, create will succeed on ESXi
 
 ## Bridge network - invalid vCenter
 3. Create with distribute virtual switch as bridge network name

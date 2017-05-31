@@ -26,7 +26,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/registry"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
 
@@ -45,8 +44,7 @@ import (
 )
 
 const (
-	PortlayerName      = "Backend Engine"
-	IndexServerAddress = "registry-1.docker.io"
+	PortlayerName = "Backend Engine"
 
 	// RetryTimeSeconds defines how many seconds to wait between retries
 	RetryTimeSeconds = 2
@@ -58,16 +56,16 @@ var (
 	portLayerName       string
 	productName         string
 	productVersion      string
+	whitelistRegistries string //Friendly formatted list
+	insecureRegistries  string //Friendly formatted list
 
-	vchConfig *config.VirtualContainerHostConfigSpec
-
-	insecureRegistries []string
-	RegistryCertPool   *x509.CertPool
+	vchConfig        *config.VirtualContainerHostConfigSpec
+	RegistryCertPool *x509.CertPool
 
 	eventService *events.Events
 )
 
-func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec, insecureRegs []url.URL) error {
+func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec) error {
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
 		return err
@@ -86,6 +84,7 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 			portLayerName = product + " " + productVersion + " Backend Engine"
 		}
 
+		parseFriendlyRegistryString(config) // For docker info
 		loadRegistryCACerts()
 	} else {
 		portLayerName = product + " Backend Engine"
@@ -110,25 +109,12 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		return err
 	}
 
-	serviceOptions := registry.ServiceOptions{}
-	for _, r := range insecureRegs {
-		// host:port was previously stored in the Path
-		// component of the URL. Go 1.8 parser puts it
-		// the Host component. VCH upgrade must move it
-		// from Path to Host.
-		insecureRegistries = append(insecureRegistries, r.Host)
-	}
-	if len(insecureRegistries) > 0 {
-		serviceOptions.InsecureRegistries = insecureRegistries
-	}
-
 	eventService = events.New()
 
 	return nil
 }
 
 func hydrateCaches() error {
-
 	const waiters = 3
 
 	wg := sync.WaitGroup{}
@@ -212,6 +198,7 @@ func ProductVersion() string {
 	return productVersion
 }
 
+// VchConfig gets the VIC appliance VM's configspec
 func VchConfig() *config.VirtualContainerHostConfigSpec {
 	return vchConfig
 }
@@ -256,13 +243,41 @@ func createImageStore() error {
 	return nil
 }
 
-func InsecureRegistries() []string {
-	registries := []string{}
-	for _, reg := range insecureRegistries {
-		registries = append(registries, reg)
+func parseFriendlyRegistryString(config *config.VirtualContainerHostConfigSpec) {
+
+	createList := func(registryList []url.URL) string {
+		var msg string
+
+		if len(registryList) > 0 {
+			var host string
+			for i, r := range registryList {
+				host = r.Host
+				_, _, err := net.ParseCIDR(r.Host + r.Path)
+				if err == nil {
+					host = host + r.Path
+				}
+
+				if i == 0 {
+					msg = msg + host
+				} else {
+					msg = msg + ", " + host
+				}
+			}
+		}
+
+		return msg
 	}
 
-	return registries
+	whitelistRegistries = createList(config.RegistryWhitelist)
+	insecureRegistries = createList(config.InsecureRegistries)
+}
+
+func WhitelistRegistries() string {
+	return whitelistRegistries
+}
+
+func InsecureRegistries() string {
+	return insecureRegistries
 }
 
 // syncContainerCache runs once at startup to populate the container cache
@@ -324,25 +339,21 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 }
 
 func loadRegistryCACerts() {
-	if len(vchConfig.RegistryCertificateAuthorities) == 0 {
-		return
-	}
+	var err error
 
-	rootCertPool, err := x509.SystemCertPool()
-	log.Debugf("Loaded %d CAs for registries from system CA bundle", len(rootCertPool.Subjects()))
+	RegistryCertPool, err = x509.SystemCertPool()
+	log.Debugf("Loaded %d CAs for registries from system CA bundle", len(RegistryCertPool.Subjects()))
 	if err != nil {
 		log.Errorf("Unable to load system CAs")
 		return
 	}
 
-	if !rootCertPool.AppendCertsFromPEM(vchConfig.RegistryCertificateAuthorities) {
+	if !RegistryCertPool.AppendCertsFromPEM(vchConfig.RegistryCertificateAuthorities) {
 		log.Errorf("Unable to load CAs for registry access in config")
 		return
 	}
 
-	RegistryCertPool = rootCertPool
-
-	log.Debugf("Loaded %d CAs for registries from config", len(rootCertPool.Subjects()))
+	log.Debugf("Loaded %d CAs for registries from config", len(RegistryCertPool.Subjects()))
 }
 
 func EventService() *events.Events {

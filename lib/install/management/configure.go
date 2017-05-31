@@ -274,7 +274,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 			err = errors.Errorf("Upgrading VCH exceeded time limit of %s. Please increase the timeout using --timeout to accommodate for a busy vSphere target", settings.Timeout)
 		}
 
-		log.Info("\tAPI may be slow to start - please retry with increased timeout using --timeout: %s", err)
+		log.Info("\tAPI may be slow to start - please retry with increased timeout using --timeout")
 		return err
 	}
 	return nil

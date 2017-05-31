@@ -70,7 +70,7 @@ const (
 func GetMgmtIP() net.IPNet {
 	var mgmtIP net.IPNet
 	// management alias may not be present, try others if not found
-	link := LinkByOneOfNameOrAlias(validate.ManagementNetworkName, "public", "client")
+	link := LinkByOneOfNameOrAlias(config.ManagementNetworkName, "public", "client")
 	if link == nil {
 		log.Error("unable to find any interfaces when searching for mgmt IP")
 		return mgmtIP
