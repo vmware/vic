@@ -21,12 +21,12 @@ import { ActionDevService } from './services/action-dev.service';
 @Component({
     selector: 'vic-app',
     template: `
-    <div *ngIf="!gs.isPluginMode()" class="floating-left">
-        <a (click)="gs.toggleDevUI()" class="tooltip tooltip-sm tooltip-bottom-right"
+    <div *ngIf="!globalsService.isPluginMode()" class="floating-left">
+        <a (click)="globalsService.toggleDevUI()" class="tooltip tooltip-sm tooltip-bottom-right"
            role="tooltip" aria-haspopup="true" href="javascript://">
-           <clr-icon [attr.shape]="gs.showDevUI() ? 'remove' : 'plus-circle'" size="16"
-                     [attr.class]="gs.showDevUI() ? 'is-inverse' : ''"></clr-icon>
-           <span class="tooltip-content">{{gs.showDevUI() ? "Remove dev UI" : "Show dev UI"}}</span>
+           <clr-icon [attr.shape]="globalsService.showDevUI() ? 'remove' : 'plus-circle'" size="16"
+                     [attr.class]="globalsService.showDevUI() ? 'is-inverse' : ''"></clr-icon>
+           <span class="tooltip-content">{{globalsService.showDevUI() ? "Remove dev UI" : "Show dev UI"}}</span>
         </a>
     </div>
     <router-outlet></router-outlet>
@@ -36,18 +36,18 @@ import { ActionDevService } from './services/action-dev.service';
 export class AppComponent {
 
     constructor(
-        public gs: GlobalsService,
+        public globalsService: GlobalsService,
         private injector: Injector,
         private refreshService: RefreshService,
         private i18nService: I18nService
     ) {
         // Refresh handler to be used in plugin mode
-        this.gs.getWebPlatform().setGlobalRefreshHandler(
+        this.globalsService.getWebPlatform().setGlobalRefreshHandler(
             this.refresh.bind(this), document
         );
 
         // Manual injection of ActionDevService, used in webPlatformStub
-        if (!this.gs.isPluginMode()) {
+        if (!this.globalsService.isPluginMode()) {
             this.injector.get(ActionDevService);
         }
 
