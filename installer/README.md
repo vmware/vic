@@ -21,8 +21,8 @@ First, we have to set the revisions of the components we want to bundle in the O
 ```
 export BUILD_VICENGINE_REVISION=1.1.1      # Required (https://console.cloud.google.com/storage/browser/vic-engine-releases) if using dev build, this is used for UI plugin version
 export BUILD_VICENGINE_DEV_REVISION=10000  # Optional, (https://console.cloud.google.com/storage/browser/vic-engine-builds)
-export BUILD_HARBOR_REVISION=v1.1.1        # Optional, defaults to dev (https://console.cloud.google.com/storage/browser/harbor-dev-builds)
-export BUILD_ADMIRAL_REVISION=v1.1.1       # Optional, defaults to dev (https://hub.docker.com/r/vmware/admiral/tags/)
+export BUILD_HARBOR_REVISION=v1.1.1        # Optional, defaults to dev (https://console.cloud.google.com/storage/browser/harbor-builds)
+export BUILD_ADMIRAL_REVISION=v1.1.1       # Optional, defaults to vic_dev tag (https://hub.docker.com/r/vmware/admiral/tags/)
 ```
 
 Then set the required env vars for the build environment and make the release:

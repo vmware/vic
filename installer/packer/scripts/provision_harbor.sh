@@ -17,7 +17,7 @@ set -euf -o pipefail
 BUILD_HARBOR_REVISION="${BUILD_HARBOR_REVISION:-dev}"
 
 # Download Build
-HARBOR_URL="https://storage.googleapis.com/harbor-dev-builds/harbor-offline-installer-${BUILD_HARBOR_REVISION}.tgz"
+HARBOR_URL="https://storage.googleapis.com/harbor-builds/harbor-offline-installer-${BUILD_HARBOR_REVISION}.tgz"
 echo "Downloading Harbor ${BUILD_HARBOR_REVISION}: ${HARBOR_URL}"
 curl -L ${HARBOR_URL}  | tar xz -C /var/tmp
 
