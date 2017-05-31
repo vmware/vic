@@ -297,7 +297,7 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
     <ProductSection ovf:class="engine_installer" ovf:required="false">
       <Info>VIC Engine Install Wizard Properties</Info>
       <Category>6. VIC Engine Install Wizard Configuration</Category>
-      <Property ovf:key="wizard_enabled" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="false">
+      <Property ovf:key="deploy" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="false">
         <Label>6.1. Enable VIC Engine Install Wizard</Label>
         <Description>When setting this to true, starts the VIC Engine Install Wizard web application.</Description>
       </Property>
