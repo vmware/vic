@@ -170,6 +170,7 @@ Install VIC Appliance To Test Server
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: %{VCH-NAME}...
+    [Return]  ${output}
 
 Run VIC Machine Command
     [Tags]  secret

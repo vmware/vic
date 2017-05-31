@@ -1,36 +1,39 @@
+// Copyright © 2017 VMware, Inc. All Rights Reserved.
+// SPDX-License-Identifier: BSD-2-Clause
+//
 package nfs
 
 import "os"
 
 const (
-	NFS3_OK             = 0
-	NFS3ERR_PERM        = 1
-	NFS3ERR_NOENT       = 2
-	NFS3ERR_IO          = 5
-	NFS3ERR_NXIO        = 6
-	NFS3ERR_ACCES       = 13
-	NFS3ERR_EXIST       = 17
-	NFS3ERR_XDEV        = 18
-	NFS3ERR_NODEV       = 19
-	NFS3ERR_NOTDIR      = 20
-	NFS3ERR_ISDIR       = 21
-	NFS3ERR_INVAL       = 22
-	NFS3ERR_FBIG        = 27
-	NFS3ERR_NOSPC       = 28
-	NFS3ERR_ROFS        = 30
-	NFS3ERR_MLINK       = 31
-	NFS3ERR_NAMETOOLONG = 63
-	NFS3ERR_NOTEMPTY    = 66
-	NFS3ERR_DQUOT       = 69
-	NFS3ERR_STALE       = 70
-	NFS3ERR_REMOTE      = 71
-	NFS3ERR_BADHANDLE   = 10001
-	NFS3ERR_NOT_SYNC    = 10002
-	NFS3ERR_BAD_COOKIE  = 10003
-	NFS3ERR_NOTSUPP     = 10004
-	NFS3ERR_TOOSMALL    = 10005
-	NFS3ERR_SERVERFAULT = 10006
-	NFS3ERR_BADTYPE     = 10007
+	NFS3Ok             = 0
+	NFS3ErrPerm        = 1
+	NFS3ErrNoEnt       = 2
+	NFS3ErrIO          = 5
+	NFS3ErrNXIO        = 6
+	NFS3ErrAcces       = 13
+	NFS3ErrExist       = 17
+	NFS3ErrXDev        = 18
+	NFS3ErrNoDev       = 19
+	NFS3ErrNotDir      = 20
+	NFS3ErrIsDir       = 21
+	NFS3ErrInval       = 22
+	NFS3ErrFBig        = 27
+	NFS3ErrNoSpc       = 28
+	NFS3ErrROFS        = 30
+	NFS3ErrMLink       = 31
+	NFS3ErrNameTooLong = 63
+	NFS3ErrNotEmpty    = 66
+	NFS3ErrDQuot       = 69
+	NFS3ErrStale       = 70
+	NFS3ErrRemote      = 71
+	NFS3ErrBadHandle   = 10001
+	NFS3ErrNotSync     = 10002
+	NFS3ErrBadCookie   = 10003
+	NFS3ErrNotSupp     = 10004
+	NFS3ErrTooSmall    = 10005
+	NFS3ErrServerFault = 10006
+	NFS3ErrBadType     = 10007
 )
 
 var errToName = map[uint32]string{
@@ -66,13 +69,13 @@ var errToName = map[uint32]string{
 
 func NFS3Error(errnum uint32) error {
 	switch errnum {
-	case NFS3_OK:
+	case NFS3Ok:
 		return nil
-	case NFS3ERR_PERM:
+	case NFS3ErrPerm:
 		return os.ErrPermission
-	case NFS3ERR_EXIST:
+	case NFS3ErrExist:
 		return os.ErrExist
-	case NFS3ERR_NOENT:
+	case NFS3ErrNoEnt:
 		return os.ErrNotExist
 	default:
 		if errStr, ok := errToName[errnum]; ok {
@@ -84,8 +87,6 @@ func NFS3Error(errnum uint32) error {
 
 		return os.ErrInvalid
 	}
-
-	return nil
 }
 
 // Error represents an unexpected I/O behavior.
@@ -102,7 +103,7 @@ func IsNotEmptyError(err error) bool {
 		return false
 	}
 
-	if nfsErr.ErrorNum == NFS3ERR_NOTEMPTY {
+	if nfsErr.ErrorNum == NFS3ErrNotEmpty {
 		return true
 	}
 
@@ -115,7 +116,7 @@ func IsNotDirError(err error) bool {
 		return false
 	}
 
-	if nfsErr.ErrorNum == NFS3ERR_NOTDIR {
+	if nfsErr.ErrorNum == NFS3ErrNotDir {
 		return true
 	}
 

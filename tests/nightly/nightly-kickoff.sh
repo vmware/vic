@@ -29,7 +29,8 @@ nightly_list_var="5-1-Distributed-Switch \
 5-13-Invalid-ESXi-Install \
 5-14-Remove-Container-OOB \
 13-1-vMotion-VCH-Appliance \
-13-2-vMotion-Container"
+13-2-vMotion-Container \
+21-1-Whitelist"
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
@@ -113,7 +114,7 @@ done
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i on vSphere 6.0"
-    drone exec --trusted -e test="pybot --variable ESX_VERSION:5251623 --variable VC_VERSION:5326079 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then

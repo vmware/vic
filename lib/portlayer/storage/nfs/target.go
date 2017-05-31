@@ -19,8 +19,8 @@ import (
 	"net/url"
 	"os"
 
-	nfsClient "github.com/fdawg4l/go-nfs-client/nfs"
-	"github.com/fdawg4l/go-nfs-client/nfs/rpc"
+	nfsClient "github.com/vmware/go-nfs-client/nfs"
+	"github.com/vmware/go-nfs-client/nfs/rpc"
 
 	"github.com/vmware/vic/pkg/trace"
 )

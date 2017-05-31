@@ -18,7 +18,19 @@ Resource        ../../resources/Util.robot
 Suite Setup     Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-*** Test Cases ***
+*** Keywords ***
+Get Average Active Memory
+    [Arguments]  ${vm}  ${samples}=6
+
+    ${rc}  ${memValues}=  Run And Return Rc And Output  govc metric.sample -n ${samples} -json ${vm} mem.active.average | jq -r .Sample[].Value[].Value[]
+    Should Be Equal As Integers  ${rc}  0
+    @{memList}=  Split To Lines  ${memValues}
+    :FOR  ${mem}  IN  @{memList}
+    \    ${num}=  Convert To Integer  ${mem}
+    \    ${vmomiMemory}=  Set Variable If  ${num} > 0  ${num}  0
+
+    [Return]  ${vmomiMemory}
+
 Create test containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -32,7 +44,9 @@ Create test containers
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  VM-PATH  vm/*${stress}
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Environment Variable  VM-PATH  */%{VCH-NAME}/*${stress}
 
+*** Test Cases ***
 Stats No Stream
+    Create test containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stats --no-stream %{STRESSED}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Get Line  ${output}  -1
@@ -42,13 +56,13 @@ Stats No Stream
     ${vicMemory}=  Get From List  ${vals}  7
     # only care about the integer value of memory usage
     ${vicMemory}=  Fetch From Left  ${vicMemory}  .
+
     # get the latest memory value for the "stresser" vm
-    ${rc}  ${vmomiMemory}=  Run And Return Rc And Output  govc metric.sample -n 1 -json %{VM-PATH} mem.active.average | jq -r .Sample[].Value[].Value[0]
-    Should Be Equal As Integers  ${rc}  0
+    ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}
     Should Be True  ${vmomiMemory} > 0
     # convert to percent and move decimal
-    ${percent}=  Evaluate  (${vmomiMemory}/2048000)*100
-    ${diff}=  Evaluate  ${percent}-${vicMemory}
+    ${percent}=  Evaluate  ${vmomiMemory}/20480
+    ${diff}=  Evaluate  abs(${percent}-${vicMemory})
     # due to timing we could see some variation, but shouldn't exceed 5%
     Should Be True  ${diff} < 5
 
@@ -64,7 +78,7 @@ Stats API Memory Validation
     ${rc}  ${apiMem}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .memory_stats.usage
     Should Be Equal As Integers  ${rc}  0
     ${stress}=  Get Container ShortID  %{STRESSED}
-    ${rc}  ${vmomiMemory}=  Run And Return Rc And Output  govc metric.sample -n 1 -json %{VM-PATH} mem.active.average | jq -r .Sample[].Value[].Value[0]
+    ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}
     Should Be Equal As Integers  ${rc}  0
     ${vmomiMemory}=  Evaluate  ${vmomiMemory}*1024
     ${diff}=  Evaluate  ${apiMem}-${vmomiMemory}

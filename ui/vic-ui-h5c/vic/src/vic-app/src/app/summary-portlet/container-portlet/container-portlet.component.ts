@@ -57,8 +57,8 @@ export class ContainerPortletComponent implements OnInit {
 
     constructor(
         private i18n: I18nService,
-        private gs: GlobalsService
-    ) {}
+        private globalsService: GlobalsService
+    ) { }
 
     /**
      * Evaluates if the application is running in the vSphere Client environment,
@@ -66,7 +66,8 @@ export class ContainerPortletComponent implements OnInit {
      * @returns true if plugin mode. false if not
      */
     isPluginMode() {
-        return this.gs.isPluginMode() && !(<any>this.activeVm)['is_testing'];
+        return this.globalsService.isPluginMode() &&
+            !(<any>this.activeVm)['is_testing'];
     }
 
     ngOnInit() {

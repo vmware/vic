@@ -39,7 +39,7 @@ export class VicVmViewService {
 
     constructor(
         private http: Http,
-        private gs: GlobalsService
+        private globalsService: GlobalsService
     ) {
         // sets up subjects and observables
         this.vchsSubj = new Subject<VirtualContainerHost[]>();
@@ -52,7 +52,7 @@ export class VicVmViewService {
      * Queries vic-service and gets a list of VCHs
      * @param params : query parameters to query backend with
      */
-    reloadVchs(params: {
+    getVchsData(params: {
         offset?: number,
         maxResultCount?: number,
         sorting?: string,
@@ -62,7 +62,7 @@ export class VicVmViewService {
         let vchDataResponse;
 
         // uses mocked data if app is running in standalone (dev) mode
-        if (!this.gs.isPluginMode()) {
+        if (!this.globalsService.isPluginMode()) {
             vchDataResponse = getVchResponseStub().results;
             vchsArray = [];
 
@@ -99,7 +99,7 @@ export class VicVmViewService {
      * Queries vic-service and gets a list of Container VMs
      * @param params : query parameters to query backend with
      */
-    reloadContainers(params: {
+    getContainersData(params: {
         offset?: number,
         maxResultCount?: number,
         sorting?: string,
@@ -109,7 +109,7 @@ export class VicVmViewService {
         let containersDataResponse;
 
         // uses mocked data if app is running in standalone (dev) mode
-        if (!this.gs.isPluginMode()) {
+        if (!this.globalsService.isPluginMode()) {
             containersDataResponse = getContainerResponseStub().results;
             containersArray = [];
 

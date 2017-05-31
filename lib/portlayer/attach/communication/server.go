@@ -49,7 +49,7 @@ func NewServer(ip string, port int) *Server {
 }
 
 // Start starts the connector with given listener
-func (n *Server) Start(debug bool) error {
+func (n *Server) Start() error {
 	defer trace.End(trace.Begin(""))
 
 	n.m.Lock()
@@ -68,7 +68,7 @@ func (n *Server) Start(debug bool) error {
 	log.Infof("Attach server listening on %s:%d", n.ip, n.port)
 
 	// starts serving requests immediately
-	n.c = NewConnector(n.l, debug)
+	n.c = NewConnector(n.l)
 	n.c.Start()
 
 	return nil

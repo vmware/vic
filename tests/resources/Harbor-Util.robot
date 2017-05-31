@@ -38,7 +38,8 @@ Install Harbor To Test Server
     ${len}=  Get Length  ${URLs}
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
-    Set Test Variable  ${host}  @{URLs}[${IDX}]
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Suite Variable  ${host}  @{URLs}[${IDX}]
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Suite Variable  ${host}  @{URLs}[${IDX}]%{TEST_DATACENTER}/host/%{TEST_RESOURCE}
 
     Log To Console  \nDeploying ova...
     ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"='${network}' --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:db_password=${db_password} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://${user}:${password}@${host}'
@@ -56,8 +57,7 @@ Install Harbor To Test Server
     :FOR  ${i}  IN RANGE  20
     \  ${out}=  Run  curl -k ${protocol}://%{HARBOR-IP}
     \  Log  ${out}
-    \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
-    \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Not Contain  ${out}  Connection refused
+    \  ${status}=  Run Keyword And Return Status  Should Not Contain Any  ${out}  502 Bad Gateway  Connection refused  Connection timed out
     \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Contain  ${out}  <title>Harbor</title>
     \  Return From Keyword If  ${status}  %{HARBOR-IP}
     \  Sleep  30s
