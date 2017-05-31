@@ -16,6 +16,8 @@ package configure
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -34,6 +36,8 @@ import (
 // Configure has all input parameters for vic-machine configure command
 type Configure struct {
 	*data.Data
+
+	proxies common.Proxies
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -79,6 +83,8 @@ func (c *Configure) Flags() []cli.Flag {
 		},
 	}
 
+	proxies := c.proxies.ProxyFlags(false)
+
 	target := c.TargetFlags()
 	id := c.IDFlags()
 	compute := c.ComputeFlags()
@@ -87,7 +93,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, id, compute, iso, util, debug} {
+	for _, f := range [][]cli.Flag{target, id, compute, iso, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -101,6 +107,12 @@ func (c *Configure) processParams() error {
 		return err
 	}
 
+	hproxy, sproxy, err := c.proxies.ProcessProxies()
+	if err != nil {
+		return err
+	}
+	c.HTTPProxy = hproxy
+	c.HTTPSProxy = sproxy
 	return nil
 }
 
@@ -109,6 +121,30 @@ func (c *Configure) processParams() error {
 // creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
 func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
 	//TODO: copy changed data
+
+	if c.proxies.IsSet {
+		for _, name := range []string{config.VicAdminService, config.PersonaService} {
+			sess := o.ExecutorConfig.Sessions[name]
+			envs := sess.Cmd.Env
+			var newEnvs []string
+			for _, env := range envs {
+				if strings.HasPrefix(env, config.GeneralHTTPProxy) {
+					continue
+				}
+				if strings.HasPrefix(env, config.GeneralHTTPSProxy) {
+					continue
+				}
+				newEnvs = append(newEnvs, env)
+			}
+			if c.HTTPProxy != nil {
+				newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", config.GeneralHTTPProxy, c.HTTPProxy.String()))
+			}
+			if c.HTTPSProxy != nil {
+				newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", config.GeneralHTTPSProxy, c.HTTPSProxy.String()))
+			}
+			sess.Cmd.Env = newEnvs
+		}
+	}
 }
 
 func (c *Configure) Run(clic *cli.Context) (err error) {

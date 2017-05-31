@@ -568,10 +568,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		},
 	}
 	if settings.HTTPProxy != nil {
-		personality.Env = append(personality.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+		personality.Env = append(personality.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPProxy, settings.HTTPProxy.String()))
 	}
 	if settings.HTTPSProxy != nil {
-		personality.Env = append(personality.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+		personality.Env = append(personality.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPSProxy, settings.HTTPSProxy.String()))
 	}
 
 	conf.AddComponent(config.PersonaService, &executor.SessionConfig{

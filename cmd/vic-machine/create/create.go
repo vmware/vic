@@ -121,8 +121,7 @@ type Create struct {
 
 	BridgeIPRange string
 
-	httpsProxy string
-	httpProxy  string
+	proxies common.Proxies
 
 	syslogAddr string
 
@@ -453,24 +452,9 @@ func (c *Create) Flags() []cli.Flag {
 			Value: &c.whitelistRegistries,
 			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
 		},
+	}
 
-		// proxies
-		cli.StringFlag{
-			Name:        "https-proxy, sproxy",
-			Value:       "",
-			Usage:       "An HTTPS proxy for use when fetching images, in the form https://fqdn_or_ip:port",
-			Destination: &c.httpsProxy,
-			Hidden:      true,
-		},
-
-		cli.StringFlag{
-			Name:        "http-proxy, hproxy",
-			Value:       "",
-			Usage:       "An HTTP proxy for use when fetching images, in the form http://fqdn_or_ip:port",
-			Destination: &c.httpProxy,
-			Hidden:      true,
-		},
-
+	syslog := []cli.Flag{
 		cli.StringFlag{
 			Name:        "syslog-address",
 			Value:       "",
@@ -521,10 +505,11 @@ func (c *Create) Flags() []cli.Flag {
 	compute := c.ComputeFlags()
 	iso := c.ImageFlags(true)
 	debug := c.DebugFlags()
+	proxies := c.proxies.ProxyFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, create, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, create, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -599,9 +584,12 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processProxies(); err != nil {
+	hproxy, sproxy, err := c.proxies.ProcessProxies()
+	if err != nil {
 		return err
 	}
+	c.HTTPProxy = hproxy
+	c.HTTPSProxy = sproxy
 
 	if err := c.processSyslog(); err != nil {
 		return err
@@ -1012,25 +1000,6 @@ func (c *Create) processRegistries() error {
 			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
 		}
 		c.WhitelistRegistries = append(c.WhitelistRegistries, *regurl)
-	}
-
-	return nil
-}
-
-func (c *Create) processProxies() error {
-	var err error
-	if c.httpProxy != "" {
-		c.HTTPProxy, err = url.Parse(c.httpProxy)
-		if err != nil || c.HTTPProxy.Host == "" || c.HTTPProxy.Scheme != "http" {
-			return cli.NewExitError(fmt.Sprintf("Could not parse HTTP proxy - expected format http://fqnd_or_ip:port: %s", c.httpProxy), 1)
-		}
-	}
-
-	if c.httpsProxy != "" {
-		c.HTTPSProxy, err = url.Parse(c.httpsProxy)
-		if err != nil || c.HTTPSProxy.Host == "" || c.HTTPSProxy.Scheme != "https" {
-			return cli.NewExitError(fmt.Sprintf("Could not parse HTTPS proxy - expected format https://fqnd_or_ip:port: %s", c.httpsProxy), 1)
-		}
 	}
 
 	return nil
