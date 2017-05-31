@@ -112,8 +112,8 @@
     },
     {
       "type": "file",
-      "source": "../../bin/engine-installer",
-      "destination": "/usr/local/bin/engine-installer"
+      "source": "../../bin/ova-engine-installer",
+      "destination": "/usr/local/bin/ova-engine-installer"
     },
     {
       "type": "file",
@@ -296,12 +296,12 @@
     },
     {
       "type": "file",
-      "source": "scripts/fileserver/configure_engine_installer.sh",
+      "source": "scripts/engine_installer/configure_engine_installer.sh",
       "destination": "/etc/vmware/engine_installer/configure_engine_installer.sh"
     },
     {
       "type": "file",
-      "source": "scripts/fileserver/start_engine_installer.sh",
+      "source": "scripts/engine_installer/start_engine_installer.sh",
       "destination": "/etc/vmware/engine_installer/start_engine_installer.sh"
     },
     {
