@@ -42,6 +42,9 @@ type Server struct {
 	sessions map[uint64]*session
 	mu       sync.Mutex
 	handle   uint32
+
+	chmod func(string, os.FileMode) error
+	chown func(string, int, int) error
 }
 
 // NewServer creates a new Server instance with the default handlers
@@ -52,15 +55,20 @@ func NewServer() *Server {
 
 	s := &Server{
 		sessions: make(map[uint64]*session),
+		chmod:    os.Chmod,
+		chown:    os.Chown,
 	}
 
 	s.handlers = map[int32]func(*Packet) (interface{}, error){
 		OpCreateSessionV4:  s.CreateSessionV4,
 		OpDestroySessionV4: s.DestroySessionV4,
 		OpGetattrV2:        s.GetattrV2,
+		OpSetattrV2:        s.SetattrV2,
 		OpOpen:             s.Open,
 		OpClose:            s.Close,
+		OpOpenV3:           s.OpenV3,
 		OpReadV3:           s.ReadV3,
+		OpWriteV3:          s.WriteV3,
 	}
 
 	for op := range s.handlers {
@@ -228,6 +236,57 @@ func (s *Server) GetattrV2(p *Packet) (interface{}, error) {
 	return res, nil
 }
 
+// SetattrV2 handles OpSetattrV2 requests
+func (s *Server) SetattrV2(p *Packet) (interface{}, error) {
+	res := &ReplySetattrV2{}
+
+	req := new(RequestSetattrV2)
+	err := UnmarshalBinary(p.Payload, req)
+	if err != nil {
+		return nil, err
+	}
+
+	name := req.FileName.Path()
+
+	uid := -1
+	if req.Attr.Mask&AttrValidUserID == AttrValidUserID {
+		uid = int(req.Attr.UserID)
+	}
+
+	gid := -1
+	if req.Attr.Mask&AttrValidGroupID == AttrValidGroupID {
+		gid = int(req.Attr.GroupID)
+	}
+
+	err = s.chown(name, uid, gid)
+	if err != nil {
+		return nil, err
+	}
+
+	var perm os.FileMode
+
+	if req.Attr.Mask&AttrValidOwnerPerms == AttrValidOwnerPerms {
+		perm |= os.FileMode(req.Attr.OwnerPerms) << 6
+	}
+
+	if req.Attr.Mask&AttrValidGroupPerms == AttrValidGroupPerms {
+		perm |= os.FileMode(req.Attr.GroupPerms) << 3
+	}
+
+	if req.Attr.Mask&AttrValidOtherPerms == AttrValidOtherPerms {
+		perm |= os.FileMode(req.Attr.OtherPerms)
+	}
+
+	if perm != 0 {
+		err = s.chmod(name, perm)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
+}
+
 func (s *Server) newHandle() uint32 {
 	return atomic.AddUint32(&s.handle, 1)
 }
@@ -303,6 +362,61 @@ func (s *Server) Close(p *Packet) (interface{}, error) {
 	return &ReplyClose{}, err
 }
 
+// OpenV3 handles OpOpenV3 requests
+func (s *Server) OpenV3(p *Packet) (interface{}, error) {
+	req := new(RequestOpenV3)
+	err := UnmarshalBinary(p.Payload, req)
+	if err != nil {
+		return nil, err
+	}
+
+	session, err := s.getSession(p)
+	if err != nil {
+		return nil, err
+	}
+
+	name := req.FileName.Path()
+
+	if req.DesiredLock != LockNone {
+		return nil, &Status{
+			Err:  fmt.Errorf("open lock type=%d not supported for file %q", req.DesiredLock, name),
+			Code: StatusOperationNotSupported,
+		}
+	}
+
+	var file *os.File
+
+	switch req.OpenMode {
+	case OpenModeReadOnly:
+		file, err = os.Open(name)
+	case OpenModeWriteOnly:
+		flag := os.O_WRONLY | os.O_CREATE
+		if req.OpenFlags&OpenCreateEmpty == OpenCreateEmpty {
+			flag |= os.O_TRUNC
+		}
+		file, err = os.OpenFile(name, flag, 0600)
+	default:
+		err = &Status{
+			Err:  fmt.Errorf("open mode(%d) not supported for file %q", req.OpenMode, name),
+			Code: StatusAccessDenied,
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	res := &ReplyOpenV3{
+		Handle: s.newHandle(),
+	}
+
+	session.mu.Lock()
+	session.files[res.Handle] = file
+	session.mu.Unlock()
+
+	return res, nil
+}
+
 // ReadV3 handles OpReadV3 requests
 func (s *Server) ReadV3(p *Packet) (interface{}, error) {
 	req := new(RequestReadV3)
@@ -336,6 +450,39 @@ func (s *Server) ReadV3(p *Packet) (interface{}, error) {
 	res := &ReplyReadV3{
 		ActualSize: uint32(n),
 		Payload:    buf[:n],
+	}
+
+	return res, nil
+}
+
+// WriteV3 handles OpWriteV3 requests
+func (s *Server) WriteV3(p *Packet) (interface{}, error) {
+	req := new(RequestWriteV3)
+	err := UnmarshalBinary(p.Payload, req)
+	if err != nil {
+		return nil, err
+	}
+
+	session, err := s.getSession(p)
+	if err != nil {
+		return nil, err
+	}
+
+	session.mu.Lock()
+	file, ok := session.files[req.Handle]
+	session.mu.Unlock()
+
+	if !ok {
+		return nil, &Status{Code: StatusInvalidHandle}
+	}
+
+	n, err := file.WriteAt(req.Payload, int64(req.Offset))
+	if err != nil {
+		return nil, err
+	}
+
+	res := &ReplyWriteV3{
+		ActualSize: uint32(n),
 	}
 
 	return res, nil
