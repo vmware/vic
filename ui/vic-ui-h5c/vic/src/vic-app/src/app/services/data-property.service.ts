@@ -45,7 +45,7 @@ export class DataPropertyService {
 
     constructor(
         private http: Http,
-        private gs: GlobalsService
+        private globalsService: GlobalsService
     ) { }
 
     setObjectId(id: string) {
@@ -71,7 +71,7 @@ export class DataPropertyService {
      * @param stubVmType? : stub type (vch or container)
      */
     fetchVmInfo(props: string[], stubVmType?: string): void {
-        if (!this.gs.isPluginMode()) {
+        if (!this.globalsService.isPluginMode()) {
             this.vmInfoSource.next(<VirtualMachine>getVmStubData(stubVmType));
         }
 
@@ -100,7 +100,7 @@ export class DataPropertyService {
      * @param props
      */
     fetchRootInfo(props: string[]): void {
-        if (!this.gs.isPluginMode()) {
+        if (!this.globalsService.isPluginMode()) {
             this.vicObjectSource.next({
                 uiVersion: '3.14159265',
                 vchVmsLen: 1000,

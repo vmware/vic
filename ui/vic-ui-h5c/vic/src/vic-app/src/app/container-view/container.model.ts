@@ -23,7 +23,8 @@ const FORWARD_SLASH = '/';
 const COLON = ':';
 
 export class ContainerVm implements VirtualMachine {
-    private _parentObj: {
+    public parentObj: {
+        id: string;
         value: string;
         type: string;
     };
@@ -34,6 +35,7 @@ export class ContainerVm implements VirtualMachine {
     public overallStatus: string;
     public powerState: string;
     public containerName: string;
+    public parentObjectName: string;
     public imageName: string;
     public portMapping: string;
     public overallCpuUsage: number;
@@ -45,7 +47,12 @@ export class ContainerVm implements VirtualMachine {
         try {
             // populate vm information
             let splitVmId = data.id.split(FORWARD_SLASH);
-            this._parentObj = data.resourcePool;
+            this.parentObj = {
+                id: `urn:vmomi:${data.resourcePool.type}:${data.resourcePool.value}${COLON}${splitVmId[0]}`,
+                type: data.resourcePool.type,
+                value: data.resourcePool.value
+            };
+            this.parentObjectName = data.parentObjectName;
             this.vmId = `urn:vmomi:VirtualMachine:${splitVmId[1]}${COLON}${splitVmId[0]}`;
             this.name = data.name;
             this.overallStatus = data.overallStatus;
@@ -64,7 +71,7 @@ export class ContainerVm implements VirtualMachine {
     }
 
     get parentType() {
-        return this._parentObj.type;
+        return this.parentObj.type;
     }
 
     get id(): string {

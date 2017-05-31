@@ -23,8 +23,20 @@ mkdir -p $FILES_DIR              # Files to serve
 
 # Download Build
 cd /var/tmp
-VIC_ENGINE_URL="https://storage.googleapis.com/vic-engine-releases/vic_${BUILD_VICENGINE_REVISION}.tar.gz"
-echo "Downloading VIC Engine ${BUILD_VICENGINE_REVISION}: ${VIC_ENGINE_URL}"
+VIC_ENGINE_FILE=""
+VIC_ENGINE_URL=""
+
+set +u
+if [ -z "${BUILD_VICENGINE_DEV_REVISION}" ]; then
+  VIC_ENGINE_FILE="vic_${BUILD_VICENGINE_REVISION}.tar.gz"
+  VIC_ENGINE_URL="https://storage.googleapis.com/vic-engine-releases/${VIC_ENGINE_FILE}"
+else
+  VIC_ENGINE_FILE="vic_${BUILD_VICENGINE_DEV_REVISION}.tar.gz"
+  VIC_ENGINE_URL="https://storage.googleapis.com/vic-engine-builds/${VIC_ENGINE_FILE}"
+fi
+set -u
+
+echo "Downloading VIC Engine ${VIC_ENGINE_FILE}: ${VIC_ENGINE_URL}"
 curl -LO ${VIC_ENGINE_URL}
-tar xfz vic_${BUILD_VICENGINE_REVISION}.tar.gz -C $FILES_DIR vic/ui/vsphere-client-serenity/com.vmware.vic.ui-v${BUILD_VICENGINE_REVISION}.zip vic/ui/plugin-packages/com.vmware.vic-v${BUILD_VICENGINE_REVISION}.zip --strip-components=3
-mv vic_${BUILD_VICENGINE_REVISION}.tar.gz $FILES_DIR
+tar xfz ${VIC_ENGINE_FILE} -C $FILES_DIR vic/ui/vsphere-client-serenity/com.vmware.vic.ui-v${BUILD_VICENGINE_REVISION}.zip vic/ui/plugin-packages/com.vmware.vic-v${BUILD_VICENGINE_REVISION}.zip --strip-components=3
+mv ${VIC_ENGINE_FILE} $FILES_DIR

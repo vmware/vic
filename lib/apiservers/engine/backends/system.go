@@ -26,7 +26,9 @@ package backends
 //		- It is OK to return errors returned from functions in system_portlayer.go
 
 import (
+	"crypto/x509"
 	"fmt"
+	"net"
 	"net/url"
 	"runtime"
 	"strings"
@@ -39,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/lib/imagec"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -56,15 +59,18 @@ type System struct {
 }
 
 const (
-	systemStatusMhz         = " VCH CPU limit"
-	systemStatusMemory      = " VCH memory limit"
-	systemStatusCPUUsageMhz = " VCH CPU usage"
-	systemStatusMemUsage    = " VCH memory usage"
-	systemOS                = " VMware OS"
-	systemOSVersion         = " VMware OS version"
-	systemProductName       = " VMware Product"
-	volumeStoresID          = "VolumeStores"
-	loginTimeout            = 20 * time.Second
+	systemStatusMhz          = " VCH CPU limit"
+	systemStatusMemory       = " VCH memory limit"
+	systemStatusCPUUsageMhz  = " VCH CPU usage"
+	systemStatusMemUsage     = " VCH memory usage"
+	systemOS                 = " VMware OS"
+	systemOSVersion          = " VMware OS version"
+	systemProductName        = " VMware Product"
+	volumeStoresID           = "VolumeStores"
+	loginTimeout             = 20 * time.Second
+	vchWhitelistMode         = " Registry Whitelist Mode"
+	whitelistRegistriesLabel = " Whitelisted Registries"
+	insecureRegistriesLabel  = " Insecure Registries"
 )
 
 // var for use by other engine components
@@ -87,10 +93,12 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
 	}
 
+	vchConfig := VchConfig()
+
 	// Build up the struct that the Remote API and CLI wants
 	info := &types.Info{
 		Driver:             PortLayerName(),
-		IndexServerAddress: IndexServerAddress,
+		IndexServerAddress: imagec.DefaultDockerURL,
 		ServerVersion:      ProductVersion(),
 		ID:                 ProductName(),
 		Containers:         running + paused + stopped,
@@ -98,7 +106,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		ContainersPaused:   paused,
 		ContainersStopped:  stopped,
 		Images:             getImageCount(),
-		Debug:              VchConfig().Diagnostics.DebugLevel > 0,
+		Debug:              vchConfig.Diagnostics.DebugLevel > 0,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      "",
@@ -113,7 +121,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		// These are system related.  Some refer to cgroup info.  Others are
 		// retrieved from the port layer and are information about the resource
 		// pool.
-		Name:          VchConfig().Name,
+		Name:          vchConfig.Name,
 		KernelVersion: "",
 		Architecture:  platform.Architecture, //stubbed
 
@@ -136,7 +144,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	}
 
 	// Add in network info from the VCH via guestinfo
-	for _, network := range VchConfig().ContainerNetworks {
+	for _, network := range vchConfig.ContainerNetworks {
 		info.Plugins.Network = append(info.Plugins.Network, network.Name)
 	}
 
@@ -209,6 +217,19 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		}
 		if vchInfo.HostOSVersion != "" {
 			customInfo := [2]string{systemOSVersion, vchInfo.HostOSVersion}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if len(vchConfig.InsecureRegistries) > 0 {
+			customInfo := [2]string{insecureRegistriesLabel, InsecureRegistries()}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if len(vchConfig.RegistryWhitelist) > 0 {
+			customInfo := [2]string{vchWhitelistMode, "enabled"}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+			customInfo = [2]string{whitelistRegistriesLabel, WhitelistRegistries()}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		} else {
+			customInfo := [2]string{vchWhitelistMode, "disabled.  All registry access allowed."}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 	}
@@ -285,15 +306,9 @@ func (s *System) UnsubscribeFromEvents(listener chan interface{}) {
 	EventService().Evict(listener)
 }
 
+// AuthenticateToRegistry handles docker logins
 func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
 	defer trace.End(trace.Begin(""))
-
-	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
-		Timeout:  loginTimeout,
-		Username: authConfig.Username,
-		Password: authConfig.Password,
-		RootCAs:  RegistryCertPool,
-	})
 
 	// Only look at V2 registries
 	registryAddress := authConfig.ServerAddress
@@ -307,30 +322,45 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		registryAddress = "https://" + registryAddress
 	}
 
-	registryURL, err := url.Parse(registryAddress)
+	loginURL, err := url.Parse(registryAddress)
 	if err != nil {
 		msg := fmt.Sprintf("Bad login address: %s", registryAddress)
 		log.Errorf(msg)
 		return msg, "", err
 	}
 
-	// Check if requested registry is in our list of allowed insecure registries
-	var insecureOk bool
-	insecureRegistries := InsecureRegistries()
-	for _, registry := range insecureRegistries {
-		if registry == registryURL.Host {
-			insecureOk = true
-			break
-		}
+	// Check if registry is contained within whitelisted or insecure registries
+	vchConfig := VchConfig()
+	insecureOk := RegistrySetContains(vchConfig.InsecureRegistries, loginURL)
+	whitelistOk := RegistrySetContains(vchConfig.RegistryWhitelist, loginURL)
+	if len(vchConfig.RegistryWhitelist) > 0 && !whitelistOk {
+		msg := fmt.Sprintf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", loginURL.Host)
+		return msg, "", fmt.Errorf(msg)
 	}
 
-	dologin := func(scheme string) (string, error) {
-		registryURL.Scheme = scheme
+	var certPool *x509.CertPool
+	if insecureOk {
+		log.Infof("Attempting to log into %s insecurely", loginURL.Host)
+		certPool = nil
+	} else {
+		certPool = RegistryCertPool
+	}
+
+	dologin := func(scheme string, skipVerify bool) (string, error) {
+		loginURL.Scheme = scheme
 
 		var authURL *url.URL
 
+		fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
+			Timeout:            loginTimeout,
+			Username:           authConfig.Username,
+			Password:           authConfig.Password,
+			RootCAs:            certPool,
+			InsecureSkipVerify: skipVerify,
+		})
+
 		// Attempt to get the Auth URL from HEAD operation to the registry
-		hdr, err := fetcher.Head(registryURL)
+		hdr, err := fetcher.Head(loginURL)
 		if err == nil && fetcher.IsStatusUnauthorized() {
 			authURL, err = fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
 		}
@@ -351,9 +381,9 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		return token.Token, nil
 	}
 
-	_, err = dologin("https")
+	_, err = dologin("https", insecureOk)
 	if err != nil && insecureOk {
-		_, err = dologin("http")
+		_, err = dologin("http", insecureOk)
 	}
 
 	if err != nil {
@@ -361,7 +391,7 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 	}
 
 	// We don't return the token.  The config.json will store token if we return
-	// it, but the regular docker daemon doesn't seem to return it  either.
+	// it, but the regular docker daemon doesn't seem to return it either.
 	return "Login Succeeded", "", nil
 }
 
@@ -380,4 +410,44 @@ func FetchVolumeStores(client *client.PortLayer) (string, error) {
 	}
 
 	return strings.Join(res.Payload.Stores, " "), nil
+}
+
+// RegistrySetContains checks if a URL is within the set of registries
+func RegistrySetContains(registrySet []url.URL, remoteURL *url.URL) bool {
+	containedOK := false
+	remoteIP := net.ParseIP(remoteURL.Hostname())
+	remoteDomains, _ := net.LookupAddr(remoteURL.Hostname())
+
+	for _, rs := range registrySet {
+		_, ipnet, err := net.ParseCIDR(rs.Host + rs.Path)
+		if err == nil && ipnet.Contains(remoteIP) {
+			containedOK = true
+			break
+		}
+
+		// if wildcard domain was provided for insecure registry range, check if login URL within
+		// that domain
+		if strings.HasPrefix(rs.Host, "*") {
+			rsDomains := strings.SplitAfter(rs.Host, "*.")
+			for _, fqdn := range remoteDomains {
+				if strings.HasSuffix(fqdn, ".") {
+					fqdn = fqdn[:len(fqdn)-1]
+				}
+				domainParts := strings.SplitAfterN(fqdn, ".", 2)
+				if domainParts[1] == rsDomains[1] {
+					containedOK = true
+					break
+				}
+			}
+		}
+
+		// if IP provided for insecure registry
+		// Note, we do not check if an admin whitelist an IP and FQDN that are equivalent.
+		if rs.Hostname() == remoteURL.Hostname() {
+			containedOK = true
+			break
+		}
+	}
+
+	return containedOK
 }
