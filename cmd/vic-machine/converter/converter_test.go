@@ -542,6 +542,17 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice..init.sessions|port-layer.diagnostics.resurrections": "0",
 		"guestinfo.vice./init/common/ExecutionEnvironment":                   "",
 		"guestinfo.vice./network/bridge_network":                             "bridge",
+		"guestinfo.vice./registry/whitelist_registries":                      "1",
+		"guestinfo.vice./registry/whitelist_registries|1/Scheme":             "https",
+		"guestinfo.vice./registry/whitelist_registries|0/Scheme":             "https",
+		"guestinfo.vice./registry/whitelist_registries|0/ForceQuery":         "false",
+		"guestinfo.vice./registry/whitelist_registries|0/Host":               "harbor.com:2345",
+		"guestinfo.vice./registry/whitelist_registries|1/ForceQuery":         "false",
+		"guestinfo.vice./registry/insecure_registries|0/Scheme":              "https",
+		"guestinfo.vice./registry/insecure_registries|0/Host":                "insecure:2345",
+		"guestinfo.vice./registry/insecure_registries":                       "0",
+		"guestinfo.vice./registry/whitelist_registries|1/Host":               "insecure:2345",
+		"guestinfo.vice./registry/insecure_registries|0/ForceQuery":          "false",
 	}
 
 	commands := map[string][]string{
@@ -561,8 +572,10 @@ func testGuestinfo(t *testing.T) {
 		"container-network-gateway":  {"management:10.10.10.1/24"},
 		"container-network-ip-range": {"management:10.10.10.0/24"},
 
-		"no-tlsverify": {"true"},
-		"debug":        {"3"},
+		"no-tlsverify":       {"true"},
+		"debug":              {"3"},
+		"insecure-registry":  {"https://insecure:2345"},
+		"whitelist-registry": {"https://harbor.com:2345", "https://insecure:2345"},
 	}
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.DecodeWithPrefix(extraconfig.MapSource(kv), conf, "")

@@ -150,6 +150,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	}
 	setVolumeLocations(d, conf)
 	d.InsecureRegistries = conf.InsecureRegistries
+	d.WhitelistRegistries = conf.RegistryWhitelist
 	if d.ScratchSize, err = getHumanSize(conf.ScratchSize, "KB"); err != nil {
 		return
 	}
