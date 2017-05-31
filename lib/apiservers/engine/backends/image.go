@@ -17,6 +17,7 @@ package backends
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -348,13 +349,41 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	}
 	//*****
 
+	// create url from hostname
+	hostnameURL, err := url.Parse(ref.Hostname())
+	if err != nil || hostnameURL.Hostname() == "" {
+		hostnameURL, err = url.Parse("//" + ref.Hostname())
+		if err != nil {
+			log.Infof("Error parsing hostname %s during registry access: %s", ref.Hostname(), err.Error())
+		}
+	}
+
 	options := imagec.Options{
 		Destination: os.TempDir(),
 		Reference:   ref,
 		Timeout:     imagec.DefaultHTTPTimeout,
 		Outstream:   outStream,
-		RegistryCAs: RegistryCertPool,
 	}
+
+	// Check if url is contained within set of whitelisted or insecure registries
+	vchConfig := VchConfig()
+	insecureOk := RegistrySetContains(vchConfig.InsecureRegistries, hostnameURL)
+	whitelistOk := RegistrySetContains(vchConfig.RegistryWhitelist, hostnameURL)
+	if len(vchConfig.RegistryWhitelist) > 0 && !whitelistOk {
+		err = fmt.Errorf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", hostnameURL.Hostname())
+		log.Errorf(err.Error())
+		sf := streamformatter.NewJSONStreamFormatter()
+		outStream.Write(sf.FormatError(err))
+		return nil
+	}
+	options.InsecureAllowHTTP = insecureOk
+
+	// if insecureOk {
+	// 	//
+	// 	options.RegistryCAs = nil
+	// } else {
+	options.RegistryCAs = RegistryCertPool
+	// }
 
 	if authConfig != nil {
 		if len(authConfig.Username) > 0 {
@@ -369,15 +398,6 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 
 	if portLayerServer != "" {
 		options.Host = portLayerServer
-	}
-
-	insecureRegistries := InsecureRegistries()
-	for _, registry := range insecureRegistries {
-		if registry == ref.Hostname() {
-			options.InsecureAllowHTTP = true
-			log.Debugf("PullImage: Matched insecure registry: %s", registry)
-			break
-		}
 	}
 
 	log.Infof("PullImage: reference: %s, %s, portlayer: %#v",

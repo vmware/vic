@@ -39,7 +39,7 @@ Replace the `<fields>` in the following example with values specific to your env
 - --compute-resource is the compute resource where VCH will be deployed to. This should be the name of a cluster or resource pool, e.g. `myCluster` (vCenter), or `myPool` .
 - --thumbprint is the thumbprint of the server's certificate, required if the certificate cannot be validated with a trusted certificate authority (`--force` will accept whatever certificate is presented)
 - Note: environment variables can be set instead of these options:
-    - --target => VIC\_MACHINE\_URL
+    - --target => VIC\_MACHINE\_TARGET
     - --user => VIC\_MACHINE\_USER
     - --password => VIC\_MACHINE\_PASSWORD
     - --thumbprint => VIC\_MACHINE_THUMBPRINT

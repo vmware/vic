@@ -24,6 +24,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/vmware/vic/pkg/vsphere/toolbox/hgfs"
@@ -297,9 +298,21 @@ func TestVixInitiateFileTransfer(t *testing.T) {
 
 	request := new(VixMsgListFilesRequest)
 
-	names := []string{"enoent", "/etc/resolv.conf"}
+	f, err := ioutil.TempFile("", "toolbox")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	for i, name := range names {
+	for _, s := range []string{"a", "b", "c", "d", "e"} {
+		_, _ = f.WriteString(strings.Repeat(s, 40))
+	}
+
+	_ = f.Close()
+
+	name := f.Name()
+
+	// 1st pass file exists == OK, 2nd pass does not exist == FAIL
+	for _, fail := range []bool{false, true} {
 		size := binary.Size(request.header) + len(name) + 1
 		request.GuestPathName = name
 
@@ -307,16 +320,73 @@ func TestVixInitiateFileTransfer(t *testing.T) {
 
 		rc := vixRC(reply)
 
-		if i == len(names)-1 {
+		if Trace {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", name, string(reply))
+		}
+
+		if fail {
+			if rc == vixOK {
+				t.Errorf("%s: %d", name, rc)
+			}
+		} else {
+			if rc != vixOK {
+				t.Errorf("%s: %d", name, rc)
+			}
+
+			err = os.Remove(name)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+	}
+}
+
+func TestVixInitiateFileTransferWrite(t *testing.T) {
+	c := NewVixCommandClient()
+
+	request := new(VixCommandInitiateFileTransferToGuestRequest)
+
+	f, err := ioutil.TempFile("", "toolbox")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_ = f.Close()
+
+	name := f.Name()
+
+	tests := []struct {
+		force uint8
+		fail  bool
+	}{
+		{0, true},  // exists == OK
+		{1, false}, // exists, but overwrite == OK
+		{0, false}, // does not exist == FAIL
+	}
+
+	for i, test := range tests {
+		size := binary.Size(request.header) + len(name) + 1
+		request.GuestPathName = name
+		request.header.Overwrite = test.force
+
+		reply := c.Request(vixCommandInitiateFileTransferToGuest, size, request)
+
+		rc := vixRC(reply)
+
+		if Trace {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", name, string(reply))
+		}
+
+		if test.fail {
+			if rc == vixOK {
+				t.Errorf("%d: %d", i, rc)
+			}
+		} else {
 			if rc != vixOK {
 				t.Errorf("%d: %d", i, rc)
 			}
-			if Trace {
-				fmt.Fprintf(os.Stderr, "%s: %s", name, string(reply))
-			}
-		} else {
-			if rc == vixOK {
-				t.Errorf("%d: %d", i, rc)
+			if test.force != 0 {
+				_ = os.Remove(name)
 			}
 		}
 	}

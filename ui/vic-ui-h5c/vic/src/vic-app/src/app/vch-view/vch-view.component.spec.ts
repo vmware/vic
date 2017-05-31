@@ -37,6 +37,7 @@ import {
     getVchResponseStub,
     getMalformedVchResponseStub
 } from '../services/mocks/vch.response';
+import { WS_VCH } from '../shared/constants';
 
 let responseProperlyFormatted: boolean = true;
 
@@ -49,9 +50,12 @@ class VicVmViewServiceStub {
     constructor() {
         this.vchsSubj = new Subject<VirtualContainerHost[]>();
         this.vchs$ = this.vchsSubj.asObservable();
+    }
 
+    getVchsData() {
         // populates data with either correctly or incorrectly formatted data
         // based on the responseProperlyFormatted flag
+        this.data = [];
         let vchResponse = responseProperlyFormatted ?
             getVchResponseStub().results : getMalformedVchResponseStub().results;
         for (let objId in vchResponse) {
@@ -59,31 +63,13 @@ class VicVmViewServiceStub {
                 this.data.push(new VirtualContainerHost(vchResponse[objId]));
             }
         }
-
-        // sets up an observable for the total length of vchs
-        if (responseProperlyFormatted) {
-            this.totalVchsLength$ = new Observable<number>(observer => {
-                observer.next(this.data.length);
-            });
-        } else {
-            this.totalVchsLength$ = new Observable<number>(observer => {
-                observer.next(0);
-            });
-        }
-    }
-
-    reloadVchs() {
-        if (responseProperlyFormatted) {
-            this.vchsSubj.next(this.data);
-        } else {
-            this.vchsSubj.error('response does not fit into the vch vm format');
-        }
+        this.vchsSubj.next(this.data);
     }
 }
 
 describe('VicVchViewComponent', () => {
     let fixture: ComponentFixture<VicVchViewComponent>;
-    let vmViewservice: VicVmViewServiceStub;
+    let vmViewservice: VicVmViewService;
     jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
 
     beforeEach(async(() => {
@@ -106,6 +92,7 @@ describe('VicVchViewComponent', () => {
             ]
         }).compileComponents();
         fixture = TestBed.createComponent<VicVchViewComponent>(VicVchViewComponent);
+        responseProperlyFormatted = true;
     }));
 
     it('should have fixture', () => {
@@ -143,5 +130,39 @@ describe('VicVchViewComponent', () => {
             let rowElementsLength = rowElements.length;
             expect(rowElementsLength).toBe(0);
         }
+    }));
+
+    it('should render default localized text for table headers', async(() => {
+        fixture.componentInstance.ngOnInit();
+        fixture.componentInstance.reloadVchs();
+        fixture.detectChanges();
+
+        // containerName column
+        let nameEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-field="name"]'));
+        expect(nameEl.nativeElement.textContent.trim()).toBe(
+            WS_VCH.DG.COLUMNS.defaults[WS_VCH.DG.COLUMNS.keys.NAME]);
+
+        // overallStatus column
+        let overallStatusEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-field="overallStatus"]'));
+        expect(overallStatusEl.nativeElement.textContent.trim()).toBe(
+            WS_VCH.DG.COLUMNS.defaults[WS_VCH.DG.COLUMNS.keys.OVERALL_STATUS]);
+
+        // Docker API Endpoint column
+        let dockerApiEndpointEl = fixture.debugElement.queryAll(
+            By.css('clr-dg-column[ng-reflect-field="vchIp"]'))[0];
+        expect(dockerApiEndpointEl.nativeElement.textContent.trim()).toBe(
+            WS_VCH.DG.COLUMNS.defaults[
+            WS_VCH.DG.COLUMNS.keys.DOCKER_API_ENDPOINT
+            ]);
+
+        // VCH Admin Portal column
+        let vchAdminPortalEl = fixture.debugElement.queryAll(
+            By.css('clr-dg-column[ng-reflect-field="vchIp"]'))[1];
+        expect(vchAdminPortalEl.nativeElement.textContent.trim()).toBe(
+            WS_VCH.DG.COLUMNS.defaults[
+            WS_VCH.DG.COLUMNS.keys.VCH_ADMIN_PORTAL
+            ]);
     }));
 });

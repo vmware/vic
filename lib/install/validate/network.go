@@ -117,8 +117,8 @@ func (v *Validator) checkPortGroups(input *data.Data, ips map[string][]data.Netw
 	shared := false
 	// check for networks that share port group with public
 	for nn, n := range map[string]*data.NetworkConfig{
-		"client":     &input.ClientNetwork,
-		"management": &input.ManagementNetwork,
+		config.ClientNetworkName:     &input.ClientNetwork,
+		config.ManagementNetworkName: &input.ManagementNetwork,
 	} {
 		if n.Name == input.PublicNetwork.Name && !n.Empty() {
 			log.Errorf("%s network shares port group with public network, but has static IP configuration", nn)
@@ -209,8 +209,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	// client and management networks need to have at least one
 	// routing destination if gateway was specified
 	for nn, n := range map[string]*data.NetworkConfig{
-		"client":     &input.ClientNetwork,
-		"management": &input.ManagementNetwork,
+		config.ClientNetworkName:     &input.ClientNetwork,
+		config.ManagementNetworkName: &input.ManagementNetwork,
 	} {
 		if n.Name == input.PublicNetwork.Name {
 			// no Destinations required if sharing with PublicNetwork
@@ -243,31 +243,31 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 
 	// Public net
 	// public network is default for appliance
-	e, err = v.getEndpoint(ctx, conf, input.PublicNetwork, "public", "public", true, input.DNS)
+	e, err = v.getEndpoint(ctx, conf, input.PublicNetwork, config.PublicNetworkName, config.PublicNetworkName, true, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --public-network: %s", err))
 		v.suggestNetwork("--public-network", true)
 	}
 	// Bridge network should be different than all other networks
-	v.checkNetworkConflict(input.BridgeNetworkName, input.PublicNetwork.Name, "public")
+	v.checkNetworkConflict(input.BridgeNetworkName, input.PublicNetwork.Name, config.PublicNetworkName)
 	conf.AddNetwork(e)
 
 	// Client net - defaults to connect to same portgroup as public
-	e, err = v.getEndpoint(ctx, conf, input.ClientNetwork, "client", "client", false, input.DNS)
+	e, err = v.getEndpoint(ctx, conf, input.ClientNetwork, config.ClientNetworkName, config.ClientNetworkName, false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --client-network: %s", err))
 		v.suggestNetwork("--client-network", true)
 	}
-	v.checkNetworkConflict(input.BridgeNetworkName, input.ClientNetwork.Name, "client")
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ClientNetwork.Name, config.ClientNetworkName)
 	conf.AddNetwork(e)
 
 	// Management net - defaults to connect to the same portgroup as client
-	e, err = v.getEndpoint(ctx, conf, input.ManagementNetwork, "", "management", false, input.DNS)
+	e, err = v.getEndpoint(ctx, conf, input.ManagementNetwork, "", config.ManagementNetworkName, false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --management-network: %s", err))
 		v.suggestNetwork("--management-network", true)
 	}
-	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetwork.Name, "management")
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetwork.Name, config.ManagementNetworkName)
 	conf.AddNetwork(e)
 
 	// Bridge net -

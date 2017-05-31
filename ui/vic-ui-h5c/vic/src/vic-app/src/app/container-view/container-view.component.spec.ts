@@ -37,6 +37,7 @@ import {
     getContainerResponseStub,
     getMalformedContainerResponseStub
 } from '../services/mocks/container.response';
+import { WS_CONTAINER } from '../shared/constants';
 
 let responseProperlyFormatted: boolean = true;
 
@@ -50,7 +51,7 @@ class VicVmViewServiceStub {
         this.containers$ = this.containersSubj.asObservable();
     }
 
-    reloadContainers() {
+    getContainersData() {
         // populates data with either correctly or incorrectly formatted data
         // based on the responseProperlyFormatted flag
         this.data = [];
@@ -70,7 +71,7 @@ class VicVmViewServiceStub {
 
 describe('VicContainerViewComponent', () => {
     let fixture: ComponentFixture<VicContainerViewComponent>;
-    let vmViewService: VicVmViewServiceStub;
+    let vmViewService: VicVmViewService;
     jasmine.DEFAULT_TIMEOUT_INTERVAL = JASMINE_TIMEOUT;
 
     beforeEach(async(() => {
@@ -121,5 +122,74 @@ describe('VicContainerViewComponent', () => {
         expect(rowElementsLength).toBe(0);
     }));
 
-    //TODO: i18n tests
+    it('should render default localized text for table headers', async(() => {
+        let compInstance = fixture.componentInstance;
+        compInstance.ngOnInit();
+        compInstance.reloadContainers();
+        fixture.detectChanges();
+
+        // containerName column
+        let containerEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-field="containerName"]'));
+        expect(containerEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.CONTAINER_NAME
+            ]);
+
+        // powerState column
+        let powerStateEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-field="powerState"]'));
+        expect(powerStateEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.POWER_STATE
+            ]);
+
+        // guestMemoryUsage column
+        let guestMemoryUsageEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-sort-by="guestMemoryUsage"]'));
+        expect(guestMemoryUsageEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.MEMORY_USAGE
+            ]);
+
+        // overallCpuUsage column
+        let overallCpuUsageEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-sort-by="overallCpuUsage"]'));
+        expect(overallCpuUsageEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.CPU_USAGE
+            ]);
+
+        // committedStorage column
+        let committedStorageEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-sort-by="committedStorage"]'));
+        expect(committedStorageEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.STORAGE_USAGE
+            ]);
+
+        // portMapping column
+        let portMappingEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-field="portMapping"]'));
+        expect(portMappingEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.PORT_MAPPING
+            ]);
+
+        // name column
+        let nameEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-field="name"]'));
+        expect(nameEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.VM_NAME
+            ]);
+
+        // imageName column
+        let imageNameEl = fixture.debugElement.query(
+            By.css('clr-dg-column[ng-reflect-field="imageName"]'));
+        expect(imageNameEl.nativeElement.textContent.trim()).toBe(
+            WS_CONTAINER.DG.COLUMNS.defaults[
+            WS_CONTAINER.DG.COLUMNS.keys.IMAGE_NAME
+            ]);
+    }));
 });

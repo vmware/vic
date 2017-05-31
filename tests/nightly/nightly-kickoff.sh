@@ -29,7 +29,8 @@ nightly_list_var="5-1-Distributed-Switch \
 5-13-Invalid-ESXi-Install \
 5-14-Remove-Container-OOB \
 13-1-vMotion-VCH-Appliance \
-13-2-vMotion-Container"
+13-2-vMotion-Container \
+21-1-Whitelist"
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"

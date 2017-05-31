@@ -120,6 +120,21 @@ vic-machine-linux create --name=<VCH_NAME> --target=<TEST_URL> \
 * Deployment succeed
 * Regression test pass
 
+## Create VCH - using environment variables
+1. Issue the following command:
+```
+vic-machine-linux create --name=<VCH_NAME> --image-store=<TEST_DATASTORE> \
+    --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso \
+    --force=true --bridge-network=network --public-network=%{PUBLIC_NETWORK} \
+    --compute-resource=<TEST_RESOURCE> --timeout <TEST_TIMEOUT> \
+    --volume-store=<TEST_DATASTORE>/test:default
+```
+2. Run regression tests
+
+### Expected Outcome
+* Deployment succeed
+* Regression test pass
+
 
 ## Create VCH - custom image store directory
 1. Issue the following command:

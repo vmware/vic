@@ -251,11 +251,10 @@ func (t *attachServerSSH) stop() error {
 	// This context is used by backchannel only. We need to cancel it before
 	// trying to obtain the following lock so that backchannel interrupts the
 	// underlying Read call by calling Close on it.
-	// The lock is  held by backchannel's caller and not released until it returns
+	// The lock is held by backchannel's caller and not released until it returns
 	log.Debugf("Canceling AttachServer's context")
 	t.cancel()
 
-	log.Debugf("Acquiring the connection lock")
 	t.conn.Lock()
 	if t.conn.conn != nil {
 		log.Debugf("Close called again on rawconn - squashing")
@@ -263,13 +262,15 @@ func (t *attachServerSSH) stop() error {
 		t.conn.conn = nil
 	}
 	t.conn.Unlock()
-	log.Debugf("Released the connection lock")
 
 	return nil
 }
 
 func backchannel(ctx context.Context, conn net.Conn) error {
 	defer trace.End(trace.Begin("establish tether backchannel"))
+
+	// used for shutting down the goroutine cleanly otherwise we leak a goroutine for every successful return from this function
+	done := make(chan struct{})
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
 	// it does implement the Timeout methods so the intermediary code can be written
@@ -290,6 +291,8 @@ func backchannel(ctx context.Context, conn net.Conn) error {
 		select {
 		case <-ctx.Done():
 			conn.Close()
+		case <-done:
+			return
 		}
 	}()
 
@@ -307,6 +310,7 @@ func backchannel(ctx context.Context, conn net.Conn) error {
 			err := serial.HandshakeServer(conn)
 			if err == nil {
 				conn.SetReadDeadline(time.Time{})
+				close(done)
 				return nil
 			}
 
@@ -367,7 +371,6 @@ func (t *attachServerSSH) run() error {
 					log.Error(detail)
 					return detail
 				}
-
 				// create the SSH server using underlying t.conn
 				t.serverConn.Lock()
 				defer t.serverConn.Unlock()

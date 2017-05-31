@@ -42,7 +42,10 @@ public class ContainerVm extends VicBaseVm {
 	        Container.VM_IMAGENAME_KEY;
 	private static final String VM_PORTMAPPING_KEY =
 	        Container.VM_PORTMAPPING_KEY;
+	private static final String PARENT_OBJ_NAME_KEY =
+            Container.PARENT_NAME_KEY;
 	private String _containerName = null;
+	private String _parentObjectName = null;
 	private String _imageName = null;
 	private String _portMapping = null;
 
@@ -59,23 +62,30 @@ public class ContainerVm extends VicBaseVm {
 	}
 
 	/**
-     * Getter for Docker Container's imageName
-     */
+	 * Getter for Parent Object's name
+	 */
+	public String getParentObjectName() {
+	    return _parentObjectName;
+	}
+
+	/**
+	 * Getter for Docker Container's imageName
+	 */
 	public String getImageName() {
 		return _imageName;
 	}
 
 	/**
-     * Getter for Docker Container's portMapping
-     */
+	 * Getter for Docker Container's portMapping
+	 */
 	public String getPortMapping() {
 		return _portMapping;
 	}
 
 	/**
-     * Property getter
-     * @param property : property to retrieve
-     */
+	 * Property getter
+	 * @param property : property to retrieve
+	 */
 	@Override
 	public Object getProperty(String property) {
 		if ("objectRef".equals(property)) {
@@ -96,7 +106,9 @@ public class ContainerVm extends VicBaseVm {
 			return _committedStorage;
 		} else if (VM_CONTAINERNAME_KEY.equals(property)) {
 			return _containerName;
-		} else if (VM_IMAGENAME_KEY.equals(property)) {
+		} else if (PARENT_OBJ_NAME_KEY.equals(property)) {
+            return _parentObjectName;
+        } else if (VM_IMAGENAME_KEY.equals(property)) {
 			return _imageName;
 		} else if (VM_PORTMAPPING_KEY.equals(property)) {
 			return _portMapping;
@@ -109,10 +121,10 @@ public class ContainerVm extends VicBaseVm {
 	}
 
 	/**
-     * Process DynamicProperty[] and extract information
-     * needed for the ContainerVm model
-     * @param dpsList : DynamicProperty list from ObjectContent.getPropSet()
-     */
+	 * Process DynamicProperty[] and extract information
+	 * needed for the ContainerVm model
+	 * @param dpsList : DynamicProperty list from ObjectContent.getPropSet()
+	 */
 	@Override
 	protected void processDynamicProperties(List<DynamicProperty> dpsList) {
 		for (DynamicProperty dp : dpsList) {
@@ -151,5 +163,23 @@ public class ContainerVm extends VicBaseVm {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Return ManagedObjectReference's value portion
+	 * @return the 'value' of the ManagedObjectReference object
+	 */
+	public String getMorValue() {
+	    String[] splitIdString = this.getId().split("/");
+	    return splitIdString[1];
+	}
+
+	/**
+	 * Set _parentObjectName which is the name of this VM's
+	 * parent object (VirtualApp or ResourcePool)
+	 * @param name
+	 */
+	public void setParentName(String name) {
+	    _parentObjectName = name;
 	}
 }

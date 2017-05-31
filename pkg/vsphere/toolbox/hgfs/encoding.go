@@ -53,13 +53,17 @@ func UnmarshalBinary(data []byte, fields ...interface{}) error {
 	buf := bytes.NewBuffer(data)
 
 	for _, p := range fields {
-		if m, ok := p.(encoding.BinaryUnmarshaler); ok {
+		switch m := p.(type) {
+		case encoding.BinaryUnmarshaler:
 			return m.UnmarshalBinary(buf.Bytes())
-		}
-
-		err := binary.Read(buf, binary.LittleEndian, p)
-		if err != nil {
-			return ProtocolError(err)
+		case *[]byte:
+			*m = buf.Bytes()
+			return nil
+		default:
+			err := binary.Read(buf, binary.LittleEndian, p)
+			if err != nil {
+				return ProtocolError(err)
+			}
 		}
 	}
 
