@@ -99,7 +99,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	if err = d.update(conf, settings); err == nil {
 		// compatible with old version's upgrade snapshot name
 		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
-			d.retryDeleteSnapshot(oldSnapshot.Name, conf.Name)
+			d.retryDeleteSnapshotByRef(oldSnapshot, conf.Name)
 		}
 		return nil
 	}
@@ -164,6 +164,20 @@ func (d *Dispatcher) retryDeleteSnapshot(snapshotName string, applianceName stri
 	return err
 }
 
+// retryDeleteSnapshotByRef will retry to delete snapshot by its reference if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
+func (d *Dispatcher) retryDeleteSnapshotByRef(snapshot *types.VirtualMachineSnapshotTree, applianceName string) error {
+	// delete snapshot immediately after snapshot rollback usually fail in vSAN, so have to retry several times
+	operation := func() error {
+		return d.deleteSnapshotByRef(snapshot, applianceName)
+	}
+	var err error
+	if err = retry.Do(operation, isSystemError); err != nil {
+		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshot.Name, err)
+		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshot.Name, applianceName)
+	}
+	return err
+}
+
 func isSystemError(err error) bool {
 	if soap.IsSoapFault(err) {
 		if _, ok := soap.ToSoapFault(err).VimFault().(*types.SystemError); ok {
@@ -194,6 +208,20 @@ func (d *Dispatcher) deleteSnapshot(snapshotName string, applianceName string) e
 	if _, err := d.appliance.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		consolidate := true
 		return d.appliance.RemoveSnapshot(ctx, snapshotName, true, &consolidate)
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Dispatcher) deleteSnapshotByRef(snapshot *types.VirtualMachineSnapshotTree, applianceName string) error {
+	defer trace.End(trace.Begin(snapshot.Name))
+	log.Infof("Deleting upgrade snapshot %q", snapshot.Name)
+	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
+	ctx := context.Background()
+	if _, err := d.appliance.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		consolidate := true
+		return d.appliance.RemoveSnapshotByRef(ctx, snapshot, false, &consolidate)
 	}); err != nil {
 		return err
 	}

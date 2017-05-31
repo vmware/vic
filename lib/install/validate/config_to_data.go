@@ -190,7 +190,7 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 		return
 	}
 
-	d.Debug.Debug = conf.Diagnostics.DebugLevel
+	d.Debug.Debug = &conf.Diagnostics.DebugLevel
 	if conf.ExecutorConfig.Networks[config.PublicNetworkName] != nil {
 		d.DNS = conf.ExecutorConfig.Networks[config.PublicNetworkName].Network.Nameservers
 	}

@@ -138,7 +138,7 @@ func (l *List) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if l.Debug.Debug > 0 {
+	if l.Debug.Debug != nil && *l.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}

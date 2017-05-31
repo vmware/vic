@@ -106,7 +106,7 @@ func (u *Upgrade) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if u.Debug.Debug > 0 {
+	if u.Debug.Debug != nil && *u.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}

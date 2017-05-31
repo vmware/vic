@@ -634,3 +634,19 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
 		log.Warnf("Failed to enable Destroy_Task for %s: %s", obj[0], err)
 	}
 }
+
+// RemoveSnapshot removes a snapshot by reference
+func (v VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot *types.VirtualMachineSnapshotTree, removeChildren bool, consolidate *bool) (*object.Task, error) {
+	req := types.RemoveSnapshot_Task{
+		This:           snapshot.Snapshot,
+		RemoveChildren: removeChildren,
+		Consolidate:    consolidate,
+	}
+
+	res, err := methods.RemoveSnapshot_Task(ctx, v.Vim25(), &req)
+	if err != nil {
+		return nil, err
+	}
+
+	return object.NewTask(v.Vim25(), res.Returnval), nil
+}

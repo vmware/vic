@@ -95,7 +95,7 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if d.Debug.Debug > 0 {
+	if d.Debug.Debug != nil && *d.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}

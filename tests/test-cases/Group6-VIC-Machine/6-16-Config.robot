@@ -18,6 +18,19 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Verify VCH Debug State
+    [Arguments]  ${expected}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep guestinfo.vice./init/diagnostics/debug
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${expected}
+
+Verify Container Debug State
+    [Arguments]  ${vm}  ${expected}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep guestinfo.vice./diagnostics/debug
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${expected}
+
 *** Test Cases ***
 Configure VCH
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --http-proxy http://proxy.vmware.com:3128
@@ -32,6 +45,7 @@ Configure VCH
     Should Contain  ${output}  --http-proxy=http://proxy.vmware.com:3128
 	Should Not Contain  ${output}  --https-proxy
 
+<<<<<<< cbf666ba5111944c901e0f5f0a008bb222acdc0f
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --https-proxy https://proxy.vmware.com:3128
     Should Contain  ${output}  Completed successfully
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTPS_PROXY
@@ -43,3 +57,23 @@ Configure VCH
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
     Should Contain  ${output}  --https-proxy=https://proxy.vmware.com:3128
 	Should Not Contain  ${output}  --http-proxy
+
+    Run Regression Tests
+
+Configure debug state
+    Verify VCH Debug state  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${vm1}=  Get VM display name  ${id1}
+    Verify Container Debug State  ${vm1}  1
+    ${output}=  Run  bin/vic-machine-linux configure --debug 0 --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Completed successfully
+    Verify VCH Debug state  0
+    Verify Container Debug State  ${vm1}  1
+    ${rc}  ${id2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${vm2}=  Get VM display name  ${id2}
+    Verify Container Debug State  ${vm2}  0
+
