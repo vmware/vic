@@ -739,7 +739,9 @@ static ResultSet getListData(
 		   } else if (Container.VM_PORTMAPPING_KEY.equals(property)) {
 		       String pm = ((ContainerVm) mo).getPortMapping();
 		       return pm != null ? pm.toLowerCase() : "";
-		   } else if (BaseVm.VM_NAME.equals(property)) {
+		   } else if (Container.PARENT_NAME_KEY.equals(property)) {
+               return ((ContainerVm) mo).getParentObjectName();
+           } else if (BaseVm.VM_NAME.equals(property)) {
 		       return ((ContainerVm) mo).getName().toLowerCase();
 		   } else if (Container.VM_IMAGENAME_KEY.equals(property)) {
 		       return ((ContainerVm) mo).getImageName().toLowerCase();
