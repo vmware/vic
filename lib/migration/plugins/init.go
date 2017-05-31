@@ -20,5 +20,5 @@ import (
 	_ "github.com/vmware/vic/lib/migration/plugins/plugin1"
 	_ "github.com/vmware/vic/lib/migration/plugins/plugin2"
 	_ "github.com/vmware/vic/lib/migration/plugins/plugin5"
-	_ "github.com/vmware/vic/lib/migration/plugins/plugin6"
+	_ "github.com/vmware/vic/lib/migration/plugins/plugin7"
 )

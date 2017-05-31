@@ -20,8 +20,8 @@ const (
 	TasksSupportedVersion
 	RenameSupportedVersion
 	MigrateRegistryVersion
-	VicadminProxyVarRenameVersion
 	ExecSupportedVersion
+	VicadminProxyVarRenameVersion
 
 	// Add new feature flag here
 
