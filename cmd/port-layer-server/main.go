@@ -42,8 +42,6 @@ var (
 )
 
 func init() {
-	trace.Logger = log.StandardLogger()
-
 	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
@@ -81,6 +79,7 @@ func main() {
 	logcfg := viclog.NewLoggingConfig()
 	if ploptions.PortLayerOptions.Debug {
 		logcfg.Level = log.DebugLevel
+		trace.Logger.Level = log.DebugLevel
 		syslog.Logger.Level = log.DebugLevel
 	}
 

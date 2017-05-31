@@ -104,6 +104,7 @@ type Create struct {
 	containerNetworksDNS      cli.StringSlice `arg:"container-network-dns"`
 	volumeStores              cli.StringSlice `arg:"volume-store"`
 	insecureRegistries        cli.StringSlice `arg:"insecure-registry"`
+	whitelistRegistries       cli.StringSlice `arg:"whitelist-registry"`
 	dns                       cli.StringSlice `arg:"dns-server"`
 	clientNetworkName         string
 	clientNetworkGateway      string
@@ -445,7 +446,12 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
 			Value: &c.insecureRegistries,
-			Usage: "Specify a list of permitted insecure registry server URLs",
+			Usage: "Specify a list of permitted insecure registry server addresses",
+		},
+		cli.StringSliceFlag{
+			Name:  "whitelist-registry, wr",
+			Value: &c.whitelistRegistries,
+			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
 		},
 
 		// proxies
@@ -996,6 +1002,16 @@ func (c *Create) processRegistries() error {
 			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
 		}
 		c.InsecureRegistries = append(c.InsecureRegistries, *regurl)
+	}
+
+	// load a list of whitelisted registries
+	for _, registry := range c.whitelistRegistries {
+		regurl, err := validate.ParseURL(registry)
+
+		if err != nil {
+			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
+		}
+		c.WhitelistRegistries = append(c.WhitelistRegistries, *regurl)
 	}
 
 	return nil

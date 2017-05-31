@@ -26,3 +26,12 @@ Get State Of Github Issue
     Should Be Equal  ${result.status_code}  ${200}
     ${status}=  Get From Dictionary  ${result.json()}  state
     [Return]  ${status}
+
+Post Comment To Github Issue
+    [Arguments]  ${num}  ${comment}
+    [Tags]  secret
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${status}  ${result}=  Run Keyword And Ignore Error  Post  https://api.github.com/repos/vmware/vic/issues/${num}/comments?access_token\=%{GITHUB_AUTOMATION_API_KEY}  data={"body": "${comment}"}
+    \   Exit For Loop If  '${status}'
+    \   Sleep  1
+    Should Be Equal  ${result.status_code}  ${201}

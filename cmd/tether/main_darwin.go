@@ -46,8 +46,7 @@ func main() {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
 	}
-	// use the same logger for trace and other logging
-	trace.Logger = log.StandardLogger()
+	trace.Logger.Level = log.DebugLevel
 	log.SetLevel(log.DebugLevel)
 
 	// Initiliaze logger with default TextFormatter

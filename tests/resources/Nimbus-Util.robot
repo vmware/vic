@@ -16,8 +16,8 @@
 Documentation  This resource contains any keywords related to using the Nimbus cluster
 
 *** Variables ***
-${ESX_VERSION}  4564106  #6.5 RTM
-${VC_VERSION}  4602587   #6.5 RTM
+${ESX_VERSION}  ob-4564106  #6.5 RTM
+${VC_VERSION}  ob-4602587   #6.5 RTM
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 
 *** Keywords ***
@@ -48,7 +48,7 @@ Deploy Nimbus ESXi Server
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ob-${version}
+    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
@@ -156,7 +156,7 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ob-${version}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
@@ -223,6 +223,7 @@ Gather Host IPs
 Create a VSAN Cluster
     Log To Console  \nStarting basic VSAN cluster deploy...
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
+    Should Contain  ${out}  .vcva-${VC_VERSION}' is up. IP:
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
