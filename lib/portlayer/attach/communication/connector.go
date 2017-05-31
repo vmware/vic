@@ -48,20 +48,16 @@ type Connector struct {
 
 	// graceful shutdown
 	wg sync.WaitGroup
-
-	// enable extra debug on the line
-	debug bool
 }
 
 // NewConnector returns a new Connector
-func NewConnector(listener net.Listener, debug bool) *Connector {
+func NewConnector(listener net.Listener) *Connector {
 	defer trace.End(trace.Begin(""))
 
 	connector := &Connector{
 		interactions: make(map[string]SessionInteractor),
 		listener:     listener,
 		done:         make(chan struct{}),
-		debug:        debug,
 	}
 	connector.cond = sync.NewCond(connector.mutex.RLocker())
 
@@ -256,8 +252,6 @@ func (c *Connector) processIncoming(conn net.Conn) {
 			return
 		}
 
-		serial.PurgeIncoming(conn)
-
 		// TODO needs timeout handling.  This could take 30s.
 
 		// Timeout for client handshake should be reasonably small.
@@ -271,7 +265,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		if ok {
 			conn.SetReadDeadline(deadline)
 		}
-		if err = serial.HandshakeClient(conn, c.debug); err == nil {
+		if err = serial.HandshakeClient(conn); err == nil {
 			conn.SetReadDeadline(time.Time{})
 			log.Debugf("attach connector: New connection")
 			cancel()
