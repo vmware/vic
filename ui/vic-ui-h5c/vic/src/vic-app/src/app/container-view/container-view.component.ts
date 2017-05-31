@@ -17,7 +17,8 @@
 import {
     Component,
     OnInit,
-    OnDestroy
+    OnDestroy,
+    NgZone
 } from '@angular/core';
 import { Subscription } from 'rxjs/Subscription';
 import { State, Comparator } from 'clarity-angular';
@@ -80,28 +81,35 @@ export class VicContainerViewComponent implements OnInit, OnDestroy {
     public isDgLoading: boolean = true;
     public containers: ContainerVm[] = [];
     public totalContainersCount: number = 0;
-    public currentOffset: number = 0;
-    public currentSort: string = 'id,asc';
-    public currentFilter: string = '';
+    public currentState: {
+        offset: number;
+        sorting: string;
+        filter: string;
+    } = { offset: 0, sorting: 'id,asc', filter: '' };
     public readonly maxResultCount: number = 10;
     public readonly MEGABYTE: number = Math.pow(1024, 2);
     public readonly GIGABYTE: number = Math.pow(1024, 3);
 
     constructor(
+        private zone: NgZone,
         private vmViewService: VicVmViewService,
         private refreshService: RefreshService,
-        private gs: GlobalsService,
+        private globalsService: GlobalsService,
         public vicI18n: Vic18nService
-    ) {
-        // subscribes to the global refresh event
-        this.refreshSubscription = this.refreshService
-            .refreshObservable$.subscribe(() => {
-                this.reloadContainers();
-            });
-    }
+    ) { }
 
     ngOnInit() {
-        // sets up a listener for updating this.containers
+        // subscribes to the global refresh event and calls the
+        // reloadContainers() method to query the server for new data
+        this.refreshSubscription = this.refreshService
+            .refreshObservable$.subscribe(() => {
+                this.zone.run(() => {
+                    this.reloadContainers();
+                });
+            });
+
+        // listens to an observable that gets the updated containers data
+        // from the server, and updates this.containers
         this.vmViewService.containers$.subscribe(vms => {
             this.containers = vms;
             this.isDgLoading = false;
@@ -112,7 +120,9 @@ export class VicContainerViewComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.refreshSubscription.unsubscribe();
+        if (this.refreshSubscription) {
+            this.refreshSubscription.unsubscribe();
+        }
     }
 
     /**
@@ -120,7 +130,7 @@ export class VicContainerViewComponent implements OnInit, OnDestroy {
      * @param state current Datagrid state
      */
     refreshGrid(state: State) {
-        this.currentFilter = state.filters ? state.filters
+        this.currentState.filter = state.filters ? state.filters
             .map(item => item['property'] + '=' + item['value'])
             .join(',') : '';
 
@@ -128,10 +138,11 @@ export class VicContainerViewComponent implements OnInit, OnDestroy {
             let sortBy = typeof state.sort.by === 'object' ?
                 state.sort.by.toString() : state.sort.by;
 
-            this.currentSort = `${sortBy},${state.sort.reverse ? 'desc' : 'asc'}`;
+            this.currentState.sorting =
+                `${sortBy},${state.sort.reverse ? 'desc' : 'asc'}`;
         }
 
-        this.currentOffset = state.page.from;
+        this.currentState.offset = state.page.from;
         this.reloadContainers();
     }
 
@@ -140,11 +151,11 @@ export class VicContainerViewComponent implements OnInit, OnDestroy {
      */
     reloadContainers() {
         this.isDgLoading = true;
-        this.vmViewService.reloadContainers({
-            offset: this.currentOffset,
-            maxResultCount: this.maxResultCount,
-            sorting: this.currentSort,
-            filter: this.currentFilter
+        this.vmViewService.getContainersData({
+            sorting: this.currentState.sorting,
+            filter: this.currentState.filter,
+            offset: this.currentState.offset,
+            maxResultCount: this.maxResultCount
         });
     }
 
@@ -153,7 +164,7 @@ export class VicContainerViewComponent implements OnInit, OnDestroy {
      * @param objectId Full vSphere objectId which starts with urn:
      */
     navigateToObject(objectId: string) {
-        this.gs.getWebPlatform()
+        this.globalsService.getWebPlatform()
             .sendNavigationRequest(VSPHERE_VM_SUMMARY_KEY, objectId);
     }
 
