@@ -1,3 +1,6 @@
+// Copyright © 2017 VMware, Inc. All Rights Reserved.
+// SPDX-License-Identifier: BSD-2-Clause
+//
 package main
 
 import (
@@ -10,9 +13,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fdawg4l/go-nfs-client/nfs"
-	"github.com/fdawg4l/go-nfs-client/nfs/rpc"
-	"github.com/fdawg4l/go-nfs-client/nfs/util"
+	"github.com/vmware/go-nfs-client/nfs"
+	"github.com/vmware/go-nfs-client/nfs/rpc"
+	"github.com/vmware/go-nfs-client/nfs/util"
 )
 
 func main() {
@@ -87,7 +90,7 @@ func main() {
 		log.Fatalf("expected a NOTADIR error")
 	} else {
 		nfserr := err.(*nfs.Error)
-		if nfserr.ErrorNum != nfs.NFS3ERR_NOTDIR {
+		if nfserr.ErrorNum != nfs.NFS3ErrNotDir {
 			log.Fatalf("Wrong error")
 		}
 	}
