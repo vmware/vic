@@ -34,6 +34,8 @@ import {
     VM_GUESTMEMORYUSAGE,
     VM_OVERALLCPUUSAGE,
     VSPHERE_VM_SUMMARY_KEY,
+    VSPHERE_SERVEROBJ_VIEWEXT_KEY,
+    VSPHERE_VITREE_HOSTCLUSTERVIEW_KEY,
     WS_CONTAINER
 } from '../shared/constants';
 
@@ -164,8 +166,15 @@ export class VicContainerViewComponent implements OnInit, OnDestroy {
      * @param objectId Full vSphere objectId which starts with urn:
      */
     navigateToObject(objectId: string) {
-        this.globalsService.getWebPlatform()
-            .sendNavigationRequest(VSPHERE_VM_SUMMARY_KEY, objectId);
+        if (objectId.indexOf('VirtualMachine') > -1) {
+            this.globalsService.getWebPlatform().sendNavigationRequest(
+                VSPHERE_VM_SUMMARY_KEY, objectId);
+        } else {
+            window.parent.location.href = '/ui/#?extensionId=' +
+                VSPHERE_SERVEROBJ_VIEWEXT_KEY + '&' +
+                'objectId=' + objectId + '&' +
+                'navigator=' + VSPHERE_VITREE_HOSTCLUSTERVIEW_KEY;
+        }
     }
 
     /**
