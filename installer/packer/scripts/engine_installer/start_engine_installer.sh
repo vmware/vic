@@ -27,9 +27,9 @@ username=$(ovfenv -k engine_installer.admin_user)
 password=$(ovfenv -k engine_installer.admin_password)
 
 if [[ x$engine_installer_cert != "x" && x$engine_installer_key != "x" ]]; then
-  /usr/local/bin/engine-installer --addr ":${port}" --cert "${cert}" --key "${key}" --target "${target}" --username "${username}" --password "${password}"
+  /usr/local/bin/ova-engine-installer --addr ":${port}" --cert "${cert}" --key "${key}" --target "${target}" --username "${username}" --password "${password}"
 else
-  /usr/local/bin/engine-installer --addr ":${port}" --target "${target}" --username "${username}" --password "${password}"
+  /usr/local/bin/ova-engine-installer --addr ":${port}" --target "${target}" --username "${username}" --password "${password}"
 
 fi
 
