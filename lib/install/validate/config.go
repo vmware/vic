@@ -34,8 +34,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const ManagementNetworkName string = "management"
-
 type FirewallStatus struct {
 	Rule                          types.HostFirewallRule
 	MisconfiguredEnabled          []string
@@ -285,8 +283,8 @@ func (v *Validator) FirewallEnabled(host *object.HostSystem) (bool, error) {
 func (v *Validator) GetMgmtIP(conf *config.VirtualContainerHostConfigSpec) net.IPNet {
 	var mgmtIP net.IPNet
 	if conf != nil {
-		n := conf.ExecutorConfig.Networks[ManagementNetworkName]
-		if n != nil && n.Network.Common.Name == ManagementNetworkName {
+		n := conf.ExecutorConfig.Networks[config.ManagementNetworkName]
+		if n != nil && n.Network.Common.Name == config.ManagementNetworkName {
 			if n.IP != nil {
 				mgmtIP = *n.IP
 			}

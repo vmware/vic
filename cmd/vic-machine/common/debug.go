@@ -17,7 +17,7 @@ package common
 import "gopkg.in/urfave/cli.v1"
 
 type Debug struct {
-	Debug int
+	Debug int `cmd:"debug"`
 }
 
 func (d *Debug) DebugFlags() []cli.Flag {
