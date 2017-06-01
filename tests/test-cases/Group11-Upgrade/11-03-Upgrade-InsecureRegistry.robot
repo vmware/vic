@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 11-03 - Upgrade-InsecureRegistry
 Resource  ../../resources/Util.robot
-Test Teardown  Cleanup Test Environment  ${handle}  ${docker_daemon_pid}  ${http_harbor_name}  ${harbor_ip}
+Test Teardown  Cleanup Test Environment
 
 *** Variables ***
 ${test_vic_version}  7315
@@ -69,18 +69,22 @@ Test VCH And Registry
     Should Not Contain  ${output}  Error response from daemon
 
 Cleanup Test Environment
-    [Arguments]  ${handle}=-1  ${docker_daemon_pid}=-1  ${harbor_name}=default  ${harbor_ip}=0.0.0.0  ${docker}=DOCKER_API_VERSION=1.23 docker
+    [Arguments]  ${docker}=DOCKER_API_VERSION=1.23 docker
+    Clean up VIC Appliance And Local Binary
+    Cleanup Harbor  ${harbor_name}
     ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} rmi ${harbor_ip}/test/busybox
     Should Be Equal As Integers  ${rc}  0
     Kill Local Docker Daemon  ${handle}  ${docker_daemon_pid}
-    Cleanup Harbor  ${harbor_name}
-    Clean up VIC Appliance And Local Binary
 
 *** Test Cases ***
 Upgrade VCH with Harbor On HTTP
-    ${harbor_ip}=  Install Harbor To Test Server  ${http_harbor_name}
+    Set Test Variable  ${harbor_name}  ${http_harbor_name}
+    ${ip}=  Install Harbor To Test Server  ${harbor_name}
+    Set Test Variable  ${harbor_ip}  ${ip}
     Add Project On Registry  ${harbor_ip}  http
-    ${handle}  ${docker_daemon_pid}=  Setup Test Environment  ${harbor_ip}
+    ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${handle}  ${hdl}
+    Set Test Variable  ${docker_daemon_pid}  ${pid}
 
     Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
 
@@ -91,6 +95,7 @@ Upgrade VCH with Harbor On HTTP
     Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
+    Pass Execution
     ${harbor_ip}=  Install Harbor To Test Server  ${https_harbor_name}  https
     Add Project On Registry  ${harbor_ip}  https
     ${handle}  ${docker_daemon_pid}=  Setup Test Environment  ${harbor_ip}
