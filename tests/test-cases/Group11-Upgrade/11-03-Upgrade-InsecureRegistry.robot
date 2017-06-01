@@ -95,10 +95,13 @@ Upgrade VCH with Harbor On HTTP
     Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
-    Pass Execution
-    ${harbor_ip}=  Install Harbor To Test Server  ${https_harbor_name}  https
+    Set Test Variable  ${harbor_name}  ${https_harbor_name}
+    ${ip}=  Install Harbor To Test Server  ${harbor_name}
+    Set Test Variable  ${harbor_ip}  ${ip}
     Add Project On Registry  ${harbor_ip}  https
-    ${handle}  ${docker_daemon_pid}=  Setup Test Environment  ${harbor_ip}
+    ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${handle}  ${hdl}
+    Set Test Variable  ${docker_daemon_pid}  ${pid}
 
     ${harbor_cert}=  Fetch Harbor Self Signed Cert  ${harbor_ip}
     Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls --registry-ca ${harbor_cert}
