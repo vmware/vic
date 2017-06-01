@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -233,6 +234,18 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
+		log.Error(err)
+		return errors.New("configure failed")
+	}
+
+	installerVer := version.GetBuild().PluginVersion
+	if vchConfig.ExecutorConfig.Version == nil {
+		log.Error("Cannot configure VCH with version unavailable")
+		log.Error(err)
+		return errors.New("configure failed")
+	}
+	if vchConfig.ExecutorConfig.Version.PluginVersion < installerVer {
+		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, specify --upgrade to upgrade VCH at the same time", vchConfig.ExecutorConfig.Version.String()))
 		log.Error(err)
 		return errors.New("configure failed")
 	}
