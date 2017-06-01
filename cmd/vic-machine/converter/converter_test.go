@@ -76,6 +76,7 @@ func TestMain(t *testing.T) {
 	testConvertClientNetwork(t)
 	testConvertMgmtNetwork(t)
 	testGuestinfo(t)
+	testConvertSharesInfo(t)
 }
 
 func testInit(t *testing.T) {
@@ -313,6 +314,36 @@ func testConvertContainerNetworks(t *testing.T) {
 	assert.Equal(t, 3, len(options), "should not have other option generated")
 	assert.Equal(t, "172.16.0.0/12:172.16.0.1", options["management-network-gateway"][0], "not expected management-network-gateway option")
 	assert.Equal(t, "172.16.0.2/12", options["management-network-ip"][0], "not expected management-network-ip option")
+}
+
+func testConvertSharesInfo(t *testing.T) {
+	data := data.NewData()
+	data.NumCPUs = 2
+	data.MemoryMB = 4096
+	data.VCHCPULimitsMHz = 29300
+	data.VCHCPUReservationsMHz = 1024
+	data.VCHCPUShares = &types.SharesInfo{
+		Shares: 6000,
+		Level:  types.SharesLevelCustom,
+	}
+	data.VCHMemoryLimitsMB = 13144
+	data.VCHMemoryReservationsMB = 1024
+	data.VCHMemoryShares = &types.SharesInfo{
+		Shares: 163840,
+		Level:  types.SharesLevelNormal,
+	}
+
+	options, err := DataToOption(data)
+	assert.Empty(t, err)
+	assert.Equal(t, 8, len(options), "should not have other option generated")
+	assert.Equal(t, "2", options["endpoint-cpu"][0], "not expected endpoint-cpu option")
+	assert.Equal(t, "4096", options["endpoint-memory"][0], "not expected endpoint-memory option")
+	assert.Equal(t, "13144", options["memory"][0], "not expected memory option")
+	assert.Equal(t, "1024", options["memory-reservation"][0], "not expected memory-reservation option")
+	assert.Equal(t, "normal", options["memory-shares"][0], "not expected memory-shares option")
+	assert.Equal(t, "29300", options["cpu"][0], "not expected cpu option")
+	assert.Equal(t, "1024", options["cpu-reservation"][0], "not expected cpu-reservation option")
+	assert.Equal(t, "6000", options["cpu-shares"][0], "not expected cpu-shares option")
 }
 
 func testGuestinfo(t *testing.T) {
