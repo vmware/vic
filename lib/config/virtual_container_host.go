@@ -50,8 +50,10 @@ const (
 	PortLayerService = "port-layer"
 	VicAdminService  = "vicadmin"
 
-	GeneralHTTPProxy  = "HTTP_PROXY"
-	GeneralHTTPSProxy = "HTTPS_PROXY"
+	GeneralHTTPProxy   = "HTTP_PROXY"
+	GeneralHTTPSProxy  = "HTTPS_PROXY"
+	VICAdminHTTPProxy  = "VICADMIN_HTTP_PROXY"
+	VICAdminHTTPSProxy = "VICADMIN_HTTPS_PROXY"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image

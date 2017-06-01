@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -123,28 +124,36 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	//TODO: copy changed data
 
 	if c.proxies.IsSet {
-		for _, name := range []string{config.VicAdminService, config.PersonaService} {
-			sess := o.ExecutorConfig.Sessions[name]
-			envs := sess.Cmd.Env
-			var newEnvs []string
-			for _, env := range envs {
-				if strings.HasPrefix(env, config.GeneralHTTPProxy) {
-					continue
-				}
-				if strings.HasPrefix(env, config.GeneralHTTPSProxy) {
-					continue
-				}
-				newEnvs = append(newEnvs, env)
-			}
-			if c.HTTPProxy != nil {
-				newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", config.GeneralHTTPProxy, c.HTTPProxy.String()))
-			}
-			if c.HTTPSProxy != nil {
-				newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", config.GeneralHTTPSProxy, c.HTTPSProxy.String()))
-			}
-			sess.Cmd.Env = newEnvs
+		hProxy := ""
+		if c.HTTPProxy != nil {
+			hProxy = c.HTTPProxy.String()
 		}
+		sProxy := ""
+		if c.HTTPSProxy != nil {
+			sProxy = c.HTTPSProxy.String()
+		}
+		personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
+		updateSessionEnv(personaSession, config.GeneralHTTPProxy, hProxy)
+		updateSessionEnv(personaSession, config.GeneralHTTPSProxy, sProxy)
+		vicAdminsession := o.ExecutorConfig.Sessions[config.VicAdminService]
+		updateSessionEnv(vicAdminsession, config.VICAdminHTTPProxy, hProxy)
+		updateSessionEnv(vicAdminsession, config.VICAdminHTTPSProxy, sProxy)
 	}
+}
+
+func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
+	envs := sess.Cmd.Env
+	var newEnvs []string
+	for _, env := range envs {
+		if strings.HasPrefix(env, envName) {
+			continue
+		}
+		newEnvs = append(newEnvs, env)
+	}
+	if envValue != "" {
+		newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", envName, envValue))
+	}
+	sess.Cmd.Env = newEnvs
 }
 
 func (c *Configure) Run(clic *cli.Context) (err error) {
