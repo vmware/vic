@@ -124,6 +124,8 @@ func (c *Configure) processParams() error {
 func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
 	//TODO: copy changed data
 
+	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
+	vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
 	if c.proxies.IsSet {
 		hProxy := ""
 		if c.HTTPProxy != nil {
@@ -133,10 +135,8 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		if c.HTTPSProxy != nil {
 			sProxy = c.HTTPSProxy.String()
 		}
-		personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
 		updateSessionEnv(personaSession, config.GeneralHTTPProxy, hProxy)
 		updateSessionEnv(personaSession, config.GeneralHTTPSProxy, sProxy)
-		vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
 		updateSessionEnv(vicAdminSession, config.VICAdminHTTPProxy, hProxy)
 		updateSessionEnv(vicAdminSession, config.VICAdminHTTPSProxy, sProxy)
 	}
@@ -146,7 +146,7 @@ func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
 	envs := sess.Cmd.Env
 	var newEnvs []string
 	for _, env := range envs {
-		if strings.HasPrefix(env, envName) {
+		if strings.HasPrefix(env, envName+"=") {
 			continue
 		}
 		newEnvs = append(newEnvs, env)
