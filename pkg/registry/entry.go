@@ -16,6 +16,7 @@ package registry
 
 import (
 	"net"
+	"net/url"
 
 	glob "github.com/ryanuber/go-glob"
 )
@@ -35,6 +36,16 @@ func ParseEntry(s string) Entry {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err == nil {
 		return &cidrEntry{ipnet: ipnet}
+	}
+
+	// check if url
+	u, err := url.Parse(s)
+	if err == nil {
+		// only use the hostname
+		h := u.Hostname()
+		if len(h) > 0 {
+			return &domainEntry{e: h}
+		}
 	}
 
 	// assume domain name
