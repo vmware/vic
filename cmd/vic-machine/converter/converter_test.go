@@ -579,20 +579,16 @@ func testGuestinfo(t *testing.T) {
 	}
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.DecodeWithPrefix(extraconfig.MapSource(kv), conf, "")
-	t.Logf("conf proxy: %#v", conf.Sessions[config.VicAdminService].Cmd.Env)
 
 	ctx := context.Background()
 	d, err := validate.NewDataFromConfig(ctx, &testFinder{}, conf)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	t.Logf("hproxy: %#v", d.HTTPProxy)
-	t.Logf("sproxy: %#v", d.HTTPSProxy)
 	dest, err := DataToOption(d)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	t.Logf("dest: %#v", dest)
 	for k, v := range dest {
 		if strings.Contains(k, "store") {
 			for i := range v {
