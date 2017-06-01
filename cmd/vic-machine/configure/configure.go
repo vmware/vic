@@ -136,9 +136,9 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
 		updateSessionEnv(personaSession, config.GeneralHTTPProxy, hProxy)
 		updateSessionEnv(personaSession, config.GeneralHTTPSProxy, sProxy)
-		vicAdminsession := o.ExecutorConfig.Sessions[config.VicAdminService]
-		updateSessionEnv(vicAdminsession, config.VICAdminHTTPProxy, hProxy)
-		updateSessionEnv(vicAdminsession, config.VICAdminHTTPSProxy, sProxy)
+		vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
+		updateSessionEnv(vicAdminSession, config.VICAdminHTTPProxy, hProxy)
+		updateSessionEnv(vicAdminSession, config.VICAdminHTTPSProxy, sProxy)
 	}
 }
 
