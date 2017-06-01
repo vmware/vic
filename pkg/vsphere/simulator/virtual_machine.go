@@ -515,3 +515,23 @@ func (vm *VirtualMachine) UnregisterVM(c *types.UnregisterVM) soap.HasFault {
 
 	return r
 }
+
+func (vm *VirtualMachine) ShutdownGuest(c *types.ShutdownGuest) soap.HasFault {
+	r := &methods.ShutdownGuestBody{}
+	// should be poweron
+	if vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+		r.Fault_ = Fault("", &types.InvalidPowerState{
+			RequestedState: types.VirtualMachinePowerStatePoweredOn,
+			ExistingState:  vm.Runtime.PowerState,
+		})
+
+		return r
+	}
+	// change state
+	vm.Runtime.PowerState = types.VirtualMachinePowerStatePoweredOff
+	vm.Summary.Runtime.PowerState = types.VirtualMachinePowerStatePoweredOff
+
+	r.Res = new(types.ShutdownGuestResponse)
+
+	return r
+}
