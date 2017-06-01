@@ -14,8 +14,64 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"html/template"
+)
 
-func main() {
-	fmt.Println("hello world")
+type EngineInstallerConfigOptions struct {
+	Networks      []string
+	Datastores    []string
+	ResourcePools []string
+}
+
+type EnginerInstallerHTML struct {
+	BridgeNetwork   template.HTML
+	PublicNetwork   template.HTML
+	ImageStore      template.HTML
+	ComputeResource template.HTML
+}
+
+type EngineInstaller struct {
+	BridgeNetwork   string
+	PublicNetwork   string
+	ImageStore      string
+	ComputeResource string
+	Target          string
+	User            string
+	Password        string
+	Name            string
+	CreateCommand   string
+}
+
+func NewEngineInstaller() *EngineInstaller {
+	return &EngineInstaller{
+		User:     "root",
+		Password: "password",
+		Name:     "dev",
+		Target:   "192.168.1.1",
+	}
+}
+
+func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions {
+	return &EngineInstallerConfigOptions{
+		Networks:      []string{"1", "2", "3"},
+		Datastores:    []string{"4", "5", "6"},
+		ResourcePools: []string{"7", "8", "9"},
+	}
+}
+
+func (ei *EngineInstaller) buildCreateCommand() {
+	createCommand := "create"
+
+	createCommand = fmt.Sprintf("%s --target=%s", createCommand, ei.Target)
+	createCommand = fmt.Sprintf("%s --user=%s", createCommand, ei.User)
+	createCommand = fmt.Sprintf("%s --password=%s", createCommand, ei.Password)
+	createCommand = fmt.Sprintf("%s --name=%s", createCommand, ei.Name)
+	createCommand = fmt.Sprintf("%s --public-network=%s", createCommand, ei.PublicNetwork)
+	createCommand = fmt.Sprintf("%s --bridge-network=%s", createCommand, ei.BridgeNetwork)
+	createCommand = fmt.Sprintf("%s --compute-resource=%s", createCommand, ei.ComputeResource)
+	createCommand = fmt.Sprintf("%s --image-store=%s", createCommand, ei.ImageStore)
+
+	ei.CreateCommand = createCommand
 }
