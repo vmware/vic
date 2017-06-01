@@ -788,6 +788,7 @@ func (c *Create) processRegistries() error {
 		if err != nil {
 			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
 		}
+
 		c.InsecureRegistries = append(c.InsecureRegistries, *regurl)
 	}
 

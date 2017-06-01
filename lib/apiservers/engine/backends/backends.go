@@ -40,6 +40,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
@@ -56,14 +57,22 @@ var (
 	portLayerName       string
 	productName         string
 	productVersion      string
-	whitelistRegistries string //Friendly formatted list
-	insecureRegistries  string //Friendly formatted list
 
 	vchConfig        *config.VirtualContainerHostConfigSpec
 	RegistryCertPool *x509.CertPool
 
 	eventService *events.Events
 )
+
+type registriesCollection struct {
+	m                                  sync.Mutex
+	wl, bl, insecure                   registry.Set
+	wlMerger, blMerger, insecureMerger registry.Merger
+}
+
+var registries = &registriesCollection{
+	wlMerger: &whitelistMerger{},
+}
 
 func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec) error {
 	_, _, err := net.SplitHostPort(portLayerAddr)
@@ -84,7 +93,7 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 			portLayerName = product + " " + productVersion + " Backend Engine"
 		}
 
-		parseFriendlyRegistryString(config) // For docker info
+		parseRegistries(config)
 		loadRegistryCACerts()
 	} else {
 		portLayerName = product + " Backend Engine"
@@ -243,41 +252,32 @@ func createImageStore() error {
 	return nil
 }
 
-func parseFriendlyRegistryString(config *config.VirtualContainerHostConfigSpec) {
-
-	createList := func(registryList []url.URL) string {
-		var msg string
-
-		if len(registryList) > 0 {
-			var host string
-			for i, r := range registryList {
-				host = r.Host
-				_, _, err := net.ParseCIDR(r.Host + r.Path)
-				if err == nil {
-					host = host + r.Path
-				}
-
-				if i == 0 {
-					msg = msg + host
-				} else {
-					msg = msg + ", " + host
-				}
+func parseRegistries(config *config.VirtualContainerHostConfigSpec) {
+	createList := func(registryList []url.URL) registry.Set {
+		var res registry.Set
+		for _, r := range registryList {
+			e := registry.ParseEntry(r.Host + r.Path)
+			if e == nil {
+				log.Warnf("could not parse registry entry %s", r)
+				continue
 			}
+
+			res = append(res, e)
 		}
 
-		return msg
+		return res
 	}
 
-	whitelistRegistries = createList(config.RegistryWhitelist)
-	insecureRegistries = createList(config.InsecureRegistries)
+	registries.wl = createList(config.RegistryWhitelist)
+	registries.insecure = createList(config.InsecureRegistries)
 }
 
 func WhitelistRegistries() string {
-	return whitelistRegistries
+	return entryStrJoin(registries.wl, ",")
 }
 
 func InsecureRegistries() string {
-	return insecureRegistries
+	return entryStrJoin(registries.insecure, ",")
 }
 
 // syncContainerCache runs once at startup to populate the container cache
@@ -358,4 +358,29 @@ func loadRegistryCACerts() {
 
 func EventService() *events.Events {
 	return eventService
+}
+
+type whitelistMerger struct{}
+
+func (w *whitelistMerger) Merge(orig registry.Entry, other registry.Entry) (registry.Entry, error) {
+	return nil, nil
+}
+
+func entryStrJoin(entries registry.Set, sep string) string {
+	var s string
+	for _, e := range entries {
+		s += e.String() + sep
+	}
+
+	return s[:len(s)-len(sep)]
+}
+
+func (r *registriesCollection) Match(m string) (wl bool, bl bool, insecure bool) {
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	wl = r.wl.Match(m)
+	bl = r.bl.Match(m)
+	insecure = r.insecure.Match(m)
+	return
 }
