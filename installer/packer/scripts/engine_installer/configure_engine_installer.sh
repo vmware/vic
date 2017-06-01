@@ -31,4 +31,9 @@ if [ ! -d "${FILESERVER_DIR}" ] || [ ${FILE_COUNT} -ne 1 ] ; then
 fi
 
 # Extract vic-machine
+VIC_DIR="${FILESERVER_DIR}/vic"
+if [ -d "${VIC_DIR}" ]; then
+  rm -rf ${VIC_DIR}
+fi
+
 find ${FILESERVER_DIR} -name "vic*.tar.gz" | xargs -I {} tar xvf {} --directory ${data_dir}
