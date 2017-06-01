@@ -15,8 +15,8 @@
 *** Settings ***
 Documentation  Test 4367
 Resource  ../../resources/Util.robot
-#Suite Setup  Install VIC Appliance To Test Server  certs=${false}
-#Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Check running twice
