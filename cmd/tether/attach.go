@@ -362,6 +362,13 @@ func (t *attachServerSSH) run() error {
 						log.Error(detail)
 						return detail
 					}
+				} else {
+					// A series of unfortunate events can lead calling backchannel with nil when we run unit tests.
+					// https://github.com/vmware/vic/pull/5327#issuecomment-305619860
+					// This check is here to handle that
+					if t.conn.conn == nil {
+						return fmt.Errorf("nil connection")
+					}
 				}
 
 				// wait for backchannel to establish
