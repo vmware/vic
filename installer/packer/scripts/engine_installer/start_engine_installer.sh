@@ -14,22 +14,8 @@
 # limitations under the License.
 set -euf -o pipefail
 
-data_dir=/opt/vmware/engine_installer
-cert_dir=${data_dir}/cert
-cert=${cert_dir}/server.crt
-key=${cert_dir}/server.key
+data_dir="/opt/vmware/engine_installer"
 
-engine_installer_cert=$(ovfenv -k engine_installer.ssl_cert)
-engine_installer_key=$(ovfenv -k engine_installer.ssl_cert_key)
 port=$(ovfenv -k engine_installer.port)
-target=$(ovfenv -k engine_installer.vcenter_addr)
-username=$(ovfenv -k engine_installer.admin_user)
-password=$(ovfenv -k engine_installer.admin_password)
 
-if [[ x$engine_installer_cert != "x" && x$engine_installer_key != "x" ]]; then
-  /usr/local/bin/ova-engine-installer --addr ":${port}" --cert "${cert}" --key "${key}" --target "${target}" --username "${username}" --password "${password}"
-else
-  /usr/local/bin/ova-engine-installer --addr ":${port}" --target "${target}" --username "${username}" --password "${password}"
-
-fi
-
+/usr/local/bin/ova-engine-installer --addr ":${port}" --data "${data_dir}"

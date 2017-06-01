@@ -297,33 +297,9 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
     <ProductSection ovf:class="engine_installer" ovf:required="false">
       <Info>VIC Engine Install Wizard Properties</Info>
       <Category>6. VIC Engine Install Wizard Configuration</Category>
-      <Property ovf:key="deploy" ovf:type="boolean" ovf:userConfigurable="true" ovf:value="false">
-        <Label>6.1. Enable VIC Engine Install Wizard</Label>
-        <Description>When setting this to true, starts the VIC Engine Install Wizard web application.</Description>
-      </Property>
-      <Property ovf:key="vcenter_addr" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>6.2. vCenter Address</Label>
-        <Description>IP address or FQDN of the vCenter. Leave blank if not using VIC Engine Install Wizard.</Description>
-      </Property>
-      <Property ovf:key="admin_user" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>6.3. vCenter Admin Username</Label>
-        <Description>Username of the vCenter admin user. Leave blank if not using VIC Engine Install Wizard.</Description>
-      </Property>
-      <Property ovf:key="admin_password" ovf:password="true" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>6.4. vCenter Admin Password</Label>
-        <Description>Password of the vCenter admin user. Leave blank if not using VIC Engine Install Wizard.</Description>
-      </Property>
       <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="1337">
-        <Label>6.5. Engine Install Wizard Port</Label>
+        <Label>6.1. Engine Install Wizard Port</Label>
         <Description>Specifies the port on which fileserver will be published.</Description>
-      </Property>
-      <Property ovf:key="ssl_cert" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>6.6. SSL Cert</Label>
-        <Description>Paste in the content of a certificate file. Leave blank for a generated self-signed certificate.</Description>
-      </Property>
-      <Property ovf:key="ssl_cert_key" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
-        <Label>6.7. SSL Cert Key</Label>
-        <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
       </Property>
     </ProductSection>
     <ProductSection ovf:class="vm" ovf:required="false">

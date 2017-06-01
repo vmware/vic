@@ -16,37 +16,11 @@ set -euf -o pipefail
 
 umask 077
 
-run_engine_installer=$(ovfenv -k engine_installer.wizard_enabled)
+data_dir="/opt/vmware/engine_installer"
+mkdir -p ${data_dir}
 
-if [ ${deploy,,} != "true" ]; then
-  echo "Not configuring Engine Installer and disabling service startup"
-  systemctl stop engine_installer
-  exit 0
-fi
-
-data_dir=/opt/vmware/engine_installer
-cert_dir=${data_dir}/cert
-cert=${cert_dir}/server.crt
-key=${cert_dir}/server.key
-
-engine_installer_cert=$(ovfenv -k engine_installer.ssl_cert)
-engine_installer_key=$(ovfenv -k engine_installer.ssl_cert_key)
 port=$(ovfenv -k engine_installer.port)
-
 iptables -w -A INPUT -j ACCEPT -p tcp --dport $port
-
-# Format cert file
-function formatCert {
-  content=$1
-  file=$2
-  echo ${content} | sed -r 's/(-{5}BEGIN [A-Z ]+-{5})/&\n/g; s/(-{5}END [A-Z ]+-{5})/\n&\n/g' | sed -r 's/.{64}/&\n/g; /^\s*$/d' > ${file}
-}
-
-if [[ x${engine_installer_cert} != "x" && x${engine_installer_key} != "x" ]]; then
-  mkdir -p "${cert_dir}"
-  formatCert "${engine_installer_cert}" ${cert}
-  formatCert "${engine_installer_key}" ${key}
-fi
 
 FILESERVER_DIR="/opt/vmware/fileserver/files"
 FILE_COUNT=$(find ${FILESERVER_DIR} -name "vic*.tar.gz" | wc -l)
