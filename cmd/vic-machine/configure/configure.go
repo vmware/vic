@@ -241,12 +241,10 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	installerVer := version.GetBuild().PluginVersion
 	if vchConfig.ExecutorConfig.Version == nil {
 		log.Error("Cannot configure VCH with version unavailable")
-		log.Error(err)
 		return errors.New("configure failed")
 	}
 	if vchConfig.ExecutorConfig.Version.PluginVersion < installerVer {
-		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, specify --upgrade to upgrade VCH at the same time", vchConfig.ExecutorConfig.Version.String()))
-		log.Error(err)
+		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, specify --upgrade to upgrade VCH at the same time", vchConfig.ExecutorConfig.Version.ShortVersion()))
 		return errors.New("configure failed")
 	}
 
