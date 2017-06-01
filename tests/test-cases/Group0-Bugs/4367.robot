@@ -15,17 +15,15 @@
 *** Settings ***
 Documentation  Test 4367
 Resource  ../../resources/Util.robot
-#Suite Setup  Install VIC Appliance To Test Server  certs=${false}
-#Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Check running twice
-    ${status}=  Get State Of Github Issue  5015
-    Run Keyword If  '${status}' == 'closed'  Fail  Test Group0-Bugs/4367.robot needs to be updated now that Issue #5015 has been resolved
-    #${name}=  Generate Random String  15
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -t --name ${name} busybox ls
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  proc
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${name}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  proc
+    ${name}=  Generate Random String  15
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -t --name ${name} busybox ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  proc
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${name}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  proc
