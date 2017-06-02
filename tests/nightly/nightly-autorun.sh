@@ -24,6 +24,7 @@ git pull
 cd ~/go/src/github.com/vmware/vic
 git fetch
 git reset --hard origin/master
+git pull
 
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
