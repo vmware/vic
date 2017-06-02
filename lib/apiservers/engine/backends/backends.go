@@ -66,7 +66,7 @@ var (
 
 type registriesCollection struct {
 	m                                  sync.Mutex
-	wl, bl, insecure                   registry.Set
+	Whitelist, Blacklist, Insecure     registry.Set
 	wlMerger, blMerger, insecureMerger registry.Merger
 }
 
@@ -268,16 +268,16 @@ func parseRegistries(config *config.VirtualContainerHostConfigSpec) {
 		return res
 	}
 
-	registries.wl = createList(config.RegistryWhitelist)
-	registries.insecure = createList(config.InsecureRegistries)
+	registries.Whitelist = createList(config.RegistryWhitelist)
+	registries.Insecure = createList(config.InsecureRegistries)
 }
 
 func WhitelistRegistries() string {
-	return entryStrJoin(registries.wl, ",")
+	return entryStrJoin(registries.Whitelist, ",")
 }
 
 func InsecureRegistries() string {
-	return entryStrJoin(registries.insecure, ",")
+	return entryStrJoin(registries.Insecure, ",")
 }
 
 // syncContainerCache runs once at startup to populate the container cache
@@ -362,7 +362,23 @@ func EventService() *events.Events {
 
 type whitelistMerger struct{}
 
-func (w *whitelistMerger) Merge(orig registry.Entry, other registry.Entry) (registry.Entry, error) {
+// Merge merges two registry entries. The merge fails if merging orig and other would
+// broaden orig's scope. The result of the merge is other if that is more restrictive.
+// if orig equals other, the result is orig.
+func (w *whitelistMerger) Merge(orig, other registry.Entry) (registry.Entry, error) {
+	if orig.Equal(other) {
+		return orig, nil
+	}
+
+	if other.Contains(orig) {
+		return nil, fmt.Errorf("merge of %s and %s would broaden %s", orig, other, orig)
+	}
+
+	if orig.Contains(other) {
+		return other, nil
+	}
+
+	// no merge
 	return nil, nil
 }
 
@@ -379,8 +395,8 @@ func (r *registriesCollection) Match(m string) (wl bool, bl bool, insecure bool)
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	wl = r.wl.Match(m)
-	bl = r.bl.Match(m)
-	insecure = r.insecure.Match(m)
+	wl = r.Whitelist.Match(m)
+	bl = r.Blacklist.Match(m)
+	insecure = r.Insecure.Match(m)
 	return
 }

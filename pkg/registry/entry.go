@@ -24,6 +24,7 @@ import (
 type Entry interface {
 	Contains(e Entry) bool
 	Match(e string) bool
+	Equal(other Entry) bool
 	String() string
 }
 
@@ -64,6 +65,10 @@ func (e *ipEntry) Match(s string) bool {
 	return e.e == s || e.e+"/32" == s
 }
 
+func (e *ipEntry) Equal(other Entry) bool {
+	return e.Match(other.String())
+}
+
 func (e *ipEntry) String() string {
 	return e.e
 }
@@ -93,6 +98,10 @@ func (c *cidrEntry) Match(s string) bool {
 	return false
 }
 
+func (c *cidrEntry) Equal(other Entry) bool {
+	return other.String() == c.ipnet.String()
+}
+
 func (c *cidrEntry) String() string {
 	return c.ipnet.String()
 }
@@ -111,4 +120,8 @@ func (w *domainEntry) Match(s string) bool {
 
 func (w *domainEntry) String() string {
 	return w.e
+}
+
+func (w *domainEntry) Equal(other Entry) bool {
+	return other.String() == w.String()
 }

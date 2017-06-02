@@ -331,7 +331,7 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 
 	// Check if registry is contained within whitelisted or insecure registries
 	whitelistOk, _, insecureOk := registries.Match(loginURL.Hostname())
-	if !whitelistOk {
+	if len(registries.Whitelist) > 0 && !whitelistOk {
 		msg := fmt.Sprintf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", loginURL.Host)
 		return msg, "", fmt.Errorf(msg)
 	}

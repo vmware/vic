@@ -22,8 +22,12 @@ type Merger interface {
 
 type defaultMerger struct{}
 
-func (m *defaultMerger) Merge(Entry, other Entry) (Entry, error) {
-	return other, nil
+func (m *defaultMerger) Merge(orig, other Entry) (Entry, error) {
+	if orig.String() == other.String() {
+		return other, nil
+	}
+
+	return nil, nil
 }
 
 func (s Set) Match(m string) bool {
@@ -41,12 +45,12 @@ func (s Set) Merge(other Set, merger Merger) (Set, error) {
 		merger = &defaultMerger{}
 	}
 
-	var res Set
+	res := make([]Entry, len(s))
 	var adds Set
 	copy(res, s)
 	for _, o := range other {
 		merged := false
-		for i := 0; i < len(res); {
+		for i := 0; i < len(res); i++ {
 			e, err := merger.Merge(res[i], o)
 			if err != nil {
 				return nil, err
