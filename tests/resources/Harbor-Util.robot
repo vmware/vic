@@ -110,7 +110,7 @@ Create A New Project
     Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${name}
 
 Create A New User
-    [Arguments]  ${name}  ${email}  ${fullName}  ${password}  ${comments}  
+    [Arguments]  ${name}  ${email}  ${fullName}  ${password}  ${comments}
     Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
     Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
     Click Element  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
@@ -504,13 +504,13 @@ Create Project And Three Users For It
     Open Browser  https://%{HARBOR_IP}/  chrome
     Log To Console  Opened
     Log Into Harbor  user=admin  pw=${password}
-    
+
     Create A New Project  name=${project}  public=${False}
     Log To Console  Create a New User..
     Create A New User  name=${developer}  email=${developerEmail}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
     Create A New User  name=${guest}  email=${guestEmail}  fullName=${guestFullName}  password=${userPassword}  comments=${comments}
     Create A New User  name=${developer2}  email=${developerEmail2}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
-    
+
     Add A User To A Project  user=${developer}  project=${project}  role=${developerRole}
     Add A User To A Project  user=${guest}  project=${project}  role=${guestRole}
     Add A User To A Project  user=${developer2}  project=${project}  role=${developerRole}
@@ -563,7 +563,7 @@ Basic Docker Command With Harbor
 
     # Docker run image
     Log To Console  docker run...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  END_OF_THE_TEST

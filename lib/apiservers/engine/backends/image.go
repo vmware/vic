@@ -369,7 +369,7 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 		outStream.Write(sf.FormatError(err))
 		return nil
 	}
-	options.InsecureAllowHTTP = insecureOk
+	options.InsecureAllowHTTP = insecureMatch
 
 	options.RegistryCAs = RegistryCertPool
 
