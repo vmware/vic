@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"os"
 )
 
 var (
@@ -49,12 +50,7 @@ type EngineInstaller struct {
 }
 
 func NewEngineInstaller() *EngineInstaller {
-	return &EngineInstaller{
-		User:     "root",
-		Password: "password",
-		Name:     "dev",
-		Target:   "192.168.1.1",
-	}
+	return &EngineInstaller{}
 }
 
 func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions {
@@ -66,7 +62,8 @@ func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions
 }
 
 func (ei *EngineInstaller) buildCreateCommand() {
-	createCommand := "vic-machine-linux create --no-tlsverify"
+	gopath := os.Getenv("GOPATH")
+	createCommand := gopath + "/src/github.com/vmware/vic/bin/vic-machine-linux create --no-tlsverify"
 
 	createCommand = fmt.Sprintf("%s --target=%s", createCommand, ei.Target)
 	createCommand = fmt.Sprintf("%s --user=%s", createCommand, ei.User)

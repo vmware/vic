@@ -65,6 +65,10 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 		engineInstaller.BridgeNetwork = req.FormValue(bridgeNetName)
 		engineInstaller.ImageStore = req.FormValue(imgStoreName)
 		engineInstaller.ComputeResource = req.FormValue(computeName)
+		engineInstaller.Target = req.FormValue("target")
+		engineInstaller.User = req.FormValue("user")
+		engineInstaller.Password = req.FormValue("password")
+		engineInstaller.Name = req.FormValue("name")
 
 		//build the vic create command from the installer variables
 		engineInstaller.buildCreateCommand()

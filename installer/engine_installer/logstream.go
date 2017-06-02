@@ -30,7 +30,7 @@ import (
 
 const (
 	// time to wait for ws writes
-	waitTime = time.Second * 2
+	waitTime = time.Second * 5
 )
 
 var (
@@ -52,7 +52,7 @@ func (ls *LogStream) setCmd(command string) {
 	defer trace.End(trace.Begin(""))
 
 	args := strings.Split(command, " ")
-	ls.cmd = exec.Command(args[0], args[0:]...)
+	ls.cmd = exec.Command(args[0], args[1:]...)
 }
 
 func (ls *LogStream) start() {
@@ -72,11 +72,15 @@ func (ls *LogStream) start() {
 	ls.cmd.Stdout = logWriter
 
 	go func() {
-		cmdDone <- ls.cmd.Start()
 		s := bufio.NewScanner(logReader)
 		for s.Scan() {
+			log.Infoln("scanning...")
 			ls.send(string(s.Bytes()))
 		}
+	}()
+
+	go func() {
+		cmdDone <- ls.cmd.Run()
 	}()
 
 	select {
@@ -92,15 +96,11 @@ func (ls *LogStream) start() {
 			ls.send("Execution complete.")
 		}
 	}
-
-	ls.ws.SetWriteDeadline(time.Now().Add(waitTime))
-	ls.ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-
 }
 
 func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
-	defer ls.ws.Close()
+	//defer ls.ws.Close()
 
 	//turn http requests into websockets
 	upgrader := websocket.Upgrader{}
@@ -117,7 +117,6 @@ func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
 	//create the command
 	ls.setCmd(engineInstaller.CreateCommand)
 	ls.start()
-
 }
 
 func (ls *LogStream) send(msg string) {
