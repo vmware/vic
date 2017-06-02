@@ -15,9 +15,13 @@
 package data
 
 import (
+	"fmt"
 	"net"
 	"net/url"
+	"reflect"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -169,10 +173,74 @@ func NewData() *Data {
 	return d
 }
 
-// CopyNonEmpty will shallow copy src value to override existing value if the value is set
-// This copy will take care of relationship between variables, that means if any variable in ContainerNetwork or
-// NetworkConfig is not empty, the whole ContainerNetwork or NetworkConfig will be copied
-func (d *Data) CopyNonEmpty(src *Data) {
+// equalIPRanges checks if two ip.Range slices are equal by using
+// reflect.DeepEqual, with an extra check that returns true when the
+// lengths of both slices are zero.
+func equalIPRanges(a, b []ip.Range) bool {
+	if !reflect.DeepEqual(a, b) {
+		return len(a) == 0 && len(b) == 0
+	}
+	return true
+}
+
+// equalIPSlices checks if two net.IP slices are equal by using
+// reflect.DeepEqual, with an extra check that returns true when the
+// lengths of both slices are zero.
+func equalIPSlices(a, b []net.IP) bool {
+	if !reflect.DeepEqual(a, b) {
+		return len(a) == 0 && len(b) == 0
+	}
+	return true
+}
+
+const copyInfoMsg = `Please use vic-machine inspect --conf to find existing
+container network settings and supply them along with new container networks`
+
+// copyContainerNetworks checks that existing container networks (in d) are present
+// in the specified networks (src) and then copies new networks into d. It does not
+// overwrite data for existing networks.
+func (d *Data) copyContainerNetworks(src *Data) error {
+	// Any existing container networks and their related options must be specified
+	// while performing a configure operation.
+
+	errMsg := "Existing container-network %s:%s not specified in configure command"
+	for vicNet, vmNet := range d.ContainerNetworks.MappedNetworks {
+		if _, ok := src.ContainerNetworks.MappedNetworks[vicNet]; !ok {
+			log.Errorf(fmt.Sprintf(errMsg, vmNet, vicNet))
+			log.Info(copyInfoMsg)
+			return fmt.Errorf("all existing container networks must also be specified")
+		}
+
+		// If an existing container network is specified, ensure that all existing settings match the specified settings.
+		if !reflect.DeepEqual(d.ContainerNetworks.MappedNetworks[vicNet], src.ContainerNetworks.MappedNetworks[vicNet]) ||
+			!reflect.DeepEqual(d.ContainerNetworks.MappedNetworksGateways[vicNet], src.ContainerNetworks.MappedNetworksGateways[vicNet]) ||
+			!equalIPRanges(d.ContainerNetworks.MappedNetworksIPRanges[vicNet], src.ContainerNetworks.MappedNetworksIPRanges[vicNet]) ||
+			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) {
+
+			log.Errorf("Found changes to existing container network %s", vicNet)
+			log.Info(copyInfoMsg)
+			return fmt.Errorf("changes to existing container networks are not supported")
+		}
+	}
+
+	// Copy data only for new container networks.
+	for vicNet, vmNet := range src.ContainerNetworks.MappedNetworks {
+		if _, ok := d.ContainerNetworks.MappedNetworks[vicNet]; !ok {
+			d.ContainerNetworks.MappedNetworks[vicNet] = vmNet
+			d.ContainerNetworks.MappedNetworksGateways[vicNet] = src.ContainerNetworks.MappedNetworksGateways[vicNet]
+			d.ContainerNetworks.MappedNetworksIPRanges[vicNet] = src.ContainerNetworks.MappedNetworksIPRanges[vicNet]
+			d.ContainerNetworks.MappedNetworksDNS[vicNet] = src.ContainerNetworks.MappedNetworksDNS[vicNet]
+		}
+	}
+
+	return nil
+}
+
+// CopyNonEmpty will shallow copy src value to override existing value if the value is set.
+// This copy will take care of relationship between variables, that means if any variable
+// in NetworkConfig is not empty, the whole NetworkConfig will be copied. However, for
+// container networks, changes to existing networks will not be overwritten.
+func (d *Data) CopyNonEmpty(src *Data) error {
 	// TODO: Add data copy here for each reconfigure items, to make sure specified variables present in the Data object.
 
 	if src.ClientNetwork.IsSet() {
@@ -185,12 +253,6 @@ func (d *Data) CopyNonEmpty(src *Data) {
 		d.ManagementNetwork = src.ManagementNetwork
 	}
 
-	// copy container networks
-	if src.ContainerNetworks.IsSet() {
-		d.ContainerNetworks = src.ContainerNetworks
-	}
-	d.Timeout = src.Timeout
-
 	if src.HTTPProxy != nil || src.HTTPSProxy != nil {
 		d.HTTPProxy = src.HTTPProxy
 		d.HTTPSProxy = src.HTTPSProxy
@@ -199,4 +261,14 @@ func (d *Data) CopyNonEmpty(src *Data) {
 	if src.Debug.Debug != nil {
 		d.Debug = src.Debug
 	}
+
+	if src.ContainerNetworks.IsSet() {
+		if err := d.copyContainerNetworks(src); err != nil {
+			return err
+		}
+	}
+
+	d.Timeout = src.Timeout
+
+	return nil
 }
