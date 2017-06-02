@@ -16,6 +16,8 @@ package configure
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -23,17 +25,21 @@ import (
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 // Configure has all input parameters for vic-machine configure command
 type Configure struct {
 	*data.Data
+
+	proxies common.Proxies
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -79,6 +85,8 @@ func (c *Configure) Flags() []cli.Flag {
 		},
 	}
 
+	proxies := c.proxies.ProxyFlags(false)
+
 	target := c.TargetFlags()
 	id := c.IDFlags()
 	compute := c.ComputeFlags()
@@ -87,7 +95,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, id, compute, iso, util, debug} {
+	for _, f := range [][]cli.Flag{target, id, compute, iso, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -101,6 +109,12 @@ func (c *Configure) processParams() error {
 		return err
 	}
 
+	hproxy, sproxy, err := c.proxies.ProcessProxies()
+	if err != nil {
+		return err
+	}
+	c.HTTPProxy = hproxy
+	c.HTTPSProxy = sproxy
 	return nil
 }
 
@@ -109,6 +123,38 @@ func (c *Configure) processParams() error {
 // creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
 func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
 	//TODO: copy changed data
+
+	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
+	vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
+	if c.proxies.IsSet {
+		hProxy := ""
+		if c.HTTPProxy != nil {
+			hProxy = c.HTTPProxy.String()
+		}
+		sProxy := ""
+		if c.HTTPSProxy != nil {
+			sProxy = c.HTTPSProxy.String()
+		}
+		updateSessionEnv(personaSession, config.GeneralHTTPProxy, hProxy)
+		updateSessionEnv(personaSession, config.GeneralHTTPSProxy, sProxy)
+		updateSessionEnv(vicAdminSession, config.VICAdminHTTPProxy, hProxy)
+		updateSessionEnv(vicAdminSession, config.VICAdminHTTPSProxy, sProxy)
+	}
+}
+
+func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
+	envs := sess.Cmd.Env
+	var newEnvs []string
+	for _, env := range envs {
+		if strings.HasPrefix(env, envName+"=") {
+			continue
+		}
+		newEnvs = append(newEnvs, env)
+	}
+	if envValue != "" {
+		newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", envName, envValue))
+	}
+	sess.Cmd.Env = newEnvs
 }
 
 func (c *Configure) Run(clic *cli.Context) (err error) {
@@ -189,6 +235,16 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
+		return errors.New("configure failed")
+	}
+
+	installerVer := version.GetBuild().PluginVersion
+	if vchConfig.ExecutorConfig.Version == nil {
+		log.Error("Cannot configure VCH with version unavailable")
+		return errors.New("configure failed")
+	}
+	if vchConfig.ExecutorConfig.Version.PluginVersion < installerVer {
+		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, specify --upgrade to upgrade VCH at the same time", vchConfig.ExecutorConfig.Version.ShortVersion()))
 		return errors.New("configure failed")
 	}
 

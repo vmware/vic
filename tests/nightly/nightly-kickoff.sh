@@ -93,7 +93,7 @@ DATE=`date +%m_%d_%H_%M_`
 nightlystatus=()
 count=0
 
-nightly_secrets_file="/home/vicadmin/internal-repo/vic-internal/nightly_test_secrets.yml"
+nightly_secrets_file="/home/vicadmin/internal-repo/vic-internal/nightly_secrets.yml"
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i vSphere 6.5"

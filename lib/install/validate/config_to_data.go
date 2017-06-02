@@ -220,7 +220,7 @@ func urlString(u url.URL) string {
 }
 
 func setHTTPProxies(d *data.Data, conf *config.VirtualContainerHostConfigSpec) error {
-	persona := conf.Sessions[config.PublicNetworkName]
+	persona := conf.Sessions[config.PersonaService]
 	if persona == nil {
 		return nil
 	}
