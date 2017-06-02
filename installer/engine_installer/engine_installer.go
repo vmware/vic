@@ -28,14 +28,15 @@ func main() {
 
 	ctx := context.TODO()
 
-	//username := "administrator@vsphere.local"
-	//password := "Admin!23"
-	username := "root"
-	password := "password"
+	username := "administrator@vsphere.local"
+	password := "Admin!23"
+	//username := "root"
+	//password := "password"
 
 	var u url.URL
 	u.User = url.UserPassword(username, password)
-	u.Host = "192.168.1.86"
+	//u.Host = "192.168.1.86"
+	u.Host = "10.192.200.209"
 	u.Path = ""
 	fmt.Printf("server URL: %s\n", u)
 
@@ -66,4 +67,39 @@ func main() {
 		fmt.Printf("DC: %s\n", d)
 	}
 
+	comp, err := validator.ListComputeResource()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, c := range comp {
+		fmt.Printf("compute: %s\n", c)
+	}
+
+	rp, err := validator.ListResourcePool("*")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, p := range rp {
+		fmt.Printf("rp: %s\n", p)
+	}
+
+	nets, err := validator.ListNetworks(true) // set to false for vC
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, n := range nets {
+		fmt.Printf("net: %s\n", n)
+	}
+
+	dss, err := validator.ListDatastores()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, d := range dss {
+		fmt.Printf("ds: %s\n", d)
+	}
 }

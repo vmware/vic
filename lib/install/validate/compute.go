@@ -16,6 +16,7 @@ package validate
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -131,25 +132,67 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 	return pool, nil
 }
 
+func (v *Validator) ListComputeResource() ([]string, error) {
+	compute, err := v.Session.Finder.ComputeResourceList(v.Context, "*")
+	if err != nil {
+		return nil, fmt.Errorf("Unable to list compute resource: %s", err)
+	}
+
+	if len(compute) == 0 {
+		return nil, nil
+	}
+
+	matches := make([]string, len(compute))
+	for i, c := range compute {
+		matches[i] = c.Name()
+	}
+	return matches, nil
+}
+
 func (v *Validator) suggestComputeResource() {
 	defer trace.End(trace.Begin(""))
 
-	compute, _ := v.Session.Finder.ComputeResourceList(v.Context, "*")
+	compute, err := v.ListComputeResource()
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
 	log.Info("Suggested values for --compute-resource:")
 	for _, c := range compute {
-		log.Infof("  %q", c.Name())
+		log.Infof("  %q", c)
 	}
+}
+
+func (v *Validator) ListResourcePool(path string) ([]string, error) {
+	pools, err := v.Session.Finder.ResourcePoolList(v.Context, path)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to list resource pool: %s", err)
+	}
+
+	if len(pools) == 0 {
+		return nil, nil
+	}
+
+	matches := make([]string, len(pools))
+	for i, p := range pools {
+		matches[i] = p.InventoryPath
+	}
+	return matches, nil
 }
 
 func (v *Validator) suggestResourcePool(path string) {
 	defer trace.End(trace.Begin(""))
 
-	pools, _ := v.Session.Finder.ResourcePoolList(v.Context, path)
+	pools, err := v.ListResourcePool(path)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
 	log.Info("Suggested resource pool values for --compute-resource:")
 	for _, c := range pools {
-		p := strings.TrimPrefix(c.InventoryPath, v.DatacenterPath+"/host/")
+		p := strings.TrimPrefix(c, v.DatacenterPath+"/host/")
 		log.Infof("  %q", p)
 	}
 }
