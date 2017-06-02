@@ -328,12 +328,13 @@ func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data) (*conf
 func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
-	if input.Debug.Debug != nil && *input.Debug.Debug > 0 {
+	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
+	conf.SetName(input.DisplayName)
+
+	if input.Debug.Debug != nil {
 		conf.SetDebug(*input.Debug.Debug)
 	}
 
-	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
-	conf.SetName(input.DisplayName)
 	conf.Name = input.DisplayName
 	conf.Version = version.GetBuild()
 

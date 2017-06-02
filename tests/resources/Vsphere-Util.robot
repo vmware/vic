@@ -221,3 +221,9 @@ Enable Host Firewall
 
 Disable Host Firewall
     Run  govc host.esxcli network firewall set --enabled false
+
+Check VM Guestinfo
+    [Arguments]  ${vm}  ${str}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${output}

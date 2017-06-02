@@ -636,9 +636,9 @@ func (vm *VirtualMachine) EnableDestroy(ctx context.Context) {
 }
 
 // RemoveSnapshot removes a snapshot by reference
-func (vm *VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot *types.VirtualMachineSnapshotTree, removeChildren bool, consolidate *bool) (*object.Task, error) {
+func (vm *VirtualMachine) RemoveSnapshotByRef(ctx context.Context, snapshot types.ManagedObjectReference, removeChildren bool, consolidate *bool) (*object.Task, error) {
 	req := types.RemoveSnapshot_Task{
-		This:           snapshot.Snapshot,
+		This:           snapshot,
 		RemoveChildren: removeChildren,
 		Consolidate:    consolidate,
 	}

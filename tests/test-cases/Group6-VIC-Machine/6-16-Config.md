@@ -24,7 +24,8 @@ This test requires that a vSphere server is running and available
 7. Check the debug state of the VCH
 8. Check the debug state of the existing containerVM
 9. Create a new container and check the debug state of it
-10. Configure the debug state of the VCH again and check whether the output of vic-machine inspect contains the desired debug state
+10. Configure the debug state of the VCH again and check whether there is only a single snapshot left
+11. check whether the output of vic-machine inspect contains the desired debug state
 
 
 # Expected Outcome
