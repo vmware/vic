@@ -33,13 +33,13 @@ func (p *Proxies) ProxyFlags(hidden bool) []cli.Flag {
 	return []cli.Flag{
 		// proxies
 		cli.GenericFlag{
-			Name:   "https-proxy, sproxy",
+			Name:   "https-proxy",
 			Value:  flags.NewOptionalString(&p.HTTPSProxy),
 			Usage:  "An HTTPS proxy for use when fetching images, in the form https://fqdn_or_ip:port",
 			Hidden: hidden,
 		},
 		cli.GenericFlag{
-			Name:   "http-proxy, hproxy",
+			Name:   "http-proxy",
 			Value:  flags.NewOptionalString(&p.HTTPProxy),
 			Usage:  "An HTTP proxy for use when fetching images, in the form http://fqdn_or_ip:port",
 			Hidden: hidden,
