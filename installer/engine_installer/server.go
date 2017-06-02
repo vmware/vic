@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"os"
-	"os/exec"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/trace"
@@ -31,10 +29,7 @@ const (
 	bridgeNetName = "bridge-net"
 	imgStoreName  = "img-store"
 	computeName   = "compute"
-)
-
-var (
-	engineInstaller = NewEngineInstaller()
+	port          = "8383"
 )
 
 func main() {
@@ -53,13 +48,15 @@ func main() {
 
 	// attach root index route
 	mux.Handle("/", http.HandlerFunc(indexHandler))
+	mux.Handle("/ws", http.HandlerFunc(logStream.wsServer))
 
 	// start the web server
-	log.Infoln("installer-engine listening on localhost:8383")
-	http.ListenAndServe(":8383", mux)
+	log.Infof("installer-engine listening on localhost:%s\n", port)
+	http.ListenAndServe(":"+port, mux)
 }
 
 func indexHandler(resp http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
 
 	if req.Method == http.MethodPost {
 
@@ -74,12 +71,6 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 		log.Infoln(engineInstaller)
 
 		renderTemplate(resp, "html/exec.html", engineInstaller)
-
-		cmd := exec.Command("vic-machine-linux", engineInstaller.CreateCommand)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Run()
-
 	} else {
 		opts := engineInstaller.populateConfigOptions()
 		html := &EnginerInstallerHTML{}

@@ -19,6 +19,10 @@ import (
 	"html/template"
 )
 
+var (
+	engineInstaller = NewEngineInstaller()
+)
+
 type EngineInstallerConfigOptions struct {
 	Networks      []string
 	Datastores    []string
@@ -62,7 +66,7 @@ func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions
 }
 
 func (ei *EngineInstaller) buildCreateCommand() {
-	createCommand := "create"
+	createCommand := "vic-machine-linux create --no-tlsverify"
 
 	createCommand = fmt.Sprintf("%s --target=%s", createCommand, ei.Target)
 	createCommand = fmt.Sprintf("%s --user=%s", createCommand, ei.User)
