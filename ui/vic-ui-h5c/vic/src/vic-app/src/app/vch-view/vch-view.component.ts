@@ -17,7 +17,8 @@
 import {
     Component,
     OnInit,
-    OnDestroy
+    OnDestroy,
+    NgZone
 } from '@angular/core';
 import { Subscription } from 'rxjs/Subscription';
 import { State } from 'clarity-angular';
@@ -48,26 +49,33 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
     public isDgLoading: boolean = true;
     public vchs: VirtualContainerHost[] = [];
     public totalVchsCount: number = 0;
-    public currentOffset: number = 0;
-    public currentSort: string = 'id,asc';
-    public currentFilter: string = '';
+    public currentState: {
+        offset: number;
+        sorting: string;
+        filter: string;
+    } = { offset: 0, sorting: 'id,asc', filter: '' };
     public readonly maxResultCount: number = 10;
 
     constructor(
+        private zone: NgZone,
         private vmViewService: VicVmViewService,
         private refreshService: RefreshService,
-        private gs: GlobalsService,
+        private globalsService: GlobalsService,
         public vicI18n: Vic18nService
-    ) {
-        // subscribes to the global refresh event
-        this.refreshSubscription = this.refreshService
-            .refreshObservable$.subscribe(() => {
-                this.reloadVchs();
-            });
-    }
+    ) { }
 
     ngOnInit() {
-        // sets up a listener for updating this.vchs
+        // subscribes to the global refresh event and calls the
+        // reloadVchs() method to query the server for new data
+        this.refreshSubscription = this.refreshService
+            .refreshObservable$.subscribe(() => {
+                this.zone.run(() => {
+                    this.reloadVchs();
+                });
+            });
+
+        // listens to an observable that gets the updated vchs data
+        // from the server, and updates this.vchs
         this.vmViewService.vchs$.subscribe(vchs => {
             this.vchs = vchs;
             this.isDgLoading = false;
@@ -78,7 +86,9 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy() {
-        this.refreshSubscription.unsubscribe();
+        if (this.refreshSubscription) {
+            this.refreshSubscription.unsubscribe();
+        }
     }
 
     /**
@@ -96,15 +106,15 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
      * @param state current Datagrid state
      */
     refreshGrid(state: State) {
-        this.currentFilter = state.filters ? state.filters
+        this.currentState.filter = state.filters ? state.filters
             .map(item => item['property'] + '=' + item['value'])
             .join(',') : '';
 
         if (state.sort) {
-            this.currentSort = `${state.sort.by},${state.sort.reverse ? 'desc' : 'asc'}`;
+            this.currentState.sorting = `${state.sort.by},${state.sort.reverse ? 'desc' : 'asc'}`;
         }
 
-        this.currentOffset = state.page.from;
+        this.currentState.offset = state.page.from;
         this.reloadVchs();
     }
 
@@ -113,11 +123,11 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
      */
     reloadVchs() {
         this.isDgLoading = true;
-        this.vmViewService.reloadVchs({
-            offset: this.currentOffset,
+        this.vmViewService.getVchsData({
+            offset: this.currentState.offset,
             maxResultCount: this.maxResultCount,
-            sorting: this.currentSort,
-            filter: this.currentFilter
+            sorting: this.currentState.sorting,
+            filter: this.currentState.filter
         });
     }
 
@@ -127,7 +137,7 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
      */
     navigateToObject(objectId: string) {
         if (objectId.indexOf('VirtualMachine') > -1) {
-            this.gs.getWebPlatform().sendNavigationRequest(
+            this.globalsService.getWebPlatform().sendNavigationRequest(
                 VSPHERE_VM_SUMMARY_KEY, objectId);
         } else {
             window.parent.location.href = '/ui/#?extensionId=' +

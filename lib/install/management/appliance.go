@@ -537,13 +537,13 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		Dir: "/home/vicadmin",
 	}
 	if settings.HTTPProxy != nil {
-		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("VICADMIN_HTTP_PROXY=%s", settings.HTTPProxy.String()))
 	}
 	if settings.HTTPSProxy != nil {
-		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("VICADMIN_HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
 	}
 
-	conf.AddComponent("vicadmin", &executor.SessionConfig{
+	conf.AddComponent(config.VicAdminService, &executor.SessionConfig{
 		User:    "vicadmin",
 		Group:   "vicadmin",
 		Cmd:     vicadmin,
@@ -574,7 +574,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		personality.Env = append(personality.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
 	}
 
-	conf.AddComponent("docker-personality", &executor.SessionConfig{
+	conf.AddComponent(config.PersonaService, &executor.SessionConfig{
 		// currently needed for iptables interaction
 		// User:  "nobody",
 		// Group: "nobody",
@@ -608,7 +608,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		cfg.Cmd.Env = append(cfg.Cmd.Env, "SYSLOG_ADDR="+conf.Diagnostics.SysLogConfig.Network+"://"+conf.Diagnostics.SysLogConfig.RAddr)
 	}
 
-	conf.AddComponent("port-layer", cfg)
+	conf.AddComponent(config.PortLayerService, cfg)
 
 	// fix up those parts of the config that depend on the final applianceVM folder name
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)

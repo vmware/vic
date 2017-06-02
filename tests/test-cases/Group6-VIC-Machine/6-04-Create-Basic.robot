@@ -145,21 +145,21 @@ Create VCH - full params
 
 Create VCH - using environment variables
     Set Test Environment Variables
-    Set Environment Variable  VIC_MACHINE_URL  %{TEST_URL}
+    Set Environment Variable  VIC_MACHINE_TARGET  %{TEST_URL}
     Set Environment Variable  VIC_MACHINE_USER  %{TEST_USERNAME}
     Set Environment Variable  VIC_MACHINE_PASSWORD  %{TEST_PASSWORD}
     Set Environment Variable  VIC_MACHINE_THUMBPRINT  %{TEST_THUMBPRINT}
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:default ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:default ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
-    Remove Environment Variable  VIC_MACHINE_URL
+    Remove Environment Variable  VIC_MACHINE_TARGET
     Remove Environment Variable  VIC_MACHINE_USER
     Remove Environment Variable  VIC_MACHINE_PASSWORD
     Remove Environment Variable  VIC_MACHINE_THUMBPRINT

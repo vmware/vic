@@ -155,8 +155,10 @@ func DefaultGuestNicInfo() *GuestNicInfo {
 			continue
 		}
 
-		nic := GuestNicV3{
-			MacAddress: i.HardwareAddr.String(),
+		nic := GuestNicV3{}
+
+		if len(i.HardwareAddr) != 0 {
+			nic.MacAddress = i.HardwareAddr.String()
 		}
 
 		addrs, _ := i.Addrs()

@@ -14,6 +14,12 @@
 # limitations under the License.
 #
 
+# Get the latest code from vic-internal repo for nightly_test_secrets.yml file
+cd ~/internal-repo/vic-internal
+git clean -fg
+git fetch
+git pull
+
 # Get the latest code from vmware/vic repo
 cd ~/go/src/github.com/vmware/vic
 git fetch

@@ -124,6 +124,8 @@ opts=(-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=er
 scp "${opts[@]}" "$GOPATH"/bin/toolbox{,.test} "core@${ip}:"
 
 if [ -n "$test" ] ; then
+    export GOVC_GUEST_LOGIN=user:pass
+
     echo "Running toolbox tests..."
     ssh "${opts[@]}" "core@${ip}" ./toolbox.test -test.v -test.run TestServiceRunESX -toolbox.testesx \
         -toolbox.testpid="$$" -toolbox.powerState="$state" &
@@ -133,11 +135,20 @@ if [ -n "$test" ] ; then
     echo "toolbox vm.ip=$ip"
 
     echo "Testing guest operations via govc..."
-    out=$(govc guest.start -vm "$vm" -l user:pass /bin/date)
+    out=$(govc guest.start -vm "$vm" /bin/date)
 
     if [ "$out" != "$$" ] ; then
         echo "'$out' != '$$'" 1>&2
     fi
+
+    echo "Testing file copy to and from guest via govc..."
+    dest="/tmp/$(basename "$0")"
+
+    govc guest.upload -f -vm "$vm" -perm 0640 -gid 10 "$0" "$dest"
+
+    govc guest.download -vm "$vm" "$dest" - | md5sum --quiet -c <(<"$0" md5sum)
+    # TODO: switch govc guest.ls when toolbox supports it
+    ssh "${opts[@]}" "core@${ip}" ls -l "$dest" | grep "rw-r-----. 1 core wheel"
 
     echo "Waiting for tests to complete..."
     wait

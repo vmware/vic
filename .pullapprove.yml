@@ -5,7 +5,7 @@ group_defaults:
     auto: true
   approve_by_comment:
     enabled: true
-    approve_regex: 'Approved|:shipit:|:sheep::it:|:\+1:|LGTM|lgtm'
+    approve_regex: 'Approved|:shipit:|:sheep::it:|:\+1:|LGTM|lgtm|yolo|YOLO'
   reset_on_push:
     enabled: false
 
@@ -70,7 +70,6 @@ groups:
   log:
     users:
       - hmahmood
-      - fdawg4l
     conditions:
       files:
         include:
@@ -169,7 +168,7 @@ groups:
 
   port-layer-storage:
     users:
-      - fdawg4l
+      - jzt
       - matthewavery
     conditions:
       files:
@@ -187,7 +186,7 @@ groups:
 
   package-kv-store:
     users:
-      - fdawg4l
+      - jzt
       - matthewavery
     conditions:
       files:

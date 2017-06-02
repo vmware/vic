@@ -23,13 +23,22 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+
+	"github.com/vmware/vic/pkg/vsphere/toolbox/hgfs"
 )
 
 const (
 	vixCommandMagicWord = 0xd00d0001
 
 	vixCommandGetToolsState = 62
-	vixCommandStartProgram  = 185
+
+	vixCommandKillProcess     = 85
+	vixCommandStartProgram    = 185
+	vixCommandListProcessesEx = 186
+
+	vmxiHgfsSendPacketCommand               = 84
+	vixCommandInitiateFileTransferFromGuest = 188
+	vixCommandInitiateFileTransferToGuest   = 189
 
 	// VIX_USER_CREDENTIAL_NAME_PASSWORD
 	vixUserCredentialNamePassword = 1
@@ -41,6 +50,13 @@ const (
 	vixUnrecognizedCommandInGuest = 3025
 	vixInvalidMessageHeader       = 10000
 	vixInvalidMessageBody         = 10001
+
+	// VIX_COMMAND_* constants from vixCommands.h
+	vixCommandGuestReturnsBinary = 0x80
+
+	// VIX_FILE_ATTRIBUTES_ constants from vix.h
+	vixFileAttributesDirectory = 0x0001
+	vixFileAttributesSymlink   = 0x0002
 )
 
 type VixMsgHeader struct {
@@ -87,6 +103,45 @@ type VixMsgStartProgramRequest struct {
 	EnvVars     []string
 }
 
+type VixMsgListFilesRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		FileOptions         int32
+		GuestPathNameLength uint32
+		PatternLength       uint32
+		Index               int32
+		MaxResults          int32
+		Offset              uint64
+	}
+
+	GuestPathName string
+	Pattern       string
+}
+
+type VixCommandHgfsSendPacket struct {
+	VixCommandRequestHeader
+
+	header struct {
+		PacketSize uint32
+		Timeout    int32
+	}
+
+	Packet []byte
+}
+
+type VixCommandInitiateFileTransferToGuestRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		Options             int32
+		GuestPathNameLength uint32
+		Overwrite           uint8
+	}
+
+	GuestPathName string
+}
+
 type VixCommandHandler func(string, VixCommandRequestHeader, []byte) ([]byte, error)
 
 type VixRelayedCommandHandler struct {
@@ -97,6 +152,8 @@ type VixRelayedCommandHandler struct {
 	ProcessStartCommand func(*VixMsgStartProgramRequest) (int, error)
 
 	handlers map[uint32]VixCommandHandler
+
+	FileServer *hgfs.Server
 }
 
 type VixUserCredentialNamePassword struct {
@@ -121,12 +178,17 @@ func registerVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandle
 
 	handler.RegisterHandler(vixCommandStartProgram, handler.StartCommand)
 
+	handler.RegisterHandler(vixCommandInitiateFileTransferFromGuest, handler.InitiateFileTransferFromGuest)
+	handler.RegisterHandler(vixCommandInitiateFileTransferToGuest, handler.InitiateFileTransferToGuest)
+
+	handler.RegisterHandler(vmxiHgfsSendPacketCommand, handler.ProcessHgfsPacket)
+
 	handler.ProcessStartCommand = handler.ExecCommandStart
 
 	return handler
 }
 
-func vixCommandResult(rc int, err error, response []byte) []byte {
+func vixCommandResult(header VixCommandRequestHeader, rc int, err error, response []byte) []byte {
 	// All Foundry tools commands return results that start with a foundry error
 	// and a guest-OS-specific error (e.g. errno)
 	errno := 0
@@ -137,7 +199,21 @@ func vixCommandResult(rc int, err error, response []byte) []byte {
 		response = []byte(err.Error())
 	}
 
-	return append([]byte(fmt.Sprintf("%d %d ", rc, errno)), response...)
+	buf := bytes.NewBufferString(fmt.Sprintf("%d %d ", rc, errno))
+
+	if header.CommonFlags&vixCommandGuestReturnsBinary != 0 {
+		// '#' delimits end of ascii and the start of the binary data (see ToolsDaemonTcloReceiveVixCommand)
+		_ = buf.WriteByte('#')
+	}
+
+	_, _ = buf.Write(response)
+
+	if header.CommonFlags&vixCommandGuestReturnsBinary == 0 {
+		// this is not binary data, so it should be a NULL terminated string (see ToolsDaemonTcloReceiveVixCommand)
+		_ = buf.WriteByte(0)
+	}
+
+	return buf.Bytes()
 }
 
 func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
@@ -170,12 +246,12 @@ func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
 	}
 
 	if header.Magic != vixCommandMagicWord {
-		return vixCommandResult(vixInvalidMessageHeader, nil, nil), nil
+		return vixCommandResult(header, vixInvalidMessageHeader, nil, nil), nil
 	}
 
 	handler, ok := c.handlers[header.OpCode]
 	if !ok {
-		return vixCommandResult(vixUnrecognizedCommandInGuest, nil, nil), nil
+		return vixCommandResult(header, vixUnrecognizedCommandInGuest, nil, nil), nil
 	}
 
 	if header.OpCode != vixCommandGetToolsState {
@@ -184,7 +260,7 @@ func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
 
 		err = c.authenticate(header, creds[:header.CredentialLength])
 		if err != nil {
-			return vixCommandResult(vixAuthenticationFail, err, nil), nil
+			return vixCommandResult(header, vixAuthenticationFail, err, nil), nil
 		}
 	}
 
@@ -195,7 +271,7 @@ func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
 		rc = vixFail
 	}
 
-	return vixCommandResult(rc, err, response), nil
+	return vixCommandResult(header, rc, err, response), nil
 }
 
 func (c *VixRelayedCommandHandler) RegisterHandler(op uint32, handler VixCommandHandler) {
@@ -216,6 +292,8 @@ func (c *VixRelayedCommandHandler) GetToolsState(_ string, _ VixCommandRequestHe
 		NewInt32Property(VixPropertyGuestToolsAPIOptions, 0x0001), // TODO: const VIX_TOOLSFEATURE_SUPPORT_GET_HANDLE_STATE
 		NewInt32Property(VixPropertyGuestOsFamily, 1),             // TODO: const GUEST_OS_FAMILY_*
 		NewBoolProperty(VixPropertyGuestStartProgramEnabled, true),
+		NewBoolProperty(VixPropertyGuestInitiateFileTransferFromGuestEnabled, true),
+		NewBoolProperty(VixPropertyGuestInitiateFileTransferToGuestEnabled, true),
 	}
 
 	src, _ := props.MarshalBinary()
@@ -329,6 +407,186 @@ func (c *VixRelayedCommandHandler) StartCommand(_ string, header VixCommandReque
 func (c *VixRelayedCommandHandler) ExecCommandStart(r *VixMsgStartProgramRequest) (int, error) {
 	// TODO: we could map to exec.Command(...).Start here
 	return -1, errors.New("not implemented")
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixMsgListFilesRequest) MarshalBinary() ([]byte, error) {
+	var fields []string
+
+	add := func(s string, l *uint32) {
+		if n := len(s); n != 0 {
+			*l = uint32(n) + 1
+			fields = append(fields, s)
+		}
+	}
+
+	add(r.GuestPathName, &r.header.GuestPathNameLength)
+	add(r.Pattern, &r.header.PatternLength)
+
+	buf := new(bytes.Buffer)
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	for _, val := range fields {
+		_, _ = buf.Write([]byte(val))
+		_ = buf.WriteByte(0)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixMsgListFilesRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	fields := []struct {
+		len uint32
+		val *string
+	}{
+		{r.header.GuestPathNameLength, &r.GuestPathName},
+		{r.header.PatternLength, &r.Pattern},
+	}
+
+	for _, field := range fields {
+		if field.len == 0 {
+			continue
+		}
+
+		x := buf.Next(int(field.len))
+		*field.val = string(bytes.TrimRight(x, "\x00"))
+	}
+
+	return nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixCommandHgfsSendPacket) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	_, _ = buf.Write(r.Packet)
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixCommandHgfsSendPacket) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	r.Packet = buf.Next(int(r.header.PacketSize))
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) InitiateFileTransferFromGuest(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgListFilesRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(r.GuestPathName)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.Mode()&os.ModeSymlink == os.ModeSymlink {
+		return nil, errors.New("VIX_E_INVALID_ARG")
+	}
+
+	if info.IsDir() {
+		return nil, errors.New("VIX_E_NOT_A_FILE")
+	}
+
+	return []byte(fileExtendedInfoFormat(info)), nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixCommandInitiateFileTransferToGuestRequest) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	r.header.GuestPathNameLength = uint32(len(r.GuestPathName))
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	_, _ = buf.WriteString(r.GuestPathName)
+	_ = buf.WriteByte(0)
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixCommandInitiateFileTransferToGuestRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	name := buf.Next(int(r.header.GuestPathNameLength))
+	r.GuestPathName = string(bytes.TrimRight(name, "\x00"))
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) InitiateFileTransferToGuest(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixCommandInitiateFileTransferToGuestRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(r.GuestPathName)
+	if err == nil {
+		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
+			return nil, errors.New("VIX_E_INVALID_ARG")
+		}
+
+		if info.IsDir() {
+			return nil, errors.New("VIX_E_NOT_A_FILE")
+		}
+
+		if r.header.Overwrite == 0 {
+			return nil, errors.New("VIX_E_FILE_ALREADY_EXISTS")
+		}
+	} else {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+
+	return nil, nil
+}
+
+func (c *VixRelayedCommandHandler) ProcessHgfsPacket(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixCommandHgfsSendPacket{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.FileServer.Dispatch(r.Packet)
 }
 
 func (c *VixRelayedCommandHandler) authenticate(r VixCommandRequestHeader, data []byte) error {

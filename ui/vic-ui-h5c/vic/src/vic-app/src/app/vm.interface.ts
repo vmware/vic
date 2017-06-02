@@ -71,6 +71,7 @@ export interface ContainerVmResponse {
     id: string;
     type: string;
     containerName: string;
+    parentObjectName: string;
     imageName: string;
     portMapping?: string | null;
     name: string;

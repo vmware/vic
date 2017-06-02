@@ -23,7 +23,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"runtime"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -173,7 +172,6 @@ func (t *Mocker) CopyExistingContent(source string) error {
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
 func (t *Mocker) Fork() error {
-	defer trace.End(trace.Begin("mocking fork"))
 	return errors.New("Fork test not implemented")
 }
 
@@ -225,32 +223,24 @@ func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocke
 	return tthr, src, conn
 }
 
-func tetherTestSetup(t *testing.T) (string, *Mocker) {
-	pc, _, _, _ := runtime.Caller(2)
-	name := runtime.FuncForPC(pc).Name()
-
-	log.Infof("Started test setup for %s", name)
+func tetherTestSetup(t *testing.T) *Mocker {
+	log.Infof("Started test setup for %s", t.Name())
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
 	mocker := Mocker{
-		Started: make(chan bool, 0),
-		Cleaned: make(chan bool, 0),
+		Started: make(chan bool),
+		Cleaned: make(chan bool),
 	}
 
-	return name, &mocker
+	return &mocker
 }
 
-func tetherTestTeardown(t *testing.T, mocker *Mocker) string {
+func tetherTestTeardown(t *testing.T, mocker *Mocker) {
 	<-mocker.Cleaned
 
 	// cleanup
 	os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
 
-	pc, _, _, _ := runtime.Caller(2)
-	name := runtime.FuncForPC(pc).Name()
-
-	log.Infof("Finished test teardown for %s", name)
-
-	return name
+	log.Infof("Finished test teardown for %s", t.Name())
 }

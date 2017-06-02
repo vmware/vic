@@ -19,11 +19,70 @@ import (
 	"encoding"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/vmware/vic/pkg/vsphere/toolbox/hgfs"
 )
+
+type VixCommandClient struct {
+	Service *Service
+	Header  *VixCommandRequestHeader
+	creds   []byte
+}
+
+func NewVixCommandClient() *VixCommandClient {
+	Trace = testing.Verbose()
+	hgfs.Trace = Trace
+
+	creds, _ := (&VixUserCredentialNamePassword{
+		Name:     "user",
+		Password: "pass",
+	}).MarshalBinary()
+
+	header := new(VixCommandRequestHeader)
+	header.Magic = vixCommandMagicWord
+
+	header.UserCredentialType = vixUserCredentialNamePassword
+	header.CredentialLength = uint32(len(creds))
+
+	in := new(mockChannelIn)
+	out := new(mockChannelOut)
+
+	return &VixCommandClient{
+		creds:   creds,
+		Header:  header,
+		Service: NewService(in, out),
+	}
+}
+
+func (c *VixCommandClient) Request(op uint32, size int, m encoding.BinaryMarshaler) []byte {
+	c.Header.OpCode = op
+	c.Header.BodyLength = uint32(size)
+
+	var buf bytes.Buffer
+	_, _ = buf.Write([]byte("\"reqname\"\x00"))
+	_ = binary.Write(&buf, binary.LittleEndian, c.Header)
+
+	b, err := m.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	_, _ = buf.Write(b)
+
+	data := append(buf.Bytes(), c.creds...)
+	reply, err := c.Service.VixCommand.Dispatch(data)
+	if err != nil {
+		panic(err)
+	}
+
+	return reply
+}
 
 func TestMarshalVixMsgStartProgramRequest(t *testing.T) {
 	requests := []*VixMsgStartProgramRequest{
@@ -231,5 +290,158 @@ func TestVixCommandErrors(t *testing.T) {
 	_, err = c.StartCommand("", r.VixCommandRequestHeader, nil)
 	if err == nil {
 		t.Error("expected error")
+	}
+}
+
+func TestVixInitiateFileTransfer(t *testing.T) {
+	c := NewVixCommandClient()
+
+	request := new(VixMsgListFilesRequest)
+
+	f, err := ioutil.TempFile("", "toolbox")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, s := range []string{"a", "b", "c", "d", "e"} {
+		_, _ = f.WriteString(strings.Repeat(s, 40))
+	}
+
+	_ = f.Close()
+
+	name := f.Name()
+
+	// 1st pass file exists == OK, 2nd pass does not exist == FAIL
+	for _, fail := range []bool{false, true} {
+		size := binary.Size(request.header) + len(name) + 1
+		request.GuestPathName = name
+
+		reply := c.Request(vixCommandInitiateFileTransferFromGuest, size, request)
+
+		rc := vixRC(reply)
+
+		if Trace {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", name, string(reply))
+		}
+
+		if fail {
+			if rc == vixOK {
+				t.Errorf("%s: %d", name, rc)
+			}
+		} else {
+			if rc != vixOK {
+				t.Errorf("%s: %d", name, rc)
+			}
+
+			err = os.Remove(name)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+	}
+}
+
+func TestVixInitiateFileTransferWrite(t *testing.T) {
+	c := NewVixCommandClient()
+
+	request := new(VixCommandInitiateFileTransferToGuestRequest)
+
+	f, err := ioutil.TempFile("", "toolbox")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_ = f.Close()
+
+	name := f.Name()
+
+	tests := []struct {
+		force uint8
+		fail  bool
+	}{
+		{0, true},  // exists == OK
+		{1, false}, // exists, but overwrite == OK
+		{0, false}, // does not exist == FAIL
+	}
+
+	for i, test := range tests {
+		size := binary.Size(request.header) + len(name) + 1
+		request.GuestPathName = name
+		request.header.Overwrite = test.force
+
+		reply := c.Request(vixCommandInitiateFileTransferToGuest, size, request)
+
+		rc := vixRC(reply)
+
+		if Trace {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", name, string(reply))
+		}
+
+		if test.fail {
+			if rc == vixOK {
+				t.Errorf("%d: %d", i, rc)
+			}
+		} else {
+			if rc != vixOK {
+				t.Errorf("%d: %d", i, rc)
+			}
+			if test.force != 0 {
+				_ = os.Remove(name)
+			}
+		}
+	}
+}
+
+func TestVixProcessHgfsPacket(t *testing.T) {
+	c := NewVixCommandClient()
+
+	c.Header.CommonFlags = vixCommandGuestReturnsBinary
+
+	request := new(VixCommandHgfsSendPacket)
+
+	op := new(hgfs.RequestCreateSessionV4)
+	packet := new(hgfs.Packet)
+	packet.Payload, _ = op.MarshalBinary()
+	packet.Header.Version = hgfs.HeaderVersion
+	packet.Header.Dummy = hgfs.OpNewHeader
+	packet.Header.HeaderSize = uint32(binary.Size(&packet.Header))
+	packet.Header.PacketSize = packet.Header.HeaderSize + uint32(len(packet.Payload))
+	packet.Header.Op = hgfs.OpCreateSessionV4
+
+	request.Packet, _ = packet.MarshalBinary()
+	request.header.PacketSize = uint32(len(request.Packet))
+
+	size := binary.Size(request.header) + int(request.header.PacketSize)
+
+	reply := c.Request(vmxiHgfsSendPacketCommand, size, request)
+
+	rc := vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	ix := bytes.IndexByte(reply, '#')
+	reply = reply[ix+1:]
+	err := packet.UnmarshalBinary(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if packet.Status != hgfs.StatusSuccess {
+		t.Errorf("status=%d", packet.Status)
+	}
+
+	if packet.Dummy != hgfs.OpNewHeader {
+		t.Errorf("dummy=%d", packet.Dummy)
+	}
+
+	session := new(hgfs.ReplyCreateSessionV4)
+	err = session.UnmarshalBinary(packet.Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if session.NumCapabilities == 0 || int(session.NumCapabilities) != len(session.Capabilities) {
+		t.Errorf("NumCapabilities=%d", session.NumCapabilities)
 	}
 }

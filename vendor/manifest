@@ -375,15 +375,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/fdawg4l/go-nfs-client/nfs",
-			"repository": "https://github.com/fdawg4l/go-nfs-client",
-			"vcs": "git",
-			"revision": "ba0907caa92da3d762b621a251af64688fa1222b",
-			"branch": "master",
-			"path": "/nfs",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/gizak/termui",
 			"repository": "https://github.com/gizak/termui",
 			"vcs": "git",
@@ -1015,6 +1006,14 @@
 			"vcs": "git",
 			"revision": "604eaf189ee867d8c147fafc28def2394e878d25",
 			"branch": "HEAD",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/vmware/go-nfs-client",
+			"repository": "https://github.com/vmware/go-nfs-client",
+			"vcs": "git",
+			"revision": "492894f630f2f2e2c38de9d6e076c6c801dc3362",
+			"branch": "master",
 			"notests": true
 		},
 		{

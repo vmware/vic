@@ -21,7 +21,7 @@ CP ?= cp
 
 VER :=$(shell git describe --abbrev=0 --tags)
 
-PHOTON_ISO := https://bintray.com/vmware/photon/download_file?file_path=photon-1.0-62c543d.iso
+PHOTON_ISO := https://storage.googleapis.com/vic-product-ova-build-deps/photon-1.0-62c543d.iso
 PHOTON_ISO_SHA1SUM := c4c6cb94c261b162e7dac60fdffa96ddb5836d66
 
 .PHONY: ova-release ova-debug vagrant-local
@@ -29,9 +29,11 @@ PHOTON_ISO_SHA1SUM := c4c6cb94c261b162e7dac60fdffa96ddb5836d66
 ovfenv := $(BIN)/ovfenv
 vic-ova-ui := $(BIN)/vic-ova-ui
 ova-webserver := $(BIN)/ova-webserver
+ova-engine-installer := $(BIN)/ova-engine-installer
 ovfenv: $(ovfenv)
 vic-ova-ui: $(vic-ova-ui)
 ova-webserver: $(ova-webserver)
+ova-engine-installer: $(ova-engine-installer)
 
 $(ovfenv): $$(call godeps,installer/ovatools/ovfenv/*.go)
 	@echo building ovfenv linux...
@@ -45,7 +47,11 @@ $(ova-webserver): $$(call godeps,installer/fileserver/*.go)
 	@echo building ova-webserver
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
-ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
+$(ova-engine-installer): $$(call godeps,installer/engine_installer/*.go)
+	@echo building ova-engine-installer
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+
+ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 	@echo building vic-unified-installer OVA using packer...
 	@cd $(BASE_DIR)installer/packer && $(PACKER) build \
 			-only=ova-release \
@@ -55,6 +61,7 @@ ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 			-var 'remote_username=$(PACKER_USERNAME)'\
 			-var 'remote_password=$(PACKER_PASSWORD)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
+			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			packer-vic.json
@@ -67,7 +74,7 @@ ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 	@echo cleaning packer directory...
 	@cd $(BASE_DIR)installer/packer && $(RM) -rf vic
 
-ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
+ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 	@echo building vic-unified-installer OVA using packer...
 	cd $(BASE_DIR)installer/packer && PACKER_LOG=1 $(PACKER) build \
 			-only=ova-release \
@@ -77,6 +84,7 @@ ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 			-var 'remote_username=$(PACKER_USERNAME)'\
 			-var 'remote_password=$(PACKER_PASSWORD)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
+			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			--on-error=abort packer-vic.json
@@ -89,13 +97,14 @@ ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 	@echo cleaning packer directory...
 	cd $(BASE_DIR)installer/packer && $(RM) -rf vic
 
-vagrant-local: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
+vagrant-local: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 	@echo building vic-unified-installer Vagrant box using packer...
 	@cd $(BASE_DIR)installer/packer && $(PACKER) build \
 			-only=vagrant-local \
 			-var 'iso_sha1sum=$(PHOTON_ISO_SHA1SUM)'\
 			-var 'iso_file=$(PHOTON_ISO)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
+			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			--on-error=abort packer-vic.json

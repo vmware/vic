@@ -17,8 +17,8 @@ package common
 import "gopkg.in/urfave/cli.v1"
 
 type Compute struct {
-	ComputeResourcePath string
-	DisplayName         string
+	ComputeResourcePath string `cmd:"compute-resource"`
+	DisplayName         string `cmd:"name"`
 }
 
 func (c *Compute) ComputeFlags() []cli.Flag {
