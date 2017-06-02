@@ -27,6 +27,7 @@ fi
 
 data_dir=/data/admiral
 conf_dir=/etc/vmware/admiral
+script_dir=/etc/vmware
 javadir=/var/opt/OpenJDK-1.8.0.131-bin/bin
 
 cert_dir=${data_dir}/cert
@@ -85,6 +86,7 @@ function genCert {
   echo "self-signed" > $flag
   echo "Copy CA certificate to $ca_download_dir"
   cp $ca_cert $ca_download_dir/
+  $script_dir/set_guestinfo.sh -f $ca_cert "admiral.ca"
 
   echo "creating java keystore with self-signed CA"
   $javadir/keytool -import -noprompt -v -trustcacerts -alias selfsignedca -file $ca_cert -keystore $jks -keypass changeit -storepass changeit
