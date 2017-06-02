@@ -227,3 +227,4 @@ Check VM Guestinfo
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
+    

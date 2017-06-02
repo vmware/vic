@@ -32,7 +32,7 @@ Configure VCH
     Should Contain  ${output}  --http-proxy=http://proxy.vmware.com:3128
 	Should Not Contain  ${output}  --https-proxy
 
-    #Run Regression Tests
+    Run Regression Tests
 
 Configure debug state
     ${output}=  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
