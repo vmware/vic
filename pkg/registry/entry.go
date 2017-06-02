@@ -169,3 +169,7 @@ func parseURL(s string) *url.URL {
 
 	return nil
 }
+
+func (w *domainEntry) Equal(other Entry) bool {
+	return other.String() == w.String()
+}
