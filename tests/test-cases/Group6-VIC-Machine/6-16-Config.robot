@@ -32,28 +32,28 @@ Configure VCH
     Should Contain  ${output}  --http-proxy=http://proxy.vmware.com:3128
 	Should Not Contain  ${output}  --https-proxy
 
-    Run Regression Tests
+    #Run Regression Tests
 
 Configure debug state
-    ${output}=  Run  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
+    ${output}=  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
     Should Contain  ${output}  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${id1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${vm1}=  Get VM display name  ${id1}
-    ${output}=  Run  Check VM Guestinfo  ${vm1}  guestinfo.vice./diagnostics/debug
+    ${output}=  Check VM Guestinfo  ${vm1}  guestinfo.vice./diagnostics/debug
     Should Contain  ${output}  1
     ${output}=  Run  bin/vic-machine-linux configure --debug 0 --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully
-    ${output}=  Run  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
+    ${output}=  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
     Should Contain  ${output}  0
-    ${output}=  Run  Check VM Guestinfo  ${vm1}  guestinfo.vice./diagnostics/debug
+    ${output}=  Check VM Guestinfo  ${vm1}  guestinfo.vice./diagnostics/debug
     Should Contain  ${output}  1
     ${rc}  ${id2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${vm2}=  Get VM display name  ${id2}
-    ${output}=  Run  Check VM Guestinfo  ${vm2}  guestinfo.vice./diagnostics/debug
+    ${output}=  Check VM Guestinfo  ${vm2}  guestinfo.vice./diagnostics/debug
     Should Contain  ${output}  0
     ${output}=  Run  bin/vic-machine-linux configure --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully
