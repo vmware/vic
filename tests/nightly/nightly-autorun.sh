@@ -16,14 +16,15 @@
 
 # Get the latest code from vic-internal repo for nightly_test_secrets.yml file
 cd ~/internal-repo/vic-internal
-git clean -fg
+git clean -fd
 git fetch
 git pull
 
 # Get the latest code from vmware/vic repo
 cd ~/go/src/github.com/vmware/vic
-git fetch
-git reset --hard origin/master
+git clean -fd
+git fetch https://github.com/vmware/vic master
+git pull
 
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
