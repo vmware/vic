@@ -4,6 +4,9 @@
 # docker tag vic-test gcr.io/eminent-nation-87317/vic-integration-test:1.x
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-integration-test:1.x
+# open vpn to CI cluster then run:
+# docker tag vic-test 192.168.31.15/vic-integration-test:1.x
+# docker push vic-test 192.168.31.15/vic-integration-test:1.x
 
 FROM golang:1.8
 
