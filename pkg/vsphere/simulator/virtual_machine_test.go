@@ -322,3 +322,71 @@ func TestReconfigVm(t *testing.T) {
 		t.Error("device list mismatch")
 	}
 }
+
+func TestShutdownGuest(t *testing.T) {
+	// use the default vm for testing
+	ctx := context.Background()
+
+	for _, model := range []*Model{ESX(), VPX()} {
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		c, err := govmomi.NewClient(ctx, s.URL, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finder := find.NewFinder(c.Client, false)
+
+		dc, err := finder.DefaultDatacenter(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finder.SetDatacenter(dc)
+
+		vms, err := finder.VirtualMachineList(ctx, "*")
+		// use the default first vm for test
+		if len(vms) > 0 {
+			vmm := vms[0]
+			// powon first
+			task, err := vmm.PowerOn(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = task.Wait(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// shutdown the vm
+			err = vmm.ShutdownGuest(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// state should be poweroff
+			state, err := vmm.PowerState(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if state != types.VirtualMachinePowerStatePoweredOff {
+				t.Errorf("state=%s", state)
+			}
+
+			// shutdown a poweroff vm should fail
+			err = vmm.ShutdownGuest(ctx)
+			if err == nil {
+				t.Error("expected error: InvalidPowerState")
+			}
+		}
+
+	}
+}

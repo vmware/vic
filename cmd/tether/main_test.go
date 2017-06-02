@@ -39,6 +39,7 @@ func init() {
 // in a full VM
 func createFakeDevices() error {
 	var err error
+
 	// create control channel
 	path := fmt.Sprintf("%s/ttyS0", pathPrefix)
 	err = syscall.Mkfifo(path+"s", uint32(backchannelMode))
@@ -75,12 +76,12 @@ func createFakeDevices() error {
 	return nil
 }
 
-func testSetup(t *testing.T) (string, *Mocker) {
+func testSetup(t *testing.T) *Mocker {
 	var err error
 
-	name, mocker := tetherTestSetup(t)
+	mocker := tetherTestSetup(t)
 
-	pathPrefix, err = ioutil.TempDir("", path.Base(name))
+	pathPrefix, err = ioutil.TempDir("", path.Base(t.Name()))
 	if err != nil {
 		fmt.Println(err)
 		t.Error(err)
@@ -111,7 +112,7 @@ func testSetup(t *testing.T) (string, *Mocker) {
 	}
 	server = testServer
 
-	return name, mocker
+	return mocker
 }
 
 func testTeardown(t *testing.T, mocker *Mocker) {
