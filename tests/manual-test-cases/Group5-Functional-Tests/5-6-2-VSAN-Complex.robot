@@ -15,7 +15,16 @@
 *** Settings ***
 Documentation  Test 5-6-2 - VSAN-Complex
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Test Teardown  VSAN Cleanup
+
+*** Keywords ***
+VSAN Cleanup
+    Cleanup VIC Appliance On Test Server
+
+    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+    Should Be Empty  ${out}
+
+    Nimbus Cleanup  ${list}  ${false}
 
 *** Test Cases ***
 Complex VSAN
@@ -63,8 +72,3 @@ Complex VSAN
     Install VIC Appliance To Test Server
 
     Run Regression Tests
-
-    Cleanup VIC Appliance On Test Server
-
-    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
-    Should Be Empty  ${out}

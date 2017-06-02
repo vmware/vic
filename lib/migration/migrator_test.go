@@ -15,6 +15,7 @@
 package migration
 
 import (
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -32,15 +33,13 @@ import (
 )
 
 var (
-	MaxPluginVersion = feature.MaxPluginVersion - 2
+	MaxPluginVersion = feature.MaxPluginVersion
 )
 
 func setUp() {
 	// register sample plugin into test
 	log.SetLevel(log.DebugLevel)
 	trace.Logger.Level = log.DebugLevel
-
-	MaxPluginVersion++
 
 	if err := manager.Migrator.Register(MaxPluginVersion, manager.ApplianceConfigure, &plugin1.ApplianceStopSignalRename{}); err != nil {
 		log.Errorf("Failed to register plugin %s:%d, %s", manager.ApplianceConfigure, MaxPluginVersion, err)
@@ -49,7 +48,6 @@ func setUp() {
 }
 
 func TestMigrateConfigure(t *testing.T) {
-	setUp()
 
 	conf := &config.VirtualContainerHostConfigSpec{
 		ExecutorConfig: executor.ExecutorConfig{
@@ -114,7 +112,6 @@ func TestMigrateConfigure(t *testing.T) {
 }
 
 func TestIsDataOlder(t *testing.T) {
-	setUp()
 
 	conf := &config.VirtualContainerHostConfigSpec{
 		ExecutorConfig: executor.ExecutorConfig{
@@ -147,4 +144,10 @@ func TestIsDataOlder(t *testing.T) {
 	older, err = ContainerDataIsOlder(mapData)
 	assert.Equal(t, nil, err, "should not have error")
 	assert.True(t, older, "Test data should be older than latest since a container update plugin has been registered")
+}
+
+func TestMain(m *testing.M) {
+	setUp()
+	code := m.Run()
+	os.Exit(code)
 }

@@ -152,6 +152,8 @@ public class VicVmComparator implements Comparator<String> {
                 return pm != null ? pm : "";
 			} else if (BaseVm.VM_NAME.equals(compareBy)) {
 			    return ((ContainerVm) mo).getName();
+			} else if (Container.PARENT_NAME_KEY.equals(compareBy)) {
+			    return ((ContainerVm) mo).getParentObjectName();
 			} else if (Container.VM_IMAGENAME_KEY.equals(compareBy)) {
 			    return ((ContainerVm) mo).getImageName();
 			}

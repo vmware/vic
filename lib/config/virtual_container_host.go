@@ -41,6 +41,19 @@ const (
 	Name = "{name}"
 	// ID represents the VCH in creating status, which helps to identify VCH VM which still does not have a valid VM moref set
 	CreatingVCH = "CreatingVCH"
+
+	PublicNetworkName     = "public"
+	ClientNetworkName     = "client"
+	ManagementNetworkName = "management"
+
+	PersonaService   = "docker-personality"
+	PortLayerService = "port-layer"
+	VicAdminService  = "vicadmin"
+
+	GeneralHTTPProxy   = "HTTP_PROXY"
+	GeneralHTTPSProxy  = "HTTPS_PROXY"
+	VICAdminHTTPProxy  = "VICADMIN_HTTP_PROXY"
+	VICAdminHTTPSProxy = "VICADMIN_HTTPS_PROXY"
 )
 
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image

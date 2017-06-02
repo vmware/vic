@@ -31,25 +31,8 @@ Combine Dictionaries
 Test
     ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
     Set Test Variable  ${user}  %{NIMBUS_USER}
-    ${output}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}
-
-    ${output}=  Split To Lines  ${output}
-    :FOR  ${line}  IN  @{output}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.0' is up. IP:
-    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${vc1-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.1' is up. IP:
-    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${vc2-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.0' is up. IP:
-    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${esx1-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.1' is up. IP:
-    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${esx2-ip}  ${ip}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.2' is up. IP:
-    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Test Variable  ${esx3-ip}  ${ip}
+    Log To Console  \nDeploying Nimbus Testbed: ${name}
+    ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-testbeddeploy --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
 
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  3
@@ -74,6 +57,27 @@ Test
     ${esx4-ip}=  Get From List  ${esx-ips}  0
     ${esx5-ip}=  Get From List  ${esx-ips}  1
     ${esx6-ip}=  Get From List  ${esx-ips}  2
+
+    # Finish test bed deploy
+    ${output}=  Wait For Process  ${pid}
+    Should Be Equal As Integers  ${output.rc}  0
+    ${output}=  Split To Lines  ${output.stdout}
+    :FOR  ${line}  IN  @{output}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.0' is up. IP:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Test Variable  ${vc1-ip}  ${ip}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.vc.1' is up. IP:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Test Variable  ${vc2-ip}  ${ip}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.0' is up. IP:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Test Variable  ${esx1-ip}  ${ip}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.1' is up. IP:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Test Variable  ${esx2-ip}  ${ip}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  ${name}.esx.2' is up. IP:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Test Variable  ${esx3-ip}  ${ip}
 
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${user}-${name}.vc.0  ${user}-${name}.vc.1  ${user}-${name}.vc.2  ${user}-${name}.vc.3  ${user}-${name}.nfs.0  ${user}-${name}.esx.0  ${user}-${name}.esx.1  ${user}-${name}.esx.2
 

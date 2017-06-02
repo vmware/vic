@@ -20,17 +20,21 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX1}  ${esx1}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX2}  ${esx2}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX3}  ${esx3}
+    # Let's make 5 because it is free and in parallel, but only use 3 of them
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    @{esx-names}=  Get Dictionary Keys  ${esxes}
+    @{esx-ips}=  Get Dictionary Values  ${esxes}
+    ${esx1}=  Get From List  ${esx-names}  0
+    ${esx2}=  Get From List  ${esx-names}  1
+    ${esx3}=  Get From List  ${esx-names}  2
+    ${esx1-ip}=  Get From List  ${esx-ips}  0
+    ${esx2-ip}=  Get From List  ${esx-ips}  1
+    ${esx3-ip}=  Get From List  ${esx-ips}  2
 
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Set Global Variable  @{list}  ${esx-names}  ${vc}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter

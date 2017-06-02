@@ -294,6 +294,14 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
       </Property>
     </ProductSection>
+    <ProductSection ovf:class="engine_installer" ovf:required="false">
+      <Info>VIC Engine Install Wizard Properties</Info>
+      <Category>6. VIC Engine Install Wizard Configuration</Category>
+      <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="1337">
+        <Label>6.1. Engine Install Wizard Port</Label>
+        <Description>Specifies the port on which fileserver will be published.</Description>
+      </Property>
+    </ProductSection>
     <ProductSection ovf:class="vm" ovf:required="false">
       <Info>VM specific properties</Info>
       <Property ovf:key="vmname" ovf:type="string" ovf:value="vic"/>

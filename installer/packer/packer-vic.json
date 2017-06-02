@@ -112,6 +112,11 @@
     },
     {
       "type": "file",
+      "source": "../../bin/ova-engine-installer",
+      "destination": "/usr/local/bin/ova-engine-installer"
+    },
+    {
+      "type": "file",
       "source": "scripts/systemd/docker.service",
       "destination": "/usr/lib/systemd/system/docker.service"
     },
@@ -211,6 +216,11 @@
     },
     {
       "type": "file",
+      "source": "scripts/set_guestinfo.sh",
+      "destination": "/etc/vmware/set_guestinfo.sh"
+    },
+    {
+      "type": "file",
       "source": "scripts/harbor/configure_harbor.sh",
       "destination": "/etc/vmware/harbor/configure_harbor.sh"
     },
@@ -274,6 +284,30 @@
       "type": "file",
       "source": "scripts/fileserver/start_fileserver.sh",
       "destination": "/etc/vmware/fileserver/start_fileserver.sh"
+    },
+    {
+      "type": "shell",
+      "script": "scripts/provision_engine_installer.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/engine_installer/engine_installer_startup.service",
+      "destination": "/usr/lib/systemd/system/engine_installer_startup.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/engine_installer/engine_installer.service",
+      "destination": "/usr/lib/systemd/system/engine_installer.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/engine_installer/configure_engine_installer.sh",
+      "destination": "/etc/vmware/engine_installer/configure_engine_installer.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/engine_installer/start_engine_installer.sh",
+      "destination": "/etc/vmware/engine_installer/start_engine_installer.sh"
     },
     {
       "type": "shell",
