@@ -216,15 +216,32 @@ func (v *Validator) datacenter() error {
 	return errors.New(detail)
 }
 
+func (v *Validator) ListDatacenters() ([]string, error) {
+	dcs, err := v.Session.Finder.DatacenterList(v.Context, "*")
+	if err != nil {
+		return nil, fmt.Errorf("Unable to list datacenters: %s", err)
+	}
+
+	if len(dcs) == 0 {
+		return nil, nil
+	}
+
+	matches := make([]string, len(dcs))
+	for i, d := range dcs {
+		matches[i] = d.Name()
+	}
+	return matches, nil
+}
+
 // suggestDatacenter suggests all datacenters on the target
 func (v *Validator) suggestDatacenter() {
 	defer trace.End(trace.Begin(""))
 
 	log.Info("Suggesting valid values for datacenter in --target")
 
-	dcs, err := v.Session.Finder.DatacenterList(v.Context, "*")
+	dcs, err := v.ListDatacenters()
 	if err != nil {
-		log.Errorf("Unable to list datacenters: %s", err)
+		log.Error(err)
 		return
 	}
 
@@ -233,18 +250,11 @@ func (v *Validator) suggestDatacenter() {
 		return
 	}
 
-	matches := make([]string, len(dcs))
-	for i, d := range dcs {
-		matches[i] = d.Name()
+	log.Info("Suggested datacenters:")
+	for _, d := range dcs {
+		log.Infof("  %q", d)
 	}
-
-	if matches != nil {
-		log.Info("Suggested datacenters:")
-		for _, d := range matches {
-			log.Infof("  %q", d)
-		}
-		return
-	}
+	return
 }
 
 func (v *Validator) NoteIssue(err error) {

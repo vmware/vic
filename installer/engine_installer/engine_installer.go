@@ -14,8 +14,56 @@
 
 package main
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"net/url"
+
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/validate"
+)
 
 func main() {
 	fmt.Println("hello world")
+
+	ctx := context.TODO()
+
+	//username := "administrator@vsphere.local"
+	//password := "Admin!23"
+	username := "root"
+	password := "password"
+
+	var u url.URL
+	u.User = url.UserPassword(username, password)
+	u.Host = "192.168.1.86"
+	u.Path = ""
+	fmt.Printf("server URL: %s\n", u)
+
+	input := data.NewData()
+
+	input.OpsUser = u.User.Username()
+	passwd, _ := u.User.Password()
+	input.OpsPassword = &passwd
+	input.URL = &u
+	input.Force = true
+
+	input.User = username
+	input.Password = &passwd
+	fmt.Printf("%+v\n", input)
+
+	validator, err := validate.NewValidator(ctx, input)
+	if err != nil {
+		fmt.Printf("validator: %s", err)
+		return
+	}
+
+	dcs, err := validator.ListDatacenters()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, d := range dcs {
+		fmt.Printf("DC: %s\n", d)
+	}
+
 }
