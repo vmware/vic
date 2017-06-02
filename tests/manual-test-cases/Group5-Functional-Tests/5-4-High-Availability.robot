@@ -85,14 +85,21 @@ Test
     Run Keyword If  '${status}' == 'closed'  Fail  Test 5-4-High-Availability.robot needs to be updated now that Issue #4858 has been resolved
 
     Log To Console  \nStarting test...
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    # Let's make 5 because it is free and in parallel, but only use 3 of them
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    @{esx-names}=  Get Dictionary Keys  ${esxes}
+    @{esx-ips}=  Get Dictionary Values  ${esxes}
+    ${esx1}=  Get From List  ${esx-names}  0
+    ${esx2}=  Get From List  ${esx-names}  1
+    ${esx3}=  Get From List  ${esx-names}  2
+    ${esx1-ip}=  Get From List  ${esx-ips}  0
+    ${esx2-ip}=  Get From List  ${esx-ips}  1
+    ${esx3-ip}=  Get From List  ${esx-ips}  2
 
     ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${VC}  ${vc}
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Set Global Variable  @{list}  ${esx-names}  ${vc}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter
