@@ -93,9 +93,11 @@ DATE=`date +%m_%d_%H_%M_`
 nightlystatus=()
 count=0
 
+nightly_secrets_file="/home/vicadmin/internal-repo/vic-internal/nightly_test_secrets.yml"
+
 for i in $nightly_list_var; do
     echo "Executing nightly test $i vSphere 6.5"
-    drone exec --trusted -e test="pybot -d 65/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot -d 65/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then
@@ -114,7 +116,7 @@ done
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i on vSphere 6.0"
-    drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then
@@ -150,7 +152,7 @@ done
 
 echo "Global Nightly Test Status $buildStatus"
 
-drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $DATE$input" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $DATE$input" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
 rm nightly_mail.html
 

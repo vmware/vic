@@ -1,5 +1,5 @@
-#!/bin/bash
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+#!/usr/bin/bash
+# Copyright 2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,19 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+set -euf -o pipefail
 
-# Get the latest code from vic-internal repo for nightly_test_secrets.yml file
-cd ~/internal-repo/vic-internal
-git clean -fg
-git fetch
-git pull
-
-# Get the latest code from vmware/vic repo
-cd ~/go/src/github.com/vmware/vic
-git fetch
-git reset --hard origin/master
-
-# Kick off the nightly
-now=$(date +"%m_%d_%Y")
-sudo ./tests/nightly/nightly-kickoff.sh > nightly_$now.txt 2>&1
+mkdir -p /etc/vmware/engine_installer # Engine installer config scripts

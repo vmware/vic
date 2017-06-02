@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package feature
+package main
 
-const (
-	AddCommonSpecForVCHVersion = iota + 1
-	AddCommonSpecForContainerVersion
-	TasksSupportedVersion
-	RenameSupportedVersion
-	MigrateRegistryVersion
-	ExecSupportedVersion
-	VicadminProxyVarRenameVersion
+import "fmt"
 
-	// Add new feature flag here
-
-	// MaxPluginVersion must be the last
-	MaxPluginVersion
-)
+func main() {
+	fmt.Println("hello world")
+}

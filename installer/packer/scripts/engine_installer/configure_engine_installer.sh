@@ -16,30 +16,24 @@ set -euf -o pipefail
 
 umask 077
 
-data_dir="/opt/vmware/fileserver"
-cert_dir="${data_dir}/cert"
-cert="${cert_dir}/server.crt"
-key="${cert_dir}/server.key"
+data_dir="/opt/vmware/engine_installer"
+mkdir -p ${data_dir}
 
-port=$(ovfenv -k fileserver.port)
-fileserver_cert=$(ovfenv -k fileserver.ssl_cert)
-fileserver_key=$(ovfenv -k fileserver.ssl_cert_key)
-
-if [ -z "$port" ]; then
-  port="9443"
-fi
-
+port=$(ovfenv -k engine_installer.port)
 iptables -w -A INPUT -j ACCEPT -p tcp --dport $port
 
-#Format cert file
-function formatCert {
-  content=$1
-  file=$2
-  echo $content | sed -r 's/(-{5}BEGIN [A-Z ]+-{5})/&\n/g; s/(-{5}END [A-Z ]+-{5})/\n&\n/g' | sed -r 's/.{64}/&\n/g; /^\s*$/d' > $file
-}
-
-if [[ x$fileserver_cert != "x" && x$fileserver_key != "x" ]]; then
-  mkdir -p "$cert_dir"
-  formatCert "$fileserver_cert" $cert
-  formatCert "$fileserver_key" $key
+FILESERVER_DIR="/opt/vmware/fileserver/files"
+FILE_COUNT=$(find ${FILESERVER_DIR} -name "vic*.tar.gz" | wc -l)
+if [ ! -d "${FILESERVER_DIR}" ] || [ ${FILE_COUNT} -ne 1 ] ; then
+	echo "Fileserver files not present. Unable to get VIC Engine tarball"
+	systemctl stop engine_installer
+	exit 1
 fi
+
+# Extract vic-machine
+VIC_DIR="${FILESERVER_DIR}/vic"
+if [ -d "${VIC_DIR}" ]; then
+  rm -rf ${VIC_DIR}
+fi
+
+find ${FILESERVER_DIR} -name "vic*.tar.gz" | xargs -I {} tar xvf {} --directory ${data_dir}

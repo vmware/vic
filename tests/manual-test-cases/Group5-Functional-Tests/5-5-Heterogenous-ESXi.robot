@@ -50,7 +50,8 @@ Test
     Log To Console  Add ESX host to the VC
     Add Host To VCenter  ${esx1-ip}  root  ha-datacenter  e2eFunctionalTest
     Add Host To VCenter  ${esx2-ip}  root  ha-datacenter  e2eFunctionalTest
-    Run Keyword If  ${VC_VERSION} >= 4602587  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
+    ${onlyNums}=  Strip String  ${VC_VERSION}  characters=ob-
+    Run Keyword If  ${onlyNums} >= 4602587  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
 
     Create A Distributed Switch  ha-datacenter
 

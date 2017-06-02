@@ -29,9 +29,11 @@ PHOTON_ISO_SHA1SUM := c4c6cb94c261b162e7dac60fdffa96ddb5836d66
 ovfenv := $(BIN)/ovfenv
 vic-ova-ui := $(BIN)/vic-ova-ui
 ova-webserver := $(BIN)/ova-webserver
+ova-engine-installer := $(BIN)/ova-engine-installer
 ovfenv: $(ovfenv)
 vic-ova-ui: $(vic-ova-ui)
 ova-webserver: $(ova-webserver)
+ova-engine-installer: $(ova-engine-installer)
 
 $(ovfenv): $$(call godeps,installer/ovatools/ovfenv/*.go)
 	@echo building ovfenv linux...
@@ -45,7 +47,11 @@ $(ova-webserver): $$(call godeps,installer/fileserver/*.go)
 	@echo building ova-webserver
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
-ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
+$(ova-engine-installer): $$(call godeps,installer/engine_installer/*.go)
+	@echo building ova-engine-installer
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+
+ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 	@echo building vic-unified-installer OVA using packer...
 	@cd $(BASE_DIR)installer/packer && $(PACKER) build \
 			-only=ova-release \
@@ -68,7 +74,7 @@ ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 	@echo cleaning packer directory...
 	@cd $(BASE_DIR)installer/packer && $(RM) -rf vic
 
-ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
+ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 	@echo building vic-unified-installer OVA using packer...
 	cd $(BASE_DIR)installer/packer && PACKER_LOG=1 $(PACKER) build \
 			-only=ova-release \
@@ -91,7 +97,7 @@ ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
 	@echo cleaning packer directory...
 	cd $(BASE_DIR)installer/packer && $(RM) -rf vic
 
-vagrant-local: $(ovfenv) $(vic-ova-ui) $(ova-webserver)
+vagrant-local: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 	@echo building vic-unified-installer Vagrant box using packer...
 	@cd $(BASE_DIR)installer/packer && $(PACKER) build \
 			-only=vagrant-local \
