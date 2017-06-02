@@ -17,6 +17,7 @@ package inspect
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -206,6 +207,7 @@ func (i Inspect) showCommand(ctx context.Context, finder validate.Finder, conf *
 			options = append(options, fmt.Sprintf("--%s=%s", k, s))
 		}
 	}
+	sort.Strings(options)
 	strOptions := strings.Join(options, "\n\t")
 	log.Info("")
 	log.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
