@@ -391,10 +391,10 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice./init/networks|public/network/Common/id":                       "DistributedVirtualPortgroup:dvportgroup-56",
 		"guestinfo.vice./storage/image_stores|0/ForceQuery":                            "false",
 		"guestinfo.vice./init/imageid":                                                 "",
-		"guestinfo.vice./init/sessions|docker-personality/cmd/Env":                     "1",
+		"guestinfo.vice./init/sessions|docker-personality/cmd/Env":                     "3",
 		"guestinfo.vice./init/sessions|docker-personality/common/id":                   "docker-personality",
 		"guestinfo.vice./storage/VolumeLocations|vol1/Fragment":                        "",
-		"guestinfo.vice./init/sessions|vicadmin/cmd/Env":                               "1",
+		"guestinfo.vice./init/sessions|vicadmin/cmd/Env":                               "3",
 		"guestinfo.vice./init/sessions|vicadmin/common/ExecutionEnvironment":           "",
 		"guestinfo.vice./init/sessions|vicadmin/User":                                  "vicadmin",
 		"guestinfo.vice..init.networks|public.network.assigned.dns":                    "1",
@@ -425,7 +425,6 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice..init.networks|public.network.assigned.dns|0":                  "CqLMAQ==",
 		"guestinfo.vice..init.sessions|docker-personality.started":                     "true",
 		"init/networks|public/Common/notes":                                            "",
-		"guestinfo.vice./init/sessions|docker-personality/cmd/Env~":                    "PATH=/sbin|GOTRACEBACK=all",
 		"guestinfo.vice..init.networks|management.network.assigned.dns|1":              "CqYBAQ==",
 		"guestinfo.vice./init/sessions|vicadmin/active":                                "true",
 		"guestinfo.vice./init/networks":                                                "bridge|client|management|public",
@@ -521,7 +520,6 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice./init/networks|public/network/Common/name":                      "public",
 		"guestinfo.vice..init.sessions|port-layer.runblock":                             "false",
 		"guestinfo.vice./init/sessions|port-layer/common/id":                            "port-layer",
-		"guestinfo.vice./init/sessions|vicadmin/cmd/Env~":                               "PATH=/sbin:/bin|GOTRACEBACK=all",
 		"guestinfo.vice./init/networks|client/network/Common/name":                      "client",
 		"guestinfo.vice./network/container_networks|vnet/pools|0/first":                 "CgoKAA==",
 		"guestinfo.vice..init.networks|public.network.assigned.gateway.IP":              "CsC//Q==",
@@ -553,12 +551,13 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice./registry/insecure_registries":                       "0",
 		"guestinfo.vice./registry/whitelist_registries|1/Host":               "insecure:2345",
 		"guestinfo.vice./registry/insecure_registries|0/ForceQuery":          "false",
+		"guestinfo.vice./init/sessions|vicadmin/cmd/Env~":                    "PATH=/sbin:/bin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
+		"guestinfo.vice./init/sessions|docker-personality/cmd/Env~":          "PATH=/sbin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
 	}
 
 	commands := map[string][]string{
 		"target":      {"https://10.192.171.116"},
 		"thumbprint":  {"9F:F0:DF:BA:7F:E2:89:F0:98:E4:A6:D1:58:24:68:74:8A:9B:25:6F"},
-		"name":        {"test1"},
 		"image-store": {"vsanDatastore"},
 		"volume-store": {
 			"vsanDatastore/volumes/default:default",
@@ -572,10 +571,11 @@ func testGuestinfo(t *testing.T) {
 		"container-network-gateway":  {"management:10.10.10.1/24"},
 		"container-network-ip-range": {"management:10.10.10.0/24"},
 
-		"no-tlsverify":       {"true"},
 		"debug":              {"3"},
 		"insecure-registry":  {"https://insecure:2345"},
 		"whitelist-registry": {"https://harbor.com:2345", "https://insecure:2345"},
+		"http-proxy":         {"http://proxy.vmware.com:2318"},
+		"https-proxy":        {"https://proxy.vmware.com:2318"},
 	}
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.DecodeWithPrefix(extraconfig.MapSource(kv), conf, "")
@@ -605,7 +605,7 @@ func testGuestinfo(t *testing.T) {
 			}
 		}
 		c := dest[k]
-		testArrays(t, c, v, k)
+		testArrays(t, v, c, k)
 	}
 
 }
