@@ -16,7 +16,6 @@ package registry
 
 import (
 	"net"
-	"net/url"
 
 	glob "github.com/ryanuber/go-glob"
 )
@@ -39,18 +38,8 @@ func ParseEntry(s string) Entry {
 		return &cidrEntry{ipnet: ipnet}
 	}
 
-	// check if url
-	u, err := url.Parse(s)
-	if err == nil {
-		// only use the hostname
-		h := u.Hostname()
-		if len(h) > 0 {
-			return &domainEntry{e: h}
-		}
-	}
-
 	// assume domain name
-	return &domainEntry{e: s}
+	return &strEntry{e: s}
 }
 
 type ipEntry struct {
@@ -106,22 +95,22 @@ func (c *cidrEntry) String() string {
 	return c.ipnet.String()
 }
 
-type domainEntry struct {
+type strEntry struct {
 	e string
 }
 
-func (w *domainEntry) Contains(e Entry) bool {
+func (w *strEntry) Contains(e Entry) bool {
 	return w.Match(e.String())
 }
 
-func (w *domainEntry) Match(s string) bool {
+func (w *strEntry) Match(s string) bool {
 	return glob.Glob(w.e, s)
 }
 
-func (w *domainEntry) String() string {
+func (w *strEntry) String() string {
 	return w.e
 }
 
-func (w *domainEntry) Equal(other Entry) bool {
+func (w *strEntry) Equal(other Entry) bool {
 	return other.String() == w.String()
 }

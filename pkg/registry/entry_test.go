@@ -77,23 +77,23 @@ func TestEntryContains(t *testing.T) {
 			res:    true,
 		},
 		{
-			first:  &domainEntry{e: "*.google.com"},
-			second: &domainEntry{e: "*.com"},
+			first:  &strEntry{e: "*.google.com"},
+			second: &strEntry{e: "*.com"},
 			res:    false,
 		},
 		{
-			first:  &domainEntry{e: "mail.google.com"},
-			second: &domainEntry{e: "*.google.com"},
+			first:  &strEntry{e: "mail.google.com"},
+			second: &strEntry{e: "*.google.com"},
 			res:    false,
 		},
 		{
-			first:  &domainEntry{e: "*.google.com"},
-			second: &domainEntry{e: "mail.google.com"},
+			first:  &strEntry{e: "*.google.com"},
+			second: &strEntry{e: "mail.google.com"},
 			res:    true,
 		},
 		{
-			first:  &domainEntry{e: "*.com"},
-			second: &domainEntry{e: "*.google.com"},
+			first:  &strEntry{e: "*.com"},
+			second: &strEntry{e: "*.google.com"},
 			res:    true,
 		},
 	}
@@ -249,8 +249,12 @@ func TestParseEntry(t *testing.T) {
 			res: &ipEntry{e: "192.168.0.1"},
 		},
 		{
+			s:   "192.168.0.1:80",
+			res: &strEntry{e: "192.168.0.1:80"},
+		},
+		{
 			s:   "192.168.0",
-			res: &domainEntry{e: "192.168.0"},
+			res: &strEntry{e: "192.168.0"},
 		},
 		{
 			s:   "192.168.0.1/24",
@@ -258,15 +262,15 @@ func TestParseEntry(t *testing.T) {
 		},
 		{
 			s:   "192.168.0/24",
-			res: &domainEntry{e: "192.168.0/24"},
+			res: &strEntry{e: "192.168.0/24"},
 		},
 		{
 			s:   "*.google.com",
-			res: &domainEntry{e: "*.google.com"},
+			res: &strEntry{e: "*.google.com"},
 		},
 		{
-			s:   "https://google.com",
-			res: &domainEntry{e: "google.com"},
+			s:   "google.com:8080",
+			res: &strEntry{e: "google.com:8080"},
 		},
 	}
 
