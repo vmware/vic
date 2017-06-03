@@ -434,6 +434,10 @@ func TestParseEntry(t *testing.T) {
 			res: &urlEntry{u: parseURL("192.168.0.1:80")},
 		},
 		{
+			s:   "192.168.0.1:80",
+			res: &strEntry{e: "192.168.0.1:80"},
+		},
+		{
 			s:   "192.168.0",
 			res: &urlEntry{u: parseURL("192.168.0")},
 		},
