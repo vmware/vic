@@ -781,27 +781,8 @@ func (c *Create) processRegistries() error {
 		c.RegistryCAs = registryCAs
 	}
 
-	// load a list of insecure registries
-	for _, registry := range c.insecureRegistries {
-		regurl, err := validate.ParseURL(registry)
-
-		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
-		}
-
-		c.InsecureRegistries = append(c.InsecureRegistries, *regurl)
-	}
-
-	// load a list of whitelisted registries
-	for _, registry := range c.whitelistRegistries {
-		regurl, err := validate.ParseURL(registry)
-
-		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
-		}
-		c.WhitelistRegistries = append(c.WhitelistRegistries, *regurl)
-	}
-
+	c.InsecureRegistries = c.insecureRegistries.Value()
+	c.WhitelistRegistries = c.whitelistRegistries.Value()
 	return nil
 }
 
