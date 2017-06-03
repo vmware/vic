@@ -22,7 +22,6 @@ import (
 
 type Debug struct {
 	Debug *int `cmd:"debug"`
-	IsSet bool
 }
 
 func (d *Debug) DebugFlags() []cli.Flag {

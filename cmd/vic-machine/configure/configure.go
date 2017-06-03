@@ -116,10 +116,6 @@ func (c *Configure) processParams() error {
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
 
-	if c.Debug.Debug != nil {
-		c.Debug.IsSet = true
-	}
-
 	return nil
 }
 
@@ -146,7 +142,7 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		updateSessionEnv(vicAdminSession, config.VICAdminHTTPSProxy, sProxy)
 	}
 
-	if c.Debug.IsSet {
+	if c.Debug.Debug != nil {
 		o.SetDebug(n.Diagnostics.DebugLevel)
 	}
 }

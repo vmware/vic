@@ -196,7 +196,7 @@ func (d *Data) CopyNonEmpty(src *Data) {
 		d.HTTPSProxy = src.HTTPSProxy
 	}
 
-	if src.Debug.IsSet {
+	if src.Debug.Debug != nil {
 		d.Debug = src.Debug
 	}
 }

@@ -17,12 +17,10 @@ package portlayer
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"path"
 
 	log "github.com/Sirupsen/logrus"
 
-	ploptions "github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -31,8 +29,6 @@ import (
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/store"
-	viclog "github.com/vmware/vic/pkg/log"
-	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -61,30 +57,6 @@ func Init(ctx context.Context, sess *session.Session) error {
 
 	// Grab the storage layer config blobs from extra config
 	extraconfig.Decode(source, &storage.Config)
-
-	logcfg := viclog.NewLoggingConfig()
-	if storage.Config.DebugLevel > 0 {
-		logcfg.Level = log.DebugLevel
-		trace.Logger.Level = log.DebugLevel
-		syslog.Logger.Level = log.DebugLevel
-	}
-
-	if ploptions.PortLayerOptions.SyslogAddr != nil {
-		u, err := url.Parse(*ploptions.PortLayerOptions.SyslogAddr)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		logcfg.Syslog = &viclog.SyslogConfig{
-			Network:  u.Scheme,
-			RAddr:    u.Host,
-			Priority: syslog.Info | syslog.Daemon,
-		}
-	}
-
-	log.Infof("%+v", *logcfg)
-	viclog.Init(logcfg)
-
 	log.Debugf("Decoded VCH config for storage: %#v", storage.Config)
 
 	// create or restore a portlayer k/v store in the VCH's directory.

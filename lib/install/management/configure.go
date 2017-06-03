@@ -114,6 +114,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	log.Infof("Appliance is rolled back to old version")
 
 	d.deleteUpgradeImages(ds, settings)
+	d.retryDeleteSnapshotByRef(oldSnapshot, conf.Name)
 
 	// return the error message for upgrade
 	return err
