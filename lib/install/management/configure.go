@@ -91,7 +91,8 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	// check for old snapshot
 	oldSnapshot, _ := d.appliance.GetCurrentSnapshotTree(d.ctx)
 
-	if err = d.tryCreateSnapshot(snapshotName, "configure snapshot"); err != nil {
+	newSnapshotRef, err := d.tryCreateSnapshot(snapshotName, "configure snapshot")
+	if err != nil {
 		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
@@ -99,7 +100,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	if err = d.update(conf, settings); err == nil {
 		// compatible with old version's upgrade snapshot name
 		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
-			d.retryDeleteSnapshotByRef(oldSnapshot, conf.Name)
+			d.retryDeleteSnapshotByRef(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
 		}
 		return nil
 	}
@@ -114,7 +115,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 	log.Infof("Appliance is rolled back to old version")
 
 	d.deleteUpgradeImages(ds, settings)
-	d.retryDeleteSnapshotByRef(oldSnapshot, conf.Name)
+	d.retryDeleteSnapshotByRef(newSnapshotRef, snapshotName, conf.Name)
 
 	// return the error message for upgrade
 	return err
@@ -147,19 +148,19 @@ func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContai
 		return errors.Errorf("could not complete manual rollback: %s", err)
 	}
 
-	return d.retryDeleteSnapshotByRef(snapshot, conf.Name)
+	return d.retryDeleteSnapshotByRef(&snapshot.Snapshot, snapshot.Name, conf.Name)
 }
 
 // retryDeleteSnapshotByRef will retry to delete snapshot by its reference if there is GenericVmConfigFault returned. This is a workaround for vSAN delete snapshot
-func (d *Dispatcher) retryDeleteSnapshotByRef(snapshot *types.VirtualMachineSnapshotTree, applianceName string) error {
+func (d *Dispatcher) retryDeleteSnapshotByRef(snapshot *types.ManagedObjectReference, snapshotName, applianceName string) error {
 	// delete snapshot immediately after snapshot rollback usually fail in vSAN, so have to retry several times
 	operation := func() error {
-		return d.deleteSnapshotByRef(snapshot, applianceName)
+		return d.deleteSnapshotByRef(snapshot, snapshotName, applianceName)
 	}
 	var err error
 	if err = retry.Do(operation, isSystemError); err != nil {
-		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshot.Name, err)
-		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshot.Name, applianceName)
+		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
+		log.Errorf("Snapshot %q of appliance virtual machine %q MUST be removed manually before upgrade again", snapshotName, applianceName)
 	}
 	return err
 }
@@ -186,14 +187,14 @@ func isSystemError(err error) bool {
 	return false
 }
 
-func (d *Dispatcher) deleteSnapshotByRef(snapshot *types.VirtualMachineSnapshotTree, applianceName string) error {
-	defer trace.End(trace.Begin(snapshot.Name))
-	log.Infof("Deleting upgrade snapshot %q", snapshot.Name)
+func (d *Dispatcher) deleteSnapshotByRef(snapshot *types.ManagedObjectReference, snapshotName, applianceName string) error {
+	defer trace.End(trace.Begin(snapshotName))
+	log.Infof("Deleting upgrade snapshot %q", snapshotName)
 	// do clean up aggressively, even the previous operation failed with context deadline exceeded.
 	ctx := context.Background()
 	if _, err := d.appliance.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		consolidate := true
-		return d.appliance.RemoveSnapshotByRef(ctx, snapshot.Snapshot, false, &consolidate)
+		return d.appliance.RemoveSnapshotByRef(ctx, snapshot, false, &consolidate)
 	}); err != nil {
 		return err
 	}
@@ -202,18 +203,19 @@ func (d *Dispatcher) deleteSnapshotByRef(snapshot *types.VirtualMachineSnapshotT
 
 // tryCreateSnapshot try to create upgrade snapshot. It will check if upgrade snapshot already exists. If exists, return error.
 // if succeed, return snapshot refID
-func (d *Dispatcher) tryCreateSnapshot(name, desc string) error {
+func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectReference, error) {
 	defer trace.End(trace.Begin(name))
 
 	// TODO detect whether another upgrade is in progress & bail if it is.
 	// Use solution from https://github.com/vmware/vic/issues/4069 to do this either as part of 4069 or once it's closed
 
-	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	info, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
-	}); err != nil {
-		return errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
+	})
+	if err != nil {
+		return nil, errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
 	}
-	return nil
+	return info.Entity, nil
 }
 
 func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.InstallerData) {
