@@ -98,7 +98,7 @@ func TestStart(t *testing.T) {
 }
 
 func newCollector() *EventCollector {
-	return &EventCollector{mos: monitoredCache{mos: make(map[string]types.ManagedObjectReference)}}
+	return &EventCollector{mos: monitoredCache{mos: make(map[string]types.ManagedObjectReference)}, lastProcessedID: -1}
 }
 
 // simple callback counter
