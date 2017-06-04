@@ -14,6 +14,12 @@
 
 package dynamic
 
-type Config struct {
-	registryWhitelist []string
+import "github.com/vmware/vic/lib/config"
+
+type Source interface {
+	Get() (*config.VirtualContainerHostConfigSpec, error)
+}
+
+type Merger interface {
+	Merge(orig, other *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error)
 }

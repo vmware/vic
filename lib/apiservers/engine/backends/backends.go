@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
@@ -58,20 +59,20 @@ var (
 	productName         string
 	productVersion      string
 
-	vchConfig        *config.VirtualContainerHostConfigSpec
+	vchConfig        dynConfig
 	RegistryCertPool *x509.CertPool
 
 	eventService *events.Events
 )
 
-type registriesCollection struct {
-	m                                  sync.Mutex
-	Whitelist, Blacklist, Insecure     registry.Set
-	wlMerger, blMerger, insecureMerger registry.Merger
-}
+type dynConfig struct {
+	sync.Mutex
 
-var registries = &registriesCollection{
-	wlMerger: &whitelistMerger{},
+	Cfg          *config.VirtualContainerHostConfigSpec
+	dynCfgSource dynamic.Source
+	dynCfgMerger dynamic.Merger
+
+	Whitelist, Blacklist, Insecure registry.Set
 }
 
 func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec) error {
@@ -80,7 +81,7 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		return err
 	}
 
-	vchConfig = config
+	vchConfig.Cfg = config
 	productName = product
 
 	if config != nil {
@@ -93,7 +94,10 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 			portLayerName = product + " " + productVersion + " Backend Engine"
 		}
 
-		parseRegistries(config)
+		vchConfig.Insecure = dynamic.ParseRegistries(config.InsecureRegistries)
+		vchConfig.Whitelist = dynamic.ParseRegistries(config.RegistryWhitelist)
+		vchConfig.dynCfgSource = &dynamic.AdmiralSource{}
+		vchConfig.dynCfgMerger = dynamic.NewMerger()
 		loadRegistryCACerts()
 	} else {
 		portLayerName = product + " Backend Engine"
@@ -207,11 +211,6 @@ func ProductVersion() string {
 	return productVersion
 }
 
-// VchConfig gets the VIC appliance VM's configspec
-func VchConfig() *config.VirtualContainerHostConfigSpec {
-	return vchConfig
-}
-
 func pingPortLayer() {
 	ticker := time.NewTicker(RetryTimeSeconds * time.Second)
 	defer ticker.Stop()
@@ -250,34 +249,6 @@ func createImageStore() error {
 	}
 	log.Infof("Image store created successfully")
 	return nil
-}
-
-func parseRegistries(config *config.VirtualContainerHostConfigSpec) {
-	createList := func(registryList []url.URL) registry.Set {
-		var res registry.Set
-		for _, r := range registryList {
-			e := registry.ParseEntry(r.Host + r.Path)
-			if e == nil {
-				log.Warnf("could not parse registry entry %s", r)
-				continue
-			}
-
-			res = append(res, e)
-		}
-
-		return res
-	}
-
-	registries.Whitelist = createList(config.RegistryWhitelist)
-	registries.Insecure = createList(config.InsecureRegistries)
-}
-
-func WhitelistRegistries() string {
-	return entryStrJoin(registries.Whitelist, ",")
-}
-
-func InsecureRegistries() string {
-	return entryStrJoin(registries.Insecure, ",")
 }
 
 // syncContainerCache runs once at startup to populate the container cache
@@ -348,7 +319,9 @@ func loadRegistryCACerts() {
 		return
 	}
 
-	if !RegistryCertPool.AppendCertsFromPEM(vchConfig.RegistryCertificateAuthorities) {
+	vchConfig.Lock()
+	defer vchConfig.Unlock()
+	if !RegistryCertPool.AppendCertsFromPEM(vchConfig.Cfg.RegistryCertificateAuthorities) {
 		log.Errorf("Unable to load CAs for registry access in config")
 		return
 	}
@@ -360,43 +333,49 @@ func EventService() *events.Events {
 	return eventService
 }
 
-type whitelistMerger struct{}
+func (d *dynConfig) RegistryCheck(u *url.URL) (wl bool, bl bool, insecure bool) {
+	d.Lock()
+	defer d.Unlock()
 
-// Merge merges two registry entries. The merge fails if merging orig and other would
-// broaden orig's scope. The result of the merge is other if that is more restrictive.
-// if orig equals other, the result is orig.
-func (w *whitelistMerger) Merge(orig, other registry.Entry) (registry.Entry, error) {
-	if orig.Equal(other) {
-		return orig, nil
+	// update config
+	if err := d.update(); err != nil {
+		log.Warnf("error updating config: %s", err)
 	}
 
-	if other.Contains(orig) {
-		return nil, fmt.Errorf("merge of %s and %s would broaden %s", orig, other, orig)
-	}
-
-	if orig.Contains(other) {
-		return other, nil
-	}
-
-	// no merge
-	return nil, nil
-}
-
-func entryStrJoin(entries registry.Set, sep string) string {
-	var s string
-	for _, e := range entries {
-		s += e.String() + sep
-	}
-
-	return s[:len(s)-len(sep)]
-}
-
-func (r *registriesCollection) Match(m string) (wl bool, bl bool, insecure bool) {
-	r.m.Lock()
-	defer r.m.Unlock()
-
-	wl = r.Whitelist.Match(m)
-	bl = r.Blacklist.Match(m)
-	insecure = r.Insecure.Match(m)
+	wl = len(d.Whitelist) == 0 || d.Whitelist.Match(u.Host)
+	bl = len(d.Blacklist) == 0 || !d.Blacklist.Match(u.Host)
+	insecure = d.Insecure.Match(u.Host + "/" + u.Path)
 	return
+}
+
+func (d *dynConfig) Update() error {
+	d.Lock()
+	defer d.Unlock()
+
+	return d.update()
+}
+
+func (d *dynConfig) update() error {
+	// update config
+	c, err := d.dynCfgSource.Get()
+	if err != nil {
+		return err
+	}
+
+	if c == nil {
+		return nil
+	}
+
+	newcfg, err := d.dynCfgMerger.Merge(vchConfig.Cfg, c)
+	if err != nil {
+		return err
+	}
+
+	vchConfig.Cfg = newcfg
+
+	d.Whitelist = dynamic.ParseRegistries(newcfg.RegistryWhitelist)
+	d.Blacklist = dynamic.ParseRegistries(newcfg.RegistryBlacklist)
+	d.Insecure = dynamic.ParseRegistries(newcfg.InsecureRegistries)
+
+	return nil
 }

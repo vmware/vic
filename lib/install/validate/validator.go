@@ -572,30 +572,49 @@ func (v *Validator) friendlyRegistryList(registryType string, registryList []str
 func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, pool *x509.CertPool) (insecureRegistries []string, whitelistRegistries []string, err error) {
 	secureRegistries := input.WhitelistRegistries
 
-	// Remove intersection between insecure registries and whitelist registries from whitelist set so
-	// we can ensure we test the exclusion set with certs
-	var idx int
-	var s string
+	// Test insecure registries' reachability
 	for _, r := range input.InsecureRegistries {
-		for idx, s = range secureRegistries {
+		// Remove intersection between insecure registries and whitelist registries from whitelist set so
+		// we can ensure we test the exclusion set with certs
+		found := false
+		for idx, s := range secureRegistries {
 			if r == s {
 				// remove the insecure registry from list of registries to get validated against certs
 				secureRegistries = append(secureRegistries[:idx], secureRegistries[idx+1:]...)
+				found = true
 				break
 			}
 		}
-	}
 
-	// Test insecure registries' reachability
-	for _, r := range input.InsecureRegistries {
+		if found {
+			continue
+		}
+
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
 		if strings.HasPrefix(r, "*") {
 			log.Debugf("Skipping registry validation for %s", r)
 			continue
 		}
+
 		if _, _, err = net.ParseCIDR(r); err == nil {
 			log.Debugf("Skipping registry validation for %s", r)
 			continue
+		}
+
+		u, err := ParseURL(r)
+		if err != nil {
+			err = fmt.Errorf("invalid insecure registry entry %s: %s", r, err)
+			v.NoteIssue(err)
+			return nil, nil, err
+		}
+
+		for idx, s := range secureRegistries {
+			if u.Host == s {
+				// remove the insecure registry from list of registries to get validated against certs
+				secureRegistries = append(secureRegistries[:idx], secureRegistries[idx+1:]...)
+				found = true
+				break
+			}
 		}
 
 		_, err = registryutils.Reachable(r, "https", "", "", nil, registryValidationTime, true)

@@ -28,7 +28,6 @@ package backends
 import (
 	"crypto/x509"
 	"fmt"
-	"net"
 	"net/url"
 	"runtime"
 	"strings"
@@ -43,6 +42,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/imagec"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
+	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 
@@ -93,7 +93,10 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
 	}
 
-	vchConfig := VchConfig()
+	vchConfig.Lock()
+	defer vchConfig.Unlock()
+
+	cfg := vchConfig.Cfg
 
 	// Build up the struct that the Remote API and CLI wants
 	info := &types.Info{
@@ -106,7 +109,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		ContainersPaused:   paused,
 		ContainersStopped:  stopped,
 		Images:             getImageCount(),
-		Debug:              vchConfig.Diagnostics.DebugLevel > 0,
+		Debug:              cfg.Diagnostics.DebugLevel > 0,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		LoggingDriver:      "",
@@ -121,7 +124,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		// These are system related.  Some refer to cgroup info.  Others are
 		// retrieved from the port layer and are information about the resource
 		// pool.
-		Name:          vchConfig.Name,
+		Name:          cfg.Name,
 		KernelVersion: "",
 		Architecture:  platform.Architecture, //stubbed
 
@@ -144,7 +147,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	}
 
 	// Add in network info from the VCH via guestinfo
-	for _, network := range vchConfig.ContainerNetworks {
+	for _, network := range cfg.ContainerNetworks {
 		info.Plugins.Network = append(info.Plugins.Network, network.Name)
 	}
 
@@ -219,14 +222,14 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			customInfo := [2]string{systemOSVersion, vchInfo.HostOSVersion}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if len(vchConfig.InsecureRegistries) > 0 {
-			customInfo := [2]string{insecureRegistriesLabel, InsecureRegistries()}
+		if len(cfg.InsecureRegistries) > 0 {
+			customInfo := [2]string{insecureRegistriesLabel, entryStrJoin(vchConfig.Insecure, ",")}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if len(vchConfig.RegistryWhitelist) > 0 {
+		if len(cfg.RegistryWhitelist) > 0 {
 			customInfo := [2]string{vchWhitelistMode, "enabled"}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
-			customInfo = [2]string{whitelistRegistriesLabel, WhitelistRegistries()}
+			customInfo = [2]string{whitelistRegistriesLabel, entryStrJoin(vchConfig.Whitelist, ",")}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		} else {
 			customInfo := [2]string{vchWhitelistMode, "disabled.  All registry access allowed."}
@@ -330,8 +333,8 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 	}
 
 	// Check if registry is contained within whitelisted or insecure registries
-	whitelistOk, _, insecureOk := registries.Match(loginURL.Hostname())
-	if len(registries.Whitelist) > 0 && !whitelistOk {
+	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(loginURL)
+	if !whitelistOk {
 		msg := fmt.Sprintf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", loginURL.Host)
 		return msg, "", fmt.Errorf(msg)
 	}
@@ -414,42 +417,11 @@ func FetchVolumeStores(client *client.PortLayer) (string, error) {
 	return strings.Join(res.Payload.Stores, " "), nil
 }
 
-// RegistrySetContains checks if a URL is within the set of registries
-func RegistrySetContains(registrySet []url.URL, remoteURL *url.URL) bool {
-	containedOK := false
-	remoteIP := net.ParseIP(remoteURL.Hostname())
-	remoteDomains, _ := net.LookupAddr(remoteURL.Hostname())
-
-	for _, rs := range registrySet {
-		_, ipnet, err := net.ParseCIDR(rs.Host + rs.Path)
-		if err == nil && ipnet.Contains(remoteIP) {
-			containedOK = true
-			break
-		}
-
-		// if wildcard domain was provided for insecure registry range, check if login URL within
-		// that domain
-		if strings.HasPrefix(rs.Host, "*") {
-			rsDomains := strings.SplitAfter(rs.Host, "*.")
-			for _, fqdn := range remoteDomains {
-				if strings.HasSuffix(fqdn, ".") {
-					fqdn = fqdn[:len(fqdn)-1]
-				}
-				domainParts := strings.SplitAfterN(fqdn, ".", 2)
-				if domainParts[1] == rsDomains[1] {
-					containedOK = true
-					break
-				}
-			}
-		}
-
-		// if IP provided for insecure registry
-		// Note, we do not check if an admin whitelist an IP and FQDN that are equivalent.
-		if rs.Hostname() == remoteURL.Hostname() {
-			containedOK = true
-			break
-		}
+func entryStrJoin(entries registry.Set, sep string) string {
+	var s string
+	for _, e := range entries {
+		s += e.String() + sep
 	}
 
-	return containedOK
+	return s[:len(s)-len(sep)]
 }

@@ -366,15 +366,15 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	}
 
 	// Check if url is contained within set of whitelisted or insecure registries
-	whitelistMatch, _, insecureMatch := registries.Match(hostnameURL.Hostname())
-	if len(registries.Whitelist) > 0 && !whitelistMatch {
-		err = fmt.Errorf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", hostnameURL.Hostname())
+	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(hostnameURL)
+	if !whitelistOk {
+		err = fmt.Errorf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", hostnameURL.Host)
 		log.Errorf(err.Error())
 		sf := streamformatter.NewJSONStreamFormatter()
 		outStream.Write(sf.FormatError(err))
 		return nil
 	}
-	options.InsecureAllowHTTP = insecureMatch
+	options.InsecureAllowHTTP = insecureOk
 
 	options.RegistryCAs = RegistryCertPool
 
