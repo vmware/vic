@@ -21,7 +21,7 @@ type PortLayerOptionsType struct {
 	Cert      string        `long:"cert" description:"Client certificate" env:"VC_CERTIFICATE"`
 	Key       string        `long:"key" description:"Private key file" env:"VC_PRIVATE_KEY"`
 	Insecure  bool          `long:"insecure" default:"false" description:"Skip verification of server certificate" env:"VC_INSECURE"`
-	Keepalive time.Duration `long:"keepalive" default:"5m" description:"Session timeout" env:"VC_KEEPALIVE"`
+	Keepalive time.Duration `long:"keepalive" default:"20s" description:"Session timeout" env:"VC_KEEPALIVE"`
 
 	DatacenterPath string `long:"datacenter" default:"/ha-datacenter" description:"Datacenter path" env:"DC_PATH" required:"true"`
 	ClusterPath    string `long:"cluster" default:"" description:"Cluster path" env:"CS_PATH" required:"true"`

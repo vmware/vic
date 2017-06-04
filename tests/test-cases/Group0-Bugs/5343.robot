@@ -45,10 +45,11 @@ Check vsphere event stream
 
     # delete the session to suppress reception of events
     ${rc}  ${out}=  Run And Return Rc And Output  govc session.ls
-    ${out}=  Get Lines Matching Pattern  ${out}  %{VCH-IP}\\s* vic-engine
-    @{sessions}=  Split to lines  ${out}
+    Log  ${out}
+    ${matches}=  Get Lines Matching Regexp  ${out}  %{VCH-IP}\\s* vic-engine  partial_match=True
+    @{sessions}=  Split to lines  ${matches}
     :FOR  ${session}  IN  @{sessions}
-    \  @{key}=  Fetch From Left  ${session}   
+    \  ${key}=  Fetch From Left  ${session}  ${SPACE}
     \  ${rc}=  Run And Return Rc  govc session.rm ${key}
     \  Should Be Equal As Integers  ${rc}  0
 
@@ -57,13 +58,9 @@ Check vsphere event stream
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    # perform operation to force re-auth
-    # NOTE: this is a concession to current implementation - we should not need an op to get a timely reconnect
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps
+    # Confirm container reported as stopped by VCH
+    Wait Until Container Stops  ${id}
 
     # Assert that the power off event is present
     # Would prefer to do this as a tail on the live log but no idea how to do stream processing in robot
     Wait Until Keyword Succeeds  1m  10s  Portlayer Log Should Match Regexp  ${name}-${shortid} on \\s*\\S* in \\S* is powered off
-    
-    # Confirm container reported as stopped by VCH
-    Wait Until Container Stops  ${id}

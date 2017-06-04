@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/portlayer"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -90,6 +91,12 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	// Configure the func invoked if the PL panics or is restarted by vic-init
 	api.ServerShutdown = func() {
 		log.Infof("Shutting down port-layer-server")
+
+		// stop the event collectors
+		collectors := exec.Config.EventManager.Collectors()
+		for _, c := range collectors {
+			c.Stop()
+		}
 
 		// Logout the session
 		if err := sess.Logout(ctx); err != nil {
