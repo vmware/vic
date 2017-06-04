@@ -35,6 +35,8 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --cpu-shares
     Should Not Contain  ${output}  --memory
     Should Not Contain  ${output}  --memory-shares
+    Should Not Contain  ${output}  --base-image-size
+    Should Not Contain  ${output}  --bridge-network-range
     Should Be Equal As Integers  0  ${rc}
 
     Cleanup VIC Appliance On Test Server
