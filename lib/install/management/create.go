@@ -18,10 +18,12 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -120,16 +122,30 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 	// upload the images
 	log.Infof("Uploading images for container")
 
-	results := make(chan error)
-	logMsgs := make(chan string)
-	uploadCount := len(files)
+	results := make(chan error, len(files))
+	var wg sync.WaitGroup
+
 	for key, image := range files {
+
+		wg.Add(1)
 		go func(key string, image string) {
 			finalMessage := ""
 			log.Infof("\t%q", image)
 
 			// upload function that is passed to retry
 			operationForRetry := func() error {
+				// attempt to delete the iso image first in case of failed upload
+				dc := d.session.Datacenter
+				fm := d.session.Datastore.NewFileManager(dc, false)
+
+				isoTargetPath := path.Join(d.vmPathName, key)
+				log.Debugf("target delete path = %s", isoTargetPath)
+				err := fm.Delete(d.ctx, isoTargetPath)
+				if err != nil && !types.IsFileNotFound(err) {
+					log.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+					return err
+				}
+
 				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 			}
 
@@ -144,21 +160,18 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 
 				retryCount--
 				if retryCount < 0 {
-					logMsgs <- fmt.Sprintf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+					log.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
 					return false
 				}
-				logMsgs <- fmt.Sprintf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+				log.Warnf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
 				return true
 			}
 
 			// Build retry config
-			backoffConf := &retry.BackoffConfig{
-				InitialInterval:     uploadInitialInterval,
-				RandomizationFactor: retry.DefaultRandomizationFactor,
-				Multiplier:          retry.DefaultMultiplier,
-				MaxInterval:         uploadMaxInterval,
-				MaxElapsedTime:      uploadMaxElapsedTime,
-			}
+			backoffConf := retry.NewBackoffConfig()
+			backoffConf.InitialInterval = uploadInitialInterval
+			backoffConf.MaxInterval = uploadMaxInterval
+			backoffConf.MaxElapsedTime = uploadMaxElapsedTime
 
 			uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
 			if uploadErr != nil {
@@ -171,43 +184,23 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 					results <- errors.New(finalMessage)
 				}
 			}
-			results <- nil
+			wg.Done()
 		}(key, image)
 	}
 
-	var resultErrs []string
-	for {
-		select {
-		case msg := <-logMsgs:
-			log.Infof("%s", msg)
+	wg.Wait()
+	close(results)
 
-		case uploadResult := <-results:
-			if uploadResult != nil {
-				resultErrs = append(resultErrs, uploadResult.Error())
-			}
-
-			uploadCount--
-
-			// once this is hit the upload attempts are over
-			if uploadCount == 0 {
-				if len(logMsgs) > 0 {
-					log.Infof("%s", <-logMsgs)
-				}
-
-				for uploadErr := range resultErrs {
-					log.Error(uploadErr)
-				}
-
-				close(logMsgs)
-				close(results)
-
-				if len(resultErrs) > 0 {
-					return errors.New("Unable to upload isos.")
-				}
-
-				return nil
-			}
+	uploadFailed := false
+	for err := range results {
+		if err != nil {
+			log.Error(err.Error())
+			uploadFailed = true
 		}
 	}
 
+	if uploadFailed {
+		return errors.New("Failed to upload iso images successfully.")
+	}
+	return nil
 }
