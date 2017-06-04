@@ -30,7 +30,6 @@ Inspect VCH Configuration
     Should Contain  ${output}  --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}
     Should Contain  ${output}  --bridge-network=%{BRIDGE_NETWORK}
-    Should Contain  ${output}  --public-network=VM Network
     Should Not Contain  ${output}  --cpu
     Should Not Contain  ${output}  --cpu-shares
     Should Not Contain  ${output}  --memory
@@ -53,7 +52,6 @@ Inspect VCH Configuration with Resource Limitation
     Should Contain  ${output}  --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}
     Should Contain  ${output}  --bridge-network=%{BRIDGE_NETWORK}
-    Should Contain  ${output}  --public-network=VM Network
     Should Contain  ${output}  --memory-shares=6000
     Should Contain  ${output}  --memory-reservation=512
     Should Contain  ${output}  --memory=8000
@@ -107,4 +105,3 @@ Verify inspect output for a --no-tlsverify VCH
     Should Not Contain  ${output}  DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments
 
     Cleanup VIC Appliance On Test Server
-
