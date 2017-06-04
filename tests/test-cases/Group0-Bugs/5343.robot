@@ -22,10 +22,6 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Check vsphere event stream
-    ${status}=  Get State Of Github Issue  5343
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 5343.robot needs to be updated now that Issue #5343 has been resolved
-    Log  Issue \#5343 is blocking implementation  WARN
-
     # basic confirmation of function
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
