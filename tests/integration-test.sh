@@ -32,7 +32,9 @@ elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); t
 elif (echo $buildinfo | grep -q "\[specific ci="); then
     echo "Running specific CI as per commit message"
 	buildtype=$(echo $buildinfo | grep "\[specific ci=")
-    testsuite=$(echo $buildtype | awk -v FS="(=|])" '{print $2}')
+  echo "buildtype $buildtype"
+    testsuite=$(echo $buildtype | awk -v FS="(=|])" '{print $3}')
+  echo "testsuite $testsuite"
     pybot --removekeywords TAG:secret --suite $testsuite --suite 7-01-Regression tests/test-cases
 else
         echo "Running regressions"

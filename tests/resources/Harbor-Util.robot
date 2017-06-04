@@ -43,6 +43,8 @@ Install Harbor To Test Server
 
     Log To Console  \nDeploying ova...
     ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"='${network}' --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:db_password=${db_password} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://${user}:${password}@${host}'
+    Log To Console  ${out}
+    Log  ${out}
     Should Contain  ${out}  Received IP address:
     Should Not Contain  ${out}  None
 
