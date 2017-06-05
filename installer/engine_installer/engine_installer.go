@@ -134,7 +134,7 @@ func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions
 func (ei *EngineInstaller) buildCreateCommand(binaryPath string) {
 	var createCommand []string
 
-	createCommand = append(createCommand, binaryPath)
+	createCommand = append(createCommand, binaryPath+"/vic-machine-linux")
 	createCommand = append(createCommand, "create")
 	createCommand = append(createCommand, "--no-tlsverify")
 	createCommand = append(createCommand, fmt.Sprintf("--target %s", ei.Target))

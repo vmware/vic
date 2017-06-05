@@ -97,6 +97,7 @@ func (ls *LogStream) start() {
 			ls.send(fmt.Sprintf("Create failed with error: %v\n", err))
 		} else {
 			ls.send("Execution complete.")
+			ls.send("TODO: ADD TO ADMIRAL")
 		}
 	}
 }
