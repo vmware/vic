@@ -36,9 +36,8 @@ Pull image
 Wait Until Container Stops
     [Arguments]  ${container}
     :FOR  ${idx}  IN RANGE  0  60
-    \   ${out}=  Run  docker %{VCH-PARAMS} inspect ${container} | grep Status
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  exited
-    \   Return From Keyword If  ${status}
+    \   ${out}=  Run  docker %{VCH-PARAMS} inspect -f '{{.State.Running}}' ${container}
+    \   Return From Keyword If  '${out}' == 'false'
     \   Sleep  1
     Fail  Container did not stop within 60 seconds
 

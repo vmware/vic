@@ -1020,7 +1020,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "8bff8355d10c46dcac74d3d64b2d38740f9e3dcd",
+			"revision": "f4b81866f481347eab3a10b4f2a3e215f50bfa16",
 			"branch": "master"
 		},
 		{
