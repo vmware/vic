@@ -15,30 +15,61 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
+	"os"
+	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
-	rootDir       = "html"
 	publicNetName = "public-net"
 	bridgeNetName = "bridge-net"
 	imgStoreName  = "img-store"
 	computeName   = "compute"
-	port          = "8383"
 )
 
 var (
 	engineInstaller = NewEngineInstaller()
 )
 
+type config struct {
+	addr     string
+	cert     tls.Certificate
+	serveDir string
+}
+
+func Init(conf *config) {
+	ud := syscall.Getuid()
+	gd := syscall.Getgid()
+	log.Info(fmt.Sprintf("Current UID/GID = %d/%d", ud, gd))
+	/* TODO FIXME
+	if ud == 0 {
+	  log.Error("Error: must not run as root.")
+	  os.Exit(1)
+	}
+	*/
+
+	flag.StringVar(&conf.addr, "addr", ":1337", "Listen address - must include host and port (addr:port)")
+	flag.StringVar(&conf.serveDir, "data", "/opt/vmware/engine_installer", "Directory containing vic-machine and HTML data")
+
+	flag.Parse()
+
+	generateCert(conf)
+}
+
 func main() {
+	var c config
+	Init(&c)
+
 	defer trace.End(trace.Begin(""))
 	log.Infoln("starting installer-egine")
 
@@ -48,7 +79,7 @@ func main() {
 	routes := []string{"css", "images", "fonts"}
 	for _, route := range routes {
 		httpPath := fmt.Sprintf("/%s/", route)
-		dirPath := fmt.Sprintf("%s/%s/", rootDir, route)
+		dirPath := fmt.Sprintf("%s/html/%s/", c.serveDir, route)
 		mux.Handle(httpPath, http.StripPrefix(httpPath, http.FileServer(http.Dir(dirPath))))
 	}
 
@@ -58,8 +89,29 @@ func main() {
 	mux.Handle("/cmd", http.HandlerFunc(parseCmdArgs))
 
 	// start the web server
-	log.Infof("installer-engine listening on localhost:%s\n", port)
-	http.ListenAndServe(":"+port, mux)
+	t := &tls.Config{}
+	t.Certificates = []tls.Certificate{c.cert}
+	s := &http.Server{
+		Addr:      c.addr,
+		Handler:   mux,
+		TLSConfig: t,
+	}
+
+	log.Infof("Starting installer-engine server on %s", s.Addr)
+	log.Fatal(s.ListenAndServeTLS("", ""))
+}
+
+func generateCert(conf *config) {
+	c, k, err := certificate.CreateSelfSigned(conf.addr, []string{"VMware, Inc."}, 2048)
+	if err != nil {
+		log.Errorf("Failed to generate a self-signed certificate: %s. Exiting.", err.Error())
+		os.Exit(1)
+	}
+	conf.cert, err = tls.X509KeyPair(c.Bytes(), k.Bytes())
+	if err != nil {
+		log.Errorf("Failed to load generated self-signed certificate: %s. Exiting.", err.Error())
+		os.Exit(1)
+	}
 }
 
 func indexHandler(resp http.ResponseWriter, req *http.Request) {
@@ -115,6 +167,9 @@ func getSelectOptionHTML(arr []string, id string) template.HTML {
 }
 
 func renderTemplate(resp http.ResponseWriter, filename string, data interface{}) {
+	log.Infof("render: %s", filename)
+	filename = fmt.Sprintf("%s/%s", "/tmp/asdf", filename)
+	log.Infof("render: %s", filename)
 	tmpl, err := template.ParseFiles(filename)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
