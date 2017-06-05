@@ -148,6 +148,7 @@ groups:
     users:
       - jzt
       - gigawhitlocks
+      - sgairo
     conditions:
       files:
         include:
