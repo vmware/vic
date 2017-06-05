@@ -21,8 +21,8 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Basic attach
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox /bin/top
+    ${out}=  Run  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
@@ -35,8 +35,8 @@ Basic attach
     Should Be Empty  ${ret.stderr}
 
 Attach to stopped container
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    ${out}=  Run  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach ${out}
     Should Be Equal As Integers  ${rc}  1
@@ -53,8 +53,8 @@ Attach with short input
     ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     Should Be Equal As Integers  ${rc}  0
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox sort
+    ${out}=  Run  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i ${busybox} sort
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
     \     Start Process  docker %{VCH-PARAMS} start -ai ${containerID} < ${fifo}  shell=True  alias=custom
@@ -67,8 +67,8 @@ Attach with short input
     Run  rm -rf ${tmp}
 
 Attach with short output
-    Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox echo one
+    Run  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} echo one
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
@@ -76,8 +76,8 @@ Attach with short output
     \     Should Be Equal  ${output}  one
 
 Attach with short output with tty
-    Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t busybox echo one
+    Run  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t ${busybox} echo one
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
     \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
