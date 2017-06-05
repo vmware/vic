@@ -108,7 +108,7 @@ Upgrade VCH with Harbor On HTTP
 
 Upgrade VCH with Harbor On HTTPS
     Set Test Variable  ${harbor_name}  ${https_harbor_name}
-    ${ip}=  Install Harbor To Test Server  ${harbor_name}
+    ${ip}=  Install Harbor To Test Server  ${harbor_name}  https
     Set Test Variable  ${harbor_ip}  ${ip}
     Add Project On Registry  ${harbor_ip}  https
     ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
