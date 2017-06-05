@@ -50,7 +50,7 @@ We want to fail early in the case of issues mounting the volume.  Possible error
 The expectation is the error will be actionable by the user such that if it is a configuration issue related to networking or access, the user can either try the operation again with the right container network configuration, or contact the admin with the action item to allow access to the storage device.
 
 #### VolumeStore
-The `VolumeStore` interface is used by the storage layer to implement the volume storage layer on different backend implementations.  The currently (and only) implementation used by VIC is to manipulate vsphere `.vmdk` backed block devices on the Datastore.  We have create a similar implementation for `NFS` based volume stores.
+The `VolumeStore` interface is used by the storage layer to implement the volume storage layer on different backend implementations.  The current implementation used by VIC is to manipulate vsphere `.vmdk` backed block devices on the Datastore.  We have create a similar implementation for `NFS` based volume stores.
 
 The advantage to using the interface is the storage layer maintains consistency of the volumes regardless of the storage backend used.  For instance it checks all containers during `volume destroy` to see if the named volume is still referenced by another container (whether the container is powered `on` or `off`).
 
@@ -74,7 +74,7 @@ When we create the NFS `VolumeStore`, we'll store the NFS target parameters (`ho
 
 ```
 
-// VolumeStore this is nfs related volume store definition
+// VolumeStore stores nfs-related volume store information
 type VolumeStore struct {
 	// volume store name
 	Name string
@@ -82,7 +82,7 @@ type VolumeStore struct {
 	// Service is the interface to the nfs target.
 	Service MountServer
 
-	// Service selflink to volume store.
+	// SelfLink to volume store.
 	SelfLink *url.URL
 }
 
@@ -90,16 +90,16 @@ type VolumeStore struct {
 ```
 
 
-On creation the volume store target path is mount to the VCH and the volumes directory and metadata direectories are made under that target path. The client used is one that sits in the user space of the portlayer, this is from the vendored clientin our vendored code [For Reference](github.com/fdawg4l/go-nfs-client/nfs). This avoids the issue of The `linux` VFS implementation throwing `sync` errors when mounts are unavailable.
+On creation the volume store target path is mounted to the VCH and the volumes directory and metadata direectories are made under that target path. The client used is one that sits in the user space of the portlayer, this is from the vendored go-nfs client in our vendor directory [For Reference](github.com/fdawg4l/go-nfs-client/nfs). This avoids the issue of The `linux` VFS implementation throwing `sync` errors when mounts are unavailable.
 
-As for Containers the volume will be mounted during tether boot time, this is using the man 2 version of the nfs mount call found in the golang syscall package. Currently, the mount options are not configurable, there are plans to address this going forward as an improvement to the nfs volume implementation. These will be configurable by the VI admin at volume store creation time. They will be configured as query paramters for the url supplied as an nfs target. 
+In a container, the volume will be mounted during tether boot time, using the man (2) version of the nfs mount call found in the golang syscall package. Currently, the mount options are not configurable, there are plans to address this going forward as an improvement to the nfs volume implementation. These will be configurable by the VI admin at volume store creation time. They will be configured as query paramters for the url supplied as an nfs target. 
 
 Currently a decision must still be made on how we respond to failed mounts due to a target being unreachable at mount time. This is possible when the target endpoint goes down, or the network topology falls out from under the container. Currently, we have no bidirectional communication between the tether and the portlayer. The current option is to fail the launch of the container, though this is not optimal without returning an appropriate error message to the user(we want the user to be able to rectify the issue, or as above to be able to submit an actionable ticket to their vi admin).
 
 #### VolumeCreate
 In the vsphere model, a volume is a `.vmdk` backed block device.  Creation of a volume entails attaching a new disk to the VCH, preparing it with a filesystem, and detaching it.  The resulting `.vmdk` lives in its own folder in the volume store directory (specified during install w/ `vic-machine`).  We're going to follow the same model except there is nothing to prepare.  Each volume will be a directory (which the container client will mount directly) and live at the top of the volume store directory (which we will prepare during install).  We will create the directory for the volume content as well as a directory that sits next to the `volumes` directory. Under the `volumes` directory a directory named after the volume name will be made, that will be the mount target at tether mount time (this path will look like `<vs path>/volumes/<volume id>/<volume contents>`). Likewise, the metadata will be housed under a path denoted under a metadata directory and fetched along with the volume(this path will look like `<vs path>/metadata/<volume id>/dockerMetadata`, the file name is determined by the personality that makes the create request).
 
-Some pseudo code.
+Some pseudocode: 
 ```
 func VolumeCreate() {
 // volPath := vicVolumePath(nameOfVolume)
@@ -138,11 +138,11 @@ func VolumesList() {
 
  1. Create a VCH with an NFS backed `VolumeStore`, create a volume on the `VolumeStore`, create 2 containers with the volume attached, touch a file from the first container, verify it exists on the 2nd.  Destroy the 2nd container, attempt to destroy the volume and expect a failure.  Poweroff the first container, reattempt destroy of the volume, it should fail.  Then destroy the container and destroy the volume. 
  2. Create a VCH with a nonreachable NFS backed `VolumeStore`.  Check that vic-machine warns about the lack of creation of that volume store. Possibly check for the appropriate logging in the portlayer logs. 
- 3. Create a VCH with an NFS backed `VolumeStore`, create a volume on said store. Attach this volume to two different cotainers. Touch a file in the volume with container 1. Confirm that this file shows up in container 2. remove the VCH and confirm that the volume store is removed as well. 
- 4. Create a VCH with an NFS volume store. create a volume attach it to a container. touch a file to that container. Tear down the VCH. Create a new VCh with the same NFS volume store target. Check that the created volume is still there. Attach it to a container. Check that the touched file appears inside the volume. 
+ 3. Create a VCH with an NFS backed `VolumeStore`, create a volume on said store. Attach this volume to two different cotainers. Touch a file in the volume with container 1. Confirm that this file shows up in container 2. Remove the VCH and confirm that the volume store is removed as well. 
+ 4. Create a VCH with an NFS volume store. create a volume and attach it to a container. Touch a file inside the volume attached to that container. Tear down the VCH. Create a new VCh with the same NFS volume store target. Check that the created volume is still there. Attach it to a container. Check that the touched file appears inside the volume. 
  5. Create a volume store with multiple NFS Volume Stores. Create volumes on each store. Mount each of those volumes to the same container. Touch files to them. attach all volumes to a second container. Make sure that all touched files are present (multiple volume version of test 3)
  6. Create a VCH with an nfs volume store. Create a volume attach it to a running container. Attempt to remove the volume. Expect to get a `Volume in Use` error. 
- 7. Create a VCH with an nfs store tagged as the `default` store. Test all the functionalities of the anonymous volume functionality.(this will likely be multiple tests, there are already several tests for our vdmk based volume store to mirror from.)
+ 7. Create a VCH with an nfs store tagged as the `default store`. Test all the functionalities of the anonymous volume functionality (this will likely be multiple tests there are already several tests to mirror from our vmdk based volume store).
  
  Note: there are more tests, and these tests should also be added to the integration tests ticket.
  
@@ -159,6 +159,6 @@ The NFS volume store implementation has unit tests. These unit tests can be run 
  1. Should we allow for read-only volume store? - e.g. publishing datasets for consumption
     * Answer: Needs investigation.  What is RO here (the target or the directory) and what would the container user want to see or expect when such a target was used? This could involve us passing in more arguments at volume creation time. 
  1. Failure handling;  what do we do if a mount is unavailable, does the container go down?
-    * Answer:  Needs investigation.  We're relying on the kernel nfs client in the container to handle failures to the target.  There is little we can do during run-time, but we can check availability during container create at a minimum. This has been detailed further above. Currently, the result of an unavailable mount is a silent failure. This is actually detrimental to customers, if they do not check the status of their mounts manually(very unlikely) then it is very possible they will run a container believing that data is being persisted. [Tracking Ticket Reference](https://github.com/vmware/vic/issues/4850)
+    * Answer:  Needs investigation.  We're relying on the kernel nfs client in the container to handle failures to the target.  There is little we can do during run-time, but we can check availability during container create at a minimum. This has been detailed further above. Currently, the result of an unavailable mount is a silent failure. This is actually detrimental to customers, if they do not check the status of their mounts manually (very unlikely) then it is very possible they will run a container believing that data is being persisted. [Tracking Ticket Reference](https://github.com/vmware/vic/issues/4850)
  1. NFS target mount options-  How do you pass a `uid`/`gid` or `nosquash` mapping?  How do you map `uid`/`gid` to the container at all?
     * Answer:  Requirement and usage needs to be thought through at a higher level.  Mapping of users into containers and mapping of credentials into containers need to be solved in the system as a whole.  However things like `sync` and `retries` will be specified as a driver option invoked with `vic-machine`, and passed out of band to the container.  The container users will not be able to specify mount options specific to the target. Currently, `uid` and `gid` are supported via passing them in as query arguments when specifying the NFS volume store target. These are the only configurable options for now, more discussion will be needed surrounding how we want to handle allowing configuration at target creation time and volume creation time. It is likely that customer feedback( and seeing how customers want to use this) will help drive part of the architecture for mount options. 

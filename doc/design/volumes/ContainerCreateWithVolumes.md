@@ -17,7 +17,7 @@ docker create -v "/mnt/pnt:<some basic opts>"
 
 and 
 
-docker create -v "name:/mnt/pnt:<some basic opts>"
+docker create -v "<name>:/mnt/pnt:<some basic opts>"
 
 ```
 
@@ -28,9 +28,9 @@ Note: Most importantly from a vic-machine standpoint, A `default` store __must__
 + **mount path** is the destination of where the vdmk will be mounted inside the container. _This is required_ if it is the only value set the user is specifying an anonymous volume and we  generate a UUID as the name for the volume and this UUID is propagated to the volume metadata. 
 
 
-+ **name** is the value that will be listed a as the name of the volume and the md5 sum of this name will be used as the label for the block device and the target of the mount(portlayer join operation). If this is specified it must be validated. The name is also used to namespace out volumes within their respective volumestores. Because of this there is currently and issue out for having a VCH which ends up with two volumes having the same name, [Ticket with information](https://github.com/vmware/vic/issues/5173)
++ **name** is the value that will be listed a as the name of the volume and the md5 sum of this name will be used as the label for the block device and the target of the mount(portlayer join operation). If this is specified it must be validated. The name is also used to namespace volumes within their respective volumestores. Because of this there is currently and issue out for having a VCH which ends up with two volumes having the same name, [Ticket with information](https://github.com/vmware/vic/issues/5173)
 
-+ **general args** are as follows [rw|ro], [z|Z], [[r]shared|[r]slave|[r]private], and [nocopy]. These should be parsed and placed into the DriverArgs that are specified to the portlayer. right now we only support rw/ro. __TODO__ we do want to research the [no copy] option. Theses could possibly change in the future for our support depending on how we want to manage other types of volumes beside block based. 
++ **general args** are as follows [rw|ro], [z|Z], [[r]shared|[r]slave|[r]private], and [nocopy]. These should be parsed and placed into the DriverArgs that are specified to the portlayer. right now we only support rw/ro. __TODO__ we do want to research the [nocopy] option. Theses could possibly change in the future for our support depending on how we want to manage other types of volumes beside block based. 
 
 
 __NOTE:__ : in MountPoint for the volume metadata(docker perspective) we need to include something that says "Mountpoint is a block device" or something along those lines.
