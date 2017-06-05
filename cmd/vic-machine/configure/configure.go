@@ -118,16 +118,9 @@ func (c *Configure) processParams() error {
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
 
-	cNets, err := c.cNetworks.ProcessContainerNetworks()
+	c.ContainerNetworks, err = c.cNetworks.ProcessContainerNetworks()
 	if err != nil {
 		return err
-	}
-	for i := range cNets {
-		alias := cNets[i].NetAlias
-		c.MappedNetworks[alias] = cNets[i].VNet
-		c.MappedNetworksGateways[alias] = cNets[i].Gateways
-		c.MappedNetworksIPRanges[alias] = cNets[i].IPRanges
-		c.MappedNetworksDNS[alias] = cNets[i].DNS
 	}
 
 	return nil

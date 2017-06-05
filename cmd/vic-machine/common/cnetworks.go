@@ -26,7 +26,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 )
 
-// Container networks - mapped from vSphere
+// CNetworks holds user input from container network flags
 type CNetworks struct {
 	ContainerNetworks         cli.StringSlice `arg:"container-network"`
 	ContainerNetworksGateway  cli.StringSlice `arg:"container-network-gateway"`
@@ -35,16 +35,19 @@ type CNetworks struct {
 	IsSet                     bool
 }
 
-// CNetworkFields holds items returned by ProcessContainerNetworks for each
-// container network.
-type CNetworkFields struct {
-	// NetAlias is the network alias for use by docker
-	NetAlias string
-	// VNet is the vSphere network name
-	VNet     string
-	Gateways net.IPNet
-	IPRanges []ip.Range
-	DNS      []net.IP
+// ContainerNetworks holds container network data after processing
+type ContainerNetworks struct {
+	MappedNetworks         map[string]string     `cmd:"parent" label:"key-value"`
+	MappedNetworksGateways map[string]net.IPNet  `cmd:"gateway" label:"key-value"`
+	MappedNetworksIPRanges map[string][]ip.Range `cmd:"ip-range" label:"key-value"`
+	MappedNetworksDNS      map[string][]net.IP   `cmd:"dns" label:"key-value"`
+}
+
+func (c *ContainerNetworks) IsSet() bool {
+	return len(c.MappedNetworks) > 0 ||
+		len(c.MappedNetworksGateways) > 0 ||
+		len(c.MappedNetworksIPRanges) > 0 ||
+		len(c.MappedNetworksDNS) > 0
 }
 
 func (c *CNetworks) CNetworkFlags(hidden bool) []cli.Flag {
@@ -190,9 +193,14 @@ func (m *ipNetUnmarshaler) UnmarshalText(text []byte) error {
 }
 
 // ProcessContainerNetworks parses container network settings and returns a
-// slice of container network fields on success.
-func (c *CNetworks) ProcessContainerNetworks() ([]CNetworkFields, error) {
-	var cNets []CNetworkFields
+// struct containing all processed container network fields on success.
+func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
+	cNetworks := ContainerNetworks{
+		MappedNetworks:         make(map[string]string),
+		MappedNetworksGateways: make(map[string]net.IPNet),
+		MappedNetworksIPRanges: make(map[string][]ip.Range),
+		MappedNetworksDNS:      make(map[string][]net.IP),
+	}
 
 	if c.ContainerNetworks != nil || c.ContainerNetworksGateway != nil ||
 		c.ContainerNetworksIPRanges != nil || c.ContainerNetworksDNS != nil {
@@ -201,24 +209,24 @@ func (c *CNetworks) ProcessContainerNetworks() ([]CNetworkFields, error) {
 
 	gws, err := parseContainerNetworkGateways([]string(c.ContainerNetworksGateway))
 	if err != nil {
-		return nil, cli.NewExitError(err.Error(), 1)
+		return cNetworks, cli.NewExitError(err.Error(), 1)
 	}
 
 	pools, err := parseContainerNetworkIPRanges([]string(c.ContainerNetworksIPRanges))
 	if err != nil {
-		return nil, cli.NewExitError(err.Error(), 1)
+		return cNetworks, cli.NewExitError(err.Error(), 1)
 	}
 
 	dns, err := parseContainerNetworkDNS([]string(c.ContainerNetworksDNS))
 	if err != nil {
-		return nil, cli.NewExitError(err.Error(), 1)
+		return cNetworks, cli.NewExitError(err.Error(), 1)
 	}
 
-	// parse container networks
+	// Parse container networks
 	for _, cn := range c.ContainerNetworks {
 		vnet, v, err := splitVnetParam(cn)
 		if err != nil {
-			return nil, cli.NewExitError(err.Error(), 1)
+			return cNetworks, cli.NewExitError(err.Error(), 1)
 		}
 
 		alias := vnet
@@ -226,14 +234,10 @@ func (c *CNetworks) ProcessContainerNetworks() ([]CNetworkFields, error) {
 			alias = v
 		}
 
-		cNet := CNetworkFields{
-			NetAlias: alias,
-			VNet:     vnet,
-			Gateways: gws[vnet],
-			IPRanges: pools[vnet],
-			DNS:      dns[vnet],
-		}
-		cNets = append(cNets, cNet)
+		cNetworks.MappedNetworks[alias] = vnet
+		cNetworks.MappedNetworksGateways[alias] = gws[vnet]
+		cNetworks.MappedNetworksIPRanges[alias] = pools[vnet]
+		cNetworks.MappedNetworksDNS[alias] = dns[vnet]
 
 		delete(gws, vnet)
 		delete(pools, vnet)
@@ -265,8 +269,8 @@ func (c *CNetworks) ProcessContainerNetworks() ([]CNetworkFields, error) {
 		hasError = true
 	}
 	if hasError {
-		return nil, cli.NewExitError("Inconsistent container network configuration.", 1)
+		return cNetworks, cli.NewExitError("Inconsistent container network configuration.", 1)
 	}
 
-	return cNets, nil
+	return cNetworks, nil
 }

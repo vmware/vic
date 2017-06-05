@@ -118,8 +118,8 @@ func testInit(t *testing.T) {
 	assert.True(t, ok, fmt.Sprintf("ip.Range converter is not found"))
 	_, ok = typeConverters["data.NetworkConfig"]
 	assert.True(t, ok, fmt.Sprintf("data.NetworkConfig converter is not found"))
-	_, ok = typeConverters["data.ContainerNetworks"]
-	assert.True(t, ok, fmt.Sprintf("data.ContainerNetworks converter is not found"))
+	_, ok = typeConverters["common.ContainerNetworks"]
+	assert.True(t, ok, fmt.Sprintf("common.ContainerNetworks converter is not found"))
 
 	_, ok = labelHandlers[keyAfterValueLabel]
 	assert.True(t, ok, fmt.Sprintf("value-key handler is not found"))

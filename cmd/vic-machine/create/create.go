@@ -516,16 +516,10 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	cNets, err := c.containerNetworks.ProcessContainerNetworks()
+	var err error
+	c.ContainerNetworks, err = c.containerNetworks.ProcessContainerNetworks()
 	if err != nil {
 		return err
-	}
-	for i := range cNets {
-		alias := cNets[i].NetAlias
-		c.MappedNetworks[alias] = cNets[i].VNet
-		c.MappedNetworksGateways[alias] = cNets[i].Gateways
-		c.MappedNetworksIPRanges[alias] = cNets[i].IPRanges
-		c.MappedNetworksDNS[alias] = cNets[i].DNS
 	}
 
 	if err := c.processBridgeNetwork(); err != nil {

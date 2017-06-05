@@ -55,7 +55,7 @@ type Data struct {
 	ManagementNetwork NetworkConfig `cmd:"management-network"`
 	DNS               []net.IP      `cmd:"dns-server"`
 
-	ContainerNetworks `cmd:"container-network"`
+	common.ContainerNetworks `cmd:"container-network"`
 
 	VCHCPULimitsMHz       int               `cmd:"cpu"`
 	VCHCPUReservationsMHz int               `cmd:"cpu-reservation"`
@@ -93,20 +93,6 @@ type Data struct {
 type SyslogConfig struct {
 	Addr *url.URL `cmd:"address"`
 	Tag  string
-}
-
-type ContainerNetworks struct {
-	MappedNetworks         map[string]string     `cmd:"parent" label:"key-value"`
-	MappedNetworksGateways map[string]net.IPNet  `cmd:"gateway" label:"key-value"`
-	MappedNetworksIPRanges map[string][]ip.Range `cmd:"ip-range" label:"key-value"`
-	MappedNetworksDNS      map[string][]net.IP   `cmd:"dns" label:"key-value"`
-}
-
-func (c *ContainerNetworks) IsSet() bool {
-	return len(c.MappedNetworks) > 0 ||
-		len(c.MappedNetworksGateways) > 0 ||
-		len(c.MappedNetworksIPRanges) > 0 ||
-		len(c.MappedNetworksDNS) > 0
 }
 
 // NetworkConfig is used to set IP addr for each network
@@ -162,7 +148,7 @@ type InstallerData struct {
 func NewData() *Data {
 	d := &Data{
 		Target: common.NewTarget(),
-		ContainerNetworks: ContainerNetworks{
+		ContainerNetworks: common.ContainerNetworks{
 			MappedNetworks:         make(map[string]string),
 			MappedNetworksGateways: make(map[string]net.IPNet),
 			MappedNetworksIPRanges: make(map[string][]ip.Range),
@@ -202,7 +188,6 @@ container network settings and supply them along with new container networks`
 func (d *Data) copyContainerNetworks(src *Data) error {
 	// Any existing container networks and their related options must be specified
 	// while performing a configure operation.
-
 	errMsg := "Existing container-network %s:%s not specified in configure command"
 	for vicNet, vmNet := range d.ContainerNetworks.MappedNetworks {
 		if _, ok := src.ContainerNetworks.MappedNetworks[vicNet]; !ok {
