@@ -1,16 +1,16 @@
 Test 1-08 - Docker Logs
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker logs command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/logs/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC build 7315 to appliance to vSphere server
 2. Issue docker run -d busybox sh -c "echo These pretzels are making me thirsty"
 3. Issue docker logs <ID1>
@@ -45,7 +45,7 @@ This test requires that a vSphere server is running and available
 32. Issue docker logs
 33. Issue docker logs fakeContainer
 
-#Expected Outcome:
+# Expected Outcome:
 * Steps 1-3,5-7,9-29 should all complete without error
 * Step 3 should output "These pretzels are making me thirsty"
 * Step 4 should output "vSphere Integrated Containers does not yet support '--timestamps'"
@@ -71,5 +71,5 @@ Error: vSphere Integrated Containers does not yet support timestamped logs.
 Error: No such container: fakeContainer
 ```
 
-#Possible Problems:
+# Possible Problems:
 None

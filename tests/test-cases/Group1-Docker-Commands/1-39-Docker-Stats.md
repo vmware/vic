@@ -1,14 +1,14 @@
 Test 1-39 - Docker Stats
 =======
 
-#Purpose:
+# Purpose:
 To verify that `docker stats` is supported and works as expected.
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
 
-#Test Steps:
+# Test Steps:
 1. Run a busybox container and create a busybox container
 2. Run Stats no-stream for running container
 3. Run Stats with no-stream all which will return stats for running and stopped containers
@@ -18,7 +18,7 @@ This test requires that a vSphere server is running and available
 7. Run Stats with no-stream for a stopped container
 
 
-#Expected Outcome:
+# Expected Outcome:
 1. Fails if two containers are not created
 2. Return stats for a running container and validate memory -- will fail if there is a variation
    of greater than 5%
@@ -31,6 +31,6 @@ This test requires that a vSphere server is running and available
 
 
 
-#Possible Problems:
+# Possible Problems:
 Stats are created by the ESXi host every 20s -- if there are long pauses between calls
 in a single test the results could be incorrect and a failure could occur.

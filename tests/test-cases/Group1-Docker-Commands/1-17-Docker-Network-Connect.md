@@ -1,16 +1,16 @@
 Test 1-17 - Docker Network Connect
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker network connect command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/network_connect/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker network create test-network
 3. Issue docker create busybox ifconfig
@@ -49,7 +49,7 @@ This test requires that a vSphere server is running and available
 33. Get the above container's IP - ${ip}
 34. Issue docker run --net internal-net busybox ping -c2 ${ip}
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 4 should complete successfully
 * Step 6 should print the results of the ifconfig command and there should be two network interfaces in the container(eth0, eth1)
 * Step 7 should result in an error with the following message:  
@@ -74,5 +74,5 @@ Error response from daemon: network fakeNetwork not found
 * Steps 32-33 should return without errors
 * Step 34's output should contain "2 packets transmitted, 2 packets received"
 
-#Possible Problems:
+# Possible Problems:
 None

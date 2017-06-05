@@ -1,16 +1,16 @@
 Test 1-11 - Docker RM
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker rm command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/rm/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker create busybox dmesg to the VIC appliance
 3. Issue docker rm <containerID> to the VIC appliance
@@ -27,7 +27,7 @@ This test requires that a vSphere server is running and available
 14. Issue docker rm test to the VIC appliance
 15. Issue docker rm to container created with an unknown executable
 
-#Expected Outcome:
+# Expected Outcome:
 * Steps 2-8,12,15 should complete without error
 * Step 3,6,10 should result in the container being removed from the VIC appliance
 * Step 9 should result in the following error:  
@@ -43,5 +43,5 @@ Error response from daemon: No such container: fakeContainer
 Error response from daemon: No such container: test
 ```
 
-#Possible Problems:
+# Possible Problems:
 None

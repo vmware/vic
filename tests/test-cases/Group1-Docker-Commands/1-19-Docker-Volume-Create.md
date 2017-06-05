@@ -1,16 +1,16 @@
 Test 1-19 - Docker Volume Create
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker volume create command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/volume_create/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker volume create to the VIC appliance
 3. Issue docker volume create --name=test to the VIC appliance
@@ -28,7 +28,7 @@ This test requires that a vSphere server is running and available
 15. Create container with a named volume and verify that base image files are copied to the named volume
 16. Create container with a named volume. Modify the copied image file. Remount the volume in a new container.
 
-#Expected Outcome:
+# Expected Outcome:
 * Steps 2 and 3 should complete successfully and return the name of the volume created, you should then be able to see the volume has been created
 * Step 4 should result in error with the following error message:
 ```
@@ -56,5 +56,5 @@ Error response from daemon: create test???: "test???" includes invalid character
 * Step 15 should result in success and print data in the volume
 * Step 16 should result in success and the second container should contain the modified file contents
 
-#Possible Problems:
+# Possible Problems:
 * VIC requires you to specify storage on creation of the VCH that volumes can be created from, so when installing the VCH make sure to specify this parameter: --volume-store=
