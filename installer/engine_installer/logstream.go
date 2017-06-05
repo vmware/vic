@@ -31,7 +31,7 @@ import (
 
 const (
 	// time to wait for ws writes
-	waitTime = time.Second * 5
+	waitTime = time.Minute * 3
 )
 
 var (
@@ -103,7 +103,6 @@ func (ls *LogStream) start() {
 
 func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
-	//defer ls.ws.Close()
 
 	//turn http requests into websockets
 	upgrader := websocket.Upgrader{}
@@ -116,6 +115,7 @@ func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
 
 	//set logstrem websocket for use by start() and send()
 	ls.ws = ws
+	defer ls.ws.Close()
 
 	//create the command
 	ls.setCmd(engineInstaller.CreateCommand)

@@ -70,6 +70,7 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 		engineInstaller.User = req.FormValue("user")
 		engineInstaller.Password = req.FormValue("password")
 		engineInstaller.Name = req.FormValue("name")
+		engineInstaller.Thumbprint = req.FormValue("thumbprint")
 
 		//build the vic create command from the installer variables
 		engineInstaller.buildCreateCommand()

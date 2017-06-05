@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"strings"
 )
 
 var (
@@ -39,7 +40,7 @@ type EnginerInstallerHTML struct {
 	ComputeResource template.HTML
 }
 
-// EngineInstaller represents all options to be passed to the vic-machine create command
+//
 type EngineInstaller struct {
 	BridgeNetwork   string
 	PublicNetwork   string
@@ -49,6 +50,7 @@ type EngineInstaller struct {
 	User            string
 	Password        string
 	Name            string
+	Thumbprint      string
 	CreateCommand   string
 }
 
@@ -67,16 +69,20 @@ func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions
 
 func (ei *EngineInstaller) buildCreateCommand() {
 	gopath := os.Getenv("GOPATH")
-	createCommand := gopath + "/src/github.com/vmware/vic/bin/vic-machine-linux create --no-tlsverify"
+	var createCommand []string
 
-	createCommand = fmt.Sprintf("%s --target=%q", createCommand, ei.Target)
-	createCommand = fmt.Sprintf("%s --user=%q", createCommand, ei.User)
-	createCommand = fmt.Sprintf("%s --password=%q", createCommand, ei.Password)
-	createCommand = fmt.Sprintf("%s --name=%q", createCommand, ei.Name)
-	createCommand = fmt.Sprintf("%s --public-network=%q", createCommand, ei.PublicNetwork)
-	createCommand = fmt.Sprintf("%s --bridge-network=%q", createCommand, ei.BridgeNetwork)
-	createCommand = fmt.Sprintf("%s --compute-resource=%q", createCommand, ei.ComputeResource)
-	createCommand = fmt.Sprintf("%s --image-store=%q", createCommand, ei.ImageStore)
+	createCommand = append(createCommand, gopath+"/src/github.com/vmware/vic/bin/vic-machine-linux")
+	createCommand = append(createCommand, "create")
+	createCommand = append(createCommand, "--no-tlsverify")
+	createCommand = append(createCommand, fmt.Sprintf("--target %s", ei.Target))
+	createCommand = append(createCommand, fmt.Sprintf("--user %s", ei.User))
+	createCommand = append(createCommand, fmt.Sprintf("--password %s", ei.Password))
+	createCommand = append(createCommand, fmt.Sprintf("--name %s", ei.Name))
+	createCommand = append(createCommand, fmt.Sprintf("--public-network %s", ei.PublicNetwork))
+	createCommand = append(createCommand, fmt.Sprintf("--bridge-network %s", ei.BridgeNetwork))
+	createCommand = append(createCommand, fmt.Sprintf("--compute-resource %s", ei.ComputeResource))
+	createCommand = append(createCommand, fmt.Sprintf("--image-store %s", ei.ImageStore))
+	createCommand = append(createCommand, fmt.Sprintf("--thumbprint %s", ei.Thumbprint))
 
-	ei.CreateCommand = createCommand
+	ei.CreateCommand = strings.Join(createCommand, " ")
 }
