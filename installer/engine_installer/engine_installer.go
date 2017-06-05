@@ -24,12 +24,14 @@ var (
 	engineInstaller = NewEngineInstaller()
 )
 
+// EngineInstallerConfigOptions contains resource options for selection by user in options.html
 type EngineInstallerConfigOptions struct {
 	Networks      []string
 	Datastores    []string
 	ResourcePools []string
 }
 
+// EnginerInstallerHTML contains html select boxes for use in options.html template
 type EnginerInstallerHTML struct {
 	BridgeNetwork   template.HTML
 	PublicNetwork   template.HTML
@@ -37,6 +39,7 @@ type EnginerInstallerHTML struct {
 	ComputeResource template.HTML
 }
 
+// EngineInstaller represents all options to be passed to the vic-machine create command
 type EngineInstaller struct {
 	BridgeNetwork   string
 	PublicNetwork   string
@@ -49,6 +52,7 @@ type EngineInstaller struct {
 	CreateCommand   string
 }
 
+// NewEngineInstaller returns a new EngineInstaller struct with empty parameters
 func NewEngineInstaller() *EngineInstaller {
 	return &EngineInstaller{}
 }
@@ -65,14 +69,14 @@ func (ei *EngineInstaller) buildCreateCommand() {
 	gopath := os.Getenv("GOPATH")
 	createCommand := gopath + "/src/github.com/vmware/vic/bin/vic-machine-linux create --no-tlsverify"
 
-	createCommand = fmt.Sprintf("%s --target=%s", createCommand, ei.Target)
-	createCommand = fmt.Sprintf("%s --user=%s", createCommand, ei.User)
-	createCommand = fmt.Sprintf("%s --password=%s", createCommand, ei.Password)
-	createCommand = fmt.Sprintf("%s --name=%s", createCommand, ei.Name)
-	createCommand = fmt.Sprintf("%s --public-network=%s", createCommand, ei.PublicNetwork)
-	createCommand = fmt.Sprintf("%s --bridge-network=%s", createCommand, ei.BridgeNetwork)
-	createCommand = fmt.Sprintf("%s --compute-resource=%s", createCommand, ei.ComputeResource)
-	createCommand = fmt.Sprintf("%s --image-store=%s", createCommand, ei.ImageStore)
+	createCommand = fmt.Sprintf("%s --target=%q", createCommand, ei.Target)
+	createCommand = fmt.Sprintf("%s --user=%q", createCommand, ei.User)
+	createCommand = fmt.Sprintf("%s --password=%q", createCommand, ei.Password)
+	createCommand = fmt.Sprintf("%s --name=%q", createCommand, ei.Name)
+	createCommand = fmt.Sprintf("%s --public-network=%q", createCommand, ei.PublicNetwork)
+	createCommand = fmt.Sprintf("%s --bridge-network=%q", createCommand, ei.BridgeNetwork)
+	createCommand = fmt.Sprintf("%s --compute-resource=%q", createCommand, ei.ComputeResource)
+	createCommand = fmt.Sprintf("%s --image-store=%q", createCommand, ei.ImageStore)
 
 	ei.CreateCommand = createCommand
 }

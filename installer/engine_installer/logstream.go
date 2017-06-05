@@ -25,6 +25,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/websocket"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -39,11 +40,13 @@ var (
 	logStream = NewLogStream()
 )
 
+// LogStream streams a command's execution over a websocket connection
 type LogStream struct {
 	cmd *exec.Cmd
 	ws  *websocket.Conn
 }
 
+// NewLogStream returns an empty LogSream struct (no ws connection or exec command)
 func NewLogStream() *LogStream {
 	return &LogStream{}
 }

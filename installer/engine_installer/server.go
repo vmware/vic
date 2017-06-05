@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 
