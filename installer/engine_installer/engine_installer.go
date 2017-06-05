@@ -15,7 +15,6 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"os"
 	"strings"
@@ -28,10 +27,6 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 )
 
-var (
-	engineInstaller = NewEngineInstaller()
-)
-
 // EngineInstallerConfigOptions contains resource options for selection by user in options.html
 type EngineInstallerConfigOptions struct {
 	Networks      []string
@@ -39,20 +34,30 @@ type EngineInstallerConfigOptions struct {
 	ResourcePools []string
 }
 
-// EnginerInstallerHTML contains html select boxes for use in options.html template
-type EnginerInstallerHTML struct {
+// EngineInstaller contains all options to be used in the vic-machine create command
+type EngineInstaller struct {
+	BridgeNetwork   string `json:"bridge-net"`
+	PublicNetwork   string `json:"public-net"`
+	ImageStore      string `json:"img-store"`
+	ComputeResource string `json:"compute"`
+	Target          string `json:"target"`
+	User            string `json:"user"`
+	Password        string `json:"password"`
+	Name            string `json:"name"`
+	Thumbprint      string `json:"thumbprint"`
+	CreateCommand   string
+}
+
+// AutHTML holds the invalid login variable
+type AuthHTML struct {
+	InvalidLogin bool
+}
+
+type ExecHTMLOptions struct {
 	BridgeNetwork   template.HTML
 	PublicNetwork   template.HTML
 	ImageStore      template.HTML
 	ComputeResource template.HTML
-}
-
-//
-type EngineInstaller struct {
-	BridgeNetwork   string
-	PublicNetwork   string
-	ImageStore      string
-	ComputeResource string
 	Target          string
 	User            string
 	Password        string
@@ -61,16 +66,69 @@ type EngineInstaller struct {
 	CreateCommand   string
 }
 
+var (
+	validator *validate.Validator
+)
+
 // NewEngineInstaller returns a new EngineInstaller struct with empty parameters
 func NewEngineInstaller() *EngineInstaller {
-	return &EngineInstaller{}
+	return &EngineInstaller{Name: "defualt-vch"}
 }
 
 func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions {
+
+	vc := validator.IsVC()
+	fmt.Printf("Is VC: %t\n", vc)
+
+	dcs, err := validator.ListDatacenters()
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	for _, d := range dcs {
+		fmt.Printf("DC: %s\n", d)
+	}
+
+	comp, err := validator.ListComputeResource()
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	for _, c := range comp {
+		fmt.Printf("compute: %s\n", c)
+	}
+
+	rp, err := validator.ListResourcePool("*")
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	for _, p := range rp {
+		fmt.Printf("rp: %s\n", p)
+	}
+
+	nets, err := validator.ListNetworks(!vc) // set to false for vC
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	for _, n := range nets {
+		fmt.Printf("net: %s\n", n)
+	}
+
+	dss, err := validator.ListDatastores()
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	for _, d := range dss {
+		fmt.Printf("ds: %s\n", d)
+	}
+
 	return &EngineInstallerConfigOptions{
-		Networks:      []string{"1", "2", "3"},
-		Datastores:    []string{"4", "5", "6"},
-		ResourcePools: []string{"7", "8", "9"},
+		Networks:      nets,
+		Datastores:    dss,
+		ResourcePools: rp,
 	}
 }
 
@@ -94,22 +152,14 @@ func (ei *EngineInstaller) buildCreateCommand() {
 	ei.CreateCommand = strings.Join(createCommand, " ")
 }
 
-func init() {
-	fmt.Println("hello world")
-
+func (ei *EngineInstaller) verifyLogin() error {
 	ctx := context.TODO()
 
-	username := "administrator@vsphere.local"
-	password := "Admin!23"
-	//username := "root"
-	//password := "password"
-
 	var u url.URL
-	u.User = url.UserPassword(username, password)
-	//u.Host = "192.168.1.86"
-	u.Host = "10.192.200.209"
+	u.User = url.UserPassword(ei.User, ei.Password)
+	u.Host = ei.Target
 	u.Path = ""
-	fmt.Printf("server URL: %s\n", u)
+	fmt.Printf("server URL: %v\n", u)
 
 	input := data.NewData()
 
@@ -119,60 +169,19 @@ func init() {
 	input.URL = &u
 	input.Force = true
 
-	input.User = username
+	input.User = u.User.Username()
 	input.Password = &passwd
 
-	validator, err := validate.NewValidator(ctx, input)
+	v, err := validate.NewValidator(ctx, input)
 	if err != nil {
 		fmt.Printf("validator: %s", err)
-		return
+		return err
 	}
+	// if !v.IsVC() {
+	// 	fmt.Printf("validator : %v\n", v)
+	// 	return errors.New("target is not a vCenter instance")
+	// }
+	validator = v
 
-	vc := validator.IsVC()
-	fmt.Printf("Is VC: %t\n", vc)
-
-	dcs, err := validator.ListDatacenters()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	for _, d := range dcs {
-		fmt.Printf("DC: %s\n", d)
-	}
-
-	comp, err := validator.ListComputeResource()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	for _, c := range comp {
-		fmt.Printf("compute: %s\n", c)
-	}
-
-	rp, err := validator.ListResourcePool("*")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	for _, p := range rp {
-		fmt.Printf("rp: %s\n", p)
-	}
-
-	nets, err := validator.ListNetworks(!vc) // set to false for vC
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	for _, n := range nets {
-		fmt.Printf("net: %s\n", n)
-	}
-
-	dss, err := validator.ListDatastores()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	for _, d := range dss {
-		fmt.Printf("ds: %s\n", d)
-	}
+	return nil
 }

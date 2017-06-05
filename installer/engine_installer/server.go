@@ -15,6 +15,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -31,6 +32,10 @@ const (
 	imgStoreName  = "img-store"
 	computeName   = "compute"
 	port          = "8383"
+)
+
+var (
+	engineInstaller = NewEngineInstaller()
 )
 
 func main() {
@@ -50,6 +55,7 @@ func main() {
 	// attach root index route
 	mux.Handle("/", http.HandlerFunc(indexHandler))
 	mux.Handle("/ws", http.HandlerFunc(logStream.wsServer))
+	mux.Handle("/cmd", http.HandlerFunc(parseCmdArgs))
 
 	// start the web server
 	log.Infof("installer-engine listening on localhost:%s\n", port)
@@ -60,42 +66,43 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
 	if req.Method == http.MethodPost {
+		// verify login
 
-		//add posted variables to the installer
-		engineInstaller.PublicNetwork = req.FormValue(publicNetName)
-		engineInstaller.BridgeNetwork = req.FormValue(bridgeNetName)
-		engineInstaller.ImageStore = req.FormValue(imgStoreName)
-		engineInstaller.ComputeResource = req.FormValue(computeName)
 		engineInstaller.Target = req.FormValue("target")
 		engineInstaller.User = req.FormValue("user")
 		engineInstaller.Password = req.FormValue("password")
-		engineInstaller.Name = req.FormValue("name")
-		engineInstaller.Thumbprint = req.FormValue("thumbprint")
+		if err := engineInstaller.verifyLogin(); err != nil {
+			// login failed so show login form again
+			renderTemplate(resp, "html/auth.html", &AuthHTML{InvalidLogin: true})
+		} else {
+			// vCenter login successful, set resource drop downs
+			opts := engineInstaller.populateConfigOptions()
+			html := &ExecHTMLOptions{}
 
-		//build the vic create command from the installer variables
-		engineInstaller.buildCreateCommand()
-		log.Infoln(engineInstaller)
+			//add bridge select box to html template
+			html.PublicNetwork = getSelectOptionHTML(opts.Networks, publicNetName)
 
-		renderTemplate(resp, "html/exec.html", engineInstaller)
+			//add bridge select box to html template
+			html.BridgeNetwork = getSelectOptionHTML(opts.Networks, bridgeNetName)
+
+			//add datastores select box to html template
+			html.ImageStore = getSelectOptionHTML(opts.Datastores, imgStoreName)
+
+			//add compute resources select box to html template
+			html.ComputeResource = getSelectOptionHTML(opts.ResourcePools, computeName)
+
+			html.User = engineInstaller.User
+			html.Password = engineInstaller.Password
+			html.Target = engineInstaller.Target
+			html.Name = engineInstaller.Name
+			html.Thumbprint = engineInstaller.Thumbprint
+			html.CreateCommand = engineInstaller.CreateCommand
+
+			renderTemplate(resp, "html/exec.html", html)
+		}
 	} else {
-		opts := engineInstaller.populateConfigOptions()
-		html := &EnginerInstallerHTML{}
-
-		//add bridge select box to html template
-		html.PublicNetwork = getSelectOptionHTML(opts.Networks, publicNetName)
-
-		//add bridge select box to html template
-		html.BridgeNetwork = getSelectOptionHTML(opts.Networks, bridgeNetName)
-
-		//add datastores select box to html template
-		html.ImageStore = getSelectOptionHTML(opts.Datastores, imgStoreName)
-
-		//add compute resources select box to html template
-		html.ComputeResource = getSelectOptionHTML(opts.ResourcePools, computeName)
-
-		renderTemplate(resp, "html/options.html", html)
+		renderTemplate(resp, "html/auth.html", nil)
 	}
-
 }
 
 func getSelectOptionHTML(arr []string, id string) template.HTML {
@@ -115,4 +122,24 @@ func renderTemplate(resp http.ResponseWriter, filename string, data interface{})
 	if err := tmpl.Execute(resp, data); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func parseCmdArgs(resp http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
+	defer req.Body.Close()
+
+	if err := json.NewDecoder(req.Body).Decode(&engineInstaller); err != nil {
+		resp.WriteHeader(500)
+		resp.Write([]byte("500"))
+		if e, ok := err.(*json.SyntaxError); ok {
+			log.Printf("syntax error at byte offset %v", e)
+		}
+	} else {
+		//build the vic create command from the installer variables
+		engineInstaller.buildCreateCommand()
+		log.Infoln(engineInstaller)
+		resp.WriteHeader(200)
+		resp.Write([]byte(engineInstaller.CreateCommand))
+	}
+
 }
