@@ -113,7 +113,7 @@ func TestCreateAndDetach(t *testing.T) {
 		Datastore: client.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
-	parent, err := vdm.Create(op, scratch, diskSize)
+	parent, err := vdm.Create(op, scratch, diskSize, Ext4)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -131,7 +131,7 @@ func TestCreateAndDetach(t *testing.T) {
 			Path:      path.Join(imagestore.Path, fmt.Sprintf("child%d.vmdk", i)),
 		}
 
-		child, cerr := vdm.CreateAndAttach(op, p, parent.DatastoreURI, 0, os.O_RDWR)
+		child, cerr := vdm.CreateAndAttach(op, p, parent.DatastoreURI, 0, os.O_RDWR, Ext4)
 		if !assert.NoError(t, cerr) {
 			return
 		}

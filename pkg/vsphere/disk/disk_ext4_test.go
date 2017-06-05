@@ -82,7 +82,7 @@ func TestCreateFS(t *testing.T) {
 		Datastore: client.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
-	d, err := vdm.CreateAndAttach(op, scratch, nil, diskSize, os.O_RDWR)
+	d, err := vdm.CreateAndAttach(op, scratch, nil, diskSize, os.O_RDWR, Ext4)
 	if !assert.NoError(t, err) {
 		return
 	}

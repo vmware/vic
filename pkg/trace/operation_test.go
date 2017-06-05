@@ -34,7 +34,7 @@ func TestContextUnpack(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(cnt)
 	for i := 0; i < cnt; i++ {
-		go func() {
+		go func(i int) {
 			defer wg.Done()
 			ctx := NewOperation(context.TODO(), "testmsg")
 
@@ -45,7 +45,7 @@ func TestContextUnpack(t *testing.T) {
 				return
 			}
 			c.Infof("test info message %d", i)
-		}()
+		}(i) // fix race in test
 	}
 	wg.Wait()
 }
