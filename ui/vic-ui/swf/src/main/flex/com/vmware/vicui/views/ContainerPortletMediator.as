@@ -77,9 +77,9 @@ package com.vmware.vicui.views {
 			   //set default placeholder data
 			   _view.isContainer = new Boolean(false);
 			   _view.hasPortmappingInfo = new Boolean(false);
-			   _view.containerName.text = new String("-");
-			   _view.imageName.text = new String("-");
-			   _view.portmappingInfo.text = new String("-");
+			   _view.containerName.text = new String(AppConstants.PLACEHOLDER_VAL);
+			   _view.imageName.text = new String(AppConstants.PLACEHOLDER_VAL);
+			   _view.portmappingInfo.text = new String(AppConstants.PLACEHOLDER_VAL);
 
 			   if (result != null) {
 				   
@@ -129,9 +129,9 @@ package com.vmware.vicui.views {
 		      // clear the UI data
 			   _view.isContainer = false;
 			   _view.hasPortmappingInfo = false;
-			   _view.containerName.text = new String("-");
-			   _view.imageName.text = new String("-");
-			   _view.portmappingInfo.text = new String("-");
+			   _view.containerName.text = new String(AppConstants.PLACEHOLDER_VAL);
+			   _view.imageName.text = new String(AppConstants.PLACEHOLDER_VAL);
+			   _view.portmappingInfo.text = new String(AppConstants.PLACEHOLDER_VAL);
 		   }
 	   }
 	}
