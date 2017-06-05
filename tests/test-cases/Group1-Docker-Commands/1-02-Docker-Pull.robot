@@ -20,37 +20,37 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Pull nginx
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${nginx}
 
 Pull busybox
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  busybox
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${busybox}
 
 Pull ubuntu
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ubuntu
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${ubuntu}
 
 Pull non-default tag
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx:alpine
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${nginx}:${alpine}
 
 Pull images based on digest
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${nginx}@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  No such image:
     Should Contain  ${output}  Digest: sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
-    Should Contain  ${output}  Status: Downloaded newer image for library/nginx:sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
+    Should Contain  ${output}  Status: Downloaded newer image for library/${nginx}:sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  No such image:
     Should Contain  ${output}  Digest: sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
-    Should Contain  ${output}  Status: Downloaded newer image for library/ubuntu:sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
+    Should Contain  ${output}  Status: Downloaded newer image for library/${ubuntu}:sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
 
 Pull an image with the full docker registry URL
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
 
 Pull an image with all tags
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags nginx
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags ${nginx}
 
 Pull non-existent image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadimage
@@ -59,27 +59,27 @@ Pull non-existent image
     Should contain  ${output}  image library/fakebadimage not found
 
 Pull image from non-existent repo
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadrepo.com:9999/ubuntu
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadrepo.com:9999/${ubuntu}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  no such host
 
 Pull image with a tag that doesn't exist
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:faketag
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}:faketag
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Tag faketag not found in repository library/busybox
+    Should Contain  ${output}  Tag faketag not found in repository library/${busybox}
 
 Pull image that already has been pulled
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  alpine
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  alpine
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${alpine}
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${alpine}
 
 Pull the same image concurrently
     ${pids}=  Create List
 
     # Create 5 processes to pull the same image at once
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} pull redis  shell=True
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} pull ${redis}  shell=True
     \   Append To List  ${pids}  ${pid}
 
     # Wait for them to finish and check their output
@@ -88,7 +88,7 @@ Pull the same image concurrently
     \   Log  ${res.stdout}
     \   Log  ${res.stderr}
     \   Should Be Equal As Integers  ${res.rc}  0
-    \   Should Contain  ${res.stdout}  Downloaded newer image for library/redis:latest
+    \   Should Contain  ${res.stdout}  Downloaded newer image for library/${redis}:latest
 
 Pull two images that share layers concurrently
      ${pid1}=  Start Process  docker %{VCH-PARAMS} pull golang:1.7  shell=True
@@ -103,13 +103,13 @@ Pull two images that share layers concurrently
     Should Contain  ${res2.stdout}  Downloaded newer image for library/golang:1.6
 
 Re-pull a previously rmi'd image
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images |grep ubuntu
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images |grep ${ubuntu}
     ${words}=  Split String  ${output}
     ${id}=  Get From List  ${words}  2
     ${size}=  Get From List  ${words}  -2
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ubuntu
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ubuntu
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images |grep ubuntu
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${ubuntu}
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${ubuntu}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images |grep ${ubuntu}
     ${words}=  Split String  ${output}
     ${newid}=  Get From List  ${words}  2
     ${newsize}=  Get From List  ${words}  -2
@@ -117,9 +117,9 @@ Re-pull a previously rmi'd image
     Should Be Equal  ${size}  ${newsize}
 
 Pull image by multiple tags
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  busybox:1.25.1
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  busybox:1.25
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images |grep -E busybox.*1.25
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${busybox}:1.25.1
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${busybox}:1.25
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images |grep -E ${busybox}.*1.25
     Should Be Equal As Integers  ${rc}  0
     ${lines}=  Split To Lines  ${output}
     # one for 1.25.1 and one for 1.25
@@ -136,13 +136,13 @@ Issue docker pull on digest outputted by previous pull
     ${status}=  Get State Of Github Issue  5187
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-02-Docker-Pull.robot needs to be updated now that Issue #5187 has been resolved
 
-    # ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox | grep Digest | awk '{print $2}'
+    # ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi ${busybox}
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox} | grep Digest | awk '{print $2}'
     # Log  ${output}
     # Should Be Equal As Integers  ${rc}  0
     # Should Not Be Empty  ${output}
-    # ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox@${output}
+    # ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi ${busybox}
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}@${output}
     # Log  ${output}
     # Should Be Equal As Integers  ${rc}  0
     # Should Contain  ${output}  Downloaded

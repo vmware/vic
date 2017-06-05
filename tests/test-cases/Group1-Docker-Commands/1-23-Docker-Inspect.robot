@@ -20,26 +20,26 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple docker inspect of image
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
     ${id}=  Get From Dictionary  ${output[0]}  Id
 
 Docker inspect image specifying type
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=image busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=image ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
     ${id}=  Get From Dictionary  ${output[0]}  Id
 
 Docker inspect image specifying incorrect type
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=container busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=container ${busybox}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error: No such container: busybox
+    Should Contain  ${output}  Error: No such container: ${busybox}
 
 Simple docker inspect of container
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
     Should Be Equal As Integers  ${rc}  0
@@ -47,7 +47,7 @@ Simple docker inspect of container
     ${id}=  Get From Dictionary  ${output[0]}  Id
 
 Docker inspect container specifying type
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=container ${container}
     Should Be Equal As Integers  ${rc}  0
@@ -55,19 +55,19 @@ Docker inspect container specifying type
     ${id}=  Get From Dictionary  ${output[0]}  Id
 
 Docker inspect container check cmd and image name
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/bash
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/bash
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
     ${config}=  Get From Dictionary  ${output[0]}  Config
     ${image}=  Get From Dictionary  ${config}  Image
-    Should Contain  ${image}  busybox
+    Should Contain  ${image}  ${busybox}
     ${cmd}=  Get From Dictionary  ${config}  Cmd
     Should Be Equal As Strings  ${cmd}  [u'/bin/bash']
 
 Docker inspect container specifying incorrect type
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=image ${container}
     Should Be Equal As Integers  ${rc}  1
@@ -78,7 +78,7 @@ Docker inspect container with multiple networks
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create net-two
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=two-net-test --net=net-one busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=two-net-test --net=net-one ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect net-two two-net-test
     Should Be Equal As Integers  ${rc}  0
@@ -95,17 +95,17 @@ Docker inspect invalid object
     Should Contain  ${output}  Error: No such object: fake
 
 Docker inspect non-nil volume
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=test-with-volume -v /var/lib/test busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=test-with-volume -v /var/lib/test ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Config.Volumes}}' test-with-volume
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${out}  /var/lib/test
 
 Inspect RepoDigest is valid
-    ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi busybox
-    ${rc}  ${busybox_digest}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox | grep Digest | awk '{print $2}'
+    ${rc}  Run And Return Rc  docker %{VCH-PARAMS} rmi ${busybox}
+    ${rc}  ${busybox_digest}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox} | grep Digest | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
     Should Not Be Empty  ${busybox_digest}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.RepoDigests}}' busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.RepoDigests}}' ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox_digest}
