@@ -29,7 +29,7 @@ Simple volume ls
     Should Contain  ${output}  testVol
     Should Contain  ${output}  DRIVER
     Should Contain  ${output}  VOLUME NAME
-    
+
 Volume ls quiet
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls -q
     Should Be Equal As Integers  ${rc}  0
@@ -46,7 +46,7 @@ Volume ls invalid filter
 Volume ls filter by dangling
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=danglingVol
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v testVol:/test busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v testVol:/test ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls -f dangling=true
     Should Be Equal As Integers  ${rc}  0

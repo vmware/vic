@@ -29,17 +29,17 @@ Assert VM Power State
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  ${state}
 
 Create several containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox ls
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} ls
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container2}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container1}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container3}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox dmesg
+    ${rc}  ${container3}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} dmesg
     Should Be Equal As Integers  ${rc}  0
     ${container2shortID}=  Get container shortID  ${container2}
     Wait Until VM Powers Off  *-${container2shortID}*
@@ -98,7 +98,7 @@ Docker ps all containers
     Length Should Be  ${output}  ${len+3}
 
 Docker ps powerOn container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name jojo busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name jojo ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -q
     Should Be Equal As Integers  ${rc}  0
@@ -110,7 +110,7 @@ Docker ps powerOn container OOB
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len+1}
 
 Docker ps powerOff container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name koko busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name koko ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start koko
     Should Be Equal As Integers  ${rc}  0
@@ -124,21 +124,21 @@ Docker ps powerOff container OOB
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}
 
 Docker ps ports output
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 nginx
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  :8000->80/tcp
     Should Contain  ${output}  :8443->443/tcp
 
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 ${redis}:${alpine}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ->6379/tcp
 
 Docker ps Remove container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name lolo busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name lolo ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start lolo
     Should Be Equal As Integers  ${rc}  0
@@ -163,15 +163,15 @@ Docker ps Remove container OOB
 Docker ps last container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -l
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  redis
+    Should Contain  ${output}  ${redis}
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
 Docker ps two containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -n=2
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  redis
-    Should Contain  ${output}  nginx
+    Should Contain  ${output}  ${redis}
+    Should Contain  ${output}  ${nginx}
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  3
 
@@ -179,7 +179,7 @@ Docker ps last container with size
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  SIZE
-    Should Contain  ${output}  redis
+    Should Contain  ${output}  ${redis}
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
@@ -200,26 +200,26 @@ Docker ps all containers with only IDs
 Docker ps with status filter
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f status=created
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  nginx
+    Should Contain  ${output}  ${nginx}
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  5
 
 Docker ps with label and name filter
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name abe --label prod busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name abe --label prod ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f label=prod
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  busybox
+    Should Contain  ${output}  ${busybox}
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f name=abe
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  busybox
+    Should Contain  ${output}  ${busybox}
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
 Docker ps with volume filter
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v foo:/dir --name fooContainer busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v foo:/dir --name fooContainer ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=foo
     Should Be Equal As Integers  ${rc}  0
@@ -242,7 +242,7 @@ Docker ps with volume filter
 Docker ps with network filter
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create fooNet
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=fooNet --name fooNetContainer busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=fooNet --name fooNetContainer ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f network=fooNet
     Should Be Equal As Integers  ${rc}  0
@@ -284,7 +284,7 @@ Docker ps with volume and network filters
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  1
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v buz:/dir --net=fooNet --name buzFooContainer busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v buz:/dir --net=fooNet --name buzFooContainer ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -f volume=buz -f network=fooNet
     Should Be Equal As Integers  ${rc}  0
