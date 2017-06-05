@@ -19,6 +19,13 @@ import (
 	"html/template"
 	"os"
 	"strings"
+
+	"context"
+	"fmt"
+	"net/url"
+
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/validate"
 )
 
 var (
@@ -85,4 +92,87 @@ func (ei *EngineInstaller) buildCreateCommand() {
 	createCommand = append(createCommand, fmt.Sprintf("--thumbprint %s", ei.Thumbprint))
 
 	ei.CreateCommand = strings.Join(createCommand, " ")
+}
+
+func init() {
+	fmt.Println("hello world")
+
+	ctx := context.TODO()
+
+	username := "administrator@vsphere.local"
+	password := "Admin!23"
+	//username := "root"
+	//password := "password"
+
+	var u url.URL
+	u.User = url.UserPassword(username, password)
+	//u.Host = "192.168.1.86"
+	u.Host = "10.192.200.209"
+	u.Path = ""
+	fmt.Printf("server URL: %s\n", u)
+
+	input := data.NewData()
+
+	input.OpsUser = u.User.Username()
+	passwd, _ := u.User.Password()
+	input.OpsPassword = &passwd
+	input.URL = &u
+	input.Force = true
+
+	input.User = username
+	input.Password = &passwd
+
+	validator, err := validate.NewValidator(ctx, input)
+	if err != nil {
+		fmt.Printf("validator: %s", err)
+		return
+	}
+
+	vc := validator.IsVC()
+	fmt.Printf("Is VC: %t\n", vc)
+
+	dcs, err := validator.ListDatacenters()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, d := range dcs {
+		fmt.Printf("DC: %s\n", d)
+	}
+
+	comp, err := validator.ListComputeResource()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, c := range comp {
+		fmt.Printf("compute: %s\n", c)
+	}
+
+	rp, err := validator.ListResourcePool("*")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, p := range rp {
+		fmt.Printf("rp: %s\n", p)
+	}
+
+	nets, err := validator.ListNetworks(!vc) // set to false for vC
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, n := range nets {
+		fmt.Printf("net: %s\n", n)
+	}
+
+	dss, err := validator.ListDatastores()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, d := range dss {
+		fmt.Printf("ds: %s\n", d)
+	}
 }
