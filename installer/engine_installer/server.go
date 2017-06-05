@@ -39,6 +39,7 @@ const (
 
 var (
 	engineInstaller = NewEngineInstaller()
+	c               config
 )
 
 type config struct {
@@ -67,7 +68,6 @@ func Init(conf *config) {
 }
 
 func main() {
-	var c config
 	Init(&c)
 
 	defer trace.End(trace.Begin(""))
@@ -99,6 +99,10 @@ func main() {
 
 	log.Infof("Starting installer-engine server on %s", s.Addr)
 	log.Fatal(s.ListenAndServeTLS("", ""))
+
+	// start the web server
+	// log.Infof("installer-engine listening on localhost:%s\n", c.addr)
+	// http.ListenAndServe(c.addr, mux)
 }
 
 func generateCert(conf *config) {
@@ -168,7 +172,7 @@ func getSelectOptionHTML(arr []string, id string) template.HTML {
 
 func renderTemplate(resp http.ResponseWriter, filename string, data interface{}) {
 	log.Infof("render: %s", filename)
-	filename = fmt.Sprintf("%s/%s", "/tmp/asdf", filename)
+	filename = fmt.Sprintf("%s/%s", c.serveDir, filename)
 	log.Infof("render: %s", filename)
 	tmpl, err := template.ParseFiles(filename)
 	if err != nil {
