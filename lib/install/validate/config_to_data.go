@@ -56,6 +56,11 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	if err != nil {
 		return err
 	}
+
+	if parent.Reference().Type != "VirtualApp" {
+		d.UseRP = true
+	}
+
 	var mrp mo.ResourcePool
 	if err = parent.Properties(ctx, parent.Reference(), []string{"parent"}, &mrp); err != nil {
 		return err
@@ -74,8 +79,57 @@ func SetDataFromVM(ctx context.Context, finder Finder, vm *vm.VirtualMachine, d 
 	}
 	d.ComputeResourcePath = rp.InventoryPath
 
-	// TODO: set VCH resource limits and VCH endpoint VM resource limits
+	// Set VCH resource limits and VCH endpoint VM resource limits
+	setVCHResources(ctx, parent, d)
+	setApplianceResources(ctx, vm, d)
 	return nil
+}
+
+func setApplianceResources(ctx context.Context, vm *vm.VirtualMachine, d *data.Data) error {
+	var m mo.VirtualMachine
+	ps := []string{"config.hardware.numCPU", "config.hardware.memoryMB"}
+
+	if err := vm.Properties(ctx, vm.Reference(), ps, &m); err != nil {
+		return err
+	}
+	if m.Config != nil {
+		d.NumCPUs = int(m.Config.Hardware.NumCPU)
+		d.MemoryMB = int(m.Config.Hardware.MemoryMB)
+	}
+	return nil
+}
+
+func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data) error {
+	var p mo.ResourcePool
+	ps := []string{"config.cpuAllocation", "config.memoryAllocation"}
+
+	if err := vch.Properties(ctx, vch.Reference(), ps, &p); err != nil {
+		return err
+	}
+	cpu := p.Config.CpuAllocation.GetResourceAllocationInfo()
+	if cpu != nil {
+		setResources(&d.VCHCPULimitsMHz, &d.VCHCPUReservationsMHz, &d.VCHCPUShares, cpu)
+	}
+	memory := p.Config.MemoryAllocation.GetResourceAllocationInfo()
+	if memory != nil {
+		setResources(&d.VCHMemoryLimitsMB, &d.VCHMemoryReservationsMB, &d.VCHMemoryShares, memory)
+	}
+	return nil
+}
+
+func setResources(limit *int, reservation *int, shares **types.SharesInfo, allocation *types.ResourceAllocationInfo) {
+	if limit != nil && allocation.Limit > -1 {
+		// default unlimited value is -1, so no need to set
+		*limit = int(allocation.Limit)
+	}
+	if reservation != nil && allocation.Reservation > 1 {
+		// reservation is set to 1 to avoid empty value issue in govmomi
+		*reservation = int(allocation.Reservation)
+	}
+	if shares != nil && allocation.Shares.Level != types.SharesLevelNormal {
+		// default value is normal share level
+		*shares = allocation.Shares
+	}
 }
 
 // NewDataFromConfig converts VirtualContainerHostConfigSpec back to data.Data object
