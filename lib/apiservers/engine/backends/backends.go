@@ -68,9 +68,9 @@ var (
 type dynConfig struct {
 	sync.Mutex
 
-	Cfg          *config.VirtualContainerHostConfigSpec
-	dynCfgSource dynamic.Source
-	dynCfgMerger dynamic.Merger
+	Cfg    *config.VirtualContainerHostConfigSpec
+	src    dynamic.Source
+	merger dynamic.Merger
 
 	Whitelist, Blacklist, Insecure registry.Set
 }
@@ -96,8 +96,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 
 		vchConfig.Insecure = dynamic.ParseRegistries(config.InsecureRegistries)
 		vchConfig.Whitelist = dynamic.ParseRegistries(config.RegistryWhitelist)
-		vchConfig.dynCfgSource = &dynamic.AdmiralSource{}
-		vchConfig.dynCfgMerger = dynamic.NewMerger()
+		vchConfig.src = &dynamic.AdmiralSource{}
+		vchConfig.merger = dynamic.NewMerger()
 		loadRegistryCACerts()
 	} else {
 		portLayerName = product + " Backend Engine"
@@ -357,7 +357,7 @@ func (d *dynConfig) Update() error {
 
 func (d *dynConfig) update() error {
 	// update config
-	c, err := d.dynCfgSource.Get()
+	c, err := d.src.Get()
 	if err != nil {
 		return err
 	}
@@ -366,7 +366,7 @@ func (d *dynConfig) update() error {
 		return nil
 	}
 
-	newcfg, err := d.dynCfgMerger.Merge(vchConfig.Cfg, c)
+	newcfg, err := d.merger.Merge(vchConfig.Cfg, c)
 	if err != nil {
 		return err
 	}
