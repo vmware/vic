@@ -15,6 +15,7 @@
 *** Settings ***
 Documentation  Test 11-03 - Upgrade-InsecureRegistry
 Resource  ../../resources/Util.robot
+Test Teardown  Cleanup Test Environment
 
 *** Variables ***
 ${test_vic_version}  7315
@@ -32,26 +33,38 @@ Setup Test Environment
     Setup VCH And Registry  ${insecure_registry}
     [Return]  ${handle}  ${docker_daemon_pid}
 
-Add Project On Registry
+Run Secret Curl Command
     [Tags]  secret
-    [Arguments]  ${registry_ip}  ${protocol}  ${user}=admin  ${password}=%{TEST_PASSWORD}
+    [Arguments]  ${registry_ip}  ${protocol}  ${curl_option}  ${user}=admin  ${password}=%{TEST_PASSWORD}
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${curl_option} -u ${user}:${password} -H "Content-Type: application/json" -X POST -d '{"project_name": "test","public": 1}' ${protocol}://${registry_ip}/api/projects
+    [Return]  ${rc}  ${output}
+
+Add Project On Registry
+    [Arguments]  ${registry_ip}  ${protocol}
     # Harbor API: https://github.com/vmware/harbor/blob/master/docs/swagger.yaml
     Run Keyword If  '${protocol}' == 'https'  Set Test Variable  ${curl_option}  --insecure
     Run Keyword If  '${protocol}' == 'http'  Set Test Variable  ${curl_option}  ${EMPTY}
     :FOR  ${i}  IN RANGE  12
-    \   ${rc}=  Run And Return Rc  curl ${curl_option} -u ${user}:${password} -H "Content-Type: application/json" -X POST -d '{"project_name": "test","public": 1}' ${protocol}://${registry_ip}/api/projects
+    \   ${rc}  ${output}=  Run Secret Curl Command  ${registry_ip}  ${protocol}  ${curl_option}
+    \   Log  ${output}
     \   Return From Keyword If  '${rc}' == '0'
     \   Sleep  10s
     Fail  Failed to add project on registry!
 
-Setup VCH And Registry
+Run Secret Docker Login
     [Tags]  secret
-    [Arguments]  ${registry_ip}  ${registry_user}=admin  ${registry_password}=%{TEST_PASSWORD}  ${docker}=DOCKER_API_VERSION=1.23 docker
+    [Arguments]    ${registry_ip}  ${registry_user}=admin  ${registry_password}=%{TEST_PASSWORD}  ${docker}=DOCKER_API_VERSION=1.23 docker
+    ${rc}  ${output}=  Run And Return Rc And Output  ${docker} -H ${default_local_docker_endpoint} login --username ${registry_user} --password ${registry_password} ${registry_ip}
+    [Return]  ${rc}  ${output}
+
+Setup VCH And Registry
+    [Arguments]  ${registry_ip}  ${docker}=DOCKER_API_VERSION=1.23 docker
     ${rc}  ${output}=  Run And Return Rc And Output  echo "From busybox" | ${docker} -H ${default_local_docker_endpoint} build -t ${registry_ip}/test/busybox -
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Successfully built
     Log To Console  \nbusybox built successfully
-    ${rc}  ${output}=  Run And Return Rc And Output  ${docker} -H ${default_local_docker_endpoint} login --username ${registry_user} --password ${registry_password} ${registry_ip}
+    ${rc}  ${output}=  Run Secret Docker Login  ${registry_ip}
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Login Succeeded
     Log To Console  \nLogin successfully
@@ -68,45 +81,45 @@ Test VCH And Registry
     Should Not Contain  ${output}  Error response from daemon
 
 Cleanup Test Environment
-    [Arguments]  ${handle}  ${docker_daemon_pid}  ${harbor_name}  ${harbor_ip}  ${docker}=DOCKER_API_VERSION=1.23 docker
+    [Arguments]  ${docker}=DOCKER_API_VERSION=1.23 docker
+    Clean up VIC Appliance And Local Binary
+    Cleanup Harbor  ${harbor_name}
     ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} rmi ${harbor_ip}/test/busybox
     Should Be Equal As Integers  ${rc}  0
     Kill Local Docker Daemon  ${handle}  ${docker_daemon_pid}
-    Cleanup Harbor  ${harbor_name}
-    Clean up VIC Appliance And Local Binary
 
 *** Test Cases ***
 Upgrade VCH with Harbor On HTTP
-    ${status}=  Get State Of Github Issue  4999
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-03-Upgrade-InsecureRegistry.robot needs to be updated now that Issue #4999 has been resolved
-    #${harbor_ip}=  Install Harbor To Test Server  ${http_harbor_name}
-    #Add Project On Registry  ${harbor_ip}  http
-    #${handle}  ${docker_daemon_pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${harbor_name}  ${http_harbor_name}
+    ${ip}=  Install Harbor To Test Server  ${harbor_name}
+    Set Test Variable  ${harbor_ip}  ${ip}
+    Add Project On Registry  ${harbor_ip}  http
+    ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${handle}  ${hdl}
+    Set Test Variable  ${docker_daemon_pid}  ${pid}
 
-    #Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
+    Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
 
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
-    #Upgrade
-    #Check Upgraded Version
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
-
-    #[Teardown]  Cleanup Test Environment  ${handle}  ${docker_daemon_pid}  ${http_harbor_name}  ${harbor_ip}
+    Upgrade
+    Check Upgraded Version
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
-    ${status}=  Get State Of Github Issue  4999
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 11-03-Upgrade-InsecureRegistry.robot needs to be updated now that Issue #4999 has been resolved
-    #${harbor_ip}=  Install Harbor To Test Server  ${https_harbor_name}  https
-    #Add Project On Registry  ${harbor_ip}  https
-    #${handle}  ${docker_daemon_pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${harbor_name}  ${https_harbor_name}
+    ${ip}=  Install Harbor To Test Server  ${harbor_name}  https
+    Set Test Variable  ${harbor_ip}  ${ip}
+    Add Project On Registry  ${harbor_ip}  https
+    ${hdl}  ${pid}=  Setup Test Environment  ${harbor_ip}
+    Set Test Variable  ${handle}  ${hdl}
+    Set Test Variable  ${docker_daemon_pid}  ${pid}
 
-    #${harbor_cert}=  Fetch Harbor Self Signed Cert  ${harbor_ip}
-    #Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls --registry-ca ${harbor_cert}
+    ${harbor_cert}=  Fetch Harbor Self Signed Cert  ${harbor_ip}
+    Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls --registry-ca ${harbor_cert}
 
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
 
-    #Upgrade
-    #Check Upgraded Version
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
-
-    #[Teardown]  Cleanup Test Environment  ${handle}  ${docker_daemon_pid}  ${https_harbor_name}  ${harbor_ip}
+    Upgrade
+    Check Upgraded Version
+    Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
