@@ -16,7 +16,6 @@ package main
 
 import (
 	"html/template"
-	"os"
 	"strings"
 
 	"context"
@@ -132,11 +131,10 @@ func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions
 	}
 }
 
-func (ei *EngineInstaller) buildCreateCommand() {
-	gopath := os.Getenv("GOPATH")
+func (ei *EngineInstaller) buildCreateCommand(binaryPath string) {
 	var createCommand []string
 
-	createCommand = append(createCommand, gopath+"/src/github.com/vmware/vic/bin/vic-machine-linux")
+	createCommand = append(createCommand, binaryPath)
 	createCommand = append(createCommand, "create")
 	createCommand = append(createCommand, "--no-tlsverify")
 	createCommand = append(createCommand, fmt.Sprintf("--target %s", ei.Target))

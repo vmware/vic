@@ -195,7 +195,7 @@ func parseCmdArgs(resp http.ResponseWriter, req *http.Request) {
 		}
 	} else {
 		//build the vic create command from the installer variables
-		engineInstaller.buildCreateCommand()
+		engineInstaller.buildCreateCommand(c.serveDir)
 		log.Infoln(engineInstaller)
 		resp.WriteHeader(200)
 		resp.Write([]byte(engineInstaller.CreateCommand))
