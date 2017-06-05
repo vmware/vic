@@ -1,16 +1,16 @@
 Test 1-23 - Docker Inspect
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker inspect command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/inspect/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker pull busybox to the VIC appliance
 3. Issue docker inspect busybox to the VIC appliance
@@ -32,7 +32,7 @@ This test requires that a vSphere server is running and available
 19. Issue docker inspect -f {{.Config.Volumes}} <containerID>
 20. Issue docker inspect busybox -f '{{.RepoDigest}}'
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 3,4,7,8 should result in success and a properly formatted JSON response
 * Step 5 should result in an error with the following message:  
 ```
@@ -51,5 +51,5 @@ Error: No such image or container: fake
 * Step 19 should result in the map returned containing /var/lib/test
 * Step 20 should result in a valid digest, previously cached
 
-#Possible Problems:
+# Possible Problems:
 None

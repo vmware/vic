@@ -1,16 +1,16 @@
 Test 1-04 - Docker Create
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker create command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/create/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Docker pull busybox
 3. Issue docker create busybox to the new VIC appliance
@@ -43,7 +43,7 @@ This test requires that a vSphere server is running and available
 30. Create a container, then check the vm display name in vsphere through govc
 31. Create a container, then check the vm Destroy_Task method is disabled in VC through govc
 
-#Expected Outcome:
+# Expected Outcome:
 * Steps 3-7 should all return without error and printing the container ID on return
 * Step 8 should show that the contents of the containers /var/log matches the contents of the hosts /var/log
 * Steps 9, 10 and 11 should return without errors and should successfully create a new volume called `test-named-vol` with disk size 975.9M
@@ -60,5 +60,5 @@ This test requires that a vSphere server is running and available
 * Step 30 should show that the VM display name equals to containerName-containerShortID and datastore folder name equal to containerID
 * Step 31 should show that the VM Destroy_Task method is disabled in VC
 
-#Possible Problems:
+# Possible Problems:
 None

@@ -1,16 +1,16 @@
 Test 1-13 - Docker Version
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker version command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/version/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available.
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to the vSphere server
 2. Issue a docker version command to the new VIC appliance
 3. Issue a docker version --format '{{.Client.Version}}' command to the new VIC appliance
@@ -24,10 +24,10 @@ This test requires that a vSphere server is running and available.
 11. Issue a docker version --format '{{.Server.GoVersion}}' command to the new VIC appliance
 12. Issue a docker version --format '{{.fakeItem}}' command to the new VIC appliance
 
-#Expected Outcome:
+# Expected Outcome:
 * VIC appliance should respond with a properly formatted version response, it should be capable of returning each individual field as well without error.
 * The server version field should indicate that it is VIC.
 * Step 6 should result in an error indicating: fakeItem is not a field of struct type types.VersionResponse
 
-#Possible Problems:
+# Possible Problems:
 None

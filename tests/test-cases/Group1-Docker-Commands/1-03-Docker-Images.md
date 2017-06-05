@@ -1,16 +1,16 @@
 Test 1-03 - Docker Images
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker images command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/images/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Docker pull alpine
 3. Docker pull alpine:3.2
@@ -24,7 +24,7 @@ This test requires that a vSphere server is running and available
 11. Issue regular docker busybox:uclibc, busybox:glibc, busybox:musl
 12. Grep VIC docker and regular docker images command output for eacy busybox tag
 
-#Expected Outcome:
+# Expected Outcome:
 * Each of the commands issued should return error free with a properly formatted response
 * The docker images and docker images -a command should return the 3 alpine images as expected
 * The docker images -q command should return only the short hash of the three images
@@ -32,5 +32,5 @@ This test requires that a vSphere server is running and available
 * The docker images alpine:3.1 command should return only the specific image specified
 * The image IDs in step 12 for all busybox versions in VIC should match those in regular docker
 
-#Possible Problems:
+# Possible Problems:
 None

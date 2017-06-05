@@ -1,16 +1,16 @@
 Test 1-10 - Docker PS
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker ps command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/ps/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker ps
 3. Issue docker create busybox /bin/top
@@ -63,7 +63,7 @@ This test requires that a vSphere server is running and available
 50. Issue docker create -v buz:/dir --net=fooNet --name buzFooContainer busybox
 51. Issue docker ps -a -f volume=buz -f network=fooNet
 
-#Expected Outcome:
+# Expected Outcome:
 * Steps 2-13 should all return without error
 * Step 2 should return with only the printed ps command header and no containers
 * Step 8 should return with only the information for the /bin/top container
@@ -99,5 +99,5 @@ This test requires that a vSphere server is running and available
 * Step 50 should return without error
 * Step 51 should include only buzFooContainer
 
-#Possible Problems:
+# Possible Problems:
 None
