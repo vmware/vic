@@ -109,7 +109,7 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if i.Debug.Debug > 0 {
+	if i.Debug.Debug != nil && *i.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}

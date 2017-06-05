@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package flags
 
 import (
-	"gopkg.in/urfave/cli.v1"
-
-	"github.com/vmware/vic/pkg/flags"
+	"flag"
+	"testing"
 )
 
-type Debug struct {
-	Debug *int `cmd:"debug"`
-}
+func TestOptionalInt(t *testing.T) {
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	var val *int
 
-func (d *Debug) DebugFlags() []cli.Flag {
-	return []cli.Flag{
-		cli.GenericFlag{
-			Name:   "debug, v",
-			Value:  flags.NewOptionalInt(&d.Debug),
-			Usage:  "[0(default),1...n], 0 is disabled, 1 is enabled, >= 1 may alter behaviour",
-			Hidden: true,
-		},
+	fs.Var(NewOptionalInt(&val), "oint", "optional int")
+
+	b := fs.Lookup("oint")
+
+	if b.DefValue != "<nil>" {
+		t.Fail()
+	}
+
+	if b.Value.String() != "<nil>" {
+		t.Fail()
+	}
+
+	if b.Value.(flag.Getter).Get() != nil {
+		t.Fail()
+	}
+
+	b.Value.Set("1")
+
+	if b.Value.String() != "1" {
+		t.Fail()
+	}
+
+	if b.Value.(flag.Getter).Get() != 1 {
+		t.Fail()
 	}
 }

@@ -115,6 +115,7 @@ func (c *Configure) processParams() error {
 	}
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
+
 	return nil
 }
 
@@ -139,6 +140,10 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		updateSessionEnv(personaSession, config.GeneralHTTPSProxy, sProxy)
 		updateSessionEnv(vicAdminSession, config.VICAdminHTTPProxy, hProxy)
 		updateSessionEnv(vicAdminSession, config.VICAdminHTTPSProxy, sProxy)
+	}
+
+	if c.Debug.Debug != nil {
+		o.SetDebug(n.Diagnostics.DebugLevel)
 	}
 }
 
@@ -168,7 +173,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if c.Debug.Debug > 0 {
+	if c.Debug.Debug != nil && *c.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}

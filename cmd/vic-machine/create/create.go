@@ -1066,7 +1066,7 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 		// to diagnose errors
 		if cert.Leaf.Subject.CommonName != c.cname {
 			log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
-			if c.Debug.Debug > 2 {
+			if c.Debug.Debug != nil && *c.Debug.Debug > 2 {
 				log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
 			}
 			return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.certPath)
@@ -1416,7 +1416,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	log.Infof("### Installing VCH ####")
 
-	if c.Debug.Debug > 0 {
+	if c.Debug.Debug != nil && *c.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
