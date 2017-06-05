@@ -50,13 +50,15 @@ func main() {
 
 	input.User = username
 	input.Password = &passwd
-	fmt.Printf("%+v\n", input)
 
 	validator, err := validate.NewValidator(ctx, input)
 	if err != nil {
 		fmt.Printf("validator: %s", err)
 		return
 	}
+
+	vc := validator.IsVC()
+	fmt.Printf("Is VC: %t\n", vc)
 
 	dcs, err := validator.ListDatacenters()
 	if err != nil {
@@ -85,7 +87,7 @@ func main() {
 		fmt.Printf("rp: %s\n", p)
 	}
 
-	nets, err := validator.ListNetworks(true) // set to false for vC
+	nets, err := validator.ListNetworks(!vc) // set to false for vC
 	if err != nil {
 		fmt.Println(err)
 		return
