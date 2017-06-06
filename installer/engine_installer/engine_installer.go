@@ -15,12 +15,11 @@
 package main
 
 import (
-	"html/template"
-	"strings"
-
 	"context"
 	"fmt"
+	"html/template"
 	"net/url"
+	"strings"
 
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
