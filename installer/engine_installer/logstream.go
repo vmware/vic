@@ -20,7 +20,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -38,6 +40,7 @@ var (
 	// lock for single command execution
 	cmdDone   = make(chan error, 1)
 	logStream = NewLogStream()
+	mu        sync.Mutex
 )
 
 // LogStream streams a command's execution over a websocket connection
@@ -73,12 +76,20 @@ func (ls *LogStream) start() {
 	// attach cmd std out and std err to log Writer
 	ls.cmd.Stderr = logWriter
 	ls.cmd.Stdout = logWriter
+	r, _ := regexp.Compile(`DOCKER_HOST=(\d{1,3}\.){3}(\d{1,3}):\d{4}`)
 
 	go func() {
 		s := bufio.NewScanner(logReader)
 		for s.Scan() {
-			log.Infoln("scanning...")
 			ls.send(string(s.Bytes()))
+			//if we get a docker endpoint the setup is complete and we should attach this vch to admiral
+			match := r.Find(s.Bytes())
+			stringMatch := string(match)
+			if err == nil && strings.Contains(stringMatch, "=") {
+				dockerIP := strings.Split(stringMatch, "=")[1]
+				log.Infof("Docker endpoint is: %s\n", dockerIP)
+				go setupDefaultAdmiral(string(dockerIP))
+			}
 		}
 	}()
 
@@ -97,7 +108,6 @@ func (ls *LogStream) start() {
 			ls.send(fmt.Sprintf("Create failed with error: %v\n", err))
 		} else {
 			ls.send("Execution complete.")
-			ls.send("TODO: ADD TO ADMIRAL")
 		}
 	}
 }
@@ -124,9 +134,11 @@ func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (ls *LogStream) send(msg string) {
+	mu.Lock()
+	defer mu.Unlock()
 	ls.ws.SetWriteDeadline(time.Now().Add(waitTime))
 	if err := ls.ws.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-		log.Infof("ERROR: %v\n", err)
+		log.Infof("ERROR SENDING --------\n%s\n--------: %v\n", msg, err)
 	} else {
 		log.Infof("SENT: %s\n", msg)
 	}

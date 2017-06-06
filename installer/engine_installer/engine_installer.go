@@ -15,11 +15,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"html/template"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
@@ -178,4 +184,50 @@ func (ei *EngineInstaller) verifyLogin() error {
 	validator = v
 
 	return nil
+}
+
+func setupDefaultAdmiral(vchIp string) {
+	admiral := "https://localhost:8282"
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	// validate vch host
+	sslTrustPayload := fmt.Sprintf("{\"hostState\":{\"id\":\"%s\",\"address\":\"https://%s\",\"customProperties\":{\"__adapterDockerType\":\"API\",\"__containerHostType\":\"VCH\"}}}", vchIp, vchIp)
+	sslTrustReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/resources/hosts?validate=true", admiral), bytes.NewBuffer([]byte(sslTrustPayload)))
+	sslTrustResp, err := client.Do(sslTrustReq)
+	if err != nil || sslTrustResp.StatusCode != http.StatusOK {
+		log.Infoln(err, sslTrustResp.StatusCode)
+		log.Infoln("Cannot add vch to Admiral.")
+		return
+	}
+
+	// trust vch host on admiral
+	sslCert, err := ioutil.ReadAll(sslTrustResp.Body)
+	if err != nil {
+		log.Infoln(err)
+		log.Infoln("Cannot add vch to Admiral.")
+		return
+	}
+	if len(sslCert) > 0 {
+		sslCertReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/config/trust-certs", admiral), bytes.NewBuffer([]byte(sslCert)))
+		sslCertResp, err := client.Do(sslCertReq)
+		if err != nil || sslCertResp.StatusCode != http.StatusOK {
+			log.Infoln(err, sslCertResp.StatusCode)
+			log.Infoln("Admiral cannot trust host certificate.")
+			return
+		}
+	}
+
+	// add host to admiral
+	addHostReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/resources/hosts", admiral), bytes.NewBuffer([]byte(sslTrustPayload)))
+	addHostResp, err := client.Do(addHostReq)
+	if err != nil || addHostResp.StatusCode != http.StatusNoContent {
+		log.Infoln(err, addHostResp.StatusCode)
+		log.Infoln("Error adding host to Admiral.")
+		return
+	}
+
+	log.Infoln("Host added to admiral.")
 }
