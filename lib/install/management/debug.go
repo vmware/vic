@@ -19,7 +19,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -69,8 +68,7 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 		return err
 	}
 
-	manager := guest.NewOperationsManager(d.session.Client.Client, vch.Reference())
-	processManager, err := manager.ProcessManager(op)
+	pm, err := d.opManager(ctx, vch)
 	if err != nil {
 		err = errors.Errorf("Unable to manage processes in appliance VM: %s", err)
 		op.Errorf("%s", err)
@@ -80,15 +78,20 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 	auth := types.NamePasswordAuthentication{}
 
 	spec := types.GuestProgramSpec{
-		ProgramPath:      "enable-ssh",
-		Arguments:        string(authorizedKey),
-		WorkingDirectory: "/",
-		EnvVariables:     []string{},
+		ProgramPath: "enable-ssh",
+		Arguments:   string(authorizedKey),
 	}
 
-	_, err = processManager.StartProgram(op, &auth, &spec)
+	pid, err := pm.StartProgram(op, &auth, &spec)
 	if err != nil {
 		err = errors.Errorf("Unable to enable SSH in appliance VM: %s", err)
+		op.Errorf("%s", err)
+		return err
+	}
+
+	_, err = d.opManagerWait(ctx, pm, &auth, pid)
+	if err != nil {
+		err = errors.Errorf("Unable to check enable SSH status: %s", err)
 		op.Errorf("%s", err)
 		return err
 	}
@@ -99,15 +102,20 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 
 	// set the password as well
 	spec = types.GuestProgramSpec{
-		ProgramPath:      "passwd",
-		Arguments:        password,
-		WorkingDirectory: "/",
-		EnvVariables:     []string{},
+		ProgramPath: "passwd",
+		Arguments:   password,
 	}
 
-	_, err = processManager.StartProgram(op, &auth, &spec)
+	pid, err = pm.StartProgram(op, &auth, &spec)
 	if err != nil {
-		err = errors.Errorf("Unable to enable in appliance VM: %s", err)
+		err = errors.Errorf("Unable to enable passwd in appliance VM: %s", err)
+		op.Errorf("%s", err)
+		return err
+	}
+
+	_, err = d.opManagerWait(ctx, pm, &auth, pid)
+	if err != nil {
+		err = errors.Errorf("Unable to check enable passwd status: %s", err)
 		op.Errorf("%s", err)
 		return err
 	}

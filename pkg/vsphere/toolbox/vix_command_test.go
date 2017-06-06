@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package toolbox
 
 import (
 	"bytes"
+	"context"
 	"encoding"
 	"encoding/binary"
 	"errors"
@@ -219,7 +220,7 @@ func TestVixRelayedCommandHandler(t *testing.T) {
 	header.UserCredentialType = vixUserCredentialNamePassword
 	header.CredentialLength = uint32(len(creds))
 
-	// handler not set
+	// ProgramPath not set
 	buf = append(marshal(request), creds...)
 	reply, _ = vix.Dispatch(buf)
 	rc = vixRC(reply)
@@ -227,7 +228,7 @@ func TestVixRelayedCommandHandler(t *testing.T) {
 		t.Fatalf("%q", reply)
 	}
 
-	vix.ProcessStartCommand = func(r *VixMsgStartProgramRequest) (int, error) {
+	vix.ProcessStartCommand = func(pm *ProcessManager, r *VixMsgStartProgramRequest) (int64, error) {
 		return -1, nil
 	}
 
@@ -443,5 +444,99 @@ func TestVixProcessHgfsPacket(t *testing.T) {
 
 	if session.NumCapabilities == 0 || int(session.NumCapabilities) != len(session.Capabilities) {
 		t.Errorf("NumCapabilities=%d", session.NumCapabilities)
+	}
+}
+
+func TestVixListProcessesEx(t *testing.T) {
+	c := NewVixCommandClient()
+	pm := c.Service.VixCommand.ProcessManager
+
+	c.Service.VixCommand.ProcessStartCommand = func(pm *ProcessManager, r *VixMsgStartProgramRequest) (int64, error) {
+		var p *Process
+		switch r.ProgramPath {
+		case "foo":
+			p = NewProcessFunc(func(ctx context.Context, arg string) error {
+				return nil
+			})
+		default:
+			return -1, os.ErrNotExist
+		}
+
+		return pm.Start(r, p)
+	}
+
+	exec := &VixMsgStartProgramRequest{
+		ProgramPath: "foo",
+	}
+
+	b, err := exec.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	size := len(b)
+	reply := c.Request(vixCommandStartProgram, size, exec)
+	rc := vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	r := bytes.Trim(bytes.Split(reply, []byte{' '})[2], "\x00")
+	pid, _ := strconv.Atoi(string(r))
+
+	exec.ProgramPath = "bar"
+	reply = c.Request(vixCommandStartProgram, size, exec)
+	rc = vixRC(reply)
+	t.Log(VixError(rc).Error())
+	if rc != vixFileNotFound {
+		t.Fatalf("rc: %d", rc)
+	}
+	if vixErrorCode(os.ErrNotExist) != rc {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	pm.wg.Wait()
+
+	ps := new(VixMsgListProcessesExRequest)
+
+	ps.Pids = []int64{int64(pid)}
+
+	b, err = ps.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	size = len(b)
+	reply = c.Request(vixCommandListProcessesEx, size, ps)
+	rc = vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	n := bytes.Count(reply, []byte("<proc>"))
+	if n != len(ps.Pids) {
+		t.Errorf("ps -p %d=%d", pid, n)
+	}
+
+	kill := new(VixCommandKillProcessRequest)
+	kill.header.Pid = ps.Pids[0]
+
+	b, err = kill.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	size = len(b)
+	reply = c.Request(vixCommandTerminateProcess, size, kill)
+	rc = vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	kill.header.Pid = 33333
+	reply = c.Request(vixCommandTerminateProcess, size, kill)
+	rc = vixRC(reply)
+	if rc != vixNoSuchProcess {
+		t.Fatalf("rc: %d", rc)
 	}
 }
