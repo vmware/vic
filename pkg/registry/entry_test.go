@@ -435,7 +435,7 @@ func TestParseEntry(t *testing.T) {
 		},
 		{
 			s:   "192.168.0.1:80",
-			res: &strEntry{e: "192.168.0.1:80"},
+			res: ParseEntry("192.168.0.1:80"),
 		},
 		{
 			s:   "192.168.0",
