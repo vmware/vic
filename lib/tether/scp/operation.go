@@ -161,8 +161,8 @@ func Write(r io.ReadCloser, path string) (*Operation, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	r.Close()
+	// #nosec: Errors unhandled
+	_ = r.Close()
 
 	// it's unclear why we have to do this since we pass the mode bits in
 	// openfile, but setting a file to 777 yields 775 without it.

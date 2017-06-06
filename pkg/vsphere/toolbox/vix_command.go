@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,9 +32,9 @@ const (
 
 	vixCommandGetToolsState = 62
 
-	vixCommandKillProcess     = 85
-	vixCommandStartProgram    = 185
-	vixCommandListProcessesEx = 186
+	vixCommandStartProgram     = 185
+	vixCommandListProcessesEx  = 186
+	vixCommandTerminateProcess = 193
 
 	vmxiHgfsSendPacketCommand               = 84
 	vixCommandInitiateFileTransferFromGuest = 188
@@ -44,12 +44,15 @@ const (
 	vixUserCredentialNamePassword = 1
 
 	// VIX_E_* constants from vix.h
-	vixOK                         = 0
-	vixFail                       = 1
-	vixAuthenticationFail         = 35
+	vixOK                 = 0
+	vixFail               = 1
+	vixFileNotFound       = 4
+	vixAuthenticationFail = 35
+
 	vixUnrecognizedCommandInGuest = 3025
 	vixInvalidMessageHeader       = 10000
 	vixInvalidMessageBody         = 10001
+	vixNoSuchProcess              = 20003
 
 	// VIX_COMMAND_* constants from vixCommands.h
 	vixCommandGuestReturnsBinary = 0x80
@@ -58,6 +61,26 @@ const (
 	vixFileAttributesDirectory = 0x0001
 	vixFileAttributesSymlink   = 0x0002
 )
+
+type VixError int
+
+func (err VixError) Error() string {
+	return fmt.Sprintf("vix error=%d", err)
+}
+
+func vixErrorCode(err error) int {
+	switch x := err.(type) {
+	case VixError:
+		return int(x)
+	default:
+		switch {
+		case os.IsNotExist(err):
+			return vixFileNotFound
+		}
+	}
+
+	return vixFail
+}
 
 type VixMsgHeader struct {
 	Magic          uint32
@@ -101,6 +124,27 @@ type VixMsgStartProgramRequest struct {
 	Arguments   string
 	WorkingDir  string
 	EnvVars     []string
+}
+
+type VixCommandKillProcessRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		Pid     int64
+		Options uint32
+	}
+}
+
+type VixMsgListProcessesExRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		Key     uint32
+		Offset  uint32
+		NumPids uint32
+	}
+
+	Pids []int64
 }
 
 type VixMsgListFilesRequest struct {
@@ -147,9 +191,11 @@ type VixCommandHandler func(string, VixCommandRequestHeader, []byte) ([]byte, er
 type VixRelayedCommandHandler struct {
 	Out *ChannelOut
 
+	ProcessManager *ProcessManager
+
 	Authenticate func(VixCommandRequestHeader, []byte) error
 
-	ProcessStartCommand func(*VixMsgStartProgramRequest) (int, error)
+	ProcessStartCommand func(*ProcessManager, *VixMsgStartProgramRequest) (int64, error)
 
 	handlers map[uint32]VixCommandHandler
 
@@ -168,8 +214,9 @@ type VixUserCredentialNamePassword struct {
 
 func registerVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandler {
 	handler := &VixRelayedCommandHandler{
-		Out:      service.out,
-		handlers: make(map[uint32]VixCommandHandler),
+		Out:            service.out,
+		ProcessManager: NewProcessManager(),
+		handlers:       make(map[uint32]VixCommandHandler),
 	}
 
 	service.RegisterHandler("Vix_1_Relayed_Command", handler.Dispatch)
@@ -177,6 +224,8 @@ func registerVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandle
 	handler.RegisterHandler(vixCommandGetToolsState, handler.GetToolsState)
 
 	handler.RegisterHandler(vixCommandStartProgram, handler.StartCommand)
+	handler.RegisterHandler(vixCommandTerminateProcess, handler.KillProcess)
+	handler.RegisterHandler(vixCommandListProcessesEx, handler.ListProcessesEx)
 
 	handler.RegisterHandler(vixCommandInitiateFileTransferFromGuest, handler.InitiateFileTransferFromGuest)
 	handler.RegisterHandler(vixCommandInitiateFileTransferToGuest, handler.InitiateFileTransferToGuest)
@@ -268,7 +317,7 @@ func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
 
 	response, err := handler(name, header, buf.Bytes())
 	if err != nil {
-		rc = vixFail
+		rc = vixErrorCode(err)
 	}
 
 	return vixCommandResult(header, rc, err, response), nil
@@ -292,6 +341,8 @@ func (c *VixRelayedCommandHandler) GetToolsState(_ string, _ VixCommandRequestHe
 		NewInt32Property(VixPropertyGuestToolsAPIOptions, 0x0001), // TODO: const VIX_TOOLSFEATURE_SUPPORT_GET_HANDLE_STATE
 		NewInt32Property(VixPropertyGuestOsFamily, 1),             // TODO: const GUEST_OS_FAMILY_*
 		NewBoolProperty(VixPropertyGuestStartProgramEnabled, true),
+		NewBoolProperty(VixPropertyGuestTerminateProcessEnabled, true),
+		NewBoolProperty(VixPropertyGuestListProcessesEnabled, true),
 		NewBoolProperty(VixPropertyGuestInitiateFileTransferFromGuestEnabled, true),
 		NewBoolProperty(VixPropertyGuestInitiateFileTransferToGuestEnabled, true),
 	}
@@ -396,7 +447,7 @@ func (c *VixRelayedCommandHandler) StartCommand(_ string, header VixCommandReque
 		return nil, err
 	}
 
-	pid, err := c.ProcessStartCommand(r)
+	pid, err := c.ProcessStartCommand(c.ProcessManager, r)
 	if err != nil {
 		return nil, err
 	}
@@ -404,9 +455,94 @@ func (c *VixRelayedCommandHandler) StartCommand(_ string, header VixCommandReque
 	return append([]byte(fmt.Sprintf("%d", pid)), 0), nil
 }
 
-func (c *VixRelayedCommandHandler) ExecCommandStart(r *VixMsgStartProgramRequest) (int, error) {
-	// TODO: we could map to exec.Command(...).Start here
-	return -1, errors.New("not implemented")
+func (c *VixRelayedCommandHandler) ExecCommandStart(m *ProcessManager, r *VixMsgStartProgramRequest) (int64, error) {
+	return m.Start(r, NewProcess())
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixCommandKillProcessRequest) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixCommandKillProcessRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	return binary.Read(buf, binary.LittleEndian, &r.header)
+}
+
+func (c *VixRelayedCommandHandler) KillProcess(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixCommandKillProcessRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.ProcessManager.Kill(r.header.Pid) {
+		return nil, err
+	}
+
+	// TODO: could kill process started outside of toolbox
+
+	return nil, VixError(vixNoSuchProcess)
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixMsgListProcessesExRequest) MarshalBinary() ([]byte, error) {
+	r.header.NumPids = uint32(len(r.Pids))
+
+	buf := new(bytes.Buffer)
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	for _, pid := range r.Pids {
+		_ = binary.Write(buf, binary.LittleEndian, &pid)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixMsgListProcessesExRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	r.Pids = make([]int64, r.header.NumPids)
+
+	for i := uint32(0); i < r.header.NumPids; i++ {
+		err := binary.Read(buf, binary.LittleEndian, &r.Pids[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) ListProcessesEx(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgListProcessesExRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	state := c.ProcessManager.ListProcesses(r.Pids)
+
+	return state, nil
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface

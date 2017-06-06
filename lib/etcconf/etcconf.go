@@ -49,6 +49,7 @@ func load(filePath string, con EntryConsumer) error {
 
 		return err
 	}
+	// #nosec: Errors unhandled
 	defer f.Close()
 
 	s := bufio.NewScanner(f)
@@ -81,7 +82,8 @@ func save(filePath string, walker EntryWalker) error {
 		for n < len(l) {
 			b, err := w.WriteString(l[n:])
 			if err != nil {
-				f.Close()
+				// #nosec: Errors unhandled
+				_ = f.Close()
 				return err
 			}
 
@@ -90,7 +92,8 @@ func save(filePath string, walker EntryWalker) error {
 	}
 
 	if err = w.Flush(); err != nil {
-		f.Close()
+		// #nosec: Errors unhandled
+		_ = f.Close()
 		return err
 	}
 

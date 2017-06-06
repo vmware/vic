@@ -134,12 +134,29 @@ if [ -n "$test" ] ; then
     ip=$(govc vm.ip "$vm")
     echo "toolbox vm.ip=$ip"
 
-    echo "Testing guest operations via govc..."
+    echo "Testing guest.{start,kill,ps} operations via govc..."
+
+    # should be 0 procs as toolbox only lists processes it started, for now
+    test -z "$(govc guest.ps -vm "$vm" -e | grep -v STIME)"
+
     out=$(govc guest.start -vm "$vm" /bin/date)
 
     if [ "$out" != "$$" ] ; then
         echo "'$out' != '$$'" 1>&2
     fi
+
+    # These processes would run for 1h if we didn't kill them.
+    pid=$(govc guest.start -vm "$vm" sleep 1h)
+
+    echo "Killing func $pid..."
+    govc guest.kill -vm "$vm" -p "$pid"
+    govc guest.ps -vm "$vm" -e -p "$pid" -X | grep "$pid"
+    govc guest.ps -vm "$vm" -e -p "$pid" -json | jq -r .ProcessInfo[].ExitCode | grep -q 42
+
+    pid=$(govc guest.start -vm "$vm" /bin/sh -c "sleep 3600")
+    echo "Killing proc $pid..."
+    govc guest.kill -vm "$vm" -p "$pid"
+    govc guest.ps -vm "$vm" -e -p "$pid" -X | grep "$pid"
 
     echo "Testing file copy to and from guest via govc..."
     dest="/tmp/$(basename "$0")"
