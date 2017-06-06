@@ -26,6 +26,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/ip"
 	viclog "github.com/vmware/vic/pkg/log"
@@ -80,7 +81,7 @@ func init() {
 	typeConverters["net.IP"] = convertIP
 	typeConverters["ip.Range"] = convertIPRange
 	typeConverters["data.NetworkConfig"] = convertNetwork
-	typeConverters["data.ContainerNetworks"] = convertContainerNetworks
+	typeConverters["common.ContainerNetworks"] = convertContainerNetworks
 	typeConverters["types.SharesInfo"] = convertShares
 
 	labelHandlers[keyAfterValueLabel] = keyAfterValueLabelHandler
@@ -494,7 +495,7 @@ func convertContainerNetworks(src reflect.Value, prefix string, tags reflect.Str
 		return nil
 	}
 
-	networks, ok := src.Interface().(data.ContainerNetworks)
+	networks, ok := src.Interface().(common.ContainerNetworks)
 	if !ok {
 		panic(fmt.Sprintf(src.Type().String() + " is not ContainerNetworks"))
 	}

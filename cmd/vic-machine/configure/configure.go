@@ -39,7 +39,8 @@ import (
 type Configure struct {
 	*data.Data
 
-	proxies common.Proxies
+	proxies   common.Proxies
+	cNetworks common.CNetworks
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -92,10 +93,11 @@ func (c *Configure) Flags() []cli.Flag {
 	compute := c.ComputeFlags()
 	iso := c.ImageFlags(false)
 	debug := c.DebugFlags()
+	cNetwork := c.cNetworks.CNetworkFlags(false)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, id, compute, iso, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, id, compute, iso, cNetwork, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -116,6 +118,11 @@ func (c *Configure) processParams() error {
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
 
+	c.ContainerNetworks, err = c.cNetworks.ProcessContainerNetworks()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -124,7 +131,6 @@ func (c *Configure) processParams() error {
 // creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
 func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
 	//TODO: copy changed data
-
 	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
 	vicAdminSession := o.ExecutorConfig.Sessions[config.VicAdminService]
 	if c.proxies.IsSet {
@@ -144,6 +150,10 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if c.Debug.Debug != nil {
 		o.SetDebug(n.Diagnostics.DebugLevel)
+	}
+
+	if c.cNetworks.IsSet {
+		o.ContainerNetworks = n.ContainerNetworks
 	}
 }
 
@@ -260,8 +270,12 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		log.Error(err)
 		return err
 	}
+
 	// using new configuration override configuration query from guestinfo
-	oldData.CopyNonEmpty(c.Data)
+	if err = oldData.CopyNonEmpty(c.Data); err != nil {
+		log.Error("Configuring cannot continue: copying configuration failed")
+		return err
+	}
 	c.Data = oldData
 
 	// evaluate merged configuration
