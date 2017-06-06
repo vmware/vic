@@ -611,10 +611,7 @@ func testGuestinfo(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	EnableLog()
-	fmt.Printf("%+v", d)
 	dest, err := DataToOption(d)
-	fmt.Printf("%+v", dest)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
