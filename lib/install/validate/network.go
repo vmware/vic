@@ -629,8 +629,6 @@ func (v *Validator) ListNetworks(incStdNets bool) ([]string, error) {
 func (v *Validator) suggestNetwork(flag string, incStdNets bool) {
 	defer trace.End(trace.Begin(flag))
 
-	log.Infof("Suggesting valid networks for %s", flag)
-
 	nets, err := v.ListNetworks(incStdNets)
 	if err != nil {
 		log.Error(err)

@@ -17,18 +17,17 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // EngineInstallerConfigOptions contains resource options for selection by user in exec.html
@@ -49,7 +48,8 @@ type EngineInstaller struct {
 	Password        string `json:"password"`
 	Name            string `json:"name"`
 	Thumbprint      string `json:"thumbprint"`
-	CreateCommand   string
+	CreateCommand   []string
+	validator       *validate.Validator
 }
 
 // AuthHTML holds the invalid login variable
@@ -71,62 +71,59 @@ type ExecHTMLOptions struct {
 	CreateCommand   string
 }
 
-var (
-	validator *validate.Validator
-)
-
-// NewEngineInstaller returns a new EngineInstaller struct with empty parameters
 func NewEngineInstaller() *EngineInstaller {
 	return &EngineInstaller{Name: "default-vch"}
 }
 
 func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions {
-	vc := validator.IsVC()
-	fmt.Printf("Is VC: %t\n", vc)
+	defer trace.End(trace.Begin(""))
 
-	dcs, err := validator.ListDatacenters()
+	vc := ei.validator.IsVC()
+	log.Infof("Is VC: %t\n", vc)
+
+	dcs, err := ei.validator.ListDatacenters()
 	if err != nil {
-		fmt.Println(err)
+		log.Infoln(err)
 		return nil
 	}
 	for _, d := range dcs {
-		fmt.Printf("DC: %s\n", d)
+		log.Infof("DC: %s\n", d)
 	}
 
-	comp, err := validator.ListComputeResource()
+	comp, err := ei.validator.ListComputeResource()
 	if err != nil {
-		fmt.Println(err)
+		log.Infoln(err)
 		return nil
 	}
 	for _, c := range comp {
-		fmt.Printf("compute: %s\n", c)
+		log.Infof("compute: %s\n", c)
 	}
 
-	rp, err := validator.ListResourcePool("*")
+	rp, err := ei.validator.ListResourcePool("*")
 	if err != nil {
-		fmt.Println(err)
+		log.Infoln(err)
 		return nil
 	}
 	for _, p := range rp {
-		fmt.Printf("rp: %s\n", p)
+		log.Infof("rp: %s\n", p)
 	}
 
-	nets, err := validator.ListNetworks(!vc) // set to false for vC
+	nets, err := ei.validator.ListNetworks(!vc) // set to false for vC
 	if err != nil {
-		fmt.Println(err)
+		log.Infoln(err)
 		return nil
 	}
 	for _, n := range nets {
-		fmt.Printf("net: %s\n", n)
+		log.Infof("net: %s\n", n)
 	}
 
-	dss, err := validator.ListDatastores()
+	dss, err := ei.validator.ListDatastores()
 	if err != nil {
-		fmt.Println(err)
+		log.Infoln(err)
 		return nil
 	}
 	for _, d := range dss {
-		fmt.Printf("ds: %s\n", d)
+		log.Infof("ds: %s\n", d)
 	}
 
 	return &EngineInstallerConfigOptions{
@@ -137,25 +134,29 @@ func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions
 }
 
 func (ei *EngineInstaller) buildCreateCommand(binaryPath string) {
+	defer trace.End(trace.Begin(""))
+
 	var createCommand []string
 
 	createCommand = append(createCommand, binaryPath+"/vic/vic-machine-linux")
 	createCommand = append(createCommand, "create")
 	createCommand = append(createCommand, "--no-tlsverify")
-	createCommand = append(createCommand, fmt.Sprintf("--target %s", ei.Target))
-	createCommand = append(createCommand, fmt.Sprintf("--user %s", ei.User))
-	createCommand = append(createCommand, fmt.Sprintf("--password %s", ei.Password))
-	createCommand = append(createCommand, fmt.Sprintf("--name %s", ei.Name))
-	createCommand = append(createCommand, fmt.Sprintf("--public-network %s", ei.PublicNetwork))
-	createCommand = append(createCommand, fmt.Sprintf("--bridge-network %s", ei.BridgeNetwork))
-	createCommand = append(createCommand, fmt.Sprintf("--compute-resource %s", ei.ComputeResource))
-	createCommand = append(createCommand, fmt.Sprintf("--image-store %s", ei.ImageStore))
-	createCommand = append(createCommand, fmt.Sprintf("--thumbprint %s", ei.Thumbprint))
+	createCommand = append(createCommand, []string{"--target", ei.Target}...)
+	createCommand = append(createCommand, []string{"--user", ei.User}...)
+	createCommand = append(createCommand, []string{"--password", ei.Password}...)
+	createCommand = append(createCommand, []string{"--name", ei.Name}...)
+	createCommand = append(createCommand, []string{"--public-network", ei.PublicNetwork}...)
+	createCommand = append(createCommand, []string{"--bridge-network", ei.BridgeNetwork}...)
+	createCommand = append(createCommand, []string{"--compute-resource", ei.ComputeResource}...)
+	createCommand = append(createCommand, []string{"--image-store", ei.ImageStore}...)
+	createCommand = append(createCommand, []string{"--thumbprint", ei.Thumbprint}...)
 
-	ei.CreateCommand = strings.Join(createCommand, " ")
+	ei.CreateCommand = createCommand
 }
 
 func (ei *EngineInstaller) verifyLogin() error {
+	defer trace.End(trace.Begin(""))
+
 	ctx := context.TODO()
 
 	var u url.URL
@@ -181,24 +182,30 @@ func (ei *EngineInstaller) verifyLogin() error {
 		return err
 	}
 
-	validator = v
+	ei.validator = v
 
 	return nil
 }
 
-func setupDefaultAdmiral(vchIp string) {
+func setupDefaultAdmiral(vchIP string) {
+	defer trace.End(trace.Begin(""))
+
 	admiral := "https://localhost:8282"
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	client := &http.Client{}
+
+	// test if admiral is available on https. OVA uses https, but local development uses http.
+	_, err := client.Get(admiral)
+	if err != nil {
+		// https failed, use http
+		admiral = "http://localhost:8282"
 	}
-	client := &http.Client{Transport: tr}
 
 	// validate vch host
-	sslTrustPayload := fmt.Sprintf("{\"hostState\":{\"id\":\"%s\",\"address\":\"https://%s\",\"customProperties\":{\"__adapterDockerType\":\"API\",\"__containerHostType\":\"VCH\"}}}", vchIp, vchIp)
+	sslTrustPayload := fmt.Sprintf("{\"hostState\":{\"id\":\"%s\",\"address\":\"https://%s\",\"customProperties\":{\"__adapterDockerType\":\"API\",\"__containerHostType\":\"VCH\"}}}", vchIP, vchIP)
 	sslTrustReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/resources/hosts?validate=true", admiral), bytes.NewBuffer([]byte(sslTrustPayload)))
 	sslTrustResp, err := client.Do(sslTrustReq)
 	if err != nil || sslTrustResp.StatusCode != http.StatusOK {
-		log.Infoln(err, sslTrustResp.StatusCode)
+		log.Infof("error: %v\nresponse: %v\n", err, sslTrustResp)
 		log.Infoln("Cannot add vch to Admiral.")
 		return
 	}
@@ -214,7 +221,7 @@ func setupDefaultAdmiral(vchIp string) {
 		sslCertReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/config/trust-certs", admiral), bytes.NewBuffer([]byte(sslCert)))
 		sslCertResp, err := client.Do(sslCertReq)
 		if err != nil || sslCertResp.StatusCode != http.StatusOK {
-			log.Infoln(err, sslCertResp.StatusCode)
+			log.Infof("error: %v\nresponse: %v\n", err, sslCertResp)
 			log.Infoln("Admiral cannot trust host certificate.")
 			return
 		}
@@ -224,7 +231,7 @@ func setupDefaultAdmiral(vchIp string) {
 	addHostReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/resources/hosts", admiral), bytes.NewBuffer([]byte(sslTrustPayload)))
 	addHostResp, err := client.Do(addHostReq)
 	if err != nil || addHostResp.StatusCode != http.StatusNoContent {
-		log.Infoln(err, addHostResp.StatusCode)
+		log.Infof("error: %v\nresponse: %v\n", err, addHostResp)
 		log.Infoln("Error adding host to Admiral.")
 		return
 	}

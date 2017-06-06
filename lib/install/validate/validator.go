@@ -219,7 +219,7 @@ func (v *Validator) datacenter() error {
 func (v *Validator) ListDatacenters() ([]string, error) {
 	dcs, err := v.Session.Finder.DatacenterList(v.Context, "*")
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list datacenters: %s", err)
+		return nil, fmt.Errorf("unable to list datacenters: %s", err)
 	}
 
 	if len(dcs) == 0 {

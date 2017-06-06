@@ -22,6 +22,8 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,6 +37,7 @@ const (
 	bridgeNetName = "bridge-net"
 	imgStoreName  = "img-store"
 	computeName   = "compute"
+	port          = ":1337"
 )
 
 var (
@@ -53,7 +56,7 @@ func Init(conf *config) {
 	gd := syscall.Getgid()
 	log.Info(fmt.Sprintf("Current UID/GID = %d/%d", ud, gd))
 
-	flag.StringVar(&conf.addr, "addr", ":1337", "Listen address - must include host and port (addr:port)")
+	flag.StringVar(&conf.addr, "addr", port, "Listen address - must include host and port (addr:port)")
 	flag.StringVar(&conf.serveDir, "data", "/opt/vmware/engine_installer", "Directory containing vic-machine and HTML data")
 
 	flag.Parse()
@@ -64,7 +67,6 @@ func Init(conf *config) {
 func main() {
 	Init(&c)
 
-	defer trace.End(trace.Begin(""))
 	log.Infoln("starting installer-egine")
 
 	mux := http.NewServeMux()
@@ -73,13 +75,13 @@ func main() {
 	routes := []string{"css", "images", "fonts"}
 	for _, route := range routes {
 		httpPath := fmt.Sprintf("/%s/", route)
-		dirPath := fmt.Sprintf("%s/html/%s/", c.serveDir, route)
+		dirPath := filepath.Join(c.serveDir, "/html/", route)
 		mux.Handle(httpPath, http.StripPrefix(httpPath, http.FileServer(http.Dir(dirPath))))
 	}
 
 	// attach root index route
 	mux.Handle("/", http.HandlerFunc(indexHandler))
-	mux.Handle("/ws", http.HandlerFunc(logStream.wsServer))
+	mux.Handle("/ws", http.HandlerFunc(logStream.websocketServer))
 	mux.Handle("/cmd", http.HandlerFunc(parseCmdArgs))
 
 	// start the web server
@@ -93,10 +95,11 @@ func main() {
 
 	log.Infof("Starting installer-engine server on %s", s.Addr)
 	log.Fatal(s.ListenAndServeTLS("", ""))
-
 }
 
 func generateCert(conf *config) {
+	defer trace.End(trace.Begin(""))
+
 	c, k, err := certificate.CreateSelfSigned(conf.addr, []string{"VMware, Inc."}, 2048)
 	if err != nil {
 		log.Errorf("Failed to generate a self-signed certificate: %s. Exiting.", err.Error())
@@ -135,7 +138,7 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 			html.Target = engineInstaller.Target
 			html.Name = engineInstaller.Name
 			html.Thumbprint = engineInstaller.Thumbprint
-			html.CreateCommand = engineInstaller.CreateCommand
+			html.CreateCommand = strings.Join(engineInstaller.CreateCommand, " ")
 
 			renderTemplate(resp, "html/exec.html", html)
 		}
@@ -145,6 +148,8 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 }
 
 func getSelectOptionHTML(arr []string, id string) template.HTML {
+	defer trace.End(trace.Begin(""))
+
 	templ := template.HTML(fmt.Sprintf("<div class=\"select\"><select name=\"%s\">", id))
 	for _, option := range arr {
 		optionHTML := fmt.Sprintf("<option>%s</option>", option)
@@ -154,6 +159,8 @@ func getSelectOptionHTML(arr []string, id string) template.HTML {
 }
 
 func renderTemplate(resp http.ResponseWriter, filename string, data interface{}) {
+	defer trace.End(trace.Begin(""))
+
 	log.Infof("render: %s", filename)
 	filename = fmt.Sprintf("%s/%s", c.serveDir, filename)
 	log.Infof("render: %s", filename)
@@ -181,7 +188,6 @@ func parseCmdArgs(resp http.ResponseWriter, req *http.Request) {
 		engineInstaller.buildCreateCommand(c.serveDir)
 		log.Infoln(engineInstaller)
 		resp.WriteHeader(http.StatusOK)
-		resp.Write([]byte(engineInstaller.CreateCommand))
+		resp.Write([]byte(strings.Join(engineInstaller.CreateCommand, " ")))
 	}
-
 }

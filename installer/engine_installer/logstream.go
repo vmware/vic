@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	// time to wait for ws writes
+	// time to wait for websocket writes
 	waitTime = time.Minute * 3
 )
 
@@ -45,20 +45,21 @@ var (
 
 // LogStream streams a command's execution over a websocket connection
 type LogStream struct {
-	cmd *exec.Cmd
-	ws  *websocket.Conn
+	cmd       *exec.Cmd
+	websocket *websocket.Conn
 }
 
-// NewLogStream returns an empty LogSream struct (no ws connection or exec command)
+// NewLogStream returns an empty LogSream struct (no websocket connection or exec command)
 func NewLogStream() *LogStream {
+	defer trace.End(trace.Begin(""))
+
 	return &LogStream{}
 }
 
-func (ls *LogStream) setCmd(command string) {
+func (ls *LogStream) setCmd(command []string) {
 	defer trace.End(trace.Begin(""))
 
-	args := strings.Split(command, " ")
-	ls.cmd = exec.Command(args[0], args[1:]...)
+	ls.cmd = exec.Command(command[0], command[1:]...)
 }
 
 func (ls *LogStream) start() {
@@ -112,12 +113,12 @@ func (ls *LogStream) start() {
 	}
 }
 
-func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
+func (ls *LogStream) websocketServer(resp http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
 	//turn http requests into websockets
 	upgrader := websocket.Upgrader{}
-	ws, err := upgrader.Upgrade(resp, req, nil)
+	websocket, err := upgrader.Upgrade(resp, req, nil)
 	if err != nil {
 		log.Infoln("ERROR")
 		log.Infoln(err)
@@ -125,8 +126,8 @@ func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	//set logstrem websocket for use by start() and send()
-	ls.ws = ws
-	defer ls.ws.Close()
+	ls.websocket = websocket
+	defer ls.websocket.Close()
 
 	//create the command
 	ls.setCmd(engineInstaller.CreateCommand)
@@ -134,10 +135,13 @@ func (ls *LogStream) wsServer(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (ls *LogStream) send(msg string) {
+	defer trace.End(trace.Begin(""))
+
 	mu.Lock()
 	defer mu.Unlock()
-	ls.ws.SetWriteDeadline(time.Now().Add(waitTime))
-	if err := ls.ws.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+
+	ls.websocket.SetWriteDeadline(time.Now().Add(waitTime))
+	if err := ls.websocket.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 		log.Infof("ERROR SENDING --------\n%s\n--------: %v\n", msg, err)
 	} else {
 		log.Infof("SENT: %s\n", msg)
