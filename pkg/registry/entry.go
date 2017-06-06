@@ -191,3 +191,17 @@ func parseURL(s string) *url.URL {
 func (w *strEntry) Equal(other Entry) bool {
 	return other.String() == w.String()
 }
+
+func getHost(s string) string {
+	// url?
+	if u, err := url.Parse(s); err == nil && len(u.Host) > 0 {
+		return u.Hostname()
+	}
+
+	// host:port?
+	if h, _, err := net.SplitHostPort(s); err == nil {
+		return h
+	}
+
+	return s
+}
