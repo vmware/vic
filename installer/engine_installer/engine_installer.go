@@ -26,7 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 )
 
-// EngineInstallerConfigOptions contains resource options for selection by user in options.html
+// EngineInstallerConfigOptions contains resource options for selection by user in exec.html
 type EngineInstallerConfigOptions struct {
 	Networks      []string
 	Datastores    []string
@@ -47,11 +47,12 @@ type EngineInstaller struct {
 	CreateCommand   string
 }
 
-// AutHTML holds the invalid login variable
+// AuthHTML holds the invalid login variable
 type AuthHTML struct {
 	InvalidLogin bool
 }
 
+// ExecHTMLOptions contains fields for html templating in exec.html
 type ExecHTMLOptions struct {
 	BridgeNetwork   template.HTML
 	PublicNetwork   template.HTML
@@ -71,11 +72,10 @@ var (
 
 // NewEngineInstaller returns a new EngineInstaller struct with empty parameters
 func NewEngineInstaller() *EngineInstaller {
-	return &EngineInstaller{Name: "defualt-vch"}
+	return &EngineInstaller{Name: "default-vch"}
 }
 
 func (ei *EngineInstaller) populateConfigOptions() *EngineInstallerConfigOptions {
-
 	vc := validator.IsVC()
 	fmt.Printf("Is VC: %t\n", vc)
 
@@ -175,10 +175,7 @@ func (ei *EngineInstaller) verifyLogin() error {
 		fmt.Printf("validator: %s", err)
 		return err
 	}
-	// if !v.IsVC() {
-	// 	fmt.Printf("validator : %v\n", v)
-	// 	return errors.New("target is not a vCenter instance")
-	// }
+
 	validator = v
 
 	return nil

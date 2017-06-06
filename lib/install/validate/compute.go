@@ -111,7 +111,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 		var p mo.ResourcePool
 
 		if err = pool.Properties(ctx, pool.Reference(), []string{"owner"}, &p); err != nil {
-			log.Errorf("Unable to get cluster of resource pool %s: %s", pool.Name(), err)
+			log.Errorf("unable to get cluster of resource pool %s: %s", pool.Name(), err)
 			return nil, err
 		}
 
@@ -135,7 +135,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 func (v *Validator) ListComputeResource() ([]string, error) {
 	compute, err := v.Session.Finder.ComputeResourceList(v.Context, "*")
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list compute resource: %s", err)
+		return nil, fmt.Errorf("unable to list compute resource: %s", err)
 	}
 
 	if len(compute) == 0 {
@@ -167,7 +167,7 @@ func (v *Validator) suggestComputeResource() {
 func (v *Validator) ListResourcePool(path string) ([]string, error) {
 	pools, err := v.Session.Finder.ResourcePoolList(v.Context, path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list resource pool: %s", err)
+		return nil, fmt.Errorf("unable to list resource pool: %s", err)
 	}
 
 	if len(pools) == 0 {

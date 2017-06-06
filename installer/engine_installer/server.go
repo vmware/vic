@@ -52,12 +52,6 @@ func Init(conf *config) {
 	ud := syscall.Getuid()
 	gd := syscall.Getgid()
 	log.Info(fmt.Sprintf("Current UID/GID = %d/%d", ud, gd))
-	/* TODO FIXME
-	if ud == 0 {
-	  log.Error("Error: must not run as root.")
-	  os.Exit(1)
-	}
-	*/
 
 	flag.StringVar(&conf.addr, "addr", ":1337", "Listen address - must include host and port (addr:port)")
 	flag.StringVar(&conf.serveDir, "data", "/opt/vmware/engine_installer", "Directory containing vic-machine and HTML data")
@@ -100,9 +94,6 @@ func main() {
 	log.Infof("Starting installer-engine server on %s", s.Addr)
 	log.Fatal(s.ListenAndServeTLS("", ""))
 
-	// start the web server
-	// log.Infof("installer-engine listening on localhost:%s\n", c.addr)
-	// http.ListenAndServe(c.addr, mux)
 }
 
 func generateCert(conf *config) {
@@ -123,7 +114,6 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if req.Method == http.MethodPost {
 		// verify login
-
 		engineInstaller.Target = req.FormValue("target")
 		engineInstaller.User = req.FormValue("user")
 		engineInstaller.Password = req.FormValue("password")
@@ -135,16 +125,9 @@ func indexHandler(resp http.ResponseWriter, req *http.Request) {
 			opts := engineInstaller.populateConfigOptions()
 			html := &ExecHTMLOptions{}
 
-			//add bridge select box to html template
 			html.PublicNetwork = getSelectOptionHTML(opts.Networks, publicNetName)
-
-			//add bridge select box to html template
 			html.BridgeNetwork = getSelectOptionHTML(opts.Networks, bridgeNetName)
-
-			//add datastores select box to html template
 			html.ImageStore = getSelectOptionHTML(opts.Datastores, imgStoreName)
-
-			//add compute resources select box to html template
 			html.ComputeResource = getSelectOptionHTML(opts.ResourcePools, computeName)
 
 			html.User = engineInstaller.User
@@ -188,16 +171,16 @@ func parseCmdArgs(resp http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	if err := json.NewDecoder(req.Body).Decode(&engineInstaller); err != nil {
-		resp.WriteHeader(500)
+		resp.WriteHeader(http.StatusInternalServerError)
 		resp.Write([]byte("500"))
 		if e, ok := err.(*json.SyntaxError); ok {
 			log.Printf("syntax error at byte offset %v", e)
 		}
 	} else {
-		//build the vic create command from the installer variables
+		// build the vic create command from the installer variables
 		engineInstaller.buildCreateCommand(c.serveDir)
 		log.Infoln(engineInstaller)
-		resp.WriteHeader(200)
+		resp.WriteHeader(http.StatusOK)
 		resp.Write([]byte(engineInstaller.CreateCommand))
 	}
 

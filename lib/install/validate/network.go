@@ -600,7 +600,7 @@ func (v *Validator) ListNetworks(incStdNets bool) ([]string, error) {
 
 	nets, err := v.Session.Finder.NetworkList(v.Context, "*")
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list networks: %s", err)
+		return nil, fmt.Errorf("unable to list networks: %s", err)
 	}
 
 	if len(nets) == 0 {
