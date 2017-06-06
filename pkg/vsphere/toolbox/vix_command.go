@@ -21,8 +21,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"runtime"
+	"syscall"
+	"time"
 
 	"github.com/vmware/vic/pkg/vsphere/toolbox/hgfs"
 )
@@ -34,8 +37,19 @@ const (
 
 	vixCommandStartProgram     = 185
 	vixCommandListProcessesEx  = 186
+	vixCommandReadEnvVariables = 187
 	vixCommandTerminateProcess = 193
 
+	vixCommandCreateDirectoryEx        = 178
+	vixCommandMoveGuestFileEx          = 179
+	vixCommandMoveGuestDirectory       = 180
+	vixCommandCreateTemporaryFileEx    = 181
+	vixCommandCreateTemporaryDirectory = 182
+	vixCommandSetGuestFileAttributes   = 183
+	vixCommandDeleteGuestFileEx        = 194
+	vixCommandDeleteGuestDirectoryEx   = 195
+
+	vixCommandListFiles                     = 177
 	vmxiHgfsSendPacketCommand               = 84
 	vixCommandInitiateFileTransferFromGuest = 188
 	vixCommandInitiateFileTransferToGuest   = 189
@@ -47,12 +61,17 @@ const (
 	vixOK                 = 0
 	vixFail               = 1
 	vixFileNotFound       = 4
+	vixFileAlreadyExists  = 12
+	vixFileAccessError    = 13
 	vixAuthenticationFail = 35
 
 	vixUnrecognizedCommandInGuest = 3025
 	vixInvalidMessageHeader       = 10000
 	vixInvalidMessageBody         = 10001
+	vixNotAFile                   = 20001
+	vixNotADirectory              = 20002
 	vixNoSuchProcess              = 20003
+	vixDirectoryNotEmpty          = 20006
 
 	// VIX_COMMAND_* constants from vixCommands.h
 	vixCommandGuestReturnsBinary = 0x80
@@ -68,18 +87,32 @@ func (err VixError) Error() string {
 	return fmt.Sprintf("vix error=%d", err)
 }
 
+// vixErrorCode does its best to map the given error to a VIX error code.
+// See also: Vix_TranslateErrno
 func vixErrorCode(err error) int {
-	switch x := err.(type) {
-	case VixError:
-		return int(x)
-	default:
-		switch {
-		case os.IsNotExist(err):
-			return vixFileNotFound
+	if xerr, ok := err.(VixError); ok {
+		return int(xerr)
+	}
+
+	if xerr, ok := err.(*os.PathError); ok {
+		if errno, ok := xerr.Err.(syscall.Errno); ok {
+			switch errno {
+			case syscall.ENOTEMPTY:
+				return vixDirectoryNotEmpty
+			}
 		}
 	}
 
-	return vixFail
+	switch {
+	case os.IsNotExist(err):
+		return vixFileNotFound
+	case os.IsExist(err):
+		return vixFileAlreadyExists
+	case os.IsPermission(err):
+		return vixFileAccessError
+	default:
+		return vixFail
+	}
 }
 
 type VixMsgHeader struct {
@@ -147,6 +180,72 @@ type VixMsgListProcessesExRequest struct {
 	Pids []int64
 }
 
+type VixMsgReadEnvironmentVariablesRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		NumNames    uint32
+		NamesLength uint32
+	}
+
+	Names []string
+}
+
+type VixMsgCreateTempFileExRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		Options             int32
+		FilePrefixLength    uint32
+		FileSuffixLength    uint32
+		DirectoryPathLength uint32
+		PropertyListLength  uint32
+	}
+
+	FilePrefix    string
+	FileSuffix    string
+	DirectoryPath string
+}
+
+type VixMsgFileRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		FileOptions         int32
+		GuestPathNameLength uint32
+	}
+
+	GuestPathName string
+}
+
+type VixMsgDirRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		FileOptions          int32
+		GuestPathNameLength  uint32
+		FilePropertiesLength uint32
+		Recursive            bool
+	}
+
+	GuestPathName string
+}
+
+type VixCommandRenameFileExRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		CopyFileOptions      int32
+		OldPathNameLength    uint32
+		NewPathNameLength    uint32
+		FilePropertiesLength uint32
+		Overwrite            bool
+	}
+
+	OldPathName string
+	NewPathName string
+}
+
 type VixMsgListFilesRequest struct {
 	VixCommandRequestHeader
 
@@ -161,6 +260,24 @@ type VixMsgListFilesRequest struct {
 
 	GuestPathName string
 	Pattern       string
+}
+
+type VixMsgSetGuestFileAttributesRequest struct {
+	VixCommandRequestHeader
+
+	header struct {
+		FileOptions         int32
+		AccessTime          int64
+		ModificationTime    int64
+		OwnerID             int32
+		GroupID             int32
+		Permissions         int32
+		Hidden              bool
+		ReadOnly            bool
+		GuestPathNameLength uint32
+	}
+
+	GuestPathName string
 }
 
 type VixCommandHgfsSendPacket struct {
@@ -180,7 +297,7 @@ type VixCommandInitiateFileTransferToGuestRequest struct {
 	header struct {
 		Options             int32
 		GuestPathNameLength uint32
-		Overwrite           uint8
+		Overwrite           bool
 	}
 
 	GuestPathName string
@@ -226,7 +343,17 @@ func registerVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandle
 	handler.RegisterHandler(vixCommandStartProgram, handler.StartCommand)
 	handler.RegisterHandler(vixCommandTerminateProcess, handler.KillProcess)
 	handler.RegisterHandler(vixCommandListProcessesEx, handler.ListProcessesEx)
+	handler.RegisterHandler(vixCommandReadEnvVariables, handler.ReadEnvironmentVariables)
 
+	handler.RegisterHandler(vixCommandCreateTemporaryFileEx, handler.CreateTemporaryFileEx)
+	handler.RegisterHandler(vixCommandCreateTemporaryDirectory, handler.CreateTemporaryDirectory)
+	handler.RegisterHandler(vixCommandDeleteGuestFileEx, handler.DeleteFile)
+	handler.RegisterHandler(vixCommandCreateDirectoryEx, handler.CreateDirectory)
+	handler.RegisterHandler(vixCommandDeleteGuestDirectoryEx, handler.DeleteDirectory)
+	handler.RegisterHandler(vixCommandMoveGuestFileEx, handler.MoveFile)
+	handler.RegisterHandler(vixCommandMoveGuestDirectory, handler.MoveDirectory)
+	handler.RegisterHandler(vixCommandListFiles, handler.ListFiles)
+	handler.RegisterHandler(vixCommandSetGuestFileAttributes, handler.SetGuestFileAttributes)
 	handler.RegisterHandler(vixCommandInitiateFileTransferFromGuest, handler.InitiateFileTransferFromGuest)
 	handler.RegisterHandler(vixCommandInitiateFileTransferToGuest, handler.InitiateFileTransferToGuest)
 
@@ -343,6 +470,16 @@ func (c *VixRelayedCommandHandler) GetToolsState(_ string, _ VixCommandRequestHe
 		NewBoolProperty(VixPropertyGuestStartProgramEnabled, true),
 		NewBoolProperty(VixPropertyGuestTerminateProcessEnabled, true),
 		NewBoolProperty(VixPropertyGuestListProcessesEnabled, true),
+		NewBoolProperty(VixPropertyGuestReadEnvironmentVariableEnabled, true),
+		NewBoolProperty(VixPropertyGuestMakeDirectoryEnabled, true),
+		NewBoolProperty(VixPropertyGuestDeleteFileEnabled, true),
+		NewBoolProperty(VixPropertyGuestDeleteDirectoryEnabled, true),
+		NewBoolProperty(VixPropertyGuestMoveDirectoryEnabled, true),
+		NewBoolProperty(VixPropertyGuestMoveFileEnabled, true),
+		NewBoolProperty(VixPropertyGuestCreateTempFileEnabled, true),
+		NewBoolProperty(VixPropertyGuestCreateTempDirectoryEnabled, true),
+		NewBoolProperty(VixPropertyGuestListFilesEnabled, true),
+		NewBoolProperty(VixPropertyGuestChangeFileAttributesEnabled, true),
 		NewBoolProperty(VixPropertyGuestInitiateFileTransferFromGuestEnabled, true),
 		NewBoolProperty(VixPropertyGuestInitiateFileTransferToGuestEnabled, true),
 	}
@@ -546,6 +683,412 @@ func (c *VixRelayedCommandHandler) ListProcessesEx(_ string, header VixCommandRe
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixMsgCreateTempFileExRequest) MarshalBinary() ([]byte, error) {
+	var fields []string
+
+	add := func(s string, l *uint32) {
+		*l = uint32(len(s)) // NOTE: NULL byte is not included in the length fields on the wire
+		fields = append(fields, s)
+	}
+
+	add(r.FilePrefix, &r.header.FilePrefixLength)
+	add(r.FileSuffix, &r.header.FileSuffixLength)
+	add(r.DirectoryPath, &r.header.DirectoryPathLength)
+
+	buf := new(bytes.Buffer)
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	for _, val := range fields {
+		_, _ = buf.Write([]byte(val))
+		_ = buf.WriteByte(0)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixMsgCreateTempFileExRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	fields := []struct {
+		len uint32
+		val *string
+	}{
+		{r.header.FilePrefixLength, &r.FilePrefix},
+		{r.header.FileSuffixLength, &r.FileSuffix},
+		{r.header.DirectoryPathLength, &r.DirectoryPath},
+	}
+
+	for _, field := range fields {
+		field.len++ // NOTE: NULL byte is not included in the length fields on the wire
+
+		x := buf.Next(int(field.len))
+		*field.val = string(bytes.TrimRight(x, "\x00"))
+	}
+
+	return nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixMsgReadEnvironmentVariablesRequest) MarshalBinary() ([]byte, error) {
+	var env bytes.Buffer
+
+	if n := len(r.Names); n != 0 {
+		for _, e := range r.Names {
+			_, _ = env.Write([]byte(e))
+			_ = env.WriteByte(0)
+		}
+		r.header.NumNames = uint32(n)
+		r.header.NamesLength = uint32(env.Len())
+	}
+
+	buf := new(bytes.Buffer)
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	if r.header.NamesLength != 0 {
+		_, _ = buf.Write(env.Bytes())
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixMsgReadEnvironmentVariablesRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < int(r.header.NumNames); i++ {
+		env, rerr := buf.ReadString(0)
+		if rerr != nil {
+			return rerr
+		}
+
+		env = env[:len(env)-1] // discard NULL terminator
+		r.Names = append(r.Names, env)
+	}
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) ReadEnvironmentVariables(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgReadEnvironmentVariablesRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+
+	if len(r.Names) == 0 {
+		for _, e := range os.Environ() {
+			_, _ = buf.WriteString(fmt.Sprintf("<ev>%s</ev>", xmlEscape.Replace(e)))
+		}
+	} else {
+		for _, key := range r.Names {
+			val := os.Getenv(key)
+			if val == "" {
+				continue
+			}
+			_, _ = buf.WriteString(fmt.Sprintf("<ev>%s=%s</ev>", xmlEscape.Replace(key), xmlEscape.Replace(val)))
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (c *VixRelayedCommandHandler) CreateTemporaryFileEx(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgCreateTempFileExRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := ioutil.TempFile(r.DirectoryPath, r.FilePrefix+"vmware")
+	if err != nil {
+		return nil, err
+	}
+
+	_ = f.Close()
+
+	return []byte(f.Name()), nil
+}
+
+func (c *VixRelayedCommandHandler) CreateTemporaryDirectory(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgCreateTempFileExRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	name, err := ioutil.TempDir(r.DirectoryPath, r.FilePrefix+"vmware")
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(name), nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixMsgFileRequest) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	r.header.GuestPathNameLength = uint32(len(r.GuestPathName))
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	_, _ = buf.WriteString(r.GuestPathName)
+	_ = buf.WriteByte(0)
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixMsgFileRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	name := buf.Next(int(r.header.GuestPathNameLength))
+	r.GuestPathName = string(bytes.TrimRight(name, "\x00"))
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) DeleteFile(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgFileRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(r.GuestPathName)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.IsDir() {
+		return nil, VixError(vixNotAFile)
+	}
+
+	err = os.Remove(r.GuestPathName)
+
+	return nil, err
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixMsgDirRequest) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	r.header.GuestPathNameLength = uint32(len(r.GuestPathName))
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	_, _ = buf.WriteString(r.GuestPathName)
+	_ = buf.WriteByte(0)
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixMsgDirRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	name := buf.Next(int(r.header.GuestPathNameLength))
+	r.GuestPathName = string(bytes.TrimRight(name, "\x00"))
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) DeleteDirectory(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgDirRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(r.GuestPathName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !info.IsDir() {
+		return nil, VixError(vixNotADirectory)
+	}
+
+	if r.header.Recursive {
+		err = os.RemoveAll(r.GuestPathName)
+	} else {
+		err = os.Remove(r.GuestPathName)
+	}
+
+	return nil, err
+}
+
+func (c *VixRelayedCommandHandler) CreateDirectory(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgDirRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	mkdir := os.Mkdir
+
+	if r.header.Recursive {
+		mkdir = os.MkdirAll
+	}
+
+	err = mkdir(r.GuestPathName, 0700)
+
+	return nil, err
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixCommandRenameFileExRequest) MarshalBinary() ([]byte, error) {
+	var fields []string
+
+	add := func(s string, l *uint32) {
+		*l = uint32(len(s)) // NOTE: NULL byte is not included in the length fields on the wire
+		fields = append(fields, s)
+	}
+
+	add(r.OldPathName, &r.header.OldPathNameLength)
+	add(r.NewPathName, &r.header.NewPathNameLength)
+
+	buf := new(bytes.Buffer)
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	for _, val := range fields {
+		_, _ = buf.Write([]byte(val))
+		_ = buf.WriteByte(0)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixCommandRenameFileExRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	fields := []struct {
+		len uint32
+		val *string
+	}{
+		{r.header.OldPathNameLength, &r.OldPathName},
+		{r.header.NewPathNameLength, &r.NewPathName},
+	}
+
+	for _, field := range fields {
+		field.len++ // NOTE: NULL byte is not included in the length fields on the wire
+
+		x := buf.Next(int(field.len))
+		*field.val = string(bytes.TrimRight(x, "\x00"))
+	}
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) MoveDirectory(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixCommandRenameFileExRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(r.OldPathName)
+	if err != nil {
+		return nil, err
+	}
+
+	if !info.IsDir() {
+		return nil, VixError(vixNotADirectory)
+	}
+
+	if !r.header.Overwrite {
+		info, err = os.Stat(r.NewPathName)
+		if err == nil {
+			return nil, VixError(vixFileAlreadyExists)
+		}
+	}
+
+	return nil, os.Rename(r.OldPathName, r.NewPathName)
+}
+
+func (c *VixRelayedCommandHandler) MoveFile(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixCommandRenameFileExRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(r.OldPathName)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.IsDir() {
+		return nil, VixError(vixNotAFile)
+	}
+
+	if !r.header.Overwrite {
+		info, err = os.Stat(r.NewPathName)
+		if err == nil {
+			return nil, VixError(vixFileAlreadyExists)
+		}
+	}
+
+	return nil, os.Rename(r.OldPathName, r.NewPathName)
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
 func (r *VixMsgListFilesRequest) MarshalBinary() ([]byte, error) {
 	var fields []string
 
@@ -598,6 +1141,180 @@ func (r *VixMsgListFilesRequest) UnmarshalBinary(data []byte) error {
 	}
 
 	return nil
+}
+
+func (c *VixRelayedCommandHandler) ListFiles(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgListFilesRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(r.GuestPathName)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []os.FileInfo
+
+	if info.IsDir() {
+		files, err = ioutil.ReadDir(r.GuestPathName)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		files = append(files, info)
+	}
+
+	offset := r.header.Offset + uint64(r.header.Index)
+	total := uint64(len(files)) - offset
+
+	files = files[offset:]
+
+	var remaining uint64
+
+	if r.header.MaxResults > 0 && total > uint64(r.header.MaxResults) {
+		remaining = total - uint64(r.header.MaxResults)
+		files = files[:r.header.MaxResults]
+	}
+
+	buf := new(bytes.Buffer)
+	buf.WriteString(fmt.Sprintf("<rem>%d</rem>", remaining))
+
+	for _, info = range files {
+		buf.WriteString(fileExtendedInfoFormat(info))
+	}
+
+	return buf.Bytes(), nil
+}
+
+// MarshalBinary implements the encoding.BinaryMarshaler interface
+func (r *VixMsgSetGuestFileAttributesRequest) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	r.header.GuestPathNameLength = uint32(len(r.GuestPathName))
+
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
+
+	_, _ = buf.WriteString(r.GuestPathName)
+	_ = buf.WriteByte(0)
+
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (r *VixMsgSetGuestFileAttributesRequest) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	err := binary.Read(buf, binary.LittleEndian, &r.header)
+	if err != nil {
+		return err
+	}
+
+	name := buf.Next(int(r.header.GuestPathNameLength))
+	r.GuestPathName = string(bytes.TrimRight(name, "\x00"))
+
+	return nil
+}
+
+// SetGuestFileAttributes flags as defined in vixOpenSource.h
+const (
+	vixFileAttributeSetAccessDate      = 0x0001
+	vixFileAttributeSetModifyDate      = 0x0002
+	vixFileAttributeSetReadonly        = 0x0004
+	vixFileAttributeSetHidden          = 0x0008
+	vixFileAttributeSetUnixOwnerid     = 0x0010
+	vixFileAttributeSetUnixGroupid     = 0x0020
+	vixFileAttributeSetUnixPermissions = 0x0040
+)
+
+func (r *VixMsgSetGuestFileAttributesRequest) isSet(opt int32) bool {
+	return r.header.FileOptions&opt == opt
+}
+
+func (r *VixMsgSetGuestFileAttributesRequest) chtimes() error {
+	var mtime, atime *time.Time
+
+	if r.isSet(vixFileAttributeSetModifyDate) {
+		t := time.Unix(r.header.ModificationTime, 0)
+		mtime = &t
+	}
+
+	if r.isSet(vixFileAttributeSetAccessDate) {
+		t := time.Unix(r.header.AccessTime, 0)
+		atime = &t
+	}
+
+	if mtime == nil && atime == nil {
+		return nil
+	}
+
+	info, err := os.Stat(r.GuestPathName)
+	if err != nil {
+		return err
+	}
+
+	if mtime == nil {
+		t := info.ModTime()
+		mtime = &t
+	}
+
+	if atime == nil {
+		t := info.ModTime()
+		atime = &t
+	}
+
+	return os.Chtimes(r.GuestPathName, *atime, *mtime)
+}
+
+func (r *VixMsgSetGuestFileAttributesRequest) chown() error {
+	uid := -1
+	gid := -1
+
+	if r.isSet(vixFileAttributeSetUnixOwnerid) {
+		uid = int(r.header.OwnerID)
+	}
+
+	if r.isSet(vixFileAttributeSetUnixGroupid) {
+		gid = int(r.header.GroupID)
+	}
+
+	if uid == -1 && gid == -1 {
+		return nil
+	}
+
+	return os.Chown(r.GuestPathName, uid, gid)
+}
+
+func (r *VixMsgSetGuestFileAttributesRequest) chmod() error {
+	if r.isSet(vixFileAttributeSetUnixPermissions) {
+		return os.Chmod(r.GuestPathName, os.FileMode(r.header.Permissions).Perm())
+	}
+
+	return nil
+}
+
+func (c *VixRelayedCommandHandler) SetGuestFileAttributes(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	r := &VixMsgSetGuestFileAttributesRequest{
+		VixCommandRequestHeader: header,
+	}
+
+	err := r.UnmarshalBinary(data)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, set := range []func() error{r.chtimes, r.chown, r.chmod} {
+		err = set()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, nil
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface
@@ -700,7 +1417,7 @@ func (c *VixRelayedCommandHandler) InitiateFileTransferToGuest(_ string, header 
 			return nil, errors.New("VIX_E_NOT_A_FILE")
 		}
 
-		if r.header.Overwrite == 0 {
+		if !r.header.Overwrite {
 			return nil, errors.New("VIX_E_FILE_ALREADY_EXISTS")
 		}
 	} else {

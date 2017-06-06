@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vmware/vic/pkg/vsphere/toolbox/hgfs"
 )
@@ -62,18 +63,19 @@ func NewVixCommandClient() *VixCommandClient {
 	}
 }
 
-func (c *VixCommandClient) Request(op uint32, size int, m encoding.BinaryMarshaler) []byte {
+func (c *VixCommandClient) Request(op uint32, m encoding.BinaryMarshaler) []byte {
+	b, err := m.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+
 	c.Header.OpCode = op
-	c.Header.BodyLength = uint32(size)
+	c.Header.BodyLength = uint32(len(b))
 
 	var buf bytes.Buffer
 	_, _ = buf.Write([]byte("\"reqname\"\x00"))
 	_ = binary.Write(&buf, binary.LittleEndian, c.Header)
 
-	b, err := m.MarshalBinary()
-	if err != nil {
-		panic(err)
-	}
 	_, _ = buf.Write(b)
 
 	data := append(buf.Bytes(), c.creds...)
@@ -314,10 +316,9 @@ func TestVixInitiateFileTransfer(t *testing.T) {
 
 	// 1st pass file exists == OK, 2nd pass does not exist == FAIL
 	for _, fail := range []bool{false, true} {
-		size := binary.Size(request.header) + len(name) + 1
 		request.GuestPathName = name
 
-		reply := c.Request(vixCommandInitiateFileTransferFromGuest, size, request)
+		reply := c.Request(vixCommandInitiateFileTransferFromGuest, request)
 
 		rc := vixRC(reply)
 
@@ -357,20 +358,19 @@ func TestVixInitiateFileTransferWrite(t *testing.T) {
 	name := f.Name()
 
 	tests := []struct {
-		force uint8
+		force bool
 		fail  bool
 	}{
-		{0, true},  // exists == OK
-		{1, false}, // exists, but overwrite == OK
-		{0, false}, // does not exist == FAIL
+		{false, true},  // exists == OK
+		{true, false},  // exists, but overwrite == OK
+		{false, false}, // does not exist == FAIL
 	}
 
 	for i, test := range tests {
-		size := binary.Size(request.header) + len(name) + 1
 		request.GuestPathName = name
 		request.header.Overwrite = test.force
 
-		reply := c.Request(vixCommandInitiateFileTransferToGuest, size, request)
+		reply := c.Request(vixCommandInitiateFileTransferToGuest, request)
 
 		rc := vixRC(reply)
 
@@ -386,7 +386,7 @@ func TestVixInitiateFileTransferWrite(t *testing.T) {
 			if rc != vixOK {
 				t.Errorf("%d: %d", i, rc)
 			}
-			if test.force != 0 {
+			if test.force {
 				_ = os.Remove(name)
 			}
 		}
@@ -412,9 +412,7 @@ func TestVixProcessHgfsPacket(t *testing.T) {
 	request.Packet, _ = packet.MarshalBinary()
 	request.header.PacketSize = uint32(len(request.Packet))
 
-	size := binary.Size(request.header) + int(request.header.PacketSize)
-
-	reply := c.Request(vmxiHgfsSendPacketCommand, size, request)
+	reply := c.Request(vmxiHgfsSendPacketCommand, request)
 
 	rc := vixRC(reply)
 	if rc != vixOK {
@@ -469,13 +467,7 @@ func TestVixListProcessesEx(t *testing.T) {
 		ProgramPath: "foo",
 	}
 
-	b, err := exec.MarshalBinary()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	size := len(b)
-	reply := c.Request(vixCommandStartProgram, size, exec)
+	reply := c.Request(vixCommandStartProgram, exec)
 	rc := vixRC(reply)
 	if rc != vixOK {
 		t.Fatalf("rc: %d", rc)
@@ -485,7 +477,7 @@ func TestVixListProcessesEx(t *testing.T) {
 	pid, _ := strconv.Atoi(string(r))
 
 	exec.ProgramPath = "bar"
-	reply = c.Request(vixCommandStartProgram, size, exec)
+	reply = c.Request(vixCommandStartProgram, exec)
 	rc = vixRC(reply)
 	t.Log(VixError(rc).Error())
 	if rc != vixFileNotFound {
@@ -501,13 +493,7 @@ func TestVixListProcessesEx(t *testing.T) {
 
 	ps.Pids = []int64{int64(pid)}
 
-	b, err = ps.MarshalBinary()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	size = len(b)
-	reply = c.Request(vixCommandListProcessesEx, size, ps)
+	reply = c.Request(vixCommandListProcessesEx, ps)
 	rc = vixRC(reply)
 	if rc != vixOK {
 		t.Fatalf("rc: %d", rc)
@@ -521,22 +507,439 @@ func TestVixListProcessesEx(t *testing.T) {
 	kill := new(VixCommandKillProcessRequest)
 	kill.header.Pid = ps.Pids[0]
 
-	b, err = kill.MarshalBinary()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	size = len(b)
-	reply = c.Request(vixCommandTerminateProcess, size, kill)
+	reply = c.Request(vixCommandTerminateProcess, kill)
 	rc = vixRC(reply)
 	if rc != vixOK {
 		t.Fatalf("rc: %d", rc)
 	}
 
 	kill.header.Pid = 33333
-	reply = c.Request(vixCommandTerminateProcess, size, kill)
+	reply = c.Request(vixCommandTerminateProcess, kill)
 	rc = vixRC(reply)
 	if rc != vixNoSuchProcess {
 		t.Fatalf("rc: %d", rc)
+	}
+}
+
+func TestVixGetenv(t *testing.T) {
+	c := NewVixCommandClient()
+
+	env := os.Environ()
+	key := strings.SplitN(env[0], "=", 2)[0]
+
+	tests := []struct {
+		names  []string
+		expect int
+	}{
+		{nil, len(env)},              // all env
+		{[]string{key, "ENOENT"}, 1}, // specific vars, 1 exists 1 does not
+	}
+
+	for i, test := range tests {
+		env := &VixMsgReadEnvironmentVariablesRequest{
+			Names: test.names,
+		}
+		reply := c.Request(vixCommandReadEnvVariables, env)
+		rc := vixRC(reply)
+		if rc != vixOK {
+			t.Fatalf("%d) rc: %d", i, rc)
+		}
+
+		num := bytes.Count(reply, []byte("<ev>"))
+		if num != test.expect {
+			t.Errorf("%d) getenv(%v): %d", i, test.names, num)
+		}
+	}
+}
+
+func TestVixDirectories(t *testing.T) {
+	c := NewVixCommandClient()
+
+	mktemp := &VixMsgCreateTempFileExRequest{
+		FilePrefix: "toolbox-",
+	}
+
+	// mktemp -d
+	reply := c.Request(vixCommandCreateTemporaryDirectory, mktemp)
+	rc := vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	dir := strings.TrimSuffix(string(reply[4:]), "\x00")
+
+	mkdir := &VixMsgDirRequest{
+		GuestPathName: dir,
+	}
+
+	// mkdir $dir == EEXIST
+	reply = c.Request(vixCommandCreateDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixFileAlreadyExists {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	// mkdir $dir/ok == OK
+	mkdir.GuestPathName = dir + "/ok"
+	reply = c.Request(vixCommandCreateDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	// rm of a dir should fail, regardless if empty or not
+	reply = c.Request(vixCommandDeleteGuestFileEx, &VixMsgFileRequest{
+		GuestPathName: mkdir.GuestPathName,
+	})
+	rc = vixRC(reply)
+	if rc != vixNotAFile {
+		t.Errorf("rc: %d", rc)
+	}
+
+	// rmdir $dir/ok == OK
+	reply = c.Request(vixCommandDeleteGuestDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	// rmdir $dir/ok == ENOENT
+	reply = c.Request(vixCommandDeleteGuestDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixFileNotFound {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	// mkdir $dir/1/2 == ENOENT (parent directory does not exist)
+	mkdir.GuestPathName = dir + "/1/2"
+	reply = c.Request(vixCommandCreateDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixFileNotFound {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	// mkdir -p $dir/1/2 == OK
+	mkdir.header.Recursive = true
+	reply = c.Request(vixCommandCreateDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	// rmdir $dir == ENOTEMPTY
+	mkdir.GuestPathName = dir
+	mkdir.header.Recursive = false
+	reply = c.Request(vixCommandDeleteGuestDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixDirectoryNotEmpty {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	// rm -rf $dir == OK
+	mkdir.header.Recursive = true
+	reply = c.Request(vixCommandDeleteGuestDirectoryEx, mkdir)
+	rc = vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+}
+
+func TestVixFiles(t *testing.T) {
+	c := NewVixCommandClient()
+
+	mktemp := &VixMsgCreateTempFileExRequest{
+		FilePrefix: "toolbox-",
+	}
+
+	// mktemp -d
+	reply := c.Request(vixCommandCreateTemporaryDirectory, mktemp)
+	rc := vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	dir := strings.TrimSuffix(string(reply[4:]), "\x00")
+
+	max := 12
+	var total int
+
+	// mktemp
+	for i := 0; i <= max; i++ {
+		mktemp = &VixMsgCreateTempFileExRequest{
+			DirectoryPath: dir,
+		}
+
+		reply = c.Request(vixCommandCreateTemporaryFileEx, mktemp)
+		rc = vixRC(reply)
+		if rc != vixOK {
+			t.Fatalf("rc: %d", rc)
+		}
+	}
+
+	// name of the last file temp file we created, we'll mess around with it then delete it
+	name := strings.TrimSuffix(string(reply[4:]), "\x00")
+
+	// test ls of a single file
+	ls := &VixMsgListFilesRequest{
+		GuestPathName: name,
+	}
+
+	reply = c.Request(vixCommandListFiles, ls)
+
+	rc = vixRC(reply)
+	if rc != vixOK {
+		t.Fatalf("rc: %d", rc)
+	}
+
+	num := bytes.Count(reply, []byte("<fxi>"))
+	if num != 1 {
+		t.Errorf("ls %s: %d", name, num)
+	}
+
+	num = bytes.Count(reply, []byte("<rem>0</rem>"))
+	if num != 1 {
+		t.Errorf("ls %s: %d", name, num)
+	}
+
+	mv := &VixCommandRenameFileExRequest{
+		OldPathName: name,
+		NewPathName: name + "-new",
+	}
+
+	for _, expect := range []int{vixOK, vixFileNotFound} {
+		reply = c.Request(vixCommandMoveGuestFileEx, mv)
+		rc = vixRC(reply)
+		if rc != expect {
+			t.Errorf("rc: %d", rc)
+		}
+
+		if expect == vixOK {
+			// test file type is properly checked
+			reply = c.Request(vixCommandMoveGuestDirectory, &VixCommandRenameFileExRequest{
+				OldPathName: mv.NewPathName,
+				NewPathName: name,
+			})
+			rc = vixRC(reply)
+			if rc != vixNotADirectory {
+				t.Errorf("rc: %d", rc)
+			}
+
+			// test Overwrite flag is properly checked
+			reply = c.Request(vixCommandMoveGuestFileEx, &VixCommandRenameFileExRequest{
+				OldPathName: mv.NewPathName,
+				NewPathName: mv.NewPathName,
+			})
+			rc = vixRC(reply)
+			if rc != vixFileAlreadyExists {
+				t.Errorf("rc: %d", rc)
+			}
+		}
+	}
+
+	// rmdir of a file should fail
+	reply = c.Request(vixCommandDeleteGuestDirectoryEx, &VixMsgDirRequest{
+		GuestPathName: mv.NewPathName,
+	})
+
+	rc = vixRC(reply)
+	if rc != vixNotADirectory {
+		t.Errorf("rc: %d", rc)
+	}
+
+	file := &VixMsgFileRequest{
+		GuestPathName: mv.NewPathName,
+	}
+
+	for _, expect := range []int{vixOK, vixFileNotFound} {
+		reply = c.Request(vixCommandDeleteGuestFileEx, file)
+		rc = vixRC(reply)
+		if rc != expect {
+			t.Errorf("rc: %d", rc)
+		}
+	}
+
+	// ls again now that file is gone
+	reply = c.Request(vixCommandListFiles, ls)
+
+	rc = vixRC(reply)
+	if rc != vixFileNotFound {
+		t.Errorf("rc: %d", rc)
+	}
+
+	// ls
+	ls = &VixMsgListFilesRequest{
+		GuestPathName: dir,
+	}
+	ls.header.MaxResults = 5 // default is 50
+
+	for i := 0; i < 5; i++ {
+		reply = c.Request(vixCommandListFiles, ls)
+
+		if Trace {
+			fmt.Fprintf(os.Stderr, "%s: %q\n", dir, string(reply[4:]))
+		}
+
+		var rem int
+		_, err := fmt.Fscanf(bytes.NewReader(reply[4:]), "<rem>%d</rem>", &rem)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		num := bytes.Count(reply, []byte("<fxi>"))
+		total += num
+		ls.header.Offset += uint64(num)
+
+		if rem == 0 {
+			break
+		}
+	}
+
+	if total != max {
+		t.Errorf("expected %d, got %d", max, total)
+	}
+
+	// mv $dir ${dir}-old
+	mv = &VixCommandRenameFileExRequest{
+		OldPathName: dir,
+		NewPathName: dir + "-old",
+	}
+
+	for _, expect := range []int{vixOK, vixFileNotFound} {
+		reply = c.Request(vixCommandMoveGuestDirectory, mv)
+		rc = vixRC(reply)
+		if rc != expect {
+			t.Errorf("rc: %d", rc)
+		}
+
+		if expect == vixOK {
+			// test file type is properly checked
+			reply = c.Request(vixCommandMoveGuestFileEx, &VixCommandRenameFileExRequest{
+				OldPathName: mv.NewPathName,
+				NewPathName: dir,
+			})
+			rc = vixRC(reply)
+			if rc != vixNotAFile {
+				t.Errorf("rc: %d", rc)
+			}
+
+			// test Overwrite flag is properly checked
+			reply = c.Request(vixCommandMoveGuestDirectory, &VixCommandRenameFileExRequest{
+				OldPathName: mv.NewPathName,
+				NewPathName: mv.NewPathName,
+			})
+			rc = vixRC(reply)
+			if rc != vixFileAlreadyExists {
+				t.Errorf("rc: %d", rc)
+			}
+		}
+	}
+
+	rmdir := &VixMsgDirRequest{
+		GuestPathName: mv.NewPathName,
+	}
+
+	// rm -rm $dir
+	for _, rmr := range []bool{false, true} {
+		rmdir.header.Recursive = rmr
+
+		reply = c.Request(vixCommandDeleteGuestDirectoryEx, rmdir)
+		rc = vixRC(reply)
+		if rmr {
+			if rc != vixOK {
+				t.Fatalf("rc: %d", rc)
+			}
+		} else {
+			if rc != vixDirectoryNotEmpty {
+				t.Fatalf("rc: %d", rc)
+			}
+		}
+	}
+}
+
+func TestVixFileChangeAttributes(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("running as root")
+	}
+
+	c := NewVixCommandClient()
+
+	f, err := ioutil.TempFile("", "toolbox-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	name := f.Name()
+
+	// touch,chown,chmod
+	chattr := &VixMsgSetGuestFileAttributesRequest{
+		GuestPathName: name,
+	}
+
+	h := &chattr.header
+
+	tests := []struct {
+		expect int
+		f      func()
+	}{
+		{
+			vixOK, func() {},
+		},
+		{
+			vixOK, func() {
+				h.FileOptions = vixFileAttributeSetModifyDate
+				h.ModificationTime = time.Now().Unix()
+			},
+		},
+		{
+			vixOK, func() {
+				h.FileOptions = vixFileAttributeSetAccessDate
+				h.AccessTime = time.Now().Unix()
+			},
+		},
+		{
+			vixFileAccessError, func() {
+				h.FileOptions = vixFileAttributeSetUnixOwnerid
+				h.OwnerID = 0 // fails as we are not root
+			},
+		},
+		{
+			vixFileAccessError, func() {
+				h.FileOptions = vixFileAttributeSetUnixGroupid
+				h.GroupID = 0 // fails as we are not root
+			},
+		},
+		{
+			vixOK, func() {
+				h.FileOptions = vixFileAttributeSetUnixOwnerid
+				h.OwnerID = int32(os.Getuid())
+			},
+		},
+		{
+			vixOK, func() {
+				h.FileOptions = vixFileAttributeSetUnixGroupid
+				h.GroupID = int32(os.Getgid())
+			},
+		},
+		{
+			vixOK, func() {
+				h.FileOptions = vixFileAttributeSetUnixPermissions
+				h.Permissions = int32(os.FileMode(0755).Perm())
+			},
+		},
+		{
+			vixFileNotFound, func() {
+				_ = os.Remove(name)
+			},
+		},
+	}
+
+	for i, test := range tests {
+		test.f()
+		reply := c.Request(vixCommandSetGuestFileAttributes, chattr)
+		rc := vixRC(reply)
+
+		if rc != test.expect {
+			t.Errorf("%d: rc=%d", i, rc)
+		}
 	}
 }
