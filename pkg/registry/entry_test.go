@@ -27,23 +27,18 @@ func TestEntryContains(t *testing.T) {
 		res           bool
 	}{
 		{
-			first:  &ipEntry{e: "192.168.0.1"},
-			second: &ipEntry{e: "192.168.0.1"},
+			first:  ParseEntry("192.168.0.1"),
+			second: ParseEntry("192.168.0.1"),
 			res:    true,
 		},
 		{
-			first:  &ipEntry{e: "192.168.0.1"},
-			second: &ipEntry{e: "192.168.0.1/32"},
-			res:    true,
-		},
-		{
-			first:  &ipEntry{e: "192.168.0.1"},
-			second: &ipEntry{e: "192.168.0.1/16"},
+			first:  ParseEntry("192.168.0.1"),
+			second: ParseEntry("192.168.0.1/16"),
 			res:    false,
 		},
 		{
-			first:  &ipEntry{e: "192.168.0.1"},
-			second: &ipEntry{e: "192.168.0.2"},
+			first:  ParseEntry("192.168.0.1"),
+			second: ParseEntry("192.168.0.2"),
 			res:    false,
 		},
 		{
@@ -77,23 +72,43 @@ func TestEntryContains(t *testing.T) {
 			res:    true,
 		},
 		{
-			first:  &strEntry{e: "*.google.com"},
-			second: &strEntry{e: "*.com"},
+			first:  ParseEntry("*.google.com"),
+			second: ParseEntry("*.com"),
 			res:    false,
 		},
 		{
-			first:  &strEntry{e: "mail.google.com"},
-			second: &strEntry{e: "*.google.com"},
+			first:  ParseEntry("mail.google.com"),
+			second: ParseEntry("*.google.com"),
 			res:    false,
 		},
 		{
-			first:  &strEntry{e: "*.google.com"},
-			second: &strEntry{e: "mail.google.com"},
+			first:  ParseEntry("*.google.com"),
+			second: ParseEntry("mail.google.com"),
 			res:    true,
 		},
 		{
-			first:  &strEntry{e: "*.com"},
-			second: &strEntry{e: "*.google.com"},
+			first:  ParseEntry("*.com"),
+			second: ParseEntry("*.google.com"),
+			res:    true,
+		},
+		{
+			first:  ParseEntry("192.168.1.1:123"),
+			second: ParseEntry("192.168.1.1"),
+			res:    false,
+		},
+		{
+			first:  ParseEntry("foo:123"),
+			second: ParseEntry("foo"),
+			res:    false,
+		},
+		{
+			first:  ParseEntry("foo"),
+			second: ParseEntry("foo:123"),
+			res:    true,
+		},
+		{
+			first:  ParseEntry("192.168.1.1"),
+			second: ParseEntry("192.168.1.1:123"),
 			res:    true,
 		},
 	}
@@ -111,19 +126,14 @@ func TestEntryMatch(t *testing.T) {
 		res bool
 	}{
 		{
-			e:   &ipEntry{"192.168.0.1"},
+			e:   &strEntry{"192.168.0.1"},
 			s:   "192.168.0.1",
 			res: true,
 		},
 		{
-			e:   &ipEntry{e: "192.168.0.1"},
+			e:   ParseEntry("192.168.0.1"),
 			s:   "192.168.0",
 			res: false,
-		},
-		{
-			e:   &ipEntry{e: "192.168.0.1"},
-			s:   "192.168.0.1/32",
-			res: true,
 		},
 		{
 			e:   ParseEntry("192.168.0.1/24"),
@@ -155,6 +165,21 @@ func TestEntryMatch(t *testing.T) {
 			s:   "google.com",
 			res: false,
 		},
+		{
+			e:   ParseEntry("foo:123"),
+			s:   "foo",
+			res: false,
+		},
+		{
+			e:   ParseEntry("foo"),
+			s:   "foo:123",
+			res: true,
+		},
+		{
+			e:   ParseEntry("192.168.1.1"),
+			s:   "192.168.1.1:123",
+			res: true,
+		},
 	}
 
 	for _, te := range tests {
@@ -168,22 +193,22 @@ func TestEntryEqual(t *testing.T) {
 		res      bool
 	}{
 		{
-			e:     &ipEntry{e: "192.168.0.1"},
-			other: &ipEntry{e: "192.168.0.1"},
+			e:     ParseEntry("192.168.0.1"),
+			other: ParseEntry("192.168.0.1"),
 			res:   true,
 		},
 		{
-			e:     &ipEntry{e: "192.168.0.1"},
-			other: &ipEntry{e: "192.168.0.2"},
+			e:     ParseEntry("192.168.0.1"),
+			other: ParseEntry("192.168.0.2"),
 			res:   false,
 		},
 		{
-			e:     &ipEntry{e: "192.168.0.1"},
+			e:     ParseEntry("192.168.0.1"),
 			other: ParseEntry("192.168.1.0/24"),
 			res:   false,
 		},
 		{
-			e:     &ipEntry{e: "192.168.0.1"},
+			e:     ParseEntry("192.168.0.1"),
 			other: ParseEntry("*.google.com"),
 			res:   false,
 		},
@@ -246,15 +271,15 @@ func TestParseEntry(t *testing.T) {
 	}{
 		{
 			s:   "192.168.0.1",
-			res: &ipEntry{e: "192.168.0.1"},
+			res: ParseEntry("192.168.0.1"),
 		},
 		{
 			s:   "192.168.0.1:80",
-			res: &strEntry{e: "192.168.0.1:80"},
+			res: ParseEntry("192.168.0.1:80"),
 		},
 		{
 			s:   "192.168.0",
-			res: &strEntry{e: "192.168.0"},
+			res: ParseEntry("192.168.0"),
 		},
 		{
 			s:   "192.168.0.1/24",

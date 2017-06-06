@@ -28,38 +28,12 @@ type Entry interface {
 }
 
 func ParseEntry(s string) Entry {
-	ip := net.ParseIP(s)
-	if ip != nil {
-		return &ipEntry{e: s}
-	}
-
 	_, ipnet, err := net.ParseCIDR(s)
 	if err == nil {
 		return &cidrEntry{ipnet: ipnet}
 	}
 
-	// assume domain name
 	return &strEntry{e: s}
-}
-
-type ipEntry struct {
-	e string
-}
-
-func (e *ipEntry) Contains(other Entry) bool {
-	return e.Match(other.String())
-}
-
-func (e *ipEntry) Match(s string) bool {
-	return e.e == s || e.e+"/32" == s
-}
-
-func (e *ipEntry) Equal(other Entry) bool {
-	return e.Match(other.String())
-}
-
-func (e *ipEntry) String() string {
-	return e.e
 }
 
 type cidrEntry struct {
@@ -104,6 +78,12 @@ func (w *strEntry) Contains(e Entry) bool {
 }
 
 func (w *strEntry) Match(s string) bool {
+	// host:port ?
+	h, _, err := net.SplitHostPort(s)
+	if err == nil && glob.Glob(w.e, h) {
+		return true
+	}
+
 	return glob.Glob(w.e, s)
 }
 

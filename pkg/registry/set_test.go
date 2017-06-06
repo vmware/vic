@@ -30,52 +30,52 @@ func TestSetMerge(t *testing.T) {
 		{},
 		{
 			orig:  nil,
-			other: Set{&ipEntry{e: "192.168.0.1"}},
-			res:   Set{&ipEntry{e: "192.168.0.1"}},
+			other: Set{ParseEntry("192.168.0.1")},
+			res:   Set{ParseEntry("192.168.0.1")},
 		},
 		{
-			orig:  Set{&ipEntry{e: "192.168.0.1"}},
+			orig:  Set{ParseEntry("192.168.0.1")},
 			other: nil,
-			res:   Set{&ipEntry{e: "192.168.0.1"}},
+			res:   Set{ParseEntry("192.168.0.1")},
 		},
 		{
-			orig:  Set{&ipEntry{e: "192.168.0.1"}},
-			other: Set{&ipEntry{e: "192.168.0.1"}},
-			res:   Set{&ipEntry{e: "192.168.0.1"}},
+			orig:  Set{ParseEntry("192.168.0.1")},
+			other: Set{ParseEntry("192.168.0.1")},
+			res:   Set{ParseEntry("192.168.0.1")},
 		},
 		{
-			orig:  Set{&ipEntry{e: "192.168.0.1"}},
-			other: Set{&ipEntry{e: "192.168.0.2"}},
+			orig:  Set{ParseEntry("192.168.0.1")},
+			other: Set{ParseEntry("192.168.0.2")},
 			res: Set{
-				&ipEntry{e: "192.168.0.1"},
-				&ipEntry{e: "192.168.0.2"},
+				ParseEntry("192.168.0.1"),
+				ParseEntry("192.168.0.2"),
 			},
 		},
 		{
 			orig: Set{
-				&ipEntry{e: "192.168.0.1"},
-				&ipEntry{e: "192.168.0.2"},
+				ParseEntry("192.168.0.1"),
+				ParseEntry("192.168.0.2"),
 			},
 			other: Set{
-				&ipEntry{e: "192.168.0.2"},
+				ParseEntry("192.168.0.2"),
 			},
 			res: Set{
-				&ipEntry{e: "192.168.0.1"},
-				&ipEntry{e: "192.168.0.2"},
+				ParseEntry("192.168.0.1"),
+				ParseEntry("192.168.0.2"),
 			},
 		},
 		{
 			orig: Set{
-				&ipEntry{e: "192.168.0.1"},
-				&ipEntry{e: "192.168.0.2"},
+				ParseEntry("192.168.0.1"),
+				ParseEntry("192.168.0.2"),
 			},
 			other: Set{
-				&ipEntry{e: "192.168.0.3"},
+				ParseEntry("192.168.0.3"),
 			},
 			res: Set{
-				&ipEntry{e: "192.168.0.1"},
-				&ipEntry{e: "192.168.0.2"},
-				&ipEntry{e: "192.168.0.3"},
+				ParseEntry("192.168.0.1"),
+				ParseEntry("192.168.0.2"),
+				ParseEntry("192.168.0.3"),
 			},
 		},
 	}
@@ -102,8 +102,8 @@ func TestSetMergeMergerError(t *testing.T) {
 	m := &MockMerger{}
 	m.On("Merge", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
-	s := Set{&ipEntry{e: "192.168.0.1"}}
-	other := Set{&ipEntry{e: "192.168.0.1"}}
+	s := Set{ParseEntry("192.168.0.1")}
+	other := Set{ParseEntry("192.168.0.1")}
 	res, err := s.Merge(other, m)
 	assert.Nil(t, res)
 	assert.Error(t, err)

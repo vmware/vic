@@ -35,7 +35,6 @@ func TestWhitelistMerger(t *testing.T) {
 		{
 			orig:  registry.ParseEntry("10.10.10.10"),
 			other: registry.ParseEntry("10.10.10.20"),
-			res:   nil,
 		},
 		{
 			orig:  registry.ParseEntry("10.10.10.10/24"),
@@ -75,6 +74,26 @@ func TestWhitelistMerger(t *testing.T) {
 			other: registry.ParseEntry("*.google.com"),
 			err:   assert.AnError,
 		},
+		{
+			orig:  registry.ParseEntry("192.168.1.1:123"),
+			other: registry.ParseEntry("192.168.1.1"),
+			err:   assert.AnError,
+		},
+		{
+			orig:  registry.ParseEntry("192.168.1.1"),
+			other: registry.ParseEntry("192.168.1.1:123"),
+			res:   registry.ParseEntry("192.168.1.1:123"),
+		},
+		{
+			orig:  registry.ParseEntry("foo:123"),
+			other: registry.ParseEntry("foo"),
+			err:   assert.AnError,
+		},
+		{
+			orig:  registry.ParseEntry("foo"),
+			other: registry.ParseEntry("foo:123"),
+			res:   registry.ParseEntry("foo:123"),
+		},
 	}
 
 	m := &whitelistMerger{}
@@ -90,7 +109,7 @@ func TestWhitelistMerger(t *testing.T) {
 		if te.res == nil {
 			assert.Nil(t, res)
 		} else {
-			assert.True(t, te.res.Equal(res))
+			assert.True(t, te.res.Equal(res), "%s merge %s, %s (expected) == %s (actual)", te.orig, te.other, te.res, res)
 		}
 	}
 }
