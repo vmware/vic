@@ -50,6 +50,65 @@ Configure VCH debug state
     Should Be Equal As Integers  0  ${rc}
     Should Contain  ${output}  --debug=1
 
+Configure VCH Container Networks
+    ${out}=  Run  govc host.portgroup.remove vm-network
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN vm-network
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet
+    Should Contain  ${output}  Completed successfully
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vmnet
+
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    Should Contain  ${output}  --container-network=vm-network:vmnet
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --net=vmnet busybox
+    Should Be Equal As Integers  ${rc}  0
+
+    # Test that configure fails if an existing container-network is not specified
+    ${out}=  Run  govc host.portgroup.remove management
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN management
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network management:mgmt --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24
+    Should Contain  ${output}  all existing container networks must also be specified
+    Should Not Contain  ${output}  Completed successfully
+
+    # Add another container network while specifying the existing one
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24
+    Should Contain  ${output}  Completed successfully
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  vmnet
+    Should Contain  ${output}  mgmt
+
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    Should Contain  ${output}  --container-network=vm-network:vmnet
+    Should Contain  ${output}  --container-network=management:mgmt
+    Should Contain  ${output}  --container-network-ip-range=management:10.10.10.0/24
+    Should Contain  ${output}  --container-network-gateway=management:10.10.10.1/24
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --net=mgmt busybox
+    Should Be Equal As Integers  ${rc}  0
+
+    # Test that changes to existing networks are not supported
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.2/24
+    Should Contain  ${output}  changes to existing container networks are not supported
+    Should Not Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt --container-network-ip-range=management:10.10.10.0/16 --container-network-gateway=management:10.10.10.1/24
+    Should Contain  ${output}  changes to existing container networks are not supported
+    Should Not Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt
+    Should Contain  ${output}  changes to existing container networks are not supported
+    Should Not Contain  ${output}  Completed successfully
+
+    # Clean up portgroups
+    ${out}=  Run  govc host.portgroup.remove vm-network
+    ${out}=  Run  govc host.portgroup.remove management
+
 Configure VCH https-proxy
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --http-proxy http://proxy.vmware.com:3128
     Should Contain  ${output}  Completed successfully
@@ -73,4 +132,4 @@ Configure VCH https-proxy
     Should Not Contain  ${output}  proxy.vmware.com:3128
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
     Should Contain  ${output}  --https-proxy=https://proxy.vmware.com:3128
-	Should Not Contain  ${output}  --http-proxy
+    Should Not Contain  ${output}  --http-proxy
