@@ -171,6 +171,21 @@ func TestEntryMatch(t *testing.T) {
 			res: false,
 		},
 		{
+			e:   ParseEntry("foo:123"),
+			s:   "http://foo/bar",
+			res: false,
+		},
+		{
+			e:   ParseEntry("foo:123"),
+			s:   "http://foo:123/bar",
+			res: true,
+		},
+		{
+			e:   ParseEntry("foo:123"),
+			s:   "https://foo:123/bar",
+			res: true,
+		},
+		{
 			e:   ParseEntry("foo"),
 			s:   "foo:123",
 			res: true,
@@ -179,6 +194,26 @@ func TestEntryMatch(t *testing.T) {
 			e:   ParseEntry("192.168.1.1"),
 			s:   "192.168.1.1:123",
 			res: true,
+		},
+		{
+			e:   ParseEntry("http://192.168.1.1"),
+			s:   "http://192.168.1.1",
+			res: true,
+		},
+		{
+			e:   ParseEntry("http://192.168.1.1"),
+			s:   "192.168.1.1/foo/bar",
+			res: false,
+		},
+		{
+			e:   ParseEntry("http://192.168.1.1"),
+			s:   "https://192.168.1.1",
+			res: false,
+		},
+		{
+			e:   ParseEntry("https://192.168.1.1"),
+			s:   "http://192.168.1.1",
+			res: false,
 		},
 	}
 

@@ -342,9 +342,10 @@ func (d *dynConfig) RegistryCheck(u *url.URL) (wl bool, bl bool, insecure bool) 
 		log.Warnf("error updating config: %s", err)
 	}
 
-	wl = len(d.Whitelist) == 0 || d.Whitelist.Match(u.Host)
-	bl = len(d.Blacklist) == 0 || !d.Blacklist.Match(u.Host)
-	insecure = d.Insecure.Match(u.Host + "/" + u.Path)
+	us := u.String()
+	wl = len(d.Whitelist) == 0 || d.Whitelist.Match(us)
+	bl = len(d.Blacklist) == 0 || !d.Blacklist.Match(us)
+	insecure = d.Insecure.Match(us)
 	return
 }
 
