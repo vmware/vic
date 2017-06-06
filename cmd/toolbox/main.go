@@ -16,7 +16,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,13 +36,6 @@ func main() {
 	out := toolbox.NewBackdoorChannelOut()
 
 	service := toolbox.NewService(in, out)
-
-	// Trigger a command start, for example:
-	// govc guest.start -vm vm-name kill SIGHUP
-	service.VixCommand.ProcessStartCommand = func(r *toolbox.VixMsgStartProgramRequest) (int, error) {
-		fmt.Fprintf(os.Stderr, "guest-command: %s %s\n", r.ProgramPath, r.Arguments)
-		return -1, nil
-	}
 
 	if os.Getuid() == 0 {
 		power := service.PowerCommand

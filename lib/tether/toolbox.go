@@ -180,7 +180,7 @@ func (t *Toolbox) containerAuthenticate(_ toolbox.VixCommandRequestHeader, data 
 	return nil
 }
 
-func (t *Toolbox) containerStartCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
+func (t *Toolbox) containerStartCommand(m *toolbox.ProcessManager, r *toolbox.VixMsgStartProgramRequest) (int64, error) {
 	switch r.ProgramPath {
 	case "kill":
 		return -1, t.kill(r.Arguments)
