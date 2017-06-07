@@ -49,7 +49,7 @@ Compose Voting App
     Should Contain  ${out}  true
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} redis
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} ${redis}
     Log  ${out}
     Should Contain  ${out}  true
     Should Be Equal As Integers  ${rc}  0
