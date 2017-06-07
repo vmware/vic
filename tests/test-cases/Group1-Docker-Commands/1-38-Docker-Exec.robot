@@ -80,7 +80,7 @@ Exec Sort
     \     Run  echo one > ${fifo}
     \     ${ret}=  Wait For Process  custom
     \     Log  ${ret.stderr}
-    \     Should Be Empty  ${ret.stdout}
+    \     Should Be Empty  ${ret.stdout} 
     \     Should Be Equal As Integers  ${ret.rc}  0
     \     Should Be Empty  ${ret.stderr}
     Run  rm -rf ${tmp}
