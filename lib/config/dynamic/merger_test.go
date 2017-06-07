@@ -94,6 +94,35 @@ func TestWhitelistMerger(t *testing.T) {
 			other: registry.ParseEntry("foo:123"),
 			res:   registry.ParseEntry("foo:123"),
 		},
+		{
+			orig:  registry.ParseEntry("http://foo"),
+			other: registry.ParseEntry("foo:123"),
+		},
+		{
+			orig:  registry.ParseEntry("http://foo"),
+			other: registry.ParseEntry("http://foo:123"),
+			res:   registry.ParseEntry("http://foo:123"),
+		},
+		{
+			orig:  registry.ParseEntry("http://foo:123"),
+			other: registry.ParseEntry("http://foo"),
+			err:   assert.AnError,
+		},
+		{
+			orig:  registry.ParseEntry("http://foo/bar"),
+			other: registry.ParseEntry("http://foo"),
+			err:   assert.AnError,
+		},
+		{
+			orig:  registry.ParseEntry("https://foo/bar"),
+			other: registry.ParseEntry("http://foo/bar"),
+			err:   assert.AnError,
+		},
+		{
+			orig:  registry.ParseEntry("https://foo"),
+			other: registry.ParseEntry("foo"),
+			err:   assert.AnError,
+		},
 	}
 
 	m := &whitelistMerger{}
@@ -101,13 +130,13 @@ func TestWhitelistMerger(t *testing.T) {
 	for _, te := range tests {
 		res, err := m.Merge(te.orig, te.other)
 		if te.err == nil {
-			assert.Nil(t, err)
+			assert.Nil(t, err, "case: orig: %s, other: %s, err: %v, res: %s", te.orig, te.other, te.err, te.res)
 		} else {
-			assert.NotNil(t, err)
+			assert.NotNil(t, err, "case: orig: %s, other: %s, err: %v, res: %s", te.orig, te.other, te.err, te.res)
 		}
 
 		if te.res == nil {
-			assert.Nil(t, res)
+			assert.Nil(t, res, "case: orig: %s, other: %s, err: %v, res: %s", te.orig, te.other, te.err, te.res)
 		} else {
 			assert.True(t, te.res.Equal(res), "%s merge %s, %s (expected) == %s (actual)", te.orig, te.other, te.res, res)
 		}
