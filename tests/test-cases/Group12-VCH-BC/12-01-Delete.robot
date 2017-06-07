@@ -77,13 +77,13 @@ Get 0.6.0 VIC Docker Params
 
 *** Test Cases ***
 Delete VCH with new vic-machine
-    Log To Console  \nRunning docker pull busybox...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} pull busybox
+    Log To Console  \nRunning docker pull ${busybox}...
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} pull ${busybox}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${name}=  Generate Random String  15
-    ${rc}  ${container-id}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create --name ${name} busybox /bin/top
+    ${rc}  ${container-id}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create --name ${name} ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container-id}  Error
     Set Suite Variable  ${containerName}  ${name}

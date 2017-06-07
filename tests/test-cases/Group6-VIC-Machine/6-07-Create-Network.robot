@@ -134,20 +134,20 @@ Connectivity Bridge to Public
 
     # this container will listen on :8000 and we're passing the -p option to the VCH so it should be exposed
     Log To Console  Creating public container.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network -p 8000 --name p1 busybox nc -l -p 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network -p 8000 --name p1 ${busybox} nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Getting IP for public container
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p1
 
     Log To Console  Connecting to container on external network from container bridged network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge busybox nc ${ip} 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 8000
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
     # nc is listening, but since we didn't pass the -p flag to docker, the port should not be exposed.
     Log To Console  Creating public container with no ports exposed.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p2 busybox nc -l -p 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=vm-network --name p2 ${busybox} nc -l -p 8000
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Getting IP for public container
@@ -155,7 +155,7 @@ Connectivity Bridge to Public
 
     # we expect this to fail since the port wasn't exposed
     Log To Console  Connecting to container on external network from container bridged network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge busybox nc ${ip} 8000
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net bridge ${busybox} nc ${ip} 8000
     Should Not Be Equal As Integers  ${rc}  0
 
     Log To Console  Port connection test from bridge to public networks succeeded.
@@ -184,7 +184,7 @@ Connectivity Bridge to Management
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
     Log To Console  Creating management container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=management --name m1 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=management --name m1 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Starting management container
@@ -193,7 +193,7 @@ Connectivity Bridge to Management
     Should Not Contain  ${output}  Error:
 
     Log To Console  Creating bridge container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=bridge --name b1 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
     Log To Console  Starting bridge container
@@ -205,7 +205,7 @@ Connectivity Bridge to Management
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' m1
 
     Log To Console  Pinging from bridge to management container.
-    ${id}=  Run  docker %{VCH-PARAMS} run -d busybox ping -c 30 ${ip}
+    ${id}=  Run  docker %{VCH-PARAMS} run -d ${busybox} ping -c 30 ${ip}
 
     Log To Console  Attach to running container.
     ${out}=  Run  docker %{VCH-PARAMS} attach ${id}
