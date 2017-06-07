@@ -193,13 +193,6 @@ func setupDefaultAdmiral(vchIP string) {
 	admiral := "https://localhost:8282"
 	client := &http.Client{}
 
-	// test if admiral is available on https. OVA uses https, but local development uses http.
-	_, err := client.Head(admiral)
-	if err != nil {
-		// https failed, use http
-		admiral = "http://localhost:8282"
-	}
-
 	// validate vch host
 	sslTrustPayload := fmt.Sprintf("{\"hostState\":{\"id\":\"%s\",\"address\":\"https://%s\",\"customProperties\":{\"__adapterDockerType\":\"API\",\"__containerHostType\":\"VCH\"}}}", vchIP, vchIP)
 	sslTrustReq, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/resources/hosts?validate=true", admiral), bytes.NewBuffer([]byte(sslTrustPayload)))
