@@ -423,9 +423,9 @@ func (u *URLFetcher) setAuthToken(req *http.Request) {
 func (u *URLFetcher) ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error) {
 	tokens := strings.Split(hdr, " ")
 	if len(tokens) != 2 || strings.ToLower(tokens[0]) != "bearer" {
-		return nil, fmt.Errorf("www-authenticate header is corrupted")
+		err := fmt.Errorf("www-authenticate header is corrupted")
+		return nil, DoNotRetry{Err: err}
 	}
-
 	tokens = strings.Split(tokens[1], ",")
 
 	var realm, service, scope string
@@ -442,14 +442,17 @@ func (u *URLFetcher) ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL,
 	}
 
 	if realm == "" {
-		return nil, fmt.Errorf("missing realm in bearer auth challenge")
+		err := fmt.Errorf("missing realm in bearer auth challenge")
+		return nil, DoNotRetry{Err: err}
 	}
 	if service == "" {
-		return nil, fmt.Errorf("missing service in bearer auth challenge")
+		err := fmt.Errorf("missing service in bearer auth challenge")
+		return nil, DoNotRetry{Err: err}
 	}
 	// The scope can be empty if we're not getting a token for a specific repo
 	if scope == "" && repository != nil {
-		return nil, fmt.Errorf("missing scope in bearer auth challenge")
+		err := fmt.Errorf("missing scope in bearer auth challenge")
+		return nil, DoNotRetry{Err: err}
 	}
 
 	auth, err := url.Parse(realm)
