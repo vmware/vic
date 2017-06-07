@@ -50,19 +50,19 @@ Install Harbor To Test Server
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Received IP address:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Environment Variable  HARBOR-IP  ${ip}
+    \   Run Keyword If  ${status}  Set Environment Variable  HARBOR_IP  ${ip}
     \   Exit For Loop If  ${status}
 
     Log To Console  Waiting for Harbor to Come Up...
     :FOR  ${i}  IN RANGE  20
-    \  ${out}=  Run  curl -k ${protocol}://%{HARBOR-IP}
+    \  ${out}=  Run  curl -k ${protocol}://%{HARBOR_IP}
     \  Log  ${out}
     \  ${status}=  Run Keyword And Return Status  Should Not Contain Any  ${out}  502 Bad Gateway  Connection refused  Connection timed out
     \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Contain  ${out}  <title>Harbor</title>
-    \  Return From Keyword If  ${status}  %{HARBOR-IP}
+    \  Return From Keyword If  ${status}  %{HARBOR_IP}
     \  Sleep  30s
     Fail  Harbor failed to come up properly!
-    [Return]  %{HARBOR-IP}
+    [Return]  %{HARBOR_IP}
 
 Restart Docker With Insecure Registry Option
     # Requires you to edit /etc/systemd/system/docker.service.d/overlay.conf or docker.conf to be:
