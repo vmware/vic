@@ -128,13 +128,13 @@ func (c *Connector) Interaction(ctx context.Context, id string) (SessionInteract
 func (c *Connector) interaction(ctx context.Context, id string) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
-	if ctx.Err() == context.DeadlineExceeded {
-		return nil, fmt.Errorf("attach connector: no such connection")
-	}
-
 	conn, err := c.SessionIfAlive(ctx, id)
 	if conn != nil && err == nil {
 		return conn, nil
+	}
+
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("attach connector: no such connection")
 	}
 
 	result := make(chan SessionInteractor, 1)

@@ -33,15 +33,20 @@ func (l *LazySessionInteractor) Initialize() (SessionInteractor, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	if l.si != nil {
+		return l.si, nil
+	}
+
 	if l.si == nil && l.fn == nil {
 		panic("both si and fn are nil")
 	}
-	if l.si == nil {
-		si, err := l.fn()
-		if err != nil {
-			return nil, err
-		}
-		l.si = si
+
+	var err error
+
+	// l.si is nil but l.fn is not
+	l.si, err = l.fn()
+	if err != nil {
+		return nil, err
 	}
 	return l.si, nil
 }
