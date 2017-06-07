@@ -71,7 +71,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// attact static asset routes
+	// attach static asset routes
 	routes := []string{"css", "images", "fonts"}
 	for _, route := range routes {
 		httpPath := fmt.Sprintf("/%s/", route)

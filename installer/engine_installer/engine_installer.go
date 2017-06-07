@@ -163,7 +163,7 @@ func (ei *EngineInstaller) verifyLogin() error {
 	u.User = url.UserPassword(ei.User, ei.Password)
 	u.Host = ei.Target
 	u.Path = ""
-	fmt.Printf("server URL: %v\n", u)
+	log.Infof("server URL: %v\n", u)
 
 	input := data.NewData()
 
@@ -178,7 +178,7 @@ func (ei *EngineInstaller) verifyLogin() error {
 
 	v, err := validate.NewValidator(ctx, input)
 	if err != nil {
-		fmt.Printf("validator: %s", err)
+		log.Infof("validator: %s", err)
 		return err
 	}
 
@@ -194,7 +194,7 @@ func setupDefaultAdmiral(vchIP string) {
 	client := &http.Client{}
 
 	// test if admiral is available on https. OVA uses https, but local development uses http.
-	_, err := client.Get(admiral)
+	_, err := client.Head(admiral)
 	if err != nil {
 		// https failed, use http
 		admiral = "http://localhost:8282"
