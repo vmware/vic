@@ -537,10 +537,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		Dir: "/home/vicadmin",
 	}
 	if settings.HTTPProxy != nil {
-		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("VICADMIN_HTTP_PROXY=%s", settings.HTTPProxy.String()))
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("%s=%s", config.VICAdminHTTPProxy, settings.HTTPProxy.String()))
 	}
 	if settings.HTTPSProxy != nil {
-		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("VICADMIN_HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+		vicadmin.Env = append(vicadmin.Env, fmt.Sprintf("%s=%s", config.VICAdminHTTPSProxy, settings.HTTPSProxy.String()))
 	}
 
 	conf.AddComponent(config.VicAdminService, &executor.SessionConfig{
@@ -568,10 +568,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		},
 	}
 	if settings.HTTPProxy != nil {
-		personality.Env = append(personality.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+		personality.Env = append(personality.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPProxy, settings.HTTPProxy.String()))
 	}
 	if settings.HTTPSProxy != nil {
-		personality.Env = append(personality.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+		personality.Env = append(personality.Env, fmt.Sprintf("%s=%s", config.GeneralHTTPSProxy, settings.HTTPSProxy.String()))
 	}
 
 	conf.AddComponent(config.PersonaService, &executor.SessionConfig{

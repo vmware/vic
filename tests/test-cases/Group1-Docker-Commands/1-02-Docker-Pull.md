@@ -1,16 +1,16 @@
 Test 1-02 - Docker Pull
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker pull command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/pull/)
 
-#Environment:
+# Environment:
 This test requires that an vSphere server is running and available.
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue a docker pull command to the new VIC appliance for each of the top 3 most popular images in hub.docker.com
     * nginx, busybox, ubuntu
@@ -38,8 +38,8 @@ This test requires that an vSphere server is running and available.
     * gcr.io/google_samples/cassandra:v11
     * gcr.io/google_samples/cassandra:v12
 
-#Expected Outcome:
+# Expected Outcome:
 VIC appliance should respond with a properly formatted pull response to each command issued to it. No errors should be seen, except in the case of step 7, 8 and 9. In step 13, the image ID and size for ubuntu should match before and after removing and re-pulling the image.
 
-#Possible Problems:
+# Possible Problems:
 None

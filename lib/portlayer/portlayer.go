@@ -15,8 +15,11 @@
 package portlayer
 
 import (
+	"context"
 	"fmt"
 	"path"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/attach"
@@ -32,10 +35,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"context"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // API defines the interface the REST server used by the portlayer expects the

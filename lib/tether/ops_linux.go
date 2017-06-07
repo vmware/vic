@@ -690,9 +690,12 @@ func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc cli
 func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
-	if err := os.MkdirAll(target, 0644); err != nil {
-		// same as MountFileSystem error for consistency
-		return fmt.Errorf("unable to create mount point %s: %s", target, err)
+	fi, err := os.Stat(target)
+	if err != nil {
+		if err := os.MkdirAll(target, 0644); err != nil {
+			// same as MountFileSystem error for consistency
+			return fmt.Errorf("unable to create mount point %s: %s", target, err)
+		}
 	}
 
 	// convert the label to a filesystem path
@@ -721,6 +724,19 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		return errors.New(detail)
 	}
 
+	// change the ownership of the target directory to the original uid/gid
+	if fi != nil {
+		sys, ok := fi.Sys().(*syscall.Stat_t)
+		if !ok {
+			return fmt.Errorf("unable to get uid/gid from existing target directory %s", target)
+		}
+		uid := int(sys.Uid)
+		gid := int(sys.Gid)
+
+		if err := os.Chown(target, uid, gid); err != nil {
+			return fmt.Errorf("unable to change the owner of the mount point %s: %s", target, err)
+		}
+	}
 	return nil
 }
 

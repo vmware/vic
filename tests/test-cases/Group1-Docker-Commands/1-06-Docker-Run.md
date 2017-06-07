@@ -1,16 +1,16 @@
 Test 1-06 - Docker Run
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker run command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/run/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker run busybox dmesg to the VIC appliance
 3. Issue docker run busybox -i dmesg to the VIC appliance
@@ -30,7 +30,7 @@ This test requires that a vSphere server is running and available
 17. Create container1 with id1 and then create container2 with name = id1
 18. Run a short lived container with autoremove specified
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 2 and 3 should result in success and print the dmesg of the container
 * Step 4 should result in the top command starting and printing it's results to the screen
 * Step 5 should result in top stopping and the container exiting
@@ -54,5 +54,5 @@ docker: Error parsing reference: "fakeImage" is not a valid repository/tag.
 * Step 17 should result in no conflicts
 * Step 18 should result in the same container count at beginning and end
 
-#Possible Problems:
+# Possible Problems:
 None

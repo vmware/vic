@@ -340,7 +340,11 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
 	conf.SetName(input.DisplayName)
-	conf.SetDebug(input.Debug.Debug)
+
+	if input.Debug.Debug != nil {
+		conf.SetDebug(*input.Debug.Debug)
+	}
+
 	conf.Name = input.DisplayName
 	conf.Version = version.GetBuild()
 
@@ -775,18 +779,26 @@ func (v *Validator) IsVC() bool {
 }
 
 func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(fmt.Sprintf("session: %#v, input: %#v", v.Session, input)))
 
 	dconfig := data.InstallerData{}
 
 	dconfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
 	dconfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
 
-	dconfig.Datacenter = v.Session.Datacenter.Reference()
-	dconfig.DatacenterName = v.Session.Datacenter.Name()
+	if v.Session.Datacenter != nil {
+		dconfig.Datacenter = v.Session.Datacenter.Reference()
+		dconfig.DatacenterName = v.Session.Datacenter.Name()
+	} else {
+		log.Debugf("session datacenter is nil")
+	}
 
-	dconfig.Cluster = v.Session.Cluster.Reference()
-	dconfig.ClusterPath = v.Session.Cluster.InventoryPath
+	if v.Session.Cluster != nil {
+		dconfig.Cluster = v.Session.Cluster.Reference()
+		dconfig.ClusterPath = v.Session.Cluster.InventoryPath
+	} else {
+		log.Debugf("session cluster is nil")
+	}
 
 	dconfig.ResourcePoolPath = v.ResourcePoolPath
 	dconfig.UseRP = input.UseRP

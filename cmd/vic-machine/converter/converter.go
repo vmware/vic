@@ -25,10 +25,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/ip"
 	viclog "github.com/vmware/vic/pkg/log"
-	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -80,7 +81,8 @@ func init() {
 	typeConverters["net.IP"] = convertIP
 	typeConverters["ip.Range"] = convertIPRange
 	typeConverters["data.NetworkConfig"] = convertNetwork
-	typeConverters["data.ContainerNetworks"] = convertContainerNetworks
+	typeConverters["common.ContainerNetworks"] = convertContainerNetworks
+	typeConverters["types.SharesInfo"] = convertShares
 
 	labelHandlers[keyAfterValueLabel] = keyAfterValueLabelHandler
 	labelHandlers[valueAfterKeyLabel] = valueAfterKeyLabelHandler
@@ -128,7 +130,7 @@ func convertPtr(src reflect.Value, prefix string, tags reflect.StructTag, dest m
 }
 
 func convertStruct(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertStruct: prefix: %s, src: %s", prefix, src.String())
 
 	// iterate through every field in the struct
 	for i := 0; i < src.NumField(); i++ {
@@ -149,7 +151,7 @@ func convertStruct(src reflect.Value, prefix string, tags reflect.StructTag, des
 }
 
 func convertSlice(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src)))
+	log.Debugf("convertSlice: prefix: %s, src: %s", prefix, src)
 
 	length := src.Len()
 	if length == 0 {
@@ -166,7 +168,7 @@ func convertSlice(src reflect.Value, prefix string, tags reflect.StructTag, dest
 }
 
 func convertMap(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src)))
+	log.Debugf("convertMap: prefix: %s, src: %s", prefix, src)
 
 	// iterate over keys and recurse
 	mkeys := src.MapKeys()
@@ -206,7 +208,7 @@ func convertMap(src reflect.Value, prefix string, tags reflect.StructTag, dest m
 // keyAfterValueLabelHandler will add the map key as label after the value,
 // e.g. change from datastore/path to datastore/path:default
 func keyAfterValueLabelHandler(dest map[string][]string, pkey string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("map key: %s, map: %#v", pkey, dest)))
+	log.Debugf("keyAfterValueLabelHandler: map key: %s, map: %#v", pkey, dest)
 
 	for _, values := range dest {
 		for i := range values {
@@ -219,7 +221,7 @@ func keyAfterValueLabelHandler(dest map[string][]string, pkey string) error {
 // valueAfterKeyLabelHandler will add the map key as label before the value,
 // e.g. change from 10.10.10.0/24 to management:10.10.10.0/24
 func valueAfterKeyLabelHandler(dest map[string][]string, pkey string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("map key: %s, map: %#v", pkey, dest)))
+	log.Debugf("valueAfterKeyLabelHandler: map key: %s, map: %#v", pkey, dest)
 
 	for _, values := range dest {
 		for i := range values {
@@ -249,7 +251,7 @@ func calculateKey(tags reflect.StructTag, prefix string) string {
 }
 
 func convertURL(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertURL: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -279,7 +281,7 @@ func convertURL(src reflect.Value, prefix string, tags reflect.StructTag, dest m
 }
 
 func convertIPNet(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertIPNet: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -303,7 +305,7 @@ func convertIPNet(src reflect.Value, prefix string, tags reflect.StructTag, dest
 }
 
 func convertIP(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertIP: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -327,7 +329,7 @@ func convertIP(src reflect.Value, prefix string, tags reflect.StructTag, dest ma
 }
 
 func convertIPRange(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertIPRange: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -351,7 +353,7 @@ func convertIPRange(src reflect.Value, prefix string, tags reflect.StructTag, de
 }
 
 func convertString(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertString: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -372,7 +374,7 @@ func convertString(src reflect.Value, prefix string, tags reflect.StructTag, des
 }
 
 func convertPrimitive(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertPrimitive: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -415,7 +417,7 @@ func convertPrimitive(src reflect.Value, prefix string, tags reflect.StructTag, 
 // convertNetwork will merge destination and gateway to one option with format: 192.168.3.0/16,192.168.128.0/16:192.168.2.1
 // after that, convertStruct is called for left conversion
 func convertNetwork(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertNetwork: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -452,11 +454,39 @@ func convertNetwork(src reflect.Value, prefix string, tags reflect.StructTag, de
 	return convertStruct(reflect.ValueOf(network), prefix, tags, dest)
 }
 
+func convertShares(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
+	log.Debugf("convertShares: prefix: %s, src: %s", prefix, src.String())
+
+	if prefix == "" {
+		return nil
+	}
+	if tags.Get(cmdTag) == "" {
+		return nil
+	}
+	shares, ok := src.Interface().(types.SharesInfo)
+	if !ok {
+		panic(fmt.Sprintf(src.Type().String() + " is not SharesInfo"))
+	}
+
+	v := ""
+	switch shares.Level {
+	case types.SharesLevelCustom:
+		v = fmt.Sprintf("%v", shares.Shares)
+	default:
+		v = string(shares.Level)
+	}
+
+	log.Debugf("%s=%s", prefix, v)
+
+	addValue(dest, prefix, v)
+	return nil
+}
+
 // convertContainerNetworks will switch the map keys in MappedNetworks using value, and replace all keys with the same value in other structure,
 // cause option is using vsphere network name as key label, but guestinfo is using alias as key for easy to use in portlayer
 // after that, convertStruct is called for left conversion
 func convertContainerNetworks(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("prefix: %s, src: %s", prefix, src.String())))
+	log.Debugf("convertContainerNetworks: prefix: %s, src: %s", prefix, src.String())
 
 	if prefix == "" {
 		return nil
@@ -465,7 +495,7 @@ func convertContainerNetworks(src reflect.Value, prefix string, tags reflect.Str
 		return nil
 	}
 
-	networks, ok := src.Interface().(data.ContainerNetworks)
+	networks, ok := src.Interface().(common.ContainerNetworks)
 	if !ok {
 		panic(fmt.Sprintf(src.Type().String() + " is not ContainerNetworks"))
 	}

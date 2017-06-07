@@ -147,7 +147,7 @@ func GuestInfoCommand(kind int, req []byte) []byte {
 func DefaultGuestNicInfo() *GuestNicInfo {
 	proto := NewGuestNicInfo()
 	info := proto.V3
-
+	// #nosec: Errors unhandled
 	ifs, _ := net.Interfaces()
 
 	for _, i := range ifs {
@@ -160,7 +160,7 @@ func DefaultGuestNicInfo() *GuestNicInfo {
 		if len(i.HardwareAddr) != 0 {
 			nic.MacAddress = i.HardwareAddr.String()
 		}
-
+		// #nosec: Errors unhandled
 		addrs, _ := i.Addrs()
 
 		for _, addr := range addrs {

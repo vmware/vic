@@ -1,16 +1,16 @@
 Test 1-24 - Docker Link
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker --link/--net-alias commands are supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/run/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker network create jedi
 3. Issue docker pull busybox
@@ -21,8 +21,8 @@ This test requires that a vSphere server is running and available
 8. Issue docker run -it --net jedi busybox ping -c3 2nd
 
 
-#Expected Outcome:
+# Expected Outcome:
 * Every step should result in success
 
-#Possible Problems:
+# Possible Problems:
 None

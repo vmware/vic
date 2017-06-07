@@ -216,6 +216,11 @@
     },
     {
       "type": "file",
+      "source": "scripts/set_guestinfo.sh",
+      "destination": "/etc/vmware/set_guestinfo.sh"
+    },
+    {
+      "type": "file",
       "source": "scripts/harbor/configure_harbor.sh",
       "destination": "/etc/vmware/harbor/configure_harbor.sh"
     },

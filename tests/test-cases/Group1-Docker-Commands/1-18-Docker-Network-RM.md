@@ -1,16 +1,16 @@
 Test 1-18 - Docker Network RM
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker network rm command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/network_rm/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker network create test-network to the VIC appliance
 3. Issue docker network create test-network2 to the VIC appliance
@@ -27,7 +27,7 @@ This test requires that a vSphere server is running and available
 14. Issue docker rm <containerID>
 15. Issue docker network rm test-network
 
-#Expected Outcome:
+# Expected Outcome:
 * Steps 5 and 6 should completely successfully and all three network should be removed
 * Step 7 should result in an error and show the following error message:  
 ```
@@ -39,5 +39,5 @@ Error response from daemon: network test-network has active endpoints
 ```
 * Step 15 should result in success and the network should be removed
 
-#Possible Problems:
+# Possible Problems:
 None

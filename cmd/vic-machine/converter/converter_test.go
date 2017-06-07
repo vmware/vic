@@ -76,6 +76,7 @@ func TestMain(t *testing.T) {
 	testConvertClientNetwork(t)
 	testConvertMgmtNetwork(t)
 	testGuestinfo(t)
+	testConvertSharesInfo(t)
 }
 
 func testInit(t *testing.T) {
@@ -117,8 +118,8 @@ func testInit(t *testing.T) {
 	assert.True(t, ok, fmt.Sprintf("ip.Range converter is not found"))
 	_, ok = typeConverters["data.NetworkConfig"]
 	assert.True(t, ok, fmt.Sprintf("data.NetworkConfig converter is not found"))
-	_, ok = typeConverters["data.ContainerNetworks"]
-	assert.True(t, ok, fmt.Sprintf("data.ContainerNetworks converter is not found"))
+	_, ok = typeConverters["common.ContainerNetworks"]
+	assert.True(t, ok, fmt.Sprintf("common.ContainerNetworks converter is not found"))
 
 	_, ok = labelHandlers[keyAfterValueLabel]
 	assert.True(t, ok, fmt.Sprintf("value-key handler is not found"))
@@ -315,6 +316,36 @@ func testConvertContainerNetworks(t *testing.T) {
 	assert.Equal(t, "172.16.0.2/12", options["management-network-ip"][0], "not expected management-network-ip option")
 }
 
+func testConvertSharesInfo(t *testing.T) {
+	data := data.NewData()
+	data.NumCPUs = 2
+	data.MemoryMB = 4096
+	data.VCHCPULimitsMHz = 29300
+	data.VCHCPUReservationsMHz = 1024
+	data.VCHCPUShares = &types.SharesInfo{
+		Shares: 6000,
+		Level:  types.SharesLevelCustom,
+	}
+	data.VCHMemoryLimitsMB = 13144
+	data.VCHMemoryReservationsMB = 1024
+	data.VCHMemoryShares = &types.SharesInfo{
+		Shares: 163840,
+		Level:  types.SharesLevelNormal,
+	}
+
+	options, err := DataToOption(data)
+	assert.Empty(t, err)
+	assert.Equal(t, 8, len(options), "should not have other option generated")
+	assert.Equal(t, "2", options["endpoint-cpu"][0], "not expected endpoint-cpu option")
+	assert.Equal(t, "4096", options["endpoint-memory"][0], "not expected endpoint-memory option")
+	assert.Equal(t, "13144", options["memory"][0], "not expected memory option")
+	assert.Equal(t, "1024", options["memory-reservation"][0], "not expected memory-reservation option")
+	assert.Equal(t, "normal", options["memory-shares"][0], "not expected memory-shares option")
+	assert.Equal(t, "29300", options["cpu"][0], "not expected cpu option")
+	assert.Equal(t, "1024", options["cpu-reservation"][0], "not expected cpu-reservation option")
+	assert.Equal(t, "6000", options["cpu-shares"][0], "not expected cpu-shares option")
+}
+
 func testGuestinfo(t *testing.T) {
 	kv := map[string]string{
 		"guestinfo.vice..init.sessions|docker-personality.detail.createtime":           "0",
@@ -391,10 +422,10 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice./init/networks|public/network/Common/id":                       "DistributedVirtualPortgroup:dvportgroup-56",
 		"guestinfo.vice./storage/image_stores|0/ForceQuery":                            "false",
 		"guestinfo.vice./init/imageid":                                                 "",
-		"guestinfo.vice./init/sessions|docker-personality/cmd/Env":                     "1",
+		"guestinfo.vice./init/sessions|docker-personality/cmd/Env":                     "3",
 		"guestinfo.vice./init/sessions|docker-personality/common/id":                   "docker-personality",
 		"guestinfo.vice./storage/VolumeLocations|vol1/Fragment":                        "",
-		"guestinfo.vice./init/sessions|vicadmin/cmd/Env":                               "1",
+		"guestinfo.vice./init/sessions|vicadmin/cmd/Env":                               "3",
 		"guestinfo.vice./init/sessions|vicadmin/common/ExecutionEnvironment":           "",
 		"guestinfo.vice./init/sessions|vicadmin/User":                                  "vicadmin",
 		"guestinfo.vice..init.networks|public.network.assigned.dns":                    "1",
@@ -425,7 +456,6 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice..init.networks|public.network.assigned.dns|0":                  "CqLMAQ==",
 		"guestinfo.vice..init.sessions|docker-personality.started":                     "true",
 		"init/networks|public/Common/notes":                                            "",
-		"guestinfo.vice./init/sessions|docker-personality/cmd/Env~":                    "PATH=/sbin|GOTRACEBACK=all",
 		"guestinfo.vice..init.networks|management.network.assigned.dns|1":              "CqYBAQ==",
 		"guestinfo.vice./init/sessions|vicadmin/active":                                "true",
 		"guestinfo.vice./init/networks":                                                "bridge|client|management|public",
@@ -521,7 +551,6 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice./init/networks|public/network/Common/name":                      "public",
 		"guestinfo.vice..init.sessions|port-layer.runblock":                             "false",
 		"guestinfo.vice./init/sessions|port-layer/common/id":                            "port-layer",
-		"guestinfo.vice./init/sessions|vicadmin/cmd/Env~":                               "PATH=/sbin:/bin|GOTRACEBACK=all",
 		"guestinfo.vice./init/networks|client/network/Common/name":                      "client",
 		"guestinfo.vice./network/container_networks|vnet/pools|0/first":                 "CgoKAA==",
 		"guestinfo.vice..init.networks|public.network.assigned.gateway.IP":              "CsC//Q==",
@@ -553,12 +582,13 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice./registry/insecure_registries":                       "0",
 		"guestinfo.vice./registry/whitelist_registries|1/Host":               "insecure:2345",
 		"guestinfo.vice./registry/insecure_registries|0/ForceQuery":          "false",
+		"guestinfo.vice./init/sessions|vicadmin/cmd/Env~":                    "PATH=/sbin:/bin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
+		"guestinfo.vice./init/sessions|docker-personality/cmd/Env~":          "PATH=/sbin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
 	}
 
 	commands := map[string][]string{
 		"target":      {"https://10.192.171.116"},
 		"thumbprint":  {"9F:F0:DF:BA:7F:E2:89:F0:98:E4:A6:D1:58:24:68:74:8A:9B:25:6F"},
-		"name":        {"test1"},
 		"image-store": {"vsanDatastore"},
 		"volume-store": {
 			"vsanDatastore/volumes/default:default",
@@ -572,10 +602,11 @@ func testGuestinfo(t *testing.T) {
 		"container-network-gateway":  {"management:10.10.10.1/24"},
 		"container-network-ip-range": {"management:10.10.10.0/24"},
 
-		"no-tlsverify":       {"true"},
 		"debug":              {"3"},
 		"insecure-registry":  {"https://insecure:2345"},
 		"whitelist-registry": {"https://harbor.com:2345", "https://insecure:2345"},
+		"http-proxy":         {"http://proxy.vmware.com:2318"},
+		"https-proxy":        {"https://proxy.vmware.com:2318"},
 	}
 	conf := &config.VirtualContainerHostConfigSpec{}
 	extraconfig.DecodeWithPrefix(extraconfig.MapSource(kv), conf, "")
@@ -605,7 +636,7 @@ func testGuestinfo(t *testing.T) {
 			}
 		}
 		c := dest[k]
-		testArrays(t, c, v, k)
+		testArrays(t, v, c, k)
 	}
 
 }

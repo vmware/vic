@@ -353,7 +353,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		// redirect to dashboard
-		http.Redirect(res, req, "/", http.StatusTemporaryRedirect)
+		http.Redirect(res, req, "/", http.StatusSeeOther)
 		return
 	}
 

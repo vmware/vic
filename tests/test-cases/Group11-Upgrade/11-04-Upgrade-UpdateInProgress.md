@@ -1,13 +1,13 @@
 Test 11-04 - Upgrade UpdateInProgress
 =======
 
-#Purpose:
+# Purpose:
 To verify that vic-machine inspect could detect the upgrade status of a VCH
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Download vic_7315.tar.gz from gcp
 2. Deploy VIC 7315 to vsphere server
 3. Set UpdateInProgress to true using govc
@@ -17,7 +17,7 @@ This test requires that a vSphere server is running and available
 7. Run vic-machine inspect to check the upgrade status of the VCH (this should run in parallel with step 6)
 8. After step 3 finishes, run step 4 again.
 
-#Expected Outcome:
+# Expected Outcome:
 * In step 4, output should contain "Upgrade failed: another upgrade/configure operation is in progress"
 * In step 5, output should contain "Reset UpdateInProgress flag successfully"
 * In step 6, output should contain "Completed successfully"

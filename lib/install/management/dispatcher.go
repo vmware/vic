@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
@@ -294,6 +295,29 @@ func (d *Dispatcher) opManager(ctx context.Context, vch *vm.VirtualMachine) (*gu
 	return processManager, nil
 }
 
+// opManagerWait polls for state of the process with the given pid, waiting until the process has completed.
+// The pid param must be one returned by ProcessManager.StartProgram.
+func (d *Dispatcher) opManagerWait(ctx context.Context, pm *guest.ProcessManager, auth types.BaseGuestAuthentication, pid int64) (*types.GuestProcessInfo, error) {
+	pids := []int64{pid}
+
+	for {
+		select {
+		case <-time.After(time.Millisecond * 250):
+		case <-ctx.Done():
+			return nil, fmt.Errorf("opManagerWait(%d): %s", pid, ctx.Err())
+		}
+
+		procs, err := pm.ListProcesses(ctx, auth, pids)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(procs) == 1 && procs[0].EndTime != nil {
+			return &procs[0], nil
+		}
+	}
+}
+
 func (d *Dispatcher) CheckAccessToVCAPI(ctx context.Context, vch *vm.VirtualMachine, target string) (int64, error) {
 	pm, err := d.opManager(ctx, vch)
 	if err != nil {
@@ -301,12 +325,20 @@ func (d *Dispatcher) CheckAccessToVCAPI(ctx context.Context, vch *vm.VirtualMach
 	}
 	auth := types.NamePasswordAuthentication{}
 	spec := types.GuestProgramSpec{
-		ProgramPath:      "test-vc-api",
-		Arguments:        target,
-		WorkingDirectory: "/",
-		EnvVariables:     []string{},
+		ProgramPath: "test-vc-api",
+		Arguments:   target,
 	}
-	return pm.StartProgram(ctx, &auth, &spec)
+	pid, err := pm.StartProgram(ctx, &auth, &spec)
+	if err != nil {
+		return -1, err
+	}
+
+	info, err := d.opManagerWait(ctx, pm, &auth, pid)
+	if err != nil {
+		return -1, err
+	}
+
+	return int64(info.ExitCode), nil
 }
 
 // addrToUse given candidateIPs, determines an address in cert that resolves to

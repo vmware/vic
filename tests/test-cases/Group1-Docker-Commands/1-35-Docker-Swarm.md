@@ -1,16 +1,16 @@
 Test 1-35 - Docker Swarm
 =======
 
-#Purpose:
+# Purpose:
 To verify that VIC appliance responds appropriately to docker swarm APIs
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/node/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker swarm init
 3. Issue docker swarm join
@@ -20,8 +20,8 @@ This test requires that a vSphere server is running and available
 7. Issue docker swarm unlock-key
 8. Issue docker swarm update
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 2-8 should result in an error that contains does not yet support Docker Swarm
 
-#Possible Problems:
+# Possible Problems:
 None

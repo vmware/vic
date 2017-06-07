@@ -27,18 +27,21 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	ploptions "github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/dns"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/vspc"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 var (
-	options = dns.ServerOptions{}
-	parser  *flags.Parser
-	server  *restapi.Server
+	options   = dns.ServerOptions{}
+	parser    *flags.Parser
+	server    *restapi.Server
+	vchConfig config.VirtualContainerHostConfigSpec
 )
 
 func init() {
@@ -76,8 +79,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// load the vch config
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Fatalf("Unable to load configuration from guestinfo: %s", err)
+	}
+	extraconfig.Decode(src, &vchConfig)
+
 	logcfg := viclog.NewLoggingConfig()
-	if ploptions.PortLayerOptions.Debug {
+	if vchConfig.Diagnostics.DebugLevel > 0 {
 		logcfg.Level = log.DebugLevel
 		trace.Logger.Level = log.DebugLevel
 		syslog.Logger.Level = log.DebugLevel

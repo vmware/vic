@@ -77,8 +77,8 @@ package com.vmware.vicui.views {
 
 			   //set default placeholder data
 			   _view.isVch = new Boolean(false);
-			   _view.dockerApiEndpoint.text = new String("-");
-			   _view.dockerLog.label = new String("-");
+			   _view.dockerApiEndpoint.text = new String(AppConstants.PLACEHOLDER_VAL);
+			   _view.dockerLog.label = new String(AppConstants.PLACEHOLDER_VAL);
 
 			   if (result != null) {
 
@@ -117,23 +117,27 @@ package com.vmware.vicui.views {
 							   ip_ipv4 = bytes.readUnsignedByte() + "." + bytes.readUnsignedByte() + "." + bytes.readUnsignedByte() + "." + bytes.readUnsignedByte();
 
 							   _view.dockerApiEndpoint.text = "DOCKER_HOST=tcp://" + ip_ipv4;
-							   _view.dockerLog.label = "https://" + ip_ipv4 + AppConstants.VCH_LOG_PORT;
+							   _view.dockerLog.label = "https://" + ip_ipv4 + ":" + AppConstants.VCH_LOG_PORT;
 							   continue;
 						   }
 
 						   if (keyName == AppConstants.DOCKER_PERSONALITY_ARGS_PATH) {
 							   // port 2376 is used for tls, and 2375 for no-tls
-							   isUsingTls = keyVal.indexOf("2376") > -1;
+							   isUsingTls = keyVal.indexOf(AppConstants.VCH_ENDPOINT_PORT_TLS) > -1;
 							   continue;
 						   }
 					   }
 
 					   // since the order in which list items are processed is not much guaranteed,
 					   // we set the port for Docker API endpoint at the end of the loop
-					   if (isUsingTls) {
-						   _view.dockerApiEndpoint.text = _view.dockerApiEndpoint.text + ":2376";
-					   } else {
-						   _view.dockerApiEndpoint.text = _view.dockerApiEndpoint.text + ":2375";
+					   if (_view.dockerApiEndpoint.text != AppConstants.PLACEHOLDER_VAL) {
+					       if (isUsingTls) {
+							   _view.dockerApiEndpoint.text = _view.dockerApiEndpoint.text + ":" +
+								   AppConstants.VCH_ENDPOINT_PORT_TLS;
+					       } else {
+							   _view.dockerApiEndpoint.text = _view.dockerApiEndpoint.text + ":" +
+								   AppConstants.VCH_ENDPOINT_PORT_NO_TLS;
+					       }
 					   }
 				   }
 			   } else {
@@ -146,8 +150,8 @@ package com.vmware.vicui.views {
 		   if(_view != null) {
 			   // clear the UI data
 			   _view.isVch = false;
-			   _view.dockerApiEndpoint.text = new String("-");
-			   _view.dockerLog.label = new String("-");
+			   _view.dockerApiEndpoint.text = new String(AppConstants.PLACEHOLDER_VAL);
+			   _view.dockerLog.label = new String(AppConstants.PLACEHOLDER_VAL);
 		   }
 	   }
 	}

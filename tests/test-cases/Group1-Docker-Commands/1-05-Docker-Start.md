@@ -1,16 +1,16 @@
 Test 1-05 - Docker Start
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker start command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/start/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker create -it busybox /bin/top to VIC appliance
 3. Issue docker start <containerID>
@@ -23,7 +23,7 @@ This test requires that a vSphere server is running and available
 10. Create and start 5 busybox containers running /bin/top all at once
 11. Run a container with a test-network, stop the container, remove the test-network, then start the container again
 
-#Expected Outcome:
+# Expected Outcome:
 * Commands 1-5 should all return without error and respond with the container ID
 * After commands 3 and 5 verify that the containers are running
 * Step 6 should result in the VIC appliance returning the following error:
@@ -38,5 +38,6 @@ Error: failed to start containers: fakeContainer
 Error response from daemon: Server error from portlayer: network test-network not found
 Error: failed to start containers: containerID
 ```
-#Possible Problems:
+
+# Possible Problems:
 None

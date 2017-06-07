@@ -14,11 +14,19 @@
 # limitations under the License.
 #
 
+# Get the latest code from vic-internal repo for nightly_test_secrets.yml file
+cd ~/internal-repo/vic-internal
+git clean -fd
+git fetch
+git pull
+
 # Get the latest code from vmware/vic repo
 cd ~/go/src/github.com/vmware/vic
-git fetch
-git reset --hard origin/master
+git clean -fd
+git fetch https://github.com/vmware/vic master
+git pull
 
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
-sudo ./tests/nightly/nightly-kickoff.sh > nightly_$now.txt 2>&1
+mkdir -p /home/vicadmin/nightly-log/
+sudo ./tests/nightly/nightly-kickoff.sh > /home/vicadmin/nightly-log/nightly_$now.txt 2>&1
