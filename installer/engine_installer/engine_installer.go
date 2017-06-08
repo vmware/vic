@@ -17,6 +17,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -191,7 +192,10 @@ func setupDefaultAdmiral(vchIP string) {
 	defer trace.End(trace.Begin(""))
 
 	admiral := "https://localhost:8282"
-	client := &http.Client{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 
 	// validate vch host
 	sslTrustPayload := fmt.Sprintf("{\"hostState\":{\"id\":\"%s\",\"address\":\"https://%s\",\"customProperties\":{\"__adapterDockerType\":\"API\",\"__containerHostType\":\"VCH\"}}}", vchIP, vchIP)
