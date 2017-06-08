@@ -76,12 +76,12 @@ Docker run linked containers
     Should Be Equal As Integers  ${rc}  0
 
 Docker run -d unspecified host port
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 ${redis}:${alpine}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
 Docker run check exit codes
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox}} true
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} true
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} false
     Should Be Equal As Integers  ${rc}  1

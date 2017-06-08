@@ -129,7 +129,7 @@ Docker ps ports output
     Should Contain  ${output}  :8000->80/tcp
     Should Contain  ${output}  :8443->443/tcp
 
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 ${redis}:${alpine}
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 6379 redis:alpine
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
     Should Be Equal As Integers  ${rc}  0

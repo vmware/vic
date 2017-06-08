@@ -26,8 +26,8 @@ Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{EXT-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{EXT-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{EXT-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{EXT-IP}  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop webserver
     Should Be Equal As Integers  ${rc}  0
@@ -69,12 +69,12 @@ Create container with host ip equal to public IP
     Should Be Equal As Integers  ${rc}  0
 
 Create container without specifying host port
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 6379 --name test-${redis} ${redis}:${alpine}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 6379 --name test-redis redis:alpine
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test-${redis}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test-redis
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop test-${redis}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop test-redis
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -138,20 +138,20 @@ Remap mapped ports after OOB Stop
 Remap mapped ports after OOB Stop and Remove
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name ${nginx}1 ${nginx}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  5001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  5001
 
     Power Off VM OOB  ${nginx}1*
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${nginx}1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm nginx1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name ${nginx}2 ${nginx}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx2 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  5001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  5001
 
 Container to container traffic via VCH public interface
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
