@@ -29,4 +29,4 @@ git pull
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
 mkdir -p /home/vicadmin/nightly-log/
-sudo ./tests/nightly/nightly-kickoff.sh > /home/vicadmin/nightly-log/nightly_$now.txt 2>&1
+sudo -E ./tests/nightly/nightly-kickoff.sh > /home/vicadmin/nightly-log/nightly_$now.txt 2>&1
