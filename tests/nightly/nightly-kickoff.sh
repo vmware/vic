@@ -96,6 +96,8 @@ count=0
 nightly_secrets_file="/home/vicadmin/internal-repo/vic-internal/nightly_secrets.yml"
 
 for i in $nightly_list_var; do
+    #Clean up any previous runs creds
+    rm -rf VCH-0-*
     echo "Executing nightly test $i vSphere 6.5"
     drone exec --trusted -e test="pybot -d 65/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
@@ -115,6 +117,8 @@ for i in $nightly_list_var; do
 done
 
 for i in $nightly_list_var; do
+    #Clean up any previous runs creds
+    rm -rf VCH-0-*
     echo "Executing nightly test $i on vSphere 6.0"
     drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
@@ -260,3 +264,23 @@ EOT
 # Emails an HTML report of the test run results using SendMail.
 sendmail -t < nightly_mail.html
 fi
+
+# Saves test results to reporting server
+testresultsdb="vic-nightly.db"
+rm $testresultsdb
+scp $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb .
+
+for i in $nightly_list_var; do
+python -m dbbot.run -k  -b $testresultsdb 65/$i/output.xml
+ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/65/$i
+scp 65/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
+scp 65/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
+
+python -m dbbot.run -k  -b $testresultsdb 60/$i/output.xml
+ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/60/$i
+scp 60/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
+scp 60/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
+done
+
+scp $testresultsdb $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb
+

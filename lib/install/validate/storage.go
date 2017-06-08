@@ -163,6 +163,23 @@ func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
 	v.Session.DatastorePath = path.Host
 }
 
+func (v *Validator) ListDatastores() ([]string, error) {
+	dss, err := v.Session.Finder.DatastoreList(v.Context, "*")
+	if err != nil {
+		return nil, fmt.Errorf("Unable to list datastores: %s", err)
+	}
+
+	if len(dss) == 0 {
+		return nil, nil
+	}
+
+	matches := make([]string, len(dss))
+	for i, d := range dss {
+		matches[i] = d.Name()
+	}
+	return matches, nil
+}
+
 // suggestDatastore suggests all datastores present on target in datastore:label format if applicable
 func (v *Validator) suggestDatastore(path string, label string, flag string) {
 	defer trace.End(trace.Begin(""))
@@ -175,9 +192,9 @@ func (v *Validator) suggestDatastore(path string, label string, flag string) {
 	}
 	log.Infof("Suggesting valid values for %s based on %q", flag, val)
 
-	dss, err := v.Session.Finder.DatastoreList(v.Context, "*")
+	dss, err := v.ListDatastores()
 	if err != nil {
-		log.Errorf("Unable to list datastores: %s", err)
+		log.Error(err)
 		return
 	}
 
@@ -186,18 +203,12 @@ func (v *Validator) suggestDatastore(path string, label string, flag string) {
 		return
 	}
 
-	matches := make([]string, len(dss))
-	for i, d := range dss {
-		if label != "" {
-			matches[i] = fmt.Sprintf("%s:%s", d.Name(), label)
-		} else {
-			matches[i] = d.Name()
-		}
-	}
-
-	if matches != nil {
+	if dss != nil {
 		log.Infof("Suggested values for %s:", flag)
-		for _, d := range matches {
+		for _, d := range dss {
+			if label != "" {
+				d = fmt.Sprintf("%s:%s", d, label)
+			}
 			log.Infof("  %q", d)
 		}
 	}
