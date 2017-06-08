@@ -376,10 +376,8 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		if err != nil || token.Token == "" {
 			log.Errorf("Fetch auth token failed: %s", err)
 			// At this point, if a request cannot be solved by a retry, it is an authentication error.
-			switch err.(type) {
-			case urlfetcher.DoNotRetry:
+			if _, ok := err.(urlfetcher.DoNotRetry); ok {
 				err = fmt.Errorf("Get %s: unauthorized: incorrect username or password", loginURL)
-				return "", err
 			}
 			return "", err
 		}
