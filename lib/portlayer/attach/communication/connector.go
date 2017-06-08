@@ -37,7 +37,7 @@ import (
 type Connector struct {
 	mutex        sync.RWMutex
 	cond         *sync.Cond
-	interactions map[string]SessionInteractor
+	interactions map[string]*LazySessionInteractor
 
 	listener net.Listener
 	// Quit channel for serve
@@ -55,7 +55,7 @@ func NewConnector(listener net.Listener) *Connector {
 	defer trace.End(trace.Begin(""))
 
 	connector := &Connector{
-		interactions: make(map[string]SessionInteractor),
+		interactions: make(map[string]*LazySessionInteractor),
 		listener:     listener,
 		done:         make(chan struct{}),
 	}
@@ -64,29 +64,45 @@ func NewConnector(listener net.Listener) *Connector {
 	return connector
 }
 
-func (c *Connector) aliveAndKicking(ctx context.Context, id string) SessionInteractor {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+// SessionIfAlive returns SessionInteractor or error
+func (c *Connector) SessionIfAlive(ctx context.Context, id string) (SessionInteractor, error) {
+	c.mutex.RLock()
+	v, ok := c.interactions[id]
+	c.mutex.RUnlock()
 
-	conn := c.interactions[id]
-	// we already established this connection, let's check it status
-	if conn != nil {
-		log.Infof("attach connector: Pinging for %s", id)
+	if !ok {
+		return nil, fmt.Errorf("attach connector: no such connection in the map")
+	}
+	// we have an entry in the map, let's check its status
+	var conn SessionInteractor
+	var err error
 
-		if err := conn.Ping(); err == nil {
-			log.Infof("attach connector: Pinged %s, returning", id)
-
-			if err := conn.Unblock(); err == nil {
-				log.Infof("attach connector: Unblocked %s, returning", id)
-			}
-			return conn
-		}
-		// ping failed so we need to remove it from the map
-		log.Infof("attach connector: Ping test failed, removing %s from connection map", id)
-		delete(c.interactions, id)
+	conn, err = v.Initialize()
+	if err != nil {
+		goto Error
 	}
 
-	return nil
+	log.Debugf("attach connector: Pinging for %s", id)
+	if err = conn.Ping(); err != nil {
+		goto Error
+	}
+
+	log.Debugf("attach connector: Unblocking for %s", id)
+	if err = conn.Unblock(); err != nil {
+		goto Error
+	}
+	log.Debugf("attach connector: Unblocked %s, returning", id)
+
+	return conn, nil
+
+Error:
+	log.Debugf("attach connector: liveness check failed, removing %s from connection map", id)
+
+	c.mutex.Lock()
+	delete(c.interactions, id)
+	c.mutex.Unlock()
+
+	return nil, err
 }
 
 // Interaction returns the interactor corresponding to the specified ID. If the connection doesn't exist
@@ -112,8 +128,8 @@ func (c *Connector) Interaction(ctx context.Context, id string) (SessionInteract
 func (c *Connector) interaction(ctx context.Context, id string) (SessionInteractor, error) {
 	defer trace.End(trace.Begin(id))
 
-	conn := c.aliveAndKicking(ctx, id)
-	if conn != nil {
+	conn, err := c.SessionIfAlive(ctx, id)
+	if conn != nil && err == nil {
 		return conn, nil
 	}
 
@@ -124,21 +140,32 @@ func (c *Connector) interaction(ctx context.Context, id string) (SessionInteract
 	result := make(chan SessionInteractor, 1)
 	go func() {
 		ok := false
-		var conn SessionInteractor
+		var v *LazySessionInteractor
 
 		c.mutex.RLock()
 		defer c.mutex.RUnlock()
 
 		for !ok && ctx.Err() == nil {
-			conn, ok = c.interactions[id]
+			v, ok = c.interactions[id]
 			if ok {
-				// no need to test this as we just created it
-				if err := conn.Unblock(); err == nil {
-					log.Infof("attach connector: Unblocked %s, returning", id)
+				conn, err := v.Initialize()
+				if conn != nil && err == nil {
+					// no need to test this connection as we just created it, unblock if needed
+					log.Debugf("attach connector: Unblocking for %s", id)
+					err = conn.Unblock()
+					if err == nil {
+						log.Debugf("attach connector: Unblocked %s, returning", id)
+
+						result <- conn
+						return
+					}
 				}
-				result <- conn
-				return
+				if err != nil {
+					log.Error(err)
+				}
+				ok = false
 			}
+
 			// block until cond is updated
 			log.Infof("attach connector:  Connection not found yet for %s", id)
 			c.cond.Wait()
@@ -170,10 +197,12 @@ func (c *Connector) RemoveInteraction(id string) error {
 	defer c.mutex.Unlock()
 
 	var err error
-
-	if c.interactions[id] != nil {
+	if v, ok := c.interactions[id]; ok {
 		log.Debugf("attach connector: Removing %s from the connection map", id)
-		err = c.interactions[id].Close()
+		conn, err := v.Initialize()
+		if err == nil {
+			err = conn.Close()
+		}
 		delete(c.interactions, id)
 		c.fg.Forget(id)
 	}
@@ -196,14 +225,6 @@ func (c *Connector) Stop() {
 	c.listener.Close()
 	close(c.done)
 	c.wg.Wait()
-}
-
-// URL returns the listener's URL
-func (c *Connector) URL() string {
-	defer trace.End(trace.Begin(""))
-
-	addr := c.listener.Addr()
-	return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
 }
 
 // Starts the connector listening on the specified source
@@ -320,15 +341,21 @@ func (c *Connector) processIncoming(conn net.Conn) {
 // - calls NewSSHInteraction for new connections and fills the connection map
 func (c *Connector) ids(conn ssh.Conn, ids []string) {
 	for _, id := range ids {
+		// needed for following closure - https://golang.org/doc/faq#closures_and_goroutines
+		id := id
+
 		c.mutex.RLock()
-		si, ok := c.interactions[id]
+		v, ok := c.interactions[id]
 		c.mutex.RUnlock()
 
 		if ok {
-			if err := si.Ping(); err == nil {
-				log.Debugf("Connection %s found and alive", id)
+			si, err := v.Initialize()
+			if si != nil && err == nil {
+				if err := si.Ping(); err == nil {
+					log.Debugf("Connection %s found and alive", id)
 
-				continue
+					continue
+				}
 			}
 			log.Warnf("Connection found but it wasn't alive. Creating a new one")
 		}
@@ -340,17 +367,19 @@ func (c *Connector) ids(conn ssh.Conn, ids []string) {
 			return
 		}
 
-		si, err = NewSSHInteraction(conn, id, version)
-		if err != nil {
-			log.Errorf("SSH connection could not be established (id=%s): %s", id, errors.ErrorStack(err))
-			return
+		lazy := &LazySessionInteractor{
+			fn: func() (SessionInteractor, error) {
+				defer trace.End(trace.Begin(id))
+
+				return NewSSHInteraction(conn, id, version)
+			},
 		}
 
 		log.Infof("Established connection with container VM: %s", id)
 
 		c.mutex.Lock()
 
-		c.interactions[id] = si
+		c.interactions[id] = lazy
 
 		c.cond.Broadcast()
 		c.mutex.Unlock()
