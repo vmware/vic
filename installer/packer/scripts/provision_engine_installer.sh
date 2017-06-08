@@ -15,3 +15,4 @@
 set -euf -o pipefail
 
 mkdir -p /etc/vmware/engine_installer # Engine installer config scripts
+mkdir -p /opt/vmware/engine_installer # Engine installer data and HTML
