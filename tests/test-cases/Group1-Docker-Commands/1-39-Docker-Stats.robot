@@ -32,12 +32,12 @@ Get Average Active Memory
     [Return]  ${vmomiMemory}
 
 Create test containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}box
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name stresser ${busybox}box /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name stresser ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  STRESSED  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name stopper ${busybox}box /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name stopper ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  STOPPER  ${output}
     ${stress}=  Get Container ShortID  %{STRESSED}

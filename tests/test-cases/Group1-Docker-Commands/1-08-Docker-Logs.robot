@@ -47,9 +47,9 @@ Check Upgraded Version
 *** Test Cases ***
 # This test happens first because the rest of the tests need the latest VCH after the upgrade step
 Docker logs backward compatibility
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id1}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} run -d ${busybox} sh -c "echo These pretzels are making me thirsty"
+    ${rc}  ${id1}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} run -d busybox sh -c "echo These pretzels are making me thirsty"
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} logs ${id1}
     Should Be Equal As Integers  ${rc}  0
@@ -59,7 +59,7 @@ Docker logs backward compatibility
     Should Contain  ${output}  vSphere Integrated Containers does not yet support '--timestamps'
     Upgrade
     Check Upgraded Version
-    ${rc}  ${id2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} sh -c "echo Whats the deeeal with Ovaltine?"
+    ${rc}  ${id2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox sh -c "echo Whats the deeeal with Ovaltine?"
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${id2}
     Should Be Equal As Integers  ${rc}  0
