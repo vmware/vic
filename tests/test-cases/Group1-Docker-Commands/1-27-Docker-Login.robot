@@ -24,7 +24,11 @@ Docker login and pull from docker.io
     Should Be Equal As Integers  ${rc}  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/public-hello-world
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=incorrectPassword
+    Should Contain  ${output}  incorrect username or password
+    Should Be Equal As Integers  ${rc}  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=vmware!123
+    Should Contain  ${output}  Login Succeeded
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/busybox
     Should Be Equal As Integers  ${rc}  0

@@ -14,13 +14,16 @@ This test requires that a vSphere server is running and available
 1. Deploy VIC appliance to vSphere server
 2. Issue docker pull private image on docker.io
 3. Issue docker pull public image on docker.io
-4. Issue docker login on docker.io
-5. Issue docker pull private image on docker.io
-6. Issue docker logout on docker.io
+4. Issue docker login on docker.io with invalid credentials 
+5. Issue docker login on docker.io with valid credentials
+6. Issue docker pull private image on docker.io
+7. Issue docker logout on docker.io
 
 # Expected Outcome:
 * Step 2 should result in an error without login
-* Step 3-6 should each succeed
+* Step 4 should result in an error of invalid credentials
+* Step 3, 5-7 should each succeed
 
 # Possible Problems:
-None
+Test will fail if docker account victest is disabled, or if connection to docker.io cannot be 
+established.
