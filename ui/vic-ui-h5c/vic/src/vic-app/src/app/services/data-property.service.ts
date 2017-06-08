@@ -59,9 +59,11 @@ export class DataPropertyService {
      * @return  data URL
      */
     buildDataUrl(id: string = this._objectId, props: string[]): string {
-        let url: string = window[APP_CONFIG.bundleName]
-            .buildDataUrl(id, props);
-        return url;
+        let namespace = window[APP_CONFIG.bundleName];
+        if (namespace) {
+            return namespace.buildDataUrl(id, props);
+        }
+        return null;
     }
 
     /**
@@ -151,11 +153,15 @@ function processVmType(obj: any): any {
 
         for (let { key, value } of extConfig) {
             if (key === VCH_VM_CLIENT_IP_KEY) {
-                const base64_decoded: string = atob(value);
-                const ipv4: string = base64_decoded.charCodeAt(0) + '.'
-                    + base64_decoded.charCodeAt(1) + '.'
-                    + base64_decoded.charCodeAt(2) + '.'
-                    + base64_decoded.charCodeAt(3);
+                const base64Decoded: string = atob(value);
+                const decIpLength = base64Decoded.length;
+                // if the ip is in ipv6 format, the decoded string is
+                // 16 bytes long
+                const decIpIdx = decIpLength === 16 ? decIpLength - 4 : 0;
+                const ipv4: string = base64Decoded.charCodeAt(decIpIdx) + '.'
+                    + base64Decoded.charCodeAt(decIpIdx + 1) + '.'
+                    + base64Decoded.charCodeAt(decIpIdx + 2) + '.'
+                    + base64Decoded.charCodeAt(decIpIdx + 3);
                 obj.dockerEndpoint = `DOCKER_HOST=tcp://${ipv4}`;
                 obj.dockerLog = `https://${ipv4}${VCH_VM_LOG_PORT}`;
                 continue;
