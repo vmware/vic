@@ -28,7 +28,7 @@ fi
 data_dir=/data/admiral
 conf_dir=/etc/vmware/admiral
 script_dir=/etc/vmware
-javadir=/var/opt/OpenJDK-1.8.0.131-bin/bin
+javadir=/usr/lib/jvm/OpenJDK-1.8.0.131/bin
 
 cert_dir=${data_dir}/cert
 flag=${conf_dir}/cert_gen_type

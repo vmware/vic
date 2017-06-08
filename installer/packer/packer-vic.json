@@ -211,7 +211,8 @@
     },
     {
       "type": "shell",
-      "environment_vars": ["BUILD_HARBOR_REVISION={{user `build_harbor_revision`}}"],
+      "environment_vars": ["BUILD_HARBOR_REVISION={{user `build_harbor_revision`}}",
+                           "BUILD_HARBOR_DEV_REVISION={{user `build_harbor_dev_revision`}}"],
       "script": "scripts/provision_harbor.sh"
     },
     {
