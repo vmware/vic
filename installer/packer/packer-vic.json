@@ -311,6 +311,11 @@
       "destination": "/etc/vmware/engine_installer/start_engine_installer.sh"
     },
     {
+      "type": "file",
+      "source": "../engine_installer/html",
+      "destination": "/opt/vmware/engine_installer"
+    },
+    {
       "type": "shell",
       "only": ["vagrant-local"],
       "script": "scripts/vagrant.sh"

@@ -593,18 +593,45 @@ func (v *Validator) checkVDSMembership(ctx context.Context, network types.Manage
 	return nil
 }
 
+// ListNetworks returns the InventoryPath of all networks (excluding DVS uplinks) or
+// all networks excluding standard networks
+func (v *Validator) ListNetworks(incStdNets bool) ([]string, error) {
+	var selectedNets []string
+
+	nets, err := v.Session.Finder.NetworkList(v.Context, "*")
+	if err != nil {
+		return nil, fmt.Errorf("unable to list networks: %s", err)
+	}
+
+	if len(nets) == 0 {
+		return nil, nil
+	}
+
+	for _, net := range nets {
+		switch o := net.(type) {
+		case *object.DistributedVirtualPortgroup:
+			// Filter out DVS uplink
+			if !v.isDVSUplink(net.Reference()) {
+				selectedNets = append(selectedNets, o.InventoryPath)
+			}
+		case *object.Network:
+			if incStdNets {
+				selectedNets = append(selectedNets, o.InventoryPath)
+			}
+		}
+	}
+
+	return selectedNets, nil
+}
+
 // suggestNetwork suggests all networks
 // incStdNets includes standard Networks in addition to DPGs
 func (v *Validator) suggestNetwork(flag string, incStdNets bool) {
 	defer trace.End(trace.Begin(flag))
 
-	log.Infof("Suggesting valid networks for %s", flag)
-
-	var validNets []string
-
-	nets, err := v.Session.Finder.NetworkList(v.Context, "*")
+	nets, err := v.ListNetworks(incStdNets)
 	if err != nil {
-		log.Errorf("Unable to list networks: %s", err)
+		log.Error(err)
 		return
 	}
 
@@ -613,30 +640,11 @@ func (v *Validator) suggestNetwork(flag string, incStdNets bool) {
 		return
 	}
 
-	for _, net := range nets {
-		switch o := net.(type) {
-		case *object.DistributedVirtualPortgroup:
-			if v.isNetworkNameValid(o.InventoryPath, flag) {
-				// Filter out DVS uplink
-				if !v.isDVSUplink(net.Reference()) {
-					validNets = append(validNets, path.Base(o.InventoryPath))
-				}
-			}
-		case *object.Network:
-			if incStdNets && v.isNetworkNameValid(o.InventoryPath, flag) {
-				validNets = append(validNets, path.Base(o.InventoryPath))
-			}
-		}
-	}
-
-	if len(validNets) == 0 {
-		log.Info("No valid networks found")
-		return
-	}
-
 	log.Infof("Suggested values for %s:", flag)
-	for _, n := range validNets {
-		log.Infof("  %q", n)
+	for _, n := range nets {
+		if v.isNetworkNameValid(n, flag) {
+			log.Infof("  %q", path.Base(n))
+		}
 	}
 }
 
