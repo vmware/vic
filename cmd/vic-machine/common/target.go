@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,11 +28,11 @@ import (
 )
 
 type Target struct {
-	URL *url.URL
+	URL *url.URL `cmd:"target"`
 
 	User       string
 	Password   *string
-	Thumbprint string
+	Thumbprint string `cmd:"thumbprint"`
 }
 
 func NewTarget() *Target {
@@ -42,26 +42,30 @@ func NewTarget() *Target {
 func (t *Target) TargetFlags() []cli.Flag {
 	return []cli.Flag{
 		cli.GenericFlag{
-			Name:  "target, t",
-			Value: flags.NewURLFlag(&t.URL),
-			Usage: "REQUIRED. ESXi or vCenter connection URL, specifying a datacenter if multiple exist e.g. root:password@VC-FQDN/datacenter",
+			Name:   "target, t",
+			Value:  flags.NewURLFlag(&t.URL),
+			Usage:  "REQUIRED. ESXi or vCenter connection URL, specifying a datacenter if multiple exist e.g. root:password@VC-FQDN/datacenter",
+			EnvVar: "VIC_MACHINE_TARGET",
 		},
 		cli.StringFlag{
 			Name:        "user, u",
 			Value:       "",
 			Usage:       "ESX or vCenter user",
 			Destination: &t.User,
+			EnvVar:      "VIC_MACHINE_USER",
 		},
 		cli.GenericFlag{
-			Name:  "password, p",
-			Value: flags.NewOptionalString(&t.Password),
-			Usage: "ESX or vCenter password",
+			Name:   "password, p",
+			Value:  flags.NewOptionalString(&t.Password),
+			Usage:  "ESX or vCenter password",
+			EnvVar: "VIC_MACHINE_PASSWORD",
 		},
 		cli.StringFlag{
 			Name:        "thumbprint",
 			Value:       "",
 			Destination: &t.Thumbprint,
 			Usage:       "ESX or vCenter host certificate thumbprint",
+			EnvVar:      "VIC_MACHINE_THUMBPRINT",
 		},
 	}
 }

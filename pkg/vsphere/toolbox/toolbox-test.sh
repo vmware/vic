@@ -124,6 +124,8 @@ opts=(-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=er
 scp "${opts[@]}" "$GOPATH"/bin/toolbox{,.test} "core@${ip}:"
 
 if [ -n "$test" ] ; then
+    export GOVC_GUEST_LOGIN=user:pass
+
     echo "Running toolbox tests..."
     ssh "${opts[@]}" "core@${ip}" ./toolbox.test -test.v -test.run TestServiceRunESX -toolbox.testesx \
         -toolbox.testpid="$$" -toolbox.powerState="$state" &
@@ -132,12 +134,38 @@ if [ -n "$test" ] ; then
     ip=$(govc vm.ip "$vm")
     echo "toolbox vm.ip=$ip"
 
-    echo "Testing guest operations via govc..."
-    out=$(govc guest.start -vm "$vm" -l user:pass /bin/date)
+    echo "Testing guest.{start,kill,ps} operations via govc..."
+
+    # should be 0 procs as toolbox only lists processes it started, for now
+    test -z "$(govc guest.ps -vm "$vm" -e | grep -v STIME)"
+
+    out=$(govc guest.start -vm "$vm" /bin/date)
 
     if [ "$out" != "$$" ] ; then
         echo "'$out' != '$$'" 1>&2
     fi
+
+    # These processes would run for 1h if we didn't kill them.
+    pid=$(govc guest.start -vm "$vm" sleep 1h)
+
+    echo "Killing func $pid..."
+    govc guest.kill -vm "$vm" -p "$pid"
+    govc guest.ps -vm "$vm" -e -p "$pid" -X | grep "$pid"
+    govc guest.ps -vm "$vm" -e -p "$pid" -json | jq -r .ProcessInfo[].ExitCode | grep -q 42
+
+    pid=$(govc guest.start -vm "$vm" /bin/sh -c "sleep 3600")
+    echo "Killing proc $pid..."
+    govc guest.kill -vm "$vm" -p "$pid"
+    govc guest.ps -vm "$vm" -e -p "$pid" -X | grep "$pid"
+
+    echo "Testing file copy to and from guest via govc..."
+    dest="/tmp/$(basename "$0")"
+
+    govc guest.upload -f -vm "$vm" -perm 0640 -gid 10 "$0" "$dest"
+
+    govc guest.download -vm "$vm" "$dest" - | md5sum --quiet -c <(<"$0" md5sum)
+    # TODO: switch govc guest.ls when toolbox supports it
+    ssh "${opts[@]}" "core@${ip}" ls -l "$dest" | grep "rw-r-----. 1 core wheel"
 
     echo "Waiting for tests to complete..."
     wait

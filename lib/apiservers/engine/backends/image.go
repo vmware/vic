@@ -17,6 +17,7 @@ package backends
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -89,9 +90,8 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		return nil, err
 	}
 
-	// Get the tags from the repo cache for this image
-	// TODO: remove this -- we have it in the image above
-	tags := cache.RepositoryCache().Tags(img.ImageID)
+	tags := img.Tags
+	digests := img.Digests
 
 	// did the user pass an id or partial id
 	userRefIsID = cache.ImageCache().IsImageID(imageRef)
@@ -102,8 +102,8 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 			fmt.Errorf("conflict: unable to delete %s (must be forced) - image is referenced in one or more repositories", t)
 	}
 
-	// if we have an ID or only 1 tag lets delete the vmdk(s) via the PL
-	if userRefIsID || len(tags) == 1 {
+	// if we have an ID or only 1 tag/digest lets delete the vmdk(s) via the PL
+	if userRefIsID || len(tags) == 1 || len(digests) == 1 {
 		log.Infof("Deleting image via PL %s (%s)", img.ImageID, img.ID)
 
 		// storeName is the uuid of the host this service is running on.
@@ -193,6 +193,11 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		// remove from cache, but don't save -- we'll do that afer all
 		// updates
 		refNamed, _ := cache.RepositoryCache().Remove(tags[i], false)
+		deletedRes = append(deletedRes, types.ImageDelete{Untagged: refNamed})
+	}
+
+	for i := range digests {
+		refNamed, _ := cache.RepositoryCache().Remove(digests[i], false)
 		deletedRes = append(deletedRes, types.ImageDelete{Untagged: refNamed})
 	}
 
@@ -344,13 +349,41 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	}
 	//*****
 
+	// create url from hostname
+	hostnameURL, err := url.Parse(ref.Hostname())
+	if err != nil || hostnameURL.Hostname() == "" {
+		hostnameURL, err = url.Parse("//" + ref.Hostname())
+		if err != nil {
+			log.Infof("Error parsing hostname %s during registry access: %s", ref.Hostname(), err.Error())
+		}
+	}
+
 	options := imagec.Options{
 		Destination: os.TempDir(),
-		Reference:   ref.String(),
+		Reference:   ref,
 		Timeout:     imagec.DefaultHTTPTimeout,
 		Outstream:   outStream,
-		RegistryCAs: RegistryCertPool,
 	}
+
+	// Check if url is contained within set of whitelisted or insecure registries
+	vchConfig := VchConfig()
+	insecureOk := RegistrySetContains(vchConfig.InsecureRegistries, hostnameURL)
+	whitelistOk := RegistrySetContains(vchConfig.RegistryWhitelist, hostnameURL)
+	if len(vchConfig.RegistryWhitelist) > 0 && !whitelistOk {
+		err = fmt.Errorf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", hostnameURL.Hostname())
+		log.Errorf(err.Error())
+		sf := streamformatter.NewJSONStreamFormatter()
+		outStream.Write(sf.FormatError(err))
+		return nil
+	}
+	options.InsecureAllowHTTP = insecureOk
+
+	// if insecureOk {
+	// 	//
+	// 	options.RegistryCAs = nil
+	// } else {
+	options.RegistryCAs = RegistryCertPool
+	// }
 
 	if authConfig != nil {
 		if len(authConfig.Username) > 0 {
@@ -365,15 +398,6 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 
 	if portLayerServer != "" {
 		options.Host = portLayerServer
-	}
-
-	insecureRegistries := InsecureRegistries()
-	for _, registry := range insecureRegistries {
-		if registry == ref.Hostname() {
-			options.InsecureAllowHTTP = true
-			log.Debugf("PullImage: Matched insecure registry: %s", registry)
-			break
-		}
 	}
 
 	log.Infof("PullImage: reference: %s, %s, portlayer: %#v",

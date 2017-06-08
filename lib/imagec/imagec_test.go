@@ -29,7 +29,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/reference"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
@@ -39,6 +42,9 @@ const (
 	OAuthToken = "Top_Secret_Token"
 	Image      = "library/photon"
 	Tag        = "latest"
+	Reference  = Image + ":" + Tag
+
+	BusyboxImage = "library/busybox"
 
 	// fake content
 	LayerContent = "Cannot_Contain_Myself"
@@ -100,26 +106,54 @@ func TestParseReference(t *testing.T) {
 
 	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
 
-	ic.Options.Reference = "busybox"
-	if err := ic.ParseReference(); err != nil {
+	ref, err := reference.ParseNamed("busybox")
+	if err != nil {
 		t.Errorf(err.Error())
 	}
+	ic.Options.Reference = ref
+	ic.ParseReference()
+	assert.Equal(t, ic.Tag, reference.DefaultTag)
+	assert.Equal(t, ic.Image, BusyboxImage)
+	assert.Equal(t, ic.Registry, DefaultDockerURL)
 
-	ic.Options.Reference = "library/busybox"
-	if err := ic.ParseReference(); err != nil {
+	ref, err = reference.ParseNamed("library/busybox")
+	if err != nil {
 		t.Errorf(err.Error())
 	}
+	ic.Options.Reference = ref
+	ic.ParseReference()
+	assert.Equal(t, ic.Tag, reference.DefaultTag)
+	assert.Equal(t, ic.Image, BusyboxImage)
+	assert.Equal(t, ic.Registry, DefaultDockerURL)
 
-	ic.Options.Reference = "library/busybox:latest"
-	if err := ic.ParseReference(); err != nil {
+	ref, err = reference.ParseNamed("library/busybox:latest")
+	if err != nil {
 		t.Errorf(err.Error())
 	}
+	ic.Options.Reference = ref
+	ic.ParseReference()
+	assert.Equal(t, ic.Tag, reference.DefaultTag)
+	assert.Equal(t, ic.Image, BusyboxImage)
+	assert.Equal(t, ic.Registry, DefaultDockerURL)
 
-	// should fail
-	ic.Options.Reference = "library/busybox@invalid"
-	if err := ic.ParseReference(); err == nil {
+	ic = NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ref, err = reference.ParseNamed("busybox")
+	if err != nil {
 		t.Errorf(err.Error())
 	}
+	digest, err := digest.ParseDigest("sha256:c79345819a6882c31b41bc771d9a94fc52872fa651b36771fbe0c8461d7ee558")
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	ref, err = reference.WithDigest(reference.TrimNamed(ref), digest)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	ic.Options.Reference = ref
+	ic.ParseReference()
+	assert.Equal(t, ic.Tag, "")
+	assert.Equal(t, ic.Image, BusyboxImage)
+	assert.Equal(t, ic.Registry, DefaultDockerURL)
 }
 
 func TestLearnRegistryURL(t *testing.T) {
@@ -157,6 +191,7 @@ func TestLearnRegistryURL(t *testing.T) {
 }
 
 func TestLearnAuthURL(t *testing.T) {
+	var err error
 
 	options := Options{
 		Outstream: os.Stdout,
@@ -176,6 +211,10 @@ func TestLearnAuthURL(t *testing.T) {
 	ic.Options.Image = Image
 	ic.Options.Tag = Tag
 	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 
 	url, err := LearnAuthURL(ic.Options)
 	if err != nil {
@@ -227,6 +266,7 @@ func TestFetchToken(t *testing.T) {
 }
 
 func TestFetchImageManifest(t *testing.T) {
+	var err error
 
 	options := Options{
 		Outstream: os.Stdout,
@@ -248,6 +288,10 @@ func TestFetchImageManifest(t *testing.T) {
 	ic.Options.Tag = Tag
 	ic.Options.Timeout = DefaultHTTPTimeout
 	ic.Options.Token = &urlfetcher.Token{Token: OAuthToken}
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 
 	// create a temporary directory
 	dir, err := ioutil.TempDir("", "imagec")
@@ -450,7 +494,7 @@ func TestListImages(t *testing.T) {
 }
 
 func TestFetchScenarios(t *testing.T) {
-
+	var err error
 	ctx := context.TODO()
 
 	options := Options{
@@ -493,6 +537,10 @@ func TestFetchScenarios(t *testing.T) {
 	ic.Options.Image = Image
 	ic.Options.Tag = Tag
 	ic.Options.InsecureAllowHTTP = true
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 
 	// create a temporary directory
 	dir, err := ioutil.TempDir("", "imagec")

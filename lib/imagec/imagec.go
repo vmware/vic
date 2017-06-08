@@ -72,7 +72,7 @@ func NewImageC(options Options, strfmtr *streamformatter.StreamFormatter) *Image
 
 // Options contain all options for a single instance of imagec
 type Options struct {
-	Reference string
+	Reference reference.Named
 
 	Registry string
 	Image    string
@@ -133,9 +133,6 @@ const (
 	// DefaultDockerURL holds the URL of Docker registry
 	DefaultDockerURL = "registry-1.docker.io"
 
-	// gcrURL holds the URL of the Google container registry
-	gcrURL = "gcr.io"
-
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
 
@@ -158,29 +155,21 @@ func init() {
 }
 
 // ParseReference parses the -reference parameter and populate options struct
-func (ic *ImageC) ParseReference() error {
-	// Validate and parse reference name
-	ref, err := reference.ParseNamed(ic.Reference)
-	if err != nil {
-		log.Warn("Error while parsing reference %s: %#v", ic.Reference, err)
-		return err
-	}
-
-	ic.Tag = reference.DefaultTag
-	if !reference.IsNameOnly(ref) {
-		if tagged, ok := ref.(reference.NamedTagged); ok {
+func (ic *ImageC) ParseReference() {
+	if reference.IsNameOnly(ic.Reference) {
+		ic.Tag = reference.DefaultTag
+	} else {
+		if tagged, isTagged := ic.Reference.(reference.NamedTagged); isTagged {
 			ic.Tag = tagged.Tag()
 		}
 	}
 
 	ic.Registry = DefaultDockerURL
-	if ref.Hostname() != reference.DefaultHostname {
-		ic.Registry = ref.Hostname()
+	if ic.Reference.Hostname() != reference.DefaultHostname {
+		ic.Registry = ic.Reference.Hostname()
 	}
 
-	ic.Image = ref.RemoteName()
-
-	return nil
+	ic.Image = ic.Reference.RemoteName()
 }
 
 // DestinationDirectory returns the path of the output directory
@@ -274,10 +263,6 @@ func updateRepositoryCache(ic *ImageC) error {
 	// LayerID for the image layer
 	imageLayerID := ic.ImageLayers[0].ID
 
-	ref, err := reference.ParseNamed(ic.Reference)
-	if err != nil {
-		return fmt.Errorf("Unable to parse reference: %s", err.Error())
-	}
 	// get the repoCache
 	repoCache := cache.RepositoryCache()
 
@@ -293,12 +278,12 @@ func updateRepositoryCache(ic *ImageC) error {
 		}
 	}
 	// AddReference will add the repo:tag to the repositoryCache and save to the portLayer
-	err = repoCache.AddReference(ref, ic.ImageID, true, imageLayerID, true)
+	err := repoCache.AddReference(ic.Reference, ic.ImageID, true, imageLayerID, true)
 	if err != nil {
-		return fmt.Errorf("Unable to Add Image Reference(%s): %s", ref.String(), err.Error())
+		return fmt.Errorf("Unable to Add Image Reference(%s): %s", ic.Reference.String(), err.Error())
 	}
 
-	dig, err := reference.ParseNamed(fmt.Sprintf("%s@%s", ref.Name(), ic.ManifestDigest))
+	dig, err := reference.ParseNamed(fmt.Sprintf("%s@%s", ic.Reference.Name(), ic.ManifestDigest))
 	if err != nil {
 		return fmt.Errorf("Unable to parse digest: %s", err.Error())
 	}
@@ -430,16 +415,18 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 	result.Size = size
 	result.V1Image.ID = imageLayer.ID
 	imageConfig := metadata.ImageConfig{
-		V1Image: result.V1Image,
-		ImageID: sum,
-		// TODO: this will change when issue 1186 is
-		// implemented -- only populate the digests when pulled by digest
-		Digests:   []string{ic.ManifestDigest},
+		V1Image:   result.V1Image,
+		ImageID:   sum,
 		Tags:      []string{ic.Tag},
 		Name:      manifest.Name,
 		DiffIDs:   diffIDs,
 		History:   history,
-		Reference: ic.Reference,
+		Reference: ic.Reference.String(),
+	}
+
+	if _, ok := ic.Reference.(reference.Canonical); ok {
+		log.Debugf("Populating digest in imageConfig for image: %s", ic.Reference.String())
+		imageConfig.Digests = []string{ic.ManifestDigest}
 	}
 
 	return imageConfig, nil
@@ -453,10 +440,7 @@ func (ic *ImageC) PullImage() error {
 	defer cancel()
 
 	// Parse the -reference parameter
-	if err := ic.ParseReference(); err != nil {
-		log.Errorf(err.Error())
-		return err
-	}
+	ic.ParseReference()
 
 	// Host is either the host's UUID (if run on vsphere) or the hostname of
 	// the system (if run standalone)
@@ -508,7 +492,8 @@ func (ic *ImageC) PullImage() error {
 		ic.Token = token
 	}
 
-	progress.Message(ic.progressOutput, "", "Pulling from "+ic.Image)
+	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
+	progress.Message(ic.progressOutput, "", tagOrDigest+": Pulling from "+ic.Image)
 
 	// Get the schema1 manifest
 	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
@@ -537,8 +522,12 @@ func (ic *ImageC) PullImage() error {
 		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
 			ic.ImageManifestSchema2 = schema2
 
-			//Override the manifest digest as Docker uses schema 2
-			ic.ManifestDigest = digest
+			// Override the manifest digest as Docker uses schema 2, unless the image
+			// is pulled by digest since we only support pull-by-digest for schema 1.
+			// TODO(anchal): this check should be removed once issue #5187 is implemented.
+			if _, ok := ic.Reference.(reference.Canonical); !ok {
+				ic.ManifestDigest = digest
+			}
 		}
 	}
 

@@ -61,7 +61,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 	api.InteractionContainerCloseStdinHandler = interaction.ContainerCloseStdinHandlerFunc(i.ContainerCloseStdinHandler)
 
 	i.server = communication.NewServer("localhost", constants.AttachServerPort)
-	if err := i.server.Start(false); err != nil {
+	if err := i.server.Start(); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)
 	}
 }

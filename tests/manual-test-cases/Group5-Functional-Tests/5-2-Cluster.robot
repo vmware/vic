@@ -20,17 +20,29 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX1}  ${esx1}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX2}  ${esx2}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX3}  ${esx3}
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${VC}  ${vc}
-  
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
+    @{esx_names}=  Get Dictionary Keys  ${esxes}
+    @{esx_ips}=  Get Dictionary Values  ${esxes}
+
+    Set Global Variable  @{list}  %{NIMBUS_USER}-@{esx_names}[0]  %{NIMBUS_USER}-@{esx_names}[1]  %{NIMBUS_USER}-@{esx_names}[2]  %{NIMBUS_USER}-${vc}
+
+    # Finish vCenter deploy
+    ${output}=  Wait For Process  ${pid}
+    Should Contain  ${output.stdout}  Overall Status: Succeeded
+    ${output}=  Split To Lines  ${output.stdout}
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${vc}
+    Close Connection
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${vc-ip}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter
@@ -41,11 +53,11 @@ Test
     Should Be Empty  ${out}
 
     Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=@{esx_ips}[0] -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=@{esx_ips}[1] -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=@{esx_ips}[2] -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
     Create A Distributed Switch  ha-datacenter

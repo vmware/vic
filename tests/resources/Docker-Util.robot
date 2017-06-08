@@ -36,9 +36,8 @@ Pull image
 Wait Until Container Stops
     [Arguments]  ${container}
     :FOR  ${idx}  IN RANGE  0  60
-    \   ${out}=  Run  docker %{VCH-PARAMS} inspect ${container} | grep Status
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  exited
-    \   Return From Keyword If  ${status}
+    \   ${out}=  Run  docker %{VCH-PARAMS} inspect -f '{{.State.Running}}' ${container}
+    \   Return From Keyword If  '${out}' == 'false'
     \   Sleep  1
     Fail  Container did not stop within 60 seconds
 
@@ -59,6 +58,7 @@ Get Container IP
 Start Docker Daemon Locally
     [Arguments]  ${dockerd-params}  ${dockerd-path}=/usr/local/bin/dockerd-entrypoint.sh  ${log}=./daemon-local.log
     OperatingSystem.File Should Exist  ${dockerd-path}
+    Log To Console  Starting docker daemon locally
     ${pid}=  Run  pidof dockerd
     Run Keyword If  '${pid}' != '${EMPTY}'  Run  kill -9 ${pid}
     Run Keyword If  '${pid}' != '${EMPTY}'  Log To Console  \nKilling local dangling dockerd process: ${pid}
@@ -73,7 +73,7 @@ Start Docker Daemon Locally
     :FOR  ${IDX}  IN RANGE  10
     \   ${rc}=  Run And Return Rc  DOCKER_API_VERSION=1.23 docker -H unix:///var/run/docker-local.sock ps
     \   Return From Keyword If  '${rc}' == '0'  ${handle}  ${dockerd-pid}
-    \   Sleep 1s
+    \   Sleep  1s
     Fail  Failed to initialize local dockerd
     [Return]  ${handle}  ${dockerd-pid}
 

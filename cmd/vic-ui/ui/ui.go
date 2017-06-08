@@ -175,7 +175,7 @@ func (p *Plugin) Install(cli *cli.Context) error {
 		return err
 	}
 
-	if p.Debug.Debug > 0 {
+	if p.Debug.Debug != nil && *p.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
@@ -249,7 +249,7 @@ func (p *Plugin) Remove(cli *cli.Context) error {
 	if err = p.processRemoveParams(); err != nil {
 		return err
 	}
-	if p.Debug.Debug > 0 {
+	if p.Debug.Debug != nil && *p.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}

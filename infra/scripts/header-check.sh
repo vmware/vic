@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Simple script that will check files of type .go, .sh, .bash or Makefile
+# Simple script that will check files of type .go, .sh, .bash, .robot, or Makefile
 # for the copyright header.
 #
 # This will be called by the CI system (with no args) to perform checking and
@@ -44,9 +44,7 @@ all-files() {
         # Check .go files, Makefile, sh files, bash files, and robot files
         grep -e "\.go$" -e "Makefile$" -e "\.sh$" -e "\.bash$" -e "\.robot$" |\
             # Ignore vendor/
-        grep -v vendor/ |\
-            # Ignore files marked as deleted in git
-        grep -v "$(git status -s | grep -e "^\sD" | cut -d' ' -f3)"
+        grep -v vendor/
 }
 
 for file in $(all-files); do
@@ -87,15 +85,15 @@ for file in $(all-files); do
       # based on file type fix the copyright
       case "$ext" in
         go)
-          cat ./scripts/VMware-copyright |  ${file} > ${file}.new
+          cat $(dirname $0)/VMware-copyright ${file} > ${file}.new
           ;;
         sh)
           head -1 ${file} > ${file}.new
-          cat ./scripts/VMware-copyright | sed 's/\/\//\#/1' >> ${file}.new
+          cat $(dirname $0)/VMware-copyright | sed 's/\/\//\#/1' >> ${file}.new
           grep -v '#!/bin/bash' ${file} >> ${file}.new
           ;;
         *)
-          cat ./scripts/VMware-copyright | sed 's/\/\//\#/1' > ${file}.new
+          cat $(dirname $0)/VMware-copyright | sed 's/\/\//\#/1' > ${file}.new
           cat ${file} >> ${file}.new
           ;;
       esac

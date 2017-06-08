@@ -20,6 +20,9 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net"
+	"net/http"
+	"net/url"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -70,7 +73,7 @@ const (
 func GetMgmtIP() net.IPNet {
 	var mgmtIP net.IPNet
 	// management alias may not be present, try others if not found
-	link := LinkByOneOfNameOrAlias(validate.ManagementNetworkName, "public", "client")
+	link := LinkByOneOfNameOrAlias(config.ManagementNetworkName, "public", "client")
 	if link == nil {
 		log.Error("unable to find any interfaces when searching for mgmt IP")
 		return mgmtIP
@@ -172,20 +175,35 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 
 	// Network Connection Check
 	hosts := []string{
-		"google.com:80",
-		"docker.io:443",
+		"http://google.com",
+		"https://docker.io",
 	}
+
 	nwErrors := []error{}
 
-	for _, host := range hosts {
-		conn, err := net.DialTimeout("tcp", host, time.Minute/2)
+	// create a http client with a custom transport using the proxy from env vars
+	client := &http.Client{Timeout: 30 * time.Second}
+	// priority given to https proxies
+	proxy := os.Getenv("VICADMIN_HTTPS_PROXY")
+	if proxy == "" {
+		proxy = os.Getenv("VICADMIN_HTTP_PROXY")
+	}
+	if proxy != "" {
+		url, err := url.Parse(proxy)
 		if err != nil {
 			nwErrors = append(nwErrors, err)
 		} else {
-			conn.Close()
+			client.Transport = &http.Transport{Proxy: http.ProxyURL(url)}
 		}
 	}
 
+	// perform the wan check
+	for _, host := range hosts {
+		_, err := client.Get(host)
+		if err != nil {
+			nwErrors = append(nwErrors, err)
+		}
+	}
 	if len(nwErrors) > 0 {
 		v.NetworkStatus = BadStatus
 		for _, err := range nwErrors {

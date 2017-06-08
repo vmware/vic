@@ -17,6 +17,7 @@ package communication
 import (
 	"fmt"
 	"io"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/matryer/resync"
@@ -57,6 +58,8 @@ type SessionInteractor interface {
 type interaction struct {
 	channel ssh.Channel
 
+	// to serialize unblock requests
+	mu sync.Mutex
 	// avoid spamming unblock messages
 	unblocked resync.Once
 
@@ -223,18 +226,28 @@ func (t *interaction) Ping() error {
 func (t *interaction) Unblock() error {
 	defer trace.End(trace.Begin(""))
 
+	var ok bool
+	var err error
+	var reset bool
+
 	if t.version < feature.ExecSupportedVersion {
 		log.Warnf("Running container does not support Unblock request, skipping.")
 		return nil
 	}
 
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	t.unblocked.Do(func() {
-		ok, err := t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg))
-		if !ok || err != nil {
+		if ok, err = t.channel.SendRequest(msgs.UnblockReq, true, []byte(msgs.UnblockMsg)); !ok || err != nil {
 			log.Errorf("failed to unblock the other side: %s", err)
-			t.unblocked.Reset()
+			// #5038: resync package is not reentrant so we need to call Reset after this
+			reset = true
 		}
 	})
 
-	return nil
+	if reset {
+		t.unblocked.Reset()
+	}
+	return err
 }

@@ -18,7 +18,7 @@ Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-Inspect VCH configuration
+Inspect VCH Configuration
     Install VIC Appliance To Test Server
 
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --configuration --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
@@ -26,17 +26,40 @@ Inspect VCH configuration
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
     Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
-    Should Contain  ${output}  --image-store=%{TEST_DATASTORE}
+    Should Contain  ${output}  --image-store=ds://%{TEST_DATASTORE}
     Should Contain  ${output}  --compute-resource=%{TEST_RESOURCE}
-    Should Contain  ${output}  --timeout=
-    Should Contain  ${output}  --volume-store=%{TEST_DATASTORE}/test
-    Should Contain  ${output}  --appliance-iso=bin/appliance.iso
-    Should Contain  ${output}  --bootstrap-iso=bin/bootstrap.iso
-    Should Contain  ${output}  --force=true
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}
     Should Contain  ${output}  --bridge-network=%{BRIDGE_NETWORK}
-    Should Contain  ${output}  --public-network=VM Network
-    Should Not Contain  ${output}  --insecure-registry
     Should Not Contain  ${output}  --cpu
+    Should Not Contain  ${output}  --cpu-shares
+    Should Not Contain  ${output}  --memory
+    Should Not Contain  ${output}  --memory-shares
+    Should Not Contain  ${output}  --base-image-size
+    Should Not Contain  ${output}  --bridge-network-range
+    Should Be Equal As Integers  0  ${rc}
+
+    Cleanup VIC Appliance On Test Server
+
+Inspect VCH Configuration with Resource Limitation
+    Install VIC Appliance To Test Server  additional-args=--memory 8000 --memory-reservation 512 --memory-shares 6000 --cpu 10000 --cpu-reservation 512 --cpu-shares high --endpoint-cpu 2 --endpoint-memory 4096
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --configuration --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    Should Contain  ${output}  --debug=1
+    Should Contain  ${output}  --name=%{VCH-NAME}
+    Should Contain  ${output}  --target=https://%{TEST_URL}
+    Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
+    Should Contain  ${output}  --image-store=ds://%{TEST_DATASTORE}
+    Should Contain  ${output}  --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}
+    Should Contain  ${output}  --bridge-network=%{BRIDGE_NETWORK}
+    Should Contain  ${output}  --memory-shares=6000
+    Should Contain  ${output}  --memory-reservation=512
+    Should Contain  ${output}  --memory=8000
+    Should Contain  ${output}  --cpu=10000
+    Should Contain  ${output}  --cpu-reservation=512
+    Should Contain  ${output}  --cpu-shares=high
+    Should Contain  ${output}  --endpoint-memory=4096
+    Should Contain  ${output}  --endpoint-cpu=2
     Should Be Equal As Integers  0  ${rc}
 
     Cleanup VIC Appliance On Test Server
@@ -82,4 +105,3 @@ Verify inspect output for a --no-tlsverify VCH
     Should Not Contain  ${output}  DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments
 
     Cleanup VIC Appliance On Test Server
-

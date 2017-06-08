@@ -29,7 +29,8 @@ nightly_list_var="5-1-Distributed-Switch \
 5-13-Invalid-ESXi-Install \
 5-14-Remove-Container-OOB \
 13-1-vMotion-VCH-Appliance \
-13-2-vMotion-Container"
+13-2-vMotion-Container \
+21-1-Whitelist"
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
@@ -92,9 +93,11 @@ DATE=`date +%m_%d_%H_%M_`
 nightlystatus=()
 count=0
 
+nightly_secrets_file="/home/vicadmin/internal-repo/vic-internal/nightly_secrets.yml"
+
 for i in $nightly_list_var; do
     echo "Executing nightly test $i vSphere 6.5"
-    drone exec --trusted -e test="pybot -d 65/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot -d 65/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then
@@ -113,7 +116,7 @@ done
 
 for i in $nightly_list_var; do
     echo "Executing nightly test $i on vSphere 6.0"
-    drone exec --trusted -e test="pybot --variable ESX_VERSION:5251623 --variable VC_VERSION:5326079 -d 60/$i --suite $i tests/manual-test-cases/" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    drone exec --trusted -e test="pybot --variable ESX_VERSION:ob-5251623 --variable VC_VERSION:ob-5112509 -d 60/$i --suite $i tests/manual-test-cases/" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
     if [ $? -eq 0 ]
     then
@@ -149,7 +152,7 @@ done
 
 echo "Global Nightly Test Status $buildStatus"
 
-drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $DATE$input" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $DATE$input" -E $nightly_secrets_file --yaml .drone.nightly.yml
 
 rm nightly_mail.html
 
@@ -257,3 +260,23 @@ EOT
 # Emails an HTML report of the test run results using SendMail.
 sendmail -t < nightly_mail.html
 fi
+
+# Saves test results to reporting server
+testresultsdb="vic-nightly.db"
+rm $testresultsdb
+scp $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb .
+
+for i in $nightly_list_var; do
+python -m dbbot.run -k  -b $testresultsdb 65/$i/output.xml
+ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/65/$i
+scp 65/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
+scp 65/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/65/$i
+
+python -m dbbot.run -k  -b $testresultsdb 60/$i/output.xml
+ssh $REPORTING_USER@$REPORTING_SERVER_URL mkdir -p /export/drone-test-results/testruns/$buildNumber-nightly/60/$i
+scp 60/$i/log.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
+scp 60/$i/report.html $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns/$buildNumber-nightly/60/$i
+done
+
+scp $testresultsdb $REPORTING_USER@$REPORTING_SERVER_URL:/export/drone-test-results/testruns-db/$testresultsdb
+

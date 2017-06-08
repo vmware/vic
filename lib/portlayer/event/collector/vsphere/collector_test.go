@@ -25,6 +25,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	LifeCycle = iota
+	Reconfigure
+	Mixed
+)
+
 // used to test callbacks
 var callcount int
 
@@ -61,12 +67,19 @@ func TestEvented(t *testing.T) {
 	mgr.Register(callMe)
 
 	// test lifecycle events
-	page := eventPage(3, true)
+	page := eventPage(3, LifeCycle)
 	evented(mgr, page)
 	assert.Equal(t, 3, callcount)
 
-	// non-lifecycle events
-	page = eventPage(2, false)
+	// non-lifecycle events, should be ignored
+	callcount = 0
+	page = eventPage(2, Reconfigure)
+	evented(mgr, page)
+	assert.Equal(t, 0, callcount)
+
+	// mixed events, ignore half
+	callcount = 0
+	page = eventPage(6, Mixed)
 	evented(mgr, page)
 	assert.Equal(t, 3, callcount)
 
@@ -85,7 +98,7 @@ func TestStart(t *testing.T) {
 }
 
 func newCollector() *EventCollector {
-	return &EventCollector{mos: monitoredCache{mos: make(map[string]types.ManagedObjectReference)}}
+	return &EventCollector{mos: monitoredCache{mos: make(map[string]types.ManagedObjectReference)}, lastProcessedID: -1}
 }
 
 // simple callback counter
@@ -98,14 +111,24 @@ func callMe(vm events.Event) {
 // size is the number of events to create
 // lifeCycle is true when we want to generate state events
 // lifeCycle events == poweredOn, poweredOff, etc..
-func eventPage(size int, lifeCycle bool) []types.BaseEvent {
+
+func eventPage(size int, eventType int) []types.BaseEvent {
 	page := make([]types.BaseEvent, 0, size)
 	moid := 100
 	for i := 0; i < size; i++ {
 		var eve types.BaseEvent
+		var eType int
 		moid++
 		vm := types.ManagedObjectReference{Value: strconv.Itoa(moid), Type: "vm"}
-		if lifeCycle {
+		eType = eventType
+		if eType == Mixed {
+			if i%2 == 0 {
+				eType = LifeCycle
+			} else {
+				eType = Reconfigure
+			}
+		}
+		if eType == LifeCycle {
 			eve = types.BaseEvent(&types.VmPoweredOnEvent{VmEvent: types.VmEvent{Event: types.Event{Vm: &types.VmEventArgument{Vm: vm}}}})
 		} else {
 			eve = types.BaseEvent(&types.VmReconfiguredEvent{VmEvent: types.VmEvent{Event: types.Event{Vm: &types.VmEventArgument{Vm: vm}}}})

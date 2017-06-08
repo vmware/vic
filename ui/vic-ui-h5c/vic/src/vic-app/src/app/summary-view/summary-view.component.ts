@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { GlobalsService, RefreshService } from '../shared/index';
 import { Vic18nService } from '../shared/vic-i18n.service';
 import { DataPropertyService } from '../services/data-property.service';
@@ -78,13 +78,14 @@ export class VicSummaryViewComponent implements OnInit, OnDestroy {
     private refreshSubscription: Subscription;
 
     constructor(
-        private gs: GlobalsService,
+        private zone: NgZone,
+        private globalsService: GlobalsService,
         public vicI18n: Vic18nService,
         private refreshService: RefreshService,
         private dataPropertyService: DataPropertyService
     ) {
         this.vicLogoPath = this.isPluginMode() ?
-            this.gs.getWebContextPath() + VIC_LOGO_100X100 :
+            this.globalsService.getWebContextPath() + VIC_LOGO_100X100 :
             VIC_LOGO_100X100;
 
         this.rootInfoSubscription = this.dataPropertyService
@@ -97,8 +98,10 @@ export class VicSummaryViewComponent implements OnInit, OnDestroy {
 
         this.refreshSubscription = this.refreshService
             .refreshObservable$.subscribe(() => {
-                console.log('root info is being refreshed');
-                this.fetchRootInfo();
+                this.zone.run(() => {
+                    console.log('root info is being refreshed');
+                    this.fetchRootInfo();
+                });
             });
     }
 
@@ -108,7 +111,7 @@ export class VicSummaryViewComponent implements OnInit, OnDestroy {
      * @returns true if plugin mode. false if not
      */
     isPluginMode() {
-        return this.gs.isPluginMode();
+        return this.globalsService.isPluginMode();
     }
 
     fetchRootInfo(): void {

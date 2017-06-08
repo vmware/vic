@@ -23,9 +23,12 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
+
+	"net"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -40,12 +43,14 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
+	registryutils "github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 const defaultSyslogPort = 514
+const registryValidationTime = 10 * time.Second
 
 type Validator struct {
 	TargetPath        string
@@ -325,7 +330,11 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
 	conf.SetName(input.DisplayName)
-	conf.SetDebug(input.Debug.Debug)
+
+	if input.Debug.Debug != nil {
+		conf.SetDebug(*input.Debug.Debug)
+	}
+
 	conf.Name = input.DisplayName
 	conf.Version = version.GetBuild()
 
@@ -501,21 +510,147 @@ func (v *Validator) certificateAuthorities(ctx context.Context, input *data.Data
 func (v *Validator) registries(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
+	// Check if CAs can be loaded
+	pool := x509.NewCertPool()
+	if len(input.RegistryCAs) > 0 {
+		if !pool.AppendCertsFromPEM(input.RegistryCAs) {
+			v.NoteIssue(errors.New("Unable to load certificate authority data for registry"))
+			return
+		}
+	}
+
+	conf.RegistryCertificateAuthorities = input.RegistryCAs
+
+	// test reachability
+	insecureRegistries, whitelistRegistries, err := v.reachableRegistries(ctx, input, pool)
+	if err != nil {
+		v.NoteIssue(err)
+		return
+	}
+
 	// copy the list of insecure registries
-	conf.InsecureRegistries = input.InsecureRegistries
+	conf.InsecureRegistries = insecureRegistries
+
+	// copy the list of whitelist registries
+	conf.RegistryWhitelist = whitelistRegistries
+
+	// create vic-machine info message
+	msg := v.friendlyRegistryList("Insecure registries", conf.InsecureRegistries)
+	if msg != "" {
+		log.Infof(msg)
+	}
+	msg = v.friendlyRegistryList("Whitelist registries", conf.RegistryWhitelist)
+	if msg != "" {
+		log.Infof(msg)
+	}
 
 	if len(input.RegistryCAs) == 0 {
 		return
 	}
+}
 
-	// Check if CAs can be loaded
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(input.RegistryCAs) {
-		v.NoteIssue(errors.New("Unable to load certificate authority data for registry"))
-		return
+func (v *Validator) friendlyRegistryList(registryType string, registryList []url.URL) string {
+	var msg string
+
+	if len(registryList) > 0 {
+		var host string
+		msg = registryType + " = "
+		for i, r := range registryList {
+			host = r.Host
+			if strings.Contains(r.Path, "/") {
+				host = host + r.Path
+			}
+
+			if i == 0 {
+				msg = msg + host
+			} else {
+				msg = msg + ", " + host
+			}
+		}
 	}
 
-	conf.RegistryCertificateAuthorities = input.RegistryCAs
+	return msg
+}
+
+// Validate registries are reachable.  Secure registries that are not specified as insecure are validated with the
+// CA certs passed into vic-machine.
+func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, pool *x509.CertPool) (insecureRegistries []url.URL, whitelistRegistries []url.URL, err error) {
+	secureRegistries := input.WhitelistRegistries
+
+	// Remove intersection between insecure registries and whitelist registries from whitelist set so
+	// we can ensure we test the exclusion set with certs
+	var exist bool
+	var idx int
+	var s url.URL
+	for _, r := range input.InsecureRegistries {
+		exist = false
+		for idx, s = range secureRegistries {
+			if r.Host == s.Host {
+				exist = true
+				break
+			}
+		}
+
+		// remove the insecure registry from list of registries to get validated against certs
+		if exist {
+			secureRegistries = append(secureRegistries[:idx], secureRegistries[idx+1:]...)
+		}
+	}
+
+	// Test insecure registries' reachability
+	for _, r := range input.InsecureRegistries {
+		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
+		if strings.HasPrefix(r.Host, "*") {
+			log.Debugf("Skipping registry validation for %s", r.Host)
+			continue
+		}
+		if _, _, err = net.ParseCIDR(r.Host + r.Path); err == nil {
+			log.Debugf("Skipping registry validation for %s%s", r.Host, r.Path)
+			continue
+		}
+
+		_, err = registryutils.Reachable(r.Host, "https", "", "", nil, registryValidationTime, true)
+		if err != nil {
+			_, err = registryutils.Reachable(r.Host, "http", "", "", nil, registryValidationTime, true)
+		}
+
+		if err != nil {
+			log.Warnf("Unable to confirm insecure registry %s is a valid registry at this time.", r.Host)
+		} else {
+			log.Debugf("Insecure registry %s confirmed.", r.Host)
+		}
+	}
+
+	// Test secure registries' reachability
+	for _, w := range secureRegistries {
+		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
+		if strings.HasPrefix(w.Hostname(), "*") {
+			log.Debugf("Skipping registry validation for %s", w.Host)
+			continue
+		}
+		if _, _, err = net.ParseCIDR(w.Host + w.Path); err == nil {
+			log.Debugf("Skipping registry validation for %s%s", w.Host, w.Path)
+			continue
+		}
+
+		_, err = registryutils.Reachable(w.Host, "https", "", "", pool, registryValidationTime, false)
+
+		if err != nil {
+			log.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w.Host)
+		} else {
+			log.Debugf("Secure registry %s confirmed.", w.Host)
+		}
+	}
+
+	// Return output
+	insecureRegistries = input.InsecureRegistries
+	// If vic-machine had whitelist registry specified
+	if len(input.WhitelistRegistries) > 0 {
+		whitelistRegistries = append(secureRegistries, insecureRegistries...)
+	}
+	err = nil
+
+	return
 }
 
 func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
@@ -634,18 +769,26 @@ func (v *Validator) IsVC() bool {
 }
 
 func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(fmt.Sprintf("session: %#v, input: %#v", v.Session, input)))
 
 	dconfig := data.InstallerData{}
 
 	dconfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
 	dconfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
 
-	dconfig.Datacenter = v.Session.Datacenter.Reference()
-	dconfig.DatacenterName = v.Session.Datacenter.Name()
+	if v.Session.Datacenter != nil {
+		dconfig.Datacenter = v.Session.Datacenter.Reference()
+		dconfig.DatacenterName = v.Session.Datacenter.Name()
+	} else {
+		log.Debugf("session datacenter is nil")
+	}
 
-	dconfig.Cluster = v.Session.Cluster.Reference()
-	dconfig.ClusterPath = v.Session.Cluster.InventoryPath
+	if v.Session.Cluster != nil {
+		dconfig.Cluster = v.Session.Cluster.Reference()
+		dconfig.ClusterPath = v.Session.Cluster.InventoryPath
+	} else {
+		log.Debugf("session cluster is nil")
+	}
 
 	dconfig.ResourcePoolPath = v.ResourcePoolPath
 	dconfig.UseRP = input.UseRP

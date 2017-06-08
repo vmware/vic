@@ -22,7 +22,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/api/server/middleware"
@@ -72,8 +71,6 @@ var (
 )
 
 func init() {
-	trace.Logger = log.StandardLogger()
-
 	pprof.StartPprof("docker personality", pprof.DockerPort)
 
 	flag.Usage = Usage
@@ -104,7 +101,7 @@ func main() {
 		log.Fatalf("failed to initialize logging: %s", err)
 	}
 
-	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
+	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
@@ -146,14 +143,15 @@ func initLogging() error {
 	logcfg := viclog.NewLoggingConfig()
 	if *cli.debug || vchConfig.Diagnostics.DebugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		trace.Logger.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
 	}
 
 	if vchConfig.Diagnostics.SysLogConfig != nil {
-		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   vchConfig.Diagnostics.SysLogConfig.Network,
-			RAddr:     vchConfig.Diagnostics.SysLogConfig.RAddr,
-			Formatter: syslog.RFC3164,
-			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  vchConfig.Diagnostics.SysLogConfig.Network,
+			RAddr:    vchConfig.Diagnostics.SysLogConfig.RAddr,
+			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
 

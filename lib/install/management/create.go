@@ -19,14 +19,24 @@ import (
 	"fmt"
 	"path"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/retry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
+)
+
+const (
+	uploadRetryLimit      = 5
+	uploadMaxElapsedTime  = 30 * time.Minute
+	uploadMaxInterval     = 1 * time.Minute
+	uploadInitialInterval = 10 * time.Second
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -109,35 +119,88 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 func (d *Dispatcher) uploadImages(files map[string]string) error {
 	defer trace.End(trace.Begin(""))
 
-	var wg sync.WaitGroup
-
 	// upload the images
 	log.Infof("Uploading images for container")
 
-	wg.Add(len(files))
 	results := make(chan error, len(files))
-	for key, image := range files {
-		go func(key string, image string) {
-			defer wg.Done()
+	var wg sync.WaitGroup
 
+	for key, image := range files {
+
+		wg.Add(1)
+		go func(key string, image string) {
+			finalMessage := ""
 			log.Infof("\t%q", image)
-			err := d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
-			if err != nil {
-				log.Errorf("\t\tUpload failed for %q: %s", image, err)
+
+			// upload function that is passed to retry
+			operationForRetry := func() error {
+				// attempt to delete the iso image first in case of failed upload
+				dc := d.session.Datacenter
+				fm := d.session.Datastore.NewFileManager(dc, false)
+
+				isoTargetPath := path.Join(d.vmPathName, key)
+				log.Debugf("target delete path = %s", isoTargetPath)
+				err := fm.Delete(d.ctx, isoTargetPath)
+				if err != nil && !types.IsFileNotFound(err) {
+					log.Debugf("Failed to delete image (%s) with error (%s)", image, err.Error())
+					return err
+				}
+
+				return d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
+			}
+
+			// counter for retry decider
+			retryCount := uploadRetryLimit
+
+			// decider for our retry, will retry the upload uploadRetryLimit times
+			uploadRetryDecider := func(err error) bool {
+				if err == nil {
+					return false
+				}
+
+				retryCount--
+				if retryCount < 0 {
+					log.Warnf("Attempted upload a total of %d times without success, Upload process failed.", uploadRetryLimit)
+					return false
+				}
+				log.Warnf("failed an attempt to upload isos with err (%s), %d retries remain", err.Error(), retryCount)
+				return true
+			}
+
+			// Build retry config
+			backoffConf := retry.NewBackoffConfig()
+			backoffConf.InitialInterval = uploadInitialInterval
+			backoffConf.MaxInterval = uploadMaxInterval
+			backoffConf.MaxElapsedTime = uploadMaxElapsedTime
+
+			uploadErr := retry.DoWithConfig(operationForRetry, uploadRetryDecider, backoffConf)
+			if uploadErr != nil {
+				finalMessage = fmt.Sprintf("\t\tUpload failed for %q: %s\n", image, uploadErr)
 				if d.force {
-					log.Warnf("\t\tContinuing despite failures (due to --force option)")
-					log.Warnf("\t\tNote: The VCH will not function without %q...", image)
+					finalMessage = fmt.Sprintf("%s\t\tContinuing despite failures (due to --force option)\n", finalMessage)
+					finalMessage = fmt.Sprintf("%s\t\tNote: The VCH will not function without %q...", finalMessage, image)
+					results <- errors.New(finalMessage)
 				} else {
-					results <- err
+					results <- errors.New(finalMessage)
 				}
 			}
+			wg.Done()
 		}(key, image)
 	}
+
 	wg.Wait()
 	close(results)
 
+	uploadFailed := false
 	for err := range results {
-		return err
+		if err != nil {
+			log.Error(err.Error())
+			uploadFailed = true
+		}
+	}
+
+	if uploadFailed {
+		return errors.New("Failed to upload iso images successfully.")
 	}
 	return nil
 }

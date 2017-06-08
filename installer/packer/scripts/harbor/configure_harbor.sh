@@ -83,6 +83,7 @@ function genCert {
   echo "self-signed" > $flag
   echo "Copy CA certificate to $ca_download_dir"
   cp $ca_cert $ca_download_dir/
+  $script_dir/set_guestinfo.sh -f $ca_cert "harbor.ca"
 }
 
 function secure {

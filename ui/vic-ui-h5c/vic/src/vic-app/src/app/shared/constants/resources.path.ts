@@ -66,6 +66,7 @@ export const WS_CONTAINER = {
                 CPU_USAGE: 'vic_workspace.container.datagrid.columns.overallCpuUsage',
                 STORAGE_USAGE: 'vic_workspace.container.datagrid.columns.committedStorage',
                 PORT_MAPPING: 'vic_workspace.container.datagrid.columns.portMapping',
+                VCH_NAME: 'vic_workspace.container.datagrid.columns.vch',
                 VM_NAME: 'vic_workspace.container.datagrid.columns.name',
                 IMAGE_NAME: 'vic_workspace.container.datagrid.columns.imageName'
             },
@@ -76,6 +77,7 @@ export const WS_CONTAINER = {
                 'vic_workspace.container.datagrid.columns.overallCpuUsage': 'CPU Usage',
                 'vic_workspace.container.datagrid.columns.committedStorage': 'Storage Usage',
                 'vic_workspace.container.datagrid.columns.portMapping': 'Port Mapping',
+                'vic_workspace.container.datagrid.columns.vch': 'VCH',
                 'vic_workspace.container.datagrid.columns.name': 'VM',
                 'vic_workspace.container.datagrid.columns.imageName': 'Image'
             }

@@ -1,16 +1,16 @@
 Test 1-34 - Docker Node
 =======
 
-#Purpose:
+# Purpose:
 To verify that VIC appliance responds appropriately to docker stack APIs
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/stack/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker stack deploy
 3. Issue docker stack ls
@@ -18,8 +18,8 @@ This test requires that a vSphere server is running and available
 5. Issue docker stack rm
 6. Issue docker stack services
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 2-6 should result in an error that contains does not yet support Docker Swarm
 
-#Possible Problems:
+# Possible Problems:
 None

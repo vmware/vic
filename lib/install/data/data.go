@@ -15,9 +15,13 @@
 package data
 
 import (
+	"fmt"
 	"net"
 	"net/url"
+	"reflect"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -32,7 +36,7 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
-	OpsUser     string
+	OpsUser     string `cmd:"ops-user"`
 	OpsPassword *string
 
 	CertPEM     []byte
@@ -41,75 +45,62 @@ type Data struct {
 	RegistryCAs []byte
 	common.Images
 
-	ImageDatastorePath     string
-	VolumeLocations        map[string]*url.URL
+	ImageDatastorePath     string              `cmd:"image-store"`
+	VolumeLocations        map[string]*url.URL `cmd:"volume-store" label:"value-key"`
 	ContainerDatastoreName string
 
-	BridgeNetworkName string
-	ClientNetwork     NetworkConfig
-	PublicNetwork     NetworkConfig
-	ManagementNetwork NetworkConfig
-	DNS               []net.IP
+	BridgeNetworkName string        `cmd:"bridge-network"`
+	ClientNetwork     NetworkConfig `cmd:"client-network"`
+	PublicNetwork     NetworkConfig `cmd:"public-network"`
+	ManagementNetwork NetworkConfig `cmd:"management-network"`
+	DNS               []net.IP      `cmd:"dns-server"`
 
-	ContainerNetworks
+	common.ContainerNetworks `cmd:"container-network"`
 
-	VCHCPULimitsMHz       int
-	VCHCPUReservationsMHz int
-	VCHCPUShares          *types.SharesInfo
+	VCHCPULimitsMHz       int               `cmd:"cpu"`
+	VCHCPUReservationsMHz int               `cmd:"cpu-reservation"`
+	VCHCPUShares          *types.SharesInfo `cmd:"cpu-shares"`
 
-	VCHMemoryLimitsMB       int
-	VCHMemoryReservationsMB int
-	VCHMemoryShares         *types.SharesInfo
+	VCHMemoryLimitsMB       int               `cmd:"memory"`
+	VCHMemoryReservationsMB int               `cmd:"memory-reservation"`
+	VCHMemoryShares         *types.SharesInfo `cmd:"memory-shares"`
 
-	BridgeIPRange *net.IPNet
+	BridgeIPRange *net.IPNet `cmd:"bridge-network-range"`
 
-	InsecureRegistries []url.URL
+	InsecureRegistries  []url.URL `cmd:"insecure-registry"`
+	WhitelistRegistries []url.URL `cmd:"whitelist-registry"`
 
-	HTTPSProxy *url.URL
-	HTTPProxy  *url.URL
+	HTTPSProxy *url.URL `cmd:"https-proxy"`
+	HTTPProxy  *url.URL `cmd:"http-proxy"`
 
-	NumCPUs  int
-	MemoryMB int
+	NumCPUs  int `cmd:"endpoint-cpu"`
+	MemoryMB int `cmd:"endpoint-memory"`
 
 	Timeout time.Duration
 
 	Force               bool
-	UseRP               bool
+	UseRP               bool `cmd:"use-rp"`
 	ResetInProgressFlag bool
 
-	AsymmetricRouting bool
+	AsymmetricRouting bool `cmd:"asymmetric-routes"`
 
-	ScratchSize string
+	ScratchSize string `cmd:"base-image-size"`
 	Rollback    bool
 
-	SyslogConfig SyslogConfig
+	SyslogConfig SyslogConfig `cmd:"syslog"`
 }
 
 type SyslogConfig struct {
-	Addr *url.URL
+	Addr *url.URL `cmd:"address"`
 	Tag  string
-}
-
-type ContainerNetworks struct {
-	MappedNetworks         map[string]string
-	MappedNetworksGateways map[string]net.IPNet
-	MappedNetworksIPRanges map[string][]ip.Range
-	MappedNetworksDNS      map[string][]net.IP
-}
-
-func (c *ContainerNetworks) IsSet() bool {
-	return len(c.MappedNetworks) > 0 ||
-		len(c.MappedNetworksGateways) > 0 ||
-		len(c.MappedNetworksIPRanges) > 0 ||
-		len(c.MappedNetworksDNS) > 0
 }
 
 // NetworkConfig is used to set IP addr for each network
 type NetworkConfig struct {
-	Name         string
+	Name         string `cmd:"parent"`
 	Destinations []net.IPNet
 	Gateway      net.IPNet
-	IP           net.IPNet
+	IP           net.IPNet `cmd:"ip"`
 }
 
 // Empty determines if ip and gateway are unset
@@ -157,7 +148,7 @@ type InstallerData struct {
 func NewData() *Data {
 	d := &Data{
 		Target: common.NewTarget(),
-		ContainerNetworks: ContainerNetworks{
+		ContainerNetworks: common.ContainerNetworks{
 			MappedNetworks:         make(map[string]string),
 			MappedNetworksGateways: make(map[string]net.IPNet),
 			MappedNetworksIPRanges: make(map[string][]ip.Range),
@@ -168,10 +159,73 @@ func NewData() *Data {
 	return d
 }
 
-// CopyNonEmpty will shallow copy src value to override existing value if the value is set
-// This copy will take care of relationship between variables, that means if any variable in ContainerNetwork or
-// NetworkConfig is not empty, the whole ContainerNetwork or NetworkConfig will be copied
-func (d *Data) CopyNonEmpty(src *Data) {
+// equalIPRanges checks if two ip.Range slices are equal by using
+// reflect.DeepEqual, with an extra check that returns true when the
+// lengths of both slices are zero.
+func equalIPRanges(a, b []ip.Range) bool {
+	if !reflect.DeepEqual(a, b) {
+		return len(a) == 0 && len(b) == 0
+	}
+	return true
+}
+
+// equalIPSlices checks if two net.IP slices are equal by using
+// reflect.DeepEqual, with an extra check that returns true when the
+// lengths of both slices are zero.
+func equalIPSlices(a, b []net.IP) bool {
+	if !reflect.DeepEqual(a, b) {
+		return len(a) == 0 && len(b) == 0
+	}
+	return true
+}
+
+const copyInfoMsg = `Please use vic-machine inspect --conf to find existing
+container network settings and supply them along with new container networks`
+
+// copyContainerNetworks checks that existing container networks (in d) are present
+// in the specified networks (src) and then copies new networks into d. It does not
+// overwrite data for existing networks.
+func (d *Data) copyContainerNetworks(src *Data) error {
+	// Any existing container networks and their related options must be specified
+	// while performing a configure operation.
+	errMsg := "Existing container-network %s:%s not specified in configure command"
+	for vicNet, vmNet := range d.ContainerNetworks.MappedNetworks {
+		if _, ok := src.ContainerNetworks.MappedNetworks[vicNet]; !ok {
+			log.Errorf(fmt.Sprintf(errMsg, vmNet, vicNet))
+			log.Info(copyInfoMsg)
+			return fmt.Errorf("all existing container networks must also be specified")
+		}
+
+		// If an existing container network is specified, ensure that all existing settings match the specified settings.
+		if !reflect.DeepEqual(d.ContainerNetworks.MappedNetworks[vicNet], src.ContainerNetworks.MappedNetworks[vicNet]) ||
+			!reflect.DeepEqual(d.ContainerNetworks.MappedNetworksGateways[vicNet], src.ContainerNetworks.MappedNetworksGateways[vicNet]) ||
+			!equalIPRanges(d.ContainerNetworks.MappedNetworksIPRanges[vicNet], src.ContainerNetworks.MappedNetworksIPRanges[vicNet]) ||
+			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) {
+
+			log.Errorf("Found changes to existing container network %s", vicNet)
+			log.Info(copyInfoMsg)
+			return fmt.Errorf("changes to existing container networks are not supported")
+		}
+	}
+
+	// Copy data only for new container networks.
+	for vicNet, vmNet := range src.ContainerNetworks.MappedNetworks {
+		if _, ok := d.ContainerNetworks.MappedNetworks[vicNet]; !ok {
+			d.ContainerNetworks.MappedNetworks[vicNet] = vmNet
+			d.ContainerNetworks.MappedNetworksGateways[vicNet] = src.ContainerNetworks.MappedNetworksGateways[vicNet]
+			d.ContainerNetworks.MappedNetworksIPRanges[vicNet] = src.ContainerNetworks.MappedNetworksIPRanges[vicNet]
+			d.ContainerNetworks.MappedNetworksDNS[vicNet] = src.ContainerNetworks.MappedNetworksDNS[vicNet]
+		}
+	}
+
+	return nil
+}
+
+// CopyNonEmpty will shallow copy src value to override existing value if the value is set.
+// This copy will take care of relationship between variables, that means if any variable
+// in NetworkConfig is not empty, the whole NetworkConfig will be copied. However, for
+// container networks, changes to existing networks will not be overwritten.
+func (d *Data) CopyNonEmpty(src *Data) error {
 	// TODO: Add data copy here for each reconfigure items, to make sure specified variables present in the Data object.
 
 	if src.ClientNetwork.IsSet() {
@@ -184,8 +238,22 @@ func (d *Data) CopyNonEmpty(src *Data) {
 		d.ManagementNetwork = src.ManagementNetwork
 	}
 
-	// copy container networks
-	if src.ContainerNetworks.IsSet() {
-		d.ContainerNetworks = src.ContainerNetworks
+	if src.HTTPProxy != nil || src.HTTPSProxy != nil {
+		d.HTTPProxy = src.HTTPProxy
+		d.HTTPSProxy = src.HTTPSProxy
 	}
+
+	if src.Debug.Debug != nil {
+		d.Debug = src.Debug
+	}
+
+	if src.ContainerNetworks.IsSet() {
+		if err := d.copyContainerNetworks(src); err != nil {
+			return err
+		}
+	}
+
+	d.Timeout = src.Timeout
+
+	return nil
 }

@@ -16,6 +16,8 @@ package inspect
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +25,9 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/cmd/vic-machine/converter"
+	"github.com/vmware/vic/cmd/vic-machine/create"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -104,7 +109,7 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	if i.Debug.Debug > 0 {
+	if i.Debug.Debug != nil && *i.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
@@ -152,9 +157,12 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	}
 
 	if i.showConfig {
-		options := strings.Join(vchConfig.VicMachineCreateOptions, "\n\t")
-		log.Info("")
-		log.Infof("Target VCH created with the following options: \n\n\t%s\n", options)
+		err = i.showCommand(ctx, validator.Session.Finder, vchConfig, vch)
+		if err != nil {
+			log.Error("Failed to print Virtual Container Host configuration")
+			log.Error(err)
+			return errors.New("inspect failed")
+		}
 		return nil
 	}
 
@@ -179,6 +187,59 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	log.Infof("Completed successfully")
 
 	return nil
+}
+
+func (i Inspect) showCommand(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
+	data, err := validate.NewDataFromConfig(ctx, finder, conf)
+	if err != nil {
+		return err
+	}
+	if err = validate.SetDataFromVM(ctx, finder, vm, data); err != nil {
+		return err
+	}
+	mapOptions, err := converter.DataToOption(data)
+	if err != nil {
+		return err
+	}
+	options := i.sortedOutput(mapOptions)
+	strOptions := strings.Join(options, "\n\t")
+	log.Info("")
+	log.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
+	return nil
+}
+
+func (i *Inspect) sortedOutput(mapOptions map[string][]string) (output []string) {
+	create := create.NewCreate()
+	cFlags := create.Flags()
+	for _, f := range cFlags {
+		key := f.GetName()
+		// change multiple option name to long name: e.g. from target,t => target
+		s := strings.Split(key, ",")
+		if len(s) > 1 {
+			key = s[0]
+		}
+
+		values, ok := mapOptions[key]
+		if !ok {
+			continue
+		}
+
+		defaultValue := ""
+		switch t := f.(type) {
+		case cli.StringFlag:
+			defaultValue = t.Value
+		case cli.IntFlag:
+			defaultValue = strconv.Itoa(t.Value)
+		}
+		for _, val := range values {
+			if val == defaultValue {
+				// do not print command option if it's same to default
+				continue
+			}
+			output = append(output, fmt.Sprintf("--%s=%s", key, val))
+		}
+	}
+	return
 }
 
 // upgradeStatusMessage generates a user facing status string about upgrade progress and status

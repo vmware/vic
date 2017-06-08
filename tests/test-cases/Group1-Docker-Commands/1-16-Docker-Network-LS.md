@@ -1,16 +1,16 @@
 Test 1-16 - Docker Network LS
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker network ls command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/network_ls/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker network ls to the VIC appliance
 3. Issue docker network ls -q to the VIC appliance
@@ -20,7 +20,7 @@ This test requires that a vSphere server is running and available
 7. Issue docker network ls -f label=foo to the VIC appliance
 8. Issue docker network ls --no-trunc to the VIC appliance
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 2 should return at the least the default networks
 * Step 3 should return the networks ID only
 * Step 4 should return only the bridge network
@@ -29,5 +29,5 @@ This test requires that a vSphere server is running and available
 * Step 7 should return only the foo-network network
 * Step 8 should return all of the networks with their full IDs
 
-#Possible Problems:
+# Possible Problems:
 None

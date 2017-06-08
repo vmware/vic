@@ -1,13 +1,13 @@
 Test 11-03 - Upgrade InsecureRegistry
 =======
 
-#Purpose:
+# Purpose:
 To verify InsecureRegistries are correctly migrated
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 
 1. Deploy an insecure registry on http
 2. Create a test project on insecure registry
@@ -29,5 +29,5 @@ This test requires that a vSphere server is running and available
 17. Upgrade VCH to latest version
 18. Make sure pull given test image through VCH successfully
 
-#Expected Outcome:
+# Expected Outcome:
 * Able to pull given test image through VCH successfully both before and after upgrade

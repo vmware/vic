@@ -1,16 +1,16 @@
 Test 1-33 - Docker Service
 =======
 
-#Purpose:
+# Purpose:
 To verify that VIC appliance responds appropriately to docker service APIs
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/service/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker service create
 3. Issue docker service inspect
@@ -21,9 +21,9 @@ This test requires that a vSphere server is running and available
 8. Issue docker service update
 9. Issue docker service logs
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 2-8 should result in an error that contains does not yet support Docker Swarm
 * Step 9 should result in an error that contains only supported with experimental daemon
 
-#Possible Problems:
+# Possible Problems:
 None

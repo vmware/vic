@@ -1,16 +1,16 @@
 Test 1-12 - Docker RMI
 =======
 
-#Purpose:
+# Purpose:
 To verify that docker rmi command is supported by VIC appliance
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/rmi/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker pull busybox to the VIC appliance
 3. Issue docker rmi busybox to the VIC appliance
@@ -23,8 +23,10 @@ This test requires that a vSphere server is running and available
 10. Issue docker rmi busybox to the VIC appliance
 11. Issue docker rmi -f busybox to the VIC appliance
 12. Issue docker rmi fakeImage to the VIC appliance
+13. Issue a docker pull by digest
+14. Issue a docker rmi by digest
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 3 and 7 should result in success and the image should be removed from inventory
 * Step 10 should result in failure and the error message below:  
 ```
@@ -35,6 +37,7 @@ Failed to remove image (busybox): Error response from daemon: conflict: unable t
 ```
 Failed to remove image (fakeImage): Error response from daemon: No such image: fakeImage:latest
 ```
+* Steps 13-14 should result in success and the output of step 14 should contain the digest of the rmi'd image
 
-#Possible Problems:
+# Possible Problems:
 None

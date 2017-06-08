@@ -20,7 +20,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
@@ -38,10 +37,6 @@ var (
 	config     ExecutorConfig
 	debugLevel int
 )
-
-func init() {
-	trace.Logger = log.StandardLogger()
-}
 
 func main() {
 	defer func() {
@@ -87,14 +82,15 @@ func main() {
 	logcfg := viclog.NewLoggingConfig()
 	if debugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		trace.Logger.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
 	}
 
 	if config.Diagnostics.SysLogConfig != nil {
-		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   config.Diagnostics.SysLogConfig.Network,
-			RAddr:     config.Diagnostics.SysLogConfig.RAddr,
-			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
-			Formatter: syslog.RFC3164,
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  config.Diagnostics.SysLogConfig.Network,
+			RAddr:    config.Diagnostics.SysLogConfig.RAddr,
+			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
 

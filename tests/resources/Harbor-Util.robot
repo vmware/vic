@@ -20,8 +20,10 @@ Library  OperatingSystem
 *** Variables ***
 ${HARBOR_SHORT_VERSION}  0.5.0
 ${HARBOR_VERSION}  harbor_0.5.0-9e4c90e
-${MY_PROJECTS_TABLE}  div.table-body-container > table.table.table-pane
+${MY_PROJECTS_TABLE}  harbor-app > harbor-shell > clr-main-container > div > div > project > div > div > list-project
+${MY_MEMBERS_TABLE}  body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > ng-component > div > div:nth-child(2) > clr-datagrid > div > div > div > div.datagrid-body
 ${harbor_cert}  getcert
+${ova_harbor_admin_password}  harbor-admin-passwd
 
 *** Keywords ***
 Install Harbor To Test Server
@@ -36,7 +38,8 @@ Install Harbor To Test Server
     ${len}=  Get Length  ${URLs}
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
-    Set Test Variable  ${host}  @{URLs}[${IDX}]
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Suite Variable  ${host}  @{URLs}[${IDX}]
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Suite Variable  ${host}  @{URLs}[${IDX}]%{TEST_DATACENTER}/host/%{TEST_RESOURCE}
 
     Log To Console  \nDeploying ova...
     ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"='${network}' --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:db_password=${db_password} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://${user}:${password}@${host}'
@@ -54,8 +57,7 @@ Install Harbor To Test Server
     :FOR  ${i}  IN RANGE  20
     \  ${out}=  Run  curl -k ${protocol}://%{HARBOR-IP}
     \  Log  ${out}
-    \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
-    \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Not Contain  ${out}  Connection refused
+    \  ${status}=  Run Keyword And Return Status  Should Not Contain Any  ${out}  502 Bad Gateway  Connection refused  Connection timed out
     \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Contain  ${out}  <title>Harbor</title>
     \  Return From Keyword If  ${status}  %{HARBOR-IP}
     \  Sleep  30s
@@ -72,7 +74,7 @@ Restart Docker With Insecure Registry Option
 
 Install Harbor Self Signed Cert
     # Need to provide permissions to /etc/docker folder for your user (sudo chmod -R 777 /etc/docker)
-    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://%{HARBOR_IP}/api/systeminfo/getcert
+    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password ${ova_harbor_admin_password} https://%{HARBOR_IP}/api/systeminfo/getcert
     Log  ${out}
     ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
     Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
@@ -82,68 +84,65 @@ Install Harbor Self Signed Cert
 Log Into Harbor
     [Arguments]  ${user}=%{TEST_USERNAME}  ${pw}=%{TEST_PASSWORD}
     Maximize Browser Window
-    Input Text  username  ${user}
-    Input Text  uPassword  ${pw}
-    Click button  Sign In
-    Wait Until Page Contains  Summary
-    Wait Until Page Contains  My Projects:
-    Wait Until Keyword Succeeds  5x  1  Page Should Contain Element  xpath=//optional-menu/div/a[contains(., '${user}')]
+    Input Text  login_username  ${user}
+    Input Text  login_password  ${pw}
+    Click button  LOG IN
+    Wait Until Page Contains  Projects
+    Wait Until Keyword Succeeds  5x  1  Page Should Contain Element  xpath=/html/body/harbor-app/harbor-shell/clr-main-container[@class='main-container']/navigator/clr-header[@class='header-5 header']/div[@class='header-actions']/clr-dropdown[@class='dropdown bottom-right']/button[@class='nav-text dropdown-toggle']/span[contains(., '${user}')]
 
 Create A New Project
     [Arguments]  ${name}  ${public}=${true}
-    Wait Until Element Is Visible  //a[@tag='project']
-    Wait Until Element Is Enabled  //a[@tag='project']
-    Click Link  Projects
-    Wait Until Element Is Visible  css=button.btn-success:nth-child(2)
-    Wait Until Element Is Enabled  css=button.btn-success:nth-child(2)
-    Click Button  css=button.btn-success:nth-child(2)
-    Wait Until Element Is Visible  name=uProjectName
-    Wait Until Element Is Enabled  name=uProjectName
-    Input Text  uProjectName  ${name}
-    Wait Until Element Is Visible  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
-    Wait Until Element Is Enabled  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > a.nav-link.active
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > a.nav-link.active
+    Click Element  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > a.nav-link.active
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project > div > div > div:nth-child(2) > div.option-left > button
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project > div > div > div:nth-child(2) > div.option-left > button
+    Click Element  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project > div > div > div:nth-child(2) > div.option-left > button
+    Wait Until Page Contains  New Project
+    #Wait Until Element Is Visible  name="Project Name"
+    #Wait Until Element Is Enabled  name="Project Name"
+    Input Text  create_project_name  ${name}
+    #Wait Until Element Is Visible  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
+    #Wait Until Element Is Enabled  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
     Sleep  1
-    Run Keyword If  ${public}  Select Checkbox  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > add-project > div > form > div > div.col-xs-10.col-md-10 > div:nth-child(2) > label > input
-    Click Button  Save
+    Run Keyword If  ${public}  Select Checkbox  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project > div > div > div:nth-child(2) > div.option-left > create-project > clr-modal > div > div.modal-dialog > div > div.modal-body > form > section > div:nth-child(2) > div > label
+    Click Button  OK
     Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${name}
 
 Create A New User
-    [Arguments]  ${name}  ${email}  ${fullName}  ${password}  ${comments}
-    Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
-    Wait Until Element Is Enabled  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
-    Click Element  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > a
-    Wait Until Element Is Visible  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
-    Wait Until Element Is Enabled  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
-    Click Element  css=#bs-harbor-navbar-collapse-1 > optional-menu > div > ul > li:nth-child(1) > a
+    [Arguments]  ${name}  ${email}  ${fullName}  ${password}  ${comments}  
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
+    Click Element  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > div > harbor-user > div > div > div.action-panel-pos > span:nth-child(1) > button
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > div > harbor-user > div > div > div.action-panel-pos > span:nth-child(1) > button
+    Click Element  css=body > harbor-app > harbor-shell > clr-main-container > div > div > harbor-user > div > div > div.action-panel-pos > span:nth-child(1) > button
 
     Wait Until Element Is Visible  username
     Wait Until Element Is Enabled  username
     Wait Until Element Is Visible  email
     Wait Until Element Is Enabled  email
-    Wait Until Element Is Visible  fullName
-    Wait Until Element Is Enabled  fullName
-    Wait Until Element Is Visible  password
-    Wait Until Element Is Enabled  password
+    Wait Until Element Is Visible  realname
+    Wait Until Element Is Enabled  realname
+    Wait Until Element Is Visible  newPassword
+    Wait Until Element Is Enabled  newPassword
     Wait Until Element Is Visible  confirmPassword
     Wait Until Element Is Enabled  confirmPassword
-    Wait Until Element Is Visible  comments
-    Wait Until Element Is Enabled  comments
+    Wait Until Element Is Visible  comment
+    Wait Until Element Is Enabled  comment
 
     Input Text  username  ${name}
     Input Text  email  ${email}
-    Input Text  fullName  ${fullName}
-    Input Text  password  ${password}
+    Input Text  realname  ${fullName}
+    Input Text  newPassword  ${password}
     Input Text  confirmPassword  ${password}
-    Input Text  comments  ${comments}
+    Input Text  comment  ${comments}
 
-    Wait Until Element Is Visible  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
-    Wait Until Element Is Enabled  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
-    Click Button  css=body > div.container-fluid.container-fluid-custom.ng-scope > div > div > div > div > div > form > div:nth-child(7) > div > button
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > div > harbor-user > div > div > new-user-modal > clr-modal > div > div.modal-dialog > div > div.modal-footer > button.btn.btn-primary
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > div > harbor-user > div > div > new-user-modal > clr-modal > div > div.modal-dialog > div > div.modal-footer > button.btn.btn-primary
+    Click Button  css=body > harbor-app > harbor-shell > clr-main-container > div > div > harbor-user > div > div > new-user-modal > clr-modal > div > div.modal-dialog > div > div.modal-footer > button.btn.btn-primary
 
-    Wait Until Page Contains  New user added successfully.
-    Wait Until Element Is Visible  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
-    Wait Until Element Is Enabled  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
-    Click Button  css=div.in:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > button:nth-child(1)
+    Wait Until Page Contains  New user created successfully.
     Sleep  3
 
 Toggle Admin Priviledges For User
@@ -310,30 +309,25 @@ Sign up
 Add A User To A Project
     # role should be one of the strings : 'Project Admin'/'Developer'/'Guest'
     [Arguments]  ${user}  ${project}  ${role}
-    Wait Until Element Is Visible  //a[@tag='project']
-    Wait Until Element Is Enabled  //a[@tag='project']
     Click Link  Projects
     Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${project}
-    Wait Until Element Is Visible  xpath=//td/a[text()='${project}']
-    Wait Until Element Is Enabled  xpath=//td/a[text()='${project}']
-    Click Link  xpath=//td/a[text()='${project}']
-    Wait Until Element Is Visible  xpath=//a[@tag='users']
-    Wait Until Element Is Enabled  xpath=//a[@tag='users']
-    Click Link  Users
-    Wait Until Element Is Visible  css=button.btn-success
-    Wait Until Element Is Enabled  css=button.btn-success
-    Click Button  css=button.btn-success
-    Wait Until Element Is Visible  addUsername
-    Wait Until Element Is Enabled  addUsername
-    Input Text  addUsername  ${user}
-    Wait Until Element Is Visible  xpath=//span[contains(., '${role}')]/input
-    Wait Until Element Is Enabled  xpath=//span[contains(., '${role}')]/input
-    Select Checkbox  xpath=//span[contains(., '${role}')]/input
-    Wait Until Element Is Visible  btnSave
-    Wait Until Element Is Enabled  btnSave
-    Click Button  btnSave
+    Wait Until Element Is Visible  xpath=/html/body/harbor-app/harbor-shell/clr-main-container/div/div/project/div/div/list-project/clr-datagrid/div/div/div/div[2]/clr-dg-row[2]/clr-dg-cell[2]/a[text()='${project}']
+    Wait Until Element Is Enabled  xpath=/html/body/harbor-app/harbor-shell/clr-main-container/div/div/project/div/div/list-project/clr-datagrid/div/div/div/div[2]/clr-dg-row[2]/clr-dg-cell[2]/a[text()='${project}']
+    Click Link  xpath=/html/body/harbor-app/harbor-shell/clr-main-container/div/div/project/div/div/list-project/clr-datagrid/div/div/div/div[2]/clr-dg-row[2]/clr-dg-cell[2]/a[text()='${project}']
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > nav > ul > li:nth-child(2) > a
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > nav > ul > li:nth-child(2) > a
+    Click Link  Members
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > ng-component > div > div:nth-child(1) > div > div.flex-xs-middle.option-left > button
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > ng-component > div > div:nth-child(1) > div > div.flex-xs-middle.option-left > button
+    Click Button  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > ng-component > div > div:nth-child(1) > div > div.flex-xs-middle.option-left > button
+    Wait Until Element Is Visible  member_name
+    Wait Until Element Is Enabled  member_name
+    Input Text  member_name  ${user}
+    Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > ng-component > div > div:nth-child(1) > div > div.flex-xs-middle.option-left > add-member > clr-modal > div > div.modal-dialog > div > div.modal-footer > button.btn.btn-primary
+    Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > ng-component > div > div:nth-child(1) > div > div.flex-xs-middle.option-left > add-member > clr-modal > div > div.modal-dialog > div > div.modal-footer > button.btn.btn-primary
+    Click Button  css=body > harbor-app > harbor-shell > clr-main-container > div > div > project-detail > ng-component > div > div:nth-child(1) > div > div.flex-xs-middle.option-left > add-member > clr-modal > div > div.modal-dialog > div > div.modal-footer > button.btn.btn-primary
     Sleep  1
-    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${user}
+    Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_MEMBERS_TABLE}  ${user}
 
 Remove A User From A Project
     [Arguments]  ${user}  ${project}
@@ -504,16 +498,19 @@ Check That Datastore Is Cleaned
     Should Not Contain  ${output}  ${container}
 
 Create Project And Three Users For It
-    [Arguments]  ${developer}  ${developer2}  ${developerEmail}  ${developerEmail2}  ${developerFullName}  ${password}  ${comments}  ${guest}  ${developerRole}  ${guestRole}  ${project}  ${public}=${False}
+    [Arguments]  ${developer}  ${developer2}  ${developerEmail}  ${developerEmail2}  ${developerFullName}  ${password}  ${userPassword}  ${comments}  ${guest}  ${developerRole}  ${guestRole}  ${project}  ${public}=${False}
     # 2 developers, 1 guest
     Log To Console  Create Three Users For Project..
-    Open Browser  http://%{HARBOR_IP}/  chrome
+    Open Browser  https://%{HARBOR_IP}/  chrome
     Log To Console  Opened
-    Log Into Harbor  user=admin  pw=%{TEST_PASSWORD}
-    Create A New User  name=${developer}  email=${developerEmail}  fullName=${developerFullName}  password=${password}  comments=${comments}
-    Create A New User  name=${guest}  email=${guestEmail}  fullName=${guestFullName}  password=${password}  comments=${comments}
-    Create A New User  name=${developer2}  email=${developerEmail2}  fullName=${developerFullName}  password=${password}  comments=${comments}
+    Log Into Harbor  user=admin  pw=${password}
+    
     Create A New Project  name=${project}  public=${False}
+    Log To Console  Create a New User..
+    Create A New User  name=${developer}  email=${developerEmail}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
+    Create A New User  name=${guest}  email=${guestEmail}  fullName=${guestFullName}  password=${userPassword}  comments=${comments}
+    Create A New User  name=${developer2}  email=${developerEmail2}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
+    
     Add A User To A Project  user=${developer}  project=${project}  role=${developerRole}
     Add A User To A Project  user=${guest}  project=${project}  role=${guestRole}
     Add A User To A Project  user=${developer2}  project=${project}  role=${developerRole}

@@ -96,7 +96,7 @@ func (t *testAttachServer) Start() error {
 		return errors.New(detail)
 	}
 
-	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	log.Infof("creating raw connection from ttyS0 pipe pair for server (c=%d, s=%d) %s\n", c.Fd(), s.Fd(), pathPrefix)
 	var conn net.Conn
 	conn, err = serial.NewHalfDuplexFileConn(s, c, pathPrefix+"/ttyS0", "file")
 	if err != nil {
@@ -133,7 +133,7 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
-	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	log.Infof("creating raw connection from ttyS0 pipe pair for backchannel (c=%d, s=%d) %s\n", c.Fd(), s.Fd(), pathPrefix)
 	conn, err := serial.NewHalfDuplexFileConn(c, s, pathPrefix+"/ttyS0", "file")
 
 	if err != nil {
@@ -147,10 +147,7 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	for {
 		select {
 		case <-ticker.C:
-			// FIXME: need to implement timeout of purging hangs with no content
-			// on the pipe
-			// serial.PurgeIncoming(ctx, conn)
-			err := serial.HandshakeClient(conn, true)
+			err := serial.HandshakeClient(conn)
 			if err != nil {
 				if err == io.EOF {
 					// with unix pipes the open will block until both ends are open, therefore
@@ -229,14 +226,14 @@ func genKey() []byte {
 }
 
 func attachCase(t *testing.T, runblock bool) {
-	_, mocker := testSetup(t)
+	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
 
 	cfg := executor.ExecutorConfig{
 		Diagnostics: executor.Diagnostics{
-			DebugLevel: 2,
+			DebugLevel: 1,
 		},
 		ExecutorConfigCommon: executor.ExecutorConfigCommon{
 			ID:   "attach",
@@ -338,7 +335,7 @@ func TestAttachBlock(t *testing.T) {
 func TestAttachTTY(t *testing.T) {
 	t.Skip("TTY test skipped - not sure how to test this correctly")
 
-	_, mocker := testSetup(t)
+	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
@@ -436,7 +433,7 @@ func TestAttachTTY(t *testing.T) {
 // TestAttachTTYStdinClose sets up the config for attach testing
 //
 func TestAttachTTYStdinClose(t *testing.T) {
-	_, mocker := testSetup(t)
+	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
@@ -448,7 +445,7 @@ func TestAttachTTYStdinClose(t *testing.T) {
 		},
 
 		Diagnostics: executor.Diagnostics{
-			DebugLevel: 2,
+			DebugLevel: 1,
 		},
 
 		Sessions: map[string]*executor.SessionConfig{
@@ -545,7 +542,7 @@ func TestAttachTTYStdinClose(t *testing.T) {
 // TestEcho ensures we get back data without a tty and without any stdin interaction
 //
 func TestEcho(t *testing.T) {
-	_, mocker := testSetup(t)
+	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
@@ -557,7 +554,7 @@ func TestEcho(t *testing.T) {
 		},
 
 		Diagnostics: executor.Diagnostics{
-			DebugLevel: 2,
+			DebugLevel: 1,
 		},
 
 		Sessions: map[string]*executor.SessionConfig{
@@ -660,8 +657,6 @@ func TestEcho(t *testing.T) {
 
 	<-doneStderr
 	assert.Equal(t, "", string(buferr.Bytes()))
-
-	// TODO: remove this when we've verified stdin behaviour
 }
 
 func TestEchoRepeat(t *testing.T) {
@@ -682,7 +677,7 @@ func TestEchoRepeat(t *testing.T) {
 // attaching to multiple processes simultaneously
 //
 func TestAttachMultiple(t *testing.T) {
-	_, mocker := testSetup(t)
+	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
@@ -751,7 +746,7 @@ func TestAttachMultiple(t *testing.T) {
 		},
 		Key: genKey(),
 		Diagnostics: executor.Diagnostics{
-			DebugLevel: 2,
+			DebugLevel: 1,
 		},
 	}
 
@@ -852,7 +847,7 @@ func TestAttachMultiple(t *testing.T) {
 // tries to attach to an invalid session id
 //
 func TestAttachInvalid(t *testing.T) {
-	_, mocker := testSetup(t)
+	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
@@ -992,7 +987,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 */
 
 func TestReattach(t *testing.T) {
-	_, mocker := testSetup(t)
+	mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
@@ -1003,7 +998,7 @@ func TestReattach(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 		Diagnostics: executor.Diagnostics{
-			DebugLevel: 2,
+			DebugLevel: 1,
 		},
 
 		Sessions: map[string]*executor.SessionConfig{

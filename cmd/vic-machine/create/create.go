@@ -17,7 +17,6 @@ package create
 import (
 	"context"
 	"crypto/tls"
-	"encoding"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -41,7 +40,6 @@ import (
 	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/flags"
-	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -98,30 +96,28 @@ type Create struct {
 	clientCAs   cli.StringSlice `arg:"tls-ca"`
 	registryCAs cli.StringSlice `arg:"registry-ca"`
 
-	containerNetworks         cli.StringSlice `arg:"container-network"`
-	containerNetworksGateway  cli.StringSlice `arg:"container-network-gateway"`
-	containerNetworksIPRanges cli.StringSlice `arg:"container-network-ip-range"`
-	containerNetworksDNS      cli.StringSlice `arg:"container-network-dns"`
-	volumeStores              cli.StringSlice `arg:"volume-store"`
-	insecureRegistries        cli.StringSlice `arg:"insecure-registry"`
-	dns                       cli.StringSlice `arg:"dns-server"`
-	clientNetworkName         string
-	clientNetworkGateway      string
-	clientNetworkIP           string
-	publicNetworkName         string
-	publicNetworkGateway      string
-	publicNetworkIP           string
-	managementNetworkName     string
-	managementNetworkGateway  string
-	managementNetworkIP       string
+	containerNetworks common.CNetworks
+
+	volumeStores             cli.StringSlice `arg:"volume-store"`
+	insecureRegistries       cli.StringSlice `arg:"insecure-registry"`
+	whitelistRegistries      cli.StringSlice `arg:"whitelist-registry"`
+	dns                      cli.StringSlice `arg:"dns-server"`
+	clientNetworkName        string
+	clientNetworkGateway     string
+	clientNetworkIP          string
+	publicNetworkName        string
+	publicNetworkGateway     string
+	publicNetworkIP          string
+	managementNetworkName    string
+	managementNetworkGateway string
+	managementNetworkIP      string
 
 	memoryReservLimits string
 	cpuReservLimits    string
 
 	BridgeIPRange string
 
-	httpsProxy string
-	httpProxy  string
+	proxies common.Proxies
 
 	syslogAddr string
 
@@ -294,33 +290,9 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:  "DNS server for the client, public, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
 			Hidden: true,
 		},
+	}
 
-		// container networks - mapped from vSphere
-		cli.StringSliceFlag{
-			Name:  "container-network, cn",
-			Value: &c.containerNetworks,
-			Usage: "vSphere network list that containers can use directly with labels, e.g. vsphere-net:backend. Defaults to DCHP - see advanced help (-x).",
-		},
-		cli.StringSliceFlag{
-			Name:   "container-network-gateway, cng",
-			Value:  &c.containerNetworksGateway,
-			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.1/16",
-			Hidden: true,
-		},
-		cli.StringSliceFlag{
-			Name:   "container-network-ip-range, cnr",
-			Value:  &c.containerNetworksIPRanges,
-			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. vsphere-net:172.16.0.0/24, vsphere-net:172.16.0.10-172.16.0.20",
-			Hidden: true,
-		},
-		cli.StringSliceFlag{
-			Name:   "container-network-dns, cnd",
-			Value:  &c.containerNetworksDNS,
-			Usage:  "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. vsphere-net:8.8.8.8. Ignored if no static IP assigned.",
-			Hidden: true,
-		},
-
-		// memory
+	memory := []cli.Flag{
 		cli.IntFlag{
 			Name:        "memory, mem",
 			Value:       0,
@@ -347,8 +319,9 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 			Destination: &c.MemoryMB,
 		},
+	}
 
-		// cpu
+	cpu := []cli.Flag{
 		cli.IntFlag{
 			Name:        "cpu",
 			Value:       0,
@@ -375,8 +348,9 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 			Destination: &c.NumCPUs,
 		},
+	}
 
-		// TLS
+	tls := []cli.Flag{
 		cli.StringFlag{
 			Name:        "tls-cname",
 			Value:       "",
@@ -434,8 +408,9 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.keySize,
 			Hidden:      true,
 		},
+	}
 
-		// registries
+	registries := []cli.Flag{
 		cli.StringSliceFlag{
 			Name:   "registry-ca, rc",
 			Usage:  "Specify a list of additional certificate authority files to use to verify secure registry servers",
@@ -445,26 +420,16 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
 			Value: &c.insecureRegistries,
-			Usage: "Specify a list of permitted insecure registry server URLs",
+			Usage: "Specify a list of permitted insecure registry server addresses",
 		},
-
-		// proxies
-		cli.StringFlag{
-			Name:        "https-proxy, sproxy",
-			Value:       "",
-			Usage:       "An HTTPS proxy for use when fetching images, in the form https://fqdn_or_ip:port",
-			Destination: &c.httpsProxy,
-			Hidden:      true,
+		cli.StringSliceFlag{
+			Name:  "whitelist-registry, wr",
+			Value: &c.whitelistRegistries,
+			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
 		},
+	}
 
-		cli.StringFlag{
-			Name:        "http-proxy, hproxy",
-			Value:       "",
-			Usage:       "An HTTP proxy for use when fetching images, in the form http://fqdn_or_ip:port",
-			Destination: &c.httpProxy,
-			Hidden:      true,
-		},
-
+	syslog := []cli.Flag{
 		cli.StringFlag{
 			Name:        "syslog-address",
 			Value:       "",
@@ -515,10 +480,12 @@ func (c *Create) Flags() []cli.Flag {
 	compute := c.ComputeFlags()
 	iso := c.ImageFlags(true)
 	debug := c.DebugFlags()
+	proxies := c.proxies.ProxyFlags(true)
+	cNetwork := c.containerNetworks.CNetworkFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, create, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, create, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -549,7 +516,9 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processContainerNetworks(); err != nil {
+	var err error
+	c.ContainerNetworks, err = c.containerNetworks.ProcessContainerNetworks()
+	if err != nil {
 		return err
 	}
 
@@ -593,9 +562,12 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processProxies(); err != nil {
+	hproxy, sproxy, err := c.proxies.ProcessProxies()
+	if err != nil {
 		return err
 	}
+	c.HTTPProxy = hproxy
+	c.HTTPSProxy = sproxy
 
 	if err := c.processSyslog(); err != nil {
 		return err
@@ -735,74 +707,6 @@ func (c *Create) processBridgeNetwork() error {
 	_, c.Data.BridgeIPRange, err = net.ParseCIDR(c.BridgeIPRange)
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("Error parsing bridge network ip range: %s. Range must be in CIDR format, e.g., 172.16.0.0/12", err), 1)
-	}
-	return nil
-}
-
-func (c *Create) processContainerNetworks() error {
-	gws, err := parseContainerNetworkGateways([]string(c.containerNetworksGateway))
-	if err != nil {
-		return cli.NewExitError(err.Error(), 1)
-	}
-
-	pools, err := parseContainerNetworkIPRanges([]string(c.containerNetworksIPRanges))
-	if err != nil {
-		return cli.NewExitError(err.Error(), 1)
-	}
-
-	dns, err := parseContainerNetworkDNS([]string(c.containerNetworksDNS))
-	if err != nil {
-		return cli.NewExitError(err.Error(), 1)
-	}
-
-	// parse container networks
-	for _, cn := range c.containerNetworks {
-		vnet, v, err := splitVnetParam(cn)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 1)
-		}
-
-		vicnet := vnet
-		if v != "" {
-			vicnet = v
-		}
-
-		c.MappedNetworks[vicnet] = vnet
-		c.MappedNetworksGateways[vicnet] = gws[vnet]
-		c.MappedNetworksIPRanges[vicnet] = pools[vnet]
-		c.MappedNetworksDNS[vicnet] = dns[vnet]
-
-		delete(gws, vnet)
-		delete(pools, vnet)
-		delete(dns, vnet)
-	}
-
-	var hasError bool
-	fmtMsg := "The following container network %s is set, but CONTAINER-NETWORK cannot be found. Please check the --container-network and %s settings"
-	if len(gws) > 0 {
-		log.Error(fmt.Sprintf(fmtMsg, "gateway", "--container-network-gateway"))
-		for key, value := range gws {
-			mask, _ := value.Mask.Size()
-			log.Errorf("\t%s:%s/%d, %q should be vSphere network name", key, value.IP, mask, key)
-		}
-		hasError = true
-	}
-	if len(pools) > 0 {
-		log.Error(fmt.Sprintf(fmtMsg, "ip range", "--container-network-ip-range"))
-		for key, value := range pools {
-			log.Errorf("\t%s:%s, %q should be vSphere network name", key, value, key)
-		}
-		hasError = true
-	}
-	if len(dns) > 0 {
-		log.Errorf(fmt.Sprintf(fmtMsg, "dns", "--container-network-dns"))
-		for key, value := range dns {
-			log.Errorf("\t%s:%s, %q should be vSphere network name", key, value, key)
-		}
-		hasError = true
-	}
-	if hasError {
-		return cli.NewExitError("Inconsistent container network configuration.", 1)
 	}
 	return nil
 }
@@ -998,23 +902,14 @@ func (c *Create) processRegistries() error {
 		c.InsecureRegistries = append(c.InsecureRegistries, *regurl)
 	}
 
-	return nil
-}
+	// load a list of whitelisted registries
+	for _, registry := range c.whitelistRegistries {
+		regurl, err := validate.ParseURL(registry)
 
-func (c *Create) processProxies() error {
-	var err error
-	if c.httpProxy != "" {
-		c.HTTPProxy, err = url.Parse(c.httpProxy)
-		if err != nil || c.HTTPProxy.Host == "" || c.HTTPProxy.Scheme != "http" {
-			return cli.NewExitError(fmt.Sprintf("Could not parse HTTP proxy - expected format http://fqnd_or_ip:port: %s", c.httpProxy), 1)
+		if err != nil {
+			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
 		}
-	}
-
-	if c.httpsProxy != "" {
-		c.HTTPSProxy, err = url.Parse(c.httpsProxy)
-		if err != nil || c.HTTPSProxy.Host == "" || c.HTTPSProxy.Scheme != "https" {
-			return cli.NewExitError(fmt.Sprintf("Could not parse HTTPS proxy - expected format https://fqnd_or_ip:port: %s", c.httpsProxy), 1)
-		}
+		c.WhitelistRegistries = append(c.WhitelistRegistries, *regurl)
 	}
 
 	return nil
@@ -1081,7 +976,7 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 		// to diagnose errors
 		if cert.Leaf.Subject.CommonName != c.cname {
 			log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
-			if c.Debug.Debug > 2 {
+			if c.Debug.Debug != nil && *c.Debug.Debug > 2 {
 				log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
 			}
 			return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.certPath)
@@ -1431,7 +1326,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	log.Infof("### Installing VCH ####")
 
-	if c.Debug.Debug > 0 {
+	if c.Debug.Debug != nil && *c.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
@@ -1525,107 +1420,4 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	log.Infof("Installer completed successfully")
 
 	return nil
-}
-
-type ipNetUnmarshaler struct {
-	ipnet *net.IPNet
-	ip    net.IP
-}
-
-func (m *ipNetUnmarshaler) UnmarshalText(text []byte) error {
-	s := string(text)
-	ip, ipnet, err := net.ParseCIDR(s)
-	if err != nil {
-		return err
-	}
-
-	m.ipnet = ipnet
-	m.ip = ip
-	return nil
-}
-
-func parseContainerNetworkGateways(cgs []string) (map[string]net.IPNet, error) {
-	gws := make(map[string]net.IPNet)
-	for _, cg := range cgs {
-		m := &ipNetUnmarshaler{}
-		vnet, err := parseVnetParam(cg, m)
-		if err != nil {
-			return nil, err
-		}
-
-		if _, ok := gws[vnet]; ok {
-			return nil, fmt.Errorf("Duplicate gateway specified for container network %s", vnet)
-		}
-
-		gws[vnet] = net.IPNet{IP: m.ip, Mask: m.ipnet.Mask}
-	}
-
-	return gws, nil
-}
-
-func parseContainerNetworkIPRanges(cps []string) (map[string][]ip.Range, error) {
-	pools := make(map[string][]ip.Range)
-	for _, cp := range cps {
-		ipr := &ip.Range{}
-		vnet, err := parseVnetParam(cp, ipr)
-		if err != nil {
-			return nil, err
-		}
-
-		pools[vnet] = append(pools[vnet], *ipr)
-	}
-
-	return pools, nil
-}
-
-func parseContainerNetworkDNS(cds []string) (map[string][]net.IP, error) {
-	dns := make(map[string][]net.IP)
-	for _, cd := range cds {
-		var ip net.IP
-		vnet, err := parseVnetParam(cd, &ip)
-		if err != nil {
-			return nil, err
-		}
-
-		if ip == nil {
-			return nil, fmt.Errorf("DNS IP not specified for container network %s", vnet)
-		}
-
-		dns[vnet] = append(dns[vnet], ip)
-	}
-
-	return dns, nil
-}
-
-func splitVnetParam(p string) (vnet string, value string, err error) {
-	mapped := strings.Split(p, ":")
-	if len(mapped) == 0 || len(mapped) > 2 {
-		err = fmt.Errorf("Invalid value for parameter %s", p)
-		return
-	}
-
-	vnet = mapped[0]
-	if vnet == "" {
-		err = fmt.Errorf("Container network not specified in parameter %s", p)
-		return
-	}
-
-	if len(mapped) > 1 {
-		value = mapped[1]
-	}
-
-	return
-}
-
-func parseVnetParam(p string, m encoding.TextUnmarshaler) (vnet string, err error) {
-	vnet, v, err := splitVnetParam(p)
-	if err != nil {
-		return "", fmt.Errorf("Error parsing container network parameter %s: %s", p, err)
-	}
-
-	if err = m.UnmarshalText([]byte(v)); err != nil {
-		return "", fmt.Errorf("Error parsing container network parameter %s: %s", p, err)
-	}
-
-	return vnet, nil
 }

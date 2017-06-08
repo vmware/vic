@@ -39,7 +39,7 @@ func Join(op *trace.Operation, h interface{}, task *executor.SessionConfig) (int
 			handle.ExecConfig.Sessions = make(map[string]*executor.SessionConfig)
 		}
 		tasks = handle.ExecConfig.Sessions
-
+		task.Diagnostics.SysLogConfig = handle.ExecConfig.Diagnostics.SysLogConfig
 	} else {
 		op.Debugf("Task join configuration applies to ephemeral set")
 		if handle.ExecConfig.Execs == nil {

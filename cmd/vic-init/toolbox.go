@@ -19,6 +19,8 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -36,28 +38,43 @@ import (
 // startCommand is the switch for the synthetic commands that are permitted within the appliance.
 // This is not intended to allow arbitrary commands to be executed.
 // returns:
-//  pid: we return -1 as this is a synthetic command
+//  pid: toolbox ProcessManager Process id
 //  error
-func startCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
+func startCommand(m *toolbox.ProcessManager, r *toolbox.VixMsgStartProgramRequest) (int64, error) {
 	defer trace.End(trace.Begin(r.ProgramPath))
+	var p *toolbox.Process
 
 	switch r.ProgramPath {
 	case "enable-ssh":
-		err := enableSSH(r.Arguments)
-		enableShell()
-		return -1, err
-
+		p = toolbox.NewProcessFunc(func(ctx context.Context, args string) error {
+			err := enableSSH(args)
+			_ = enableShell()
+			return err
+		})
 	case "passwd":
-		err := passwd(r.Arguments)
-		enableShell()
-		return -1, err
-
+		p = toolbox.NewProcessFunc(func(ctx context.Context, args string) error {
+			err := passwd(args)
+			_ = enableShell()
+			return err
+		})
 	case "test-vc-api":
-		return diag.CheckAPIAvailability(r.Arguments), nil
+		p = toolbox.NewProcessFunc(func(ctx context.Context, args string) error {
+			rc := diag.CheckAPIAvailability(args)
+			if rc == diag.VCStatusOK {
+				return nil
+			}
 
+			return &toolbox.ProcessError{
+				Err:      errors.New(diag.UserReadableVCAPITestDescription(rc)),
+				ExitCode: int32(rc),
+			}
+		})
 	default:
-		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
+		return -1, os.ErrNotExist
 	}
+
+	return m.Start(r, p)
+
 }
 
 // enableShell changes the root shell from /bin/false to /bin/bash

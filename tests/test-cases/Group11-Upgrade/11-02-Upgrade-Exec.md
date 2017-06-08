@@ -1,10 +1,10 @@
 Test 11-02 - Upgrade Exec
 =======
 
-#Purpose:
+# Purpose:
 To verify that exec does not work in VIC version 0.9.0 and lower
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
 #Test Steps:
@@ -16,6 +16,6 @@ This test requires that a vSphere server is running and available
 6. Create new container
 7. Run docker exec on new container in (6.)
 
-#Expected Outcome:
+# Expected Outcome:
 * Step 5 should fail
 * All other steps should result in success

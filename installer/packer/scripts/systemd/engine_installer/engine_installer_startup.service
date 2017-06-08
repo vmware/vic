@@ -1,0 +1,12 @@
+[Unit]
+Description=VIC Engine Install Wizard Startup Configuration
+Documentation=https://github.com/vmware/vic
+After=systemd-networkd.service systemd-resolved.service
+Before=engine_installer.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /etc/vmware/engine_installer/configure_engine_installer.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -97,7 +97,7 @@ func (t *tether) childReaper() error {
 				// general resiliency
 				defer func() {
 					if r := recover(); r != nil {
-						fmt.Fprintf(os.Stderr, "Recovered in childReaper %s", debug.Stack())
+						fmt.Fprintf(os.Stderr, "Recovered in childReaper: %s\n%s", r, debug.Stack())
 					}
 				}()
 

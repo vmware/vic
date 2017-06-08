@@ -176,7 +176,7 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
         -->
 
 
-      <Version>1.1.0.0</Version>
+      <Version>1.1.1.1</Version>
       <FullVersion/>
       <ProductUrl>https://github.com/vmware/vic</ProductUrl>
       <VendorUrl/>
@@ -292,6 +292,14 @@ EVALUATION LICENSE. If You are licensing the Software for evaluation purposes, Y
       <Property ovf:key="ssl_cert_key" ovf:qualifiers="MinLen(0),MaxLen(65535)" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
         <Label>5.3. SSL Cert Key</Label>
         <Description>Paste in the content of certificate key file. Leave blank for a generated key.</Description>
+      </Property>
+    </ProductSection>
+    <ProductSection ovf:class="engine_installer" ovf:required="false">
+      <Info>VIC Engine Install Wizard Properties</Info>
+      <Category>6. VIC Engine Install Wizard Configuration</Category>
+      <Property ovf:key="port" ovf:qualifiers="MinValue(1),MaxValue(65535)" ovf:type="int" ovf:userConfigurable="true" ovf:value="1337">
+        <Label>6.1. Engine Install Wizard Port</Label>
+        <Description>Specifies the port on which fileserver will be published.</Description>
       </Property>
     </ProductSection>
     <ProductSection ovf:class="vm" ovf:required="false">

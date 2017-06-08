@@ -20,7 +20,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/RackSec/srslog"
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/loads"
 	"github.com/jessevdk/go-flags"
@@ -28,23 +27,24 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	ploptions "github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/dns"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/vspc"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 var (
-	options = dns.ServerOptions{}
-	parser  *flags.Parser
-	server  *restapi.Server
+	options   = dns.ServerOptions{}
+	parser    *flags.Parser
+	server    *restapi.Server
+	vchConfig config.VirtualContainerHostConfigSpec
 )
 
 func init() {
-	trace.Logger = log.StandardLogger()
-
 	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
@@ -79,9 +79,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// load the vch config
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Fatalf("Unable to load configuration from guestinfo: %s", err)
+	}
+	extraconfig.Decode(src, &vchConfig)
+
 	logcfg := viclog.NewLoggingConfig()
-	if ploptions.PortLayerOptions.Debug {
+	if vchConfig.Diagnostics.DebugLevel > 0 {
 		logcfg.Level = log.DebugLevel
+		trace.Logger.Level = log.DebugLevel
+		syslog.Logger.Level = log.DebugLevel
 	}
 
 	if ploptions.PortLayerOptions.SyslogAddr != nil {
@@ -90,11 +99,10 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		logcfg.Syslog = &syslog.SyslogConfig{
-			Network:   u.Scheme,
-			RAddr:     u.Host,
-			Priority:  srslog.LOG_INFO | srslog.LOG_DAEMON,
-			Formatter: syslog.RFC3164,
+		logcfg.Syslog = &viclog.SyslogConfig{
+			Network:  u.Scheme,
+			RAddr:    u.Host,
+			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
 
