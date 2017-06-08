@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Simple script that will check files of type .go, .sh, .bash or Makefile
+# Simple script that will check files of type .go, .sh, .bash, .robot, or Makefile
 # for the copyright header.
 #
 # This will be called by the CI system (with no args) to perform checking and
