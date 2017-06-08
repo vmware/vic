@@ -417,16 +417,16 @@ func (v *Validator) managedbyVC(ctx context.Context) {
 
 func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	// empty string for password is horrific, but a legitimate scenario especially in isolated labs
-	if input.OpsPassword == nil {
-		v.NoteIssue(errors.New("Password for operations user has not been set"))
+	if input.OpsCredentials.OpsUser == nil || input.OpsCredentials.OpsPassword == nil {
+		v.NoteIssue(errors.New("User/password for the operations user has not been set"))
 		return
 	}
 
 	// check target with ops credentials
 	u := input.Target.URL
 
-	conf.Username = input.OpsUser
-	conf.Token = *input.OpsPassword
+	conf.Username = *input.OpsCredentials.OpsUser
+	conf.Token = *input.OpsCredentials.OpsPassword
 	conf.TargetThumbprint = input.Thumbprint
 
 	// Discard anything other than these URL fields for the target
