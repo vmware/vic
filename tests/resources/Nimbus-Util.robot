@@ -21,24 +21,17 @@ ${VC_VERSION}  ob-4602587   #6.5 RTM
 ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 
 *** Keywords ***
-Strip IP
-  [Arguments]  ${string}
-  @{gotIP}=  Split String  ${line}  ${SPACE}
-  ${ip}=  Remove String  @{gotIP}[2]
-  [Return]  ${ip}
+Fetch IP
+  [Arguments]  ${name}
+  ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
+  Should Not Be Empty  ${out}
+  [Return]  ${out}
 
 Get IP
   [Arguments]  ${name}
-  ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-${name}
-  @{out}=  Split To Lines  ${out}
-  Set Suite Variable  ${line}  ${EMPTY}
-  :FOR  ${item}  IN  @{out}
-  \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  %{NIMBUS_USER}-${name}
-  \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-
-  ${ip}=  Run Keyword If  '${line}' != '${EMPTY}'  Strip IP  ${line}
+  ${out}=  Wait Until Keyword Succeeds  10x  1 minute  Fetch IP  ${name}
+  ${ip}=  Fetch From Right  ${out}  ${SPACE}
   [Return]  ${ip}
-
 
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
@@ -171,7 +164,7 @@ Deploy Nimbus vCenter Server Async
     [Arguments]  ${name}  ${version}=${VC_VERSION}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  'nimbus-vcvadeploy --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
 Deploy Nimbus Testbed

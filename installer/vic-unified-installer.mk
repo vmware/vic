@@ -64,6 +64,7 @@ ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
+			-var 'build_harbor_dev_revision=$(BUILD_HARBOR_DEV_REVISION)' \
 			packer-vic.json
 	@echo adding proper vic OVF file...
 	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
@@ -87,6 +88,7 @@ ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
+			-var 'build_harbor_dev_revision=$(BUILD_HARBOR_DEV_REVISION)' \
 			--on-error=abort packer-vic.json
 	@echo adding proper vic OVF file...
 	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
@@ -107,4 +109,5 @@ vagrant-local: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
+			-var 'build_harbor_dev_revision=$(BUILD_HARBOR_DEV_REVISION)' \
 			--on-error=abort packer-vic.json

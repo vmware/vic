@@ -1,7 +1,7 @@
 [Unit]
 Description=VIC Engine Install Wizard Startup Configuration
 Documentation=https://github.com/vmware/vic
-After=systemd-networkd.service systemd-resolved.service
+After=systemd-networkd.service systemd-resolved.service admiral_startup.service fileserver_startup.service
 Before=engine_installer.service
 
 [Service]

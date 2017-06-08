@@ -22,6 +22,7 @@ mkdir -p ${data_dir}
 port=$(ovfenv -k engine_installer.port)
 iptables -w -A INPUT -j ACCEPT -p tcp --dport $port
 
+# Get vic-machine-linux
 FILESERVER_DIR="/opt/vmware/fileserver/files"
 FILE_COUNT=$(find ${FILESERVER_DIR} -name "vic*.tar.gz" | wc -l)
 if [ ! -d "${FILESERVER_DIR}" ] || [ ${FILE_COUNT} -ne 1 ] ; then

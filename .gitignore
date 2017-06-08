@@ -11,7 +11,8 @@ secrets-e2e.yml
 vic-ci-logs.key
 install-*.tar.gz
 *.log
-*.html
+log.html
+report.html
 *.xml
 *.gas
 *.pyc

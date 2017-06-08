@@ -44,6 +44,11 @@ Create test containers
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  VM-PATH  vm/*${stress}
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Environment Variable  VM-PATH  */%{VCH-NAME}/*${stress}
 
+Check Memory Usage
+    ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}
+    Should Be True  ${vmomiMemory} > 0
+    [Return]  ${vmomiMemory}
+
 *** Test Cases ***
 Stats No Stream
     Create test containers
@@ -58,8 +63,7 @@ Stats No Stream
     ${vicMemory}=  Fetch From Left  ${vicMemory}  .
 
     # get the latest memory value for the "stresser" vm
-    ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}
-    Should Be True  ${vmomiMemory} > 0
+    ${vmomiMemory}=  Wait Until Keyword Succeeds  5x  20s  Check Memory Usage
     # convert to percent and move decimal
     ${percent}=  Evaluate  ${vmomiMemory}/20480
     ${diff}=  Evaluate  abs(${percent}-${vicMemory})
