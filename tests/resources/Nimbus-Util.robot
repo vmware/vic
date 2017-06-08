@@ -171,7 +171,7 @@ Deploy Nimbus vCenter Server Async
     [Arguments]  ${name}  ${version}=${VC_VERSION}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  'nimbus-vcvadeploy --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
 Deploy Nimbus Testbed
