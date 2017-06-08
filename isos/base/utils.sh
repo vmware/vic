@@ -28,7 +28,10 @@ VERSION=`git describe --abbrev=0 --tags`-${BUILD_NUMBER}-`git rev-parse --short 
 # 1: target directory
 initialize_bundle() {
     mkdir -p $1
-    sed -e "s/\${VERSION}/${VERSION}/" $BASE_DIR/xorriso-options.cfg > $1/xorriso-options.cfg
+
+    # we copy the xorriso config template during init as it's part of the base directory
+    # - variable replacement occurs during generation step however
+    cp $BASE_DIR/xorriso-options.cfg $1/xorriso-options.cfg
 
     mkdir -p $1/rootfs/var/lib/rpm $1/bootfs/boot
 
@@ -242,6 +245,9 @@ generate_iso() {
             echo "Failed to package root filesystem from $1/rootfs: $?" 1>&2
             return 5
         }
+
+        echo "Embedding build version ${VERSION} (use BUILD_VERSION to override)"
+        sed -i -e "s/\${VERSION}/${VERSION}/" xorriso-options.cfg
 
         # deleting the file first seems to be necessary in some cases
         rm -f "$out"
