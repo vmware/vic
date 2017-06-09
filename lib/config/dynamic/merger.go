@@ -16,7 +16,6 @@ package dynamic
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/registry"
@@ -91,17 +90,6 @@ func (w *whitelistMerger) Merge(orig, other registry.Entry) (registry.Entry, err
 	// more restrictive result is OK
 	if orig.Contains(other) {
 		return other, nil
-	}
-
-	// make sure we reject a URL to URL merge between
-	// an https and http URL
-	origStr := orig.String()
-	otherStr := other.String()
-	if strings.HasPrefix(origStr, "https://") && strings.HasPrefix(otherStr, "http://") {
-		e := registry.ParseEntry("http://" + strings.TrimPrefix(origStr, "https://"))
-		if m, _ := w.Merge(e, other); m != nil {
-			return nil, fmt.Errorf("merge of %s and %s would broaden %s", orig, other, orig)
-		}
 	}
 
 	// no merge
