@@ -38,7 +38,7 @@ All images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  ${alpine}  3
+    Should Contain X Times  ${output}  alpine  3
 
 Quiet images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q
@@ -53,13 +53,13 @@ No-trunc images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images --no-trunc
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  ${alpine}  3
+    Should Contain X Times  ${output}  alpine  3
     @{lines}=  Split To Lines  ${output}
     @{line}=  Split String  @{lines}[2]
     Length Should Be  @{line}[2]  64
 
 Filter images before
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=${alpine}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=  ${alpine}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}

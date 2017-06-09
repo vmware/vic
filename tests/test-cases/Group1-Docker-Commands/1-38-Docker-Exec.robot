@@ -106,9 +106,9 @@ Exec Sort -i
     \     Should Be Empty  ${ret.stderr}
     Run  rm -rf ${tmp}
 
-Exec Sort -i
-    ${status}=  Get State Of Github Issue  4990
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #4990 has been resolved
+#Exec Sort -i
+    #${status}=  Get State Of Github Issue  4990
+    #Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #4990 has been resolved
     #${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
     #Should Be Equal As Integers  ${rc}  0
     #${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
