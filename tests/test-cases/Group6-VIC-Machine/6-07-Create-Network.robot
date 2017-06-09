@@ -36,19 +36,18 @@ Public network - default
     Cleanup VIC Appliance On Test Server
 
 Public network - invalid
-    ${status}=  Get State Of Github Issue  5293
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-07-Create-Network.robot needs to be updated now that Issue #5293 has been resolved
-    #Set Test Environment Variables
-    ## Attempt to cleanup old/canceled tests
-    #Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    #Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    #${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --public-network=AAAAAAAAAA ${vicmachinetls}
-    #Should Contain  ${output}  --public-network: network 'AAAAAAAAAA' not found
-    #Should Contain  ${output}  vic-machine-linux create failed
+    # Guarantee port group doesn't already exist
+    Run Keyword And Ignore Error  govc host.portgroup.remove 'AAAAAAAAAA'
 
-    # Delete the portgroup added by env vars keyword
-    #Cleanup VCH Bridge Network  %{VCH-NAME}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --public-network=AAAAAAAAAA ${vicmachinetls}
+
+    Should Contain  ${output}  --public-network: network 'AAAAAAAAAA' not found
+    Should Contain  ${output}  vic-machine-linux create failed
 
 Public network - invalid vCenter
     Pass execution  Test not implemented
@@ -79,19 +78,18 @@ Management network - none
     Cleanup VIC Appliance On Test Server
 
 Management network - invalid
-    ${status}=  Get State Of Github Issue  5293
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-07-Create-Network.robot needs to be updated now that Issue #5293 has been resolved
-    #Set Test Environment Variables
-    ## Attempt to cleanup old/canceled tests
-    #Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    #Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    #${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --management-network=AAAAAAAAAA ${vicmachinetls}
-    #Should Contain  ${output}  --management-network: network 'AAAAAAAAAA' not found
-    #Should Contain  ${output}  vic-machine-linux create failed
+    # Guarantee port group doesn't already exist
+    Run Keyword And Ignore Error  govc host.portgroup.remove 'AAAAAAAAAA'
 
-    ## Delete the portgroup added by env vars keyword
-    #Cleanup VCH Bridge Network  %{VCH-NAME}
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --management-network=AAAAAAAAAA ${vicmachinetls}
+
+    Should Contain  ${output}  --management-network: network 'AAAAAAAAAA' not found
+    Should Contain  ${output}  vic-machine-linux create failed
 
 Management network - invalid vCenter
     Pass execution  Test not implemented
@@ -249,21 +247,24 @@ Bridge network - ESX none
     Cleanup VIC Appliance On Test Server
 
 Bridge network - create bridge network if it doesn't exist
-    ${status}=  Get State Of Github Issue  5293
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-07-Create-Network.robot needs to be updated now that Issue #5293 has been resolved
-    #Run Keyword If  '%{HOST_TYPE}' != 'ESXi'  Pass Execution  Test skipped on vCenter
+    Run Keyword If  '%{HOST_TYPE}' != 'ESXi'  Pass Execution  Test not applicable on vCenter
+    # ESX should automatically create the bridge network AAAAAAAAAA, but vCenter would fail with unknown network error
 
-    #Set Test Environment Variables
-    ## Attempt to cleanup old/canceled tests
-    #Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    #Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test Environment Variables
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    #${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls}
-    #Should Contain  ${output}  Installer completed successfully
+    # Guarantee port group doesn't already exist
+    Run Keyword And Ignore Error  govc host.portgroup.remove 'AAAAAAAAAA'
 
-    ## Delete the portgroup added by env vars keyword
-    #Cleanup VCH Bridge Network  %{VCH-NAME}
-    #Cleanup VIC Appliance On Test Server
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}   Installer completed successfully
+
+    # Attempt to cleanup old/canceled tests
+    Run Regression Tests
+    Cleanup VCH Bridge Network  AAAAAAAAAA
 
 Bridge network - invalid vCenter
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
@@ -354,7 +355,6 @@ Container network - space in network name invalid
 
     # Delete the portgroup added by env vars keyword
     Cleanup VCH Bridge Network  %{VCH-NAME}
-
 
 Container network - space in network name valid
     Set Test Environment Variables
