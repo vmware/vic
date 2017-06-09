@@ -32,7 +32,7 @@ Simple images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain X Times  ${output}  ${alpine}  3
+    Should Contain X Times  ${output}  alpine  3
 
 All images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -a
