@@ -180,7 +180,7 @@ pipeline:
       image: plugins/downstream
       server: https://ci.vcna.io
       token: ${DRONE_TOKEN}
-      fork: false
+      fork: true
       repositories:
         - vmware/vic-product
 
