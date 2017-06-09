@@ -143,7 +143,7 @@ Remap mapped ports after OOB Stop and Remove
     Should Not Contain  ${output}  Error
     Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  5001
 
-    Power Off VM OOB  ${nginx}1*
+    Power Off VM OOB  nginx1*
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm nginx1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error

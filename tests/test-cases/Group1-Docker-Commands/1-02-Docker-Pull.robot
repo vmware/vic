@@ -68,7 +68,7 @@ Pull image with a tag that doesn't exist
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:faketag
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Tag faketag not found in repository library/${busybox}
+    Should Contain  ${output}  Tag faketag not found in repository library/busybox
 
 Pull image that already has been pulled
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${alpine}

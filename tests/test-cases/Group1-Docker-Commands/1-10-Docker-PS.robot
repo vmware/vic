@@ -161,15 +161,15 @@ Docker ps Remove container OOB
 Docker ps last container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -l
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${redis}
+    Should Contain  ${output}  redis
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
 Docker ps two containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -n=2
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${redis}
-    Should Contain  ${output}  ${nginx}
+    Should Contain  ${output}  redis
+    Should Contain  ${output}  nginx
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  3
 
@@ -177,7 +177,7 @@ Docker ps last container with size
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  SIZE
-    Should Contain  ${output}  ${redis}
+    Should Contain  ${output}  redis
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
