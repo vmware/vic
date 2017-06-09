@@ -77,7 +77,7 @@ func (p *InsecureRegistriesTypeChange) Migrate(ctx context.Context, s *session.S
 
 	vchConfig := &VCHConfig{}
 	for _, r := range oldStruct.InsecureRegistries {
-		vchConfig.InsecureRegistries = append(vchConfig.InsecureRegistries, strings.TrimPrefix(r.String(), "http://"))
+		vchConfig.InsecureRegistries = append(vchConfig.InsecureRegistries, strings.TrimPrefix(r.String(), r.Scheme+"://"))
 	}
 
 	cfg := make(map[string]string)

@@ -104,12 +104,12 @@ func TestEntryContains(t *testing.T) {
 		{
 			first:  ParseEntry("foo"),
 			second: ParseEntry("foo:123"),
-			res:    true,
+			res:    false,
 		},
 		{
 			first:  ParseEntry("192.168.1.1"),
 			second: ParseEntry("192.168.1.1:123"),
-			res:    true,
+			res:    false,
 		},
 	}
 
@@ -126,7 +126,7 @@ func TestEntryMatch(t *testing.T) {
 		res bool
 	}{
 		{
-			e:   &strEntry{"192.168.0.1"},
+			e:   ParseEntry("192.168.0.1"),
 			s:   "192.168.0.1",
 			res: true,
 		},
@@ -148,7 +148,7 @@ func TestEntryMatch(t *testing.T) {
 		{
 			e:   ParseEntry("192.168.0.1/24"),
 			s:   "192.168.0.1/24",
-			res: false,
+			res: true,
 		},
 		{
 			e:   ParseEntry("*.google.com"),
@@ -188,12 +188,12 @@ func TestEntryMatch(t *testing.T) {
 		{
 			e:   ParseEntry("foo"),
 			s:   "foo:123",
-			res: true,
+			res: false,
 		},
 		{
 			e:   ParseEntry("192.168.1.1"),
 			s:   "192.168.1.1:123",
-			res: true,
+			res: false,
 		},
 		{
 			e:   ParseEntry("http://192.168.1.1"),
@@ -306,15 +306,15 @@ func TestParseEntry(t *testing.T) {
 	}{
 		{
 			s:   "192.168.0.1",
-			res: ParseEntry("192.168.0.1"),
+			res: &urlEntry{u: parseURL("192.168.0.1")},
 		},
 		{
 			s:   "192.168.0.1:80",
-			res: ParseEntry("192.168.0.1:80"),
+			res: &urlEntry{u: parseURL("192.168.0.1:80")},
 		},
 		{
 			s:   "192.168.0",
-			res: ParseEntry("192.168.0"),
+			res: &urlEntry{u: parseURL("192.168.0")},
 		},
 		{
 			s:   "192.168.0.1/24",
@@ -322,19 +322,20 @@ func TestParseEntry(t *testing.T) {
 		},
 		{
 			s:   "192.168.0/24",
-			res: &strEntry{e: "192.168.0/24"},
+			res: &urlEntry{u: parseURL("192.168.0/24")},
 		},
 		{
 			s:   "*.google.com",
-			res: &strEntry{e: "*.google.com"},
+			res: &urlEntry{u: parseURL("*.google.com")},
 		},
 		{
 			s:   "google.com:8080",
-			res: &strEntry{e: "google.com:8080"},
+			res: &urlEntry{u: parseURL("google.com:8080")},
 		},
 	}
 
 	for _, te := range tests {
-		assert.True(t, te.res.Equal(ParseEntry(te.s)), "ParseEntry(%s) != %s", te.s, te.res)
+		e := ParseEntry(te.s)
+		assert.True(t, te.res.Equal(e), "ParseEntry(%s) != %s, got %s", te.s, te.res, e)
 	}
 }

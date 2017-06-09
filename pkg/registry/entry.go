@@ -27,6 +27,14 @@ type Entry interface {
 	Match(e string) bool
 	Equal(other Entry) bool
 	String() string
+
+	IsCIDR() bool
+	IsURL() bool
+}
+
+type URLEntry interface {
+	Entry
+	URL() *url.URL
 }
 
 func ParseEntry(s string) Entry {
@@ -35,24 +43,32 @@ func ParseEntry(s string) Entry {
 		return &cidrEntry{ipnet: ipnet}
 	}
 
-	u, err := url.Parse(s)
-	if err == nil && len(u.Host) > 0 {
+	if u := parseURL(s); u != nil {
 		return &urlEntry{u: u}
 	}
 
-	return &strEntry{e: s}
+	return nil
 }
 
 type cidrEntry struct {
 	ipnet *net.IPNet
 }
 
-func (c *cidrEntry) Contains(e Entry) bool {
-	if ip := net.ParseIP(e.String()); ip != nil {
-		return c.ipnet.Contains(ip)
-	}
+func (c *cidrEntry) IsCIDR() bool {
+	return true
+}
 
-	if e, ok := e.(*cidrEntry); ok {
+func (c *cidrEntry) IsURL() bool {
+	return false
+}
+
+func (c *cidrEntry) Contains(e Entry) bool {
+	switch e := e.(type) {
+	case *urlEntry:
+		if ip := net.ParseIP(e.u.Hostname()); ip != nil {
+			return c.ipnet.Contains(ip)
+		}
+	case *cidrEntry:
 		return c.ipnet.Contains(e.ipnet.IP.Mask(e.ipnet.Mask))
 	}
 
@@ -60,13 +76,7 @@ func (c *cidrEntry) Contains(e Entry) bool {
 }
 
 func (c *cidrEntry) Match(s string) bool {
-	h := getHost(s)
-	ip := net.ParseIP(h)
-	if ip != nil {
-		return c.ipnet.Contains(ip)
-	}
-
-	return false
+	return c.Contains(ParseEntry(s))
 }
 
 func (c *cidrEntry) Equal(other Entry) bool {
@@ -81,64 +91,81 @@ type urlEntry struct {
 	u *url.URL
 }
 
+func (u *urlEntry) IsCIDR() bool {
+	return false
+}
+
+func (u *urlEntry) IsURL() bool {
+	return true
+}
+
+func ensurePort(u *url.URL) *url.URL {
+	_, _, err := net.SplitHostPort(u.Host)
+	if err == nil {
+		return u
+	}
+
+	res := *u
+	switch u.Scheme {
+	case "http":
+		res.Host = u.Host + ":80"
+	case "https":
+		res.Host = u.Host + ":443"
+	}
+
+	return &res
+}
+
 func (u *urlEntry) Contains(e Entry) bool {
-	return u.Match(e.String())
+	switch e := e.(type) {
+	case *urlEntry:
+		up := ensurePort(u.u)
+		ep := ensurePort(e.u)
+		return glob.Glob(up.Host, ep.Host) &&
+			(u.u.Scheme == "" || u.u.Scheme == e.u.Scheme) &&
+			strings.HasPrefix(e.u.Path, u.u.Path)
+	}
+
+	return false
 }
 
 func (u *urlEntry) Match(s string) bool {
-	return strings.HasPrefix(s, u.u.String())
+	return u.Contains(ParseEntry(s))
 }
 
 func (u *urlEntry) String() string {
+	if u.u.Scheme == "" {
+		return strings.TrimPrefix(u.u.String(), "//")
+	}
+
 	return u.u.String()
 }
 
 func (u *urlEntry) Equal(other Entry) bool {
+	if other, ok := other.(*urlEntry); ok {
+		up := ensurePort(u.u)
+		otherp := ensurePort(other.u)
+		return up.String() == otherp.String()
+	}
+
 	return other.String() == u.u.String()
 }
 
-type strEntry struct {
-	e string
+func (u *urlEntry) URL() *url.URL {
+	return u.u
 }
 
-func (w *strEntry) Contains(e Entry) bool {
-	return w.Match(e.String())
-}
+func parseURL(s string) *url.URL {
+	for _, p := range []string{"", "https://"} {
+		u, err := url.Parse(p + s)
+		if err == nil && len(u.Host) > 0 {
+			if p != "" {
+				u.Scheme = "" // ignore the scheme
+			}
 
-func (w *strEntry) Match(s string) bool {
-	// url?
-	if u, err := url.Parse(s); err == nil && len(u.Host) > 0 {
-		return glob.Glob(w.e, u.Host) ||
-			glob.Glob(w.e, u.Hostname())
+			return u
+		}
 	}
 
-	// host:port ?
-	h, _, err := net.SplitHostPort(s)
-	if err == nil && glob.Glob(w.e, h) {
-		return true
-	}
-
-	return glob.Glob(w.e, s)
-}
-
-func (w *strEntry) String() string {
-	return w.e
-}
-
-func (w *strEntry) Equal(other Entry) bool {
-	return other.String() == w.String()
-}
-
-func getHost(s string) string {
-	// url?
-	if u, err := url.Parse(s); err == nil && len(u.Host) > 0 {
-		return u.Hostname()
-	}
-
-	// host:port?
-	if h, _, err := net.SplitHostPort(s); err == nil {
-		return h
-	}
-
-	return s
+	return nil
 }

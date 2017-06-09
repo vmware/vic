@@ -51,13 +51,13 @@ func TestWhitelistMerger(t *testing.T) {
 			err:   assert.AnError,
 		},
 		{
-			other: registry.ParseEntry("10.10.10.10/24"),
 			orig:  registry.ParseEntry("10.10.10.10/16"),
+			other: registry.ParseEntry("10.10.10.10/24"),
 			res:   registry.ParseEntry("10.10.10.10/24"),
 		},
 		{
-			other: registry.ParseEntry("*.google.com"),
 			orig:  registry.ParseEntry("*.google.com"),
+			other: registry.ParseEntry("*.google.com"),
 			res:   registry.ParseEntry("*.google.com"),
 		},
 		{
@@ -77,22 +77,18 @@ func TestWhitelistMerger(t *testing.T) {
 		{
 			orig:  registry.ParseEntry("192.168.1.1:123"),
 			other: registry.ParseEntry("192.168.1.1"),
-			err:   assert.AnError,
 		},
 		{
 			orig:  registry.ParseEntry("192.168.1.1"),
 			other: registry.ParseEntry("192.168.1.1:123"),
-			res:   registry.ParseEntry("192.168.1.1:123"),
 		},
 		{
 			orig:  registry.ParseEntry("foo:123"),
 			other: registry.ParseEntry("foo"),
-			err:   assert.AnError,
 		},
 		{
 			orig:  registry.ParseEntry("foo"),
 			other: registry.ParseEntry("foo:123"),
-			res:   registry.ParseEntry("foo:123"),
 		},
 		{
 			orig:  registry.ParseEntry("http://foo"),
@@ -101,12 +97,10 @@ func TestWhitelistMerger(t *testing.T) {
 		{
 			orig:  registry.ParseEntry("http://foo"),
 			other: registry.ParseEntry("http://foo:123"),
-			res:   registry.ParseEntry("http://foo:123"),
 		},
 		{
 			orig:  registry.ParseEntry("http://foo:123"),
 			other: registry.ParseEntry("http://foo"),
-			err:   assert.AnError,
 		},
 		{
 			orig:  registry.ParseEntry("http://foo/bar"),
@@ -116,12 +110,10 @@ func TestWhitelistMerger(t *testing.T) {
 		{
 			orig:  registry.ParseEntry("https://foo/bar"),
 			other: registry.ParseEntry("http://foo/bar"),
-			err:   assert.AnError,
 		},
 		{
 			orig:  registry.ParseEntry("https://foo"),
 			other: registry.ParseEntry("foo"),
-			err:   assert.AnError,
 		},
 	}
 

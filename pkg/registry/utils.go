@@ -26,8 +26,11 @@ import (
 )
 
 // Reachable test if a registry is a valid registry for VIC use and returns a url with scheme prepended
-func Reachable(registry, schema, username, password string, registryCAs *x509.CertPool, timeout time.Duration, skipVerify bool) (string, error) {
-	registryPath := fmt.Sprintf("%s://%s/v2/", schema, registry)
+func Reachable(registry, scheme, username, password string, registryCAs *x509.CertPool, timeout time.Duration, skipVerify bool) (string, error) {
+	registryPath := fmt.Sprintf("%s/v2/", registry)
+	if scheme != "" {
+		registryPath = fmt.Sprintf("%s://%s/v2/", scheme, registry)
+	}
 
 	url, err := url.Parse(registryPath)
 	if err != nil {

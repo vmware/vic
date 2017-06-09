@@ -70,3 +70,12 @@ func (s Set) Merge(other Set, merger Merger) (Set, error) {
 
 	return append(res, adds...), nil
 }
+
+func (s Set) Strings() []string {
+	res := make([]string, len(s))
+	for i := range s {
+		res[i] = s[i].String()
+	}
+
+	return res
+}

@@ -48,6 +48,34 @@ func (_m *MockEntry) Equal(other Entry) bool {
 	return r0
 }
 
+// IsCIDR provides a mock function with given fields:
+func (_m *MockEntry) IsCIDR() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// IsURL provides a mock function with given fields:
+func (_m *MockEntry) IsURL() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // Match provides a mock function with given fields: e
 func (_m *MockEntry) Match(e string) bool {
 	ret := _m.Called(e)
