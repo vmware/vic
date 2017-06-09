@@ -32,6 +32,7 @@ import (
 )
 
 const (
+	// MaxAttachedDisks specifies the max number of disks attached to the VCH
 	MaxAttachedDisks = 8
 )
 
@@ -54,6 +55,7 @@ type Manager struct {
 	reconfig sync.Mutex
 }
 
+// NewDiskManager creates and returns a *Manager
 func NewDiskManager(op trace.Operation, session *session.Session, detachAll bool) (*Manager, error) {
 	vm, err := guest.GetSelf(op, session)
 	if err != nil {
@@ -266,6 +268,7 @@ func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath, fst Fil
 //	return nil
 // }
 
+// Attach attempts to attach a virtual disk
 func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	deviceList := object.VirtualDeviceList{}
 	deviceList = append(deviceList, disk)
@@ -294,9 +297,11 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
+
 	return nil
 }
 
+// Detach attempts to detach a virtual disk
 func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	defer trace.End(trace.Begin(d.DevicePath))
 	op.Infof("Detaching disk %s", d.DevicePath)
@@ -310,6 +315,9 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	}
 
 	if err := d.canBeDetached(); err != nil {
+		// even though canBeDetached() is called here and nowhere else, it does not imply
+		// an attempt to detach, so decrease the ref count from here for that reason
+		d.attachedRefs--
 		return errors.Trace(err)
 	}
 
@@ -328,6 +336,7 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	default:
 	}
 
+	// don't decrement reference count here as setDetached() does it already
 	return d.setDetached()
 }
 
