@@ -26,7 +26,7 @@ fi
 
 data_dir=/data/harbor
 conf_dir=/etc/vmware/harbor
-
+script_dir=/etc/vmware
 harbor_compose_file=${conf_dir}/docker-compose.yml
 
 cert_dir=${data_dir}/cert
