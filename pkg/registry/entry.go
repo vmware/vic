@@ -170,20 +170,21 @@ func parseURL(s string) *url.URL {
 	return nil
 }
 
-func (w *strEntry) Equal(other Entry) bool {
-	return other.String() == w.String()
+func (u *urlEntry) URL() *url.URL {
+	return u.u
 }
 
-func getHost(s string) string {
-	// url?
-	if u, err := url.Parse(s); err == nil && len(u.Host) > 0 {
-		return u.Hostname()
+func parseURL(s string) *url.URL {
+	for _, p := range []string{"", "https://"} {
+		u, err := url.Parse(p + s)
+		if err == nil && len(u.Host) > 0 {
+			if p != "" {
+				u.Scheme = "" // ignore the scheme
+			}
+
+			return u
+		}
 	}
 
-	// host:port?
-	if h, _, err := net.SplitHostPort(s); err == nil {
-		return h
-	}
-
-	return s
+	return nil
 }
