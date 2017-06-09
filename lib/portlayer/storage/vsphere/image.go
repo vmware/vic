@@ -64,7 +64,7 @@ var (
 const (
 	StorageImageDir  = "images"
 	defaultDiskLabel = "containerfs"
-	defaultDiskSize  = 8388608
+	defaultDiskSize  = 8 * 1024 * 1024
 	metaDataDir      = "imageMetadata"
 	manifest         = "manifest"
 )
@@ -79,9 +79,15 @@ type ImageStore struct {
 }
 
 func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
-	dm, err := disk.NewDiskManager(op, s, DetachAll)
+	dm, err := disk.NewDiskManager(op, s)
 	if err != nil {
 		return nil, err
+	}
+
+	if DetachAll {
+		if err = dm.DetachAll(op); err != nil {
+			return nil, err
+		}
 	}
 
 	datastores, err := s.Finder.DatastoreList(op, u.Host)
@@ -277,7 +283,7 @@ func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdis
 
 		if vmdisk.Attached() {
 			op.Debugf("Detaching abandoned disk")
-			v.dm.Detach(op, vmdisk)
+			v.dm.Detach(op, vmdisk.VirtualDiskConfig)
 		}
 	}
 
@@ -322,8 +328,9 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 		v.cleanupDisk(op, ID, storeName, vmdisk)
 	}()
 
+	config := disk.NewPersistentDisk(diskDsURI).WithParent(parentDiskDsURI)
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(op, diskDsURI, parentDiskDsURI, 0, os.O_RDWR, disk.Ext4)
+	vmdisk, err = v.dm.CreateAndAttach(op, config)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +366,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 		return nil, err
 	}
 
-	if err = v.dm.Detach(op, vmdisk); err != nil {
+	if err = v.dm.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
 		return nil, err
 	}
 
@@ -414,12 +421,14 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		v.cleanupDisk(op, portlayer.Scratch.ID, storeName, vmdisk)
 	}()
 
+	config := disk.NewPersistentDisk(imageDiskDsURI).WithCapacity(size)
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(op, imageDiskDsURI, nil, size, os.O_RDWR, disk.Ext4)
+	vmdisk, err = v.dm.CreateAndAttach(op, config)
 	if err != nil {
 		op.Errorf("CreateAndAttach(%s) error: %s", imageDiskDsURI, err)
 		return err
 	}
+
 	op.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
 
 	// Make the filesystem and set its label to defaultDiskLabel
@@ -431,7 +440,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		return err
 	}
 
-	if err = v.dm.Detach(op, vmdisk); err != nil {
+	if err = v.dm.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
 		return err
 	}
 
@@ -469,7 +478,8 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 
 	var s = *store
 
-	dsk, err := v.dm.Get(op, diskDsURI, disk.Ext4)
+	config := disk.NewPersistentDisk(diskDsURI)
+	dsk, err := v.dm.Get(op, config)
 	if err != nil {
 		return nil, err
 	}

@@ -21,9 +21,6 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/pkg/fs"
 )
 
 // FilesystemType represents the filesystem in use by a virtual disk
@@ -48,26 +45,11 @@ type Filesystem interface {
 	Unmount(path string) error
 }
 
-// FilesystemTypeToFilesystem returns a new Filesystem implementation
-// associated with the supplied FilesystemType
-func FilesystemTypeToFilesystem(fstype FilesystemType) Filesystem {
-	switch fstype {
-	case Xfs:
-		return fs.NewXFS()
-	default:
-		return fs.NewExt4()
-	}
-}
-
 // VirtualDisk represents a VMDK in the datastore, the device node it may be
 // attached at (if it's attached), the mountpoint it is mounted at (if
 // mounted), and other configuration.
 type VirtualDisk struct {
-	// The URI in the datastore this disk can be found with
-	DatastoreURI *object.DatastorePath
-
-	// The URI in the datastore to the parent of this disk
-	ParentDatastoreURI *object.DatastorePath
+	*VirtualDiskConfig
 
 	// The device node the disk is attached to
 	DevicePath string
@@ -81,22 +63,25 @@ type VirtualDisk struct {
 	mountedRefs int
 
 	attachedRefs int
-
-	fs Filesystem
 }
 
 // NewVirtualDisk creates and returns a new VirtualDisk object associated with the
 // given datastore formatted with the specified FilesystemType
-func NewVirtualDisk(DatastoreURI *object.DatastorePath, fst FilesystemType) (*VirtualDisk, error) {
-	if err := VerifyDatastoreDiskURI(DatastoreURI.String()); err != nil {
-		return nil, err
+func NewVirtualDisk(config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*VirtualDisk, error) {
+	if !strings.HasSuffix(config.DatastoreURI.String(), ".vmdk") {
+		return nil, fmt.Errorf("%s isn't a vmdk", config.DatastoreURI.String())
 	}
 
-	d := &VirtualDisk{
-		DatastoreURI: DatastoreURI,
-		// We only support ext4 for now
-		fs: FilesystemTypeToFilesystem(fst),
+	if d, ok := disks[config.Hash()]; ok {
+		log.Debugf("Found the disk %s in the DiskManager cache, using it", config.DatastoreURI)
+		return d, nil
 	}
+	log.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
+
+	d := &VirtualDisk{
+		VirtualDiskConfig: config,
+	}
+	disks[config.Hash()] = d
 
 	return d, nil
 }
@@ -179,10 +164,10 @@ func (d *VirtualDisk) Mkfs(labelName string) error {
 	}
 
 	if d.Mounted() {
-		return fmt.Errorf("%s is mounted mounted", d.DatastoreURI)
+		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
-	return d.fs.Mkfs(d.DevicePath, labelName)
+	return d.Filesystem.Mkfs(d.DevicePath, labelName)
 }
 
 // SetLabel sets this disk's label
@@ -194,7 +179,7 @@ func (d *VirtualDisk) SetLabel(labelName string) error {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
-	return d.fs.SetLabel(d.DevicePath, labelName)
+	return d.Filesystem.SetLabel(d.DevicePath, labelName)
 }
 
 // Attached returns true if this disk is attached, false otherwise
@@ -240,7 +225,7 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
 		return err
 	}
 
-	if err = d.fs.Mount(d.DevicePath, mountPath, options); err != nil {
+	if err = d.Filesystem.Mount(d.DevicePath, mountPath, options); err != nil {
 		return err
 	}
 
@@ -262,7 +247,7 @@ func (d *VirtualDisk) Unmount() error {
 
 	// no more mount references to this disk, so actually unmount
 	if d.mountedRefs == 0 {
-		if err := d.fs.Unmount(d.mountPath); err != nil {
+		if err := d.Filesystem.Unmount(d.mountPath); err != nil {
 			return err
 		}
 		d.mountPath = ""
@@ -314,13 +299,5 @@ func (d *VirtualDisk) setUmounted() error {
 	}
 
 	d.mountPath = ""
-	return nil
-}
-
-// VerifyDatastoreDiskURI ensures the disk name ends in ".vmdk"
-func VerifyDatastoreDiskURI(name string) error {
-	if !strings.HasSuffix(name, ".vmdk") {
-		return fmt.Errorf("%s isn't a vmdk", name)
-	}
 	return nil
 }

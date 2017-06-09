@@ -17,7 +17,6 @@ package disk
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/vmware/govmomi/object"
@@ -32,8 +31,9 @@ import (
 )
 
 const (
-	// MaxAttachedDisks specifies the max number of disks attached to the VCH
-	MaxAttachedDisks = 8
+	// You can assign the device to (1:z ), where 1 is SCSI controller 1 and z is a virtual device node from 0 to 15.
+	// https://pubs.vmware.com/vsphere-65/index.jsp#com.vmware.vsphere.vm_admin.doc/GUID-5872D173-A076-42FE-8D0B-9DB0EB0E7362.html
+	MaxAttachedDisks = 16
 )
 
 // Manager manages disks for the vm it runs on.  The expectation is this is run
@@ -46,17 +46,28 @@ type Manager struct {
 	// reference to the vm this is running on.
 	vm *vm.VirtualMachine
 
+	// VirtualDiskManager that is used to create vmdks directly on datastore
+	// from https://pubs.vmware.com/vsphere-65/index.jsp?topic=%2Fcom.vmware.vspsdk.apiref.doc%2Fvim.VirtualDiskManager.html
+	// Most VirtualDiskManager APIs will be DEPRECATED as of vSphere 6.5. Please use VStorageObjectManager APIs to manage Virtual disks.
+	vdm *object.VirtualDiskManager
+
 	// The controller on this vm.
 	controller *types.ParaVirtualSCSIController
 
 	// The PCI + SCSI device /dev node string format the disks can be attached with
 	byPathFormat string
 
-	reconfig sync.Mutex
+	// serialize reconfigure operations
+	mu sync.Mutex
+
+	// map of URIs to VirtualDisk structs so that we can return the same instance to the caller, required for ref counting
+	Disks map[uint64]*VirtualDisk
 }
 
-// NewDiskManager creates and returns a *Manager
-func NewDiskManager(op trace.Operation, session *session.Session, detachAll bool) (*Manager, error) {
+// NewDiskManager creates a new Manager instance associated with the caller VM
+func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, error) {
+	defer trace.End(trace.Begin(""))
+
 	vm, err := guest.GetSelf(op, session)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -69,91 +80,24 @@ func NewDiskManager(op trace.Operation, session *session.Session, detachAll bool
 		return nil, err
 	}
 
-	d := &Manager{
+	return &Manager{
 		maxAttached:  make(chan bool, MaxAttachedDisks),
 		vm:           vm,
+		vdm:          object.NewVirtualDiskManager(vm.Vim25()),
 		controller:   controller,
 		byPathFormat: byPathFormat,
-	}
-
-	// Remove any attached disks
-	if detachAll {
-		if err = d.detachAll(op); err != nil {
-			return nil, err
-		}
-	}
-
-	return d, nil
+		Disks:        make(map[uint64]*VirtualDisk),
+	}, nil
 }
 
-// CreateAndAttach creates a new vmdk child from parent of the given size.
-// Returns a VirtualDisk corresponding to the created and attached disk.
-func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
-	parentURI *object.DatastorePath,
-	capacity int64, flags int, fst FilesystemType) (*VirtualDisk, error) {
-	defer trace.End(trace.Begin(newDiskURI.String()))
-
-	// ensure we abide by max attached disks limits
-	m.maxAttached <- true
-
-	spec := m.createDiskSpec(newDiskURI, parentURI, capacity, flags)
-
-	op.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
-
-	if err := m.Attach(op, spec); err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	op.Debugf("Mapping vmdk to pci device %s", newDiskURI)
-	devicePath, err := m.devicePathByURI(op, newDiskURI)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	d, err := NewVirtualDisk(newDiskURI, fst)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	blockDev, err := waitForDevice(op, devicePath)
-	if err != nil {
-		op.Errorf("waitForDevice failed for %s with %s", newDiskURI, errors.ErrorStack(err))
-		// ensure that the disk is detached if it's the publish that's failed
-
-		if detachErr := m.Detach(op, d); detachErr != nil {
-			op.Debugf("detach(%s) failed with %s", newDiskURI, errors.ErrorStack(detachErr))
-		}
-
-		return nil, errors.Trace(err)
-	}
-
-	d.ParentDatastoreURI = parentURI
-	d.setAttached(blockDev)
-
-	return d, nil
-}
-
-func (m *Manager) createDiskSpec(childURI, parentURI *object.DatastorePath, capacity int64, flags int) *types.VirtualDisk {
-	// TODO: migrate this method to govmomi CreateDisk method
+// toSpec converts the given config to VirtualDisk spec
+func (m *Manager) toSpec(config *VirtualDiskConfig) *types.VirtualDisk {
 	backing := &types.VirtualDiskFlatVer2BackingInfo{
-		DiskMode:        string(types.VirtualDiskModeIndependent_persistent),
+		DiskMode:        string(config.DiskMode),
 		ThinProvisioned: types.NewBool(true),
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			FileName: childURI.String(),
+			FileName: config.DatastoreURI.String(),
 		},
-	}
-
-	if flags == os.O_RDONLY {
-		backing.DiskMode = string(types.VirtualDiskModeIndependent_nonpersistent)
-		capacity = 0
-	}
-
-	if parentURI != nil {
-		backing.Parent = &types.VirtualDiskFlatVer2BackingInfo{
-			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-				FileName: parentURI.String(),
-			},
-		}
 	}
 
 	disk := &types.VirtualDisk{
@@ -163,7 +107,28 @@ func (m *Manager) createDiskSpec(childURI, parentURI *object.DatastorePath, capa
 			UnitNumber:    new(int32),
 			Backing:       backing,
 		},
-		CapacityInKB: capacity,
+		// As of vSphere API 5.5 capacityInKB is deprecated. Documentation suggest using capacityInBytes but we can't unset CapacityInKB and its default value 0 causes problems
+		// ... Exception thrown during reconfigure: (vim.vm.ConfigSpec) {
+		// ...
+		// -->             unitNumber = -1,
+		// -->             capacityInKB = 0,
+		// -->             capacityInBytes = 8192000000,
+		// -->             shares = (vim.SharesInfo) null,
+		// ...
+		CapacityInBytes: config.CapacityInKB * 1024,
+		CapacityInKB:    config.CapacityInKB,
+	}
+
+	if config.ParentDatastoreURI != nil {
+		backing.Parent = &types.VirtualDiskFlatVer2BackingInfo{
+			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
+				FileName: config.ParentDatastoreURI.String(),
+			},
+		}
+
+		// Capacity needs to be 0 as we inherit it from the parent
+		disk.CapacityInBytes = 0
+		disk.CapacityInKB = 0
 	}
 
 	// It's possible the VCH has a disk already attached.
@@ -172,15 +137,56 @@ func (m *Manager) createDiskSpec(childURI, parentURI *object.DatastorePath, capa
 	return disk
 }
 
+// CreateAndAttach creates a new VMDK, attaches it and ensures that the device becomes visible to the caller.
+// Returns a VirtualDisk corresponding to the created and attached disk.
+func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig) (*VirtualDisk, error) {
+	defer trace.End(trace.Begin(config.DatastoreURI.String()))
+
+	// ensure we abide by max attached disks limits
+	m.maxAttached <- true
+
+	op.Infof("Create/attach vmdk %s from parent %s", config.DatastoreURI, config.ParentDatastoreURI)
+
+	if err := m.Attach(op, config); err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	op.Debugf("Mapping vmdk to pci device %s", config.DatastoreURI)
+	devicePath, err := m.devicePathByURI(op, config.DatastoreURI)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	d, err := NewVirtualDisk(config, m.Disks)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	blockDev, err := waitForDevice(op, devicePath)
+	if err != nil {
+		op.Errorf("waitForDevice failed for %s with %s", config.DatastoreURI, errors.ErrorStack(err))
+		// ensure that the disk is detached if it's the publish that's failed
+
+		if detachErr := m.Detach(op, config); detachErr != nil {
+			op.Debugf("detach(%s) failed with %s", config.DatastoreURI, errors.ErrorStack(detachErr))
+		}
+
+		return nil, errors.Trace(err)
+	}
+
+	d.ParentDatastoreURI = config.ParentDatastoreURI
+	d.setAttached(blockDev)
+
+	return d, nil
+}
+
 // Create creates a disk without a parent (and doesn't attach it).
-func (m *Manager) Create(op trace.Operation, newDiskURI *object.DatastorePath,
-	capacityKB int64, fst FilesystemType) (*VirtualDisk, error) {
+func (m *Manager) Create(op trace.Operation, config *VirtualDiskConfig) (*VirtualDisk, error) {
+	defer trace.End(trace.Begin(config.DatastoreURI.String()))
 
-	defer trace.End(trace.Begin(newDiskURI.String()))
+	var err error
 
-	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
-
-	d, err := NewVirtualDisk(newDiskURI, fst)
+	d, err := NewVirtualDisk(config, m.Disks)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -190,13 +196,12 @@ func (m *Manager) Create(op trace.Operation, newDiskURI *object.DatastorePath,
 			DiskType:    string(types.VirtualDiskTypeThin),
 			AdapterType: string(types.VirtualDiskAdapterTypeLsiLogic),
 		},
-
-		CapacityKb: capacityKB,
+		CapacityKb: config.CapacityInKB,
 	}
 
 	op.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
 	err = tasks.Wait(op, func(ctx context.Context) (tasks.Task, error) {
-		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI.String(), nil, spec)
+		return m.vdm.CreateVirtualDisk(ctx, d.DatastoreURI.String(), nil, spec)
 	})
 
 	if err != nil {
@@ -207,19 +212,17 @@ func (m *Manager) Create(op trace.Operation, newDiskURI *object.DatastorePath,
 }
 
 // Gets a disk given a datastore path URI to the vmdk
-func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath, fst FilesystemType) (*VirtualDisk, error) {
-	defer trace.End(trace.Begin(diskURI.String()))
+func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDisk, error) {
+	defer trace.End(trace.Begin(config.DatastoreURI.String()))
 
-	dsk, err := NewVirtualDisk(diskURI, fst)
+	d, err := NewVirtualDisk(config, m.Disks)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
-	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
-
-	info, err := vdm.QueryVirtualDiskInfo(op, diskURI.String(), m.vm.Datacenter, true)
+	info, err := m.vdm.QueryVirtualDiskInfo(op, config.DatastoreURI.String(), m.vm.Datacenter, true)
 	if err != nil {
-		op.Errorf("error querying parents (%s): %s", diskURI, err.Error())
+		op.Errorf("error querying parents (%s): %s", config.DatastoreURI, err.Error())
 		return nil, err
 	}
 
@@ -231,10 +234,10 @@ func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath, fst Fil
 		if err != nil {
 			return nil, err
 		}
-		dsk.ParentDatastoreURI = ppth
+		d.ParentDatastoreURI = ppth
 	}
 
-	return dsk, nil
+	return d, nil
 }
 
 // TODO(FA) this doesn't work since delta disks get set with `deletable =
@@ -269,7 +272,11 @@ func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath, fst Fil
 // }
 
 // Attach attempts to attach a virtual disk
-func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
+func (m *Manager) Attach(op trace.Operation, config *VirtualDiskConfig) error {
+	defer trace.End(trace.Begin(""))
+
+	disk := m.toSpec(config)
+
 	deviceList := object.VirtualDeviceList{}
 	deviceList = append(deviceList, disk)
 
@@ -281,7 +288,9 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
-	m.reconfig.Lock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, machineSpec)
 
@@ -291,7 +300,6 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 
 		return t, er
 	})
-	m.reconfig.Unlock()
 
 	if err != nil {
 		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
@@ -302,8 +310,14 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 }
 
 // Detach attempts to detach a virtual disk
-func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
-	defer trace.End(trace.Begin(d.DevicePath))
+func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
+	defer trace.End(trace.Begin(""))
+
+	d, err := NewVirtualDisk(config, m.Disks)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
 	op.Infof("Detaching disk %s", d.DevicePath)
 
 	d.lock()
@@ -340,8 +354,28 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	return d.setDetached()
 }
 
-func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
+func (m *Manager) DetachAll(op trace.Operation) error {
+	defer trace.End(trace.Begin(""))
 
+	disks, err := findAllDisks(op, m.vm)
+	if err != nil {
+		return err
+	}
+
+	for _, disk := range disks {
+		if err2 := m.detach(op, disk); err != nil {
+			op.Errorf("error detaching disk: %s", err2.Error())
+			// return the last error on the return of this function
+			err = err2
+			// if we failed here that means we have a disk attached, ensure we abide by max attached disks limits
+			m.maxAttached <- true
+		}
+	}
+
+	return err
+}
+
+func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
 	config := []types.BaseVirtualDeviceConfigSpec{
 		&types.VirtualDeviceConfigSpec{
 			Device:    disk,
@@ -352,7 +386,9 @@ func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
 	spec := types.VirtualMachineConfigSpec{}
 	spec.DeviceChange = config
 
-	m.reconfig.Lock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	_, err := m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, spec)
 
@@ -362,25 +398,6 @@ func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
 
 		return t, er
 	})
-	m.reconfig.Unlock()
-
-	return err
-}
-
-// detachAll detaches all disks from this vm
-func (m *Manager) detachAll(op trace.Operation) error {
-	disks, err := findAllDisks(op, m.vm)
-	if err != nil {
-		return err
-	}
-
-	for _, disk := range disks {
-		if er := m.detach(op, disk); err != nil {
-			// late exit on error
-			op.Errorf("error detaching disk: %s", er.Error())
-			err = er
-		}
-	}
 
 	return err
 }
