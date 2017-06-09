@@ -86,7 +86,7 @@ To build the component binaries, ensure `GOPATH` is set, then issue the followin
 ```
 $ make components
 ```
-This will install required tools and build the component binaries `tether`, `rpctool` and server binaries `docker-engine-server`, `port-layer-server`.  The binaries will be created in the `$BIN` directory, ./bin by default.
+This will install required tools and build the component binaries `tether-linux`, `rpctool` and server binaries `docker-engine-server`, `port-layer-server`.  The binaries will be created in the `$BIN` directory, ./bin by default.
 
 To run tests after a successful build, issue the following:
 ```
