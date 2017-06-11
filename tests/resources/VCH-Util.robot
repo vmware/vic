@@ -209,7 +209,7 @@ Run VIC Machine Inspect Command
 
 Inspect VCH
     [Arguments]  ${expected}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
@@ -369,13 +369,20 @@ Cleanup Dangling Containers On Test Server
     \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${name}
 
 Get VCH ID
-    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    [Arguments]  ${vch-name}
+    ${ret}=  Run  bin/vic-machine-linux ls --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Should Not Contain  ${ret}  Error
     @{lines}=  Split To Lines  ${ret}
-    @{vch}=  Split String  @{lines}[-1]
-    ${vch-id}=  Strip String  @{vch}[0]
-    Log To Console  VCH ID: ${vch-id}
-    [Return]  ${vch-id}
+    :FOR  ${line}  IN  @{lines}
+    \   # Get line with name ${vch-name}
+    \   @{vch}=  Split String  ${line}
+    \   ${len}=  Get Length  ${vch}
+    \   Continue For Loop If  ${len} < 5
+    \   ${name}=  Strip String  @{vch}[2]
+    \   Continue For Loop If  '${name}' != '${vch-name}'
+    \   ${vch-id}=  Strip String  @{vch}[0]
+    \   Log To Console  \nVCH ID: ${vch-id}
+    \   Return From Keyword  ${vch-id}
 
 # VCH upgrade helpers
 Install VIC with version to Test Server
@@ -395,15 +402,15 @@ Clean up VIC Appliance And Local Binary
 
 Upgrade
     Log To Console  \nUpgrading VCH...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
 
 Upgrade with ID
     Log To Console  \nUpgrading VCH using vch ID...
-    ${vch-id}=  Get VCH ID
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --id=${vch-id} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${vch-id}=  Get VCH ID  %{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --id=${vch-id} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
@@ -411,7 +418,7 @@ Upgrade with ID
 Check Upgraded Version
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     @{vers}=  Split String  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  Completed successfully
     Should Contain  ${output}  @{vers}[2]
     Should Not Contain  ${output}  %{INITIAL-VERSION}
@@ -422,7 +429,7 @@ Check Upgraded Version
 Check Original Version
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     @{vers}=  Split String  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  Completed successfully
     Should Contain  ${output}  @{vers}[2]
     Should Be Equal As Integers  ${rc}  0
@@ -431,12 +438,12 @@ Check Original Version
 
 Rollback
      Log To Console  \nTesting rollback...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --rollback
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --rollback
     Should Contain  ${output}  Completed successfully
     Should Be Equal As Integers  ${rc}  0
 
 Enable VCH SSH
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${rootpw}=%{TEST_PASSWORD}  ${target}=%{TEST_URL}  ${password}=%{TEST_PASSWORD}  ${thumbprint}=%{TEST_THUMBPRINT}  ${name}=%{VCH-NAME}  ${user}=%{TEST_USERNAME}  ${resource}=%{TEST_RESOURCE}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${rootpw}=%{TEST_PASSWORD}  ${target}=%{TEST_URL}%{TEST_DATACENTER}  ${password}=%{TEST_PASSWORD}  ${thumbprint}=%{TEST_THUMBPRINT}  ${name}=%{VCH-NAME}  ${user}=%{TEST_USERNAME}  ${resource}=%{TEST_RESOURCE}
     Log To Console  \nEnable SSH on vch...
     ${rc}  ${output}=  Run And Return Rc And Output  ${vic-machine} debug --rootpw ${rootpw} --target ${target} --password ${password} --thumbprint ${thumbprint} --name ${name} --user ${user} --compute-resource ${resource} --enable-ssh
     Should Be Equal As Integers  ${rc}  0
