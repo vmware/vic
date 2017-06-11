@@ -368,6 +368,15 @@ Cleanup Dangling Containers On Test Server
     \   ${out}=  Run  govc datastore.rm ${name}
     \   Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${name}
 
+Get VCH ID
+    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    Should Not Contain  ${ret}  Error
+    @{lines}=  Split To Lines  ${ret}
+    @{vch}=  Split String  @{lines}[-1]
+    ${vch-id}=  Strip String  @{vch}[0]
+    Log To Console  VCH ID: ${vch-id}
+    [Return]  ${vch-id}
+
 # VCH upgrade helpers
 Install VIC with version to Test Server
     [Arguments]  ${version}=7315  ${insecureregistry}=
@@ -387,6 +396,14 @@ Clean up VIC Appliance And Local Binary
 Upgrade
     Log To Console  \nUpgrading VCH...
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Completed successfully
+    Should Not Contain  ${output}  Rolling back upgrade
+    Should Be Equal As Integers  ${rc}  0
+
+Upgrade with ID
+    Log To Console  \nUpgrading VCH using vch ID...
+    ${vch-id}=  Get VCH ID
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --id=${vch-id} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0

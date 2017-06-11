@@ -259,7 +259,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return errors.New("configure failed")
 	}
 	if vchConfig.ExecutorConfig.Version.PluginVersion < installerVer {
-		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, specify --upgrade to upgrade VCH at the same time", vchConfig.ExecutorConfig.Version.ShortVersion()))
+		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, please upgrade first", vchConfig.ExecutorConfig.Version.ShortVersion()))
 		return errors.New("configure failed")
 	}
 
@@ -267,6 +267,11 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	oldData, err := validate.NewDataFromConfig(ctx, validator.Session.Finder, vchConfig)
 	if err != nil {
 		log.Error("Configuring cannot continue: configuration conversion failed")
+		log.Error(err)
+		return err
+	}
+	if err = validate.SetDataFromVM(ctx, validator.Session.Finder, vch, oldData); err != nil {
+		log.Error("Configuring cannot continue: querying configuration from vm failed")
 		log.Error(err)
 		return err
 	}
