@@ -53,8 +53,8 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --memory-shares
     Should Not Contain  ${output}  --base-image-size
     Should Not Contain  ${output}  --bridge-network-range
-	Should Not Contain  ${output}  INFO
-	Should Not Contain  ${output}  WARN
+    Should Not Contain  ${output}  INFO
+    Should Not Contain  ${output}  WARN
     Should Be Equal As Integers  0  ${rc}
 
     Cleanup VIC Appliance On Test Server
@@ -98,8 +98,8 @@ Inspect VCH Configuration with Resource Limitation
     Should Contain  ${output}  --cpu-shares=high
     Should Contain  ${output}  --endpoint-memory=4096
     Should Contain  ${output}  --endpoint-cpu=2
-	Should Not Contain  ${output}  INFO
-	Should Not Contain  ${output}  WARN
+    Should Not Contain  ${output}  INFO
+    Should Not Contain  ${output}  WARN
     Should Be Equal As Integers  0  ${rc}
 
     Cleanup VIC Appliance On Test Server
