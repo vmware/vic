@@ -15,10 +15,10 @@
 package main
 
 import (
-	"crypto/rand"
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"syscall"
 	"unsafe"
 
@@ -79,7 +79,7 @@ func setTerminalSpeed(fd uintptr) error {
 
 func rawConnectionFromSerial() (net.Conn, error) {
 	log.Info("opening ttyS0 for backchannel")
-	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
+	f, err := os.OpenFile(path.Join(pathPrefix, "ttyS0"), os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
 		detail := fmt.Errorf("failed to open serial port for backchannel: %s", err)
 		log.Error(detail)
@@ -90,41 +90,17 @@ func rawConnectionFromSerial() (net.Conn, error) {
 	// 0 is the uninitialized value for Fd
 	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
 		log.Info("setting terminal to raw mode")
-		s, err := terminal.MakeRaw(int(f.Fd()))
+		_, err := terminal.MakeRaw(int(f.Fd()))
 		if err != nil {
 			return nil, err
 		}
-
-		log.Debugf("s = %#v", s)
 	}
 	if err := setTerminalSpeed(f.Fd()); err != nil {
 		log.Errorf("Setting terminal speed failed with %s", err)
 	}
 
-	var conn net.Conn
-
 	log.Infof("creating raw connection from ttyS0 (fd=%d)", f.Fd())
-
-	conn, err = serial.NewFileConn(f)
-	return conn, err
-}
-
-func (t *attachServerSSH) Start() error {
-	defer trace.End(trace.Begin(""))
-
-	t.m.Lock()
-	defer t.m.Unlock()
-
-	var err error
-
-	rand.Reader, err = os.Open(pathPrefix + "/urandom")
-	if err != nil {
-		detail := fmt.Errorf("failed to open new urandom device: %s", err)
-		log.Error(detail)
-		return detail
-	}
-
-	return nil
+	return serial.NewFileConn(f)
 }
 
 func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {

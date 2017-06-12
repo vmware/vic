@@ -117,6 +117,7 @@ func (c *Configure) processParams() error {
 	}
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
+	c.ProxyIsSet = c.proxies.IsSet
 
 	c.ContainerNetworks, err = c.cNetworks.ProcessContainerNetworks()
 	if err != nil {
@@ -259,7 +260,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return errors.New("configure failed")
 	}
 	if vchConfig.ExecutorConfig.Version.PluginVersion < installerVer {
-		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, specify --upgrade to upgrade VCH at the same time", vchConfig.ExecutorConfig.Version.ShortVersion()))
+		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, please upgrade first", vchConfig.ExecutorConfig.Version.ShortVersion()))
 		return errors.New("configure failed")
 	}
 
@@ -274,6 +275,11 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	// using new configuration override configuration query from guestinfo
 	if err = oldData.CopyNonEmpty(c.Data); err != nil {
 		log.Error("Configuring cannot continue: copying configuration failed")
+		return err
+	}
+	if err = validate.SetDataFromVM(ctx, validator.Session.Finder, vch, oldData); err != nil {
+		log.Error("Configuring cannot continue: querying configuration from VM failed")
+		log.Error(err)
 		return err
 	}
 	c.Data = oldData

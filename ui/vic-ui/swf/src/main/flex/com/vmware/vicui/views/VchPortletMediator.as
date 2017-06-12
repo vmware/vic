@@ -114,6 +114,13 @@ package com.vmware.vicui.views {
 							   var ip_ipv4:String = new String();
 
 							   bytes = base64Decoder.toByteArray();
+							   // if the ip is in ipv6 format, the decoded string is
+							   // 16 bytes long. fast-forward 12 bytes
+							   if (bytes.length == 16) {
+								   for (var i:int = 0; i < 12; i++) {
+									   bytes.readUnsignedByte();
+								   }
+							   }
 							   ip_ipv4 = bytes.readUnsignedByte() + "." + bytes.readUnsignedByte() + "." + bytes.readUnsignedByte() + "." + bytes.readUnsignedByte();
 
 							   _view.dockerApiEndpoint.text = "DOCKER_HOST=tcp://" + ip_ipv4;

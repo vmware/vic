@@ -15,9 +15,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -42,6 +42,8 @@ func init() {
 
 	// init and start the HUP handler
 	startSignalHandler()
+
+	pathPrefix = "/dev"
 }
 
 func main() {
@@ -57,7 +59,7 @@ func main() {
 		halt()
 	}()
 
-	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0)
+	logFile, err := os.OpenFile(path.Join(pathPrefix, "ttyS1"), os.O_WRONLY|os.O_SYNC, 0)
 	if err != nil {
 		log.Errorf("Could not open serial port for debugging info. Some debug info may be lost! Error reported was %s", err)
 	}
@@ -71,16 +73,8 @@ func main() {
 	}
 
 	// where to look for the various devices and files related to tether
-	pathPrefix = "/.tether"
 
 	// TODO: hard code executor initialization status reporting via guestinfo here
-	err = createDevices()
-	if err != nil {
-		log.Error(err)
-		// return gives us good behaviour in the case of "-debug" binary
-		return
-	}
-
 	sshserver := NewAttachServerSSH()
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
@@ -110,33 +104,6 @@ func main() {
 	}
 
 	log.Info("Clean exit from tether")
-}
-
-func createDevices() error {
-	// #nosec: Expect directory permissions to be 0700 or less
-	err := os.MkdirAll(pathPrefix, 644)
-	if err != nil {
-		log.Warnf("Failed to ensure presence of tether device directory: %s", err)
-	}
-
-	// create serial devices
-	for i := 0; i < 3; i++ {
-		path := fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
-		minor := 64 + i
-		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), tether.Mkdev(4, minor))
-		if err != nil {
-			return fmt.Errorf("failed to create %s for com%d: %s", path, i+1, err)
-		}
-	}
-
-	// make an access to urandom
-	path := fmt.Sprintf("%s/urandom", pathPrefix)
-	err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0444)), tether.Mkdev(1, 9))
-	if err != nil {
-		return fmt.Errorf("failed to create urandom access %s: %s", path, err)
-	}
-
-	return nil
 }
 
 // exit cleanly shuts down the system

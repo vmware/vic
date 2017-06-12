@@ -150,7 +150,11 @@ func (t *attachServerSSH) Enabled() bool {
 	return atomic.LoadInt32(&t.enabled) == 1
 }
 
-// Start is implemented at _ARCH.go files
+func (t *attachServerSSH) Start() error {
+	defer trace.End(trace.Begin(""))
+
+	return nil
+}
 
 // Stop needed for tether.Extensions interface
 func (t *attachServerSSH) Stop() error {
@@ -324,6 +328,59 @@ func backchannel(ctx context.Context, conn net.Conn) error {
 	}
 }
 
+func (t *attachServerSSH) establish() error {
+	var err error
+
+	// we hold the t.conn.Lock during the scope of this function
+	t.conn.Lock()
+	defer t.conn.Unlock()
+
+	// tests are passing their own connections so do not create connections when testing is set
+	if !t.testing {
+		// close the connection if required
+		if t.conn.conn != nil {
+			t.conn.conn.Close()
+			t.conn.conn = nil
+		}
+		t.conn.conn, err = rawConnectionFromSerial()
+		if err != nil {
+			detail := fmt.Errorf("failed to create raw connection: %s", err)
+			log.Error(detail)
+			return detail
+		}
+	} else {
+		// A series of unfortunate events can lead calling backchannel with nil when we run unit tests.
+		// https://github.com/vmware/vic/pull/5327#issuecomment-305619860
+		// This check is here to handle that
+		if t.conn.conn == nil {
+			return fmt.Errorf("nil connection")
+		}
+	}
+
+	// wait for backchannel to establish
+	err = backchannel(t.ctx, t.conn.conn)
+	if err != nil {
+		detail := fmt.Errorf("failed to establish backchannel: %s", err)
+		log.Error(detail)
+		return detail
+	}
+
+	return nil
+}
+
+func (t *attachServerSSH) cleanup() {
+	t.serverConn.Lock()
+	defer t.serverConn.Unlock()
+
+	log.Debugf("cleanup on connection")
+
+	if t.serverConn.ServerConn != nil {
+		log.Debugf("closing underlying connection")
+		t.serverConn.Close()
+		t.serverConn.ServerConn = nil
+	}
+}
+
 // run should not be called directly, but via start
 // run will establish an ssh server listening on the backchannel
 func (t *attachServerSSH) run() error {
@@ -335,6 +392,7 @@ func (t *attachServerSSH) run() error {
 	var reqs <-chan *ssh.Request
 	var err error
 
+	// main run loop
 	for t.Enabled() {
 		t.serverConn.Lock()
 		established = t.serverConn.ServerConn != nil
@@ -344,71 +402,26 @@ func (t *attachServerSSH) run() error {
 		for !established && t.Enabled() {
 			log.Infof("Trying to establish a connection")
 
-			establishFn := func() error {
-				// we hold the t.conn.Lock during the scope of this function
-				t.conn.Lock()
-				defer t.conn.Unlock()
-
-				// tests are passing their own connections so do not create connections when testing is set
-				if !t.testing {
-					// close the connection if required
-					if t.conn.conn != nil {
-						t.conn.conn.Close()
-						t.conn.conn = nil
-					}
-					t.conn.conn, err = rawConnectionFromSerial()
-					if err != nil {
-						detail := fmt.Errorf("failed to create raw connection: %s", err)
-						log.Error(detail)
-						return detail
-					}
-				} else {
-					// A series of unfortunate events can lead calling backchannel with nil when we run unit tests.
-					// https://github.com/vmware/vic/pull/5327#issuecomment-305619860
-					// This check is here to handle that
-					if t.conn.conn == nil {
-						return fmt.Errorf("nil connection")
-					}
-				}
-
-				// wait for backchannel to establish
-				err = backchannel(t.ctx, t.conn.conn)
-				if err != nil {
-					detail := fmt.Errorf("failed to establish backchannel: %s", err)
-					log.Error(detail)
-					return detail
-				}
-				// create the SSH server using underlying t.conn
-				t.serverConn.Lock()
-				defer t.serverConn.Unlock()
-
-				t.serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(t.conn.conn, t.sshConfig)
-				if err != nil {
-					detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
-					log.Error(detail)
-					return detail
-				}
-
-				return nil
+			if err := t.establish(); err != nil {
+				log.Error(err)
+				continue
 			}
-			established = establishFn() == nil
-		}
 
-		globalCleanup := func() {
-			log.Debugf("cleanup on connection")
-
+			// create the SSH server using underlying t.conn
 			t.serverConn.Lock()
-			defer t.serverConn.Unlock()
 
-			if t.serverConn.ServerConn != nil {
-				log.Debugf("closing underlying connection")
-				t.serverConn.Close()
-				t.serverConn.ServerConn = nil
+			t.serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(t.conn.conn, t.sshConfig)
+			if err != nil {
+				detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
+				log.Error(detail)
 			}
+			established = t.serverConn.ServerConn != nil
+
+			t.serverConn.Unlock()
 		}
 
 		// Global requests
-		go t.globalMux(reqs, globalCleanup)
+		go t.globalMux(reqs, t.cleanup)
 
 		log.Infof("Ready to service attach requests")
 		// Service the incoming channels
@@ -440,6 +453,7 @@ func (t *attachServerSSH) run() error {
 				log.Error(detail)
 				continue
 			}
+
 			// we have sessionid
 			session := s
 			if oke {
@@ -547,7 +561,7 @@ func (t *attachServerSSH) sessions(all bool) []string {
 	return keys
 }
 
-func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func()) {
+func (t *attachServerSSH) globalMux(in <-chan *ssh.Request, cleanup func()) {
 	defer trace.End(trace.Begin("attach server global request handler"))
 
 	// cleanup function passed by the caller
@@ -555,7 +569,7 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request, cleanup func())
 
 	// for the actions after we process the request
 	var pendingFn func()
-	for req := range reqchan {
+	for req := range in {
 		var payload []byte
 		ok := true
 
