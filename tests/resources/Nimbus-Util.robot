@@ -264,11 +264,26 @@ Create a VSAN Cluster
 Create a Simple VC Cluster
     [Arguments]  ${datacenter}=ha-datacenter  ${cluster}=cls  ${esx_number}=3  ${network}=True
     Log To Console  \nStarting simple VC cluster deploy...
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
+
     &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${esx_number}  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    ${vc}  ${vc_ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    # Finish vCenter deploy
+    ${output}=  Wait For Process  ${pid}
+    Should Contain  ${output.stdout}  Overall Status: Succeeded
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc_ip}=  Get IP  ${vc}
+    Close Connection
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${vc_ip}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ${datacenter}
