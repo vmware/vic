@@ -17,10 +17,10 @@ package inspect
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
-	"io/ioutil"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
@@ -42,8 +42,8 @@ import (
 type Inspect struct {
 	*data.Data
 
-	showConfig    bool
-	writeManifest bool
+	showConfig bool
+	rawConfig  bool
 
 	CertPath string
 
@@ -65,9 +65,9 @@ func (i *Inspect) Flags() []cli.Flag {
 			Destination: &i.showConfig,
 		},
 		cli.BoolFlag{
-			Name:        "manifest",
-			Usage:       "Write VCH configuration to a manifest file",
-			Destination: &i.writeManifest,
+			Name:        "rawconfig",
+			Usage:       "Display the raw VCH configuration flags",
+			Destination: &i.rawConfig,
 		},
 		cli.DurationFlag{
 			Name:        "timeout",
@@ -112,6 +112,11 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 	defer func() {
 		err = common.LogErrorIfAny(clic, err)
 	}()
+
+	if i.rawConfig {
+		log.SetLevel(log.ErrorLevel)
+		log.SetOutput(os.Stderr)
+	}
 
 	if err = i.processParams(); err != nil {
 		return err
@@ -164,24 +169,8 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		return errors.New("inspect failed")
 	}
 
-	if i.showConfig && i.writeManifest {
-		log.Error("The manifest and configure flag cannot both be specified")
-		return errors.New("inspect failed")
-	}
-
-	if i.writeManifest {
-		err = i.writeManifestFile(ctx, validator.Session.Finder, vchConfig, vch)
-		if err != nil {
-			log.Error("Failed to write configuration manifest file")
-			log.Error(err)
-			return errors.New("inspect failed")
-		}
-		log.Infof("Configuration manifest succesfully written to manifest.txt")
-		return nil
-	}
-
-	if i.showConfig {
-		err = i.showCommand(ctx, validator.Session.Finder, vchConfig, vch)
+	if i.showConfig || i.rawConfig {
+		err = i.showConfiguration(ctx, validator.Session.Finder, vchConfig, vch)
 		if err != nil {
 			log.Error("Failed to print Virtual Container Host configuration")
 			log.Error(err)
@@ -225,27 +214,21 @@ func retrieveMapOptions(ctx context.Context, finder validate.Finder,
 	return converter.DataToOption(data)
 }
 
-func (i Inspect) showCommand(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
+func (i Inspect) showConfiguration(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
 	mapOptions, err := retrieveMapOptions(ctx, finder, conf, vm)
 	if err != nil {
 		return err
 	}
 	options := i.sortedOutput(mapOptions)
-	strOptions := strings.Join(options, "\n\t")
-	log.Info("")
-	log.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
+	if i.rawConfig {
+		strOptions := strings.Join(options, " ")
+		fmt.Println(strOptions)
+	} else {
+		strOptions := strings.Join(options, "\n\t")
+		log.Info("")
+		log.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
+	}
 	return nil
-}
-
-func (i Inspect) writeManifestFile(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
-	mapOptions, err := retrieveMapOptions(ctx, finder, conf, vm)
-	if err != nil {
-		return err
-	}
-	options := i.sortedOutput(mapOptions)
-	strOptions := strings.Join(options, " ")
-	err = ioutil.WriteFile("manifest.txt", []byte(strOptions), 0644)
-	return err
 }
 
 func (i *Inspect) sortedOutput(mapOptions map[string][]string) (output []string) {
