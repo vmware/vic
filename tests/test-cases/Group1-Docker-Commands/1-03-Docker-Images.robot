@@ -20,7 +20,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple images
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine:3.2
@@ -59,7 +59,7 @@ No-trunc images
     Length Should Be  @{line}[2]  64
 
 Filter images before
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=  ${alpine}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=  alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
@@ -95,13 +95,13 @@ VIC/docker Image ID consistency
     @{tags}=  Create List  uclibc  glibc  musl
 
     :FOR  ${tag}  IN  @{tags}
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:tag
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox:${tag}
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Not Contain  ${output}  Error
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker --tls pull busybox:tag
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker --tls pull busybox:${tag}
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Not Contain  ${output}  Error
-    \   ${rc}  ${vic_id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images | grep -E busybox.*.tag |awk '{print $3}'
+    \   ${rc}  ${vic_id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images | grep -E busybox.*.${tag} |awk '{print $3}'
     \   Should Be Equal As Integers  ${rc}  0
-    \   ${rc}  ${docker_id}=  Run And Return Rc And Output  docker --tls images | grep -E busybox.*.tag |awk '{print $3}'
+    \   ${rc}  ${docker_id}=  Run And Return Rc And Output  docker --tls images | grep -E busybox.*.${tag} |awk '{print $3}'
     \   Should Be Equal  ${vic_id}  ${docker_id}
