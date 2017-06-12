@@ -34,45 +34,33 @@ import (
 
 // CertSeed has all input parameters for vic-machine certificate commands
 type CertSeed struct {
-	RegistryCAs               cli.StringSlice `arg:"registry-ca"`
-	CertPath                  string
-	DisplayName               string
-	Scert                     string
-	Skey                      string
-	Ccert                     string
-	Ckey                      string
-	Cacert                    string
-	Cakey                     string
-	ClientCert                *tls.Certificate
-	ClientCAsArg              cli.StringSlice `arg:"tls-ca"`
-	clientCAs                 []byte
-	EnvFile                   string
-	Cname                     string
-	Org                       cli.StringSlice
-	KeySize                   int
-	NoTLS                     bool
-	NoTLSverify               bool
-	ContainerNetworks         cli.StringSlice `arg:"container-network"`
-	ContainerNetworksGateway  cli.StringSlice `arg:"container-network-gateway"`
-	ContainerNetworksIPRanges cli.StringSlice `arg:"container-network-ip-range"`
-	ContainerNetworksDNS      cli.StringSlice `arg:"container-network-dns"`
-	VolumeStores              cli.StringSlice `arg:"volume-store"`
-	InsecureRegistries        cli.StringSlice `arg:"insecure-registry"`
-	DNS                       cli.StringSlice `arg:"dns-server"`
-	ClientNetworkName         string
-	ClientNetworkGateway      string
-	ClientNetworkIP           string
-	PublicNetworkName         string
-	PublicNetworkGateway      string
-	PublicNetworkIP           string
-	ManagementNetworkName     string
-	ManagementNetworkGateway  string
-	ManagementNetworkIP       string
-	KeyPEM                    []byte
-	CertPEM                   []byte
-	Debug                     int
-	ClientCAs                 []byte
-	Force                     bool
+	CertPath              string
+	DisplayName           string
+	Scert                 string
+	Skey                  string
+	Ccert                 string
+	Ckey                  string
+	Cacert                string
+	Cakey                 string
+	ClientCert            *tls.Certificate
+	ClientCAsArg          cli.StringSlice `arg:"tls-ca"`
+	ClientCAs             []byte
+	EnvFile               string
+	Cname                 string
+	Org                   cli.StringSlice
+	KeySize               int
+	NoTLS                 bool
+	NoTLSverify           bool
+	ClientNetworkName     string
+	ClientNetworkIP       string
+	PublicNetworkName     string
+	PublicNetworkIP       string
+	ManagementNetworkName string
+	ManagementNetworkIP   string
+	KeyPEM                []byte
+	CertPEM               []byte
+	Debug                 int
+	Force                 bool
 }
 
 func (c *CertSeed) ProcessCertificates() error {
@@ -133,7 +121,7 @@ func (c *CertSeed) ProcessCertificates() error {
 	// we need to generate some part of the certificate configuration
 	gcas, gkeypair, err := c.generateCertificates(keypair == nil, !c.NoTLSverify && len(cas) == 0)
 	if err != nil {
-		log.Error("CertSeed cannot continue: unable to generate certificates")
+		log.Error("cannot continue: unable to generate certificates")
 		return err
 	}
 

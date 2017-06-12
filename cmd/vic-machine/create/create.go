@@ -527,45 +527,42 @@ func (c *Create) loadRegistryCAs() ([]byte, error) {
 }
 
 func (c *Create) processCertificates() error {
+
+	// debuglevel is a pointer now so we have to do this song and dance
+	var debug int
+	if c.Debug.Debug == nil {
+		debug = 0
+	} else {
+		debug = *c.Debug.Debug
+	}
+
 	seed := &common.CertSeed{
-		RegistryCAs:               c.registryCAs,
-		CertPath:                  c.certPath,
-		DisplayName:               c.DisplayName,
-		Scert:                     c.scert,
-		Skey:                      c.skey,
-		Ccert:                     c.ccert,
-		Ckey:                      c.ckey,
-		Cacert:                    c.cacert,
-		Cakey:                     c.cakey, // mm, cake
-		ClientCert:                c.clientCert,
-		ClientCAsArg:              c.clientCAs,
-		ClientCAs:                 c.ClientCAs, // good grief
-		EnvFile:                   c.envFile,
-		Cname:                     c.cname,
-		Org:                       c.org,
-		KeySize:                   c.keySize,
-		NoTLS:                     c.noTLS,
-		NoTLSverify:               c.noTLSverify,
-		ContainerNetworks:         c.containerNetworks,
-		ContainerNetworksGateway:  c.containerNetworksGateway,
-		ContainerNetworksIPRanges: c.containerNetworksIPRanges,
-		ContainerNetworksDNS:      c.containerNetworksDNS,
-		VolumeStores:              c.volumeStores,
-		InsecureRegistries:        c.insecureRegistries,
-		DNS:                       c.dns,
-		ClientNetworkName:         c.clientNetworkName,
-		ClientNetworkGateway:      c.clientNetworkGateway,
-		ClientNetworkIP:           c.clientNetworkIP,
-		PublicNetworkName:         c.publicNetworkName,
-		PublicNetworkGateway:      c.publicNetworkGateway,
-		PublicNetworkIP:           c.publicNetworkIP,
-		ManagementNetworkName:     c.managementNetworkName,
-		ManagementNetworkGateway:  c.managementNetworkGateway,
-		ManagementNetworkIP:       c.managementNetworkIP,
-		KeyPEM:                    c.KeyPEM,
-		CertPEM:                   c.CertPEM,
-		Debug:                     c.Debug.Debug,
-		Force:                     c.Force,
+		CertPath:              c.certPath,
+		DisplayName:           c.DisplayName,
+		Scert:                 c.scert,
+		Skey:                  c.skey,
+		Ccert:                 c.ccert,
+		Ckey:                  c.ckey,
+		Cacert:                c.cacert,
+		Cakey:                 c.cakey, // mm, cake
+		ClientCert:            c.clientCert,
+		ClientCAsArg:          c.clientCAs,
+		ClientCAs:             c.ClientCAs, // good grief
+		Cname:                 c.cname,
+		Org:                   c.org,
+		KeySize:               c.keySize,
+		NoTLS:                 c.noTLS,
+		NoTLSverify:           c.noTLSverify,
+		ClientNetworkName:     c.clientNetworkName,
+		ClientNetworkIP:       c.clientNetworkIP,
+		PublicNetworkName:     c.publicNetworkName,
+		PublicNetworkIP:       c.publicNetworkIP,
+		ManagementNetworkName: c.managementNetworkName,
+		ManagementNetworkIP:   c.managementNetworkIP,
+		KeyPEM:                c.KeyPEM,
+		CertPEM:               c.CertPEM,
+		Debug:                 debug,
+		Force:                 c.Force,
 	}
 
 	if err := seed.ProcessCertificates(); err != nil {

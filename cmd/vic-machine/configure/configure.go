@@ -16,8 +16,9 @@ package configure
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -47,6 +48,24 @@ type Configure struct {
 
 	upgrade  bool
 	executor *management.Dispatcher
+
+	regenerateCerts bool
+	scert           string
+	skey            string
+	ckey            string
+	cakey           string // yum cake
+	clientCert      *tls.Certificate
+	cacert          string
+	ccert           string
+	envFile         string
+
+	certPath    string
+	cname       string
+	org         cli.StringSlice
+	noTLSverify bool
+	noTLS       bool
+	keySize     int
+	clientCAs   cli.StringSlice
 }
 
 func NewConfigure() *Configure {
@@ -86,6 +105,69 @@ func (c *Configure) Flags() []cli.Flag {
 			Usage:       "Upgrade VCH to latest version together with configure",
 			Destination: &c.upgrade,
 			Hidden:      true,
+		},
+		cli.BoolFlag{
+			Name:        "regenerate-certs",
+			Usage:       "Generate self-signed certs and enable them on this VCH automatically",
+			Destination: &c.regenerateCerts,
+			Hidden:      true,
+		},
+		cli.StringFlag{
+			Name:        "tls-key",
+			Value:       "",
+			Usage:       "Virtual Container Host private key file (server certificate)",
+			Destination: &c.skey,
+			Hidden:      true,
+		},
+		cli.StringFlag{
+			Name:        "tls-cert",
+			Value:       "",
+			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
+			Destination: &c.scert,
+			Hidden:      true,
+		},
+		cli.StringFlag{
+			Name:        "tls-cname",
+			Value:       "",
+			Usage:       "Common Name to use in generated CA certificate when requiring client certificate authentication",
+			Destination: &c.cname,
+		},
+		cli.StringFlag{
+			Name:        "cert-path",
+			Value:       "",
+			Usage:       "The path to check for existing certificates and in which to save generated certificates. Defaults to './<vch name>/'",
+			Destination: &c.certPath,
+			Hidden:      true,
+		},
+		cli.BoolFlag{
+			Name:        "no-tlsverify, kv",
+			Usage:       "Disable authentication via client certificates - for more tls options see advanced help (-x)",
+			Destination: &c.noTLSverify,
+		},
+		cli.BoolFlag{
+			Name:        "no-tls, k",
+			Usage:       "Disable TLS support completely",
+			Destination: &c.noTLS,
+			Hidden:      true,
+		},
+		cli.StringSliceFlag{
+			Name:   "organization",
+			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQDN if not provided.",
+			Value:  &c.org,
+			Hidden: true,
+		},
+		cli.IntFlag{
+			Name:        "certificate-key-size, ksz",
+			Usage:       "Size of key to use when generating certificates",
+			Value:       2048,
+			Destination: &c.keySize,
+			Hidden:      true,
+		},
+		cli.StringSliceFlag{
+			Name:   "tls-ca, ca",
+			Usage:  "Specify a list of certificate authority files to use for client verification",
+			Value:  &c.clientCAs,
+			Hidden: true,
 		},
 	}
 
@@ -149,9 +231,9 @@ func (c *Configure) processParams() error {
 	return nil
 }
 
-// copyChangedConf should copy all configuration change specified by user to old configuration
-// currently we cannot automatically override old configuration with any difference in the new configuration, because there are some configuration set in VCH
-// creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
+// copyChangedConf takes the mostly-empty new config and copies it to the old one. NOTE: o gets installed on the VCH, not n
+// Currently we cannot automatically override old configuration with any difference in the new configuration, because some options are set during the VCH
+// Creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
 func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
 	//TODO: copy changed data
 	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
@@ -200,6 +282,9 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 			v.Network.Assigned.Nameservers = nil
 		}
 	}
+	o.HostCertificate = n.HostCertificate
+	o.CertificateAuthorities = n.CertificateAuthorities
+
 }
 
 func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
@@ -215,6 +300,83 @@ func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
 		newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", envName, envValue))
 	}
 	sess.Cmd.Env = newEnvs
+}
+
+func (c *Configure) processCertificates(conf *config.VirtualContainerHostConfigSpec) error {
+
+	if !c.regenerateCerts && (c.skey == "" || c.scert == "") {
+		log.Infof("No certificate regeneration requested. No new certificates provided. Certificates left unchanged.")
+		return nil
+	}
+
+	if c.certPath == "" {
+		c.certPath = c.DisplayName
+	}
+
+	_, err := os.Lstat(c.certPath)
+	if err == nil || os.IsExist(err) {
+		return fmt.Errorf("Specified or default certificate output location \"%s\" already exists. Specify a location that does not yet exist with --cert-path to continue or do not specify --regenerate-certs if, instead, you want to load certificates from %s", c.certPath, c.certPath)
+	}
+
+	var debug int
+	if c.Debug.Debug == nil {
+		debug = 0
+	} else {
+		debug = *c.Debug.Debug
+	}
+
+	// prepare yourself for some mighty descriptive names and struct copying
+	seed := &common.CertSeed{
+		CertPath:     c.certPath,
+		DisplayName:  c.DisplayName,
+		Scert:        c.scert,
+		Skey:         c.skey,
+		Ccert:        c.ccert,
+		Ckey:         c.ckey,
+		Cacert:       c.cacert,
+		Cakey:        c.cakey, // mm, cake
+		ClientCert:   c.clientCert,
+		ClientCAsArg: c.clientCAs,
+		ClientCAs:    c.ClientCAs, // good grief
+
+		Cname:       c.cname,
+		Org:         c.org,
+		KeySize:     c.keySize,
+		NoTLS:       c.noTLS,
+		NoTLSverify: c.noTLSverify,
+
+		ClientNetworkName:     conf.ExecutorConfig.Networks["client"].Name,
+		ClientNetworkIP:       conf.ExecutorConfig.Networks["client"].Assigned.String(),
+		PublicNetworkName:     conf.ExecutorConfig.Networks["public"].Name,
+		PublicNetworkIP:       conf.ExecutorConfig.Networks["public"].Assigned.String(),
+		ManagementNetworkName: conf.ExecutorConfig.Networks["management"].Name,
+		ManagementNetworkIP:   conf.ExecutorConfig.Networks["management"].Assigned.String(),
+
+		KeyPEM:  c.KeyPEM,
+		CertPEM: c.CertPEM,
+		Debug:   debug,
+		Force:   false,
+	}
+
+	if err := seed.ProcessCertificates(); err != nil {
+		return err
+	}
+
+	c.ClientCAs = seed.ClientCAs
+	c.envFile = seed.EnvFile
+	c.KeyPEM = seed.KeyPEM
+	c.CertPEM = seed.CertPEM
+	log.Errorf("c.KeyPEM %p", c.KeyPEM)
+	c.skey = seed.Skey
+	c.scert = seed.Scert
+	c.ckey = seed.Ckey
+	c.ccert = seed.Ccert
+	c.clientCert = seed.ClientCert
+	c.cacert = seed.Cacert
+	c.org = seed.Org
+
+	return nil
+
 }
 
 func (c *Configure) Run(clic *cli.Context) (err error) {
@@ -328,6 +490,15 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return err
 	}
 	c.Data = oldData
+
+	log.Errorf("After copying oldData, c.KeyPEM: %p", c.KeyPEM)
+	// in Create we process certificates as part of processParams but we need the old conf
+	// to do this in the context of Configure so we need to call this method here instead
+	if err = c.processCertificates(vchConfig); err != nil {
+		return err
+	}
+
+	log.Errorf("After processCertificates, c.KeyPEM: %p", c.KeyPEM)
 
 	// evaluate merged configuration
 	newConfig, err := validator.Validate(ctx, c.Data)
