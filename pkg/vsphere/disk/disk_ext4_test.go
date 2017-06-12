@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ func TestCreateFS(t *testing.T) {
 		Datastore: client.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
-	d, err := vdm.CreateAndAttach(op, scratch, nil, diskSize, os.O_RDWR)
+	d, err := vdm.CreateAndAttach(op, scratch, nil, diskSize, os.O_RDWR, Ext4)
 	if !assert.NoError(t, err) {
 		return
 	}

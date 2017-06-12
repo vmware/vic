@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ type FilesystemType uint8
 
 const (
 	Ext4 FilesystemType = iota + 1
+	Xfs
 	Ntfs
 )
 
@@ -40,6 +41,8 @@ type Filesystem interface {
 
 func FilesystemTypeToFilesystem(fstype FilesystemType) Filesystem {
 	switch fstype {
+	case Xfs:
+		return fs.NewXFS()
 	default:
 		return fs.NewExt4()
 	}
@@ -67,7 +70,7 @@ type VirtualDisk struct {
 	fs Filesystem
 }
 
-func NewVirtualDisk(DatastoreURI *object.DatastorePath) (*VirtualDisk, error) {
+func NewVirtualDisk(DatastoreURI *object.DatastorePath, fst FilesystemType) (*VirtualDisk, error) {
 	if err := VerifyDatastoreDiskURI(DatastoreURI.String()); err != nil {
 		return nil, err
 	}
@@ -75,7 +78,7 @@ func NewVirtualDisk(DatastoreURI *object.DatastorePath) (*VirtualDisk, error) {
 	d := &VirtualDisk{
 		DatastoreURI: DatastoreURI,
 		// We only support ext4 for now
-		fs: FilesystemTypeToFilesystem(Ext4),
+		fs: FilesystemTypeToFilesystem(fst),
 	}
 
 	return d, nil
