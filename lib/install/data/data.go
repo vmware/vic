@@ -72,6 +72,7 @@ type Data struct {
 
 	HTTPSProxy *url.URL `cmd:"https-proxy"`
 	HTTPProxy  *url.URL `cmd:"http-proxy"`
+	ProxyIsSet bool
 
 	NumCPUs  int `cmd:"endpoint-cpu"`
 	MemoryMB int `cmd:"endpoint-memory"`
@@ -238,7 +239,7 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 		d.ManagementNetwork = src.ManagementNetwork
 	}
 
-	if src.HTTPProxy != nil || src.HTTPSProxy != nil {
+	if src.ProxyIsSet {
 		d.HTTPProxy = src.HTTPProxy
 		d.HTTPSProxy = src.HTTPSProxy
 	}

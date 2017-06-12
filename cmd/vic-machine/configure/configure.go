@@ -117,6 +117,7 @@ func (c *Configure) processParams() error {
 	}
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
+	c.ProxyIsSet = c.proxies.IsSet
 
 	c.ContainerNetworks, err = c.cNetworks.ProcessContainerNetworks()
 	if err != nil {
@@ -270,15 +271,15 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		log.Error(err)
 		return err
 	}
-	if err = validate.SetDataFromVM(ctx, validator.Session.Finder, vch, oldData); err != nil {
-		log.Error("Configuring cannot continue: querying configuration from VM failed")
-		log.Error(err)
-		return err
-	}
 
 	// using new configuration override configuration query from guestinfo
 	if err = oldData.CopyNonEmpty(c.Data); err != nil {
 		log.Error("Configuring cannot continue: copying configuration failed")
+		return err
+	}
+	if err = validate.SetDataFromVM(ctx, validator.Session.Finder, vch, oldData); err != nil {
+		log.Error("Configuring cannot continue: querying configuration from VM failed")
+		log.Error(err)
 		return err
 	}
 	c.Data = oldData
