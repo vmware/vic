@@ -135,7 +135,7 @@ Upgrade Present in vic-machine
 
 Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     Log To Console  \nUpgrading VCH with 1s timeout ...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
     Should Contain  ${output}  Upgrading VCH exceeded time limit
     Should Not Contain  ${output}  Completed successfully
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}/%{VCH-NAME}
@@ -152,7 +152,7 @@ Upgrade VCH
     Rollback
     Check Original Version
 
-    Upgrade
+    Upgrade with ID
     Check Upgraded Version
 
     Run Docker Checks
