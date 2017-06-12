@@ -35,6 +35,9 @@ This test requires that a vSphere server is running and available
 22. Verify http proxy is set correctly through govc
 23. Configure the VCH's operations user credentials
 24. Run vic-machine inspect --conf
+25. Run vic-machine inspect --conf
+26. Configure VCH dns server to 10.118.81.1 and 10.118.81.2
+27. Run vic-machine inspect --conf
 
 # Expected Outcome
 * Steps 1 to 11 should succeed
@@ -48,3 +51,4 @@ This test requires that a vSphere server is running and available
 * Steps 21 and 22 should succeed
 * Steps 23 and 24 should succeed
 * Step 24's output should contain the operations user's name and the host thumbprint
+* Steps 25 to 27 should succeed
