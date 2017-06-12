@@ -38,6 +38,23 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --bridge-network-range
     Should Be Equal As Integers  0  ${rc}
 
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --rawconfig --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    Should Contain  ${output}  --debug=1
+    Should Contain  ${output}  --name=%{VCH-NAME}
+    Should Contain  ${output}  --target=https://%{TEST_URL}
+    Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
+    Should Contain  ${output}  --image-store=ds://%{TEST_DATASTORE}
+    Should Contain  ${output}  --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}
+    Should Contain  ${output}  --bridge-network=%{BRIDGE_NETWORK}
+    Should Not Contain  ${output}  --cpu
+    Should Not Contain  ${output}  --cpu-shares
+    Should Not Contain  ${output}  --memory
+    Should Not Contain  ${output}  --memory-shares
+    Should Not Contain  ${output}  --base-image-size
+    Should Not Contain  ${output}  --bridge-network-range
+    Should Be Equal As Integers  0  ${rc}
+
     Cleanup VIC Appliance On Test Server
 
 Inspect VCH Configuration with Resource Limitation
@@ -61,6 +78,26 @@ Inspect VCH Configuration with Resource Limitation
     Should Contain  ${output}  --endpoint-memory=4096
     Should Contain  ${output}  --endpoint-cpu=2
     Should Be Equal As Integers  0  ${rc}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --rawconfig --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    Should Contain  ${output}  --debug=1
+    Should Contain  ${output}  --name=%{VCH-NAME}
+    Should Contain  ${output}  --target=https://%{TEST_URL}
+    Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
+    Should Contain  ${output}  --image-store=ds://%{TEST_DATASTORE}
+    Should Contain  ${output}  --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}
+    Should Contain  ${output}  --bridge-network=%{BRIDGE_NETWORK}
+    Should Contain  ${output}  --memory-shares=6000
+    Should Contain  ${output}  --memory-reservation=512
+    Should Contain  ${output}  --memory=8000
+    Should Contain  ${output}  --cpu=10000
+    Should Contain  ${output}  --cpu-reservation=512
+    Should Contain  ${output}  --cpu-shares=high
+    Should Contain  ${output}  --endpoint-memory=4096
+    Should Contain  ${output}  --endpoint-cpu=2
+    Should Be Equal As Integers  0  ${rc}
+
 
     Cleanup VIC Appliance On Test Server
 
