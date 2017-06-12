@@ -141,4 +141,3 @@ Configure VCH https-proxy through vch id
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTPS_PROXY
     Should Be Equal As Integers  ${rc}  1
     Should Not Contain  ${output}  proxy.vmware.com:3128
-    Should Not Contain  ${output}  --http-proxy
