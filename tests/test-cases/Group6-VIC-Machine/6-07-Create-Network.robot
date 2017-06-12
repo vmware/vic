@@ -42,7 +42,7 @@ Public network - invalid
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Guarantee port group doesn't already exist
-    Run Keyword And Ignore Error  govc host.portgroup.remove 'AAAAAAAAAA'
+    Run  govc host.portgroup.remove 'AAAAAAAAAA'
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --public-network=AAAAAAAAAA ${vicmachinetls}
 
@@ -84,7 +84,7 @@ Management network - invalid
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Guarantee port group doesn't already exist
-    Run Keyword And Ignore Error  govc host.portgroup.remove 'AAAAAAAAAA'
+    Run  govc host.portgroup.remove 'AAAAAAAAAA'
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --management-network=AAAAAAAAAA ${vicmachinetls}
 
@@ -247,8 +247,8 @@ Bridge network - ESX none
     Cleanup VIC Appliance On Test Server
 
 Bridge network - create bridge network if it doesn't exist
-    Run Keyword If  '%{HOST_TYPE}' != 'ESXi'  Pass Execution  Test not applicable on vCenter
-    # ESX should automatically create the bridge network AAAAAAAAAA, but vCenter would fail with unknown network error
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test not applicable on vCenter
+    # ESX should automatically create the bridge switch & port group AAAAAAAAAA, but vCenter would fail with unknown network error
 
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
@@ -256,15 +256,19 @@ Bridge network - create bridge network if it doesn't exist
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Guarantee port group doesn't already exist
-    Run Keyword And Ignore Error  govc host.portgroup.remove 'AAAAAAAAAA'
+    Run  govc host.portgroup.remove 'AAAAAAAAAA'
+    Run  govc host.vswitch.remove 'AAAAAAAAAA'
 
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=AAAAAAAAAA ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: %{VCH-NAME}
 
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}   Installer completed successfully
-
-    # Attempt to cleanup old/canceled tests
     Run Regression Tests
-    Cleanup VCH Bridge Network  AAAAAAAAAA
+    Cleanup VIC Appliance On Test Server
+
+    Run  govc host.portgroup.remove 'AAAAAAAAAA'
+    Run  govc host.vswitch.remove 'AAAAAAAAAA'
 
 Bridge network - invalid vCenter
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi
