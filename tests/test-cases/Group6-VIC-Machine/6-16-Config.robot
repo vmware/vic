@@ -137,7 +137,7 @@ Configure VCH https-proxy
 Configure VCH ops user credentials and thumbprint
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --ops-user=%{TEST_USERNAME} --ops-password=%{TEST_PASSWORD}
     Should Contain  ${output}  Completed successfully
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
     Should Contain  ${output}  --ops-user=%{TEST_USERNAME}
     Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
 
