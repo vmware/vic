@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -305,7 +305,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	}()
 
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(op, diskDsURI, parentDiskDsURI, 0, os.O_RDWR)
+	vmdisk, err = v.dm.CreateAndAttach(op, diskDsURI, parentDiskDsURI, 0, os.O_RDWR, disk.Ext4)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +397,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	}()
 
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(op, imageDiskDsURI, nil, size, os.O_RDWR)
+	vmdisk, err = v.dm.CreateAndAttach(op, imageDiskDsURI, nil, size, os.O_RDWR, disk.Ext4)
 	if err != nil {
 		op.Errorf("CreateAndAttach(%s) error: %s", imageDiskDsURI, err)
 		return err
@@ -447,7 +447,7 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 
 	var s = *store
 
-	dsk, err := v.dm.Get(op, diskDsURI)
+	dsk, err := v.dm.Get(op, diskDsURI, disk.Ext4)
 	if err != nil {
 		return nil, err
 	}

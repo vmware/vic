@@ -172,9 +172,10 @@ func TestMain(t *testing.T) {
 func getESXData(testURL *url.URL) *data.Data {
 	result := data.NewData()
 	testURL.Path = testURL.Path + "/ha-datacenter"
-	result.OpsUser = testURL.User.Username()
+	user := testURL.User.Username()
+	result.OpsCredentials.OpsUser = &user
 	passwd, _ := testURL.User.Password()
-	result.OpsPassword = &passwd
+	result.OpsCredentials.OpsPassword = &passwd
 	result.URL = testURL
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
@@ -195,9 +196,10 @@ func getESXData(testURL *url.URL) *data.Data {
 func getVPXData(testURL *url.URL) *data.Data {
 	result := data.NewData()
 	testURL.Path = testURL.Path + "/DC0"
-	result.OpsUser = testURL.User.Username()
+	user := testURL.User.Username()
+	result.OpsCredentials.OpsUser = &user
 	passwd, _ := testURL.User.Password()
-	result.OpsPassword = &passwd
+	result.OpsCredentials.OpsPassword = &passwd
 	result.URL = testURL
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
@@ -558,7 +560,7 @@ func TestValidateWithFolders(t *testing.T) {
 		func() {
 			input.ScratchSize = "10GB"
 			p, _ := s.URL.User.Password()
-			input.OpsPassword = &p
+			input.OpsCredentials.OpsPassword = &p
 		},
 		func() {
 			input.ImageDatastorePath = "enoent"
@@ -573,7 +575,8 @@ func TestValidateWithFolders(t *testing.T) {
 			// TODO: volume
 		},
 		func() {
-			input.OpsUser = s.URL.User.Username()
+			user := s.URL.User.Username()
+			input.OpsCredentials.OpsUser = &user
 		},
 		func() {
 			simulator.EvalLicense.Properties = license.Properties // restore license features
