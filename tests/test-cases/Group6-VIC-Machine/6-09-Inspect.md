@@ -13,7 +13,7 @@ This test requires that a vSphere server is running and available
 # Test Steps:
 1. Install VCH
 2. Issue vic-machine inspect config command
-3. Issue vic-machine inspect config --output raw command
+3. Issue vic-machine inspect config --format raw command
 4. Create a VCH with tlsverify
 5. Inspect the VCH without specifying --cert-path
 6. Inspect the VCH with a valid --cert-path

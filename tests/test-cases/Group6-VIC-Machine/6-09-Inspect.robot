@@ -38,7 +38,7 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --bridge-network-range
     Should Be Equal As Integers  0  ${rc}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --output raw
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --format raw
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
@@ -81,7 +81,7 @@ Inspect VCH Configuration with Resource Limitation
     Should Contain  ${output}  --endpoint-cpu=2
     Should Be Equal As Integers  0  ${rc}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --output raw
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --format raw
 
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
