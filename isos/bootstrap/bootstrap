@@ -76,11 +76,30 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     mkdir -p ${MOUNTPOINT}/usr/lib
     cp -r /usr/lib/iptables ${MOUNTPOINT}/usr/lib/
 
+    mkdir -m 755 -p ${MOUNTPOINT}/.tether/etc ${MOUNTPOINT}/.tether/lib/modules ${MOUNTPOINT}/.tether/usr/lib/iptables
+    mkdir -m 555 -p ${MOUNTPOINT}/.tether/proc ${MOUNTPOINT}/.tether/sys
+
+    touch ${MOUNTPOINT}/.tether/etc/hostname ${MOUNTPOINT}/.tether/etc/hosts ${MOUNTPOINT}/.tether/etc/resolv.conf
+    chmod 644 ${MOUNTPOINT}/.tether/etc/hostname ${MOUNTPOINT}/.tether/etc/hosts ${MOUNTPOINT}/.tether/etc/resolv.conf
+
     until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
 
     echo "switching to the new mount"
     systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
     echo "switched to the new mount"
+
+    sleep 10s
+
+    mount --bind /.tether/etc/hostname /etc/hostname
+    mount --bind /.tether/etc/hosts /etc/hosts
+    mount --bind /.tether/etc/resolv.conf /etc/resolv.conf
+
+    sleep 1m
+
+    mount --bind /.tether/lib/modules /lib/modules
+    mount --bind /.tether/proc /proc
+    mount --bind /.tether/sys /sys
+    mount --bind /.tether/usr/lib/iptables /usr/lib/iptables
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard

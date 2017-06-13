@@ -35,13 +35,28 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"strconv"
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
 var StorageParentDir = "VIC"
 
 // Set to false for unit tests
-var DetachAll = true
+var (
+	DetachAll = true
+	FileForMinOS = map[string]string{
+		"/etc/hostname":"0644",
+		"/etc/hosts":"0644",
+		"/etc/resolv.conf":"0644",
+	}
+	DirForMinOS = map[string]string{
+		"/etc":"0755",
+		"/proc":"0555",
+		"/sys":"0555",
+		"/lib/modules":"0755",
+		"/usr/lib/iptables":"0755",
+	}
+)
 
 const (
 	StorageImageDir  = "images"
@@ -409,6 +424,10 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		return err
 	}
 
+	if err = populateMinOS(op, vmdisk); err != nil {
+		return err
+	}
+
 	if err = v.dm.Detach(op, vmdisk); err != nil {
 		return err
 	}
@@ -637,6 +656,66 @@ func imagesInUse(op trace.Operation, ID string) error {
 				Msg: fmt.Sprintf("image %s in use by %s", ID, cont.ExecConfig.ID),
 			}
 		}
+	}
+
+	return nil
+}
+
+// populate the scratch with minimum OS structure refined in fileMinOS and dirMinOS
+func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
+	// tmp dir to mount the disk
+	dir, err := ioutil.TempDir("", "mnt-"+portlayer.Scratch.ID)
+	if err != nil {
+		op.Errorf("Failed to create tempDir: %s", err)
+	}
+	defer os.RemoveAll(dir)
+
+	if err = vmdisk.Mount(dir, nil); err != nil {
+		op.Errorf("Failed to mount device %s to dir %s", vmdisk.DevicePath, dir)
+	}
+
+	for dname, dmode := range DirForMinOS {
+		op.Infof("-----folder: %s, mode: %s", dname, dmode)
+		dirPath := fmt.Sprintf("%s%s", dir, dname)
+		m, err := strconv.ParseUint(dmode, 0, 0)
+		if err != nil {
+			op.Errorf("Failed to ParseUInt for %s: %e", dmode, err)
+		}
+		if err = os.MkdirAll(dirPath, os.FileMode(m)); err != nil {
+			op.Errorf("Failed to create directory %s: %s", dirPath, err)
+			return err
+		}
+	}
+
+	// The directory has to exist before creating the new file
+	for fname, fmode := range FileForMinOS {
+		op.Infof("-----file: %s, mode: %s", fname, fmode)
+		filePath := fmt.Sprintf("%s%s", dir, fname)
+		f, err := os.Create(filePath)
+		if err != nil {
+			op.Errorf("Failed to create file %s: %s", filePath, err)
+			return err
+		}
+		n, err := strconv.ParseUint(fmode, 0, 0)
+		if err != nil {
+			op.Errorf("Failed to ParseUInt for %s: %e", fmode, err)
+		}
+		err = f.Chmod(os.FileMode(n))
+		if err != nil {
+			op.Errorf("Failed to chmod for file %s: %s", filePath, err)
+			return err
+		}
+		err = f.Close()
+		if err != nil {
+			op.Errorf("failed to close file %s: %s", filePath, err)
+			return err
+		}
+	}
+
+	err = vmdisk.Unmount()
+	if err != nil {
+		op.Errorf("Failed to unmount device: %s", err)
+		return err
 	}
 
 	return nil
