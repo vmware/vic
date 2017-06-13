@@ -202,15 +202,16 @@ func testConvertTarget(t *testing.T) {
 
 func testConvertOps(t *testing.T) {
 	data := data.NewData()
-	data.OpsUser = "admin"
+	adminUser := "admin"
+	data.OpsCredentials.OpsUser = &adminUser
 	pass := "password"
-	data.OpsPassword = &pass
+	data.OpsCredentials.OpsPassword = &pass
 	data.Thumbprint = "uuidstring"
 	options, err := DataToOption(data)
 	assert.Empty(t, err)
 
 	assert.Equal(t, 2, len(options), "should not have other option generated")
-	assert.Equal(t, data.OpsUser, options["ops-user"][0], "not expected ops-user option")
+	assert.Equal(t, *data.OpsCredentials.OpsUser, options["ops-user"][0], "not expected ops-user option")
 	assert.Equal(t, data.Thumbprint, options["thumbprint"][0], "not expected thumbprint option")
 }
 

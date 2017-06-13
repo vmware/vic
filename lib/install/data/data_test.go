@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -37,6 +38,24 @@ func TestCopyNonEmpty(t *testing.T) {
 	d.CopyNonEmpty(s)
 	assert.Equal(t, s.ClientNetwork.IP.IP, d.ClientNetwork.IP.IP, "client ip is not right")
 	assert.False(t, d.PublicNetwork.IP.IP.Equal(s.PublicNetwork.IP.IP), "public ip should not be changed")
+	assert.Equal(t, d.OpsCredentials, s.OpsCredentials)
+
+	opsUser := "ops"
+	opsPassword := "pass"
+	s.OpsCredentials = common.OpsCredentials{
+		OpsUser:     &opsUser,
+		OpsPassword: &opsPassword,
+	}
+	d.CopyNonEmpty(s)
+	assert.NotEqual(t, d.OpsCredentials, s.OpsCredentials)
+
+	s.OpsCredentials.IsSet = true
+	d.CopyNonEmpty(s)
+	assert.Equal(t, d.OpsCredentials, s.OpsCredentials)
+
+	s.Target.Thumbprint = "te:st:th:um:bp:ri:nt"
+	d.CopyNonEmpty(s)
+	assert.Equal(t, d.Target.Thumbprint, s.Target.Thumbprint)
 }
 
 func TestEqualIPRanges(t *testing.T) {
