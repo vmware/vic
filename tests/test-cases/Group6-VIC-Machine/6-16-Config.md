@@ -34,10 +34,10 @@ This test requires that a vSphere server is running and available
 21. Configure VCH http proxy
 22. Verify http proxy is set correctly through govc
 23. Configure the VCH's operations user credentials
-24. Run vic-machine inspect --conf
-25. Run vic-machine inspect --conf
+24. Run vic-machine inspect config
+25. Run vic-machine inspect config
 26. Configure VCH dns server to 10.118.81.1 and 10.118.81.2
-27. Run vic-machine inspect --conf
+27. Run vic-machine inspect config
 
 # Expected Outcome
 * Steps 1 to 11 should succeed

@@ -88,6 +88,7 @@ func (c *Configure) Flags() []cli.Flag {
 	}
 
 	proxies := c.proxies.ProxyFlags(false)
+	// TODO (Jialin): after issue #5472 is fixed, change hidden back to false
 	dns := c.dns.DNSFlags(true)
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(false)
@@ -314,6 +315,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	// evaluate merged configuration
 	newConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {
+		log.Error("Configuring cannot continue: configuration validation failed")
 		return err
 	}
 

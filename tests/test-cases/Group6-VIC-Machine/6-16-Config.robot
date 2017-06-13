@@ -150,10 +150,10 @@ Configure VCH https-proxy through vch id
     Should Not Contain  ${output}  proxy.vmware.com:3128
 
 Configure VCH DNS server
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --conf
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
     Should Not Contain  ${output}  --dns-server  
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --dns-server 10.118.81.1 --dns-server 10.118.81.2
     Should Contain  ${output}  Completed successfully
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --conf
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
     Should Contain  ${output}  --dns-server=10.118.81.1
     Should Contain  ${output}  --dns-server=10.118.81.2
