@@ -35,6 +35,9 @@ pipeline:
       GS_CLIENT_EMAIL: ${GS_CLIENT_EMAIL}
       GS_PRIVATE_KEY: ${GS_PRIVATE_KEY}
       DOMAIN: ${DOMAIN}
+     # BRIDGE_NETWORK: ${BRIDGE_NETWORK}
+     # PUBLIC_NETWORK: ${PUBLIC_NETWORK}
+
     commands:
-      - tests/integration-test.sh
-      #- pybot tests/test-cases/Group1-Docker-Commands/1-13-Docker-Version.robot
+     # - tests/integration-test.sh
+     - pybot tests/test-cases/Group1-Docker-Commands/1-03-Docker-Images.robot
