@@ -2090,10 +2090,6 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 		}
 	}
 
-	if config.Since != "" {
-		return unsupported("since")
-	}
-
 	return tailLines, since.Unix(), nil
 }
 

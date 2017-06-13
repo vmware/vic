@@ -35,11 +35,80 @@ type LogReader struct {
 	ts   bool
 }
 
+// Header describes the header of a containerVM log entry
+type Header struct {
+	Timestamp time.Time
+	Size      int
+	Stream    int
+}
+
+// Entry describes a containerVM log entry
+type Entry struct {
+	Header
+	Message []byte
+}
+
 // NewLogReader wraps an io.ReadCloser in a LogReader.
 func NewLogReader(r io.ReadCloser, ts bool) *LogReader {
 	return &LogReader{
 		ReadCloser: r,
 		ts:         ts}
+}
+
+// ParseLogEntry parses data from an io.Reader into a Entry
+func ParseLogEntry(r io.Reader) (*Entry, error) {
+	var (
+		err  error
+		n, w int
+		ts   time.Time
+	)
+
+	ehdr := make([]byte, encodedHeaderLengthBytes)
+	// read a header
+	n = 0
+	for n < encodedHeaderLengthBytes {
+		w, err = r.Read(ehdr[n:])
+		n += w
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// decode base64 header
+	hdr, err := base64.StdEncoding.DecodeString(string(ehdr))
+	if err != nil {
+		return nil, err
+	}
+
+	// parse header
+	ts = time.Unix(0, int64(binary.LittleEndian.Uint64(hdr[:8])))
+	s := binary.LittleEndian.Uint16(hdr[8:10])
+	// stream := int((s&streamFlag) >> 3)
+	size := int(s >> 4)
+
+	entry := &Entry{
+		Header: Header{
+			Timestamp: ts,
+			Size:      size,
+		},
+	}
+
+	// read the associated entry
+	msg := make([]byte, size)
+	n = 0
+	for n < size {
+		w, err = r.Read(msg[n:])
+		n += w
+		if err != nil {
+			if err != io.EOF {
+				// only return if not EOF as we may actually have some bytes to copy
+				return nil, err
+			}
+			break
+		}
+	}
+	entry.Message = msg
+	return entry, nil
 }
 
 // Read reads a 10 byte header and decodes it into the timestamp, stream and
@@ -48,55 +117,20 @@ func NewLogReader(r io.ReadCloser, ts bool) *LogReader {
 // what will not fit in the buffer for the next call to Read.
 func (lr *LogReader) Read(p []byte) (int, error) {
 	var (
-		err  error
-		n, w int
-		ts   string
+		entry *Entry
+		err   error
 	)
-
-	ehdr := make([]byte, encodedHeaderLengthBytes)
 	msg := lr.prev
 	partial := true // treat msg as a partial entry until we verify otherwise
 
 	if msg == nil {
 		// we know msg is not a partial entry as we had no bytes left from the previous call
 		partial = false
-
-		// read a header
-		n = 0
-		for n < encodedHeaderLengthBytes {
-			w, err = lr.ReadCloser.Read(ehdr[n:])
-			n += w
-			if err != nil {
-				return 0, err
-			}
-		}
-
-		// decode base64 header
-		hdr, err := base64.StdEncoding.DecodeString(string(ehdr))
+		entry, err = ParseLogEntry(lr.ReadCloser)
 		if err != nil {
 			return 0, err
 		}
-
-		// parse header
-		ts = time.Unix(0, int64(binary.LittleEndian.Uint64(hdr[:8]))).Format(RFC3339NanoFixed)
-		s := binary.LittleEndian.Uint16(hdr[8:10])
-		// stream := int((s&streamFlag) >> 3)
-		size := int(s >> 4)
-
-		// read the associated entry
-		msg = make([]byte, size)
-		n = 0
-		for n < size {
-			w, err = lr.ReadCloser.Read(msg[n:])
-			n += w
-			if err != nil {
-				if err != io.EOF {
-					// only return if not EOF as we may actually have some bytes to copy
-					return 0, err
-				}
-				break
-			}
-		}
+		msg = entry.Message
 	}
 
 	lr.prev = nil
@@ -108,7 +142,7 @@ func (lr *LogReader) Read(p []byte) (int, error) {
 
 	// add timestamp if enabled
 	if lr.ts && !partial {
-		msg = append([]byte(ts+" "), msg...)
+		msg = append([]byte(entry.Timestamp.Format(RFC3339NanoFixed)+" "), msg...)
 	}
 
 	// write the log message
