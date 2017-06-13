@@ -305,6 +305,11 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	if settings.ApplianceISO != "" {
 		isoFile = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)
 	}
+
+	if err := d.createVolumeStores(conf); err != nil {
+		return err
+	}
+
 	if err = d.reconfigVCH(conf, isoFile); err != nil {
 		return err
 	}

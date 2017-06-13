@@ -18,7 +18,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -174,8 +176,10 @@ func equalIPSlices(a, b []net.IP) bool {
 	return true
 }
 
-const copyInfoMsg = `Please use vic-machine inspect --conf to find existing
-container network settings and supply them along with new container networks`
+// const copyInfoMsg = `Please use vic-machine inspect config to find existing
+// container network settings and supply them along with new container networks`
+const copyInfoMsg = `Please use vic-machine inspect config to find existing
+%s settings and supply them along with new %s`
 
 // copyContainerNetworks checks that existing container networks (in d) are present
 // in the specified networks (src) and then copies new networks into d. It does not
@@ -184,11 +188,12 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 	// Any existing container networks and their related options must be specified
 	// while performing a configure operation.
 	errMsg := "Existing container-network %s:%s not specified in configure command"
+	var netsMissing, netsChanged bool
 	for vicNet, vmNet := range d.ContainerNetworks.MappedNetworks {
 		if _, ok := src.ContainerNetworks.MappedNetworks[vicNet]; !ok {
+			netsMissing = true
 			log.Errorf(fmt.Sprintf(errMsg, vmNet, vicNet))
-			log.Info(copyInfoMsg)
-			return fmt.Errorf("all existing container networks must also be specified")
+			continue
 		}
 
 		// If an existing container network is specified, ensure that all existing settings match the specified settings.
@@ -197,10 +202,18 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 			!equalIPRanges(d.ContainerNetworks.MappedNetworksIPRanges[vicNet], src.ContainerNetworks.MappedNetworksIPRanges[vicNet]) ||
 			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) {
 
+			netsChanged = true
 			log.Errorf("Found changes to existing container network %s", vicNet)
-			log.Info(copyInfoMsg)
-			return fmt.Errorf("changes to existing container networks are not supported")
 		}
+	}
+
+	if netsMissing {
+		log.Info(fmt.Sprintf(copyInfoMsg, "container network", "container networks"))
+		return fmt.Errorf("all existing container networks must also be specified")
+	}
+	if netsChanged {
+		log.Info(fmt.Sprintf(copyInfoMsg, "container network", "container networks"))
+		return fmt.Errorf("changes to existing container networks are not supported")
 	}
 
 	// Copy data only for new container networks.
@@ -210,6 +223,48 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 			d.ContainerNetworks.MappedNetworksGateways[vicNet] = src.ContainerNetworks.MappedNetworksGateways[vicNet]
 			d.ContainerNetworks.MappedNetworksIPRanges[vicNet] = src.ContainerNetworks.MappedNetworksIPRanges[vicNet]
 			d.ContainerNetworks.MappedNetworksDNS[vicNet] = src.ContainerNetworks.MappedNetworksDNS[vicNet]
+		}
+	}
+
+	return nil
+}
+
+// copyVolumeStores checks that existing volume stores (in d) are present in the
+// specified volume stores (src) and then copies new volume stores into d. It
+// does not overwrite data for existing volume stores.
+func (d *Data) copyVolumeStores(src *Data) error {
+	// Any existing volume stores must be specified while performing a configure operation.
+	errMsg := "Existing volume store %s not specified in configure command"
+	var storesMissing, storesChanged bool
+	for label, url := range d.VolumeLocations {
+		srcURL, ok := src.VolumeLocations[label]
+		if !ok {
+			storesMissing = true
+			log.Errorf(fmt.Sprintf(errMsg, label))
+			continue
+		}
+
+		dURLString := fmt.Sprintf("%s://%s", url.Scheme, filepath.Join(strings.Trim(url.Host, "/"), strings.Trim(url.Path, "/")))
+		srcURLString := fmt.Sprintf("%s://%s", srcURL.Scheme, filepath.Join(strings.Trim(srcURL.Host, "/"), strings.Trim(srcURL.Path, "/")))
+		if dURLString != srcURLString {
+			storesChanged = true
+			log.Errorf("Found changes to existing volume store %s", label)
+		}
+	}
+
+	if storesMissing {
+		log.Info(fmt.Sprintf(copyInfoMsg, "volume store", "volume stores"))
+		return fmt.Errorf("all existing volume stores must also be specified")
+	}
+	if storesChanged {
+		log.Info(fmt.Sprintf(copyInfoMsg, "volume store", "volume stores"))
+		return fmt.Errorf("changes to existing volume stores are not supported")
+	}
+
+	// Copy data only for new volume stores.
+	for label, url := range src.VolumeLocations {
+		if _, ok := d.VolumeLocations[label]; !ok {
+			d.VolumeLocations[label] = url
 		}
 	}
 
@@ -244,6 +299,12 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 
 	if src.ContainerNetworks.IsSet() {
 		if err := d.copyContainerNetworks(src); err != nil {
+			return err
+		}
+	}
+
+	if len(src.VolumeLocations) > 0 {
+		if err := d.copyVolumeStores(src); err != nil {
 			return err
 		}
 	}
