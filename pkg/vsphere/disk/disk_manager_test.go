@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ func TestCreateAndDetach(t *testing.T) {
 		Datastore: client.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
-	parent, err := vdm.Create(op, scratch, diskSize)
+	parent, err := vdm.Create(op, scratch, diskSize, Ext4)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -131,7 +131,7 @@ func TestCreateAndDetach(t *testing.T) {
 			Path:      path.Join(imagestore.Path, fmt.Sprintf("child%d.vmdk", i)),
 		}
 
-		child, cerr := vdm.CreateAndAttach(op, p, parent.DatastoreURI, 0, os.O_RDWR)
+		child, cerr := vdm.CreateAndAttach(op, p, parent.DatastoreURI, 0, os.O_RDWR, Ext4)
 		if !assert.NoError(t, cerr) {
 			return
 		}
