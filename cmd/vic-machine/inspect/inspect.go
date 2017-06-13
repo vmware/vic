@@ -17,6 +17,7 @@ package inspect
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -41,11 +42,23 @@ import (
 type Inspect struct {
 	*data.Data
 
-	showConfig bool
-	CertPath   string
+	CertPath string
 
 	executor *management.Dispatcher
+
+	Format string
 }
+
+type state struct {
+	i         *Inspect
+	ctx       context.Context
+	validator *validate.Validator
+	vchConfig *config.VirtualContainerHostConfigSpec
+	vch       *vm.VirtualMachine
+	executor  *management.Dispatcher
+}
+
+type command func(state) error
 
 func NewInspect() *Inspect {
 	d := &Inspect{}
@@ -56,11 +69,6 @@ func NewInspect() *Inspect {
 // Flags returns all cli flags for inspect
 func (i *Inspect) Flags() []cli.Flag {
 	util := []cli.Flag{
-		cli.BoolFlag{
-			Name:        "configuration, conf",
-			Usage:       "Display VCH configuration",
-			Destination: &i.showConfig,
-		},
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
@@ -89,6 +97,17 @@ func (i *Inspect) Flags() []cli.Flag {
 	return flags
 }
 
+func (i *Inspect) ConfigFlags() []cli.Flag {
+	output := cli.StringFlag{
+		Name:        "format",
+		Value:       "verbose",
+		Usage:       "Determine the format of configuration output. Supported formats: raw, verbose",
+		Destination: &i.Format,
+	}
+
+	return []cli.Flag{output}
+}
+
 func (i *Inspect) processParams() error {
 	defer trace.End(trace.Begin(""))
 
@@ -99,19 +118,19 @@ func (i *Inspect) processParams() error {
 	return nil
 }
 
-func (i *Inspect) Run(clic *cli.Context) (err error) {
+func (i *Inspect) run(clic *cli.Context, cmd command) (err error) {
 	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
 	defer func() {
 		err = common.LogErrorIfAny(clic, err)
 	}()
 
-	if err = i.processParams(); err != nil {
-		return err
-	}
-
 	if i.Debug.Debug != nil && *i.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
+	}
+
+	if err = i.processParams(); err != nil {
+		return err
 	}
 
 	if len(clic.Args()) > 0 {
@@ -156,55 +175,83 @@ func (i *Inspect) Run(clic *cli.Context) (err error) {
 		return errors.New("inspect failed")
 	}
 
-	if i.showConfig {
-		err = i.showCommand(ctx, validator.Session.Finder, vchConfig, vch)
+	return cmd(state{i, ctx, validator, vchConfig, vch, executor})
+}
+
+func (i *Inspect) RunConfig(clic *cli.Context) (err error) {
+	if i.Format == "raw" {
+		log.SetLevel(log.ErrorLevel)
+		log.SetOutput(os.Stderr)
+	} else if i.Format != "verbose" {
+		log.Warnf("Invalid configuration output format '%s'. Valid options are raw, verbose.", i.Format)
+		log.Warn("Using verbose configuration format")
+		i.Format = "verbose"
+	}
+
+	return i.run(clic, func(s state) error {
+		err = i.showConfiguration(s.ctx, s.validator.Session.Finder, s.vchConfig, s.vch)
 		if err != nil {
 			log.Error("Failed to print Virtual Container Host configuration")
 			log.Error(err)
 			return errors.New("inspect failed")
 		}
 		return nil
-	}
-
-	log.Infof("")
-	log.Infof("VCH ID: %s", vch.Reference().String())
-
-	installerVer := version.GetBuild()
-
-	log.Info("")
-	log.Infof("Installer version: %s", installerVer.ShortVersion())
-	log.Infof("VCH version: %s", vchConfig.Version.ShortVersion())
-	log.Info("")
-	log.Info("VCH upgrade status:")
-	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
-
-	if err = executor.InspectVCH(vch, vchConfig, i.CertPath); err != nil {
-		executor.CollectDiagnosticLogs()
-		log.Errorf("%s", err)
-		return errors.New("inspect failed")
-	}
-
-	log.Infof("Completed successfully")
-
-	return nil
+	})
 }
 
-func (i Inspect) showCommand(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
+func (i *Inspect) Run(clic *cli.Context) (err error) {
+	return i.run(clic, func(s state) error {
+		log.Infof("")
+		log.Infof("VCH ID: %s", s.vch.Reference().String())
+
+		installerVer := version.GetBuild()
+
+		log.Info("")
+		log.Infof("Installer version: %s", installerVer.ShortVersion())
+		log.Infof("VCH version: %s", s.vchConfig.Version.ShortVersion())
+		log.Info("")
+		log.Info("VCH upgrade status:")
+		i.upgradeStatusMessage(s.ctx, s.vch, installerVer, s.vchConfig.Version)
+
+		if err = s.executor.InspectVCH(s.vch, s.vchConfig, i.CertPath); err != nil {
+			s.executor.CollectDiagnosticLogs()
+			log.Errorf("%s", err)
+			return errors.New("inspect failed")
+		}
+
+		log.Infof("Completed successfully")
+
+		return nil
+	})
+}
+
+func retrieveMapOptions(ctx context.Context, finder validate.Finder,
+	conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (map[string][]string, error) {
 	data, err := validate.NewDataFromConfig(ctx, finder, conf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err = validate.SetDataFromVM(ctx, finder, vm, data); err != nil {
-		return err
+		return nil, err
 	}
-	mapOptions, err := converter.DataToOption(data)
+	return converter.DataToOption(data)
+}
+
+func (i Inspect) showConfiguration(ctx context.Context, finder validate.Finder, conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
+	mapOptions, err := retrieveMapOptions(ctx, finder, conf, vm)
 	if err != nil {
 		return err
 	}
 	options := i.sortedOutput(mapOptions)
-	strOptions := strings.Join(options, "\n\t")
-	log.Info("")
-	log.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
+	if i.Format == "raw" {
+		strOptions := strings.Join(options, " ")
+		fmt.Println(strOptions)
+	} else if i.Format == "verbose" {
+		strOptions := strings.Join(options, "\n\t")
+		log.Info("")
+		log.Infof("Target VCH created with the following options: \n\n\t%s\n", strOptions)
+	}
+
 	return nil
 }
 
@@ -262,7 +309,7 @@ func (i *Inspect) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachi
 
 	canUpgrade, err := installerVer.IsNewer(vchVer)
 	if err != nil {
-		log.Errorf("Unable to determine if upgrade is availabile: %s", err)
+		log.Errorf("Unable to determine if upgrade is available: %s", err)
 		return
 	}
 	if canUpgrade {

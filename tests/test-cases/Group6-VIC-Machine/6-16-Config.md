@@ -23,12 +23,12 @@ This test requires that a vSphere server is running and available
 10. check whether the output of vic-machine inspect contains the desired debug state
 11. Configure the VCH by adding a container network
 12. Run docker network ls
-13. Run vic-machine inspect --conf
+13. Run vic-machine inspect config
 14. Run a container with the new container network
 15. Configure the VCH by adding a new container network without specifying the previous network
 16. Configure the VCH by adding a new container network while specifying the previous network
 17. Run docker network ls
-18. Run vic-machine inspect --conf
+18. Run vic-machine inspect config
 19. Run a container with the new container network
 20. Configure the VCH by attempting to change an existing container network
 21. Configure VCH http proxy
