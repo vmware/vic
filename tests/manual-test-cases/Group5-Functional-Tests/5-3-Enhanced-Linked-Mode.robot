@@ -32,7 +32,8 @@ Test
     ${name}=  Evaluate  'els-' + str(random.randint(1000,9999))  modules=random
     Set Test Variable  ${user}  %{NIMBUS_USER}
     Log To Console  \nDeploying Nimbus Testbed: ${name}
-    ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-testbeddeploy --noSupportBundles --plugin testng --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
+
+    ${pid}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-testbeddeploy --noStatsDump --noSupportBundles --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName ${name}'
 
     &{esxes}=  Create Dictionary
     ${num_of_esxes}=  Evaluate  3
