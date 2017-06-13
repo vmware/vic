@@ -59,22 +59,22 @@ Run Secret Docker Login
 
 Setup VCH And Registry
     [Arguments]  ${registry_ip}  ${docker}=DOCKER_API_VERSION=1.23 docker
-    ${rc}  ${output}=  Run And Return Rc And Output  echo "From ${busybox}" | ${docker} -H ${default_local_docker_endpoint} build -t ${registry_ip}/test/${busybox} -
+    ${rc}  ${output}=  Run And Return Rc And Output  echo "From busybox" | ${docker} -H ${default_local_docker_endpoint} build -t ${registry_ip}/test/busybox -
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Successfully built
-    Log To Console  \n${busybox} built successfully
+    Log To Console  \nbusybox built successfully
     ${rc}  ${output}=  Run Secret Docker Login  ${registry_ip}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Login Succeeded
     Log To Console  \nLogin successfully
-    ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} push ${registry_ip}/test/${busybox}
+    ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} push ${registry_ip}/test/busybox
     Should Be Equal As Integers  ${rc}  0
-    Log To Console  \n${busybox} pushed successfully
+    Log To Console  \nbusybox pushed successfully
 
 Test VCH And Registry
     [Arguments]  ${vch_endpoint}  ${registry_ip}  ${docker}=DOCKER_API_VERSION=1.23 docker
-    ${rc}  ${output}=  Run And Return Rc And Output  ${docker} -H ${vch_endpoint} pull ${registry_ip}/test/${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  ${docker} -H ${vch_endpoint} pull ${registry_ip}/test/busybox
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Digest:
     Should Contain  ${output}  Status:
@@ -84,7 +84,7 @@ Cleanup Test Environment
     [Arguments]  ${docker}=DOCKER_API_VERSION=1.23 docker
     Clean up VIC Appliance And Local Binary
     Cleanup Harbor  ${harbor_name}
-    ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} rmi ${harbor_ip}/test/${busybox}
+    ${rc}=  Run And Return Rc  ${docker} -H ${default_local_docker_endpoint} rmi ${harbor_ip}/test/busybox
     Should Be Equal As Integers  ${rc}  0
     Kill Local Docker Daemon  ${handle}  ${docker_daemon_pid}
 

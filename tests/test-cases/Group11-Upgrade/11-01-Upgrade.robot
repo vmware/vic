@@ -93,8 +93,8 @@ Run Docker Checks
     Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Contain  ${output}  ${id}
 
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
@@ -125,8 +125,8 @@ Create Docker Containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10001
 
 *** Test Cases ***
 Upgrade Present in vic-machine

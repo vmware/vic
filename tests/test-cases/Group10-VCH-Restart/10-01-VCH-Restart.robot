@@ -55,8 +55,8 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10001
 
     Reboot VM  %{VCH-NAME}
 
@@ -70,8 +70,8 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${nginx}
-    Should Contain  ${output}  ${busybox}
+    Should Contain  ${output}  nginx
+    Should Contain  ${output}  busybox
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
     Should Be Equal As Integers  ${rc}  0
@@ -106,8 +106,8 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${bridge-exited}
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit ${nginx} Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
