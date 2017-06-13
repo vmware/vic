@@ -17,10 +17,10 @@ package inspect
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
-	"os"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
@@ -58,7 +58,7 @@ type state struct {
 	executor  *management.Dispatcher
 }
 
-type command func(state) (error)
+type command func(state) error
 
 func NewInspect() *Inspect {
 	d := &Inspect{}
