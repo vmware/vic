@@ -21,7 +21,7 @@ mkdir -p $FILES_DIR              # Files to serve
 
 [[ x$BUILD_VICENGINE_REVISION == "x" ]] && ( echo "VIC Engine build not set, failing"; exit 1 )
 
-# Download Build
+# Download VIC Engine Build
 cd /var/tmp
 VIC_ENGINE_FILE=""
 VIC_ENGINE_URL=""
@@ -40,3 +40,15 @@ echo "Downloading VIC Engine ${VIC_ENGINE_FILE}: ${VIC_ENGINE_URL}"
 curl -LO ${VIC_ENGINE_URL}
 tar xfz ${VIC_ENGINE_FILE} -C $FILES_DIR vic/ui/vsphere-client-serenity/com.vmware.vic.ui-v${BUILD_VICENGINE_REVISION}.zip vic/ui/plugin-packages/com.vmware.vic-v${BUILD_VICENGINE_REVISION}.zip --strip-components=3
 mv ${VIC_ENGINE_FILE} $FILES_DIR
+
+[[ x$BUILD_KOV_CLI_REVISION == "x" ]] && ( echo "KOV cli build not set, failing"; exit 1 )
+
+KOV_BUCKET="kov-releases"
+if [ ${BUILD_KOV_CLI_REVISION} = "dev" ]; then
+    KOV_BUCKET="kov-builds"
+fi
+# Download KOV cli Build
+KOV_CLI_URL="https://storage.googleapis.com/${KOV_BUCKET}/kov_${BUILD_KOV_CLI_REVISION}.tar.gz"
+echo "Downloading KOV ${KOV_CLI_URL}"
+curl -LO ${KOV_CLI_URL} 
+mv kov_${BUILD_KOV_CLI_REVISION}.tar.gz $FILES_DIR

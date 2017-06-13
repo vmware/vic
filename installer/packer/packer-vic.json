@@ -8,7 +8,9 @@
     "root_password": "2RQrZ83i79N6szpvZNX6",
     "build_vicengine_revision": "",
     "build_admiral_revision": "dev",
-    "build_harbor_revision": "dev"
+    "build_harbor_revision": "dev",
+    "build_kov_cli_revision": "dev",
+    "build_kovd_revision": "dev"
   },
   "builders": [
     {
@@ -262,8 +264,11 @@
     },
     {
       "type": "shell",
-      "environment_vars": ["BUILD_VICENGINE_REVISION={{user `build_vicengine_revision`}}",
-                           "BUILD_VICENGINE_DEV_REVISION={{user `build_vicengine_dev_revision`}}"],
+      "environment_vars": [
+          "BUILD_VICENGINE_REVISION={{user `build_vicengine_revision`}}",
+          "BUILD_KOV_CLI_REVISION={{user `build_kov_cli_revision`}}",
+          "BUILD_VICENGINE_DEV_REVISION={{user `build_vicengine_dev_revision`}}"
+          ],
       "script": "scripts/provision_fileserver.sh"
     },
     {
@@ -314,6 +319,26 @@
       "type": "file",
       "source": "../engine_installer/html",
       "destination": "/opt/vmware/engine_installer"
+    },
+    {
+      "type": "shell",
+      "environment_vars": ["BUILD_KOVD_REVISION={{user `build_kovd_revision`}}"],
+      "script": "scripts/provision_kov.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/systemd/kov/kov.service",
+      "destination": "/usr/lib/systemd/system/kov.service"
+    },
+    {
+      "type": "file",
+      "source": "scripts/kov/configure_kov.sh",
+      "destination": "/etc/vmware/kov/configure_kov.sh"
+    },
+    {
+      "type": "file",
+      "source": "scripts/kov/50-kovd-env-vars.sh",
+      "destination": "/usr/lib/systemd/user-environment-generators/50-kovd-env-vars.sh"
     },
     {
       "type": "shell",

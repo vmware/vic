@@ -16,6 +16,7 @@ PACKER ?= packer
 OVFTOOL ?= ovftool
 SHA256SUM ?= sha256sum
 SED ?= sed
+AWK ?= awk
 RM ?= rm
 CP ?= cp
 
@@ -62,14 +63,21 @@ ova-release: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'remote_password=$(PACKER_PASSWORD)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
+			-var 'build_kov_cli_revision=$(BUILD_KOV_CLI_REVISION)' \
+			-var 'build_kovd_revision=$(BUILD_KOVD_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			-var 'build_harbor_dev_revision=$(BUILD_HARBOR_DEV_REVISION)' \
 			packer-vic.json
 	@echo adding proper vic OVF file...
 	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
-	@echo rebuilding OVF manifest...
+ifeq ($(OS),darwin)
+	@echo rebuilding OVF manifest in darwin...
+	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && shasum -a 256 * | $(AWK) '{print "SHA256("$$2") = "$$1}' > vic.mf
+else
+	@echo rebuilding OVF manifest in linux...
 	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && $(SHA256SUM) --tag * | $(SED) s/SHA256\ \(/SHA256\(/ > vic.mf
+endif
 	@echo packaging OVA...
 	@$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-$(VER)-$(REV).ova
 	@echo cleaning packer directory...
@@ -86,14 +94,21 @@ ova-debug: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'remote_password=$(PACKER_PASSWORD)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
+			-var 'build_kov_cli_revision=$(BUILD_KOV_CLI_REVISION)' \
+			-var 'build_kovd_revision=$(BUILD_KOVD_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			-var 'build_harbor_dev_revision=$(BUILD_HARBOR_DEV_REVISION)' \
 			--on-error=abort packer-vic.json
 	@echo adding proper vic OVF file...
 	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.ovf && $(CP) ../../vic-unified.ovf vic.ovf
-	@echo rebuilding OVF manifest...
-	cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && $(SHA256SUM) --tag * | $(SED) s/SHA256\ \(/SHA256\(/ > vic.mf
+ifeq ($(OS),darwin)
+	@echo rebuilding OVF manifest in darwin...
+	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && shasum -a 256 * | $(AWK) '{print "SHA256("$$2") = "$$1}' > vic.mf
+else
+	@echo rebuilding OVF manifest in linux...
+	@cd $(BASE_DIR)installer/packer/vic/vic && $(RM) vic.mf && $(SHA256SUM) --tag * | $(SED) s/SHA256\ \(/SHA256\(/ > vic.mf
+endif
 	@echo packaging OVA...
 	$(OVFTOOL) -st=ovf -tt=ova $(BASE_DIR)installer/packer/vic/vic/vic.ovf $(BASE_DIR)$(BIN)/vic-$(VER)-$(REV).ova
 	@echo cleaning packer directory...
@@ -107,6 +122,8 @@ vagrant-local: $(ovfenv) $(vic-ova-ui) $(ova-webserver) $(ova-engine-installer)
 			-var 'iso_file=$(PHOTON_ISO)'\
 			-var 'build_vicengine_revision=$(BUILD_VICENGINE_REVISION)' \
 			-var 'build_vicengine_dev_revision=$(BUILD_VICENGINE_DEV_REVISION)' \
+			-var 'build_kov_cli_revision=$(BUILD_KOV_CLI_REVISION)' \
+			-var 'build_kovd_revision=$(BUILD_KOVD_REVISION)' \
 			-var 'build_admiral_revision=$(BUILD_ADMIRAL_REVISION)' \
 			-var 'build_harbor_revision=$(BUILD_HARBOR_REVISION)' \
 			-var 'build_harbor_dev_revision=$(BUILD_HARBOR_DEV_REVISION)' \
