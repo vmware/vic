@@ -12,8 +12,8 @@ This test requires that a vSphere server is running and available
 
 # Test Steps:
 1. Install VCH
-2. Issue vic-machine inspect --conf command
-3. Issue vic-machine inspect --rawconf command
+2. Issue vic-machine inspect config command
+3. Issue vic-machine inspect config --output raw command
 4. Create a VCH with tlsverify
 5. Inspect the VCH without specifying --cert-path
 6. Inspect the VCH with a valid --cert-path
@@ -37,4 +37,3 @@ DOCKER_CERT_PATH must be provided in environment or certificates specified indiv
 Unable to find valid client certs
 DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments
 ```
-

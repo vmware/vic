@@ -21,7 +21,7 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 Inspect VCH Configuration
     Install VIC Appliance To Test Server
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --configuration --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
@@ -38,7 +38,7 @@ Inspect VCH Configuration
     Should Not Contain  ${output}  --bridge-network-range
     Should Be Equal As Integers  0  ${rc}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --rawconfig --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --output raw
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
@@ -62,7 +62,7 @@ Inspect VCH Configuration
 Inspect VCH Configuration with Resource Limitation
     Install VIC Appliance To Test Server  additional-args=--memory 8000 --memory-reservation 512 --memory-shares 6000 --cpu 10000 --cpu-reservation 512 --cpu-shares high --endpoint-cpu 2 --endpoint-memory 4096
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --configuration --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
@@ -81,7 +81,8 @@ Inspect VCH Configuration with Resource Limitation
     Should Contain  ${output}  --endpoint-cpu=2
     Should Be Equal As Integers  0  ${rc}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --rawconfig --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --output raw
+
     Should Contain  ${output}  --debug=1
     Should Contain  ${output}  --name=%{VCH-NAME}
     Should Contain  ${output}  --target=https://%{TEST_URL}
