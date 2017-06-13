@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -37,6 +38,7 @@ var (
 // Server provides an HGFS protocol implementation to support guest tools VmxiHgfsSendPacketCommand
 type Server struct {
 	Capabilities []Capability
+	Archive      bool
 
 	handlers map[int32]func(*Packet) (interface{}, error)
 	sessions map[uint64]*session
@@ -54,6 +56,7 @@ func NewServer() *Server {
 	}
 
 	s := &Server{
+		Archive:  true,
 		sessions: make(map[uint64]*session),
 		chmod:    os.Chmod,
 		chown:    os.Chown,
@@ -106,8 +109,75 @@ func (s *Server) Dispatch(packet []byte) ([]byte, error) {
 	return req.Reply(res, err)
 }
 
+// File interface abstracts standard i/o methods to support transfer
+// of regular files and archives of directories.
+type File interface {
+	io.Reader
+	io.WriteCloser
+
+	Name() string
+}
+
+// OpenFile selects the File implementation based on file type and mode.
+func (s *Server) OpenFile(name string, mode int32) (File, error) {
+	var err error
+	var file File
+
+	info, err := s.Stat(name)
+	if err == nil {
+		if _, ok := info.(*archive); ok {
+			switch mode {
+			case OpenModeReadOnly:
+				return newArchiveFromGuest(name)
+			case OpenModeWriteOnly:
+				return newArchiveToGuest(name)
+			}
+		}
+	}
+
+	switch mode {
+	case OpenModeReadOnly:
+		file, err = os.Open(name)
+	case OpenModeWriteOnly:
+		flag := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+		file, err = os.OpenFile(name, flag, 0600)
+	default:
+		return nil, &Status{
+			Err:  fmt.Errorf("open mode(%d) not supported for file %q", mode, name),
+			Code: StatusAccessDenied,
+		}
+	}
+
+	return file, err
+}
+
+// Stat wraps os.Stat such that we can report directory types as regular files to support archive streaming.
+// In the case of standard vmware-tools or hgfs.Server.Archive == false, attempts to transfer directories result
+// with a VIX_E_NOT_A_FILE (see InitiateFileTransfer{To,From}Guest).
+// Note that callers on the VMX side that reach this path are only concerned with:
+// - does the file exist?
+// - size:
+//   + used for UI progress with desktop Drag-N-Drop operations, which toolbox does not support.
+//   + sent to as Content-Length header in response to GET of FileTransferInformation.Url,
+//     if the first ReadV3 size is > HGFS_LARGE_PACKET_MAX
+func (s *Server) Stat(name string) (os.FileInfo, error) {
+	info, err := os.Stat(name)
+	if err != nil {
+		return info, err
+	}
+
+	if s.Archive && info.IsDir() {
+		return &archive{
+			name: name,
+			size: math.MaxInt64,
+		}, nil
+	}
+
+	return info, nil
+}
+
 type session struct {
-	files map[uint32]*os.File
+	files map[uint32]File
 	mu    sync.Mutex
 }
 
@@ -116,7 +186,7 @@ type session struct {
 // adding session expiration when implementing OpenModeWriteOnly support.
 func newSession() *session {
 	return &session{
-		files: make(map[uint32]*os.File),
+		files: make(map[uint32]File),
 	}
 }
 
@@ -226,7 +296,7 @@ func (s *Server) GetattrV2(p *Packet) (interface{}, error) {
 	}
 
 	name := req.FileName.Path()
-	info, err := os.Stat(name)
+	info, err := s.Stat(name)
 	if err != nil {
 		return nil, err
 	}
@@ -305,19 +375,16 @@ func (s *Server) Open(p *Packet) (interface{}, error) {
 	}
 
 	name := req.FileName.Path()
+	mode := req.OpenMode
 
-	var file *os.File
-
-	switch req.OpenMode {
-	case OpenModeReadOnly:
-		file, err = os.Open(name)
-	default:
-		err = &Status{
-			Err:  fmt.Errorf("open mode(%d) not supported for file %q", req.OpenMode, name),
+	if mode != OpenModeReadOnly {
+		return nil, &Status{
+			Err:  fmt.Errorf("open mode(%d) not supported for file %q", mode, name),
 			Code: StatusAccessDenied,
 		}
 	}
 
+	file, err := s.OpenFile(name, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -384,24 +451,7 @@ func (s *Server) OpenV3(p *Packet) (interface{}, error) {
 		}
 	}
 
-	var file *os.File
-
-	switch req.OpenMode {
-	case OpenModeReadOnly:
-		file, err = os.Open(name)
-	case OpenModeWriteOnly:
-		flag := os.O_WRONLY | os.O_CREATE
-		if req.OpenFlags&OpenCreateEmpty == OpenCreateEmpty {
-			flag |= os.O_TRUNC
-		}
-		file, err = os.OpenFile(name, flag, 0600)
-	default:
-		err = &Status{
-			Err:  fmt.Errorf("open mode(%d) not supported for file %q", req.OpenMode, name),
-			Code: StatusAccessDenied,
-		}
-	}
-
+	file, err := s.OpenFile(name, req.OpenMode)
 	if err != nil {
 		return nil, err
 	}
@@ -440,9 +490,11 @@ func (s *Server) ReadV3(p *Packet) (interface{}, error) {
 
 	buf := make([]byte, req.RequiredSize)
 
-	n, err := file.ReadAt(buf, int64(req.Offset))
-	if err != nil {
-		if err != io.EOF || n <= 0 {
+	// Use ReadFull as Read() of an archive io.Pipe may return much smaller chunks,
+	// such as when we've read a tar header.
+	n, err := io.ReadFull(file, buf)
+	if err != nil && n == 0 {
+		if err != io.EOF {
 			return nil, err
 		}
 	}
@@ -476,7 +528,7 @@ func (s *Server) WriteV3(p *Packet) (interface{}, error) {
 		return nil, &Status{Code: StatusInvalidHandle}
 	}
 
-	n, err := file.WriteAt(req.Payload, int64(req.Offset))
+	n, err := file.Write(req.Payload)
 	if err != nil {
 		return nil, err
 	}

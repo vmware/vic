@@ -28,8 +28,11 @@ type Client struct {
 }
 
 func NewClient() *Client {
+	s := NewServer()
+	s.Archive = false
+
 	return &Client{
-		s: NewServer(),
+		s: s,
 	}
 }
 
@@ -306,12 +309,6 @@ func TestReadV3(t *testing.T) {
 
 	if uint64(offset) != attr.Size {
 		t.Errorf("size %d vs %d", offset, attr.Size)
-	}
-
-	req.Offset *= 2 // read with offset past file length
-	status = c.Dispatch(OpReadV3, req, new(ReplyReadV3)).Status
-	if status != StatusGenericError {
-		t.Fatalf("status=%d", status)
 	}
 
 	status = c.Dispatch(OpReadV3, new(RequestReadV3), new(ReplyReadV3)).Status

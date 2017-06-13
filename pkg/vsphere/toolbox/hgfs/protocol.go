@@ -282,7 +282,11 @@ func (r *Packet) Reply(payload interface{}, err error) ([]byte, error) {
 	}
 
 	if Trace {
-		fmt.Fprintf(os.Stderr, "[hgfs] response %#v\n", p.Header)
+		rc := "OK"
+		if err != nil {
+			rc = err.Error()
+		}
+		fmt.Fprintf(os.Stderr, "[hgfs] response %#v [%s]\n", p.Header, rc)
 	}
 
 	return p.MarshalBinary()
