@@ -97,10 +97,10 @@ const (
 	]
 }
 	`
-	//the following constants will be used for generating mock tar data
-	//in order to test other images, ImageName should be changed
-	//as well as the number of layer.tars in the new image
-	//additionally the new tar should be moved into this path
+	// the following constants will be used for generating mock tar data
+	// in order to test other images, ImageName should be changed
+	// as well as the number of layer.tars in the new image
+	// additionally the new tar should be moved into this path
 	ImageName        = "busybox"
 	TarFileName      = ImageName + ".tar"
 	TarFilePath      = "vic/lib/imagec/"
@@ -114,11 +114,11 @@ type LayerTarPaths struct {
 }
 
 func TestGenerateLayerTarData(t *testing.T) {
-	//create slice of LayerTarPaths
+	// create slice of LayerTarPaths
 	pathCount := 0
 	paths := make([]*LayerTarPaths, pathCount)
 
-	//Get the initial tar that is pre-loaded into this directory
+	// Get the initial tar that is pre-loaded into this directory
 	ImageTarFile, err := ioutil.ReadFile(TarFileName)
 	if err != nil {
 		t.Errorf(err.Error())
@@ -135,10 +135,10 @@ func TestGenerateLayerTarData(t *testing.T) {
 		if err != nil {
 			t.Errorf(err.Error())
 		}
-		//identify the layers
+		// identify the layers
 		isLayerTarPath, _ := regexp.MatchString("^(.+/layer.tar)", hdr.Name)
 		if isLayerTarPath {
-			//save the paths for each layer.tar
+			// save the paths for each layer.tar
 			path := &LayerTarPaths{
 				ImageName:    ImageName,
 				LayerTarPath: hdr.Name,
