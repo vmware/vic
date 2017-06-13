@@ -124,15 +124,6 @@ func (i *Inspect) run(clic *cli.Context, cmd command) (err error) {
 		err = common.LogErrorIfAny(clic, err)
 	}()
 
-	if i.Format == "raw" {
-		log.SetLevel(log.ErrorLevel)
-		log.SetOutput(os.Stderr)
-	} else if i.Format != "verbose" {
-		log.Warnf("Invalid configuration output format '%s'. Valid options are raw, verbose.", i.Format)
-		log.Warn("Using verbose configuration format")
-		i.Format = "verbose"
-	}
-
 	if i.Debug.Debug != nil && *i.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
@@ -188,6 +179,15 @@ func (i *Inspect) run(clic *cli.Context, cmd command) (err error) {
 }
 
 func (i *Inspect) RunConfig(clic *cli.Context) (err error) {
+	if i.Format == "raw" {
+		log.SetLevel(log.ErrorLevel)
+		log.SetOutput(os.Stderr)
+	} else if i.Format != "verbose" {
+		log.Warnf("Invalid configuration output format '%s'. Valid options are raw, verbose.", i.Format)
+		log.Warn("Using verbose configuration format")
+		i.Format = "verbose"
+	}
+
 	return i.run(clic, func(s state) error {
 		err = i.showConfiguration(s.ctx, s.validator.Session.Finder, s.vchConfig, s.vch)
 		if err != nil {
