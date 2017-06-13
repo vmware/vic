@@ -101,6 +101,12 @@ func main() {
 		if strings.ToLower(ovf.Properties["management_portal.deploy"]) == "true" {
 			ips = fmt.Sprintf("%sAccess the Container Management Portal at:\nhttps://%s:%s\n", ips, ip.String(), ovf.Properties["management_portal.port"])
 		}
+		if port, ok := ovf.Properties["fileserver.port"]; ok {
+			ips = fmt.Sprintf("%sAccess the fileserver at:\nhttps://%s:%s\n", ips, ip.String(), port)
+		}
+		if port, ok := ovf.Properties["engine_installer.port"]; ok {
+			ips = fmt.Sprintf("%sAccess the Demo VCH Installer at:\nhttps://%s:%s\n", ips, ip.String(), port)
+		}
 	}
 
 	bottompanel := ui.NewPar(ips)
