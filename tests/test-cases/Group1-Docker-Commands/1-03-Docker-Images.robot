@@ -59,7 +59,7 @@ No-trunc images
     Length Should Be  @{line}[2]  64
 
 Filter images before
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=  alpine
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f before=alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
@@ -67,7 +67,7 @@ Filter images before
     Should Contain  ${output}  3.1
 
 Filter images since
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f since= alpine:3.1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -f since=alpine:3.1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     @{lines}=  Split To Lines  ${output}
@@ -75,10 +75,10 @@ Filter images since
     Should Contain  ${output}  latest
 
 Tag images
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag ${alpine} ${alpine}:cdg
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag alpine alpine:cdg
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images ${alpine}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  cdg
