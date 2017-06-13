@@ -583,18 +583,12 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 
 		// Remove intersection between insecure registries and whitelist registries from whitelist set so
 		// we can ensure we test the exclusion set with certs
-		found := false
 		for idx, s := range secureRegistries {
 			if s.IsURL() && r.Match(s.String()) {
 				// remove the insecure registry from list of registries to get validated against certs
 				secureRegistries = append(secureRegistries[:idx], secureRegistries[idx+1:]...)
-				found = true
 				break
 			}
-		}
-
-		if found {
-			continue
 		}
 
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
