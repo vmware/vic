@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
@@ -35,7 +36,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"strconv"
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
@@ -43,18 +43,18 @@ var StorageParentDir = "VIC"
 
 // Set to false for unit tests
 var (
-	DetachAll = true
+	DetachAll    = true
 	FileForMinOS = map[string]string{
-		"/etc/hostname":"0644",
-		"/etc/hosts":"0644",
-		"/etc/resolv.conf":"0644",
+		"/etc/hostname":    "0644",
+		"/etc/hosts":       "0644",
+		"/etc/resolv.conf": "0644",
 	}
 	DirForMinOS = map[string]string{
-		"/etc":"0755",
-		"/proc":"0555",
-		"/sys":"0555",
-		"/lib/modules":"0755",
-		"/usr/lib/iptables":"0755",
+		"/etc":              "0755",
+		"/proc":             "0555",
+		"/sys":              "0555",
+		"/lib/modules":      "0755",
+		"/usr/lib/iptables": "0755",
 	}
 )
 
