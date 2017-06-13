@@ -36,8 +36,7 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
-	OpsUser     string `cmd:"ops-user"`
-	OpsPassword *string
+	OpsCredentials common.OpsCredentials
 
 	CertPEM     []byte
 	KeyPEM      []byte
@@ -252,6 +251,14 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 		if err := d.copyContainerNetworks(src); err != nil {
 			return err
 		}
+	}
+
+	if src.OpsCredentials.IsSet {
+		d.OpsCredentials = src.OpsCredentials
+	}
+
+	if src.Target.Thumbprint != "" {
+		d.Target.Thumbprint = src.Target.Thumbprint
 	}
 
 	d.Timeout = src.Timeout

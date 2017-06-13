@@ -173,22 +173,23 @@ Docker text logs
     Should Be Equal As Integers  ${rc}  0
 
 Docker logs with timestamps and since certain time
-    ${status}=  Get State Of Github Issue  2539
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-8-Docker-Logs.robot needs to be updated now that Issue #2539 has been resolved
-    Log  Issue \#2539 is blocking implementation  WARN
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} run busybox sh -c 'for i in $(seq 0 9) ; do sleep 1 && echo line $i; done'
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/sh -c 'a=0; while [ $a -lt 5 ]; do echo "line $a"; a=`expr $a + 1`; sleep 1; done;'
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -q |head --lines=1
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    ${rc}  ${lines}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --since=5s ${containerID} |wc -l
     Should Be Equal As Integers  ${rc}  0
-    Run  Sleep 6, wait for container to finish
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --since=1s ${containerID}
-    Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  container ${containerID} does not support '--since'
+    Should Not Be Equal As Integers  ${lines}  10
+    ${rc}  ${lines}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --since=1h ${containerID} |wc -l
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal As Integers  ${lines}  10
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${containerID} |wc -l
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal As Integers  ${output}  10
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs --timestamps ${containerID}
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  container ${containerID} does not support '--timestamps'
+    ${date}=  Fetch From Left  ${output}  ${SPACE}
+    Should Match Regexp  ${date}  \\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{9}Z
 
 Docker logs with no flags
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox

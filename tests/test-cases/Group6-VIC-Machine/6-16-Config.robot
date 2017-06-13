@@ -134,6 +134,13 @@ Configure VCH https-proxy
     Should Contain  ${output}  --https-proxy=https://proxy.vmware.com:3128
     Should Not Contain  ${output}  --http-proxy
 
+Configure VCH ops user credentials and thumbprint
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --ops-user=%{TEST_USERNAME} --ops-password=%{TEST_PASSWORD}
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    Should Contain  ${output}  --ops-user=%{TEST_USERNAME}
+    Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
+
 Configure VCH https-proxy through vch id
     ${vch-id}=  Get VCH ID  %{VCH-NAME}
     ${output}=  Run  bin/vic-machine-linux configure --id=${vch-id} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --https-proxy ""

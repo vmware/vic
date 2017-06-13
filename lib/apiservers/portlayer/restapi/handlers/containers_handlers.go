@@ -387,6 +387,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	follow := false
 	tail := -1
+	since := int64(0)
 
 	if params.Follow != nil {
 		follow = *params.Follow
@@ -396,7 +397,11 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		tail = int(*params.Taillines)
 	}
 
-	reader, err := container.LogReader(context.Background(), tail, follow)
+	if *params.Since > 0 {
+		since = *params.Since
+	}
+
+	reader, err := container.LogReader(context.Background(), tail, follow, since)
 	if err != nil {
 		// Do not return an error here.  It's a workaround for a panic similar to #2594
 		return containers.NewGetContainerLogsInternalServerError()
