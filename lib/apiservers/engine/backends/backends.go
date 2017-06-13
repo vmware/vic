@@ -94,8 +94,13 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 			portLayerName = product + " " + productVersion + " Backend Engine"
 		}
 
-		vchConfig.Insecure = dynamic.ParseRegistries(config.InsecureRegistries)
-		vchConfig.Whitelist = dynamic.ParseRegistries(config.RegistryWhitelist)
+		var err error
+		if vchConfig.Insecure, err = dynamic.ParseRegistries(config.InsecureRegistries); err != nil {
+			return err
+		}
+		if vchConfig.Whitelist, err = dynamic.ParseRegistries(config.RegistryWhitelist); err != nil {
+			return err
+		}
 		vchConfig.src = &dynamic.AdmiralSource{}
 		vchConfig.merger = dynamic.NewMerger()
 		loadRegistryCACerts()
@@ -372,11 +377,19 @@ func (d *dynConfig) update() error {
 		return err
 	}
 
-	vchConfig.Cfg = newcfg
+	var wl, bl, insecure registry.Set
+	if wl, err = dynamic.ParseRegistries(newcfg.RegistryWhitelist); err != nil {
+		return err
+	}
+	if bl, err = dynamic.ParseRegistries(newcfg.RegistryBlacklist); err != nil {
+		return err
+	}
+	if insecure, err = dynamic.ParseRegistries(newcfg.InsecureRegistries); err != nil {
+		return err
+	}
 
-	d.Whitelist = dynamic.ParseRegistries(newcfg.RegistryWhitelist)
-	d.Blacklist = dynamic.ParseRegistries(newcfg.RegistryBlacklist)
-	d.Insecure = dynamic.ParseRegistries(newcfg.InsecureRegistries)
+	d.Whitelist, d.Blacklist, d.Insecure = wl, bl, insecure
+	vchConfig.Cfg = newcfg
 
 	return nil
 }

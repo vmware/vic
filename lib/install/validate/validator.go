@@ -569,8 +569,15 @@ func (v *Validator) friendlyRegistryList(registryType string, registryList []str
 // Validate registries are reachable.  Secure registries that are not specified as insecure are validated with the
 // CA certs passed into vic-machine.
 func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, pool *x509.CertPool) (insecureRegistries []string, whitelistRegistries []string, err error) {
-	secureRegistries := dynamic.ParseRegistries(input.WhitelistRegistries)
-	insecureRegistriesSet := dynamic.ParseRegistries(input.InsecureRegistries)
+	secureRegistriesSet, err := dynamic.ParseRegistries(input.WhitelistRegistries)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	insecureRegistriesSet, err := dynamic.ParseRegistries(input.InsecureRegistries)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Test insecure registries' reachability
 	for _, r := range insecureRegistriesSet {
@@ -583,10 +590,10 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 
 		// Remove intersection between insecure registries and whitelist registries from whitelist set so
 		// we can ensure we test the exclusion set with certs
-		for idx, s := range secureRegistries {
+		for idx, s := range secureRegistriesSet {
 			if s.IsURL() && r.Match(s.String()) {
 				// remove the insecure registry from list of registries to get validated against certs
-				secureRegistries = append(secureRegistries[:idx], secureRegistries[idx+1:]...)
+				secureRegistriesSet = append(secureRegistriesSet[:idx], secureRegistriesSet[idx+1:]...)
 				break
 			}
 		}
@@ -617,7 +624,7 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 	}
 
 	// Test secure registries' reachability
-	for _, w := range secureRegistries {
+	for _, w := range secureRegistriesSet {
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
 		if w.IsCIDR() {
 			log.Debugf("Skipping registry validation for %s", w)
@@ -648,7 +655,7 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 	if len(input.WhitelistRegistries) > 0 {
 		// ignoring error since default merge policy is union, so should never return
 		// an error
-		m, _ := secureRegistries.Merge(insecureRegistriesSet, nil)
+		m, _ := secureRegistriesSet.Merge(insecureRegistriesSet, nil)
 		whitelistRegistries = m.Strings()
 	}
 

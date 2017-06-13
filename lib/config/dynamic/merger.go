@@ -31,8 +31,16 @@ func NewMerger() Merger {
 // Merge merges two config objects together. For now only
 // whitelist registries are merged.
 func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
-	otherWl := ParseRegistries(other.RegistryWhitelist)
-	origWl := ParseRegistries(orig.RegistryWhitelist)
+	otherWl, err := ParseRegistries(other.RegistryWhitelist)
+	if err != nil {
+		return nil, err
+	}
+
+	origWl, err := ParseRegistries(orig.RegistryWhitelist)
+	if err != nil {
+		return nil, err
+	}
+
 	wl, err := origWl.Merge(otherWl, &whitelistMerger{})
 	if err != nil {
 		return nil, err
@@ -46,16 +54,19 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 	return orig, nil
 }
 
-func ParseRegistries(regs []string) registry.Set {
+func ParseRegistries(regs []string) (registry.Set, error) {
 	var s registry.Set
 	for _, r := range regs {
 		e := registry.ParseEntry(r)
 		if e != nil {
 			s = append(s, e)
+			continue
 		}
+
+		return nil, fmt.Errorf("could not parse entry %s", r)
 	}
 
-	return s
+	return s, nil
 }
 
 type whitelistMerger struct{}
