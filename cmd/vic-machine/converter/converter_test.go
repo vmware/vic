@@ -319,16 +319,18 @@ func testConvertContainerNetworks(t *testing.T) {
 
 func testConvertSharesInfo(t *testing.T) {
 	data := data.NewData()
+	cLimit, cReserve := 29300, 1024
 	data.NumCPUs = 2
-	data.MemoryMB = 4096
-	data.VCHCPULimitsMHz = 29300
-	data.VCHCPUReservationsMHz = 1024
+	data.VCHCPULimitsMHz = &cLimit
+	data.VCHCPUReservationsMHz = &cReserve
 	data.VCHCPUShares = &types.SharesInfo{
 		Shares: 6000,
 		Level:  types.SharesLevelCustom,
 	}
-	data.VCHMemoryLimitsMB = 13144
-	data.VCHMemoryReservationsMB = 1024
+	mLimit, mReserve := 13144, 1024
+	data.MemoryMB = 4096
+	data.VCHMemoryLimitsMB = &mLimit
+	data.VCHMemoryReservationsMB = &mReserve
 	data.VCHMemoryShares = &types.SharesInfo{
 		Shares: 163840,
 		Level:  types.SharesLevelNormal,
