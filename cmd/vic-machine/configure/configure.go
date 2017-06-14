@@ -87,20 +87,21 @@ func (c *Configure) Flags() []cli.Flag {
 		},
 	}
 
-	proxies := c.proxies.ProxyFlags(false)
 	// TODO (Jialin): after issue #5472 is fixed, change hidden back to false
 	dns := c.dns.DNSFlags(true)
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(false)
 	id := c.IDFlags()
 	compute := c.ComputeFlags()
-	iso := c.ImageFlags(false)
 	debug := c.DebugFlags()
 	cNetwork := c.cNetworks.CNetworkFlags(false)
+	proxies := c.proxies.ProxyFlags(false)
+	memory := c.VCHMemoryLimitFlags(false)
+	cpu := c.VCHCPULimitFlags(false)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, iso, dns, cNetwork, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, dns, cNetwork, memory, cpu, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -300,14 +301,15 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return err
 	}
 
-	// using new configuration override configuration query from guestinfo
-	if err = oldData.CopyNonEmpty(c.Data); err != nil {
-		log.Error("Configuring cannot continue: copying configuration failed")
-		return err
-	}
 	if err = validate.SetDataFromVM(ctx, validator.Session.Finder, vch, oldData); err != nil {
 		log.Error("Configuring cannot continue: querying configuration from VM failed")
 		log.Error(err)
+		return err
+	}
+
+	// using new configuration override configuration query from guestinfo
+	if err = oldData.CopyNonEmpty(c.Data); err != nil {
+		log.Error("Configuring cannot continue: copying configuration failed")
 		return err
 	}
 	c.Data = oldData
@@ -324,6 +326,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.Timeout = c.Timeout
+	vConfig.VCHSizeIsSet = c.ResourceLimits.IsSet
 
 	updating, err := vch.VCHUpdateStatus(ctx)
 	if err != nil {

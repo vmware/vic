@@ -16,15 +16,18 @@ package management
 
 import (
 	"context"
+	"fmt"
 	"path"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -52,45 +55,14 @@ func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigS
 	// TODO: expose the limits and reservation here via options
 	resSpec := types.ResourceConfigSpec{
 		CpuAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
 			ExpandableReservation: types.NewBool(true),
 		},
 		MemoryAllocation: &types.ResourceAllocationInfo{
-			Shares: &types.SharesInfo{
-				Level: types.SharesLevelNormal,
-			},
 			ExpandableReservation: types.NewBool(true),
 		},
 	}
-	cpu := resSpec.CpuAllocation.GetResourceAllocationInfo()
-	cpu.Limit = -1
-	if settings.VCHSize.CPU.Limit != 0 {
-		cpu.Limit = settings.VCHSize.CPU.Limit
-	}
-	// FIXME: govmomi omitempty
-	cpu.Reservation = 1
-	if settings.VCHSize.CPU.Reservation != 0 {
-		cpu.Reservation = settings.VCHSize.CPU.Reservation
-	}
-	if settings.VCHSize.CPU.Shares != nil {
-		cpu.Shares = settings.VCHSize.CPU.Shares
-	}
-
-	memory := resSpec.MemoryAllocation.GetResourceAllocationInfo()
-	memory.Limit = -1
-	if settings.VCHSize.Memory.Limit != 0 {
-		memory.Limit = settings.VCHSize.Memory.Limit
-	}
-	// FIXME: govmomi omitempty
-	memory.Reservation = 1
-	if settings.VCHSize.Memory.Reservation != 0 {
-		memory.Reservation = settings.VCHSize.Memory.Reservation
-	}
-	if settings.VCHSize.Memory.Shares != nil {
-		memory.Shares = settings.VCHSize.Memory.Shares
-	}
+	setResources(resSpec.CpuAllocation.GetResourceAllocationInfo(), settings.VCHSize.CPU)
+	setResources(resSpec.MemoryAllocation.GetResourceAllocationInfo(), settings.VCHSize.Memory)
 
 	rp, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
 	if err != nil {
@@ -100,6 +72,22 @@ func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigS
 
 	conf.ComputeResources = append(conf.ComputeResources, rp.Reference())
 	return rp, nil
+}
+
+func setResources(spec *types.ResourceAllocationInfo, resource types.ResourceAllocationInfo) {
+	*spec = resource
+	if spec.Limit == 0 {
+		spec.Limit = -1
+	}
+	// FIXME: govmomi omitempty
+	if spec.Reservation == 0 {
+		spec.Reservation = 1
+	}
+	if spec.Shares == nil {
+		spec.Shares = &types.SharesInfo{
+			Level: types.SharesLevelNormal,
+		}
+	}
 }
 
 func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHostConfigSpec) error {
@@ -141,4 +129,37 @@ func (d *Dispatcher) findResourcePool(path string) (*object.ResourcePool, error)
 		return nil, nil
 	}
 	return rp, nil
+}
+
+func (d *Dispatcher) getPoolResourceSettings(pool *object.ResourcePool) (*config.Resources, error) {
+	var p mo.ResourcePool
+	ps := []string{"config.cpuAllocation", "config.memoryAllocation"}
+
+	if err := pool.Properties(d.ctx, pool.Reference(), ps, &p); err != nil {
+		return nil, err
+	}
+	res := &config.Resources{}
+	cpu := p.Config.CpuAllocation.GetResourceAllocationInfo()
+	if cpu != nil {
+		res.CPU = *cpu
+		// handle default value
+		validate.HandleDefaultSettings(&res.CPU)
+	}
+	memory := p.Config.MemoryAllocation.GetResourceAllocationInfo()
+	if memory != nil {
+		res.Memory = *memory
+		validate.HandleDefaultSettings(&res.Memory)
+	}
+	return res, nil
+}
+
+func updateResourcePoolConfig(ctx context.Context, pool *object.ResourcePool, name string, size *config.Resources) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("cpu %#v, memory: %#v", size.CPU, size.Memory)))
+	resSpec := &types.ResourceConfigSpec{
+		CpuAllocation:    &types.ResourceAllocationInfo{},
+		MemoryAllocation: &types.ResourceAllocationInfo{},
+	}
+	setResources(resSpec.CpuAllocation.GetResourceAllocationInfo(), size.CPU)
+	setResources(resSpec.MemoryAllocation.GetResourceAllocationInfo(), size.Memory)
+	return pool.UpdateConfig(ctx, name, resSpec)
 }

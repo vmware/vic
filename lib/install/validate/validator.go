@@ -805,12 +805,20 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 
 	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
 
-	dconfig.VCHSize.CPU.Reservation = int64(input.VCHCPUReservationsMHz)
-	dconfig.VCHSize.CPU.Limit = int64(input.VCHCPULimitsMHz)
+	if input.VCHCPUReservationsMHz != nil {
+		dconfig.VCHSize.CPU.Reservation = int64(*input.VCHCPUReservationsMHz)
+	}
+	if input.VCHCPULimitsMHz != nil {
+		dconfig.VCHSize.CPU.Limit = int64(*input.VCHCPULimitsMHz)
+	}
 	dconfig.VCHSize.CPU.Shares = input.VCHCPUShares
 
-	dconfig.VCHSize.Memory.Reservation = int64(input.VCHMemoryReservationsMB)
-	dconfig.VCHSize.Memory.Limit = int64(input.VCHMemoryLimitsMB)
+	if input.VCHMemoryReservationsMB != nil {
+		dconfig.VCHSize.Memory.Reservation = int64(*input.VCHMemoryReservationsMB)
+	}
+	if input.VCHMemoryLimitsMB != nil {
+		dconfig.VCHSize.Memory.Limit = int64(*input.VCHMemoryLimitsMB)
+	}
 	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
 
 	return &dconfig

@@ -55,14 +55,7 @@ type Data struct {
 	DNS               []net.IP      `cmd:"dns-server"`
 
 	common.ContainerNetworks `cmd:"container-network"`
-
-	VCHCPULimitsMHz       int               `cmd:"cpu"`
-	VCHCPUReservationsMHz int               `cmd:"cpu-reservation"`
-	VCHCPUShares          *types.SharesInfo `cmd:"cpu-shares"`
-
-	VCHMemoryLimitsMB       int               `cmd:"memory"`
-	VCHMemoryReservationsMB int               `cmd:"memory-reservation"`
-	VCHMemoryShares         *types.SharesInfo `cmd:"memory-shares"`
+	common.ResourceLimits
 
 	BridgeIPRange *net.IPNet `cmd:"bridge-network-range"`
 
@@ -115,7 +108,9 @@ func (n *NetworkConfig) IsSet() bool {
 // InstallerData is used to hold the transient installation configuration that shouldn't be serialized
 type InstallerData struct {
 	// Virtual Container Host capacity
-	VCHSize config.Resources
+	VCHSize      config.Resources
+	VCHSizeIsSet bool
+
 	// Appliance capacity
 	ApplianceSize config.Resources
 
@@ -260,6 +255,34 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 	if src.Target.Thumbprint != "" {
 		d.Target.Thumbprint = src.Target.Thumbprint
 	}
+
+	resourceIsSet := false
+	if src.VCHCPULimitsMHz != nil {
+		d.VCHCPULimitsMHz = src.VCHCPULimitsMHz
+		resourceIsSet = true
+	}
+	if src.VCHCPUReservationsMHz != nil {
+		d.VCHCPUReservationsMHz = src.VCHCPUReservationsMHz
+		resourceIsSet = true
+	}
+	if src.VCHCPUShares != nil {
+		d.VCHCPUShares = src.VCHCPUShares
+		resourceIsSet = true
+	}
+
+	if src.VCHMemoryLimitsMB != nil {
+		d.VCHMemoryLimitsMB = src.VCHMemoryLimitsMB
+		resourceIsSet = true
+	}
+	if src.VCHMemoryReservationsMB != nil {
+		d.VCHMemoryReservationsMB = src.VCHMemoryReservationsMB
+		resourceIsSet = true
+	}
+	if src.VCHMemoryShares != nil {
+		d.VCHMemoryShares = src.VCHMemoryShares
+		resourceIsSet = true
+	}
+	d.ResourceLimits.IsSet = resourceIsSet
 
 	d.Timeout = src.Timeout
 
