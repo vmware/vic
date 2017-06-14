@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package create
+package common
 
 import (
 	"flag"
@@ -25,20 +25,20 @@ import (
 )
 
 var (
-	create = NewCreate()
+	cs = &CertSeed{}
 )
 
 func TestGenKey(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	os.Args = []string{"cmd", "create"}
 	flag.Parse()
-	create.noTLS = false
-	create.certPath = "install-test"
-	create.cname = "common name"
-	create.keySize = 1024
+	cs.NoTLS = false
+	cs.CertPath = "install-test"
+	cs.Cname = "common name"
+	cs.KeySize = 1024
 
-	ca, kp, err := create.generateCertificates(true, true)
-	defer os.RemoveAll(fmt.Sprintf("./%s", create.certPath))
+	ca, kp, err := cs.generateCertificates(true, true)
+	defer os.RemoveAll(fmt.Sprintf("./%s", cs.CertPath))
 
 	assert.NoError(t, err, "Expected to cleanly generate certificates")
 	assert.NotEmpty(t, ca, "Expected CA to contain data")
@@ -46,7 +46,7 @@ func TestGenKey(t *testing.T) {
 	assert.NotEmpty(t, kp.CertPEM, "Expected certificate to contain data")
 	assert.NotEmpty(t, kp.CertPEM, "Expected key to contain data")
 
-	ca, kp, err = create.loadCertificates()
+	ca, kp, err = cs.loadCertificates()
 	assert.NoError(t, err, "Expected to cleanly load certificates")
 	assert.NotEmpty(t, ca, "Expected CA to contain data")
 	assert.NotNil(t, kp, "Expected keypair to contain data")
