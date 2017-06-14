@@ -20,24 +20,35 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
+    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
+
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${ESX1}  ${esx1}
+    Append To List  ${list}  ${esx1}
     
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
-    Set Suite Variable  ${ESX2}  ${esx2}
-    
+    Append To List  ${list}  ${esx2}
+
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4240417
-    Set Suite Variable  ${ESX3}  ${esx3}
+    Append To List  ${list}  ${esx3}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Set Suite Variable  ${VC}  ${vc}
+    # Finish vCenter deploy
+    ${output}=  Wait For Process  ${pid-vc}
+    Should Contain  ${output.stdout}  Overall Status: Succeeded
 
-    Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${vc}
+    Close Connection
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${vc-ip}
 
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter
@@ -50,8 +61,9 @@ Test
     Log To Console  Add ESX host to the VC
     Add Host To VCenter  ${esx1-ip}  root  ha-datacenter  e2eFunctionalTest
     Add Host To VCenter  ${esx2-ip}  root  ha-datacenter  e2eFunctionalTest
-    ${onlyNums}=  Strip String  ${VC_VERSION}  characters=ob-
-    Run Keyword If  ${onlyNums} >= 4602587  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
+    ${vc-ver}=  Run  govc about | grep Version:
+    ${vc-ver}=  Fetch From Right  ${vc-ver}  ${SPACE}
+    Run Keyword If  '${vc-ver}' == '6.5.0'  Add Host To VCenter  ${esx3-ip}  root  ha-datacenter  e2eFunctionalTest
 
     Create A Distributed Switch  ha-datacenter
 
