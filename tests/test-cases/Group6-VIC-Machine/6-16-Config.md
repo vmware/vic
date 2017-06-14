@@ -35,20 +35,23 @@ This test requires that a vSphere server is running and available
 22. Verify http proxy is set correctly through govc
 23. Configure the VCH's operations user credentials
 24. Run vic-machine inspect config
-25. Run vic-machine inspect config
-26. Configure VCH dns server to 10.118.81.1 and 10.118.81.2
+26. Reset VCH http proxy using VCH ID
+26. Verify http proxy is reset correctly through govc
 27. Run vic-machine inspect config
+28. Configure VCH dns server to 10.118.81.1 and 10.118.81.2
+29. Run vic-machine inspect config
 
 # Expected Outcome
-* Steps 1 to 11 should succeed
-* Steps 12 and 13 should succeed and the output should contain the new container network
-* Step 14 should succeed
 * Step 15 should fail with an error message saying that the existing container network must be specified
-* Step 16 should succeed
-* Steps 17 and 18 should succeed and the output should contain both container networks
-* Step 19 should succeed
 * Step 20 should fail with an error message saying that changes to existing container networks are not supported
-* Steps 21 and 22 should succeed
-* Steps 23 and 24 should succeed
 * Step 24's output should contain the operations user's name and the host thumbprint
-* Steps 25 to 27 should succeed
+* All other steps should succeed
+
+# Configure VCH resources
+1. Configure VCH resources
+2. Verify VCH configuration through vic-machine inspect
+3. Configure VCH resources with too small values
+4. Verify VCH configuration is rollback to old value
+
+# Expected Outcome
+* All other steps should succeed
