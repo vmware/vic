@@ -110,21 +110,18 @@ func (c *Configure) Flags() []cli.Flag {
 			Name:        "regenerate-certs",
 			Usage:       "Generate self-signed certs and enable them on this VCH automatically",
 			Destination: &c.regenerateCerts,
-			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "tls-key",
 			Value:       "",
 			Usage:       "Virtual Container Host private key file (server certificate)",
 			Destination: &c.skey,
-			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "tls-cert",
 			Value:       "",
 			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
 			Destination: &c.scert,
-			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "tls-cname",
@@ -137,18 +134,11 @@ func (c *Configure) Flags() []cli.Flag {
 			Value:       "",
 			Usage:       "The path to check for existing certificates and in which to save generated certificates. Defaults to './<vch name>/'",
 			Destination: &c.certPath,
-			Hidden:      true,
 		},
 		cli.BoolFlag{
 			Name:        "no-tlsverify, kv",
 			Usage:       "Disable authentication via client certificates - for more tls options see advanced help (-x)",
 			Destination: &c.noTLSverify,
-		},
-		cli.BoolFlag{
-			Name:        "no-tls, k",
-			Usage:       "Disable TLS support completely",
-			Destination: &c.noTLS,
-			Hidden:      true,
 		},
 		cli.StringSliceFlag{
 			Name:   "organization",
@@ -284,7 +274,8 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	}
 	o.HostCertificate = n.HostCertificate
 	o.CertificateAuthorities = n.CertificateAuthorities
-
+	o.UserCertificates = n.UserCertificates
+	o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
 }
 
 func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {

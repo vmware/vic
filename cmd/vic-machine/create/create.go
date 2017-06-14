@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/url"
-	"os"
 	"path"
 	"reflect"
 	"strings"
