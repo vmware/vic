@@ -21,14 +21,23 @@ import (
 	"github.com/vmware/vic/lib/config"
 )
 
-var SourceUnavailableErr = errors.New("source unavailable")
-var SourceNotModifiedErr = errors.New("source not modified")
-var AccessDeniedErr = errors.New("access denied")
+var ErrSourceUnavailable = errors.New("source unavailable")
+var ErrConfigNotModified = errors.New("config not modified")
+var ErrAccessDenied = errors.New("access denied")
 
+// Source is configuration source, remote or otherwise
 type Source interface {
+	// Get returns a config object. If the remote/local source
+	// is not avaiable, Get returns (nil, ErrSourceUnavailable).
+	// If the configuration has not changed since the last
+	// time Get was called, it returns (nil, ErrConfigNotModified).
+	// If the remote/local source denies access, it returns
+	// (nil, ErrAccessDenied).
 	Get(ctx context.Context) (*config.VirtualContainerHostConfigSpec, error)
 }
 
+// Merger is used to merge two config objects
 type Merger interface {
+	// Merge merges two config objects returning the resulting config.
 	Merge(orig, other *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error)
 }
