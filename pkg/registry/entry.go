@@ -102,7 +102,7 @@ func (u *urlEntry) IsURL() bool {
 func ensurePort(u *url.URL) *url.URL {
 	_, _, err := net.SplitHostPort(u.Host)
 	if err == nil {
-		return u
+		return u // port already present
 	}
 
 	res := *u
@@ -121,9 +121,9 @@ func (u *urlEntry) Contains(e Entry) bool {
 	case *urlEntry:
 		up := ensurePort(u.u)
 		ep := ensurePort(e.u)
-		return glob.Glob(up.Host, ep.Host) &&
-			(u.u.Scheme == "" || u.u.Scheme == e.u.Scheme) &&
-			strings.HasPrefix(e.u.Path, u.u.Path)
+		return (u.u.Scheme == "" || u.u.Scheme == e.u.Scheme) &&
+			strings.HasPrefix(e.u.Path, u.u.Path) &&
+			glob.Glob(up.Host, ep.Host)
 	}
 
 	return false

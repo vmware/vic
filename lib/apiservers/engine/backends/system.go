@@ -223,13 +223,13 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if len(cfg.InsecureRegistries) > 0 {
-			customInfo := [2]string{insecureRegistriesLabel, entryStrJoin(vchConfig.Insecure, ",")}
+			customInfo := [2]string{insecureRegistriesLabel, strings.Join(vchConfig.Insecure.Strings(), ",")}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if len(cfg.RegistryWhitelist) > 0 {
 			customInfo := [2]string{vchWhitelistMode, "enabled"}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
-			customInfo = [2]string{whitelistRegistriesLabel, entryStrJoin(vchConfig.Whitelist, ",")}
+			customInfo = [2]string{whitelistRegistriesLabel, strings.Join(vchConfig.Whitelist.Strings(), ",")}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		} else {
 			customInfo := [2]string{vchWhitelistMode, "disabled.  All registry access allowed."}
@@ -333,7 +333,7 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 	}
 
 	// Check if registry is contained within whitelisted or insecure registries
-	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(loginURL)
+	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(ctx, loginURL)
 	if !whitelistOk {
 		msg := fmt.Sprintf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", loginURL.Host)
 		return msg, "", fmt.Errorf(msg)

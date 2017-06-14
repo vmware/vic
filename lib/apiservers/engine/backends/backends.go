@@ -338,13 +338,21 @@ func EventService() *events.Events {
 	return eventService
 }
 
-func (d *dynConfig) RegistryCheck(u *url.URL) (wl bool, bl bool, insecure bool) {
+// RegistryCheck checkes the given url against the registry whitelist, blacklist, and insecure
+// registries lists. It returns true for each list where u matches that list.
+func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
+	c, err := d.src.Get(ctx)
+
 	d.Lock()
 	defer d.Unlock()
 
-	// update config
-	if err := d.update(); err != nil {
-		log.Warnf("error updating config: %s", err)
+	if err == nil {
+		// update config
+		if err := d.update(c); err != nil {
+			log.Warnf("error updating config: %s", err)
+		}
+	} else {
+		log.Warnf("could not get config from remote source: %s", err)
 	}
 
 	us := u.String()
@@ -354,25 +362,14 @@ func (d *dynConfig) RegistryCheck(u *url.URL) (wl bool, bl bool, insecure bool) 
 	return
 }
 
-func (d *dynConfig) Update() error {
-	d.Lock()
-	defer d.Unlock()
-
-	return d.update()
-}
-
-func (d *dynConfig) update() error {
-	// update config
-	c, err := d.src.Get()
-	if err != nil {
-		return err
-	}
-
+// update merges another config into this config. d should be locked before
+// calling this.
+func (d *dynConfig) update(c *config.VirtualContainerHostConfigSpec) error {
 	if c == nil {
 		return nil
 	}
 
-	newcfg, err := d.merger.Merge(vchConfig.Cfg, c)
+	newcfg, err := d.merger.Merge(d.Cfg, c)
 	if err != nil {
 		return err
 	}

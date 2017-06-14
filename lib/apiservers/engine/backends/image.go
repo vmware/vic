@@ -366,7 +366,7 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	}
 
 	// Check if url is contained within set of whitelisted or insecure registries
-	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(hostnameURL)
+	whitelistOk, _, insecureOk := vchConfig.RegistryCheck(ctx, hostnameURL)
 	if !whitelistOk {
 		err = fmt.Errorf("Access denied to unauthorized registry (%s) while VCH is in whitelist mode", hostnameURL.Host)
 		log.Errorf(err.Error())

@@ -41,16 +41,14 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 		return nil, err
 	}
 
-	wl, err := origWl.Merge(otherWl, &whitelistMerger{})
-	if err != nil {
-		return nil, err
+	var wl registry.Set
+	if len(otherWl) > 0 {
+		if wl, err = origWl.Merge(otherWl, &whitelistMerger{}); err != nil {
+			return nil, err
+		}
 	}
 
-	orig.RegistryWhitelist = nil
-	for _, e := range wl {
-		orig.RegistryWhitelist = append(orig.RegistryWhitelist, e.String())
-	}
-
+	orig.RegistryWhitelist = wl.Strings()
 	return orig, nil
 }
 

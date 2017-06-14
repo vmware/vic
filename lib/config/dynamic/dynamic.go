@@ -14,10 +14,19 @@
 
 package dynamic
 
-import "github.com/vmware/vic/lib/config"
+import (
+	"context"
+	"errors"
+
+	"github.com/vmware/vic/lib/config"
+)
+
+var SourceUnavailableErr = errors.New("source unavailable")
+var SourceNotModifiedErr = errors.New("source not modified")
+var AccessDeniedErr = errors.New("access denied")
 
 type Source interface {
-	Get() (*config.VirtualContainerHostConfigSpec, error)
+	Get(ctx context.Context) (*config.VirtualContainerHostConfigSpec, error)
 }
 
 type Merger interface {

@@ -172,7 +172,7 @@ func TestEntryMatch(t *testing.T) {
 		},
 		{
 			e:   ParseEntry("foo:123"),
-			s:   "http://foo/bar",
+			s:   "http://foo/bar", // this should be interpreted as http://foo:80/bar
 			res: false,
 		},
 		{
@@ -202,7 +202,7 @@ func TestEntryMatch(t *testing.T) {
 		},
 		{
 			e:   ParseEntry("http://192.168.1.1"),
-			s:   "192.168.1.1/foo/bar",
+			s:   "192.168.1.1/foo/bar", // ambiguous scheme and entry is restricted to http, so no match
 			res: false,
 		},
 		{
@@ -213,6 +213,12 @@ func TestEntryMatch(t *testing.T) {
 		{
 			e:   ParseEntry("https://192.168.1.1"),
 			s:   "http://192.168.1.1",
+			res: false,
+		},
+		// fqdn and corresponding ip should not match
+		{
+			e:   ParseEntry("https://google.com"),
+			s:   "216.58.195.78",
 			res: false,
 		},
 	}

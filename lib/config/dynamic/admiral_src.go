@@ -14,13 +14,17 @@
 
 package dynamic
 
-import "github.com/vmware/vic/lib/config"
+import (
+	"context"
+
+	"github.com/vmware/vic/lib/config"
+)
 
 type AdmiralSource struct {
 }
 
 // Get returns the dynamic config portion from an Admiral instance. For now,
 // this is empty pending details from the Admiral team.
-func (a *AdmiralSource) Get() (*config.VirtualContainerHostConfigSpec, error) {
-	return nil, nil
+func (a *AdmiralSource) Get(context.Context) (*config.VirtualContainerHostConfigSpec, error) {
+	return nil, SourceUnavailableErr
 }
