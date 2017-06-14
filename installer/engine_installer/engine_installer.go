@@ -168,13 +168,14 @@ func (ei *EngineInstaller) verifyLogin() error {
 
 	input := data.NewData()
 
-	input.OpsUser = u.User.Username()
+	username := u.User.Username()
+	input.OpsCredentials.OpsUser = &username
 	passwd, _ := u.User.Password()
-	input.OpsPassword = &passwd
+	input.OpsCredentials.OpsPassword = &passwd
 	input.URL = &u
 	input.Force = true
 
-	input.User = u.User.Username()
+	input.User = username
 	input.Password = &passwd
 
 	v, err := validate.NewValidator(ctx, input)
