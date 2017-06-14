@@ -31,6 +31,7 @@ Setup Harbor
     Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  HOST_TYPE  ESXi
     Remove Environment Variable  TEST_DATACENTER
     Remove Environment Variable  TEST_RESOURCE
     Remove Environment Variable  BRIDGE_NETWORK

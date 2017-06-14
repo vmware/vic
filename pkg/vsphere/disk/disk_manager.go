@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import (
 )
 
 const (
+	// MaxAttachedDisks specifies the max number of disks attached to the VCH
 	MaxAttachedDisks = 8
 )
 
@@ -54,6 +55,7 @@ type Manager struct {
 	reconfig sync.Mutex
 }
 
+// NewDiskManager creates and returns a *Manager
 func NewDiskManager(op trace.Operation, session *session.Session, detachAll bool) (*Manager, error) {
 	vm, err := guest.GetSelf(op, session)
 	if err != nil {
@@ -88,7 +90,7 @@ func NewDiskManager(op trace.Operation, session *session.Session, detachAll bool
 // Returns a VirtualDisk corresponding to the created and attached disk.
 func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 	parentURI *object.DatastorePath,
-	capacity int64, flags int) (*VirtualDisk, error) {
+	capacity int64, flags int, fst FilesystemType) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(newDiskURI.String()))
 
 	// ensure we abide by max attached disks limits
@@ -108,7 +110,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 		return nil, errors.Trace(err)
 	}
 
-	d, err := NewVirtualDisk(newDiskURI)
+	d, err := NewVirtualDisk(newDiskURI, fst)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -172,13 +174,13 @@ func (m *Manager) createDiskSpec(childURI, parentURI *object.DatastorePath, capa
 
 // Create creates a disk without a parent (and doesn't attach it).
 func (m *Manager) Create(op trace.Operation, newDiskURI *object.DatastorePath,
-	capacityKB int64) (*VirtualDisk, error) {
+	capacityKB int64, fst FilesystemType) (*VirtualDisk, error) {
 
 	defer trace.End(trace.Begin(newDiskURI.String()))
 
 	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
 
-	d, err := NewVirtualDisk(newDiskURI)
+	d, err := NewVirtualDisk(newDiskURI, fst)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -205,10 +207,10 @@ func (m *Manager) Create(op trace.Operation, newDiskURI *object.DatastorePath,
 }
 
 // Gets a disk given a datastore path URI to the vmdk
-func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath) (*VirtualDisk, error) {
+func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath, fst FilesystemType) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(diskURI.String()))
 
-	dsk, err := NewVirtualDisk(diskURI)
+	dsk, err := NewVirtualDisk(diskURI, fst)
 	if err != nil {
 		return nil, err
 	}
@@ -266,6 +268,7 @@ func (m *Manager) Get(op trace.Operation, diskURI *object.DatastorePath) (*Virtu
 //	return nil
 // }
 
+// Attach attempts to attach a virtual disk
 func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	deviceList := object.VirtualDeviceList{}
 	deviceList = append(deviceList, disk)
@@ -294,9 +297,11 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
+
 	return nil
 }
 
+// Detach attempts to detach a virtual disk
 func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	defer trace.End(trace.Begin(d.DevicePath))
 	op.Infof("Detaching disk %s", d.DevicePath)
@@ -310,6 +315,9 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	}
 
 	if err := d.canBeDetached(); err != nil {
+		// even though canBeDetached() is called here and nowhere else, it does not imply
+		// an attempt to detach, so decrease the ref count from here for that reason
+		d.attachedRefs--
 		return errors.Trace(err)
 	}
 
@@ -328,6 +336,7 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	default:
 	}
 
+	// don't decrement reference count here as setDetached() does it already
 	return d.setDetached()
 }
 

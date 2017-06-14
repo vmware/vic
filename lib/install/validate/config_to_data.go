@@ -144,8 +144,8 @@ func NewDataFromConfig(ctx context.Context, finder Finder, conf *config.VirtualC
 	if d.Target.URL, err = url.Parse(conf.Connection.Target); err != nil {
 		return
 	}
-	d.OpsUser = conf.Connection.Username
-	d.OpsPassword = &conf.Connection.Token
+	d.OpsCredentials.OpsUser = &conf.Connection.Username
+	d.OpsCredentials.OpsPassword = &conf.Connection.Token
 	d.Thumbprint = conf.Connection.TargetThumbprint
 
 	d.AsymmetricRouting = conf.AsymmetricRouting

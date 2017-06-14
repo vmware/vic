@@ -23,16 +23,21 @@ This test requires that a vSphere server is running and available
 10. check whether the output of vic-machine inspect contains the desired debug state
 11. Configure the VCH by adding a container network
 12. Run docker network ls
-13. Run vic-machine inspect --conf
+13. Run vic-machine inspect config
 14. Run a container with the new container network
 15. Configure the VCH by adding a new container network without specifying the previous network
 16. Configure the VCH by adding a new container network while specifying the previous network
 17. Run docker network ls
-18. Run vic-machine inspect --conf
+18. Run vic-machine inspect config
 19. Run a container with the new container network
 20. Configure the VCH by attempting to change an existing container network
 21. Configure VCH http proxy
 22. Verify http proxy is set correctly through govc
+23. Configure the VCH's operations user credentials
+24. Run vic-machine inspect config
+25. Run vic-machine inspect config
+26. Configure VCH dns server to 10.118.81.1 and 10.118.81.2
+27. Run vic-machine inspect config
 
 # Expected Outcome
 * Steps 1 to 11 should succeed
@@ -44,3 +49,6 @@ This test requires that a vSphere server is running and available
 * Step 19 should succeed
 * Step 20 should fail with an error message saying that changes to existing container networks are not supported
 * Steps 21 and 22 should succeed
+* Steps 23 and 24 should succeed
+* Step 24's output should contain the operations user's name and the host thumbprint
+* Steps 25 to 27 should succeed

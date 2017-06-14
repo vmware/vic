@@ -30,7 +30,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -101,7 +100,7 @@ type Create struct {
 	volumeStores             cli.StringSlice `arg:"volume-store"`
 	insecureRegistries       cli.StringSlice `arg:"insecure-registry"`
 	whitelistRegistries      cli.StringSlice `arg:"whitelist-registry"`
-	dns                      cli.StringSlice `arg:"dns-server"`
+	dns                      common.DNS
 	clientNetworkName        string
 	clientNetworkGateway     string
 	clientNetworkIP          string
@@ -156,21 +155,6 @@ func (c *Create) SetFields() map[string]struct{} {
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
 	create := []cli.Flag{
-		// credentials
-		cli.StringFlag{
-			Name:        "ops-user",
-			Value:       "",
-			Usage:       "The user with which the VCH operates after creation. Defaults to the credential supplied with target",
-			Destination: &c.OpsUser,
-			Hidden:      true,
-		},
-		cli.GenericFlag{
-			Name:   "ops-password",
-			Value:  flags.NewOptionalString(&c.OpsPassword),
-			Usage:  "Password or token for the operations user. Defaults to the credential supplied with target",
-			Hidden: true,
-		},
-
 		// images
 		cli.StringFlag{
 			Name:        "image-store, i",
@@ -281,14 +265,6 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "IP address with a network mask for the VCH on the management network, e.g. 10.0.2.2/24",
 			Destination: &c.managementNetworkIP,
 			Hidden:      true,
-		},
-
-		// general DNS
-		cli.StringSliceFlag{
-			Name:   "dns-server",
-			Value:  &c.dns,
-			Usage:  "DNS server for the client, public, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
-			Hidden: true,
 		},
 	}
 
@@ -477,15 +453,17 @@ func (c *Create) Flags() []cli.Flag {
 	}
 
 	target := c.TargetFlags()
+	ops := c.OpsCredentials.Flags(true)
 	compute := c.ComputeFlags()
 	iso := c.ImageFlags(true)
 	debug := c.DebugFlags()
 	proxies := c.proxies.ProxyFlags(true)
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
+	dns := c.dns.DNSFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, create, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, dns, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -512,7 +490,8 @@ func (c *Create) processParams() error {
 		c.BridgeNetworkName = c.DisplayName
 	}
 
-	if err := c.processOpsCredentials(); err != nil {
+	// Pass admin credentials for use as ops credentials if ops credentials are not supplied.
+	if err := c.OpsCredentials.ProcessOpsCredentials(true, c.Target.User, c.Target.Password); err != nil {
 		return err
 	}
 
@@ -541,7 +520,7 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processDNSServers(); err != nil {
+	if c.DNS, err = c.dns.ProcessDNSServers(); err != nil {
 		return err
 	}
 
@@ -572,38 +551,6 @@ func (c *Create) processParams() error {
 	if err := c.processSyslog(); err != nil {
 		return err
 	}
-
-	return nil
-}
-
-func (c *Create) processOpsCredentials() error {
-	if c.OpsUser == "" && c.OpsPassword != nil {
-		return errors.New("Password for operations user specified without user having been specified")
-	}
-
-	if c.OpsUser == "" {
-		log.Warn("Using administrative user for VCH operation - use --ops-user to improve security (see -x for advanced help)")
-		c.OpsUser = c.Target.User
-		if c.Target.Password == nil {
-			return errors.New("Unable to use nil password from administrative user for operations user")
-		}
-
-		c.OpsPassword = c.Target.Password
-		return nil
-	}
-
-	if c.OpsPassword != nil {
-		return nil
-	}
-
-	log.Printf("vSphere password for %s: ", c.OpsUser)
-	b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		message := fmt.Sprintf("Failed to read password from stdin: %s", err)
-		cli.NewExitError(message, 1)
-	}
-	sb := string(b)
-	c.OpsPassword = &sb
 
 	return nil
 }
@@ -793,24 +740,6 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		network.Gateway.Mask = network.IP.Mask
 	}
 
-	return nil
-}
-
-// processDNSServers parses DNS servers used for client, public, mgmt networks
-func (c *Create) processDNSServers() error {
-	for _, d := range c.dns {
-		s := net.ParseIP(d)
-		if s == nil {
-			return errors.New("Invalid DNS server specified")
-		}
-		c.Data.DNS = append(c.Data.DNS, s)
-	}
-
-	if len(c.Data.DNS) > 3 {
-		log.Warn("Maximum of 3 DNS servers allowed. Additional servers specified will be ignored.")
-	}
-
-	log.Debugf("VCH DNS servers: %s", c.Data.DNS)
 	return nil
 }
 

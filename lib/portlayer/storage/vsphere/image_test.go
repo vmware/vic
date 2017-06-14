@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -580,7 +580,7 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 
 	op := trace.NewOperation(context.TODO(), "ro")
 
-	roDisk, err := v.dm.CreateAndAttach(op, roName, parentDsURI, 0, os.O_RDONLY)
+	roDisk, err := v.dm.CreateAndAttach(op, roName, parentDsURI, 0, os.O_RDONLY, disk.Ext4)
 	if err != nil {
 		return nil, err
 	}

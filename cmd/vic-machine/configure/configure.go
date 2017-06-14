@@ -41,6 +41,7 @@ type Configure struct {
 
 	proxies   common.Proxies
 	cNetworks common.CNetworks
+	dns       common.DNS
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -87,8 +88,10 @@ func (c *Configure) Flags() []cli.Flag {
 	}
 
 	proxies := c.proxies.ProxyFlags(false)
-
+	// TODO (Jialin): after issue #5472 is fixed, change hidden back to false
+	dns := c.dns.DNSFlags(true)
 	target := c.TargetFlags()
+	ops := c.OpsCredentials.Flags(false)
 	id := c.IDFlags()
 	compute := c.ComputeFlags()
 	iso := c.ImageFlags(false)
@@ -97,7 +100,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, id, compute, iso, cNetwork, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, iso, dns, cNetwork, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -111,6 +114,11 @@ func (c *Configure) processParams() error {
 		return err
 	}
 
+	var err error
+	if c.DNS, err = c.dns.ProcessDNSServers(); err != nil {
+		return err
+	}
+
 	hproxy, sproxy, err := c.proxies.ProcessProxies()
 	if err != nil {
 		return err
@@ -121,6 +129,12 @@ func (c *Configure) processParams() error {
 
 	c.ContainerNetworks, err = c.cNetworks.ProcessContainerNetworks()
 	if err != nil {
+		return err
+	}
+
+	// Pass empty admin credentials because they are needed only for a create
+	// operation for use as ops credentials if ops credentials are not supplied.
+	if err := c.OpsCredentials.ProcessOpsCredentials(false, "", nil); err != nil {
 		return err
 	}
 
@@ -155,6 +169,20 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if c.cNetworks.IsSet {
 		o.ContainerNetworks = n.ContainerNetworks
+	}
+
+	if c.OpsCredentials.IsSet {
+		o.Username = n.Username
+		o.Token = n.Token
+	}
+
+	// Copy the thumbprint directly since it has already been validated.
+	o.TargetThumbprint = n.TargetThumbprint
+
+	if c.dns.IsSet {
+		for k, v := range o.ExecutorConfig.Networks {
+			v.Network.Nameservers = n.ExecutorConfig.Networks[k].Network.Nameservers
+		}
 	}
 }
 

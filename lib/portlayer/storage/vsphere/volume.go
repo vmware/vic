@@ -101,7 +101,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	volDiskDsURL := v.volDiskDsURL(ID)
 
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(op, volDiskDsURL, nil, int64(capacityKB), os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(op, volDiskDsURL, nil, int64(capacityKB), os.O_RDWR, disk.Ext4)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		// Get the path to the disk in datastore uri format
 		volDiskDsURL := v.volDiskDsURL(ID)
 
-		dev, err := disk.NewVirtualDisk(volDiskDsURL)
+		dev, err := disk.NewVirtualDisk(volDiskDsURL, disk.Ext4)
 		if err != nil {
 			return nil, err
 		}

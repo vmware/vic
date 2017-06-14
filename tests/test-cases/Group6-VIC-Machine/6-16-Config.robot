@@ -46,7 +46,7 @@ Configure VCH debug state
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  1
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --conf --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
     Should Be Equal As Integers  0  ${rc}
     Should Contain  ${output}  --debug=1
 
@@ -61,7 +61,7 @@ Configure VCH Container Networks
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  vmnet
 
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
     Should Contain  ${output}  --container-network=vm-network:vmnet
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -85,7 +85,7 @@ Configure VCH Container Networks
     Should Contain  ${output}  vmnet
     Should Contain  ${output}  mgmt
 
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
     Should Contain  ${output}  --container-network=vm-network:vmnet
     Should Contain  ${output}  --container-network=management:mgmt
     Should Contain  ${output}  --container-network-ip-range=management:10.10.10.0/24
@@ -118,7 +118,7 @@ Configure VCH https-proxy
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTPS_PROXY
     Should Be Equal As Integers  ${rc}  1
     Should Not Contain  ${output}  proxy.vmware.com:3128
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
     Should Contain  ${output}  --http-proxy=http://proxy.vmware.com:3128
 	Should Not Contain  ${output}  --https-proxy
 
@@ -130,9 +130,16 @@ Configure VCH https-proxy
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTP_PROXY
     Should Be Equal As Integers  ${rc}  1
     Should Not Contain  ${output}  proxy.vmware.com:3128
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --conf
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
     Should Contain  ${output}  --https-proxy=https://proxy.vmware.com:3128
     Should Not Contain  ${output}  --http-proxy
+
+Configure VCH ops user credentials and thumbprint
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --ops-user=%{TEST_USERNAME} --ops-password=%{TEST_PASSWORD}
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
+    Should Contain  ${output}  --ops-user=%{TEST_USERNAME}
+    Should Contain  ${output}  --thumbprint=%{TEST_THUMBPRINT}
 
 Configure VCH https-proxy through vch id
     ${vch-id}=  Get VCH ID  %{VCH-NAME}
@@ -141,3 +148,12 @@ Configure VCH https-proxy through vch id
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep HTTPS_PROXY
     Should Be Equal As Integers  ${rc}  1
     Should Not Contain  ${output}  proxy.vmware.com:3128
+
+Configure VCH DNS server
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
+    Should Not Contain  ${output}  --dns-server  
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --dns-server 10.118.81.1 --dns-server 10.118.81.2
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
+    Should Contain  ${output}  --dns-server=10.118.81.1
+    Should Contain  ${output}  --dns-server=10.118.81.2
