@@ -53,6 +53,7 @@ func main() {
 
 	f := flag.Lookup("httptest.serve")
 	if f.Value.String() == "" {
+		// #nosec: Errors unhandled
 		_ = f.Value.Set("127.0.0.1:8989")
 	}
 
