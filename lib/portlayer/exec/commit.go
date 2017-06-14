@@ -16,6 +16,7 @@ package exec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -140,13 +141,22 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// poor man's test and set
 			s.ChangeVersion = h.Config.ChangeVersion
-			log.Debugf("ChangeVersion is %s", s.ChangeVersion)
+			log.Debugf("ChangeVersion is %s, power state is %s", s.ChangeVersion, h.Runtime.PowerState)
 
 			// nilify ExtraConfig if container configuration is migrated
 			// in this case, VCH and container are in different version. Migrated configuration cannot be written back to old container, to avoid data loss in old version's container
 			if h.Migrated {
 				log.Debugf("Nilifying ExtraConfig as configuration of container %s is migrated", h.ExecConfig.ID)
 				s.ExtraConfig = nil
+			}
+
+			// address the race between power operation and refresh of config (and therefore ChangeVersion) in StateStopped block above
+			if h.TargetState() == StateStopped && h.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
+				detail := fmt.Sprintf("collision of concurrent operations - expected power state poweredOff, found %s", h.Runtime.PowerState)
+				log.Warn(detail)
+				// this should cause a second attempt at the power op. This could result repeated contention that fails to resolve, but the randomness in the backoff and the tight timing
+				// to hit this scenario should mean it will resolve in a reasonable timeframe.
+				return ConcurrentAccessError{errors.New(detail)}
 			}
 
 			_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {

@@ -370,7 +370,7 @@ func (c *containerBase) waitForSession(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id))
 
 	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
+	key := extraconfig.CalculateKeys(log.StandardLogger(), c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", id), "")[0]
 	return c.waitFor(ctx, key)
 }
 
@@ -378,7 +378,7 @@ func (c *containerBase) waitForExec(ctx context.Context, id string) error {
 	defer trace.End(trace.Begin(id))
 
 	// guestinfo key that we want to wait for
-	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
+	key := extraconfig.CalculateKeys(log.StandardLogger(), c.ExecConfig, fmt.Sprintf("Execs.%s.Started", id), "")[0]
 	return c.waitFor(ctx, key)
 }
 

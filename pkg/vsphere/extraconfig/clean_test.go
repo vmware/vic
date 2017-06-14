@@ -21,14 +21,14 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 // make it verbose during testing
 func init() {
-	DecodeLogLevel = log.DebugLevel
-	EncodeLogLevel = log.DebugLevel
+	decodeLogger.Level = logrus.DebugLevel
+	encodeLogger.Level = logrus.DebugLevel
 }
 
 func TestEmbedded(t *testing.T) {

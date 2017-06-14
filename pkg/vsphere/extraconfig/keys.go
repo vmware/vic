@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -161,7 +161,7 @@ func calculateScopeFromKey(key string) []string {
 	return scopes
 }
 
-func calculateKeyFromField(field reflect.StructField, prefix string, depth recursion) (string, recursion) {
+func calculateKeyFromField(log logrus.FieldLogger, field reflect.StructField, prefix string, depth recursion) (string, recursion) {
 	skip := recursion{}
 	//skip unexported fields
 	if field.PkgPath != "" {
@@ -240,7 +240,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 	}
 
 	// re-calculate the key based on the scope and prefix
-	if key = calculateKey(scope, prefix, key); key == "" {
+	if key = calculateKey(log, scope, prefix, key); key == "" {
 		log.Debugf("Skipping %s (unknown scope %s)", field.Name, scopes)
 		return "", skip
 	}
@@ -249,7 +249,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 }
 
 // calculateKey calculates the key based on the scope and current prefix
-func calculateKey(scope uint, prefix string, key string) string {
+func calculateKey(log logrus.FieldLogger, scope uint, prefix string, key string) string {
 	if scope&Invalid != 0 {
 		log.Debugf("invalid scope")
 		return ""
@@ -354,10 +354,10 @@ func appendToPrefix(prefix, separator, value string) string {
 	return key
 }
 
-func calculateKeys(v reflect.Value, field string, prefix string) []string {
+func calculateKeys(log logrus.FieldLogger, v reflect.Value, field string, prefix string) []string {
 	log.Debugf("v=%#v, field=%#v, prefix=%#v", v, field, prefix)
 	if v.Kind() == reflect.Ptr {
-		return calculateKeys(v.Elem(), field, prefix)
+		return calculateKeys(log, v.Elem(), field, prefix)
 	}
 
 	if field == "" {
@@ -411,13 +411,13 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 			if !found {
 				panic(fmt.Sprintf("could not find field %s", s[0]))
 			}
-			prefix, _ = calculateKeyFromField(f, prefix, recursion{})
+			prefix, _ = calculateKeyFromField(log, f, prefix, recursion{})
 			v = v.FieldByIndex(f.Index)
 		default:
 			panic(fmt.Sprintf("cannot get field from type %s", v.Type()))
 		}
 
-		return calculateKeys(v, field, prefix)
+		return calculateKeys(log, v, field, prefix)
 	}
 
 	var out []string
@@ -426,14 +426,14 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 		for _, k := range v.MapKeys() {
 			sk := k.Convert(reflect.TypeOf(""))
 			prefix := appendToPrefix(prefix, Separator, sk.String())
-			out = append(out, calculateKeys(v.MapIndex(k), field, prefix)...)
+			out = append(out, calculateKeys(log, v.MapIndex(k), field, prefix)...)
 		}
 	case reflect.Array, reflect.Slice:
 		switch v.Type().Elem().Kind() {
 		case reflect.Struct:
 			for i := 0; i < v.Len(); i++ {
 				prefix := appendToPrefix(prefix, Separator, fmt.Sprintf("%d", i))
-				out = append(out, calculateKeys(v.Index(i), field, prefix)...)
+				out = append(out, calculateKeys(log, v.Index(i), field, prefix)...)
 			}
 		case reflect.Uint8:
 			return []string{prefix}
@@ -442,8 +442,8 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 		}
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
-			prefix, _ := calculateKeyFromField(v.Type().Field(i), prefix, recursion{})
-			out = append(out, calculateKeys(v.Field(i), field, prefix)...)
+			prefix, _ := calculateKeyFromField(log, v.Type().Field(i), prefix, recursion{})
+			out = append(out, calculateKeys(log, v.Field(i), field, prefix)...)
 		}
 	default:
 		panic(fmt.Sprintf("can't iterate type %s", v.Type().String()))
@@ -488,9 +488,6 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 //	  // returns []string{"map|foo/str"}
 //	  CalculateKeys(b, "Map.foo.str", "")
 //
-func CalculateKeys(obj interface{}, field string, prefix string) []string {
-	defer log.SetLevel(log.GetLevel())
-	log.SetLevel(EncodeLogLevel)
-
-	return calculateKeys(reflect.ValueOf(obj), field, prefix)
+func CalculateKeys(log logrus.FieldLogger, obj interface{}, field string, prefix string) []string {
+	return calculateKeys(log, reflect.ValueOf(obj), field, prefix)
 }
