@@ -28,7 +28,7 @@ var ErrAccessDenied = errors.New("access denied")
 // Source is configuration source, remote or otherwise
 type Source interface {
 	// Get returns a config object. If the remote/local source
-	// is not avaiable, Get returns (nil, ErrSourceUnavailable).
+	// is not available, Get returns (nil, ErrSourceUnavailable).
 	// If the configuration has not changed since the last
 	// time Get was called, it returns (nil, ErrConfigNotModified).
 	// If the remote/local source denies access, it returns

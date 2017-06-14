@@ -311,6 +311,9 @@ func TestParseEntry(t *testing.T) {
 		res Entry
 	}{
 		{
+			s: "foo bar",
+		},
+		{
 			s:   "192.168.0.1",
 			res: &urlEntry{u: parseURL("192.168.0.1")},
 		},
@@ -335,13 +338,34 @@ func TestParseEntry(t *testing.T) {
 			res: &urlEntry{u: parseURL("*.google.com")},
 		},
 		{
+			s:   "google.com",
+			res: &urlEntry{u: parseURL("google.com")},
+		},
+		{
 			s:   "google.com:8080",
 			res: &urlEntry{u: parseURL("google.com:8080")},
+		},
+		{
+			s:   "http://*.google.com",
+			res: &urlEntry{u: parseURL("http://*.google.com")},
+		},
+		{
+			s:   "http://google.com",
+			res: &urlEntry{u: parseURL("http://google.com")},
+		},
+		{
+			s:   "http://google.com:8080",
+			res: &urlEntry{u: parseURL("http://google.com:8080")},
 		},
 	}
 
 	for _, te := range tests {
-		e := ParseEntry(te.s)
-		assert.True(t, te.res.Equal(e), "ParseEntry(%s) != %s, got %s", te.s, te.res, e)
+		res := ParseEntry(te.s)
+		if te.res == nil {
+			assert.Nil(t, res, "ParseEntry(%s) != %s, got %s", te.s, te.res, res)
+			continue
+		}
+
+		assert.True(t, te.res.Equal(res), "ParseEntry(%s) != %s, got %s", te.s, te.res, res)
 	}
 }
