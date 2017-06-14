@@ -40,6 +40,8 @@ Test
     ${output}=  Wait For Process  ${pid-vc}
     Should Contain  ${output.stdout}  Overall Status: Succeeded
 
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     ${vc-ip}=  Get IP  ${vc}
     Close Connection
 
