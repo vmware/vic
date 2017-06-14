@@ -100,8 +100,9 @@ public class VirtualContainerHostVm extends VicBaseVm {
 				String key = ov.getKey();
 				if (EXTRACONFIG_CLIENT_IP_KEY.equals(key)) {
 					byte[] decoded = DatatypeConverter.parseBase64Binary((String)ov.getValue());
+					int idx = decoded.length == 16 ? 12 : 0;
 					StringBuilder sb = new StringBuilder();
-					for (int i = 0; i < decoded.length; i++) {
+					for (int i = idx; i < decoded.length; i++) {
 						sb.append((decoded[i] << 24) >>> 24);
 						if (i < decoded.length - 1) {
 							sb.append(".");

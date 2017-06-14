@@ -438,8 +438,9 @@ func (c *Container) ContainerExecStart(ctx context.Context, eid string, stdin io
 
 				// we can't return a proper error as we close the streams as soon as AttachStreams returns so we mimic Docker and write to stdout directly
 				// https://github.com/docker/docker/blob/a039ca9affe5fa40c4e029d7aae399b26d433fe9/api/server/router/container/exec.go#L114
-				stdout.Write([]byte(err.Error() + "\r\n"))
-
+				if stdout != nil {
+					stdout.Write([]byte(err.Error() + "\r\n"))
+				}
 				cancel()
 			}
 		}()
@@ -2087,10 +2088,6 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 		if info.Payload.DataVersion == 0 {
 			return unsupported("timestamps")
 		}
-	}
-
-	if config.Since != "" {
-		return unsupported("since")
 	}
 
 	return tailLines, since.Unix(), nil

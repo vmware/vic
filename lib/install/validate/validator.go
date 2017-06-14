@@ -417,16 +417,16 @@ func (v *Validator) managedbyVC(ctx context.Context) {
 
 func (v *Validator) credentials(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	// empty string for password is horrific, but a legitimate scenario especially in isolated labs
-	if input.OpsPassword == nil {
-		v.NoteIssue(errors.New("Password for operations user has not been set"))
+	if input.OpsCredentials.OpsUser == nil || input.OpsCredentials.OpsPassword == nil {
+		v.NoteIssue(errors.New("User/password for the operations user has not been set"))
 		return
 	}
 
 	// check target with ops credentials
 	u := input.Target.URL
 
-	conf.Username = input.OpsUser
-	conf.Token = *input.OpsPassword
+	conf.Username = *input.OpsCredentials.OpsUser
+	conf.Token = *input.OpsCredentials.OpsPassword
 	conf.TargetThumbprint = input.Thumbprint
 
 	// Discard anything other than these URL fields for the target
@@ -779,7 +779,7 @@ func (v *Validator) IsVC() bool {
 }
 
 func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
-	defer trace.End(trace.Begin(fmt.Sprintf("session: %#v, input: %#v", v.Session, input)))
+	defer trace.End(trace.Begin(""))
 
 	dconfig := data.InstallerData{}
 
@@ -803,7 +803,7 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	dconfig.ResourcePoolPath = v.ResourcePoolPath
 	dconfig.UseRP = input.UseRP
 
-	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
+	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.Cluster, dconfig.ResourcePoolPath)
 
 	dconfig.VCHSize.CPU.Reservation = int64(input.VCHCPUReservationsMHz)
 	dconfig.VCHSize.CPU.Limit = int64(input.VCHCPULimitsMHz)

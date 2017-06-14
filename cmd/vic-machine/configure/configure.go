@@ -41,6 +41,7 @@ type Configure struct {
 
 	proxies   common.Proxies
 	cNetworks common.CNetworks
+	dns       common.DNS
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -87,8 +88,10 @@ func (c *Configure) Flags() []cli.Flag {
 	}
 
 	proxies := c.proxies.ProxyFlags(false)
-
+	// TODO (Jialin): after issue #5472 is fixed, change hidden back to false
+	dns := c.dns.DNSFlags(true)
 	target := c.TargetFlags()
+	ops := c.OpsCredentials.Flags(false)
 	id := c.IDFlags()
 	compute := c.ComputeFlags()
 	iso := c.ImageFlags(false)
@@ -97,7 +100,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, id, compute, iso, cNetwork, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, iso, dns, cNetwork, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -111,15 +114,27 @@ func (c *Configure) processParams() error {
 		return err
 	}
 
+	var err error
+	if c.DNS, err = c.dns.ProcessDNSServers(); err != nil {
+		return err
+	}
+
 	hproxy, sproxy, err := c.proxies.ProcessProxies()
 	if err != nil {
 		return err
 	}
 	c.HTTPProxy = hproxy
 	c.HTTPSProxy = sproxy
+	c.ProxyIsSet = c.proxies.IsSet
 
 	c.ContainerNetworks, err = c.cNetworks.ProcessContainerNetworks()
 	if err != nil {
+		return err
+	}
+
+	// Pass empty admin credentials because they are needed only for a create
+	// operation for use as ops credentials if ops credentials are not supplied.
+	if err := c.OpsCredentials.ProcessOpsCredentials(false, "", nil); err != nil {
 		return err
 	}
 
@@ -154,6 +169,20 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if c.cNetworks.IsSet {
 		o.ContainerNetworks = n.ContainerNetworks
+	}
+
+	if c.OpsCredentials.IsSet {
+		o.Username = n.Username
+		o.Token = n.Token
+	}
+
+	// Copy the thumbprint directly since it has already been validated.
+	o.TargetThumbprint = n.TargetThumbprint
+
+	if c.dns.IsSet {
+		for k, v := range o.ExecutorConfig.Networks {
+			v.Network.Nameservers = n.ExecutorConfig.Networks[k].Network.Nameservers
+		}
 	}
 }
 
@@ -259,7 +288,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return errors.New("configure failed")
 	}
 	if vchConfig.ExecutorConfig.Version.PluginVersion < installerVer {
-		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, specify --upgrade to upgrade VCH at the same time", vchConfig.ExecutorConfig.Version.ShortVersion()))
+		log.Error(fmt.Sprintf("Cannot configure VCH with version %s, please upgrade first", vchConfig.ExecutorConfig.Version.ShortVersion()))
 		return errors.New("configure failed")
 	}
 
@@ -274,6 +303,11 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	// using new configuration override configuration query from guestinfo
 	if err = oldData.CopyNonEmpty(c.Data); err != nil {
 		log.Error("Configuring cannot continue: copying configuration failed")
+		return err
+	}
+	if err = validate.SetDataFromVM(ctx, validator.Session.Finder, vch, oldData); err != nil {
+		log.Error("Configuring cannot continue: querying configuration from VM failed")
+		log.Error(err)
 		return err
 	}
 	c.Data = oldData

@@ -99,8 +99,6 @@ vic-dns-windows := $(BIN)/vic-dns-windows.exe
 vic-dns-darwin := $(BIN)/vic-dns-darwin
 
 tether-linux := $(BIN)/tether-linux
-tether-windows := $(BIN)/tether-windows.exe
-tether-darwin := $(BIN)/tether-darwin
 
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/.appliance-staging.tgz
@@ -124,8 +122,6 @@ vic-init: $(vic-init)
 vic-init-test: $(vic-init-test)
 
 tether-linux: $(tether-linux)
-tether-windows: $(tether-windows)
-tether-darwin: $(tether-darwin)
 
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
@@ -152,7 +148,7 @@ check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
-tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
+tethers: $(tether-linux)
 
 most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
 
@@ -280,15 +276,6 @@ $(tether-linux): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(LDFLAGS) -extldflags "-static"' -o ./$@ ./$(dir $<)
 
-$(tether-windows): $$(call godeps,cmd/tether/*.go)
-	@echo building tether-windows
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(LDFLAGS) -extldflags "-static"' -o ./$@ ./$(dir $<)
-
-# CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
-$(tether-darwin): $$(call godeps,cmd/tether/*.go)
-	@echo building tether-darwin
-	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '$(LDFLAGS) -extldflags "-static"' -o ./$@ ./$(dir $<)
-
 $(rpctool): $$(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
@@ -351,12 +338,12 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(rpctool) $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
 # main bootstrap target
-$(bootstrap): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging) isos/bootstrap/*
+$(bootstrap): isos/bootstrap.sh $(tether-linux) $(bootstrap-staging) isos/bootstrap/*
 	@echo "Making bootstrap iso"
 	@$(TIME) $< -p $(bootstrap-staging) -b $(BIN)
 
@@ -471,12 +458,7 @@ clean:
 	@rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
 	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock
 
-	@echo removing OVA installer files...
-	@rm -rf installer/packer/vic
-
 # removes the yum cache as well as the generated binaries
 distclean: clean
 	@echo removing binaries
 	@rm -rf $(BIN)
-
-include installer/vic-unified-installer.mk

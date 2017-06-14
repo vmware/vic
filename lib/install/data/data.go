@@ -36,8 +36,7 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
-	OpsUser     string `cmd:"ops-user"`
-	OpsPassword *string
+	OpsCredentials common.OpsCredentials
 
 	CertPEM     []byte
 	KeyPEM      []byte
@@ -72,6 +71,7 @@ type Data struct {
 
 	HTTPSProxy *url.URL `cmd:"https-proxy"`
 	HTTPProxy  *url.URL `cmd:"http-proxy"`
+	ProxyIsSet bool
 
 	NumCPUs  int `cmd:"endpoint-cpu"`
 	MemoryMB int `cmd:"endpoint-memory"`
@@ -238,7 +238,7 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 		d.ManagementNetwork = src.ManagementNetwork
 	}
 
-	if src.HTTPProxy != nil || src.HTTPSProxy != nil {
+	if src.ProxyIsSet {
 		d.HTTPProxy = src.HTTPProxy
 		d.HTTPSProxy = src.HTTPSProxy
 	}
@@ -253,7 +253,17 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 		}
 	}
 
+	if src.OpsCredentials.IsSet {
+		d.OpsCredentials = src.OpsCredentials
+	}
+
+	if src.Target.Thumbprint != "" {
+		d.Target.Thumbprint = src.Target.Thumbprint
+	}
+
 	d.Timeout = src.Timeout
+
+	d.DNS = src.DNS
 
 	return nil
 }

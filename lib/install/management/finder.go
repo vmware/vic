@@ -74,6 +74,17 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 		log.Error(err)
 		return nil, err
 	}
+	pool, err := vmm.ResourcePool(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get VM parent resource pool: %s", err)
+		return nil, err
+	}
+
+	rp := compute.NewResourcePool(d.ctx, d.session, pool.Reference())
+	if d.session.Cluster, err = rp.GetCluster(d.ctx); err != nil {
+		log.Debugf("Unable to get the cluster for the VCH's resource pool: %s", err)
+	}
+
 	d.InitDiagnosticLogsFromVCH(vmm)
 	return vmm, nil
 }

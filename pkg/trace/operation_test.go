@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ func TestContextUnpack(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(cnt)
 	for i := 0; i < cnt; i++ {
-		go func() {
+		go func(i int) {
 			defer wg.Done()
 			ctx := NewOperation(context.TODO(), "testmsg")
 
@@ -45,7 +45,7 @@ func TestContextUnpack(t *testing.T) {
 				return
 			}
 			c.Infof("test info message %d", i)
-		}()
+		}(i) // fix race in test
 	}
 	wg.Wait()
 }

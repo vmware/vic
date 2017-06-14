@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"path"
 	"syscall"
 	"time"
 
@@ -93,9 +93,9 @@ func (t *operations) Log() (io.Writer, error) {
 
 	// make the logging directory
 	// #nosec: Expect directory permissions to be 0700 or less
-	os.MkdirAll(fmt.Sprintf("%s%c%s", pathPrefix, os.PathSeparator, logDir), 0755)
+	os.MkdirAll(path.Join(pathPrefix, logDir), 0755)
 
-	logPath := strings.Join([]string{pathPrefix, logDir, initLog}, string(os.PathSeparator))
+	logPath := path.Join(pathPrefix, logDir, initLog)
 
 	log.Infof("opening %s for debug log", logPath)
 	// #nosec: Expect file permissions to be 0600 or less
@@ -118,7 +118,7 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 		name = session.Name
 	}
 
-	logPath := strings.Join([]string{pathPrefix, logDir, name + ".log"}, string(os.PathSeparator))
+	logPath := path.Join(pathPrefix, logDir, name+".log")
 
 	// open SttyS2 for session logging
 	log.Infof("opening %s for session logging", logPath)

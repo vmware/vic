@@ -17,15 +17,26 @@ Documentation  Test 21-01 - Whitelist
 Resource  ../../resources/Util.robot
 Resource  ../../resources/Harbor-Util.robot
 Suite Setup  Setup Harbor
-Suite Teardown  Harbor Test Cleanup
+Suite Teardown  Nimbus Cleanup  ${list}
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Setup Harbor
-    Set Test Environment Variables
+    ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Set Global Variable  @{list}  ${esx}
 
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi as Harbor is only supported on VC
-    
+    Set Environment Variable  TEST_URL_ARRAY  ${esx-ip}
+    Set Environment Variable  TEST_URL  ${esx-ip}
+    Set Environment Variable  TEST_USERNAME  root
+    Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
+    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  HOST_TYPE  ESXi
+    Remove Environment Variable  TEST_DATACENTER
+    Remove Environment Variable  TEST_RESOURCE
+    Remove Environment Variable  BRIDGE_NETWORK
+    Remove Environment Variable  PUBLIC_NETWORK
+
     # Install a Harbor server with HTTPS a Harbor server with HTTP
     Install Harbor To Test Server  protocol=https  name=harbor-https
     Set Environment Variable  HTTPS_HARBOR_IP  %{HARBOR-IP}
@@ -35,11 +46,6 @@ Setup Harbor
 
     Get HTTPS Harbor Certificate
 
-Harbor Test Cleanup
-    ${out}=  Run  govc vm.destroy harbor-http
-    ${out}=  Run  govc vm.destroy harbor-https
-    Log To Console  Cleaning up Harbor servers
-
 Get HTTPS Harbor Certificate
     [Arguments]  ${HARBOR_IP}=%{HTTPS_HARBOR_IP}
     # Get the certificates from the HTTPS server
@@ -47,15 +53,8 @@ Get HTTPS Harbor Certificate
     Log  ${out}
     Move File  getcert  ./ca.crt
 
-
 *** Test Cases ***
 Basic Whitelisting
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi as Harbor is only supported on VC
-    
-    # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
     # Install VCH with registry CA for whitelisted registry
     ${output}=  Install VIC Appliance To Test Server  vol=default --whitelist-registry=%{HTTPS_HARBOR_IP} --registry-ca=./ca.crt
     Should Contain  ${output}  Secure registry %{HTTPS_HARBOR_IP} confirmed

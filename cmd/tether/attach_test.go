@@ -26,6 +26,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path"
 	"sync"
 	"syscall"
 	"testing"
@@ -82,14 +83,14 @@ func (t *testAttachServer) Reload(config *tether.ExecutorConfig) error {
 
 func (t *testAttachServer) Start() error {
 	log.Info("opening ttyS0 pipe pair for backchannel (server)")
-	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	c, err := os.OpenFile(path.Join(pathPrefix, "ttyS0c"), os.O_WRONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
 		log.Error(detail)
 		return errors.New(detail)
 	}
 
-	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	s, err := os.OpenFile(path.Join(pathPrefix, "ttyS0s"), os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
 		log.Error(detail)
@@ -97,8 +98,7 @@ func (t *testAttachServer) Start() error {
 	}
 
 	log.Infof("creating raw connection from ttyS0 pipe pair for server (c=%d, s=%d) %s\n", c.Fd(), s.Fd(), pathPrefix)
-	var conn net.Conn
-	conn, err = serial.NewHalfDuplexFileConn(s, c, pathPrefix+"/ttyS0", "file")
+	conn, err := serial.NewHalfDuplexFileConn(s, c, path.Join(pathPrefix, "ttyS0"), "file")
 	if err != nil {
 		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
 		log.Error(detail)
@@ -119,14 +119,14 @@ func (t *testAttachServer) Stop() error {
 // create client on the mock pipe
 func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel (client)")
-	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	c, err := os.OpenFile(path.Join(pathPrefix, "ttyS0c"), os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
 
-	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	s, err := os.OpenFile(path.Join(pathPrefix, "ttyS0s"), os.O_WRONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
 		log.Error(detail)
@@ -134,7 +134,7 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	log.Infof("creating raw connection from ttyS0 pipe pair for backchannel (c=%d, s=%d) %s\n", c.Fd(), s.Fd(), pathPrefix)
-	conn, err := serial.NewHalfDuplexFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	conn, err := serial.NewHalfDuplexFileConn(c, s, path.Join(pathPrefix, "ttyS0"), "file")
 
 	if err != nil {
 		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
@@ -169,18 +169,18 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 // create client on the mock pipe and dial the given host:port
 func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel")
-	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	c, err := os.OpenFile(path.Join(pathPrefix, "ttyS0c"), os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open cpipe for backchannel: %s", err)
 	}
 
-	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	s, err := os.OpenFile(path.Join(pathPrefix, "ttyS0s"), os.O_WRONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open spipe for backchannel: %s", err)
 	}
 
 	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
-	fconn, err := serial.NewHalfDuplexFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	conn, err := serial.NewHalfDuplexFileConn(c, s, path.Join(pathPrefix, "/ttyS0"), "file")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create raw connection from ttyS0 pipe pair: %s", err)
 	}
@@ -196,12 +196,12 @@ func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
 	wg.Add(2)
 
 	go func() {
-		io.Copy(networkClientCon, fconn)
+		io.Copy(networkClientCon, conn)
 		wg.Done()
 	}()
 
 	go func() {
-		io.Copy(fconn, networkClientCon)
+		io.Copy(conn, networkClientCon)
 		wg.Done()
 	}()
 
