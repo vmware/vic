@@ -86,6 +86,14 @@ func main() {
 			Usage:  "Inspect VCH",
 			Action: inspect.Run,
 			Flags:  inspect.Flags(),
+			Subcommands: []cli.Command{
+				{
+					Name:   "config",
+					Usage:  "Show VCH configuration options",
+					Action: inspect.RunConfig,
+					Flags:  inspect.ConfigFlags(),
+				},
+			},
 		},
 		{
 			Name:   "upgrade",

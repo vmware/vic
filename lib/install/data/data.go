@@ -263,5 +263,7 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 
 	d.Timeout = src.Timeout
 
+	d.DNS = src.DNS
+
 	return nil
 }

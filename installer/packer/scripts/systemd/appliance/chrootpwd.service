@@ -1,9 +1,0 @@
-[Unit]
-Description=change root password based on user provided parameter
-
-[Service]
-Type=oneshot
-ExecStart=/etc/vmware/chrootpwd.sh
-
-[Install]
-WantedBy=vic-appliance.target

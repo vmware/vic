@@ -100,7 +100,7 @@ type Create struct {
 	volumeStores             cli.StringSlice `arg:"volume-store"`
 	insecureRegistries       cli.StringSlice `arg:"insecure-registry"`
 	whitelistRegistries      cli.StringSlice `arg:"whitelist-registry"`
-	dns                      cli.StringSlice `arg:"dns-server"`
+	dns                      common.DNS
 	clientNetworkName        string
 	clientNetworkGateway     string
 	clientNetworkIP          string
@@ -265,14 +265,6 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "IP address with a network mask for the VCH on the management network, e.g. 10.0.2.2/24",
 			Destination: &c.managementNetworkIP,
 			Hidden:      true,
-		},
-
-		// general DNS
-		cli.StringSliceFlag{
-			Name:   "dns-server",
-			Value:  &c.dns,
-			Usage:  "DNS server for the client, public, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
-			Hidden: true,
 		},
 	}
 
@@ -467,10 +459,11 @@ func (c *Create) Flags() []cli.Flag {
 	debug := c.DebugFlags()
 	proxies := c.proxies.ProxyFlags(true)
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
+	dns := c.dns.DNSFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, dns, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -527,7 +520,7 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processDNSServers(); err != nil {
+	if c.DNS, err = c.dns.ProcessDNSServers(); err != nil {
 		return err
 	}
 
@@ -747,24 +740,6 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		network.Gateway.Mask = network.IP.Mask
 	}
 
-	return nil
-}
-
-// processDNSServers parses DNS servers used for client, public, mgmt networks
-func (c *Create) processDNSServers() error {
-	for _, d := range c.dns {
-		s := net.ParseIP(d)
-		if s == nil {
-			return errors.New("Invalid DNS server specified")
-		}
-		c.Data.DNS = append(c.Data.DNS, s)
-	}
-
-	if len(c.Data.DNS) > 3 {
-		log.Warn("Maximum of 3 DNS servers allowed. Additional servers specified will be ignored.")
-	}
-
-	log.Debugf("VCH DNS servers: %s", c.Data.DNS)
 	return nil
 }
 
