@@ -41,7 +41,7 @@ Deploy Nimbus ESXi Server
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
+    \   ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --lease=1 --nics 2 ${version}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  To manage this VM use
     \   Exit For Loop If  ${status}
@@ -123,7 +123,7 @@ Deploy Nimbus vCenter Server
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
+    \   ${out}=  Execute Command  nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  Overall Status: Succeeded
     \   Exit For Loop If  ${status}
@@ -149,7 +149,7 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --nics 2 ${version}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=1 --nics 2 ${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
@@ -164,7 +164,7 @@ Deploy Nimbus vCenter Server Async
     [Arguments]  ${name}  ${version}=${VC_VERSION}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
 Deploy Nimbus Testbed
@@ -173,7 +173,7 @@ Deploy Nimbus Testbed
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
-    \   ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
+    \   ${out}=  Execute Command  nimbus-testbeddeploy --lease=1 ${testbed}
     \   # Make sure the deploy actually worked
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  is up. IP:
     \   Return From Keyword If  ${status}  ${out}
