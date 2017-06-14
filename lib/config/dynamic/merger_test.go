@@ -18,6 +18,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/registry"
 )
 
@@ -131,6 +132,71 @@ func TestWhitelistMerger(t *testing.T) {
 			assert.Nil(t, res, "case: orig: %s, other: %s, err: %v, res: %s", te.orig, te.other, te.err, te.res)
 		} else {
 			assert.True(t, te.res.Equal(res), "%s merge %s, %s (expected) == %s (actual)", te.orig, te.other, te.res, res)
+		}
+	}
+}
+
+func TestMergerMergeWhitelist(t *testing.T) {
+	var tests = []struct {
+		orig, other, res *config.VirtualContainerHostConfigSpec
+		err              error
+	}{
+		{ // unset whitelist
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io"},
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: nil,
+				},
+			},
+			res: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: nil,
+				},
+			},
+		},
+		{ // expand whitelist
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io"},
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io", "malicious.io"},
+				},
+			},
+			res: nil,
+			err: assert.AnError,
+		},
+	}
+
+	m := NewMerger()
+	for _, te := range tests {
+		res, err := m.Merge(te.orig, te.other)
+		if te.err != nil {
+			assert.NotNil(t, err)
+			assert.Nil(t, res)
+			continue
+		}
+
+		assert.Len(t, res.RegistryWhitelist, len(te.res.RegistryWhitelist))
+		for i := range res.RegistryWhitelist {
+			found := false
+			for j := range te.res.RegistryWhitelist {
+				if res.RegistryWhitelist[i] == te.res.RegistryWhitelist[j] {
+					found = true
+					break
+				}
+			}
+
+			assert.True(t, found, "expected whitelist %v, got %v", te.res.RegistryWhitelist, res.RegistryWhitelist)
+			if !found {
+				t.FailNow()
+			}
 		}
 	}
 }
