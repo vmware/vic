@@ -18,7 +18,7 @@ nightly_list_var="5-1-Distributed-Switch \
 5-2-Cluster \
 5-3-Enhanced-Linked-Mode \
 5-4-High-Availability \
-5-5-Heterogenous-ESXi \
+5-5-Heterogeneous-ESXi \
 5-6-1-VSAN-Simple \
 5-6-2-VSAN-Complex \
 5-7-NSX \
