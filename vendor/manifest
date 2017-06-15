@@ -1028,8 +1028,9 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "f4b81866f481347eab3a10b4f2a3e215f50bfa16",
-			"branch": "master"
+			"revision": "214d2ce3f17ecabc3dfc46aac3bbaac63c10d7aa",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/vmware/vmw-guestinfo",
