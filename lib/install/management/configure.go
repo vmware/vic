@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"reflect"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -80,6 +81,17 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 		conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 	}
 
+	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
+		err = errors.Errorf("Failed to reconfigure resources: %s", err)
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			d.rollbackResourceSettings(conf.Name, settings)
+		}
+	}()
+
 	// ensure that we wait for components to come up
 	for _, s := range conf.ExecutorConfig.Sessions {
 		s.Started = ""
@@ -119,6 +131,39 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 
 	// return the error message for upgrade
 	return err
+}
+
+func (d *Dispatcher) rollbackResourceSettings(poolName string, settings *data.InstallerData) error {
+	if !settings.VCHSizeIsSet || d.oldVCHResources == nil {
+		log.Debugf("VCH resource settings are not changed")
+		return nil
+	}
+	return updateResourcePoolConfig(d.ctx, d.vchPool, poolName, d.oldVCHResources)
+}
+
+func (d *Dispatcher) updateResourceSettings(poolName string, settings *data.InstallerData) error {
+	if !settings.VCHSizeIsSet {
+		log.Debugf("VCH resource settings are not changed")
+		return nil
+	}
+	var err error
+	// compute resource
+	d.vchPool, err = d.appliance.ResourcePool(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get parent resource pool %q: %s", poolName, err)
+		return err
+	}
+	oldSettings, err := d.getPoolResourceSettings(d.vchPool)
+	if err != nil {
+		err = errors.Errorf("Failed to get parent resource settings %q: %s", poolName, err)
+		return err
+	}
+	if reflect.DeepEqual(oldSettings, &settings.VCHSize) {
+		log.Debugf("VCH resource settings are same as old value")
+		return nil
+	}
+	d.oldVCHResources = oldSettings
+	return updateResourcePoolConfig(d.ctx, d.vchPool, poolName, &settings.VCHSize)
 }
 
 func (d *Dispatcher) Rollback(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {

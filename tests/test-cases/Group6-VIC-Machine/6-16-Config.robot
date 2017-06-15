@@ -157,3 +157,24 @@ Configure VCH DNS server
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
     Should Contain  ${output}  --dns-server=10.118.81.1
     Should Contain  ${output}  --dns-server=10.118.81.2
+
+Configure VCH resources
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --cpu 5129 --cpu-reservation 10 --cpu-shares 8000 --memory 4096 --memory-reservation 10 --memory-shares 163840
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
+    Should Contain  ${output}  --cpu=5129
+    Should Contain  ${output}  --cpu-reservation=10
+    Should Contain  ${output}  --cpu-shares=8000
+    Should Contain  ${output}  --memory=4096
+    Should Contain  ${output}  --memory-reservation=10
+    Should Contain  ${output}  --memory-shares=163840
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --cpu 1 --cpu-shares 1000 --memory 1 --memory-shares 1000
+    Should Not Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
+    Should Contain  ${output}  --cpu=5129
+    Should Contain  ${output}  --cpu-reservation=10
+    Should Contain  ${output}  --cpu-shares=8000
+    Should Contain  ${output}  --memory=4096
+    Should Contain  ${output}  --memory-reservation=10
+    Should Contain  ${output}  --memory-shares=163840

@@ -58,6 +58,7 @@ type Dispatcher struct {
 	appliance *vm.VirtualMachine
 
 	oldApplianceISO string
+	oldVCHResources *config.Resources
 
 	sshEnabled         bool
 	parentResourcepool *compute.ResourcePool
