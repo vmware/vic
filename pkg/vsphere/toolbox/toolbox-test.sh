@@ -44,8 +44,8 @@ done
 
 echo "Building toolbox binaries..."
 pushd "$(git rev-parse --show-toplevel)" >/dev/null
-go install -v ./cmd/toolbox
-go test -i -c ./pkg/vsphere/toolbox -o "$GOPATH/bin/toolbox.test"
+GOOS=linux GOARCH=amd64 go build -o "$GOPATH/bin/toolbox" -v ./cmd/toolbox 
+GOOS=linux GOARCH=amd64 go test -i -c ./pkg/vsphere/toolbox -o "$GOPATH/bin/toolbox.test"
 popd >/dev/null
 
 iso=coreos_production_iso_image.iso
@@ -77,8 +77,8 @@ if [ ! -e config.iso ] ; then
 # Add ${USER}'s public key(s) to .ssh/authorized_keys
 echo "$keys" | update-ssh-keys -u core -a coreos-cloudinit
 EOF
-
-    genisoimage -R -V config-2 -o config.iso ./drive
+    genisoimage=$(type -p genisoimage mkisofs | head -1)
+    $genisoimage -R -V config-2 -o config.iso ./drive
 
     popd >/dev/null
 
