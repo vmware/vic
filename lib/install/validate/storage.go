@@ -65,11 +65,11 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 			v.NoteIssue(vsErr)
 		case common.DsScheme:
 			// TODO: change v.DatastoreHelper to take url struct instead of string and modify tests.
-			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.String(), label, "--volume-store")
+			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.Path, label, "--volume-store")
 			v.NoteIssue(vsErr)
 		default:
 			// We should not reach here, if we do we will attempt to treat this as a vsphere datastore
-			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.String(), label, "--volume-store")
+			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.Path, label, "--volume-store")
 			v.NoteIssue(vsErr)
 		}
 
