@@ -135,7 +135,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 
 func (d *Dispatcher) rollbackResourceSettings(poolName string, settings *data.InstallerData) error {
 	if !settings.VCHSizeIsSet || d.oldVCHResources == nil {
-		log.Debugf("VCH resource settings is not changed")
+		log.Debugf("VCH resource settings are not changed")
 		return nil
 	}
 	return updateResourcePoolConfig(d.ctx, d.vchPool, poolName, d.oldVCHResources)
@@ -143,7 +143,7 @@ func (d *Dispatcher) rollbackResourceSettings(poolName string, settings *data.In
 
 func (d *Dispatcher) updateResourceSettings(poolName string, settings *data.InstallerData) error {
 	if !settings.VCHSizeIsSet {
-		log.Debugf("VCH resource settings is not changed")
+		log.Debugf("VCH resource settings are not changed")
 		return nil
 	}
 	var err error
@@ -159,7 +159,7 @@ func (d *Dispatcher) updateResourceSettings(poolName string, settings *data.Inst
 		return err
 	}
 	if reflect.DeepEqual(oldSettings, &settings.VCHSize) {
-		log.Debugf("VCH resource settings is same to old value")
+		log.Debugf("VCH resource settings are same as old value")
 		return nil
 	}
 	d.oldVCHResources = oldSettings

@@ -126,6 +126,9 @@ func HandleDefaultSettings(allocation *types.ResourceAllocationInfo) {
 	if allocation.Limit == -1 {
 		allocation.Limit = 0
 	}
+	// FIXME: govmomi omit empty value issue
+	// During creation, to workaround govmomi omit empty value issue (which is generated from vsphere WSDL), we have to set reservation to 1 instead of 0.
+	// But this 1 is not a custom setting, we don't want to show that 1 in the user configuration output, so reset that back to correct default.
 	if allocation.Reservation == 1 {
 		allocation.Reservation = 0
 	}
