@@ -41,10 +41,20 @@ const (
 	VixPropertyGuestName            = 4505
 	VixPropertyGuestOsVersionShort  = 4520
 
-	VixPropertyGuestStartProgramEnabled     = 4540
-	VixPropertyGuestListProcessesEnabled    = 4541
-	VixPropertyGuestTerminateProcessEnabled = 4542
+	VixPropertyGuestStartProgramEnabled            = 4540
+	VixPropertyGuestListProcessesEnabled           = 4541
+	VixPropertyGuestTerminateProcessEnabled        = 4542
+	VixPropertyGuestReadEnvironmentVariableEnabled = 4543
 
+	VixPropertyGuestMakeDirectoryEnabled                 = 4547
+	VixPropertyGuestDeleteFileEnabled                    = 4548
+	VixPropertyGuestDeleteDirectoryEnabled               = 4549
+	VixPropertyGuestMoveDirectoryEnabled                 = 4550
+	VixPropertyGuestMoveFileEnabled                      = 4551
+	VixPropertyGuestCreateTempFileEnabled                = 4552
+	VixPropertyGuestCreateTempDirectoryEnabled           = 4553
+	VixPropertyGuestListFilesEnabled                     = 4554
+	VixPropertyGuestChangeFileAttributesEnabled          = 4555
 	VixPropertyGuestInitiateFileTransferFromGuestEnabled = 4556
 	VixPropertyGuestInitiateFileTransferToGuestEnabled   = 4557
 )
