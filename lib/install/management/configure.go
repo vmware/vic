@@ -385,11 +385,9 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 			sess.Started = ""
 			sess.Active = true
 		}
-		cfg, err := d.encodeConfig(conf)
-		if err != nil {
+		if err := d.addExtraConfig(spec, conf); err != nil {
 			return err
 		}
-		spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	}
 
 	if spec.DeviceChange == nil && spec.ExtraConfig == nil {
@@ -412,6 +410,32 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 		log.Errorf("Reconfiguring appliance reported: %s", info.Error.LocalizedMessage)
 		return err
 	}
+	return nil
+}
+
+func (d *Dispatcher) addExtraConfig(spec *types.VirtualMachineConfigSpec, conf *config.VirtualContainerHostConfigSpec) error {
+	if conf == nil {
+		return nil
+	}
+	cfg, err := d.encodeConfig(conf)
+	if err != nil {
+		return err
+	}
+	// get back old configuration, to remove keys not existed in new guestinfo. We don't care about value atm
+	oldConfig, err := d.GetNoSecretVCHConfig(d.appliance)
+	if err != nil {
+		return err
+	}
+	old := make(map[string]string)
+	extraconfig.Encode(extraconfig.MapSink(old), oldConfig)
+	for k, _ := range old {
+		if _, ok := cfg[k]; !ok {
+			// set old key value to empty string, will remove that key from guestinfo
+			cfg[k] = ""
+		}
+	}
+
+	spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	return nil
 }
 
