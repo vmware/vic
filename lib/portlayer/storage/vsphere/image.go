@@ -51,9 +51,9 @@ var (
 	}
 	DirForMinOS = map[string]string{
 		"/etc":              "0755",
+		"/lib/modules":      "0755",
 		"/proc":             "0555",
 		"/sys":              "0555",
-		"/lib/modules":      "0755",
 		"/usr/lib/iptables": "0755",
 	}
 )
@@ -675,7 +675,6 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 	}
 
 	for dname, dmode := range DirForMinOS {
-		op.Infof("-----folder: %s, mode: %s", dname, dmode)
 		dirPath := fmt.Sprintf("%s%s", dir, dname)
 		m, err := strconv.ParseUint(dmode, 0, 0)
 		if err != nil {
@@ -689,7 +688,6 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 
 	// The directory has to exist before creating the new file
 	for fname, fmode := range FileForMinOS {
-		op.Infof("-----file: %s, mode: %s", fname, fmode)
 		filePath := fmt.Sprintf("%s%s", dir, fname)
 		f, err := os.Create(filePath)
 		if err != nil {
@@ -707,7 +705,7 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 		}
 		err = f.Close()
 		if err != nil {
-			op.Errorf("failed to close file %s: %s", filePath, err)
+			op.Errorf("Failed to close file %s: %s", filePath, err)
 			return err
 		}
 	}

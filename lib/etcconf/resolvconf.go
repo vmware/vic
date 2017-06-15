@@ -27,9 +27,10 @@ import (
 )
 
 const (
-	ResolvConfPath       = "/etc/resolv.conf"
-	DefaultAttempts uint = 5
-	DefaultTimeout       = 15 * time.Second
+	ResolvConfPath             = "/etc/resolv.conf"
+	ResolvConfPathBindSrc      = "/.tether/etc/resolv.conf"
+	DefaultAttempts       uint = 5
+	DefaultTimeout             = 15 * time.Second
 )
 
 type ResolvConf interface {

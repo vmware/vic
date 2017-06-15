@@ -44,8 +44,9 @@ import (
 )
 
 var (
-	hostnameFile = "/etc/hostname"
-	byLabelDir   = "/dev/disk/by-label"
+	hostnameFile        = "/etc/hostname"
+	hostnameFileBindSrc = "/.tether/etc/hostname"
+	byLabelDir          = "/dev/disk/by-label"
 
 	defaultExecUser = &user.ExecUser{
 		Uid:  syscall.Getuid(),
