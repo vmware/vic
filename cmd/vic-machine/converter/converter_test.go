@@ -338,12 +338,11 @@ func testConvertSharesInfo(t *testing.T) {
 
 	options, err := DataToOption(data)
 	assert.Empty(t, err)
-	assert.Equal(t, 8, len(options), "should not have other option generated")
+	assert.Equal(t, 7, len(options), "should not have other option generated")
 	assert.Equal(t, "2", options["endpoint-cpu"][0], "not expected endpoint-cpu option")
 	assert.Equal(t, "4096", options["endpoint-memory"][0], "not expected endpoint-memory option")
 	assert.Equal(t, "13144", options["memory"][0], "not expected memory option")
 	assert.Equal(t, "1024", options["memory-reservation"][0], "not expected memory-reservation option")
-	assert.Equal(t, "normal", options["memory-shares"][0], "not expected memory-shares option")
 	assert.Equal(t, "29300", options["cpu"][0], "not expected cpu option")
 	assert.Equal(t, "1024", options["cpu-reservation"][0], "not expected cpu-reservation option")
 	assert.Equal(t, "6000", options["cpu-shares"][0], "not expected cpu-shares option")

@@ -472,6 +472,8 @@ func convertShares(src reflect.Value, prefix string, tags reflect.StructTag, des
 	switch shares.Level {
 	case types.SharesLevelCustom:
 		v = fmt.Sprintf("%v", shares.Shares)
+	case types.SharesLevelNormal:
+		return nil
 	default:
 		v = string(shares.Level)
 	}
