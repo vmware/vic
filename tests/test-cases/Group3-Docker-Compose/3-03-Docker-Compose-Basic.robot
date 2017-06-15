@@ -109,14 +109,14 @@ Compose up -d --force-recreate
 
 Compose up -d with a new image
     Run  echo '${rename-yml-2}' > compose-rename.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d   
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-Compose up in foreground (attach path)   
+Compose up in foreground (attach path)
     Run  echo '${hello-yml}' > hello-compose.yml
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f hello-compose.yml pull
     Should Be Equal As Integers  ${rc}  0

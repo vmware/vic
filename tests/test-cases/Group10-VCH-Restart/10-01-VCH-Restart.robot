@@ -28,14 +28,14 @@ Get Container IP
 
 Launch Container
     [Arguments]  ${name}  ${network}=default  ${command}=sh
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} --net ${network} -itd busybox ${command}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} --net ${network} -itd ${busybox} ${command}
     Should Be Equal As Integers  ${rc}  0
     ${id}=  Get Line  ${output}  -1
     [Return]  ${id}
 
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create foo
     Should Be Equal As Integers  ${rc}  0
@@ -49,14 +49,14 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${bar-running}=  Launch Container  vch-restart-bar-running  bar
     ${bar-running-ip}=  Get Container IP  ${bar-running}  bar
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10001
 
     Reboot VM  %{VCH-NAME}
 
@@ -106,10 +106,10 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${bridge-exited}
     Should Be Equal As Integers  ${rc}  0
 
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  10001
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver1 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver1
@@ -118,7 +118,7 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
 
     # docker pull should work
     # if this fails, very likely the default gateway on the VCH is not set
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
     Should Be Equal As Integers  ${rc}  0
 
 Create VCH attach disk and reboot

@@ -25,10 +25,10 @@ Rename a non-existent container
     Should Contain  ${output}  No such container: foo
 
 Rename a created container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont1-name1 busybox
+    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont1-name1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${contID}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont1-name1 cont1-name2
@@ -37,7 +37,7 @@ Rename a created container
     Verify Container Rename  cont1-name1  cont1-name2  ${contID}
 
 Rename a running container
-    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont2-name1 busybox
+    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont2-name1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${contID}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont2-name1 cont2-name2
@@ -46,7 +46,7 @@ Rename a running container
     Verify Container Rename  cont2-name1  cont2-name2  ${contID}
 
 Rename a stopped container
-    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont3-name1 busybox
+    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont3-name1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${contID}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop cont3-name1
@@ -61,7 +61,7 @@ Rename a stopped container
     Verify Container Rename  cont3-name1  cont3-name2  ${contID}
 
 Rename a container with an empty name
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont4 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont4 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont4 ""
@@ -69,10 +69,10 @@ Rename a container with an empty name
     Should Contain  ${output}  Neither old nor new names may be empty
 
 Rename a container with a claimed name
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont5 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont5 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont6 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont6 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont5 cont5
@@ -83,7 +83,7 @@ Rename a container with a claimed name
     Should Contain  ${output}  Error
 
 Name resolution for a created container after renaming+starting it
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont7-name1 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name cont7-name1 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont7-name1 cont7-name2
@@ -92,15 +92,15 @@ Name resolution for a created container after renaming+starting it
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start cont7-name2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link cont7-name2:cont7alias busybox ping -c2 cont7alias
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link cont7-name2:cont7alias ${busybox} ping -c2 cont7alias
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 2 packets received 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox ping -c2 cont7-name2
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} ping -c2 cont7-name2
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 2 packets received 
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Name resolution for a running container after renaming+restarting it
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont8-name1 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont8-name1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont8-name1 cont8-name2
@@ -112,18 +112,18 @@ Name resolution for a running container after renaming+restarting it
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start cont8-name2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link cont8-name2:cont8alias busybox ping -c2 cont8alias
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --link cont8-name2:cont8alias ${busybox} ping -c2 cont8alias
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 2 packets received
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox ping -c2 cont8-name2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} ping -c2 cont8-name2
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  2 packets transmitted, 2 packets received 
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Name resolution for a running container after renaming it
     ${status}=  Get State Of Github Issue  4375
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-35-Docker-Rename needs to be updated now that #4375 is closed
 
-    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont9-name1 busybox
+    # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --name cont9-name1 ${busybox}
     # Should Be Equal As Integers  ${rc}  0
     # Should Not Contain  ${output}  Error
     # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename cont9-name1 cont9-name2
@@ -135,4 +135,3 @@ Name resolution for a running container after renaming it
     # ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox ping -c2 cont9-name2
     # Should Be Equal As Integers  ${rc}  0
     # Should Contain  ${output}  2 packets transmitted, 2 packets received
-

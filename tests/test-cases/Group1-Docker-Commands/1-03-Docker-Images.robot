@@ -44,7 +44,7 @@ Quiet images
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images -q
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Not Contain  ${output}  alpine
+    Should Not Contain  ${output}  ${alpine}
     @{lines}=  Split To Lines  ${output}
     Length Should Be  ${lines}  3
     Length Should Be  @{lines}[1]  12

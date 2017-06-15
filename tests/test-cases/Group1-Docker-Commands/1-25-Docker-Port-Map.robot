@@ -20,14 +20,14 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Create container with port mappings
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{EXT-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{EXT-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{EXT-IP}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{EXT-IP}  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop webserver
     Should Be Equal As Integers  ${rc}  0
@@ -37,10 +37,10 @@ Create container with port mappings
     Should Not Be Equal As Integers  ${rc}  0
 
 Create container with conflicting port mapping
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver2 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver2 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver3 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver3 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver2
@@ -51,21 +51,21 @@ Create container with conflicting port mapping
     Should Contain  ${output}  port 8083 is not available
 
 Create container with port range
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8081-8088:80 --name webserver5 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8081-8088:80 --name webserver5 ${nginx}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  host port ranges are not supported for port bindings
 
 Create container with host ip
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10.10.10.10:8088:80 --name webserver5 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10.10.10.10:8088:80 --name webserver5 ${nginx}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  host IP for port bindings is only supported for 0.0.0.0 and the public interface IP address
 
 Create container with host ip equal to 0.0.0.0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 0.0.0.0:8088:80 --name webserver5 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 0.0.0.0:8088:80 --name webserver5 ${nginx}
     Should Be Equal As Integers  ${rc}  0
 
 Create container with host ip equal to public IP
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p %{EXT-IP}:8089:80 --name webserver6 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p %{EXT-IP}:8089:80 --name webserver6 ${nginx}
     Should Be Equal As Integers  ${rc}  0
 
 Create container without specifying host port
@@ -84,7 +84,7 @@ Run after exit remapping mapped ports
 
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo1
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr1 -p 1900:9999 -p 2200:2222 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr1 -p 1900:9999 -p 2200:2222 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach ctr1 < /tmp/fifo1
     Should Be Equal As Integers  ${rc}  0
@@ -101,7 +101,7 @@ Run after exit remapping mapped ports
 
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo2
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr2 -p 1900:9999 -p 3300:3333 busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -id --name ctr2 -p 1900:9999 -p 3300:3333 ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach ctr2 < /tmp/fifo2
     Should Be Equal As Integers  ${rc}  0
@@ -119,7 +119,7 @@ Run after exit remapping mapped ports
 Remap mapped ports after OOB Stop
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name ctr3 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name ctr3 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ctr3
@@ -128,7 +128,7 @@ Remap mapped ports after OOB Stop
 
     Power Off VM OOB  ctr3*
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 20000:22222 --name ctr4 busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 20000:22222 --name ctr4 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ctr4
@@ -138,30 +138,30 @@ Remap mapped ports after OOB Stop
 Remap mapped ports after OOB Stop and Remove
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx1 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  5001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  5001
 
     Power Off VM OOB  nginx1*
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm nginx1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx2 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx2 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  5001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit nginx Endpoint  %{VCH-IP}  5001
 
 Container to container traffic via VCH public interface
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net bridge -p 8085:80 nginx
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net bridge -p 8085:80 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
     Log  ${output}
@@ -175,7 +175,7 @@ Container to container traffic via VCH public interface
     ${nginx-ip}=  Set Variable  @{ip}[0]
     ${nginx-ip}=  Strip String  ${nginx-ip}  characters="
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name anjunabeats busybox /bin/ash -c "wget -O index.html %{EXT-IP}:8085; md5sum index.html"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name anjunabeats ${busybox} /bin/ash -c "wget -O index.html %{EXT-IP}:8085; md5sum index.html"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -184,7 +184,7 @@ Container to container traffic via VCH public interface
     Log  ${output}
     Should Contain  ${output}  e3eb0a1df437f3f97a64aca5952c8ea0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name abgt250 busybox /bin/ash -c "wget -O index.html ${nginx-ip}:80; md5sum index.html"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name abgt250 ${busybox} /bin/ash -c "wget -O index.html ${nginx-ip}:80; md5sum index.html"
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
