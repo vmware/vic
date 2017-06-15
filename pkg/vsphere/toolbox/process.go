@@ -214,7 +214,7 @@ func (m *ProcessManager) Start(r *VixMsgStartProgramRequest, p *Process) (int64,
 		delete(m.entries, p.Pid)
 		m.mu.Unlock()
 
-		if pid != 0 {
+		if pid == 0 {
 			m.pids.Put(p.Pid) // pseudo pid can be reused now
 		}
 	}()

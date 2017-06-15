@@ -95,15 +95,6 @@ groups:
           - "cmd/toolbox/*"
           - "pkg/vsphere/toolbox/*"
 
-  unified-installer:
-    users:
-      - frapposelli
-      - andrewtchin
-    conditions:
-      files:
-        include:
-          - "installer/*"
-
   docker-persona:
     users:
       - sflxn
