@@ -59,16 +59,14 @@ type CertSeed struct {
 	ManagementNetworkIP   string
 	KeyPEM                []byte
 	CertPEM               []byte
-	Debug                 int
-	Force                 bool
 }
 
-func (c *CertSeed) ProcessCertificates() error {
+func (c *CertSeed) ProcessCertificates(displayName string, force bool, debug int) error {
 	// set up the locations for the certificates and env file
 	if c.CertPath == "" {
-		c.CertPath = c.DisplayName
+		c.CertPath = displayName
 	}
-	c.EnvFile = fmt.Sprintf("%s/%s.env", c.CertPath, c.DisplayName)
+	c.EnvFile = fmt.Sprintf("%s/%s.env", c.CertPath, displayName)
 
 	// check for insecure case
 	if c.NoTLS {
@@ -105,10 +103,10 @@ func (c *CertSeed) ProcessCertificates() error {
 	}
 
 	// load what certificates we can
-	cas, keypair, err := c.loadCertificates()
+	cas, keypair, err := c.loadCertificates(debug)
 	if err != nil {
 		log.Errorf("Unable to load certificates: %s", err)
-		if !c.Force {
+		if !force {
 			return err
 		}
 
@@ -156,7 +154,7 @@ func (c *CertSeed) ProcessCertificates() error {
 }
 
 // loadCertificates returns the client CA pool and the keypair for server certificates on success
-func (c *CertSeed) loadCertificates() ([]byte, *certificate.KeyPair, error) {
+func (c *CertSeed) loadCertificates(debug int) ([]byte, *certificate.KeyPair, error) {
 	defer trace.End(trace.Begin(""))
 
 	// reads each of the files specified, assuming that they are PEM encoded certs,
@@ -216,7 +214,7 @@ func (c *CertSeed) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 		// to diagnose errors
 		if cert.Leaf.Subject.CommonName != c.Cname {
 			log.Errorf("Provided cname does not match that in existing server certificate: %s", cert.Leaf.Subject.CommonName)
-			if c.Debug > 2 {
+			if debug > 2 {
 				log.Debugf("Certificate does not match provided cname: %#+v", cert.Leaf)
 			}
 			return certs, nil, fmt.Errorf("cname option doesn't match existing server certificate in certificate path %s", c.CertPath)
@@ -291,7 +289,7 @@ func (c *CertSeed) generateCertificates(server bool, client bool) ([]byte, *cert
 
 	err = os.MkdirAll(c.CertPath, 0700)
 	if err != nil {
-		log.Errorf("Unable to make directory to hold certificates (set via --cert-path)")
+		log.Errorf("Unable to make directory \"%s\" to hold certificates (set via --cert-path)", c.CertPath)
 		return nil, nil, err
 	}
 

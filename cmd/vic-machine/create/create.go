@@ -16,7 +16,6 @@ package create
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -64,29 +63,7 @@ OPTIONS:
 // Create has all input parameters for vic-machine create command
 type Create struct {
 	*data.Data
-
-	certPath   string
-	scert      string
-	skey       string
-	ccert      string
-	ckey       string
-	cacert     string
-	cakey      string
-	clientCert *tls.Certificate
-
-	envFile string
-
-	cname   string
-	org     cli.StringSlice
-	keySize int
-
-	noTLS           bool
-	noTLSverify     bool
-	advancedOptions bool
-
-	clientCAs   cli.StringSlice `arg:"tls-ca"`
-	registryCAs cli.StringSlice `arg:"registry-ca"`
-
+	certs             common.CertSeed
 	containerNetworks common.CNetworks
 
 	volumeStores common.VolumeStores
@@ -107,7 +84,9 @@ type Create struct {
 	memoryReservLimits string
 	cpuReservLimits    string
 
-	BridgeIPRange string
+	registryCAs     cli.StringSlice `arg:"registry-ca"`
+	advancedOptions bool
+	BridgeIPRange   string
 
 	proxies common.Proxies
 
@@ -280,57 +259,57 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "tls-cname",
 			Value:       "",
 			Usage:       "Common Name to use in generated CA certificate when requiring client certificate authentication",
-			Destination: &c.cname,
+			Destination: &c.certs.Cname,
 		},
 		cli.StringSliceFlag{
 			Name:   "organization",
 			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQDN if provided.",
-			Value:  &c.org,
+			Value:  &c.certs.Org,
 			Hidden: true,
 		},
 		cli.BoolFlag{
 			Name:        "no-tlsverify, kv",
 			Usage:       "Disable authentication via client certificates - for more tls options see advanced help (-x)",
-			Destination: &c.noTLSverify,
+			Destination: &c.certs.NoTLSverify,
 		},
 		cli.BoolFlag{
 			Name:        "no-tls, k",
 			Usage:       "Disable TLS support completely",
-			Destination: &c.noTLS,
+			Destination: &c.certs.NoTLS,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "key",
 			Value:       "",
 			Usage:       "Virtual Container Host private key file (server certificate)",
-			Destination: &c.skey,
+			Destination: &c.certs.Skey,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "cert",
 			Value:       "",
 			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
-			Destination: &c.scert,
+			Destination: &c.certs.Scert,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "cert-path",
 			Value:       "",
 			Usage:       "The path to check for existing certificates and in which to save generated certificates. Defaults to './<vch name>/'",
-			Destination: &c.certPath,
+			Destination: &c.certs.CertPath,
 			Hidden:      true,
 		},
 		cli.StringSliceFlag{
 			Name:   "tls-ca, ca",
 			Usage:  "Specify a list of certificate authority files to use for client verification",
-			Value:  &c.clientCAs,
+			Value:  &c.certs.ClientCAsArg,
 			Hidden: true,
 		},
 		cli.IntFlag{
 			Name:        "certificate-key-size, ksz",
 			Usage:       "Size of key to use when generating certificates",
 			Value:       2048,
-			Destination: &c.keySize,
+			Destination: &c.certs.KeySize,
 			Hidden:      true,
 		},
 	}
@@ -535,53 +514,14 @@ func (c *Create) processCertificates() error {
 		debug = *c.Debug.Debug
 	}
 
-	seed := &common.CertSeed{
-		CertPath:              c.certPath,
-		DisplayName:           c.DisplayName,
-		Scert:                 c.scert,
-		Skey:                  c.skey,
-		Ccert:                 c.ccert,
-		Ckey:                  c.ckey,
-		Cacert:                c.cacert,
-		Cakey:                 c.cakey, // mm, cake
-		ClientCert:            c.clientCert,
-		ClientCAsArg:          c.clientCAs,
-		ClientCAs:             c.ClientCAs, // good grief
-		Cname:                 c.cname,
-		Org:                   c.org,
-		KeySize:               c.keySize,
-		NoTLS:                 c.noTLS,
-		NoTLSverify:           c.noTLSverify,
-		ClientNetworkName:     c.clientNetworkName,
-		ClientNetworkIP:       c.clientNetworkIP,
-		PublicNetworkName:     c.publicNetworkName,
-		PublicNetworkIP:       c.publicNetworkIP,
-		ManagementNetworkName: c.managementNetworkName,
-		ManagementNetworkIP:   c.managementNetworkIP,
-		KeyPEM:                c.KeyPEM,
-		CertPEM:               c.CertPEM,
-		Debug:                 debug,
-		Force:                 c.Force,
-	}
-
-	if err := seed.ProcessCertificates(); err != nil {
+	if err := c.certs.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
 		return err
 	}
 
 	// copy a few things out of seed because ProcessCertificates has side effects
-	c.certPath = seed.CertPath
-	c.envFile = seed.EnvFile
-	c.cname = seed.Cname
-	c.KeyPEM = seed.KeyPEM
-	c.CertPEM = seed.CertPEM
-	c.ClientCAs = seed.ClientCAs
-	c.skey = seed.Skey
-	c.scert = seed.Scert
-	c.ckey = seed.Ckey
-	c.ccert = seed.Ccert
-	c.clientCert = seed.ClientCert
-	c.cacert = seed.Cacert
-	c.org = seed.Org
+	c.KeyPEM = c.certs.KeyPEM
+	c.CertPEM = c.certs.CertPEM
+	c.ClientCAs = c.certs.ClientCAs
 
 	return nil
 }
@@ -911,9 +851,9 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 		}
 	}()
 
-	if err = executor.CheckServiceReady(ctx, vchConfig, c.clientCert); err != nil {
+	if err = executor.CheckServiceReady(ctx, vchConfig, c.certs.ClientCert); err != nil {
 		executor.CollectDiagnosticLogs()
-		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.ckey, c.ccert, c.cacert, c.certPath)
+		cmd, _ := executor.GetDockerAPICommand(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.CertPath)
 		log.Info("\tAPI may be slow to start - try to connect to API after a few minutes:")
 		if cmd != "" {
 			log.Infof("\t\tRun command: %s", cmd)
@@ -928,7 +868,7 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 
 	// We must check for the volume stores that are present after the portlayer presents.
 
-	executor.ShowVCH(vchConfig, c.ckey, c.ccert, c.cacert, c.envFile, c.certPath)
+	executor.ShowVCH(vchConfig, c.certs.Ckey, c.certs.Ccert, c.certs.Cacert, c.certs.EnvFile, c.certs.CertPath)
 	log.Infof("Installer completed successfully")
 
 	return nil
