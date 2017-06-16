@@ -17,6 +17,7 @@ package configure
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -183,6 +184,9 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	if c.dns.IsSet {
 		for k, v := range o.ExecutorConfig.Networks {
 			v.Network.Nameservers = n.ExecutorConfig.Networks[k].Network.Nameservers
+			var gw net.IPNet
+			v.Network.Assigned.Gateway = gw
+			v.Network.Assigned.Nameservers = nil
 		}
 	}
 }
