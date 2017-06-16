@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -54,8 +55,20 @@ const (
 	bindDir = "/.tether/.bind"
 )
 
-var Sys = system.New()
-var once sync.Once
+var (
+	Sys = system.New()
+
+	FileForMinOS = map[string]string{
+		"/.tether/etc/hostname":    "0644",
+		"/.tether/etc/hosts":       "0644",
+		"/.tether/etc/resolv.conf": "0644",
+	}
+	DirForMinOS = map[string]string{
+		"/.tether/etc":              "0755",
+	}
+
+	once sync.Once
+)
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -117,6 +130,10 @@ func (t *tether) lenChildPid() int {
 
 func (t *tether) setup() error {
 	defer trace.End(trace.Begin("main tether setup"))
+
+	if err := createBindSrc(); err != nil {
+		return err
+	}
 
 	// set up tether logging destination
 	out, err := t.ops.Log()
@@ -889,6 +906,41 @@ func killHelper(session *SessionConfig) error {
 
 	if err := session.Cmd.Process.Signal(num); err != nil {
 		return fmt.Errorf("failed to signal %s: %s", session.ID, err)
+	}
+
+	return nil
+}
+
+// create the necessary folders/files as the src for bind mount. See https://github.com/vmware/vic/issues/489
+func createBindSrc() error {
+	for dirPath, dmode := range DirForMinOS {
+		m, err := strconv.ParseUint(dmode, 0, 0)
+		if err != nil {
+			return fmt.Errorf("Failed to ParseUInt for %s: %e", dmode, err)
+		}
+		if err = os.MkdirAll(dirPath, os.FileMode(m)); err != nil {
+			return fmt.Errorf("Failed to create directory %s: %s", dirPath, err)
+		}
+	}
+
+	// The directory has to exist before creating the new file
+	for filePath, fmode := range FileForMinOS {
+		f, err := os.Create(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to create file %s: %s", filePath, err)
+		}
+		n, err := strconv.ParseUint(fmode, 0, 0)
+		if err != nil {
+			return fmt.Errorf("failed to ParseUInt for %s: %e", fmode, err)
+		}
+		err = f.Chmod(os.FileMode(n))
+		if err != nil {
+			return fmt.Errorf("failed to chmod for file %s: %s", filePath, err)
+		}
+		err = f.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close file %s: %s", filePath, err)
+		}
 	}
 
 	return nil

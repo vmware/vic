@@ -40,6 +40,8 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # enable full system functionality in the container
     echo "Publishing modules within container"
     mkdir -p ${MOUNTPOINT}/lib/modules
+    mkdir -p ${MOUNTPOINT}/.tether/lib/modules
+    mount --bind ${MOUNTPOINT}/.tether/lib/modules ${MOUNTPOINT}/lib/modules
     cp -pr /lib/modules/* ${MOUNTPOINT}/lib/modules/
 
     # switch to the new root
@@ -73,8 +75,10 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     echo 'tether tmpfs size after copying libraries: '
     df -k ${MOUNTPOINT}/.tether
 
-    mkdir -p ${MOUNTPOINT}/usr/lib
-    cp -r /usr/lib/iptables ${MOUNTPOINT}/usr/lib/
+    mkdir -p ${MOUNTPOINT}/usr/lib/iptables
+    mkdir -p ${MOUNTPOINT}/.tether/usr/lib/iptables
+    mount --bind ${MOUNTPOINT}/.tether/usr/lib/iptables ${MOUNTPOINT}/usr/lib/iptables
+    cp -r /usr/lib/iptables/* ${MOUNTPOINT}/usr/lib/
 
     until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
 

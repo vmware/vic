@@ -17,12 +17,15 @@ package etcconf
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"sync"
 
+	"syscall"
+
 	log "github.com/Sirupsen/logrus"
 )
+
+const ext4FileSystemType = "ext4"
 
 type hostEntry struct {
 	IP        net.IP
@@ -141,14 +144,21 @@ func (h *hosts) Save() error {
 		}
 	}
 
-	if err := save(h.path, &hostsWalker{entries: entries}); err != nil {
+	//if err := save(h.path, &hostsWalker{entries: entries}); err != nil {
+	if err := save(hostsPathBindSrc, &hostsWalker{entries: entries}); err != nil {
 		return err
 	}
 
-	// make sure the file is readable
-	// #nosec: Expect file permissions to be 0600 or less
-	if err := os.Chmod(h.path, 0644); err != nil {
-		return err
+	// no need to return when unmount fails; it's possible that the target is not mounted previously
+	log.Infof("unmounting %s", h.path)
+	if err := syscall.Unmount(h.path, syscall.MNT_DETACH); err != nil {
+		log.Errorf("failed to unmount %s: %s", h.path, err)
+	}
+
+	// bind mount src to target
+	log.Infof("bind-mounting %s on %s", hostsPathBindSrc, h.path)
+	if err := syscall.Mount(hostsPathBindSrc, h.path, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("faild to mount %s to %s: %s", hostsPathBindSrc, h.path, err)
 	}
 
 	h.dirty = false
