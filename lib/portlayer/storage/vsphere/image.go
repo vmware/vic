@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
@@ -45,17 +44,18 @@ var StorageParentDir = "VIC"
 var (
 	DetachAll = true
 
-	FileForMinOS = map[string]string{
-		"/etc/hostname":    "0644",
-		"/etc/hosts":       "0644",
-		"/etc/resolv.conf": "0644",
+	FileForMinOS = map[string]os.FileMode{
+		"/etc/hostname":    0644,
+		"/etc/hosts":       0644,
+		"/etc/resolv.conf": 0644,
 	}
-	DirForMinOS = map[string]string{
-		"/etc":              "0755",
-		"/lib/modules":      "0755",
-		"/proc":             "0555",
-		"/sys":              "0555",
-		"/usr/lib/iptables": "0755",
+	DirForMinOS = map[string]os.FileMode{
+		"/etc":              0755,
+		"/lib/modules":      0755,
+		"/proc":             0555,
+		"/sys":              0555,
+		"/usr/lib/iptables": 0755,
+		"/.tether":          0777,
 	}
 )
 
@@ -669,19 +669,27 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 	if err != nil {
 		op.Errorf("Failed to create tempDir: %s", err)
 	}
-	defer os.RemoveAll(dir)
+
+	defer func() {
+		if err = os.RemoveAll(dir); err != nil {
+			op.Errorf("Failed to remove tempDir: %s", err)
+		}
+	}()
 
 	if err = vmdisk.Mount(dir, nil); err != nil {
 		op.Errorf("Failed to mount device %s to dir %s", vmdisk.DevicePath, dir)
+		return err
 	}
 
-	for dname, dmode := range DirForMinOS {
-		dirPath := fmt.Sprintf("%s%s", dir, dname)
-		m, err := strconv.ParseUint(dmode, 0, 0)
-		if err != nil {
-			op.Errorf("Failed to ParseUint for %s: %e", dmode, err)
+	defer func() {
+		if err = vmdisk.Unmount(); err != nil {
+			op.Errorf("Failed to unmount device: %s", err)
 		}
-		if err = os.MkdirAll(dirPath, os.FileMode(m)); err != nil {
+	}()
+
+	for dname, dmode := range DirForMinOS {
+		dirPath := path.Join(dir, dname)
+		if err = os.MkdirAll(dirPath, dmode); err != nil {
 			op.Errorf("Failed to create directory %s: %s", dirPath, err)
 			return err
 		}
@@ -689,32 +697,18 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 
 	// The directory has to exist before creating the new file
 	for fname, fmode := range FileForMinOS {
-		filePath := fmt.Sprintf("%s%s", dir, fname)
-		f, err := os.Create(filePath)
+		filePath := path.Join(dir, fname)
+		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
 		if err != nil {
-			op.Errorf("Failed to create file %s: %s", filePath, err)
+			op.Errorf("Failed to open file %s: %s", filePath, err)
 			return err
 		}
-		n, err := strconv.ParseUint(fmode, 0, 0)
-		if err != nil {
-			op.Errorf("Failed to ParseUint for %s: %e", fmode, err)
-		}
-		err = f.Chmod(os.FileMode(n))
-		if err != nil {
-			op.Errorf("Failed to chmod for file %s: %s", filePath, err)
-			return err
-		}
+
 		err = f.Close()
 		if err != nil {
 			op.Errorf("Failed to close file %s: %s", filePath, err)
 			return err
 		}
-	}
-
-	err = vmdisk.Unmount()
-	if err != nil {
-		op.Errorf("Failed to unmount device: %s", err)
-		return err
 	}
 
 	return nil
