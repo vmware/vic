@@ -707,6 +707,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/juju/errors",
+			"repository": "https://github.com/juju/errors",
+			"vcs": "git",
+			"revision": "8234c829496aaeae67c5c71235a2cbcc289e960a",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/kr/pty",
 			"repository": "https://github.com/kr/pty",
 			"vcs": "",
