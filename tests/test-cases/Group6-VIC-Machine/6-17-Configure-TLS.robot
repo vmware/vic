@@ -43,50 +43,50 @@ Cleanup
     Run Keyword  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-# Configure VCH - Server cert with untrusted CA
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
-#     # Generate CA and wildcard cert for *.<DOMAIN>
-#     Generate Certificate Authority
-#     Generate Wildcard Server Certificate
+Configure VCH - Server cert with untrusted CA
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+    # Generate CA and wildcard cert for *.<DOMAIN>
+    Generate Certificate Authority
+    Generate Wildcard Server Certificate
 
-#     ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
-#     Log  ${out}
+    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Log  ${out}
 
-#     # Run vic-machine configure, supply server cert and key
-#     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-key "bundle/*.${domain}.key.pem" --tls-cert "bundle/*.${domain}.cert.pem" ${vicmachinetls} --cert-path "out-bundle" --debug 1
-#     Log  ${output}
-#     Should Contain  ${output}  Completed successfully
+    # Run vic-machine configure, supply server cert and key
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-key "bundle/*.${domain}.key.pem" --tls-cert "bundle/*.${domain}.cert.pem" ${vicmachinetls} --cert-path "out-bundle" --debug 1
+    Log  ${output}
+    Should Contain  ${output}  Completed successfully
 
-#     # Verify that the supplied certificate is presented on web interface
-#     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
-#     Log  ${output}
-#     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+    # Verify that the supplied certificate is presented on web interface
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
-#     Run  rm -rf bundle
-#     Run  rm -f cert-bundle.tgz
-#     Run  rm -f out-bundle
-#     Run  rm -rf /root/ca
+    Run  rm -rf bundle
+    Run  rm -f cert-bundle.tgz
+    Run  rm -f out-bundle
+    Run  rm -rf /root/ca
 
 
-# Configure VCH - Server cert with trusted CA
-#     ${domain}=  Get Environment Variable  DOMAIN  ''
-#     Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+Configure VCH - Server cert with trusted CA
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
 
-#     # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
-#     Generate Certificate Authority
-#     Generate Wildcard Server Certificate
-#     Trust Certificate Authority
+    # Generate CA and wildcard cert for *.<DOMAIN>, install CA into root store
+    Generate Certificate Authority
+    Generate Wildcard Server Certificate
+    Trust Certificate Authority
 
-#     ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
-#     Log  ${out}
+    ${out}=  Run  cp /root/ca/cert-bundle.tgz .; tar xvf cert-bundle.tgz
+    Log  ${out}
 
-#     # Run vic-machine install, supply server cert and key
-#     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-key "bundle/*.%{DOMAIN}.key.pem" --tls-cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --debug 1
-#     Log  ${output}
-#     Should Contain  ${output}  Loaded server certificate bundle
-#     Should Contain  ${output}  Unable to locate existing CA in cert path
-#     Should Contain  ${output}  Completed successfully
+    # Run vic-machine install, supply server cert and key
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-key "bundle/*.%{DOMAIN}.key.pem" --tls-cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --debug 1
+    Log  ${output}
+    Should Contain  ${output}  Loaded server certificate bundle
+    Should Contain  ${output}  Unable to locate existing CA in cert path
+    Should Contain  ${output}  Completed successfully
 
 
     # ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
