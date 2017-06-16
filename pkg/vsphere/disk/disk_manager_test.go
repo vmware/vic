@@ -253,7 +253,7 @@ func TestRefCounting(t *testing.T) {
 	config = NewPersistentDisk(child).WithParent(scratch)
 
 	// attempt attach
-	assert.NoError(t, vdm.Attach(op, config), "Error attempting to attach %s", config)
+	assert.NoError(t, vdm.attach(op, config), "Error attempting to attach %s", config)
 
 	devicePath, err := vdm.devicePathByURI(op, child)
 	if !assert.NoError(t, err) {

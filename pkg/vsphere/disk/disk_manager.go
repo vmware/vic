@@ -147,7 +147,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 	op.Infof("Create/attach vmdk %s from parent %s", config.DatastoreURI, config.ParentDatastoreURI)
 
-	if err := m.Attach(op, config); err != nil {
+	if err := m.attach(op, config); err != nil {
 		return nil, errors.Trace(err)
 	}
 
@@ -272,7 +272,7 @@ func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDi
 // }
 
 // Attach attempts to attach a virtual disk
-func (m *Manager) Attach(op trace.Operation, config *VirtualDiskConfig) error {
+func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 	defer trace.End(trace.Begin(""))
 
 	disk := m.toSpec(config)

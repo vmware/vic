@@ -62,11 +62,11 @@ var (
 )
 
 const (
-	StorageImageDir  = "images"
-	defaultDiskLabel = "containerfs"
-	defaultDiskSize  = 8 * 1024 * 1024
-	metaDataDir      = "imageMetadata"
-	manifest         = "manifest"
+	StorageImageDir     = "images"
+	defaultDiskLabel    = "containerfs"
+	defaultDiskSizeInKB = 8 * 1024 * 1024
+	metaDataDir         = "imageMetadata"
+	manifest            = "manifest"
 )
 
 type ImageStore struct {
@@ -409,7 +409,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	imageDiskDsURI := v.imageDiskDSPath(storeName, portlayer.Scratch.ID)
 	op.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
 
-	size = defaultDiskSize
+	size = defaultDiskSizeInKB
 	if portlayer.Config.ScratchSize != 0 {
 		size = portlayer.Config.ScratchSize
 	}
