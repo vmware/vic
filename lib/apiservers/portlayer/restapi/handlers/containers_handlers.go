@@ -269,7 +269,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 
 	// Refresh to get up to date network info
 	container.Refresh(context.Background())
-	containerInfo := convertContainerToContainerInfo(container.Info())
+	containerInfo := convertContainerToContainerInfo(container)
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
 
@@ -296,7 +296,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 
 	for _, container := range containerVMs {
 		// convert to return model
-		info := convertContainerToContainerInfo(container.Info())
+		info := convertContainerToContainerInfo(container)
 		containerList = append(containerList, info)
 	}
 
@@ -448,7 +448,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
-		containerInfo := convertContainerToContainerInfo(c.Info())
+		containerInfo := convertContainerToContainerInfo(c)
 
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
@@ -494,8 +494,10 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
-func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.ContainerInfo {
+func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
+	container := c.Info()
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
+
 	// convert the container type to the required model
 	info := &models.ContainerInfo{
 		ContainerConfig: &models.ContainerConfig{},
@@ -568,7 +570,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		}
 	} else {
 		// log that sessionID is missing and print the ExecConfig
-		log.Errorf("Session ID is missing from execConfig: %#v", container.ExecConfig)
+		log.Errorf("Session ID is missing from execConfig, change version %s: %#v", c.Config.ChangeVersion, container.ExecConfig)
 
 		// panic if we are in debug / hopefully CI
 		if log.DebugLevel > 0 {

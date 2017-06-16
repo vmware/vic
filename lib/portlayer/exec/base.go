@@ -137,6 +137,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	// Get the ExtraConfig
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
+	log.Debugf("Update: change version %s, extraconfig id: %+v", o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
 	extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
@@ -240,18 +241,21 @@ func (c *containerBase) kill(ctx context.Context) error {
 	}
 
 	wait := 10 * time.Second // default
+	timeout, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+
 	sig := string(ssh.SIGKILL)
 	log.Infof("sending kill -%s %s", sig, c.ExecConfig.ID)
 
-	err := c.startGuestProgram(ctx, "kill", sig)
+	err := c.startGuestProgram(timeout, "kill", sig)
 	if err == nil {
 		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
-		timeout, err := c.waitForPowerState(ctx, wait, types.VirtualMachinePowerStatePoweredOff)
+		err := c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
 		if err == nil {
 			return nil // VM has powered off
 		}
 
-		if timeout {
+		if timeout.Err() != nil {
 			log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
 		}
 	}
@@ -262,6 +266,7 @@ func (c *containerBase) kill(ctx context.Context) error {
 
 	log.Warnf("killing %s via hard power off", c.ExecConfig.ID)
 
+	// stop wait time is not applied for the hard kill
 	return c.poweroff(ctx)
 }
 
@@ -286,18 +291,21 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
 		log.Info(msg)
 
-		err := c.startGuestProgram(ctx, "kill", sig)
+		timeout, cancel := context.WithTimeout(ctx, wait)
+		defer cancel()
+
+		err := c.startGuestProgram(timeout, "kill", sig)
 		if err != nil {
 			return fmt.Errorf("%s: %s", msg, err)
 		}
 
 		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
-		timeout, err := c.waitForPowerState(ctx, wait, types.VirtualMachinePowerStatePoweredOff)
+		err = c.vm.WaitForPowerState(timeout, types.VirtualMachinePowerStatePoweredOff)
 		if err == nil {
 			return nil // VM has powered off
 		}
 
-		if !timeout {
+		if timeout.Err() == nil {
 			return err // error other than timeout
 		}
 
