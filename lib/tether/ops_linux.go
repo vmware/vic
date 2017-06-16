@@ -162,7 +162,14 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	}
 	log.Debugf("Updated kernel hostname")
 
+	// bind-mount /.tether/etc/hostname to /etc/hostname
+	log.Infof("bind-mounting %s on %s", hostnameFileBindSrc, hostnameFile)
+	if err = syscall.Mount(hostnameFileBindSrc, hostnameFile, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("faild to mount %s to %s: %s", hostnameFileBindSrc, hostnameFile, err)
+	}
+
 	// update /etc/hostname to match
+	//err = ioutil.WriteFile(hostnameFile, []byte(hostname), 0644)
 	err = ioutil.WriteFile(hostnameFile, []byte(hostname), 0644)
 	if err != nil {
 		log.Errorf("Failed to update hostname in %s", hostnameFile)

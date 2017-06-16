@@ -25,6 +25,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+const ext4FileSystemType = "ext4"
+
 type hostEntry struct {
 	IP        net.IP
 	Hostnames []string
@@ -155,7 +157,7 @@ func (h *hosts) Save() error {
 
 	// bind mount src to target
 	log.Infof("bind-mounting %s on %s", hostsPathBindSrc, h.path)
-	if err := syscall.Mount(hostsPathBindSrc, h.path, "ext4", syscall.MS_BIND, ""); err != nil {
+	if err := syscall.Mount(hostsPathBindSrc, h.path, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("faild to mount %s to %s: %s", hostsPathBindSrc, h.path, err)
 	}
 
