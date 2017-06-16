@@ -48,6 +48,7 @@ func init() {
 
 func main() {
 	if strings.HasSuffix(os.Args[0], "-debug") {
+		// very, very verbose
 		extraconfig.SetEncodeLogLevel(log.DebugLevel)
 		extraconfig.SetDecodeLogLevel(log.DebugLevel)
 	}

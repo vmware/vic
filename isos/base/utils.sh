@@ -181,7 +181,7 @@ ensure_apt_packages() {
 
     # ensure we've got the utils we need
     for pkg in "$@"; do
-        dpkg -s $pkg || install="$install $pkg"
+        dpkg -s $pkg >/dev/null 2>&1 || install="$install $pkg"
     done
 
     if [ -n "$install" ]; then

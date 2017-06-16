@@ -218,8 +218,8 @@ func (t *tether) setLogLevel() {
 		once.Do(fn)
 	}
 
-	if t.config.DebugLevel > 2 {
-		// extraconfig is very verbose
+	if t.config.DebugLevel > 3 {
+		// extraconfig is very, very verbose
 		extraconfig.SetEncodeLogLevel(log.DebugLevel)
 		extraconfig.SetDecodeLogLevel(log.DebugLevel)
 	}
