@@ -34,11 +34,21 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     e2fsprogs \
     iptables \
     xfsprogs \
-    xz-utils && \
+    xz-utils \
+    yum \
+    yum-utils \
+    cpio \
+    xorriso && \
 	# Cleanup
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
+COPY photon.repo /etc/yum/repos.d/photon.repo
+
+RUN yum-config-manager --enable photon
+RUN yum-config-manager --enable photon-updates
+
+RUN yum --installroot /var/cache/yum/ install coreutils filesystem linux-esx e2fsprogs gzip haveged iproute2 iptables iputils logrotate net-tools openssh photon-release procps-ng sudo systemd tdnf vim systemd -y --nogpgcheck
 
 RUN wget https://bootstrap.pypa.io/get-pip.py && \
     python ./get-pip.py  && \
