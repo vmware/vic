@@ -89,15 +89,15 @@ Configure VCH - Server cert with trusted CA
     Should Contain  ${output}  Completed successfully
 
 
-    # ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
-    # Log  ${output}
-    # Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
+    ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
+    Log  ${output}
+    Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
-    # Run  rm -rf bundle
-    # Run  rm -f cert-bundle.tgz
-    # Run  rm -rf /root/ca
+    Run  rm -rf bundle
+    Run  rm -f cert-bundle.tgz
+    Run  rm -rf /root/ca
 
-    # Reload Default Certificate Authorities
+    Reload Default Certificate Authorities
 
 Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
     ${domain}=  Get Environment Variable  DOMAIN  ''
