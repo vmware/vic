@@ -662,7 +662,7 @@ func imagesInUse(op trace.Operation, ID string) error {
 	return nil
 }
 
-// populate the scratch with minimum OS structure refined in fileMinOS and dirMinOS
+// populate the scratch with minimum OS structure defined in FileForMinOS and DirForMinOS
 func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 	// tmp dir to mount the disk
 	dir, err := ioutil.TempDir("", "mnt-"+portlayer.Scratch.ID)
@@ -679,7 +679,7 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 		dirPath := fmt.Sprintf("%s%s", dir, dname)
 		m, err := strconv.ParseUint(dmode, 0, 0)
 		if err != nil {
-			op.Errorf("Failed to ParseUInt for %s: %e", dmode, err)
+			op.Errorf("Failed to ParseUint for %s: %e", dmode, err)
 		}
 		if err = os.MkdirAll(dirPath, os.FileMode(m)); err != nil {
 			op.Errorf("Failed to create directory %s: %s", dirPath, err)
@@ -697,7 +697,7 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 		}
 		n, err := strconv.ParseUint(fmode, 0, 0)
 		if err != nil {
-			op.Errorf("Failed to ParseUInt for %s: %e", fmode, err)
+			op.Errorf("Failed to ParseUint for %s: %e", fmode, err)
 		}
 		err = f.Chmod(os.FileMode(n))
 		if err != nil {
