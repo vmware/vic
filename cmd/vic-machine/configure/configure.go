@@ -88,8 +88,7 @@ func (c *Configure) Flags() []cli.Flag {
 		},
 	}
 
-	// TODO (Jialin): after issue #5472 is fixed, change hidden back to false
-	dns := c.dns.DNSFlags(true)
+	dns := c.dns.DNSFlags(false)
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(false)
 	id := c.IDFlags()
