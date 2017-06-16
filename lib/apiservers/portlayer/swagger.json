@@ -175,6 +175,115 @@
 				}
 			}
 		},
+      "/archive": {
+          "get": {
+              "description": "Exports a tar archive from the target device.",
+				      "summary": "Export tar archive from supplied target",
+				      "tags": [
+					        "storage"
+				      ],
+				      "consumes": [
+					        "application/octet-stream"
+				      ],
+				      "produces": [
+					        "application/octet-stream"
+				      ],
+				      "operationId": "ExportArchive",
+				      "parameters": [
+					        "ExportTarget": {
+						          "in": "query",
+                      "required": true,
+							        "$ref": "#/definitions/ExportArchiveRequest"
+					        }
+				      ],
+				      "responses": {
+					        "200": {
+						          "description": "OK",
+						          "schema": {
+                          "format": "binary"
+						          }
+					        },
+                  "404" : {
+                      "description": "Supplied target not found",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+                  },
+					        "409": {
+						          "description": "Device or resource has an unresolvable conflict",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+					        },
+                  "500": {
+                      "description": "failed to export tar archive from target"
+                  },
+					        "default": {
+						          "description": "error",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+					        }
+				      }
+          },
+      "put": {
+              "description": "Imports a tar archive to a device at the target path",
+				      "summary": "Import tar archive to supplied target",
+				      "tags": [
+					        "storage"
+				      ],
+				  "consumes": [
+					        "application/octet-stream"
+				      ],
+				      "produces": [
+					        "application/octet-stream"
+				      ],
+				      "operationId": "ImportArchive",
+				      "parameters": [
+					        {
+						          "name": "ImportTarget",
+						          "in": "query",
+                      "required": true,
+							        "$ref": "#/definitions/ImportArchiveRequest"
+					        },
+                  {
+						          "name": "Archive",
+						          "in": "body",
+						          "schema": {
+							  "type": "binary"
+						          }
+					        }
+				      ],
+				      "responses": {
+					        "200": {
+						          "description": "OK",
+						          "schema": {
+						          }
+					        },
+                  "404" : {
+                      "description": "Supplied target not found",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+                  },
+					        "409": {
+						          "description": "Device or resource has an unresolvable conflict",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+					        },
+                  "500": {
+                      "description": "failed to export tar archive from target"
+                  },
+					        "default": {
+						          "description": "error",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+					        }
+				      }
+      }
+      },
 		"/storage": {
 			"post": {
 				"description": "Creates a location to store images",
@@ -3463,9 +3572,6 @@
 				"workingDir": {
 					"type": "string"
 				},
-				"user": {
-					"type": "string"
-				},
 				"env": {
 					"type": "array",
 					"items": {
@@ -3673,6 +3779,64 @@
 					"x-nullable": false
 				}
 			}
-		}
+		},
+      "ExportArchiveRequest": {
+          "type": "object",
+          "required": [
+              "ID",
+              "deviceID",
+              "targetPath",
+              "filespec"
+          ],
+          "properties": {
+              "ID": {
+                  "type" : "string",
+                  "x-nullable": false
+              },
+              "deviceID": {
+                  "type" : "string",
+                  "x-nullable": false
+              },
+              "targetPath" :{
+                  "type": "string",
+                  "x-nullable": false
+              },
+              "filespec": {
+                  "type": "object",
+					        "additionalProperties": {
+						  "type": "string"
+					        }
+              }
+          }
+      },
+    "ImportArchiveRequest": {
+          "type": "object",
+          "required": [
+              "ID",
+              "deviceID",
+              "targetPath",
+              "filespec"
+          ],
+          "properties": {
+              "ID": {
+                  "type" : "string",
+                  "x-nullable": false
+              },
+              "deviceID": {
+                  "type" : "string",
+                  "x-nullable": false
+              },
+              "targetPath" :{
+                  "type": "string",
+                  "x-nullable": false
+              },
+              "filespec": {
+                  "type": "object",
+					        "additionalProperties": {
+						  "type": "string"
+					        }
+              }
+          }
+      }
 	}
 }
