@@ -16,15 +16,61 @@ package dynamic
 
 import (
 	"context"
+	"fmt"
+	"net/url"
+	"sync"
 
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/vsphere/tags"
 )
 
-type AdmiralSource struct {
+func NewAdmiralSource(target *url.URL, insecure bool) (Source, error) {
+	return &admiralSource{
+		c: tags.NewClient(target, insecure),
+	}, nil
+}
+
+type admiralSource struct {
+	mu       sync.Mutex
+	c        *tags.RestClient
+	loggedIn bool
+	lastCfg  *config.VirtualContainerHostConfigSpec
 }
 
 // Get returns the dynamic config portion from an Admiral instance. For now,
 // this is empty pending details from the Admiral team.
-func (a *AdmiralSource) Get(context.Context) (*config.VirtualContainerHostConfigSpec, error) {
-	return nil, ErrSourceUnavailable
+func (a *admiralSource) Get(context.Context) (*config.VirtualContainerHostConfigSpec, error) {
+	if err := a.login(); err != nil {
+		return nil, ErrSourceUnavailable
+	}
+
+	tags, _ := a.c.ListTagsForCategory("OVA")
+	fmt.Println("tags: %v", tags)
+
+	objs, err := a.c.ListAttachedObjects("OVA")
+	if err != nil {
+		return nil, ErrSourceUnavailable
+	}
+
+	for _, o := range objs {
+		fmt.Println("o.Id: %v, o.Type: %v", o.Id, o.Type)
+	}
+
+	return nil, nil
+}
+
+func (a *admiralSource) login() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.loggedIn {
+		return nil
+	}
+
+	if err := a.c.Login(); err != nil {
+		return err
+	}
+
+	a.loggedIn = true
+	return nil
 }
