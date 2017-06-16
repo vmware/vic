@@ -430,7 +430,7 @@ func (d *Dispatcher) addExtraConfig(spec *types.VirtualMachineConfigSpec, conf *
 	}
 	old := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(old), oldConfig)
-	for k, _ := range old {
+	for k := range old {
 		if _, ok := cfg[k]; !ok {
 			// set old key value to empty string, will remove that key from guestinfo
 			spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: k, Value: ""})
