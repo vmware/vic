@@ -16,7 +16,6 @@ package exec
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -141,44 +140,32 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 
 			// poor man's test and set
 			s.ChangeVersion = h.Config.ChangeVersion
-
-			log.Infof("Reconfigure: attempting update to %s with change version %s (%s)", h.ExecConfig.ID, s.ChangeVersion, h.Runtime.PowerState)
+			log.Debugf("ChangeVersion is %s", s.ChangeVersion)
 
 			// nilify ExtraConfig if container configuration is migrated
 			// in this case, VCH and container are in different version. Migrated configuration cannot be written back to old container, to avoid data loss in old version's container
 			if h.Migrated {
-				log.Debugf("Reconfigure: dropping extraconfig as configuration of container %s is migrated", h.ExecConfig.ID)
+				log.Debugf("Nilifying ExtraConfig as configuration of container %s is migrated", h.ExecConfig.ID)
 				s.ExtraConfig = nil
-			}
-
-			// address the race between power operation and refresh of config (and therefore ChangeVersion) in StateStopped block above
-			if s.ExtraConfig != nil && h.TargetState() == StateStopped && h.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
-				detail := fmt.Sprintf("Reconfigure: collision of concurrent operations - expected power state poweredOff, found %s", h.Runtime.PowerState)
-				log.Warn(detail)
-				// this should cause a second attempt at the power op. This could result repeated contention that fails to resolve, but the randomness in the backoff and the tight timing
-				// to hit this scenario should mean it will resolve in a reasonable timeframe.
-				return ConcurrentAccessError{errors.New(detail)}
 			}
 
 			_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return h.vm.Reconfigure(ctx, *s)
 			})
 			if err != nil {
-				log.Errorf("Reconfigure: failed update to %s with change version %s: %+v", h.ExecConfig.ID, s.ChangeVersion, err)
+				log.Errorf("Reconfigure failed with %#+v", err)
 
 				// Check whether we get ConcurrentAccess and wrap it if needed
 				if f, ok := err.(types.HasFault); ok {
 					switch f.Fault().(type) {
 					case *types.ConcurrentAccess:
-						log.Errorf("Reconfigure: failed update to %s due to ConcurrentAccess, our change version %s", h.ExecConfig.ID, s.ChangeVersion)
+						log.Errorf("We have ConcurrentAccess for version %s", s.ChangeVersion)
 
 						return ConcurrentAccessError{err}
 					}
 				}
 				return err
 			}
-
-			log.Infof("Reconfigure: committed update to %s with change version: %s", h.ExecConfig.ID, s.ChangeVersion)
 
 			// trigger a configuration reload in the container if needed
 			if h.reload && h.Runtime != nil && h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
