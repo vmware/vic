@@ -20,9 +20,9 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Basic docker pull, restart, and remove image
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull alpine
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
     Should Be Equal As Integers  ${rc}  0
 
     Reboot VM  %{VCH-NAME}
@@ -38,7 +38,7 @@ Basic docker pull, restart, and remove image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
@@ -46,24 +46,24 @@ Basic docker pull, restart, and remove image
     Should Contain  ${output}  alpine
 
 Remove image with a removed container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
 
 Remove image with a container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Failed to remove image "busybox"
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
@@ -81,4 +81,3 @@ Remove an image pulled by digest
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
-

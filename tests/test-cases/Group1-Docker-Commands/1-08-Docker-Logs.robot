@@ -175,7 +175,7 @@ Docker text logs
     Should Be Equal As Integers  ${rc}  0
 
 Docker logs with timestamps and since certain time
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} run ${busybox} sh -c 'for i in $(seq 0 9) ; do sleep 1 && echo line $i; done'
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} run busybox sh -c 'for i in $(seq 0 9) ; do sleep 1 && echo line $i; done'
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a -q |head --lines=1
     Should Be Equal As Integers  ${rc}  0
