@@ -24,6 +24,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"syscall"
 )
 
 const (
@@ -163,8 +164,21 @@ func (r *resolvConf) Save() error {
 
 	walker := &resolvConfWalker{lines: r.lines()}
 	log.Debugf("%+v", walker)
-	if err := save(r.path, walker); err != nil {
+	//if err := save(r.path, walker); err != nil {
+	if err := save(ResolvConfPathBindSrc, walker); err != nil {
 		return err
+	}
+
+	// no need to return when unmount fails; it's possible that the target is not mounted previously
+	log.Infof("unmounting %s", r.path)
+	if err := syscall.Unmount(r.path, syscall.MNT_DETACH); err != nil {
+		log.Errorf("failed to unmount %s: %s", r.path, err)
+	}
+
+	// bind mount src to target
+	log.Infof("bind-mounting %s on %s", ResolvConfPathBindSrc, r.path)
+	if err := syscall.Mount(ResolvConfPathBindSrc, r.path, "ext4", syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("faild to mount %s to %s: %s", ResolvConfPathBindSrc, r.path, err)
 	}
 
 	// make sure the file is readable

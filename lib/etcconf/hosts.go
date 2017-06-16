@@ -142,22 +142,21 @@ func (h *hosts) Save() error {
 		}
 	}
 
-	// save to /.tether/etc/hosts as src
 	//if err := save(h.path, &hostsWalker{entries: entries}); err != nil {
 	if err := save(hostsPathBindSrc, &hostsWalker{entries: entries}); err != nil {
 		return err
 	}
 
-	// unmount will fail if the target is not previously mounted
+	// no need to return when unmount fails; it's possible that the target is not mounted previously
 	log.Infof("unmounting %s", h.path)
 	if err := syscall.Unmount(h.path, syscall.MNT_DETACH); err != nil {
-		log.Errorf("Error unmounting %s: %+v", h.path, err)
+		log.Errorf("failed to unmount %s: %s", h.path, err)
 	}
 
-	// bind mount src to target /etc/hosts
+	// bind mount src to target
 	log.Infof("bind-mounting %s on %s", hostsPathBindSrc, h.path)
 	if err := syscall.Mount(hostsPathBindSrc, h.path, "ext4", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("error mounting %s to %s: %+v", hostsPathBindSrc, h.path, err)
+		return fmt.Errorf("faild to mount %s to %s: %s", hostsPathBindSrc, h.path, err)
 	}
 
 	h.dirty = false
