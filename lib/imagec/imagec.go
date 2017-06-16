@@ -107,7 +107,7 @@ type Options struct {
 	// RegistryCAs will not be modified by imagec
 	RegistryCAs *x509.CertPool
 
-	// If being set to true, do not bother portlayer or persona
+	// If true, do not bother portlayer or persona
 	Standalone bool
 }
 
