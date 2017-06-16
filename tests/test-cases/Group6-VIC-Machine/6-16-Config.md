@@ -40,6 +40,8 @@ This test requires that a vSphere server is running and available
 27. Run vic-machine inspect config
 28. Configure VCH dns server to 10.118.81.1 and 10.118.81.2
 29. Run vic-machine inspect config
+30. Reset VCH dns server to default
+31. Run vic-machine inspect config
 
 # Expected Outcome
 * Step 15 should fail with an error message saying that the existing container network must be specified
