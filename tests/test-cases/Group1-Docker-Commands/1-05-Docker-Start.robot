@@ -20,10 +20,10 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple start
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${output}
@@ -46,10 +46,10 @@ Start non-existent container
 
 Start with no ethernet card
     # Testing that port layer doesn't hang forever if tether fails to initialize (see issue #2327)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Generate Random String  15
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} busybox date
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} ${busybox} date
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc device.remove -vm %{VCH-NAME}/${name}-* ethernet-0
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
@@ -62,11 +62,11 @@ Start with no ethernet card
 
 Serially start 5 long running containers
     # Perf testing reported (see issue #2496)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t busybox /bin/top
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t ${busybox} /bin/top
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Not Contain  ${output}  Error:
     \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${output}
@@ -76,11 +76,11 @@ Serially start 5 long running containers
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ubuntu
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t ubuntu top
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t ${ubuntu} top
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Not Contain  ${output}  Error:
     \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${output}
@@ -93,9 +93,9 @@ Serially start 5 long running containers
 Parallel start 5 long running containers
     ${pids}=  Create List
     ${containers}=  Create List
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${output}=  Run  docker %{VCH-PARAMS} create -t busybox /bin/top
+    \   ${output}=  Run  docker %{VCH-PARAMS} create -t ${busybox} /bin/top
     \   Should Not Contain  ${output}  Error
     \   Append To List  ${containers}  ${output}
 
@@ -111,7 +111,7 @@ Parallel start 5 long running containers
 Start a container with removed network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net test-network busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net test-network ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
