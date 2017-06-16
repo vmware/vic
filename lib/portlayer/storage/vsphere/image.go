@@ -49,14 +49,14 @@ var (
 		"/etc/hosts":       0644,
 		"/etc/resolv.conf": 0644,
 	}
+	// Here the permission of .tether should be drwxrwxrwt.
+	// The sticky bit 't' is added when mounting the tmpfs in bootstrap
 	DirForMinOS = map[string]os.FileMode{
 		"/etc":              0755,
 		"/lib/modules":      0755,
 		"/proc":             0555,
 		"/sys":              0555,
 		"/usr/lib/iptables": 0755,
-		// The permission of .tether should be drwxrwxrwt.
-		// The sticky bit 't' is added when mounting the tmpfs in bootstrap
 		"/.tether":          0777,
 	}
 )
