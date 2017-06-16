@@ -55,6 +55,8 @@ var (
 		"/proc":             0555,
 		"/sys":              0555,
 		"/usr/lib/iptables": 0755,
+		// The permission of .tether should be drwxrwxrwt.
+		// The sticky bit 't' is added when mounting the tmpfs in bootstrap
 		"/.tether":          0777,
 	}
 )
