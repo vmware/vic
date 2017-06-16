@@ -427,7 +427,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		return err
 	}
 
-	if err = populateMinOS(op, vmdisk); err != nil {
+	if err = createBaseStructure(op, vmdisk); err != nil {
 		return err
 	}
 
@@ -665,7 +665,7 @@ func imagesInUse(op trace.Operation, ID string) error {
 }
 
 // populate the scratch with minimum OS structure defined in FileForMinOS and DirForMinOS
-func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
+func createBaseStructure(op trace.Operation, vmdisk *disk.VirtualDisk) (err error) {
 	// tmp dir to mount the disk
 	dir, err := ioutil.TempDir("", "mnt-"+portlayer.Scratch.ID)
 	if err != nil {
@@ -673,8 +673,12 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 	}
 
 	defer func() {
-		if err = os.RemoveAll(dir); err != nil {
-			op.Errorf("Failed to remove tempDir: %s", err)
+		e1 := os.RemoveAll(dir)
+		if e1 != nil {
+			op.Errorf("Failed to remove tempDir: %s", e1)
+			if err == nil {
+				err = e1
+			}
 		}
 	}()
 
@@ -684,8 +688,12 @@ func populateMinOS(op trace.Operation, vmdisk *disk.VirtualDisk) error {
 	}
 
 	defer func() {
-		if err = vmdisk.Unmount(); err != nil {
-			op.Errorf("Failed to unmount device: %s", err)
+		e2 := vmdisk.Unmount()
+		if e2 != nil {
+			op.Errorf("Failed to unmount device: %s", e2)
+			if err == nil {
+				err = e2
+			}
 		}
 	}()
 
