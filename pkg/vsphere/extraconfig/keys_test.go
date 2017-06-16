@@ -19,29 +19,30 @@ import (
 
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func visibleRO(key string) string {
-	return calculateKey(calculateScope([]string{"read-only"}), "", key)
+	return calculateKey(log.StandardLogger(), calculateScope([]string{"read-only"}), "", key)
 }
 
 func visibleRONonpersistent(key string) string {
-	return calculateKey(calculateScope([]string{"read-only", "non-persistent"}), "", key)
+	return calculateKey(log.StandardLogger(), calculateScope([]string{"read-only", "non-persistent"}), "", key)
 }
 
 func visibleRW(key string) string {
-	return calculateKey(calculateScope([]string{"read-write"}), "", key)
+	return calculateKey(log.StandardLogger(), calculateScope([]string{"read-write"}), "", key)
 }
 
 func hidden(key string) string {
-	return calculateKey(calculateScope([]string{"hidden"}), "", key)
+	return calculateKey(log.StandardLogger(), calculateScope([]string{"hidden"}), "", key)
 }
 
 func TestHidden(t *testing.T) {
 	scopes := []string{"hidden"}
 
-	key := calculateKey(calculateScope(scopes), "a/b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), "a/b", "c")
 
 	assert.Equal(t, "a/b/c", key, "Key should remain hidden")
 }
@@ -49,7 +50,7 @@ func TestHidden(t *testing.T) {
 func TestHide(t *testing.T) {
 	scopes := []string{"hidden"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+"/a/b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+"/a/b", "c")
 
 	assert.Equal(t, "a/b/c", key, "Key should be hidden")
 }
@@ -57,7 +58,7 @@ func TestHide(t *testing.T) {
 func TestReveal(t *testing.T) {
 	scopes := []string{"read-only"}
 
-	key := calculateKey(calculateScope(scopes), "a/b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), "a/b", "c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+"/a/b/c", key, "Key should be exposed")
 }
@@ -65,7 +66,7 @@ func TestReveal(t *testing.T) {
 func TestVisibleReadOnly(t *testing.T) {
 	scopes := []string{"read-only"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+"/a/b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+"/a/b", "c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+"/a/b/c", key, "Key should be remain visible and read-only")
 }
@@ -73,7 +74,7 @@ func TestVisibleReadOnly(t *testing.T) {
 func TestVisibleReadWrite(t *testing.T) {
 	scopes := []string{"read-write"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c", key, "Key should be remain visible and read-write")
 }
@@ -81,7 +82,7 @@ func TestVisibleReadWrite(t *testing.T) {
 func TestTopLevelReadOnly(t *testing.T) {
 	scopes := []string{"read-only"}
 
-	key := calculateKey(calculateScope(scopes), "", "a")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), "", "a")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+"/a", key, "Key should be visible and read-only")
 }
@@ -89,7 +90,7 @@ func TestTopLevelReadOnly(t *testing.T) {
 func TestReadOnlyToReadWrite(t *testing.T) {
 	scopes := []string{"read-write"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+"/a/b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+"/a/b", "c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c", key, "Key should be visible and change to read-write")
 }
@@ -97,7 +98,7 @@ func TestReadOnlyToReadWrite(t *testing.T) {
 func TestReadWriteToReadOnly(t *testing.T) {
 	scopes := []string{"read-only"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+"/a/b/c", key, "Key should be visible and change to read-only")
 }
@@ -105,7 +106,7 @@ func TestReadWriteToReadOnly(t *testing.T) {
 func TestCompoundKey(t *testing.T) {
 	scopes := []string{"read-write"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a", "b/c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a", "b/c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c", key, "Key should be visible and read-write")
 }
@@ -113,20 +114,20 @@ func TestCompoundKey(t *testing.T) {
 func TestNoScopes(t *testing.T) {
 	scopes := []string{}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a/b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a/b", "c")
 	assert.Equal(t, "a/b/c", key, "Key should be completely proscriptive")
 
-	key = calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
+	key = calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
 	assert.Equal(t, "a.b/c", key, "Key should be hidden")
 
-	key = calculateKey(calculateScope(scopes), "a.b", "c")
+	key = calculateKey(log.StandardLogger(), calculateScope(scopes), "a.b", "c")
 	assert.Equal(t, "a.b/c", key, "Key should remain hidden")
 }
 
 func TestSecret(t *testing.T) {
 	scopes := []string{"secret", "read-write"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c"+suffixSeparator+secretSuffix, key, "Key should have secret suffix")
 }
@@ -134,7 +135,7 @@ func TestSecret(t *testing.T) {
 func TestNonpersistent(t *testing.T) {
 	scopes := []string{"non-persistent", "read-write"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
 
 	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c"+suffixSeparator+nonpersistentSuffix, key, "Key should have non-persistent suffix")
 }
@@ -142,7 +143,7 @@ func TestNonpersistent(t *testing.T) {
 func TestMultipleSuffixes(t *testing.T) {
 	scopes := []string{"non-persistent", "secret", "read-write"}
 
-	key := calculateKey(calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
+	key := calculateKey(log.StandardLogger(), calculateScope(scopes), DefaultGuestInfoPrefix+".a.b", "c")
 
 	assert.True(t, strings.Contains(key, suffixSeparator+secretSuffix) && strings.Contains(key, suffixSeparator+nonpersistentSuffix), "Key should contain both secret and non-persistent suffix")
 }
@@ -246,7 +247,7 @@ func TestCalculateKeys(t *testing.T) {
 	}
 
 	for _, te := range tests {
-		keys := CalculateKeys(ec, te.in, "")
+		keys := CalculateKeys(log.StandardLogger(), ec, te.in, "")
 		assert.Equal(t, te.out, keys)
 	}
 
@@ -263,7 +264,7 @@ func TestCalculateKeys(t *testing.T) {
 
 	for _, te := range panicTests {
 		assert.Panics(t, func() {
-			CalculateKeys(ec, te, "")
+			CalculateKeys(log.StandardLogger(), ec, te, "")
 		})
 	}
 }

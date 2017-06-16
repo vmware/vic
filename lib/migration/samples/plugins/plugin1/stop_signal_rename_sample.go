@@ -81,7 +81,7 @@ func (p *ApplianceStopSignalRename) Migrate(ctx context.Context, s *session.Sess
 	if result == nil {
 		return &errors.DecodeError{}
 	}
-	keys := extraconfig.CalculateKeys(oldStruct, "ExecutorConfig.Sessions.*.StopSignal", "")
+	keys := extraconfig.CalculateKeys(log.StandardLogger(), oldStruct, "ExecutorConfig.Sessions.*.StopSignal", "")
 	for _, key := range keys {
 		log.Debugf("old %s:%s", key, mapData[key])
 	}
