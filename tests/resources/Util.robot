@@ -18,7 +18,7 @@ Library  String
 Library  Collections
 Library  requests
 Library  Process
-Library  SSHLibrary  1 minute
+Library  SSHLibrary  3 minute
 Library  DateTime
 Library  Selenium2Library  3  3
 Resource  Nimbus-Util.robot
