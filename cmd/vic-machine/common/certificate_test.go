@@ -46,7 +46,7 @@ func TestGenKey(t *testing.T) {
 	assert.NotEmpty(t, kp.CertPEM, "Expected certificate to contain data")
 	assert.NotEmpty(t, kp.CertPEM, "Expected key to contain data")
 
-	ca, kp, err = cs.loadCertificates()
+	ca, kp, err = cs.loadCertificates(2)
 	assert.NoError(t, err, "Expected to cleanly load certificates")
 	assert.NotEmpty(t, ca, "Expected CA to contain data")
 	assert.NotNil(t, kp, "Expected keypair to contain data")
