@@ -148,11 +148,11 @@ all: components tethers isos vic-machine vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) $(MISSPELL) goversion
 check: goversion goimports gofmt misspell govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
-components: check apiservers $(imagec) $(vicadmin) $(rpctool)
+components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux)
 
-most: $(portlayerapi) $(docker-engine-api) $(imagec) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
+most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
 
 # utility targets
 goversion:
@@ -344,7 +344,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
