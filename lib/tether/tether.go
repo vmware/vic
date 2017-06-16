@@ -65,10 +65,6 @@ var (
 	}
 	DirForMinOS = map[string]string{
 		"/.tether/etc":              "0755",
-		"/.tether/lib/modules":      "0755",
-		"/.tether/proc":             "0555",
-		"/.tether/sys":              "0555",
-		"/.tether/usr/lib/iptables": "0755",
 	}
 
 	once sync.Once
