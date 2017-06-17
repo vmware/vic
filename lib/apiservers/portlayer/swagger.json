@@ -196,7 +196,7 @@
                       "type" : "string",
                       "x-nullable": false
                   },
-                  : {
+                  {
                       "name":"deviceID",
                       "in":"query",
                       "required": true,
@@ -261,7 +261,7 @@
                   "type" : "string",
                   "x-nullable": false
                   },
-              : {
+              {
                   "name":"deviceID",
                   "in":"query",
                   "required": true,
