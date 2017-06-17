@@ -1,3 +1,4 @@
+
 {
 	"swagger": "2.0",
 	"basePath": "/",
@@ -242,25 +243,25 @@
 				      }
           },
       "put": {
-              "description": "Imports a tar archive to a device at the target path",
-				      "summary": "Import tar archive to supplied target",
-				      "tags": [
+          "description": "Imports a tar archive to a device at the target path",
+				  "summary": "Import tar archive to supplied target",
+				  "tags": [
 					        "storage"
-				      ],
+				  ],
 				  "consumes": [
-					        "application/octet-stream"
-				      ],
+					    "application/octet-stream"
+				  ],
 				      "produces": [
 					        "application/octet-stream"
 				      ],
-				      "operationId": "ImportArchive",
+				  "operationId": "ImportArchive",
 				  "parameters": [
               {
                   "name": "ID",
                   "in":"query",
                   "type" : "string",
                   "x-nullable": false
-                  },
+              },
               {
                   "name":"deviceID",
                   "in":"query",
@@ -315,7 +316,7 @@
 				  }
       }
       },
-		"/storage": {
+		  "/storage": {
 			  "post": {
 				"description": "Creates a location to store images",
 				"summary": "creates an image store",
