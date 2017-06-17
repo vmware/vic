@@ -190,11 +190,26 @@
 				      ],
 				      "operationId": "ExportArchive",
 				      "parameters": [
-					        "ExportTarget": {
-						          "in": "query",
+                  {
+                      "name": "ID",
+                      "in":"query",
+                      "type" : "string",
+                      "x-nullable": false
+                  },
+                  : {
+                      "name":"deviceID",
+                      "in":"query",
                       "required": true,
-							        "$ref": "#/definitions/ExportArchiveRequest"
-					        }
+                      "type" : "string",
+                      "x-nullable": false
+                  },
+                  {
+                      "name":"targetPath",
+                      "in":"query",
+                      "required": true,
+                      "type": "string",
+                      "x-nullable": false
+                  }
 				      ],
 				      "responses": {
 					        "200": {
@@ -239,53 +254,69 @@
 					        "application/octet-stream"
 				      ],
 				      "operationId": "ImportArchive",
-				      "parameters": [
-					        {
-						          "name": "ImportTarget",
-						          "in": "query",
-                      "required": true,
-							        "$ref": "#/definitions/ImportArchiveRequest"
-					        },
-                  {
-						          "name": "Archive",
-						          "in": "body",
-						          "schema": {
-							  "type": "binary"
-						          }
-					        }
-				      ],
-				      "responses": {
-					        "200": {
-						          "description": "OK",
-						          "schema": {
-						          }
-					        },
-                  "404" : {
-                      "description": "Supplied target not found",
-						          "schema": {
-							            "$ref": "#/definitions/Error"
-						          }
+				  "parameters": [
+              {
+                  "name": "ID",
+                  "in":"query",
+                  "type" : "string",
+                  "x-nullable": false
                   },
-					        "409": {
-						          "description": "Device or resource has an unresolvable conflict",
-						          "schema": {
-							            "$ref": "#/definitions/Error"
-						          }
-					        },
-                  "500": {
-                      "description": "failed to export tar archive from target"
-                  },
-					        "default": {
-						          "description": "error",
-						          "schema": {
-							            "$ref": "#/definitions/Error"
-						          }
-					        }
-				      }
+              : {
+                  "name":"deviceID",
+                  "in":"query",
+                  "required": true,
+                  "type" : "string",
+                  "x-nullable": false
+              },
+              {
+                  "name":"targetPath",
+                  "in":"query",
+                  "required": true,
+                  "type": "string",
+                  "x-nullable": false
+              },
+              {
+						      "name": "Archive",
+                  "required": true,
+						      "in": "body",
+						      "schema": {
+                      "type":"string",
+                      "format":"binary"
+						      }
+					    }
+				  ],
+				  "responses": {
+					    "200": {
+						      "description": "OK",
+						      "schema": {
+						      }
+					    },
+              "404" : {
+                  "description": "Supplied target not found",
+						      "schema": {
+							        "$ref": "#/definitions/Error"
+						      }
+              },
+					    "409": {
+						      "description": "Device or resource has an unresolvable conflict",
+						      "schema": {
+							        "$ref": "#/definitions/Error"
+						      }
+					    },
+              "500": {
+                  "description": "failed to export tar archive from target"
+              },
+					    "default": {
+						      "description": "error",
+						      "schema": {
+							        "$ref": "#/definitions/Error"
+						      }
+					    }
+				  }
       }
       },
 		"/storage": {
-			"post": {
+			  "post": {
 				"description": "Creates a location to store images",
 				"summary": "creates an image store",
 				"tags": [
@@ -3779,64 +3810,6 @@
 					"x-nullable": false
 				}
 			}
-		},
-      "ExportArchiveRequest": {
-          "type": "object",
-          "required": [
-              "ID",
-              "deviceID",
-              "targetPath",
-              "filespec"
-          ],
-          "properties": {
-              "ID": {
-                  "type" : "string",
-                  "x-nullable": false
-              },
-              "deviceID": {
-                  "type" : "string",
-                  "x-nullable": false
-              },
-              "targetPath" :{
-                  "type": "string",
-                  "x-nullable": false
-              },
-              "filespec": {
-                  "type": "object",
-					        "additionalProperties": {
-						  "type": "string"
-					        }
-              }
-          }
-      },
-    "ImportArchiveRequest": {
-          "type": "object",
-          "required": [
-              "ID",
-              "deviceID",
-              "targetPath",
-              "filespec"
-          ],
-          "properties": {
-              "ID": {
-                  "type" : "string",
-                  "x-nullable": false
-              },
-              "deviceID": {
-                  "type" : "string",
-                  "x-nullable": false
-              },
-              "targetPath" :{
-                  "type": "string",
-                  "x-nullable": false
-              },
-              "filespec": {
-                  "type": "object",
-					        "additionalProperties": {
-						  "type": "string"
-					        }
-              }
-          }
-      }
+		}
 	}
 }
