@@ -28,6 +28,8 @@ mkdir -p /mnt/containerfs
 echo "Waiting for rootfs"
 while [ ! -e /dev/disk/by-label/containerfs ]; do sleep 0.1;done
 if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
+    # ensure mountpoint exists
+    mkdir -p ${MOUNTPOINT}/.tether
 
     # ensure that no matter what we have access to required devices
     # WARNING WARNING WARNING WARNING WARNING
