@@ -203,6 +203,7 @@ Add Host To VCenter
     \   ${out}=  Run  govc cluster.add -hostname=${host} -username=${user} -dc=${dc} -password=${pw} -noverify=true
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  OK
     \   Return From Keyword If  ${status}
+    \   Sleep  3 minutes
     Fail  Failed to add the host to the VC in 3 attempts
 
 Get Host Firewall Enabled

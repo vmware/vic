@@ -41,7 +41,25 @@ import (
 var StorageParentDir = "VIC"
 
 // Set to false for unit tests
-var DetachAll = true
+var (
+	DetachAll = true
+
+	FileForMinOS = map[string]os.FileMode{
+		"/etc/hostname":    0644,
+		"/etc/hosts":       0644,
+		"/etc/resolv.conf": 0644,
+	}
+	// Here the permission of .tether should be drwxrwxrwt.
+	// The sticky bit 't' is added when mounting the tmpfs in bootstrap
+	DirForMinOS = map[string]os.FileMode{
+		"/etc":              0755,
+		"/lib/modules":      0755,
+		"/proc":             0555,
+		"/sys":              0555,
+		"/usr/lib/iptables": 0755,
+		"/.tether":          0777,
+	}
+)
 
 const (
 	StorageImageDir  = "images"
@@ -409,6 +427,10 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		return err
 	}
 
+	if err = createBaseStructure(op, vmdisk); err != nil {
+		return err
+	}
+
 	if err = v.dm.Detach(op, vmdisk); err != nil {
 		return err
 	}
@@ -636,6 +658,66 @@ func imagesInUse(op trace.Operation, ID string) error {
 			return &portlayer.ErrImageInUse{
 				Msg: fmt.Sprintf("image %s in use by %s", ID, cont.ExecConfig.ID),
 			}
+		}
+	}
+
+	return nil
+}
+
+// populate the scratch with minimum OS structure defined in FileForMinOS and DirForMinOS
+func createBaseStructure(op trace.Operation, vmdisk *disk.VirtualDisk) (err error) {
+	// tmp dir to mount the disk
+	dir, err := ioutil.TempDir("", "mnt-"+portlayer.Scratch.ID)
+	if err != nil {
+		op.Errorf("Failed to create tempDir: %s", err)
+	}
+
+	defer func() {
+		e1 := os.RemoveAll(dir)
+		if e1 != nil {
+			op.Errorf("Failed to remove tempDir: %s", e1)
+			if err == nil {
+				err = e1
+			}
+		}
+	}()
+
+	if err = vmdisk.Mount(dir, nil); err != nil {
+		op.Errorf("Failed to mount device %s to dir %s", vmdisk.DevicePath, dir)
+		return err
+	}
+
+	defer func() {
+		e2 := vmdisk.Unmount()
+		if e2 != nil {
+			op.Errorf("Failed to unmount device: %s", e2)
+			if err == nil {
+				err = e2
+			}
+		}
+	}()
+
+	for dname, dmode := range DirForMinOS {
+		dirPath := path.Join(dir, dname)
+		if err = os.MkdirAll(dirPath, dmode); err != nil {
+			op.Errorf("Failed to create directory %s: %s", dirPath, err)
+			return err
+		}
+	}
+
+	// The directory has to exist before creating the new file
+	for fname, fmode := range FileForMinOS {
+		filePath := path.Join(dir, fname)
+		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
+		if err != nil {
+			op.Errorf("Failed to open file %s: %s", filePath, err)
+			return err
+		}
+
+		err = f.Close()
+		if err != nil {
+			op.Errorf("Failed to close file %s: %s", filePath, err)
+			return err
 		}
 	}
 
