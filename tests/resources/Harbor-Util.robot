@@ -50,19 +50,19 @@ Install Harbor To Test Server
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Received IP address:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
-    \   Run Keyword If  ${status}  Set Environment Variable  HARBOR_IP  ${ip}
+    \   Run Keyword If  ${status}  Set Environment Variable  HARBOR-IP  ${ip}
     \   Exit For Loop If  ${status}
 
     Log To Console  Waiting for Harbor to Come Up...
     :FOR  ${i}  IN RANGE  20
-    \  ${out}=  Run  curl -k ${protocol}://%{HARBOR_IP}
+    \  ${out}=  Run  curl -k ${protocol}://%{HARBOR-IP}
     \  Log  ${out}
     \  ${status}=  Run Keyword And Return Status  Should Not Contain Any  ${out}  502 Bad Gateway  Connection refused  Connection timed out
     \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Contain  ${out}  <title>Harbor</title>
-    \  Return From Keyword If  ${status}  %{HARBOR_IP}
+    \  Return From Keyword If  ${status}  %{HARBOR-IP}
     \  Sleep  30s
     Fail  Harbor failed to come up properly!
-    [Return]  %{HARBOR_IP}
+    [Return]  %{HARBOR-IP}
 
 Restart Docker With Insecure Registry Option
     # Requires you to edit /etc/systemd/system/docker.service.d/overlay.conf or docker.conf to be:
@@ -110,7 +110,7 @@ Create A New Project
     Wait Until Keyword Succeeds  5x  1  Table Should Contain  css=${MY_PROJECTS_TABLE}  ${name}
 
 Create A New User
-    [Arguments]  ${name}  ${email}  ${fullName}  ${password}  ${comments}
+    [Arguments]  ${name}  ${email}  ${fullName}  ${password}  ${comments}  
     Wait Until Element Is Visible  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
     Wait Until Element Is Enabled  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
     Click Element  css=body > harbor-app > harbor-shell > clr-main-container > div > nav > section > section > ul > li:nth-child(1) > a
@@ -504,13 +504,13 @@ Create Project And Three Users For It
     Open Browser  https://%{HARBOR_IP}/  chrome
     Log To Console  Opened
     Log Into Harbor  user=admin  pw=${password}
-
+    
     Create A New Project  name=${project}  public=${False}
     Log To Console  Create a New User..
     Create A New User  name=${developer}  email=${developerEmail}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
     Create A New User  name=${guest}  email=${guestEmail}  fullName=${guestFullName}  password=${userPassword}  comments=${comments}
     Create A New User  name=${developer2}  email=${developerEmail2}  fullName=${developerFullName}  password=${userPassword}  comments=${comments}
-
+    
     Add A User To A Project  user=${developer}  project=${project}  role=${developerRole}
     Add A User To A Project  user=${guest}  project=${project}  role=${guestRole}
     Add A User To A Project  user=${developer2}  project=${project}  role=${developerRole}
@@ -563,7 +563,7 @@ Basic Docker Command With Harbor
 
     # Docker run image
     Log To Console  docker run...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  END_OF_THE_TEST
