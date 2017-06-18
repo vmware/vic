@@ -132,7 +132,7 @@ func (t *tether) lenChildPid() int {
 }
 
 func (t *tether) setup() error {
-	defer trace.End(trace.Begin("main tether setup"))
+	defer trace.End(trace.Begin("Main tether setup"))
 
 	if err := createBindSrcTgt(); err != nil {
 		return err
@@ -919,7 +919,8 @@ func killHelper(session *SessionConfig) error {
 	return nil
 }
 
-// create the necessary folders/files as the src/target for bind mount. See https://github.com/vmware/vic/issues/489
+// Create necessary folders/files as the src/target for bind mount.
+// See https://github.com/vmware/vic/issues/489
 func createBindSrcTgt() error {
 	for dirPath, dmode := range dirForMinOS {
 		if err := os.MkdirAll(dirPath, dmode); err != nil {
