@@ -14,4 +14,7 @@
 
 package etcconf
 
-const hostsPath = "/etc/hosts"
+const (
+	hostsPath        = "/etc/hosts"
+	hostsPathBindSrc = "/.tether/etc/hosts"
+)
