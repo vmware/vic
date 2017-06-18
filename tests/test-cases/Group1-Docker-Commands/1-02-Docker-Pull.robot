@@ -108,7 +108,7 @@ Re-pull a previously rmi'd image
     ${id}=  Get From List  ${words}  2
     ${size}=  Get From List  ${words}  -2
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ubuntu
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ubuntu
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ${ubuntu}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images |grep ubuntu
     ${words}=  Split String  ${output}
     ${newid}=  Get From List  ${words}  2
