@@ -210,8 +210,19 @@
                       "required": true,
                       "type": "string",
                       "x-nullable": false
+                  },
+                  {
+                      "name": "FileSPecMap",
+                      "in": "body",
+                      "required": true,
+                      "schema": {
+                          "type":"object",
+					                "additionalProperties": {
+						                  "type": "string"
+                          }
+					            }
                   }
-				      ],
+			        ],
 				      "responses": {
 					        "200": {
 						          "description": "OK",
