@@ -54,8 +54,24 @@ const (
 	bindDir = "/.tether/.bind"
 )
 
-var Sys = system.New()
-var once sync.Once
+var (
+	Sys = system.New()
+
+	fileForMinOS = map[string]os.FileMode{
+		"/etc/hostname":            0644,
+		"/etc/hosts":               0644,
+		"/etc/resolv.conf":         0644,
+		"/.tether/etc/hostname":    0644,
+		"/.tether/etc/hosts":       0644,
+		"/.tether/etc/resolv.conf": 0644,
+	}
+	dirForMinOS = map[string]os.FileMode{
+		"/etc":         0755,
+		"/.tether/etc": 0755,
+	}
+
+	once sync.Once
+)
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -117,6 +133,10 @@ func (t *tether) lenChildPid() int {
 
 func (t *tether) setup() error {
 	defer trace.End(trace.Begin("main tether setup"))
+
+	if err := createBindSrcTgt(); err != nil {
+		return err
+	}
 
 	// set up tether logging destination
 	out, err := t.ops.Log()
@@ -894,6 +914,29 @@ func killHelper(session *SessionConfig) error {
 
 	if err := session.Cmd.Process.Signal(num); err != nil {
 		return fmt.Errorf("failed to signal %s: %s", session.ID, err)
+	}
+
+	return nil
+}
+
+// create the necessary folders/files as the src/target for bind mount. See https://github.com/vmware/vic/issues/489
+func createBindSrcTgt() error {
+	for dirPath, dmode := range dirForMinOS {
+		if err := os.MkdirAll(dirPath, dmode); err != nil {
+			return fmt.Errorf("Failed to create directory %s: %s", dirPath, err)
+		}
+	}
+
+	// The directory has to exist before creating the new file
+	for filePath, fmode := range fileForMinOS {
+		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
+		if err != nil {
+			return fmt.Errorf("Failed to open file %s: %s", filePath, err)
+		}
+
+		if err = f.Close(); err != nil {
+			return fmt.Errorf("failed to close file %s: %s", filePath, err)
+		}
 	}
 
 	return nil
