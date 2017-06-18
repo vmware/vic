@@ -148,7 +148,7 @@ func (h *hosts) Save() error {
 		return err
 	}
 
-	// no need to return when unmount fails; it's possible that the target is not mounted previously
+	// no need to return if unmount fails; it's possible that the target is not mounted previously
 	log.Infof("unmounting %s", h.path)
 	if err := syscall.Unmount(h.path, syscall.MNT_DETACH); err != nil {
 		log.Errorf("failed to unmount %s: %s", h.path, err)
