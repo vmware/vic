@@ -38,7 +38,6 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
-	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -267,64 +266,25 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 		},
 	}
-
-	memory := []cli.Flag{
-		cli.IntFlag{
-			Name:        "memory, mem",
-			Value:       0,
-			Usage:       "VCH resource pool memory limit in MB (unlimited=0)",
-			Destination: &c.VCHMemoryLimitsMB,
-		},
-		cli.IntFlag{
-			Name:        "memory-reservation, memr",
-			Value:       0,
-			Usage:       "VCH resource pool memory reservation in MB",
-			Destination: &c.VCHMemoryReservationsMB,
-			Hidden:      true,
-		},
-		cli.GenericFlag{
-			Name:   "memory-shares, mems",
-			Value:  flags.NewSharesFlag(&c.VCHMemoryShares),
-			Usage:  "VCH resource pool memory shares in level or share number, e.g. high, normal, low, or 163840",
-			Hidden: true,
-		},
+	var memory, cpu []cli.Flag
+	memory = append(memory, c.VCHMemoryLimitFlags(true)...)
+	memory = append(memory,
 		cli.IntFlag{
 			Name:        "endpoint-memory",
 			Value:       2048,
 			Usage:       "Memory for the VCH endpoint VM, in MB. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.MemoryMB,
-		},
-	}
-
-	cpu := []cli.Flag{
-		cli.IntFlag{
-			Name:        "cpu",
-			Value:       0,
-			Usage:       "VCH resource pool vCPUs limit in MHz (unlimited=0)",
-			Destination: &c.VCHCPULimitsMHz,
-		},
-		cli.IntFlag{
-			Name:        "cpu-reservation, cpur",
-			Value:       0,
-			Usage:       "VCH resource pool reservation in MHz",
-			Destination: &c.VCHCPUReservationsMHz,
-			Hidden:      true,
-		},
-		cli.GenericFlag{
-			Name:   "cpu-shares, cpus",
-			Value:  flags.NewSharesFlag(&c.VCHCPUShares),
-			Usage:  "VCH VCH resource pool vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
-			Hidden: true,
-		},
+		})
+	cpu = append(cpu, c.VCHCPULimitFlags(true)...)
+	cpu = append(cpu,
 		cli.IntFlag{
 			Name:        "endpoint-cpu",
 			Value:       1,
 			Usage:       "vCPUs for the VCH endpoint VM. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.NumCPUs,
-		},
-	}
+		})
 
 	tls := []cli.Flag{
 		cli.StringFlag{

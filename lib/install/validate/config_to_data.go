@@ -108,25 +108,48 @@ func setVCHResources(ctx context.Context, vch *object.ResourcePool, d *data.Data
 	}
 	cpu := p.Config.CpuAllocation.GetResourceAllocationInfo()
 	if cpu != nil {
+		HandleDefaultSettings(cpu)
 		setResources(&d.VCHCPULimitsMHz, &d.VCHCPUReservationsMHz, &d.VCHCPUShares, cpu)
 	}
 	memory := p.Config.MemoryAllocation.GetResourceAllocationInfo()
 	if memory != nil {
+		HandleDefaultSettings(memory)
 		setResources(&d.VCHMemoryLimitsMB, &d.VCHMemoryReservationsMB, &d.VCHMemoryShares, memory)
 	}
 	return nil
 }
 
-func setResources(limit *int, reservation *int, shares **types.SharesInfo, allocation *types.ResourceAllocationInfo) {
-	if limit != nil && allocation.Limit > -1 {
+func HandleDefaultSettings(allocation *types.ResourceAllocationInfo) {
+	if allocation == nil {
+		return
+	}
+	if allocation.Limit == -1 {
+		allocation.Limit = 0
+	}
+	// FIXME: govmomi omit empty value issue
+	// During creation, to workaround govmomi omit empty value issue (which is generated from vsphere WSDL), we have to set reservation to 1 instead of 0.
+	// But this 1 is not a custom setting, we don't want to show that 1 in the user configuration output, so reset that back to correct default.
+	if allocation.Reservation == 1 {
+		allocation.Reservation = 0
+	}
+	if allocation.Shares != nil && allocation.Shares.Level == types.SharesLevelNormal {
+		allocation.Shares.Shares = 0
+	}
+	allocation.ExpandableReservation = nil
+}
+
+func setResources(limit **int, reservation **int, shares **types.SharesInfo, allocation *types.ResourceAllocationInfo) {
+	if limit != nil {
 		// default unlimited value is -1, so no need to set
-		*limit = int(allocation.Limit)
+		al := int(allocation.Limit)
+		*limit = &al
 	}
-	if reservation != nil && allocation.Reservation > 1 {
+	if reservation != nil {
 		// reservation is set to 1 to avoid empty value issue in govmomi
-		*reservation = int(allocation.Reservation)
+		ar := int(allocation.Reservation)
+		*reservation = &ar
 	}
-	if shares != nil && allocation.Shares.Level != types.SharesLevelNormal {
+	if shares != nil {
 		// default value is normal share level
 		*shares = allocation.Shares
 	}

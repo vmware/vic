@@ -83,6 +83,8 @@ func TestMain(t *testing.T) {
 		errConf.VolumeLocations["volume-store"], _ = url.Parse("ds://store_not_exist/volumes/test")
 		testCreateVolumeStores(ctx, validator.Session, errConf, true, t)
 		testCreateAppliance(ctx, validator.Session, conf, installSettings, false, t)
+		// cannot run test for func not implemented in vcsim: ResourcePool:resourcepool-24 does not implement: UpdateConfig
+		// testUpdateResources(ctx, validator.Session, conf, installSettings, false, t)
 	}
 }
 

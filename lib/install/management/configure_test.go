@@ -24,9 +24,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 func TestGuestInfoSecret(t *testing.T) {
@@ -140,4 +143,71 @@ func TestGuestInfoSecret(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, secret.String(), secretKey.String())
 	}
+}
+
+func testUpdateResources(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+	d := &Dispatcher{
+		session: sess,
+		ctx:     ctx,
+		isVC:    sess.IsVC(),
+		force:   false,
+	}
+
+	appliance, err := sess.Finder.VirtualMachine(ctx, conf.Name)
+	if err != nil {
+		t.Errorf("Didn't find appliance vm: %s", err)
+	}
+	d.appliance = vm.NewVirtualMachine(ctx, sess, appliance.Reference())
+
+	settings := &data.InstallerData{}
+	settings.VCHSize.CPU.Limit = 1024
+	settings.VCHSize.Memory.Limit = 1024
+	settings.VCHSizeIsSet = true
+
+	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
+		t.Errorf("Failed to update resources: %s", err)
+	}
+	newSettings, err := d.getPoolResourceSettings(d.vchPool)
+	if err != nil {
+		t.Errorf("Failed to get pool resources: %s", err)
+	}
+
+	assert.Equal(t, settings.VCHSize.CPU.Limit, newSettings.CPU.Limit, "Cpu limit is not updated")
+	assert.Equal(t, 0, d.oldVCHResources.CPU.Limit, "Old Cpu limit is not as expected")
+
+	d.oldVCHResources = nil
+	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
+		t.Errorf("Failed to update resources: %s", err)
+	}
+	assert.Equal(t, d.oldVCHResources, nil, "should not update for same resource settings")
+
+	settings2 := &data.InstallerData{}
+	settings2.VCHSize.CPU.Limit = 2048
+	settings2.VCHSize.Memory.Limit = 2048
+	settings2.VCHSizeIsSet = false
+	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
+		t.Errorf("Failed to update resources: %s", err)
+	}
+	assert.Equal(t, d.oldVCHResources, nil, "should not update if VCH size is not set")
+
+	settings2.VCHSizeIsSet = true
+	if err = d.updateResourceSettings(conf.Name, settings); err != nil {
+		t.Errorf("Failed to update resources: %s", err)
+	}
+	newSettings, err = d.getPoolResourceSettings(d.vchPool)
+	if err != nil {
+		t.Errorf("Failed to get pool resources: %s", err)
+	}
+
+	assert.Equal(t, settings2.VCHSize.CPU.Limit, newSettings.CPU.Limit, "Cpu limit is not updated")
+
+	if err = d.rollbackResourceSettings(conf.Name, settings); err != nil {
+		t.Errorf("Rollback failed: %s", err)
+	}
+	newSettings, err = d.getPoolResourceSettings(d.vchPool)
+	if err != nil {
+		t.Errorf("Failed to get pool resources: %s", err)
+	}
+
+	assert.Equal(t, settings.VCHSize.CPU.Limit, newSettings.CPU.Limit, "Cpu limit is not rollback")
 }
