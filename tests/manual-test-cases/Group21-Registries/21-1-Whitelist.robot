@@ -37,14 +37,12 @@ Setup Harbor
     Remove Environment Variable  BRIDGE_NETWORK
     Remove Environment Variable  PUBLIC_NETWORK
 
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi as Harbor is only supported on VC
-
     # Install a Harbor server with HTTPS a Harbor server with HTTP
     Install Harbor To Test Server  protocol=https  name=harbor-https
-    Set Environment Variable  HTTPS_HARBOR_IP  %{HARBOR_IP}
+    Set Environment Variable  HTTPS_HARBOR_IP  %{HARBOR-IP}
 
     Install Harbor To Test Server  protocol=http  name=harbor-http
-    Set Environment Variable  HTTP_HARBOR_IP  %{HARBOR_IP}
+    Set Environment Variable  HTTP_HARBOR_IP  %{HARBOR-IP}
 
     Get HTTPS Harbor Certificate
 
@@ -57,12 +55,6 @@ Get HTTPS Harbor Certificate
 
 *** Test Cases ***
 Basic Whitelisting
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Test skipped on ESXi as Harbor is only supported on VC
-
-    # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
     # Install VCH with registry CA for whitelisted registry
     ${output}=  Install VIC Appliance To Test Server  vol=default --whitelist-registry=%{HTTPS_HARBOR_IP} --registry-ca=./ca.crt
     Should Contain  ${output}  Secure registry %{HTTPS_HARBOR_IP} confirmed
