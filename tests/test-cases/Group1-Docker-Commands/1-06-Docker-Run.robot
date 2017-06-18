@@ -109,12 +109,12 @@ Docker run immediate exit
     Should Be Empty  ${output}
 
 Docker run verify container start and stop time
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${cmdStart}=  Run  date +%s
     Sleep  3
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop busybox
     Should Be Equal As Integers  ${rc}  0
     Should Be Empty  ${output}
     ${rc}  ${containerStart}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.State.StartedAt}}' startStop | xargs date +%s -d
