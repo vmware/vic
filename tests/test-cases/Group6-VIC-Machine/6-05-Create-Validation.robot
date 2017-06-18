@@ -101,9 +101,8 @@ Trailing slash works as expected
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
-Whitelist registries
+Whitelist registries - blocked registry wildcard domain
     Set Test Environment Variables
-
     Log To Console  \nInstalling VCH to test server...
     # *.docker.io
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *.docker.io
@@ -114,6 +113,8 @@ Whitelist registries
     Should Not Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
+Whitelist registries - blocked registry ip address of valid registry fqdn
+    Set Test Environment Variables
     # ip address of docker.io
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry 52.200.132.201
     Should Contain  ${output}  Installer completed successfully
@@ -123,6 +124,8 @@ Whitelist registries
     Should Not Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
+Whitelist registries - allowed registry fqdn
+    Set Test Environment Variables
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry docker.io
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
@@ -131,6 +134,8 @@ Whitelist registries
     Should Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
+Whitelist registries - allowed registry wildcard domain
+    Set Test Environment Variables
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *docker.io
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
