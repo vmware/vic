@@ -149,7 +149,7 @@ func (t *BaseOperations) LinkBySlot(slot int32) (netlink.Link, error) {
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
 func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
-
+	log.Warnf("Tether starts to set host name")
 	old, err := os.Hostname()
 	if err != nil {
 		log.Warnf("Unable to get current hostname - will not be able to revert on failure: %s", err)
