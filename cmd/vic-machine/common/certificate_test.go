@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	cs = &CertSeed{}
+	cs = &CertFactory{}
 )
 
 func TestGenKey(t *testing.T) {
