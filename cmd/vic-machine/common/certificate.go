@@ -32,36 +32,85 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// CertSeed has all input parameters for vic-machine certificate commands
-type CertSeed struct {
-	CertPath              string
-	DisplayName           string
-	Scert                 string
-	Skey                  string
-	Ccert                 string
-	Ckey                  string
-	Cacert                string
-	Cakey                 string
-	ClientCert            *tls.Certificate
-	ClientCAsArg          cli.StringSlice `arg:"tls-ca"`
-	ClientCAs             []byte
-	EnvFile               string
-	Cname                 string
-	Org                   cli.StringSlice
-	KeySize               int
-	NoTLS                 bool
-	NoTLSverify           bool
-	ClientNetworkName     string
-	ClientNetworkIP       string
-	PublicNetworkName     string
-	PublicNetworkIP       string
-	ManagementNetworkName string
-	ManagementNetworkIP   string
-	KeyPEM                []byte
-	CertPEM               []byte
+// CertFactory has all input parameters for vic-machine certificate commands needed to create a certificate
+type CertFactory struct {
+	Networks
+
+	CertPath     string
+	DisplayName  string
+	Scert        string
+	Skey         string
+	Ccert        string
+	Ckey         string
+	Cacert       string
+	Cakey        string
+	ClientCert   *tls.Certificate
+	ClientCAsArg cli.StringSlice `arg:"tls-ca"`
+	ClientCAs    []byte
+	EnvFile      string
+	Cname        string
+	Org          cli.StringSlice
+	KeySize      int
+	NoTLS        bool
+	NoTLSverify  bool
+	KeyPEM       []byte
+	CertPEM      []byte
 }
 
-func (c *CertSeed) ProcessCertificates(displayName string, force bool, debug int) error {
+func (c *CertFactory) CertFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:        "tls-key",
+			Value:       "",
+			Usage:       "Virtual Container Host private key file (server certificate)",
+			Destination: &c.Skey,
+		},
+		cli.StringFlag{
+			Name:        "tls-cert",
+			Value:       "",
+			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
+			Destination: &c.Scert,
+		},
+		cli.StringFlag{
+			Name:        "tls-cname",
+			Value:       "",
+			Usage:       "Common Name to use in generated CA certificate when requiring client certificate authentication",
+			Destination: &c.Cname,
+		},
+		cli.StringFlag{
+			Name:        "cert-path",
+			Value:       "",
+			Usage:       "The path to check for existing certificates and in which to save generated certificates. Defaults to './<vch name>/'",
+			Destination: &c.CertPath,
+		},
+		cli.BoolFlag{
+			Name:        "no-tlsverify, kv",
+			Usage:       "Disable authentication via client certificates - for more tls options see advanced help (-x)",
+			Destination: &c.NoTLSverify,
+		},
+		cli.StringSliceFlag{
+			Name:   "organization",
+			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQDN if not provided.",
+			Value:  &c.Org,
+			Hidden: true,
+		},
+		cli.IntFlag{
+			Name:        "certificate-key-size, ksz",
+			Usage:       "Size of key to use when generating certificates",
+			Value:       2048,
+			Destination: &c.KeySize,
+			Hidden:      true,
+		},
+		cli.StringSliceFlag{
+			Name:   "tls-ca, ca",
+			Usage:  "Specify a list of certificate authority files to use for client verification",
+			Value:  &c.ClientCAsArg,
+			Hidden: true,
+		},
+	}
+}
+
+func (c *CertFactory) ProcessCertificates(displayName string, force bool, debug int) error {
 	// set up the locations for the certificates and env file
 	if c.CertPath == "" {
 		c.CertPath = displayName
@@ -154,7 +203,7 @@ func (c *CertSeed) ProcessCertificates(displayName string, force bool, debug int
 }
 
 // loadCertificates returns the client CA pool and the keypair for server certificates on success
-func (c *CertSeed) loadCertificates(debug int) ([]byte, *certificate.KeyPair, error) {
+func (c *CertFactory) loadCertificates(debug int) ([]byte, *certificate.KeyPair, error) {
 	defer trace.End(trace.Begin(""))
 
 	// reads each of the files specified, assuming that they are PEM encoded certs,
@@ -272,7 +321,7 @@ func (c *CertSeed) loadCertificates(debug int) ([]byte, *certificate.KeyPair, er
 	return certs, keypair, nil
 }
 
-func (c *CertSeed) generateCertificates(server bool, client bool) ([]byte, *certificate.KeyPair, error) {
+func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *certificate.KeyPair, error) {
 	defer trace.End(trace.Begin(""))
 
 	if !server && !client {

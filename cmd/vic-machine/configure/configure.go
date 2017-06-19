@@ -45,7 +45,7 @@ type Configure struct {
 	dns       common.DNS
 	volStores common.VolumeStores
 
-	certificates common.CertSeed
+	certificates common.CertFactory
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -91,54 +91,6 @@ func (c *Configure) Flags() []cli.Flag {
 			Destination: &c.upgrade,
 			Hidden:      true,
 		},
-		cli.StringFlag{
-			Name:        "tls-key",
-			Value:       "",
-			Usage:       "Virtual Container Host private key file (server certificate)",
-			Destination: &c.certificates.Skey,
-		},
-		cli.StringFlag{
-			Name:        "tls-cert",
-			Value:       "",
-			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
-			Destination: &c.certificates.Scert,
-		},
-		cli.StringFlag{
-			Name:        "tls-cname",
-			Value:       "",
-			Usage:       "Common Name to use in generated CA certificate when requiring client certificate authentication",
-			Destination: &c.certificates.Cname,
-		},
-		cli.StringFlag{
-			Name:        "cert-path",
-			Value:       "",
-			Usage:       "The path to check for existing certificates and in which to save generated certificates. Defaults to './<vch name>/'",
-			Destination: &c.certificates.CertPath,
-		},
-		cli.BoolFlag{
-			Name:        "no-tlsverify, kv",
-			Usage:       "Disable authentication via client certificates - for more tls options see advanced help (-x)",
-			Destination: &c.certificates.NoTLSverify,
-		},
-		cli.StringSliceFlag{
-			Name:   "organization",
-			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQDN if not provided.",
-			Value:  &c.certificates.Org,
-			Hidden: true,
-		},
-		cli.IntFlag{
-			Name:        "certificate-key-size, ksz",
-			Usage:       "Size of key to use when generating certificates",
-			Value:       2048,
-			Destination: &c.certificates.KeySize,
-			Hidden:      true,
-		},
-		cli.StringSliceFlag{
-			Name:   "tls-ca, ca",
-			Usage:  "Specify a list of certificate authority files to use for client verification",
-			Value:  &c.certificates.ClientCAsArg,
-			Hidden: true,
-		},
 	}
 
 	dns := c.dns.DNSFlags(false)
@@ -152,10 +104,11 @@ func (c *Configure) Flags() []cli.Flag {
 	proxies := c.proxies.ProxyFlags(false)
 	memory := c.VCHMemoryLimitFlags(false)
 	cpu := c.VCHCPULimitFlags(false)
+	certificates := c.certificates.CertFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, certificates, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 

@@ -62,24 +62,10 @@ OPTIONS:
 
 // Create has all input parameters for vic-machine create command
 type Create struct {
+	common.Networks
 	*data.Data
-	certs             common.CertSeed
+	certs             common.CertFactory
 	containerNetworks common.CNetworks
-
-	volumeStores common.VolumeStores
-
-	insecureRegistries       cli.StringSlice `arg:"insecure-registry"`
-	whitelistRegistries      cli.StringSlice `arg:"whitelist-registry"`
-	dns                      common.DNS
-	clientNetworkName        string
-	clientNetworkGateway     string
-	clientNetworkIP          string
-	publicNetworkName        string
-	publicNetworkGateway     string
-	publicNetworkIP          string
-	managementNetworkName    string
-	managementNetworkGateway string
-	managementNetworkIP      string
 
 	memoryReservLimits string
 	cpuReservLimits    string
@@ -173,20 +159,20 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "client-network, cln",
 			Value:       "",
 			Usage:       "The client network port group name (restricts DOCKER_API access to this network). Defaults to DCHP - see advanced help (-x)",
-			Destination: &c.clientNetworkName,
+			Destination: &c.ClientNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "client-network-gateway",
 			Value:       "",
 			Usage:       "Gateway for the VCH on the client network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1",
-			Destination: &c.clientNetworkGateway,
+			Destination: &c.ClientNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "client-network-ip",
 			Value:       "",
 			Usage:       "IP address with a network mask for the VCH on the client network, e.g. 10.0.0.2/24",
-			Destination: &c.clientNetworkIP,
+			Destination: &c.ClientNetworkIP,
 			Hidden:      true,
 		},
 
@@ -195,20 +181,20 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "public-network, pn",
 			Value:       "VM Network",
 			Usage:       "The public network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
-			Destination: &c.publicNetworkName,
+			Destination: &c.PublicNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "public-network-gateway",
 			Value:       "",
 			Usage:       "Gateway for the VCH on the public network, e.g. 10.0.0.1",
-			Destination: &c.publicNetworkGateway,
+			Destination: &c.PublicNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "public-network-ip",
 			Value:       "",
 			Usage:       "IP address with a network mask for the VCH on the public network, e.g. 10.0.1.2/24",
-			Destination: &c.publicNetworkIP,
+			Destination: &c.PublicNetworkIP,
 			Hidden:      true,
 		},
 
@@ -217,20 +203,20 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "management-network, mn",
 			Value:       "",
 			Usage:       "The management network port group name (provides route to target hosting vSphere). Defaults to DCHP - see advanced help (-x)",
-			Destination: &c.managementNetworkName,
+			Destination: &c.ManagementNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "management-network-gateway",
 			Value:       "",
 			Usage:       "Gateway for the VCH on the management network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1",
-			Destination: &c.managementNetworkGateway,
+			Destination: &c.ManagementNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "management-network-ip",
 			Value:       "",
 			Usage:       "IP address with a network mask for the VCH on the management network, e.g. 10.0.2.2/24",
-			Destination: &c.managementNetworkIP,
+			Destination: &c.ManagementNetworkIP,
 			Hidden:      true,
 		},
 	}
@@ -254,65 +240,7 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.NumCPUs,
 		})
 
-	tls := []cli.Flag{
-		cli.StringFlag{
-			Name:        "tls-cname",
-			Value:       "",
-			Usage:       "Common Name to use in generated CA certificate when requiring client certificate authentication",
-			Destination: &c.certs.Cname,
-		},
-		cli.StringSliceFlag{
-			Name:   "organization",
-			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQDN if provided.",
-			Value:  &c.certs.Org,
-			Hidden: true,
-		},
-		cli.BoolFlag{
-			Name:        "no-tlsverify, kv",
-			Usage:       "Disable authentication via client certificates - for more tls options see advanced help (-x)",
-			Destination: &c.certs.NoTLSverify,
-		},
-		cli.BoolFlag{
-			Name:        "no-tls, k",
-			Usage:       "Disable TLS support completely",
-			Destination: &c.certs.NoTLS,
-			Hidden:      true,
-		},
-		cli.StringFlag{
-			Name:        "key",
-			Value:       "",
-			Usage:       "Virtual Container Host private key file (server certificate)",
-			Destination: &c.certs.Skey,
-			Hidden:      true,
-		},
-		cli.StringFlag{
-			Name:        "cert",
-			Value:       "",
-			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
-			Destination: &c.certs.Scert,
-			Hidden:      true,
-		},
-		cli.StringFlag{
-			Name:        "cert-path",
-			Value:       "",
-			Usage:       "The path to check for existing certificates and in which to save generated certificates. Defaults to './<vch name>/'",
-			Destination: &c.certs.CertPath,
-			Hidden:      true,
-		},
-		cli.StringSliceFlag{
-			Name:   "tls-ca, ca",
-			Usage:  "Specify a list of certificate authority files to use for client verification",
-			Value:  &c.certs.ClientCAsArg,
-			Hidden: true,
-		},
-		cli.IntFlag{
-			Name:        "certificate-key-size, ksz",
-			Usage:       "Size of key to use when generating certificates",
-			Value:       2048,
-			Destination: &c.certs.KeySize,
-			Hidden:      true,
-		},
-	}
+	tls := c.certs.CertFlags()
 
 	registries := []cli.Flag{
 		cli.StringSliceFlag{
@@ -434,18 +362,18 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ClientNetwork, "client", c.clientNetworkName,
-		c.clientNetworkIP, c.clientNetworkGateway); err != nil {
+	if err := c.processNetwork(&c.Data.ClientNetwork, "client", c.ClientNetworkName,
+		c.ClientNetworkIP, c.ClientNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.PublicNetwork, "public", c.publicNetworkName,
-		c.publicNetworkIP, c.publicNetworkGateway); err != nil {
+	if err := c.processNetwork(&c.Data.PublicNetwork, "public", c.PublicNetworkName,
+		c.PublicNetworkIP, c.PublicNetworkGateway); err != nil {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ManagementNetwork, "management", c.managementNetworkName,
-		c.managementNetworkIP, c.managementNetworkGateway); err != nil {
+	if err := c.processNetwork(&c.Data.ManagementNetwork, "management", c.ManagementNetworkName,
+		c.ManagementNetworkIP, c.ManagementNetworkGateway); err != nil {
 		return err
 	}
 
