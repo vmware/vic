@@ -922,9 +922,11 @@ func killHelper(session *SessionConfig) error {
 // Create necessary folders/files as the src/target for bind mount.
 // See https://github.com/vmware/vic/issues/489
 func createBindSrcTgt() error {
+	log.Infof("-------start to create src and tgt for bind mount")
+
 	for dirPath, dmode := range dirForMinOS {
 		if err := os.MkdirAll(dirPath, dmode); err != nil {
-			return fmt.Errorf("Failed to create directory %s: %s", dirPath, err)
+			return fmt.Errorf("failed to create directory %s: %s", dirPath, err)
 		}
 	}
 
@@ -932,13 +934,23 @@ func createBindSrcTgt() error {
 	for filePath, fmode := range fileForMinOS {
 		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
 		if err != nil {
-			return fmt.Errorf("Failed to open file %s: %s", filePath, err)
+			return fmt.Errorf("failed to open file %s: %s", filePath, err)
 		}
 
 		if err = f.Close(); err != nil {
 			return fmt.Errorf("failed to close file %s: %s", filePath, err)
 		}
 	}
+
+	log.Infof("ls -al /.tether/etc")
+	cmd := exec.Command("/bin/ls", "-al", "/.tether/etc")
+	output, _ := cmd.CombinedOutput()
+	log.Infof("%s", string(output))
+
+	log.Infof("ls -al /etc")
+	cmd1 := exec.Command("/bin/ls", "-al", "/etc")
+	output1, _ := cmd1.CombinedOutput()
+	log.Infof("%s", string(output1))
 
 	return nil
 }
