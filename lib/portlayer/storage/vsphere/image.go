@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
@@ -37,6 +36,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/lib/metadata"
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
@@ -69,7 +69,6 @@ const (
 	defaultDiskSize  = 8388608
 	metaDataDir      = "imageMetadata"
 	manifest         = "manifest"
-	scratchVersion = "scratchVersion"
 )
 
 type ImageStore struct {
@@ -398,8 +397,11 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
+	scratchMetaData := &metadata.ScratchMetaData{
+		ScratchVersion: feature.ScratchBaseStructureVersion,
+	}
 	meta := make(map[string][]byte)
-	meta[scratchVersion] = []byte(strconv.Itoa(feature.ScratchBaseStructureVersion))
+	meta["metaData"] = []byte(fmt.Sprintf("%+v",scratchMetaData))
 	if err := writeMetadata(op, v.ds, metaDataDir, meta); err != nil {
 		return err
 	}
