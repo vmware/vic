@@ -22,12 +22,14 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -67,6 +69,7 @@ const (
 	defaultDiskSize  = 8388608
 	metaDataDir      = "imageMetadata"
 	manifest         = "manifest"
+	scratchVersion = "scratchVersion"
 )
 
 type ImageStore struct {
@@ -395,7 +398,9 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
-	if err := writeMetadata(op, v.ds, metaDataDir, nil); err != nil {
+	meta := make(map[string][]byte)
+	meta[scratchVersion] = []byte(strconv.Itoa(feature.ScratchBaseStructureVersion))
+	if err := writeMetadata(op, v.ds, metaDataDir, meta); err != nil {
 		return err
 	}
 

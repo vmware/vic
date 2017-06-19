@@ -23,7 +23,7 @@ const (
 	ExecSupportedVersion
 	VicadminProxyVarRenameVersion
 	InsecureRegistriesTypeChangeVersion
-
+	ScratchBaseStructureVersion
 	// Add new feature flag here
 
 	// MaxPluginVersion must be the last
