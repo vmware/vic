@@ -1,3 +1,4 @@
+
 {
 	"swagger": "2.0",
 	"basePath": "/",
@@ -175,8 +176,159 @@
 				}
 			}
 		},
-		"/storage": {
-			"post": {
+      "/archive": {
+          "get": {
+              "description": "Exports a tar archive from the target device.",
+				      "summary": "Export tar archive from supplied target",
+				      "tags": [
+					        "storage"
+				      ],
+				      "consumes": [
+					        "application/octet-stream"
+				      ],
+				      "produces": [
+					        "application/octet-stream"
+				      ],
+				      "operationId": "ExportArchive",
+				      "parameters": [
+                  {
+                      "name": "ID",
+                      "in":"query",
+                      "type" : "string",
+                      "x-nullable": false
+                  },
+                  {
+                      "name":"deviceID",
+                      "in":"query",
+                      "required": true,
+                      "type" : "string",
+                      "x-nullable": false
+                  },
+                  {
+                      "name":"targetPath",
+                      "in":"query",
+                      "required": true,
+                      "type": "string",
+                      "x-nullable": false
+                  },
+                  {
+                      "name": "filespec",
+                      "in": "body",
+                      "required": true,
+                      "schema": {
+                          "type":"object",
+					                "additionalProperties": {
+						                  "type": "string"
+                          }
+					            }
+                  }
+			        ],
+				      "responses": {
+					        "200": {
+						          "description": "OK",
+						          "schema": {
+                          "format": "binary"
+						          }
+					        },
+                  "404" : {
+                      "description": "Supplied target not found",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+                  },
+					        "409": {
+						          "description": "Device or resource has an unresolvable conflict",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+					        },
+                  "500": {
+                      "description": "failed to export tar archive from target"
+                  },
+					        "default": {
+						          "description": "error",
+						          "schema": {
+							            "$ref": "#/definitions/Error"
+						          }
+					        }
+				      }
+          },
+      "put": {
+          "description": "Imports a tar archive to a device at the target path",
+				  "summary": "Import tar archive to supplied target",
+				  "tags": [
+					        "storage"
+				  ],
+				  "consumes": [
+					    "application/octet-stream"
+				  ],
+				      "produces": [
+					        "application/octet-stream"
+				      ],
+				  "operationId": "ImportArchive",
+				  "parameters": [
+              {
+                  "name": "ID",
+                  "in":"query",
+                  "type" : "string",
+                  "x-nullable": false
+              },
+              {
+                  "name":"deviceID",
+                  "in":"query",
+                  "required": true,
+                  "type" : "string",
+                  "x-nullable": false
+              },
+              {
+                  "name":"targetPath",
+                  "in":"query",
+                  "required": true,
+                  "type": "string",
+                  "x-nullable": false
+              },
+              {
+						      "name": "Archive",
+                  "required": true,
+						      "in": "body",
+						      "schema": {
+                      "type":"string",
+                      "format":"binary"
+						      }
+					    }
+				  ],
+				  "responses": {
+					    "200": {
+						      "description": "OK",
+						      "schema": {
+						      }
+					    },
+              "404" : {
+                  "description": "Supplied target not found",
+						      "schema": {
+							        "$ref": "#/definitions/Error"
+						      }
+              },
+					    "409": {
+						      "description": "Device or resource has an unresolvable conflict",
+						      "schema": {
+							        "$ref": "#/definitions/Error"
+						      }
+					    },
+              "500": {
+                  "description": "failed to export tar archive from target"
+              },
+					    "default": {
+						      "description": "error",
+						      "schema": {
+							        "$ref": "#/definitions/Error"
+						      }
+					    }
+				  }
+      }
+      },
+		  "/storage": {
+			  "post": {
 				"description": "Creates a location to store images",
 				"summary": "creates an image store",
 				"tags": [
@@ -3461,9 +3613,6 @@
 					}
 				},
 				"workingDir": {
-					"type": "string"
-				},
-				"user": {
 					"type": "string"
 				},
 				"env": {
