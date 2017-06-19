@@ -126,7 +126,15 @@ func (d *VirtualDisk) canBeDetached() error {
 	return nil
 }
 
-func (d *VirtualDisk) setDetached() error {
+func (d *VirtualDisk) setDetached(disks map[uint64]*VirtualDisk) error {
+	defer func() {
+		if d.attachedRefs == 0 {
+			log.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
+
+			delete(disks, d.Hash())
+		}
+	}()
+
 	if !d.Attached() {
 		return fmt.Errorf("%s is already detached", d.DatastoreURI)
 	}

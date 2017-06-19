@@ -359,7 +359,7 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	}
 
 	// don't decrement reference count here as setDetached() does it already
-	return d.setDetached()
+	return d.setDetached(m.Disks)
 }
 
 func (m *Manager) DetachAll(op trace.Operation) error {

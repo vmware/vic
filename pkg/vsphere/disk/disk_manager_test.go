@@ -291,7 +291,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 2, d.attachedRefs, "%s has %d attach references but should have 2", d.DatastoreURI, d.attachedRefs)
 
 	// reduce reference count by calling detach
-	assert.NoError(t, d.setDetached(), "Error attempting to mark %s as detached", d.DatastoreURI)
+	assert.NoError(t, d.setDetached(vdm.Disks), "Error attempting to mark %s as detached", d.DatastoreURI)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
