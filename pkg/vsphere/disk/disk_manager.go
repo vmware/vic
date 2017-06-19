@@ -331,7 +331,7 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 
 	op.Infof("Detaching disk %s", d.DevicePath)
 
-	if !d.Attached() {
+	if !d.attached() {
 		op.Infof("Disk %s is already detached", d.DevicePath)
 		return nil
 	}
