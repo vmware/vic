@@ -134,9 +134,9 @@ func (t *tether) lenChildPid() int {
 func (t *tether) setup() error {
 	defer trace.End(trace.Begin("Main tether setup"))
 
-	if err := createBindSrcTgt(); err != nil {
-		return err
-	}
+	//if err := createBindSrcTgt(); err != nil {
+	//	return err
+	//}
 
 	// set up tether logging destination
 	out, err := t.ops.Log()
