@@ -217,7 +217,7 @@ func (t *tether) cleanup() {
 func (t *tether) setLogLevel() {
 	// TODO: move all of this into an extension.Pre() block when we move to that model
 	// adjust the logging level appropriately
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	// TODO: do not echo application output to console without debug enabled
 	serial.DisableTracing()
 
