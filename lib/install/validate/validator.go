@@ -28,8 +28,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
 
-	"net"
-
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
@@ -40,10 +38,11 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
-	registryutils "github.com/vmware/vic/pkg/registry"
+	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -559,96 +558,94 @@ func (v *Validator) registries(ctx context.Context, input *data.Data, conf *conf
 	}
 }
 
-func (v *Validator) friendlyRegistryList(registryType string, registryList []url.URL) string {
-	var msg string
-
-	if len(registryList) > 0 {
-		var host string
-		msg = registryType + " = "
-		for i, r := range registryList {
-			host = r.Host
-			if strings.Contains(r.Path, "/") {
-				host = host + r.Path
-			}
-
-			if i == 0 {
-				msg = msg + host
-			} else {
-				msg = msg + ", " + host
-			}
-		}
+func (v *Validator) friendlyRegistryList(registryType string, registryList []string) string {
+	if len(registryList) == 0 {
+		return ""
 	}
 
-	return msg
+	return registryType + " = " + strings.Join(registryList, ", ")
 }
 
 // Validate registries are reachable.  Secure registries that are not specified as insecure are validated with the
 // CA certs passed into vic-machine.
-func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, pool *x509.CertPool) (insecureRegistries []url.URL, whitelistRegistries []url.URL, err error) {
-	secureRegistries := input.WhitelistRegistries
+func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, pool *x509.CertPool) (insecureRegistries []string, whitelistRegistries []string, err error) {
+	secureRegistriesSet, err := dynamic.ParseRegistries(input.WhitelistRegistries)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	// Remove intersection between insecure registries and whitelist registries from whitelist set so
-	// we can ensure we test the exclusion set with certs
-	var exist bool
-	var idx int
-	var s url.URL
-	for _, r := range input.InsecureRegistries {
-		exist = false
-		for idx, s = range secureRegistries {
-			if r.Host == s.Host {
-				exist = true
+	insecureRegistriesSet, err := dynamic.ParseRegistries(input.InsecureRegistries)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Test insecure registries' reachability
+	for _, r := range insecureRegistriesSet {
+		r, ok := r.(registry.URLEntry)
+		if !ok {
+			err = fmt.Errorf("invalid insecure registry entry: %s", r)
+			v.NoteIssue(err)
+			return nil, nil, err
+		}
+
+		// Remove intersection between insecure registries and whitelist registries from whitelist set so
+		// we can ensure we test the exclusion set with certs
+		for idx, s := range secureRegistriesSet {
+			if s.IsURL() && r.Match(s.String()) {
+				// remove the insecure registry from list of registries to get validated against certs
+				secureRegistriesSet = append(secureRegistriesSet[:idx], secureRegistriesSet[idx+1:]...)
 				break
 			}
 		}
 
-		// remove the insecure registry from list of registries to get validated against certs
-		if exist {
-			secureRegistries = append(secureRegistries[:idx], secureRegistries[idx+1:]...)
-		}
-	}
-
-	// Test insecure registries' reachability
-	for _, r := range input.InsecureRegistries {
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
-		if strings.HasPrefix(r.Host, "*") {
-			log.Debugf("Skipping registry validation for %s", r.Host)
-			continue
-		}
-		if _, _, err = net.ParseCIDR(r.Host + r.Path); err == nil {
-			log.Debugf("Skipping registry validation for %s%s", r.Host, r.Path)
+		if strings.HasPrefix(r.URL().Host, "*") {
+			log.Debugf("Skipping registry validation for %s", r)
 			continue
 		}
 
-		_, err = registryutils.Reachable(r.Host, "https", "", "", nil, registryValidationTime, true)
-		if err != nil {
-			_, err = registryutils.Reachable(r.Host, "http", "", "", nil, registryValidationTime, true)
+		schemes := []string{""}
+		if r.URL().Scheme == "" {
+			schemes = []string{"https", "http"}
+		}
+
+		rs := r.String()
+		for _, s := range schemes {
+			if _, err = registry.Reachable(rs, s, "", "", nil, registryValidationTime, true); err == nil {
+				break
+			}
 		}
 
 		if err != nil {
-			log.Warnf("Unable to confirm insecure registry %s is a valid registry at this time.", r.Host)
+			log.Warnf("Unable to confirm insecure registry %s is a valid registry at this time.", r)
 		} else {
-			log.Debugf("Insecure registry %s confirmed.", r.Host)
+			log.Debugf("Insecure registry %s confirmed.", r)
 		}
 	}
 
 	// Test secure registries' reachability
-	for _, w := range secureRegistries {
+	for _, w := range secureRegistriesSet {
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
-		if strings.HasPrefix(w.Hostname(), "*") {
-			log.Debugf("Skipping registry validation for %s", w.Host)
-			continue
-		}
-		if _, _, err = net.ParseCIDR(w.Host + w.Path); err == nil {
-			log.Debugf("Skipping registry validation for %s%s", w.Host, w.Path)
+		if w.IsCIDR() {
+			log.Debugf("Skipping registry validation for %s", w)
 			continue
 		}
 
-		_, err = registryutils.Reachable(w.Host, "https", "", "", pool, registryValidationTime, false)
+		w, ok := w.(registry.URLEntry)
+		if !ok {
+			log.Debugf("Skipping registry validation for %s", w)
+			continue
+		}
 
-		if err != nil {
-			log.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w.Host)
+		if strings.HasPrefix(w.URL().Host, "*") {
+			log.Debugf("Skipping registry validation for %s", w)
+			continue
+		}
+
+		if _, err = registry.Reachable(w.String(), w.URL().Scheme, "", "", pool, registryValidationTime, false); err != nil {
+			log.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w)
 		} else {
-			log.Debugf("Secure registry %s confirmed.", w.Host)
+			log.Debugf("Secure registry %s confirmed.", w)
 		}
 	}
 
@@ -656,10 +653,13 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 	insecureRegistries = input.InsecureRegistries
 	// If vic-machine had whitelist registry specified
 	if len(input.WhitelistRegistries) > 0 {
-		whitelistRegistries = append(secureRegistries, insecureRegistries...)
+		// ignoring error since default merge policy is union, so should never return
+		// an error
+		m, _ := secureRegistriesSet.Merge(insecureRegistriesSet, nil)
+		whitelistRegistries = m.Strings()
 	}
-	err = nil
 
+	err = nil
 	return
 }
 
