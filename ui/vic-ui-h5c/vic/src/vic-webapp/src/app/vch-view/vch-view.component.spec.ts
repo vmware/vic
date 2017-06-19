@@ -38,6 +38,7 @@ import {
     getMalformedVchResponseStub
 } from '../services/mocks/vch.response';
 import { WS_VCH } from '../shared/constants';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
 
 let responseProperlyFormatted = true;
 
@@ -77,6 +78,7 @@ describe('VicVchViewComponent', () => {
 
     beforeEach(async(() => {
         TestBed.configureTestingModule({
+            schemas: [NO_ERRORS_SCHEMA],
             providers: [
                 { provide: VicVmViewService, useClass: VicVmViewServiceStub },
                 GlobalsService,

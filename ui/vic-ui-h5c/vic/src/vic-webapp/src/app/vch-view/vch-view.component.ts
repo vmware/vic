@@ -145,4 +145,17 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
                 'navigator=' + VSPHERE_VITREE_HOSTCLUSTERVIEW_KEY;
         }
     }
+
+    /**
+     * Opens VCH Creation wizard
+     */
+    launchCreateVchWizard() {
+        const webPlatform = this.globalsService.getWebPlatform();
+        webPlatform.openModalDialog(
+            'VCH Creation Wizard',
+            '/ui/vic/resources/build-dev/index.html?view=create-vch',
+            920,
+            600,
+            'urn:vic:vic:Root:vic%25252Fvic-root?properties=name');
+    }
 }
