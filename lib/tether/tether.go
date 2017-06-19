@@ -943,11 +943,13 @@ func createBindSrcTgt() error {
 	}
 
 	log.Infof("ls -al /.tether/etc")
+	// #nosec: Expect file permissions to be 0600 or less
 	cmd := exec.Command("/bin/ls", "-al", "/.tether/etc")
 	output, _ := cmd.CombinedOutput()
 	log.Infof("%s", string(output))
 
 	log.Infof("ls -al /etc")
+	// #nosec: Expect file permissions to be 0600 or less
 	cmd1 := exec.Command("/bin/ls", "-al", "/etc")
 	output1, _ := cmd1.CombinedOutput()
 	log.Infof("%s", string(output1))
