@@ -144,30 +144,47 @@ func GuestInfoCommand(kind int, req []byte) []byte {
 	return append([]byte(request), req...)
 }
 
+var (
+	netInterfaces = net.Interfaces
+	maxNics       = 16 // guestRpc/nicinfo.x:NICINFO_MAX_NICS
+)
+
+//
 func DefaultGuestNicInfo() *GuestNicInfo {
 	proto := NewGuestNicInfo()
 	info := proto.V3
 	// #nosec: Errors unhandled
-	ifs, _ := net.Interfaces()
+	ifs, _ := netInterfaces()
 
 	for _, i := range ifs {
 		if i.Flags&net.FlagLoopback == net.FlagLoopback {
 			continue
 		}
 
-		nic := GuestNicV3{}
-
-		if len(i.HardwareAddr) != 0 {
-			nic.MacAddress = i.HardwareAddr.String()
+		if len(i.HardwareAddr) == 0 {
+			continue // Not useful from outside the guest without a MAC
 		}
+
 		// #nosec: Errors unhandled
 		addrs, _ := i.Addrs()
+
+		if len(addrs) == 0 {
+			continue // Not useful from outside the guest without an IP
+		}
+
+		nic := GuestNicV3{
+			MacAddress: i.HardwareAddr.String(),
+		}
 
 		for _, addr := range addrs {
 			nic.AddIP(addr)
 		}
 
 		info.Nics = append(info.Nics, nic)
+
+		if len(info.Nics) >= maxNics {
+			break
+		}
 	}
 
 	return proto
