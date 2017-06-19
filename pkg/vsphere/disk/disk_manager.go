@@ -161,20 +161,25 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	d.l.Lock()
+	defer d.l.Unlock()
 
 	blockDev, err := waitForDevice(op, devicePath)
 	if err != nil {
-		op.Errorf("waitForDevice failed for %s with %s", config.DatastoreURI, errors.ErrorStack(err))
+		op.Errorf("waitForDevice failed for %s with %s", d.DatastoreURI, errors.ErrorStack(err))
 		// ensure that the disk is detached if it's the publish that's failed
 
-		if detachErr := m.Detach(op, config); detachErr != nil {
-			op.Debugf("detach(%s) failed with %s", config.DatastoreURI, errors.ErrorStack(detachErr))
+		disk, findErr := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+		if findErr != nil {
+			op.Debugf("findDiskByFilename(%s) failed with %s", d.DatastoreURI, errors.ErrorStack(findErr))
+		}
+
+		if detachErr := m.detach(op, disk); detachErr != nil {
+			op.Debugf("detach(%s) failed with %s", d.DatastoreURI, errors.ErrorStack(detachErr))
 		}
 
 		return nil, errors.Trace(err)
 	}
-
-	d.ParentDatastoreURI = config.ParentDatastoreURI
 	d.setAttached(blockDev)
 
 	return d, nil
@@ -190,6 +195,8 @@ func (m *Manager) Create(op trace.Operation, config *VirtualDiskConfig) (*Virtua
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	d.l.Lock()
+	defer d.l.Unlock()
 
 	spec := &types.FileBackedVirtualDiskSpec{
 		VirtualDiskSpec: types.VirtualDiskSpec{
@@ -219,6 +226,8 @@ func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDi
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	d.l.Lock()
+	defer d.l.Unlock()
 
 	info, err := m.vdm.QueryVirtualDiskInfo(op, config.DatastoreURI.String(), m.vm.Datacenter, true)
 	if err != nil {
@@ -248,8 +257,8 @@ func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDi
 //
 //	log.Infof("Deleting %s", d.DatastoreURI)
 //
-//	d.lock()
-//	defer d.unlock()
+//	d.l.Lock()
+//	defer d.l.Unlock()
 //
 //	if d.isAttached() {
 //		return fmt.Errorf("cannot delete %s, still attached (%s)", d.DatastoreURI, d.devicePath)
@@ -317,11 +326,10 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	if err != nil {
 		return errors.Trace(err)
 	}
+	d.l.Lock()
+	defer d.l.Unlock()
 
 	op.Infof("Detaching disk %s", d.DevicePath)
-
-	d.lock()
-	defer d.unlock()
 
 	if !d.Attached() {
 		op.Infof("Disk %s is already detached", d.DevicePath)
