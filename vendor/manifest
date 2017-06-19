@@ -805,6 +805,14 @@
 			"path": "/difflib"
 		},
 		{
+			"importpath": "github.com/ryanuber/go-glob",
+			"repository": "https://github.com/ryanuber/go-glob",
+			"vcs": "git",
+			"revision": "256dc444b735e061061cf46c809487313d5b0065",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/samuel/go-zookeeper/zk",
 			"repository": "https://github.com/samuel/go-zookeeper",
 			"vcs": "",

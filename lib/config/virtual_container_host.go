@@ -116,11 +116,11 @@ type Container struct {
 // RegistryConfig defines the registries virtual container host can talk to
 type Registry struct {
 	// Whitelist of registries
-	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" key:"whitelist_registries"`
+	RegistryWhitelist []string `vic:"0.1" scope:"read-only" key:"whitelist_registries"`
 	// Blacklist of registries
-	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	RegistryBlacklist []string `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Insecure registries
-	InsecureRegistries []url.URL `vic:"0.1" scope:"read-only" key:"insecure_registries"`
+	InsecureRegistries []string `vic:"0.1" scope:"read-only" key:"insecure_registries"`
 }
 
 // NetworkConfig defines the network configuration of virtual container host

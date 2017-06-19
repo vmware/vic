@@ -59,8 +59,8 @@ type Data struct {
 
 	BridgeIPRange *net.IPNet `cmd:"bridge-network-range"`
 
-	InsecureRegistries  []url.URL `cmd:"insecure-registry"`
-	WhitelistRegistries []url.URL `cmd:"whitelist-registry"`
+	InsecureRegistries  []string `cmd:"insecure-registry"`
+	WhitelistRegistries []string `cmd:"whitelist-registry"`
 
 	HTTPSProxy *url.URL `cmd:"https-proxy"`
 	HTTPProxy  *url.URL `cmd:"http-proxy"`
