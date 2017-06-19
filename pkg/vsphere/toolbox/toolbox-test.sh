@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright 2016 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,13 +21,17 @@ set -o pipefail
 
 vm="toolbox-test-$(uuidgen)"
 destroy=true
+verbose=true
 
-while getopts n:stv flag
+while getopts n:qstv flag
 do
     case $flag in
         n)
             vm=$OPTARG
             unset destroy
+            ;;
+        q)
+            verbose=false # you want this if generating lots of traffic, such as large file transfers
             ;;
         s)
             start=true
@@ -44,7 +48,7 @@ done
 
 echo "Building toolbox binaries..."
 pushd "$(git rev-parse --show-toplevel)" >/dev/null
-GOOS=linux GOARCH=amd64 go build -o "$GOPATH/bin/toolbox" -v ./cmd/toolbox 
+GOOS=linux GOARCH=amd64 go build -o "$GOPATH/bin/toolbox" -v ./cmd/toolbox
 GOOS=linux GOARCH=amd64 go test -i -c ./pkg/vsphere/toolbox -o "$GOPATH/bin/toolbox.test"
 popd >/dev/null
 
@@ -127,7 +131,7 @@ if [ -n "$test" ] ; then
     export GOVC_GUEST_LOGIN=user:pass
 
     echo "Running toolbox tests..."
-    ssh "${opts[@]}" "core@${ip}" ./toolbox.test -test.v -test.run TestServiceRunESX -toolbox.testesx \
+    ssh "${opts[@]}" "core@${ip}" ./toolbox.test -test.v=$verbose -test.run TestServiceRunESX -toolbox.testesx \
         -toolbox.testpid="$$" -toolbox.powerState="$state" &
 
     echo "Waiting for VM ip from toolbox..."
@@ -135,37 +139,49 @@ if [ -n "$test" ] ; then
     echo "toolbox vm.ip=$ip"
 
     echo "Testing guest.{start,kill,ps} operations via govc..."
+    export GOVC_VM="$vm"
 
     # should be 0 procs as toolbox only lists processes it started, for now
-    test -z "$(govc guest.ps -vm "$vm" -e | grep -v STIME)"
+    test -z "$(govc guest.ps -e | grep -v STIME)"
 
-    out=$(govc guest.start -vm "$vm" /bin/date)
+    out=$(govc guest.start /bin/date)
 
     if [ "$out" != "$$" ] ; then
         echo "'$out' != '$$'" 1>&2
     fi
 
     # These processes would run for 1h if we didn't kill them.
-    pid=$(govc guest.start -vm "$vm" sleep 1h)
+    pid=$(govc guest.start sleep 1h)
 
     echo "Killing func $pid..."
-    govc guest.kill -vm "$vm" -p "$pid"
-    govc guest.ps -vm "$vm" -e -p "$pid" -X | grep "$pid"
-    govc guest.ps -vm "$vm" -e -p "$pid" -json | jq -r .ProcessInfo[].ExitCode | grep -q 42
+    govc guest.kill -p "$pid"
+    govc guest.ps -e -p "$pid" -X | grep "$pid"
+    govc guest.ps -e -p "$pid" -json | jq -r .ProcessInfo[].ExitCode | grep -q 42
 
-    pid=$(govc guest.start -vm "$vm" /bin/sh -c "sleep 3600")
+    pid=$(govc guest.start /bin/sh -c "sleep 3600")
     echo "Killing proc $pid..."
-    govc guest.kill -vm "$vm" -p "$pid"
-    govc guest.ps -vm "$vm" -e -p "$pid" -X | grep "$pid"
+    govc guest.kill -p "$pid"
+    govc guest.ps -e -p "$pid" -X | grep "$pid"
 
     echo "Testing file copy to and from guest via govc..."
     dest="/tmp/$(basename "$0")"
 
-    govc guest.upload -f -vm "$vm" -perm 0640 -gid 10 "$0" "$dest"
+    govc guest.upload -f -perm 0640 -gid 10 "$0" "$dest"
+    govc guest.download "$dest" - | md5sum --quiet -c <(<"$0" md5sum)
+    govc guest.chmod 0755 "$dest"
+    govc guest.ls "$dest" | grep rwxr-xr-x
 
-    govc guest.download -vm "$vm" "$dest" - | md5sum --quiet -c <(<"$0" md5sum)
-    # TODO: switch govc guest.ls when toolbox supports it
-    ssh "${opts[@]}" "core@${ip}" ls -l "$dest" | grep "rw-r-----. 1 core wheel"
+    home=$(govc guest.getenv HOME | cut -d= -f2)
+
+    if [ "$verbose" = "false" ] ; then # else you don't want to see this noise
+        # Download the $HOME directory, includes toolbox binaries (~30M total)
+        # Note: trailing slash is required
+        govc guest.download "$home/" - | tar -tvzf - | grep "$(basename "$home")"/toolbox
+
+        govc guest.mkdir -p /tmp/toolbox-src
+        git ls-files | xargs tar -cvzf - | govc guest.upload -f - /tmp/toolbox-src
+        govc guest.ls /tmp/toolbox-src
+    fi
 
     echo "Waiting for tests to complete..."
     wait
@@ -173,5 +189,5 @@ fi
 
 if [ -n "$start" ] ; then
     echo "Starting toolbox..."
-    ssh "${opts[@]}" "core@${ip}" ./toolbox -toolbox.trace
+    ssh "${opts[@]}" "core@${ip}" ./toolbox -toolbox.trace=$verbose
 fi
