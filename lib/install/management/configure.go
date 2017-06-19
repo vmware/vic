@@ -54,7 +54,7 @@ var (
 )
 
 // Configure will try to reconfigure vch appliance. If failed will try to roll back to original status.
-func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (err error) {
+func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, isConfigureOp bool) (err error) {
 	defer trace.End(trace.Begin(conf.Name))
 
 	d.appliance = vch
@@ -109,7 +109,7 @@ func (d *Dispatcher) Configure(vch *vm.VirtualMachine, conf *config.VirtualConta
 		return err
 	}
 
-	if err = d.update(conf, settings); err == nil {
+	if err = d.update(conf, settings, isConfigureOp); err == nil {
 		// compatible with old version's upgrade snapshot name
 		if oldSnapshot != nil && (vm.IsConfigureSnapshot(oldSnapshot, ConfigurePrefix) || vm.IsConfigureSnapshot(oldSnapshot, UpgradePrefix)) {
 			d.retryDeleteSnapshotByRef(&oldSnapshot.Snapshot, oldSnapshot.Name, conf.Name)
@@ -284,7 +284,7 @@ func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.In
 	}
 }
 
-func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData, isConfigureOp bool) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	power, err := d.appliance.PowerState(d.ctx)
@@ -305,6 +305,14 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 	if settings.ApplianceISO != "" {
 		isoFile = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)
 	}
+
+	// Create volume stores only for a configure operation, where conf has its storage fields validated.
+	if isConfigureOp {
+		if err := d.createVolumeStores(conf); err != nil {
+			return err
+		}
+	}
+
 	if err = d.reconfigVCH(conf, isoFile); err != nil {
 		return err
 	}

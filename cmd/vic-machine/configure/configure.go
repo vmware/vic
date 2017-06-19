@@ -43,6 +43,7 @@ type Configure struct {
 	proxies   common.Proxies
 	cNetworks common.CNetworks
 	dns       common.DNS
+	volStores common.VolumeStores
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -92,6 +93,7 @@ func (c *Configure) Flags() []cli.Flag {
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(false)
 	id := c.IDFlags()
+	volume := c.volStores.Flags()
 	compute := c.ComputeFlags()
 	debug := c.DebugFlags()
 	cNetwork := c.cNetworks.CNetworkFlags(false)
@@ -101,7 +103,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, dns, cNetwork, memory, cpu, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -139,6 +141,11 @@ func (c *Configure) processParams() error {
 		return err
 	}
 
+	c.VolumeLocations, err = c.volStores.ProcessVolumeStores()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -171,6 +178,11 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	if c.cNetworks.IsSet {
 		o.ContainerNetworks = n.ContainerNetworks
 	}
+
+	// Copy the new volume store configuration directly since it has the merged
+	// volume store configuration and its datastore URL fields have been populated
+	// correctly by the storage validator. The old configuration has raw fields.
+	o.VolumeLocations = n.VolumeLocations
 
 	if c.OpsCredentials.IsSet {
 		o.Username = n.Username
@@ -357,7 +369,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}()
 
 	if !c.Data.Rollback {
-		err = executor.Configure(vch, vchConfig, vConfig)
+		err = executor.Configure(vch, vchConfig, vConfig, true)
 	} else {
 		err = executor.Rollback(vch, vchConfig, vConfig)
 	}
