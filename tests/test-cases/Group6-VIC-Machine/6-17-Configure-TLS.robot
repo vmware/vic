@@ -54,7 +54,7 @@ Configure VCH - Server cert with untrusted CA
     Log  ${out}
 
     # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-key "bundle/*.${domain}.key.pem" --tls-cert "bundle/*.${domain}.cert.pem" ${vicmachinetls} --cert-path "out-bundle" --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --key "bundle/*.${domain}.key.pem" --cert "bundle/*.${domain}.cert.pem" ${vicmachinetls} --cert-path "out-bundle" --debug 1
     Log  ${output}
     Should Contain  ${output}  Completed successfully
 
@@ -82,7 +82,7 @@ Configure VCH - Server cert with trusted CA
     Log  ${out}
 
     # Run vic-machine install, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-key "bundle/*.%{DOMAIN}.key.pem" --tls-cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --key "bundle/*.%{DOMAIN}.key.pem" --cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path
@@ -113,7 +113,7 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
 
     Run  rm -rf foo-bar-certs
     # Run vic-machine configure, supply server cert and key
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-key "bundle/*.%{DOMAIN}.key.pem" --tls-cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --cert-path=foo-bar-certs --debug 1
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --key "bundle/*.%{DOMAIN}.key.pem" --cert "bundle/*.%{DOMAIN}.cert.pem" ${vicmachinetls} --cert-path=foo-bar-certs --debug 1
     Log  ${output}
     Should Contain  ${output}  Loaded server certificate bundle
     Should Contain  ${output}  Unable to locate existing CA in cert path

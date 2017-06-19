@@ -60,13 +60,13 @@ type CertFactory struct {
 func (c *CertFactory) CertFlags() []cli.Flag {
 	return []cli.Flag{
 		cli.StringFlag{
-			Name:        "tls-key",
+			Name:        "key",
 			Value:       "",
 			Usage:       "Virtual Container Host private key file (server certificate)",
 			Destination: &c.Skey,
 		},
 		cli.StringFlag{
-			Name:        "tls-cert",
+			Name:        "cert",
 			Value:       "",
 			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
 			Destination: &c.Scert,
