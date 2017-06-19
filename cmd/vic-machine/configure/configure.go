@@ -206,10 +206,21 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 			v.Network.Assigned.Nameservers = nil
 		}
 	}
-	o.HostCertificate = n.HostCertificate
-	o.CertificateAuthorities = n.CertificateAuthorities
-	o.UserCertificates = n.UserCertificates
-	o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
+
+	if n.HostCertificate != nil {
+		o.HostCertificate = n.HostCertificate
+	}
+
+	if n.CertificateAuthorities != nil {
+		o.CertificateAuthorities = n.CertificateAuthorities
+	}
+	if n.UserCertificates != nil {
+		o.UserCertificates = n.UserCertificates
+	}
+
+	if n.RegistryCertificateAuthorities != nil {
+		o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
+	}
 }
 
 func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
@@ -372,14 +383,11 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}
 	c.Data = oldData
 
-	log.Errorf("After copying oldData, c.KeyPEM: %p", c.KeyPEM)
 	// in Create we process certificates as part of processParams but we need the old conf
 	// to do this in the context of Configure so we need to call this method here instead
 	if err = c.processCertificates(vchConfig); err != nil {
 		return err
 	}
-
-	log.Errorf("After processCertificates, c.KeyPEM: %p", c.KeyPEM)
 
 	// evaluate merged configuration
 	newConfig, err := validator.Validate(ctx, c.Data)
