@@ -93,8 +93,7 @@ func main() {
 
 	if vchConfig.Diagnostics.DebugLevel > 3 {
 		// extraconfig is very, very verbose
-		extraconfig.SetDecodeLogLevel(log.DebugLevel)
-		extraconfig.SetEncodeLogLevel(log.DebugLevel)
+		extraconfig.SetLogLevel(log.DebugLevel)
 	}
 
 	if vchConfig.Diagnostics.SysLogConfig != nil {

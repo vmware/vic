@@ -1048,12 +1048,12 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey(extraconfig.CalculateKeys(log.StandardLogger(), conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
+	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
 	ctxerr := d.ctx.Err()
 
 	if ctxerr == nil {
 		log.Info("Waiting for major appliance components to launch")
-		for _, k := range extraconfig.CalculateKeys(log.StandardLogger(), conf, "ExecutorConfig.Sessions.*.Started", "") {
+		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
 			d.waitForKey(k)
 		}
 	}

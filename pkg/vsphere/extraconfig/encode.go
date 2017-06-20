@@ -19,35 +19,17 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/Sirupsen/logrus"
-
-	"github.com/vmware/vic/pkg/log"
 )
 
 var (
 	ErrKeyNotFound = errors.New("key not found")
 )
-
-var encodeLogger = &logrus.Logger{
-	Out: os.Stderr,
-	// We're using our own text formatter to skip the \n and \t escaping logrus
-	// was doing on non TTY Out (we redirect to a file) descriptors.
-	Formatter: log.NewTextFormatter(),
-	Hooks:     make(logrus.LevelHooks),
-	Level:     logrus.InfoLevel,
-}
-
-func SetEncodeLogLevel(level logrus.Level) {
-	encodeLogger.Level = level
-}
 
 type encoder func(sink DataSink, src reflect.Value, prefix string, depth recursion)
 
@@ -98,14 +80,14 @@ func encode(sink DataSink, src reflect.Value, prefix string, depth recursion) {
 		return
 	}
 
-	encodeLogger.Debugf("Skipping unsupported field, interface: %T, kind %s", src, src.Kind())
+	logger.Debugf("Skipping unsupported field, interface: %T, kind %s", src, src.Kind())
 }
 
 // encodeString is the degenerative case where what we get is what we need
 func encodeString(sink DataSink, src reflect.Value, prefix string, depth recursion) {
 	err := sink(prefix, src.String())
 	if err != nil {
-		encodeLogger.Errorf("Failed to encode string for key %s: %s", prefix, err)
+		logger.Errorf("Failed to encode string for key %s: %s", prefix, err)
 	}
 
 }
@@ -114,7 +96,7 @@ func encodeString(sink DataSink, src reflect.Value, prefix string, depth recursi
 func encodePrimitive(sink DataSink, src reflect.Value, prefix string, depth recursion) {
 	err := sink(prefix, toString(src))
 	if err != nil {
-		encodeLogger.Errorf("Failed to encode primitive for key %s: %s", prefix, err)
+		logger.Errorf("Failed to encode primitive for key %s: %s", prefix, err)
 	}
 }
 
@@ -124,7 +106,7 @@ func encodePtr(sink DataSink, src reflect.Value, prefix string, depth recursion)
 		return
 	}
 
-	encodeLogger.Debugf("Encoding object: %#v", src)
+	logger.Debugf("Encoding object: %#v", src)
 
 	if src.IsNil() {
 		// no need to attempt anything
@@ -135,19 +117,19 @@ func encodePtr(sink DataSink, src reflect.Value, prefix string, depth recursion)
 }
 
 func encodeStruct(sink DataSink, src reflect.Value, prefix string, depth recursion) {
-	encodeLogger.Debugf("Encoding object: %#v", src)
+	logger.Debugf("Encoding object: %#v", src)
 
 	// iterate through every field in the struct
 	for i := 0; i < src.NumField(); i++ {
 		field := src.Field(i)
-		key, fdepth := calculateKeyFromField(encodeLogger, src.Type().Field(i), prefix, depth)
+		key, fdepth := calculateKeyFromField(src.Type().Field(i), prefix, depth)
 		if key == "" {
-			encodeLogger.Debugf("Skipping field %s with empty computed key", src.Type().Field(i).Name)
+			logger.Debugf("Skipping field %s with empty computed key", src.Type().Field(i).Name)
 			continue
 		}
 
 		// Dump what we have so far
-		encodeLogger.Debugf("Key: %s, Kind: %s Value: %s", key, field.Kind(), field.String())
+		logger.Debugf("Key: %s, Kind: %s Value: %s", key, field.Kind(), field.String())
 
 		encode(sink, field, key, fdepth)
 	}
@@ -163,11 +145,11 @@ func isEncodableSliceElemType(t reflect.Type) bool {
 }
 
 func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursion) {
-	encodeLogger.Debugf("Encoding object: %#v", src)
+	logger.Debugf("Encoding object: %#v", src)
 
 	length := src.Len()
 	if length == 0 {
-		encodeLogger.Debug("Skipping empty slice")
+		logger.Debug("Skipping empty slice")
 		return
 	}
 
@@ -176,7 +158,7 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 	if kind == reflect.Uint8 {
 		// special []byte array handling
 
-		encodeLogger.Debugf("Converting []byte to base64 string")
+		logger.Debugf("Converting []byte to base64 string")
 		str := base64.StdEncoding.EncodeToString(src.Bytes())
 		encode(sink, reflect.ValueOf(str), prefix, depth)
 		return
@@ -191,7 +173,7 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 		// else assume it's primitive - we'll panic/recover and continue it not
 		defer func() {
 			if err := recover(); err != nil {
-				encodeLogger.Errorf("unable to encode %s (slice) for %s: %s", src.Type(), prefix, err)
+				logger.Errorf("unable to encode %s (slice) for %s: %s", src.Type(), prefix, err)
 			}
 		}()
 
@@ -204,7 +186,7 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 		key := appendToPrefix(prefix, "", "~")
 		err := sink(key, strings.Join(values, Separator))
 		if err != nil {
-			encodeLogger.Errorf("Failed to encode slice data for key %s: %s", key, err)
+			logger.Errorf("Failed to encode slice data for key %s: %s", key, err)
 		}
 	}
 
@@ -212,22 +194,22 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 	// seems insane calling toString(ValueOf(..)) but it means we're using the same path for everything
 	err := sink(prefix, toString(reflect.ValueOf(length-1)))
 	if err != nil {
-		encodeLogger.Errorf("Failed to encode slice length for key %s: %s", prefix, err)
+		logger.Errorf("Failed to encode slice length for key %s: %s", prefix, err)
 	}
 }
 
 func encodeMap(sink DataSink, src reflect.Value, prefix string, depth recursion) {
-	encodeLogger.Debugf("Encoding object: %#v", src)
+	logger.Debugf("Encoding object: %#v", src)
 
 	// iterate over keys and recurse
 	mkeys := src.MapKeys()
 	length := len(mkeys)
 	if length == 0 {
-		encodeLogger.Debug("Skipping empty map")
+		logger.Debug("Skipping empty map")
 		return
 	}
 
-	encodeLogger.Debugf("Encoding map entries based off prefix: %s", prefix)
+	logger.Debugf("Encoding map entries based off prefix: %s", prefix)
 	keys := make([]string, length)
 	for i, v := range mkeys {
 		keys[i] = toString(v)
@@ -239,7 +221,7 @@ func encodeMap(sink DataSink, src reflect.Value, prefix string, depth recursion)
 	sort.Strings(keys)
 	err := sink(prefix, strings.Join(keys, Separator))
 	if err != nil {
-		encodeLogger.Errorf("Failed to encode map keys for key %s: %s", prefix, err)
+		logger.Errorf("Failed to encode map keys for key %s: %s", prefix, err)
 	}
 
 }
@@ -247,7 +229,7 @@ func encodeMap(sink DataSink, src reflect.Value, prefix string, depth recursion)
 func encodeTime(sink DataSink, src reflect.Value, prefix string, depth recursion) {
 	err := sink(prefix, src.Interface().(time.Time).String())
 	if err != nil {
-		encodeLogger.Errorf("Failed to encode time for key %s: %s", prefix, err)
+		logger.Errorf("Failed to encode time for key %s: %s", prefix, err)
 	}
 
 }
@@ -306,12 +288,12 @@ func MapSink(sink map[string]string) DataSink {
 // The filter is a bitwise composion of scope flags
 func ScopeFilterSink(filter uint, sink DataSink) DataSink {
 	return func(key, value string) error {
-		encodeLogger.Debugf("Filtering encode of %s with scopes: %v", key, calculateScopeFromKey(key))
+		logger.Debugf("Filtering encode of %s with scopes: %v", key, calculateScopeFromKey(key))
 		scope := calculateScope(calculateScopeFromKey(key))
 		if scope&filter != 0 {
 			sink(key, value)
 		} else {
-			encodeLogger.Debugf("Skipping encode of %s with scopes that do not match filter: %v", key, calculateScopeFromKey(key))
+			logger.Debugf("Skipping encode of %s with scopes that do not match filter: %v", key, calculateScopeFromKey(key))
 		}
 		return nil
 	}

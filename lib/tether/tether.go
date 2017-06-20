@@ -220,8 +220,7 @@ func (t *tether) setLogLevel() {
 
 	if t.config.DebugLevel > 3 {
 		// extraconfig is very, very verbose
-		extraconfig.SetEncodeLogLevel(log.DebugLevel)
-		extraconfig.SetDecodeLogLevel(log.DebugLevel)
+		extraconfig.SetLogLevel(log.DebugLevel)
 	}
 }
 
@@ -438,7 +437,7 @@ func (t *tether) processSessions() error {
 
 					// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 					// currently sure how to expose it neatly via a utility function
-					extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(log.StandardLogger(), t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, id), "")[0])
+					extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, id), "")[0])
 					log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
 					session.Cmd = *restartableCmd(&session.Cmd)
 				}
@@ -642,7 +641,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	// this returns an arbitrary closure for invocation after the session status update
 	f := t.ops.HandleSessionExit(t.config, session)
 
-	extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(log.StandardLogger(), t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0])
+	extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0])
 
 	if f != nil {
 		log.Debugf("Calling t.ops.HandleSessionExit")
@@ -666,7 +665,7 @@ func (t *tether) launch(session *SessionConfig) error {
 		}
 
 		// encode the result whether success or error
-		prefix := extraconfig.CalculateKeys(log.StandardLogger(), t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0]
+		prefix := extraconfig.CalculateKeys(t.config, fmt.Sprintf("%s.%s", session.extraconfigKey, session.ID), "")[0]
 		log.Debugf("Encoding result of launch for session %s under key: %s", session.ID, prefix)
 		extraconfig.EncodeWithPrefix(t.sink, session, prefix)
 	}()
@@ -776,7 +775,7 @@ func logConfig(config *ExecutorConfig) {
 			"Sessions.*.Cmd.Env",
 			"Sessions.*.Cmd.Env.*",
 			"Key"} {
-			for _, k := range extraconfig.CalculateKeys(log.StandardLogger(), config, f, "") {
+			for _, k := range extraconfig.CalculateKeys(config, f, "") {
 				keys[k] = nil
 			}
 		}
