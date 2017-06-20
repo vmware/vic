@@ -229,15 +229,12 @@ func TestHalt(t *testing.T) {
 }
 
 func TestAbsPathRepeat(t *testing.T) {
-	//log.SetLevel(log.WarnLevel)
-	log.SetLevel(log.DebugLevel)
-	//just for testing this unit test
-	log.Warnf("Enter TestAbsPathRepeat-----")
-	for i := 0; i < 1 && !t.Failed(); i++ {
-		log.Warnf("TestAbsPathRepeat i=: %d", i)
+	log.SetLevel(log.WarnLevel)
+
+	for i := 0; i < 2000 && !t.Failed(); i++ {
 		TestAbsPath(t)
 	}
-	log.Warnf("finish TestAbsPathRepeat-----")
+
 	defer log.SetLevel(log.DebugLevel)
 
 }
