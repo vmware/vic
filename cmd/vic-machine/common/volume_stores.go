@@ -96,14 +96,15 @@ func processVolumeStoreParam(rawVolumeStore string) (*url.URL, string, string, e
 	}
 
 	// raw target input should be in the form of a url
-	urlTarget, err := url.Parse(rawTarget)
+	stripRawTarget := rawTarget
+
+	if strings.HasPrefix(stripRawTarget, DsScheme + "://") {
+		stripRawTarget = strings.Replace(rawTarget, DsScheme + "://", "", -1)
+	}
+
+	urlTarget, err := url.Parse(stripRawTarget)
 	if err != nil {
-		stripRawTarget := strings.Replace(rawTarget, "ds://", "", -1)
-		urlTarget, err := url.Parse(stripRawTarget)
-		if err != nil {
-			return nil, "", "", fmt.Errorf("parsed url for option --volume-store could not be parsed as a url, valid inputs are datastore/path:label or %s. See -h for usage examples.", nfsInputFormat)
-		}
-		return urlTarget, stripRawTarget, label, nil
+		return nil, "", "", fmt.Errorf("parsed url for option --volume-store could not be parsed as a url, valid inputs are datastore/path:label or %s. See -h for usage examples.", nfsInputFormat)
 	}
 
 	return urlTarget, rawTarget, label, nil
