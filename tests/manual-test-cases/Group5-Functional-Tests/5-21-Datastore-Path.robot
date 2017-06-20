@@ -16,7 +16,7 @@
 Documentation    Test 5-21 - Datastore-Path
 Resource  ../../resources/Util.robot
 Suite Setup  Setup Suite ESX
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Variables ***
 ${testDatastoreSpace}=  "datastore (1)"
@@ -24,17 +24,18 @@ ${dsScheme}=  ds://
 
 *** Keywords ***
 Setup Suite ESX
-    #${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    #Set Global Variable  ${ESX1}  ${esx1}
-    #Set Global Variable  @{list}  ${esx1}
+    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Set Global Variable  ${ESX1}  ${esx1}
+    Set Global Variable  @{list}  ${esx1}
 
     Log To Console  Deploy VIC Appliance To ESX
-    Set Environment Variable  TEST_URL_ARRAY  10.192.100.215
-    Set Environment Variable  TEST_URL  10.192.100.215
+    Set Environment Variable  TEST_URL_ARRAY  ${esx1-ip}
+    Set Environment Variable  TEST_URL  ${esx1-ip}
     Set Environment Variable  TEST_USERNAME  root
-    Set Environment Variable  TEST_PASSWORD  e2eFunctionalTest
+    Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  HOST_TYPE  ESXi
     Remove Environment Variable  TEST_DATACENTER
     Remove Environment Variable  TEST_RESOURCE
     Remove Environment Variable  BRIDGE_NETWORK
@@ -44,19 +45,9 @@ Setup Suite ESX
     Should Contain  ${output}  Installer completed successfully
 
 
-    #Set Environment Variable  BRIDGE_NETWORK  bridge
-    #Set Environment Variable  PUBLIC_NETWORK  vm-network
-    #Set Environment Variable  TEST_RESOURCE  ${testResource}/Resources
-    #Set Environment Variable  TEST_DATASTORE  ${testDatastoreSpace}
-    #Set Environment Variable  TEST_TIMEOUT  30m
-
-
 *** Test Cases ***
 Datastore - DS Scheme Specified in Volume Store
     Log To Console  \nStarting DS Scheme in Volume Store Test...
-
-    #${output}=  Install VIC Appliance To Test Server  certs=${false}  vol=default --volume-store=${dsScheme}%{TEST_DATASTORE}/test:default
-    #Should Contain  ${output}  Installer completed successfully
 
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -80,6 +71,7 @@ Datastore - Space in Path
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  vol=default
     Should Contain  ${output}  Installer completed successfully
 
+
 Datastore - Space in Path with Scheme
     Log To Console  \nStarting Space in Path with Scheme Test...
 
@@ -97,12 +89,3 @@ Datastore - Space in Path with Scheme
     # Need to run custom vic-machine create to specify volume store with DS scheme
     ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL_ARRAY} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --volume-store=${dsScheme}%{TEST_DATASTORE}/images:default --password=%{TEST_PASSWORD} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --insecure-registry harbor.ci.drone.local --force --kv
     Should Contain  ${output}  Installer completed successfully
-
-    #${output}=  Install VIC Appliance To Test Server  certs=${false}  vol=default --volume-store=${dsScheme}%{TEST_DATASTORE}/test:default
-    #Should Contain  ${output}  Installer completed successfully
-
-
-    #${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL_ARRAY} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --volume-store=${dsScheme}%{TEST_DATASTORE}/images:default --password=%{TEST_PASSWORD} --insecure-registry harbor.ci.drone.local --force --kv
-    #Should Contain  ${output}  Installer completed successfully
-
-    #Install VIC Appliance To Test Server  certs=${false}
