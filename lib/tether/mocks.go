@@ -45,7 +45,7 @@ func (h MockHosts) Load() error {
 	return nil
 }
 
-func (h MockHosts) Save() error {
+func (h MockHosts) Save(string) error {
 	return nil
 }
 
@@ -62,13 +62,17 @@ func (h MockHosts) HostIP(_ string) net.IP {
 	return nil
 }
 
+func (h MockHosts) GetPath() string {
+	return ""
+}
+
 type MockResolvConf struct{}
 
 func (h MockResolvConf) Load() error {
 	return nil
 }
 
-func (h MockResolvConf) Save() error {
+func (h MockResolvConf) Save(string) error {
 	return nil
 }
 
@@ -94,4 +98,8 @@ func (h MockResolvConf) SetAttempts(uint) {
 }
 
 func (h MockResolvConf) SetTimeout(time.Duration) {
+}
+
+func (h MockResolvConf) GetPath() string {
+	return ""
 }
