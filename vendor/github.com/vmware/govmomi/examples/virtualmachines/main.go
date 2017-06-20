@@ -23,133 +23,47 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"net/url"
-	"os"
-	"strings"
+	"log"
 
-	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/examples"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
 )
-
-// GetEnvString returns string from environment variable.
-func GetEnvString(v string, def string) string {
-	r := os.Getenv(v)
-	if r == "" {
-		return def
-	}
-
-	return r
-}
-
-// GetEnvBool returns boolean from environment variable.
-func GetEnvBool(v string, def bool) bool {
-	r := os.Getenv(v)
-	if r == "" {
-		return def
-	}
-
-	switch strings.ToLower(r[0:1]) {
-	case "t", "y", "1":
-		return true
-	}
-
-	return false
-}
-
-const (
-	envURL      = "GOVMOMI_URL"
-	envUserName = "GOVMOMI_USERNAME"
-	envPassword = "GOVMOMI_PASSWORD"
-	envInsecure = "GOVMOMI_INSECURE"
-)
-
-var urlDescription = fmt.Sprintf("ESX or vCenter URL [%s]", envURL)
-var urlFlag = flag.String("url", GetEnvString(envURL, "https://username:password@host/sdk"), urlDescription)
-
-var insecureDescription = fmt.Sprintf("Don't verify the server's certificate chain [%s]", envInsecure)
-var insecureFlag = flag.Bool("insecure", GetEnvBool(envInsecure, false), insecureDescription)
-
-func processOverride(u *url.URL) {
-	envUsername := os.Getenv(envUserName)
-	envPassword := os.Getenv(envPassword)
-
-	// Override username if provided
-	if envUsername != "" {
-		var password string
-		var ok bool
-
-		if u.User != nil {
-			password, ok = u.User.Password()
-		}
-
-		if ok {
-			u.User = url.UserPassword(envUsername, password)
-		} else {
-			u.User = url.User(envUsername)
-		}
-	}
-
-	// Override password if provided
-	if envPassword != "" {
-		var username string
-
-		if u.User != nil {
-			username = u.User.Username()
-		}
-
-		u.User = url.UserPassword(username, envPassword)
-	}
-}
-
-func exit(err error) {
-	fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-	os.Exit(1)
-}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	flag.Parse()
-
-	// Parse URL from string
-	u, err := url.Parse(*urlFlag)
+	// Connect and login to ESX or vCenter
+	c, err := examples.NewClient(ctx)
 	if err != nil {
-		exit(err)
+		log.Fatal(err)
 	}
 
-	// Override username and/or password as required
-	processOverride(u)
+	defer c.Logout(ctx)
 
-	// Connect and log in to ESX or vCenter
-	c, err := govmomi.NewClient(ctx, u, *insecureFlag)
-	if err != nil {
-		exit(err)
-	}
-
-	// Get view of VirtualMachine
+	// Create view of VirtualMachine objects
 	m := view.NewManager(c.Client)
 
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
 	if err != nil {
-		exit(err)
+		log.Fatal(err)
 	}
 
-	// Get summary property (VirtualMachineSummary)
-	// Reference for this data object:
-	// https://www.vmware.com/support/developer/vc-sdk/visdk25pubs/ReferenceGuide/vim.vm.Summary.html
+	defer v.Destroy(ctx)
 
+	// Retrieve summary property for all machines
+	// Reference: http://pubs.vmware.com/vsphere-60/topic/com.vmware.wssdk.apiref.doc/vim.VirtualMachine.html
 	var vms []mo.VirtualMachine
 	err = v.Retrieve(ctx, []string{"VirtualMachine"}, []string{"summary"}, &vms)
 	if err != nil {
-		exit(err)
+		log.Fatal(err)
 	}
+
+	// Print summary per vm (see also: govc/vm/info.go)
 
 	for _, vm := range vms {
-		fmt.Printf("%s \n", vm.Summary.Config.Name)
+		fmt.Printf("%s: %s\n", vm.Summary.Config.Name, vm.Summary.Config.GuestFullName)
 	}
-
 }

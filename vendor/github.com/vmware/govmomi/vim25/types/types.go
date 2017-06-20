@@ -28546,7 +28546,7 @@ func init() {
 type MethodActionArgument struct {
 	DynamicData
 
-	Value AnyType `xml:"value,omitempty,typeattr"`
+	Value AnyType `xml:"value,typeattr"`
 }
 
 func init() {
@@ -31074,7 +31074,7 @@ type OptionValue struct {
 	DynamicData
 
 	Key   string  `xml:"key"`
-	Value AnyType `xml:"value,typeattr"` // TODO: update wsdl generator to skip omitempty for this field
+	Value AnyType `xml:"value,typeattr"`
 }
 
 func init() {
@@ -53154,8 +53154,8 @@ type WaitForUpdatesResponse struct {
 type WaitOptions struct {
 	DynamicData
 
-	MaxWaitSeconds   int32 `xml:"maxWaitSeconds,omitempty"`
-	MaxObjectUpdates int32 `xml:"maxObjectUpdates,omitempty"`
+	MaxWaitSeconds   *int32 `xml:"maxWaitSeconds"`
+	MaxObjectUpdates int32  `xml:"maxObjectUpdates,omitempty"`
 }
 
 func init() {
