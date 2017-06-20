@@ -69,6 +69,9 @@ See [vim.vm.guest.AuthManager](http://pubs.vmware.com/vsphere-60/index.jsp#com.v
 
 See [vim.vm.guest.FileManager](http://pubs.vmware.com/vsphere-60/index.jsp#com.vmware.wssdk.apiref.doc/vim.vm.guest.FileManager.html)
 
+The toolbox provides support for transferring directories to and from guests as gzip'd tar streams, without writing the
+tar file itself to the guest file system.  To disable this feature, set the `hgfs.FileServer.Archive` field to `false`.
+
 ### GuestProcessManager
 
 The toolbox [ProcessManager](process.go) can manage both OS processes and Go functions running as goroutines.

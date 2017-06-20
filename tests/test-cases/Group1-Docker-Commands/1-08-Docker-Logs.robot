@@ -202,4 +202,3 @@ Docker logs non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error: No such container: fakeContainer
-

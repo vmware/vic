@@ -31,11 +31,9 @@ import (
 	"text/tabwriter"
 
 	"github.com/vmware/govmomi"
-	"github.com/vmware/govmomi/find"
-	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/units"
+	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/types"
 )
 
 // GetEnvString returns string from environment variable.
@@ -134,34 +132,17 @@ func main() {
 		exit(err)
 	}
 
-	f := find.NewFinder(c.Client, true)
+	// Get view of Datastore
+	m := view.NewManager(c.Client)
 
-	// Find one and only datacenter
-	dc, err := f.DefaultDatacenter(ctx)
+	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"Datastore"}, true)
 	if err != nil {
 		exit(err)
-	}
-
-	// Make future calls local to this datacenter
-	f.SetDatacenter(dc)
-
-	// Find datastores in datacenter
-	dss, err := f.DatastoreList(ctx, "*")
-	if err != nil {
-		exit(err)
-	}
-
-	pc := property.DefaultCollector(c.Client)
-
-	// Convert datastores into list of references
-	var refs []types.ManagedObjectReference
-	for _, ds := range dss {
-		refs = append(refs, ds.Reference())
 	}
 
 	// Retrieve summary property for all datastores
-	var dst []mo.Datastore
-	err = pc.Retrieve(ctx, refs, []string{"summary"}, &dst)
+	var dss []mo.Datastore
+	err = v.Retrieve(ctx, []string{"Datastore"}, []string{"summary"}, &dss)
 	if err != nil {
 		exit(err)
 	}
@@ -169,7 +150,7 @@ func main() {
 	// Print summary per datastore
 	tw := tabwriter.NewWriter(os.Stdout, 2, 0, 2, ' ', 0)
 	fmt.Fprintf(tw, "Name:\tType:\tCapacity:\tFree:\n")
-	for _, ds := range dst {
+	for _, ds := range dss {
 		fmt.Fprintf(tw, "%s\t", ds.Summary.Name)
 		fmt.Fprintf(tw, "%s\t", ds.Summary.Type)
 		fmt.Fprintf(tw, "%s\t", units.ByteSize(ds.Summary.Capacity))

@@ -16,6 +16,7 @@ package data
 
 import (
 	"net"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -131,5 +132,37 @@ func TestCopyContainerNetworks(t *testing.T) {
 
 	// There should be an error on an attempt to change an existing network.
 	err = d.copyContainerNetworks(src)
+	assert.NotNil(t, err)
+}
+
+func TestCopyVolumeStores(t *testing.T) {
+	d := NewData()
+	src := NewData()
+	d.VolumeLocations = make(map[string]*url.URL)
+	src.VolumeLocations = make(map[string]*url.URL)
+
+	var err error
+	src.VolumeLocations["foo"], err = url.Parse("ds://fooDS/dir")
+	assert.NoError(t, err)
+	// Everything in src should be copied to d.
+	err = d.copyVolumeStores(src)
+	assert.NoError(t, err)
+	assert.Equal(t, d.VolumeLocations, src.VolumeLocations)
+
+	src.VolumeLocations["bar"], err = url.Parse("barDS/dir")
+	// The new volume store should be copied to d.
+	err = d.copyVolumeStores(src)
+	assert.NoError(t, err)
+	assert.Equal(t, d.VolumeLocations, src.VolumeLocations)
+
+	delete(src.VolumeLocations, "bar")
+	// There should be an error if anything in d is not in src.
+	err = d.copyVolumeStores(src)
+	assert.NotNil(t, err)
+
+	src.VolumeLocations["bar"], err = url.Parse("barDS/path")
+	assert.NoError(t, err)
+	// There should be an error on an attempt to change an existing volume store.
+	err = d.copyVolumeStores(src)
 	assert.NotNil(t, err)
 }

@@ -191,7 +191,7 @@ func TestProcessRemove(t *testing.T) {
 
 	m.wg.Wait()
 
-	<-time.After(m.expire * 2)
+	<-time.After(m.expire * 20)
 	// pid should be removed by now
 	b := m.ListProcesses([]int64{pid})
 	if len(b) != 0 {
