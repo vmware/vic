@@ -98,8 +98,8 @@ func processVolumeStoreParam(rawVolumeStore string) (*url.URL, string, string, e
 	// raw target input should be in the form of a url
 	stripRawTarget := rawTarget
 
-	if strings.HasPrefix(stripRawTarget, DsScheme + "://") {
-		stripRawTarget = strings.Replace(rawTarget, DsScheme + "://", "", -1)
+	if strings.HasPrefix(stripRawTarget, DsScheme+"://") {
+		stripRawTarget = strings.Replace(rawTarget, DsScheme+"://", "", -1)
 	}
 
 	urlTarget, err := url.Parse(stripRawTarget)
