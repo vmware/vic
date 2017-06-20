@@ -17,17 +17,17 @@
 package tether
 
 import (
-	"io/ioutil"
-	"net"
+	//"io/ioutil"
+	//"net"
 	"strconv"
-	"testing"
+	//"testing"
 
 	"github.com/vishvananda/netlink"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/etcconf"
+	//"github.com/stretchr/testify/assert"
+	//
+	//"github.com/vmware/vic/lib/config/executor"
+	//"github.com/vmware/vic/lib/etcconf"
 )
 
 // Utility method to add an interface to Mocked
