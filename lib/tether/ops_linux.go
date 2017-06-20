@@ -879,6 +879,7 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
+	log.Infof("---------------ops_linux setup()")
 	err := Sys.Hosts.Load()
 	if err != nil {
 		return err
