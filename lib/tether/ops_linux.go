@@ -44,9 +44,11 @@ import (
 )
 
 var (
-	hostnameFile        = "/etc/hostname"
-	hostnameFileBindSrc = "/.tether/etc/hostname"
-	byLabelDir          = "/dev/disk/by-label"
+	hostnameFile          = "/etc/hostname"
+	hostnameFileBindSrc   = "/.tether/etc/hostname"
+	hostsPathBindSrc      = "/.tether/etc/hosts"
+	resolvConfPathBindSrc = "/.tether/etc/resolv.conf"
+	byLabelDir            = "/dev/disk/by-label"
 
 	defaultExecUser = &user.ExecUser{
 		Uid:  syscall.Getuid(),
@@ -163,9 +165,8 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	log.Debugf("Updated kernel hostname")
 
 	// bind-mount /.tether/etc/hostname to /etc/hostname
-	log.Infof("bind-mounting %s on %s", hostnameFileBindSrc, hostnameFile)
-	if err = syscall.Mount(hostnameFileBindSrc, hostnameFile, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("faild to mount %s to %s: %s", hostnameFileBindSrc, hostnameFile, err)
+	if err = bindMount(hostnameFileBindSrc, hostnameFile); err != nil {
+		return err
 	}
 
 	// update /etc/hostname to match
@@ -190,7 +191,10 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	for _, a := range append(aliases, hostname) {
 		Sys.Hosts.SetHost(a, lo4)
 	}
-	if err = Sys.Hosts.Save(); err != nil {
+	if err = Sys.Hosts.Save(hostsPathBindSrc); err != nil {
+		return err
+	}
+	if err = bindMount(hostsPathBindSrc, Sys.Hosts.GetPath()); err != nil {
 		return err
 	}
 
@@ -474,7 +478,10 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 
 	Sys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
 
-	if err := Sys.Hosts.Save(); err != nil {
+	if err := Sys.Hosts.Save(hostsPathBindSrc); err != nil {
+		return err
+	}
+	if err := bindMount(hostsPathBindSrc, Sys.Hosts.GetPath()); err != nil {
 		return err
 	}
 
@@ -499,7 +506,10 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 		log.Infof("Added nameserver: %s", gw.IP)
 	}
 
-	if err := Sys.ResolvConf.Save(); err != nil {
+	if err := Sys.ResolvConf.Save(resolvConfPathBindSrc); err != nil {
+		return err
+	}
+	if err := bindMount(resolvConfPathBindSrc, Sys.ResolvConf.GetPath()); err != nil {
 		return err
 	}
 
@@ -879,7 +889,6 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
-	log.Infof("---------------ops_linux setup()")
 	err := Sys.Hosts.Load()
 	if err != nil {
 		return err
@@ -903,7 +912,10 @@ func (t *BaseOperations) Setup(config Config) error {
 		Sys.Hosts.SetHost(e.hostname, e.addr)
 	}
 
-	if err = Sys.Hosts.Save(); err != nil {
+	if err = Sys.Hosts.Save(hostsPathBindSrc); err != nil {
+		return err
+	}
+	if err := bindMount(hostsPathBindSrc, Sys.Hosts.GetPath()); err != nil {
 		return err
 	}
 
@@ -993,4 +1005,20 @@ func readDir(dir string) ([]os.FileInfo, error) {
 	}
 
 	return result, nil
+}
+
+func bindMount(src, target string) error {
+	// no need to return if unmount fails; it's possible that the target is not mounted previously
+	log.Infof("unmounting %s", target)
+	if err := Sys.Syscall.Unmount(target, syscall.MNT_DETACH); err != nil {
+		log.Errorf("failed to unmount %s: %s", target, err)
+	}
+
+	// bind mount src to target
+	log.Infof("bind-mounting %s on %s", src, target)
+	if err := Sys.Syscall.Mount(src, target, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)
+	}
+
+	return nil
 }

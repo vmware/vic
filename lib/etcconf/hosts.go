@@ -20,12 +20,9 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 )
-
-const ext4FileSystemType = "ext4"
 
 type hostEntry struct {
 	IP        net.IP
@@ -44,6 +41,7 @@ type Hosts interface {
 	RemoveAll()
 
 	HostIP(hostname string) net.IP
+	GetPath() string
 }
 
 type hosts struct {
@@ -119,7 +117,7 @@ func (h *hosts) Load() error {
 	return nil
 }
 
-func (h *hosts) Save() error {
+func (h *hosts) Save(filePath string) error {
 	h.Lock()
 	defer h.Unlock()
 
@@ -144,20 +142,8 @@ func (h *hosts) Save() error {
 		}
 	}
 
-	if err := save(hostsPathBindSrc, &hostsWalker{entries: entries}); err != nil {
+	if err := save(filePath, &hostsWalker{entries: entries}); err != nil {
 		return err
-	}
-
-	// no need to return if unmount fails; it's possible that the target is not mounted previously
-	log.Infof("unmounting %s", h.path)
-	if err := syscall.Unmount(h.path, syscall.MNT_DETACH); err != nil {
-		log.Errorf("failed to unmount %s: %s", h.path, err)
-	}
-
-	// bind mount src to target
-	log.Infof("bind-mounting %s on %s", hostsPathBindSrc, h.path)
-	if err := syscall.Mount(hostsPathBindSrc, h.path, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("faild to mount %s to %s: %s", hostsPathBindSrc, h.path, err)
 	}
 
 	// make sure the file is readable
@@ -203,4 +189,8 @@ func (h *hosts) HostIP(hostname string) net.IP {
 	defer h.Unlock()
 
 	return h.hosts[hostname]
+}
+
+func (h *hosts) GetPath() string {
+	return h.path
 }
