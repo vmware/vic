@@ -238,7 +238,7 @@ func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
 	sess.Cmd.Env = newEnvs
 }
 
-func (c *Configure) processCertificates(conf *config.VirtualContainerHostConfigSpec) error {
+func (c *Configure) processCertificates(networks map[string]*executor.NetworkEndpoint) error {
 
 	if !c.certificates.NoTLSverify && (c.certificates.Skey == "" || c.certificates.Scert == "") {
 		log.Infof("No certificate regeneration requested. No new certificates provided. Certificates left unchanged.")
@@ -262,12 +262,12 @@ func (c *Configure) processCertificates(conf *config.VirtualContainerHostConfigS
 	}
 
 	c.certificates.Networks = common.Networks{
-		ClientNetworkName:     conf.ExecutorConfig.Networks["client"].Name,
-		ClientNetworkIP:       conf.ExecutorConfig.Networks["client"].Assigned.String(),
-		PublicNetworkName:     conf.ExecutorConfig.Networks["public"].Name,
-		PublicNetworkIP:       conf.ExecutorConfig.Networks["public"].Assigned.String(),
-		ManagementNetworkName: conf.ExecutorConfig.Networks["management"].Name,
-		ManagementNetworkIP:   conf.ExecutorConfig.Networks["management"].Assigned.String(),
+		ClientNetworkName:     networks["client"].Name,
+		ClientNetworkIP:       networks["client"].Assigned.String(),
+		PublicNetworkName:     networks["public"].Name,
+		PublicNetworkIP:       networks["public"].Assigned.String(),
+		ManagementNetworkName: networks["management"].Name,
+		ManagementNetworkIP:   networks["management"].Assigned.String(),
 	}
 
 	if err := c.certificates.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
@@ -394,7 +394,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 
 	// in Create we process certificates as part of processParams but we need the old conf
 	// to do this in the context of Configure so we need to call this method here instead
-	if err = c.processCertificates(vchConfig); err != nil {
+	if err = c.processCertificates(vchConfig.ExecutorConfig.Networks); err != nil {
 		return err
 	}
 
