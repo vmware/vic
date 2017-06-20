@@ -213,10 +213,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	// if runtime is nil, should be fresh container create
 	if h.Runtime == nil || h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff || h.TargetState() == StateStopped {
 		extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
-		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	} else {
 		extraconfig.Encode(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig)
-		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
+	}
+
+	// strip unmodified keys from the update
+	if h.Config != nil && h.Config.ExtraConfig != nil {
+		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueUpdatesFromMap(h.Config.ExtraConfig, cfg)...)
+	} else {
+		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg, true)...)
 	}
 
 	if err := Commit(ctx, sess, h, waitTime); err != nil {
