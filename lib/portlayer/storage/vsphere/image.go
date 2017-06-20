@@ -28,6 +28,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
@@ -36,7 +37,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/lib/metadata"
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
@@ -401,7 +401,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		ScratchVersion: feature.ScratchBaseStructureVersion,
 	}
 	meta := make(map[string][]byte)
-	meta["metaData"] = []byte(fmt.Sprintf("%+v",scratchMetaData))
+	meta["metaData"] = []byte(fmt.Sprintf("%+v", scratchMetaData))
 	if err := writeMetadata(op, v.ds, metaDataDir, meta); err != nil {
 		return err
 	}
