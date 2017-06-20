@@ -244,7 +244,7 @@ func RunTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (Teth
 
 	// run the tether to service the attach
 	erR := Tthr.Start()
-	log.Debugf("Tether started --------")
+
 	return Tthr, src, erR
 }
 
