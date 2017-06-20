@@ -56,7 +56,7 @@ fi
 # prep the build system
 ensure_apt_packages cpio rpm tar ca-certificates xz-utils
 
-PKGDIR=$(mktemp -d)
+PKGDIR="/build"
 
 # initialize the bundle
 initialize_bundle $PKGDIR
@@ -64,7 +64,6 @@ initialize_bundle $PKGDIR
 # base filesystem setup
 mkdir -p $(rootfs_dir $PKGDIR)/{etc/yum,etc/yum.repos.d}
 ln -s /lib $(rootfs_dir $PKGDIR)/lib64
-cp $DIR/base/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
 cp $DIR/base/yum.conf $(rootfs_dir $PKGDIR)/etc/yum/
 
 # install the core packages
@@ -72,7 +71,7 @@ yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils linux-esx --nogp
 
 
 # Issue 3858: find all kernel modules and unpack them and run depmod against that directory
-find $(rootfs_dir $PKGDIR)/lib/modules -name "*.ko.xz" | xargs xz -d
+find $(rootfs_dir $PKGDIR)/lib/modules -name "*.ko.xz" | xargs xz --force -d
 KERNEL_VERSION=$(basename $(rootfs_dir $PKGDIR)/lib/modules/*)
 chroot $(rootfs_dir $PKGDIR) depmod $KERNEL_VERSION
 
