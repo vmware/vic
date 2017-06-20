@@ -152,7 +152,7 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
     launchCreateVchWizard() {
         const webPlatform = this.globalsService.getWebPlatform();
         webPlatform.openModalDialog(
-            'VCH Creation Wizard',
+            ' ',
             '/ui/vic/resources/build-dev/index.html?view=create-vch',
             920,
             600,
