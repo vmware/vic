@@ -99,11 +99,9 @@ func (c *containerBase) VMReference() types.ManagedObjectReference {
 
 // unlocked refresh of container state
 func (c *containerBase) refresh(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
 	base, err := c.updates(ctx)
 	if err != nil {
-		log.Errorf("Unable to update container %s", c.ExecConfig.ID)
+		log.Errorf("Update: unable to update container %s", c.ExecConfig.ID)
 		return err
 	}
 
@@ -123,6 +121,10 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 		return nil, NotYetExistError{c.ExecConfig.ID}
 	}
 
+	if c.Config != nil {
+		log.Debugf("Update: refreshing from change version %s", c.Config.ChangeVersion)
+	}
+
 	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
 		return nil, err
 	}
@@ -138,8 +140,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	var migratedConf map[string]string
 	containerExecKeyValues := vmomi.OptionValueMap(o.Config.ExtraConfig)
 	if containerExecKeyValues["guestinfo.vice./common/id"] == "" {
-		// DEBUGGING ONLY
-		log.Fatalf("Update: change version %s, extraconfig id: %+v", o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
+		return nil, fmt.Errorf("Update: change version %s failed assertion extraconfig id != nil", o.Config.ChangeVersion)
 	}
 
 	log.Debugf("Update: change version %s, extraconfig id: %+v", o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])

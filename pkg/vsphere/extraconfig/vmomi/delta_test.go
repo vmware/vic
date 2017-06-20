@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/govmomi/vim25/types"
 )
 

@@ -218,7 +218,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	}
 
 	// strip unmodified keys from the update
-	if h.Config != nil && h.Config.ExtraConfig != nil {
+	if h.Config != nil {
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueUpdatesFromMap(h.Config.ExtraConfig, cfg)...)
 	} else {
 		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg, true)...)

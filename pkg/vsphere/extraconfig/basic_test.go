@@ -99,12 +99,7 @@ type VisibleSessionConfig struct {
 
 // make it verbose during testing
 func init() {
-<<<<<<< 6b103ad68922a0c00fb40808f89fc3bf3f2a71c9
 	logger.Level = logrus.DebugLevel
-=======
-	decodeLogger.Level = logrus.DebugLevel
-	encodeLogger.Level = logrus.DebugLevel
->>>>>>> WIP: updated logging in extraconfig
 }
 
 func TestBasic(t *testing.T) {
