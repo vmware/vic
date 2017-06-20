@@ -153,6 +153,7 @@ const (
 	ContainerError   = "error"
 	ContainerStopped = "stopped"
 	ContainerExited  = "exited"
+	ContainerCreated = "created"
 )
 
 // NewContainerProxy will create a new proxy
@@ -696,9 +697,9 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 		cache.ContainerCache().DeleteContainer(vc.ContainerID)
 		return err
 	}
-	// attempt to stop container only if container state is not stopped or exited.
+	// attempt to stop container only if container state is not stopped, exited or created.
 	// we should allow user to stop and remove the container that is in unexpected status, e.g. starting, because of serial port connection issue
-	if state.Status == ContainerStopped || state.Status == ContainerExited {
+	if state.Status == ContainerStopped || state.Status == ContainerExited || state.Status == ContainerCreated {
 		return nil
 	}
 
@@ -741,8 +742,14 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 	}
 
 	handle = stateChangeResponse.Payload
-	wait := int32(*seconds)
-	err = c.CommitContainerHandle(handle, vc.ContainerID, wait)
+
+	// if no timeout in seconds provided then set to default of 10
+	if seconds == nil {
+		s := 10
+		seconds = &s
+	}
+
+	err = c.CommitContainerHandle(handle, vc.ContainerID, int32(*seconds))
 	if err != nil {
 		if IsNotFoundError(err) {
 			cache.ContainerCache().DeleteContainer(vc.ContainerID)

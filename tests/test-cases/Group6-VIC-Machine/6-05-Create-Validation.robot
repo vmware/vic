@@ -91,7 +91,7 @@ Custom image datastore
     Log To Console  Installer completed successfully: %{VCH-NAME}...
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
-    
+
 Trailing slash works as expected
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
@@ -99,4 +99,47 @@ Trailing slash works as expected
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: %{VCH-NAME}...
     Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Whitelist registries - blocked registry wildcard domain
+    Set Test Environment Variables
+    Log To Console  \nInstalling VCH to test server...
+    # *.docker.io
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *.docker.io
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    # try a docker pull from docker.io; this should fail
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Not Be Equal As Integers  ${rc}  0
+    Cleanup VIC Appliance On Test Server
+
+Whitelist registries - blocked registry ip address of valid registry fqdn
+    Set Test Environment Variables
+    # ip address of docker.io
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry 52.200.132.201
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    # try a docker pull from docker.io; this should fail
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Not Be Equal As Integers  ${rc}  0
+    Cleanup VIC Appliance On Test Server
+
+Whitelist registries - allowed registry fqdn
+    Set Test Environment Variables
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry docker.io
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    # try a docker pull from docker.io; this should succeed
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Cleanup VIC Appliance On Test Server
+
+Whitelist registries - allowed registry wildcard domain
+    Set Test Environment Variables
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *docker.io
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    # try a docker pull from docker.io; this should succeed
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server

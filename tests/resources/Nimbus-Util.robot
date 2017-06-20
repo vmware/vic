@@ -98,7 +98,9 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
 
     :FOR  ${process}  IN  @{processes}
     \    ${pid}=  Convert To Integer  ${process}
-    \    Wait For Process  ${pid}
+    \    ${result}=  Wait For Process  ${pid}
+    \    Log  ${result.stdout}
+    \    Log  ${result.stderr}
 
     &{ips}=  Create Dictionary
     :FOR  ${name}  IN  @{names}

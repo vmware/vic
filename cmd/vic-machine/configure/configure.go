@@ -17,6 +17,7 @@ package configure
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ type Configure struct {
 	proxies   common.Proxies
 	cNetworks common.CNetworks
 	dns       common.DNS
+	volStores common.VolumeStores
 
 	upgrade  bool
 	executor *management.Dispatcher
@@ -87,11 +89,11 @@ func (c *Configure) Flags() []cli.Flag {
 		},
 	}
 
-	// TODO (Jialin): after issue #5472 is fixed, change hidden back to false
-	dns := c.dns.DNSFlags(true)
+	dns := c.dns.DNSFlags(false)
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(false)
 	id := c.IDFlags()
+	volume := c.volStores.Flags()
 	compute := c.ComputeFlags()
 	debug := c.DebugFlags()
 	cNetwork := c.cNetworks.CNetworkFlags(false)
@@ -101,7 +103,7 @@ func (c *Configure) Flags() []cli.Flag {
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, dns, cNetwork, memory, cpu, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -139,6 +141,11 @@ func (c *Configure) processParams() error {
 		return err
 	}
 
+	c.VolumeLocations, err = c.volStores.ProcessVolumeStores()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -172,6 +179,11 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 		o.ContainerNetworks = n.ContainerNetworks
 	}
 
+	// Copy the new volume store configuration directly since it has the merged
+	// volume store configuration and its datastore URL fields have been populated
+	// correctly by the storage validator. The old configuration has raw fields.
+	o.VolumeLocations = n.VolumeLocations
+
 	if c.OpsCredentials.IsSet {
 		o.Username = n.Username
 		o.Token = n.Token
@@ -183,6 +195,9 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	if c.dns.IsSet {
 		for k, v := range o.ExecutorConfig.Networks {
 			v.Network.Nameservers = n.ExecutorConfig.Networks[k].Network.Nameservers
+			var gw net.IPNet
+			v.Network.Assigned.Gateway = gw
+			v.Network.Assigned.Nameservers = nil
 		}
 	}
 }
@@ -354,7 +369,7 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 	}()
 
 	if !c.Data.Rollback {
-		err = executor.Configure(vch, vchConfig, vConfig)
+		err = executor.Configure(vch, vchConfig, vConfig, true)
 	} else {
 		err = executor.Rollback(vch, vchConfig, vConfig)
 	}

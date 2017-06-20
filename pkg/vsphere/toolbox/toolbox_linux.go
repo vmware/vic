@@ -48,11 +48,15 @@ func fileExtendedInfoFormat(info os.FileInfo) string {
 	mtime := info.ModTime().Unix()
 	perm := info.Mode().Perm()
 
-	sys := info.Sys().(*syscall.Stat_t)
+	atime := mtime
+	uid := os.Getuid()
+	gid := os.Getgid()
 
-	atime := time.Unix(sys.Atim.Unix()).Unix()
-	uid := sys.Uid
-	gid := sys.Gid
+	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
+		atime = time.Unix(sys.Atim.Unix()).Unix()
+		uid = int(sys.Uid)
+		gid = int(sys.Gid)
+	}
 
 	targ := ""
 

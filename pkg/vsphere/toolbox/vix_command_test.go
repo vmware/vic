@@ -296,6 +296,43 @@ func TestVixCommandErrors(t *testing.T) {
 	}
 }
 
+func TestVixInitiateDirTransfer(t *testing.T) {
+	c := NewVixCommandClient()
+
+	dir := os.TempDir()
+
+	for _, enable := range []bool{true, false} {
+		// validate we behave as open-vm-tools does when the directory archive feature is disabled
+		c.Service.VixCommand.FileServer.Archive = enable
+		expect := vixNotAFile
+		if enable {
+			expect = vixOK
+		}
+
+		fromGuest := &VixMsgListFilesRequest{GuestPathName: dir}
+		toGuest := &VixCommandInitiateFileTransferToGuestRequest{GuestPathName: dir}
+		toGuest.header.Overwrite = true
+
+		tests := []struct {
+			op      uint32
+			request encoding.BinaryMarshaler
+		}{
+			{vixCommandInitiateFileTransferFromGuest, fromGuest},
+			{vixCommandInitiateFileTransferToGuest, toGuest},
+		}
+
+		for _, test := range tests {
+			reply := c.Request(test.op, test.request)
+
+			rc := vixRC(reply)
+
+			if rc != expect {
+				t.Errorf("rc=%d", rc)
+			}
+		}
+	}
+}
+
 func TestVixInitiateFileTransfer(t *testing.T) {
 	c := NewVixCommandClient()
 
@@ -361,9 +398,9 @@ func TestVixInitiateFileTransferWrite(t *testing.T) {
 		force bool
 		fail  bool
 	}{
-		{false, true},  // exists == OK
+		{false, true},  // exists == FAIL
 		{true, false},  // exists, but overwrite == OK
-		{false, false}, // does not exist == FAIL
+		{false, false}, // does not exist == OK
 	}
 
 	for i, test := range tests {
