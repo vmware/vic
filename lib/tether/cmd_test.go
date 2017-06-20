@@ -281,7 +281,7 @@ func TestMissingBinary(t *testing.T) {
 
 	_, src, err := RunTether(t, &cfg, mocker)
 	assert.Error(t, err, "Expected error from RunTether")
-
+	log.Infof("The error msg is: %s", err)
 	// refresh the cfg with current data
 	extraconfig.Decode(src, &cfg)
 
