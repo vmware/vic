@@ -132,7 +132,7 @@ func (t *tether) lenChildPid() int {
 }
 
 func (t *tether) setup() error {
-	defer trace.End(trace.Begin("Main tether setup"))
+	defer trace.End(trace.Begin("main tether setup"))
 
 	if err := createBindSrcTgt(); err != nil {
 		return err
@@ -930,15 +930,13 @@ func createBindSrcTgt() error {
 
 	// The directory has to exist before creating the new file
 	for filePath, fmode := range fileForMinOS {
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
-			if err != nil {
-				return fmt.Errorf("failed to open file %s: %s", filePath, err)
-			}
+		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
+		if err != nil {
+			return fmt.Errorf("failed to open file %s: %s", filePath, err)
+		}
 
-			if err = f.Close(); err != nil {
-				return fmt.Errorf("failed to close file %s: %s", filePath, err)
-			}
+		if err = f.Close(); err != nil {
+			return fmt.Errorf("failed to close file %s: %s", filePath, err)
 		}
 	}
 
