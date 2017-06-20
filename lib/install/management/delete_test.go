@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -32,7 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/simulator"
 )
 
 func TestDelete(t *testing.T) {

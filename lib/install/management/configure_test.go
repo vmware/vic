@@ -23,12 +23,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
