@@ -80,17 +80,6 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     mount --bind ${MOUNTPOINT}/.tether/usr/lib/iptables ${MOUNTPOINT}/usr/lib/iptables
     cp -r /usr/lib/iptables/* ${MOUNTPOINT}/usr/lib/iptables/
 
-    # mkdir -p ${MOUNTPOINT}/.tether/etc
-    # mkdir -p ${MOUNTPOINT}/etc
-
-    # touch ${MOUNTPOINT}/.tether/etc/hosts
-    # touch ${MOUNTPOINT}/.tether/etc/hostname
-    # touch ${MOUNTPOINT}/.tether/etc/resolv.conf
-
-    # touch ${MOUNTPOINT}/etc/hosts
-    # touch ${MOUNTPOINT}/etc/hostname
-    # touch ${MOUNTPOINT}/etc/resolv.conf
-
     until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
 
     echo "switching to the new mount"
