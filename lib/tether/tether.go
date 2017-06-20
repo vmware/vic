@@ -134,9 +134,9 @@ func (t *tether) lenChildPid() int {
 func (t *tether) setup() error {
 	defer trace.End(trace.Begin("Main tether setup"))
 
-	//if err := createBindSrcTgt(); err != nil {
-	//	return err
-	//}
+	if err := createBindSrcTgt(); err != nil {
+		return err
+	}
 
 	// set up tether logging destination
 	out, err := t.ops.Log()
@@ -217,7 +217,7 @@ func (t *tether) cleanup() {
 func (t *tether) setLogLevel() {
 	// TODO: move all of this into an extension.Pre() block when we move to that model
 	// adjust the logging level appropriately
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 	// TODO: do not echo application output to console without debug enabled
 	serial.DisableTracing()
 
@@ -500,10 +500,6 @@ func (t *tether) processSessions() error {
 
 func (t *tether) Start() error {
 	defer trace.End(trace.Begin("main tether loop"))
-
-	if err := createBindSrcTgt(); err != nil {
-		return err
-	}
 
 	// do the initial setup and start the extensions
 	if err := t.setup(); err != nil {
@@ -926,8 +922,6 @@ func killHelper(session *SessionConfig) error {
 // Create necessary folders/files as the src/target for bind mount.
 // See https://github.com/vmware/vic/issues/489
 func createBindSrcTgt() error {
-	log.Infof("-------start to create src and tgt for bind mount")
-
 	for dirPath, dmode := range dirForMinOS {
 		if err := os.MkdirAll(dirPath, dmode); err != nil {
 			return fmt.Errorf("failed to create directory %s: %s", dirPath, err)
@@ -947,18 +941,6 @@ func createBindSrcTgt() error {
 			}
 		}
 	}
-
-	log.Infof("ls -al /.tether/etc")
-	// #nosec: Expect file permissions to be 0600 or less
-	cmd := exec.Command("/bin/ls", "-al", "/.tether/etc")
-	output, _ := cmd.CombinedOutput()
-	log.Infof("%s", string(output))
-
-	log.Infof("ls -al /etc")
-	// #nosec: Expect file permissions to be 0600 or less
-	cmd1 := exec.Command("/bin/ls", "-al", "/etc")
-	output1, _ := cmd1.CombinedOutput()
-	log.Infof("%s", string(output1))
 
 	return nil
 }

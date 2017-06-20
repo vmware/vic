@@ -36,7 +36,7 @@ type EntryWalker interface {
 
 type Conf interface {
 	Load() error
-	Save() error
+	Save(string) error
 }
 
 func load(filePath string, con EntryConsumer) error {
