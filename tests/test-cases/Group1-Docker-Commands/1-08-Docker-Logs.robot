@@ -69,7 +69,7 @@ Docker logs backward compatibility
     Should Contain  ${output}  container ${id1} does not support '--timestamps'
 
 Docker logs with tail
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} sh -c 'seq 1 5000'
     Should Be Equal As Integers  ${rc}  0

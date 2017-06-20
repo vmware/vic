@@ -50,7 +50,7 @@ Pull an image with the full docker registry URL
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
 
 Pull an image with all tags
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags ${nginx}
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags nginx
 
 Pull non-existent image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadimage
@@ -59,7 +59,7 @@ Pull non-existent image
     Should contain  ${output}  image library/fakebadimage not found
 
 Pull image from non-existent repo
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadrepo.com:9999/${ubuntu}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull fakebadrepo.com:9999/ubuntu
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  no such host
