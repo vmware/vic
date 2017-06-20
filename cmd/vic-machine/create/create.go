@@ -448,6 +448,8 @@ func (c *Create) processCertificates() error {
 		debug = *c.Debug.Debug
 	}
 
+	c.certs.Networks = c.Networks
+
 	if err := c.certs.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
 		return err
 	}

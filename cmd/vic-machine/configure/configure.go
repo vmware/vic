@@ -261,6 +261,15 @@ func (c *Configure) processCertificates(conf *config.VirtualContainerHostConfigS
 		debug = *c.Debug.Debug
 	}
 
+	c.certificates.Networks = common.Networks{
+		ClientNetworkName:     conf.ExecutorConfig.Networks["client"].Name,
+		ClientNetworkIP:       conf.ExecutorConfig.Networks["client"].Assigned.String(),
+		PublicNetworkName:     conf.ExecutorConfig.Networks["public"].Name,
+		PublicNetworkIP:       conf.ExecutorConfig.Networks["public"].Assigned.String(),
+		ManagementNetworkName: conf.ExecutorConfig.Networks["management"].Name,
+		ManagementNetworkIP:   conf.ExecutorConfig.Networks["management"].Assigned.String(),
+	}
+
 	if err := c.certificates.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
 		return err
 	}
