@@ -63,7 +63,9 @@ Test
 
     Create Three Distributed Port Groups  ha-datacenter
 
-    Add Host To Distributed Switch  /ha-datacenter/host/cls
+    Wait Until Keyword Succeeds  5x  1 minute  Add Host To Distributed Switch  /ha-datacenter/host/cls/@{esx_ips}[0]
+    Wait Until Keyword Succeeds  5x  1 minute  Add Host To Distributed Switch  /ha-datacenter/host/cls/@{esx_ips}[1]
+    Wait Until Keyword Succeeds  5x  1 minute  Add Host To Distributed Switch  /ha-datacenter/host/cls/@{esx_ips}[2]
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
