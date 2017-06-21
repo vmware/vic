@@ -28,6 +28,8 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/migration/feature"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -402,7 +404,12 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
-	if err := writeMetadata(op, v.ds, metaDataDir, nil); err != nil {
+	scratchMetaData := &metadata.ScratchMetaData{
+		ScratchVersion: feature.ScratchBaseStructureVersion,
+	}
+	meta := make(map[string][]byte)
+	meta["metaData"] = []byte(fmt.Sprintf("%+v", scratchMetaData))
+	if err := writeMetadata(op, v.ds, metaDataDir, meta); err != nil {
 		return err
 	}
 

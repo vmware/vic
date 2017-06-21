@@ -12,20 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package feature
+package metadata
 
-const (
-	AddCommonSpecForVCHVersion = iota + 1
-	AddCommonSpecForContainerVersion
-	TasksSupportedVersion
-	RenameSupportedVersion
-	MigrateRegistryVersion
-	ExecSupportedVersion
-	VicadminProxyVarRenameVersion
-	InsecureRegistriesTypeChangeVersion
-	ScratchBaseStructureVersion
-	// Add new feature flag here
-
-	// MaxPluginVersion must be the last
-	MaxPluginVersion
-)
+type ScratchMetaData struct {
+	ScratchVersion int `json:"scratch_version"`
+}
