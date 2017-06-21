@@ -15,7 +15,6 @@
 package main
 
 import (
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +25,6 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
-	ploptions "github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/dns"
 	"github.com/vmware/vic/lib/pprof"
@@ -93,15 +91,15 @@ func main() {
 		syslog.Logger.Level = log.DebugLevel
 	}
 
-	if ploptions.PortLayerOptions.SyslogAddr != nil {
-		u, err := url.Parse(*ploptions.PortLayerOptions.SyslogAddr)
-		if err != nil {
-			log.Fatalln(err)
-		}
+	if vchConfig.Diagnostics.DebugLevel > 3 {
+		// extraconfig is very, very verbose
+		extraconfig.SetLogLevel(log.DebugLevel)
+	}
 
+	if vchConfig.Diagnostics.SysLogConfig != nil {
 		logcfg.Syslog = &viclog.SyslogConfig{
-			Network:  u.Scheme,
-			RAddr:    u.Host,
+			Network:  vchConfig.Diagnostics.SysLogConfig.Network,
+			RAddr:    vchConfig.Diagnostics.SysLogConfig.RAddr,
 			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
