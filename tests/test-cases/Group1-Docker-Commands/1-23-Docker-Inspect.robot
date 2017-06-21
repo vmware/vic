@@ -36,7 +36,7 @@ Docker inspect image specifying type
 Docker inspect image specifying incorrect type
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --type=container ${busybox}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error: No such container: busybox
+    Should Contain  ${output}  Error: No such container: harbor.ci.drone.local/library/busybox
 
 Simple docker inspect of container
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox}

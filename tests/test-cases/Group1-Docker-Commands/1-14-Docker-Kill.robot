@@ -22,7 +22,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Trap Signal Command
     # Container command runs an infinite loop, trapping and logging the given signal name
     [Arguments]  ${sig}
-    [Return]  busybox sh -c "trap 'echo KillSignal${sig}' ${sig}; echo READY; while true; do date && sleep 1; done"
+    [Return]  ${busybox} sh -c "trap 'echo KillSignal${sig}' ${sig}; echo READY; while true; do date && sleep 1; done"
 
 Assert Container Output
     [Arguments]  ${id}  ${match}
