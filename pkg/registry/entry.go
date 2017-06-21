@@ -187,22 +187,3 @@ func parseURL(s string) *url.URL {
 
 	return nil
 }
-
-func (u *urlEntry) URL() *url.URL {
-	return u.u
-}
-
-func parseURL(s string) *url.URL {
-	for _, p := range []string{"", "https://"} {
-		u, err := url.Parse(p + s)
-		if err == nil && len(u.Host) > 0 {
-			if p != "" {
-				u.Scheme = "" // ignore the scheme
-			}
-
-			return u
-		}
-	}
-
-	return nil
-}

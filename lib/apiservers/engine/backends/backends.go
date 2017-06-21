@@ -41,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
+	"github.com/vmware/vic/lib/config/dynamic/admiral"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
@@ -104,7 +105,11 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		if vchConfig.Whitelist, err = dynamic.ParseRegistries(config.RegistryWhitelist); err != nil {
 			return err
 		}
-		vchConfig.src = &dynamic.AdmiralSource{}
+		vchConfig.src, err = admiral.NewSource()
+		if err != nil {
+			return err
+		}
+
 		vchConfig.merger = dynamic.NewMerger()
 		loadRegistryCACerts()
 	} else {

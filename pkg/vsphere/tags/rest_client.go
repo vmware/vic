@@ -156,9 +156,9 @@ func (c *RestClient) handleResponse(resp *http.Response, err error) (io.ReadClos
 func (c *RestClient) Login() error {
 	log.Debugf("Login to %s through rest API.", c.host)
 
-	targetUrl := c.endpoint.String() + "/com/vmware/cis/session"
+	targetURL := c.endpoint.String() + "/com/vmware/cis/session"
 
-	request, err := http.NewRequest("POST", targetUrl, nil)
+	request, err := http.NewRequest("POST", targetURL, nil)
 	password, _ := c.endpoint.User.Password()
 	request.SetBasicAuth(c.endpoint.User.Username(), password)
 	if err != nil {
@@ -170,7 +170,7 @@ func (c *RestClient) Login() error {
 		return errors.Trace(err)
 	}
 	if resp == nil {
-		return errors.New("Response is nil in Login.")
+		return errors.New("response is nil in Login")
 	}
 	if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)

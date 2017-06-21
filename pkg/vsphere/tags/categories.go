@@ -39,7 +39,7 @@ type CategoryCreate struct {
 }
 
 type Category struct {
-	Id              string   `json:"id"`
+	ID              string   `json:"id"`
 	Description     string   `json:"description"`
 	Name            string   `json:"name"`
 	Cardinality     string   `json:"cardinality"`
@@ -50,7 +50,7 @@ type Category struct {
 func (c *RestClient) CreateCategoryIfNotExist(name string, description string, categoryType string, multiValue bool) (*string, error) {
 	categories, err := c.GetCategoriesByName(name)
 	if err != nil {
-		log.Errorf("Failed to query category %s for: ", name, errors.ErrorStack(err))
+		log.Errorf("Failed to query category %s for", name)
 		return nil, errors.Trace(err)
 	}
 
@@ -80,7 +80,7 @@ func (c *RestClient) CreateCategoryIfNotExist(name string, description string, c
 		}
 	}
 	if categories != nil {
-		return &categories[0].Id, nil
+		return &categories[0].ID, nil
 	}
 	// should not happen
 	log.Debugf("Failed to create inventory for it's exsited, but could not query back. Please check system")
@@ -101,12 +101,12 @@ func (c *RestClient) CreateCategory(spec *CategoryCreateSpec) (*string, error) {
 		Value string
 	}
 
-	var pId RespValue
-	if err := json.NewDecoder(stream).Decode(&pId); err != nil {
+	var pID RespValue
+	if err := json.NewDecoder(stream).Decode(&pID); err != nil {
 		log.Debugf("Decode response body failed for: %s", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
 	}
-	return &(pId.Value), nil
+	return &(pID.Value), nil
 }
 
 func (c *RestClient) GetCategory(id string) (*Category, error) {
@@ -174,10 +174,10 @@ func (c *RestClient) GetCategoriesByName(name string) ([]Category, error) {
 	}
 
 	var categories []Category
-	for _, cId := range categoryIds {
-		category, err := c.GetCategory(cId)
+	for _, cID := range categoryIds {
+		category, err := c.GetCategory(cID)
 		if err != nil {
-			log.Debugf("Get category %s failed for %s", cId, errors.ErrorStack(err))
+			log.Debugf("Get category %s failed for %s", cID, errors.ErrorStack(err))
 		}
 		if category.Name == name {
 			categories = append(categories, *category)
