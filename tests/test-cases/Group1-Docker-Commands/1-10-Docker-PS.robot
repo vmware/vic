@@ -122,7 +122,7 @@ Docker ps powerOff container OOB
     Wait Until Keyword Succeeds  10x  6s  Assert Number Of Containers  ${len-1}
 
 Docker ps ports output
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 nginx
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -p 8000:80 -p 8443:443 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
     Should Be Equal As Integers  ${rc}  0

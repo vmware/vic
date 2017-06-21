@@ -53,7 +53,7 @@ Simple docker run with app that doesn't exit
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs -n1 docker %{VCH-PARAMS} rm -f
 
 Docker run fake command
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run busybox fakeCommand
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} fakeCommand
     Should Be True  ${rc} > 0
     Should Contain  ${output}  docker: Error response from daemon:
     Should Contain  ${output}  fakeCommand: no such executable in PATH.
@@ -109,12 +109,12 @@ Docker run immediate exit
     Should Be Empty  ${output}
 
 Docker run verify container start and stop time
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${cmdStart}=  Run  date +%s
     Sleep  3
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name startStop ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Be Empty  ${output}
     ${rc}  ${containerStart}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.State.StartedAt}}' startStop | xargs date +%s -d
