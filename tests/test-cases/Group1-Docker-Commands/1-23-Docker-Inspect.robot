@@ -106,6 +106,6 @@ Inspect RepoDigest is valid
     ${rc}  ${busybox_digest}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox} | grep Digest | awk '{print $2}'
     Should Be Equal As Integers  ${rc}  0
     Should Not Be Empty  ${busybox_digest}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.RepoDigests}}' busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.RepoDigests}}' ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox_digest}
