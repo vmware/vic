@@ -301,7 +301,7 @@ func TestCreateImageLayers(t *testing.T) {
 				roDisk.Unmount()
 			}
 			if roDisk.Attached() {
-				vsStore.dm.Detach(op, roDisk)
+				vsStore.dm.Detach(op, roDisk.VirtualDiskConfig)
 			}
 		}
 		os.RemoveAll(p)
@@ -580,7 +580,8 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 
 	op := trace.NewOperation(context.TODO(), "ro")
 
-	roDisk, err := v.dm.CreateAndAttach(op, roName, parentDsURI, 0, os.O_RDONLY, disk.Ext4)
+	config := disk.NewNonPersistentDisk(roName).WithParent(parentDsURI)
+	roDisk, err := v.dm.CreateAndAttach(op, config)
 	if err != nil {
 		return nil, err
 	}
