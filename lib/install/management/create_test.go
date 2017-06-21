@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/simulator"
 
 	"context"
 )
@@ -83,6 +83,8 @@ func TestMain(t *testing.T) {
 		errConf.VolumeLocations["volume-store"], _ = url.Parse("ds://store_not_exist/volumes/test")
 		testCreateVolumeStores(ctx, validator.Session, errConf, true, t)
 		testCreateAppliance(ctx, validator.Session, conf, installSettings, false, t)
+		// cannot run test for func not implemented in vcsim: ResourcePool:resourcepool-24 does not implement: UpdateConfig
+		// testUpdateResources(ctx, validator.Session, conf, installSettings, false, t)
 	}
 }
 

@@ -27,8 +27,6 @@ type PortLayerOptionsType struct {
 	ClusterPath    string `long:"cluster" default:"" description:"Cluster path" env:"CS_PATH" required:"true"`
 	PoolPath       string `long:"pool" default:"" description:"Resource pool path" env:"POOL_PATH" required:"true"`
 	DatastorePath  string `long:"datastore" default:"/ha-datacenter/datastore/*" description:"Datastore path" env:"DS_PATH" required:"true"`
-
-	SyslogAddr *string `long:"syslog-address" default:"" description:"Address of syslog endpoint" required:"false" env:"SYSLOG_ADDR"`
 }
 
 var (

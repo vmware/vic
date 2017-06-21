@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,8 +99,7 @@ type VisibleSessionConfig struct {
 
 // make it verbose during testing
 func init() {
-	DecodeLogLevel = log.DebugLevel
-	EncodeLogLevel = log.DebugLevel
+	logger.Level = logrus.DebugLevel
 }
 
 func TestBasic(t *testing.T) {

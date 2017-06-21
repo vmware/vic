@@ -157,3 +157,74 @@ Configure VCH DNS server
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
     Should Contain  ${output}  --dns-server=10.118.81.1
     Should Contain  ${output}  --dns-server=10.118.81.2
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep dns
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  network/dns
+    Should Not Contain  ${output}  assigned.dns
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --dns-server ""
+    Should Contain  ${output}  Completed successfully
+    Should Not Contain  ${output}  --dns-server
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep dns
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  assigned.dns
+    Should Not Contain  ${output}  network/dns
+
+Configure VCH resources
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --cpu 5129 --cpu-reservation 10 --cpu-shares 8000 --memory 4096 --memory-reservation 10 --memory-shares 163840
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
+    Should Contain  ${output}  --cpu=5129
+    Should Contain  ${output}  --cpu-reservation=10
+    Should Contain  ${output}  --cpu-shares=8000
+    Should Contain  ${output}  --memory=4096
+    Should Contain  ${output}  --memory-reservation=10
+    Should Contain  ${output}  --memory-shares=163840
+
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --cpu 1 --cpu-shares 1000 --memory 1 --memory-shares 1000
+    Should Not Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
+    Should Contain  ${output}  --cpu=5129
+    Should Contain  ${output}  --cpu-reservation=10
+    Should Contain  ${output}  --cpu-shares=8000
+    Should Contain  ${output}  --memory=4096
+    Should Contain  ${output}  --memory-reservation=10
+    Should Contain  ${output}  --memory-shares=163840
+
+Configure VCH volume stores
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    Should Be Equal As Integers  ${rc}  0
+    ${volstores}=  Get Lines Containing String  ${output}  VolumeStores:
+    Should Contain  ${volstores}  default
+    Should Contain  ${volstores}  configure
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create defaultVol
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create confVol --opt VolumeStore=configure
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  defaultVol
+    Should Contain  ${output}  confVol
+
+    # Test that configure fails if an existing volume store is not specified
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
+    Should Contain  ${output}  all existing volume stores must also be specified
+    Should Not Contain  ${output}  Completed successfully
+
+    # Test that changes to existing volume stores are not supported
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-badpath:configure
+    Should Contain  ${output}  changes to existing volume stores are not supported
+    Should Not Contain  ${output}  Completed successfully
+
+    # Add a new volume store while specifying the URL scheme
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-scheme:scheme
+    Should Contain  ${output}  Completed successfully
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
+    Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-scheme:scheme

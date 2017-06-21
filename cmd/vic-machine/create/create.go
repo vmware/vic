@@ -38,7 +38,6 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
-	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -47,9 +46,6 @@ const (
 	MaxVirtualMachineNameLen = 80
 	// Max permitted length of Virtual Switch name
 	MaxDisplayNameLen = 31
-
-	dsInputFormat  = "<datastore url w/ path>:label"
-	nfsInputFormat = "nfs://<host>/<url-path>?<mount option as query parameters>:<label>"
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -97,7 +93,8 @@ type Create struct {
 
 	containerNetworks common.CNetworks
 
-	volumeStores             cli.StringSlice `arg:"volume-store"`
+	volumeStores common.VolumeStores
+
 	insecureRegistries       cli.StringSlice `arg:"insecure-registry"`
 	whitelistRegistries      cli.StringSlice `arg:"whitelist-registry"`
 	dns                      common.DNS
@@ -178,14 +175,9 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.ContainerDatastoreName,
 			Hidden:      true,
 		},
+	}
 
-		// volume
-		cli.StringSliceFlag{
-			Name:  "volume-store, vs",
-			Value: &c.volumeStores,
-			Usage: "Specify a list of location and label for volume store, nfs stores can have mount options specified as query parameters in the url target. \n\t Examples for a vsphere backed volume store are:  \"datastore/path:label\" or \"datastore:label\" or \"ds://my-datastore-name:store-label\"\n\t Examples for nfs back volume stores are: \"nfs://127.0.0.1/path/to/share/point?uid=1234&gid=5678&proto=tcp:my-volume-store-label\" or \"nfs://my-store/path/to/share/point:my-label\"",
-		},
-
+	networks := []cli.Flag{
 		// bridge
 		cli.StringFlag{
 			Name:        "bridge-network, b",
@@ -267,64 +259,25 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 		},
 	}
-
-	memory := []cli.Flag{
-		cli.IntFlag{
-			Name:        "memory, mem",
-			Value:       0,
-			Usage:       "VCH resource pool memory limit in MB (unlimited=0)",
-			Destination: &c.VCHMemoryLimitsMB,
-		},
-		cli.IntFlag{
-			Name:        "memory-reservation, memr",
-			Value:       0,
-			Usage:       "VCH resource pool memory reservation in MB",
-			Destination: &c.VCHMemoryReservationsMB,
-			Hidden:      true,
-		},
-		cli.GenericFlag{
-			Name:   "memory-shares, mems",
-			Value:  flags.NewSharesFlag(&c.VCHMemoryShares),
-			Usage:  "VCH resource pool memory shares in level or share number, e.g. high, normal, low, or 163840",
-			Hidden: true,
-		},
+	var memory, cpu []cli.Flag
+	memory = append(memory, c.VCHMemoryLimitFlags(true)...)
+	memory = append(memory,
 		cli.IntFlag{
 			Name:        "endpoint-memory",
 			Value:       2048,
 			Usage:       "Memory for the VCH endpoint VM, in MB. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.MemoryMB,
-		},
-	}
-
-	cpu := []cli.Flag{
-		cli.IntFlag{
-			Name:        "cpu",
-			Value:       0,
-			Usage:       "VCH resource pool vCPUs limit in MHz (unlimited=0)",
-			Destination: &c.VCHCPULimitsMHz,
-		},
-		cli.IntFlag{
-			Name:        "cpu-reservation, cpur",
-			Value:       0,
-			Usage:       "VCH resource pool reservation in MHz",
-			Destination: &c.VCHCPUReservationsMHz,
-			Hidden:      true,
-		},
-		cli.GenericFlag{
-			Name:   "cpu-shares, cpus",
-			Value:  flags.NewSharesFlag(&c.VCHCPUShares),
-			Usage:  "VCH VCH resource pool vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
-			Hidden: true,
-		},
+		})
+	cpu = append(cpu, c.VCHCPULimitFlags(true)...)
+	cpu = append(cpu,
 		cli.IntFlag{
 			Name:        "endpoint-cpu",
 			Value:       1,
 			Usage:       "vCPUs for the VCH endpoint VM. Does not impact resources allocated per container.",
 			Hidden:      true,
 			Destination: &c.NumCPUs,
-		},
-	}
+		})
 
 	tls := []cli.Flag{
 		cli.StringFlag{
@@ -455,15 +408,16 @@ func (c *Create) Flags() []cli.Flag {
 	target := c.TargetFlags()
 	ops := c.OpsCredentials.Flags(true)
 	compute := c.ComputeFlags()
+	volume := c.volumeStores.Flags()
 	iso := c.ImageFlags(true)
-	debug := c.DebugFlags()
-	proxies := c.proxies.ProxyFlags(true)
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
 	dns := c.dns.DNSFlags(true)
+	proxies := c.proxies.ProxyFlags(true)
+	debug := c.DebugFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, ops, create, dns, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, ops, create, volume, dns, networks, cNetwork, memory, cpu, tls, registries, proxies, syslog, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
@@ -533,8 +487,9 @@ func (c *Create) processParams() error {
 		return cli.NewExitError(fmt.Sprintf("--image-store contains unsupported characters: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / :", err), 1)
 	}
 
-	if err := c.processVolumeStores(); err != nil {
-		return errors.Errorf("Error occurred while processing volume stores: %s", err)
+	c.VolumeLocations, err = c.volumeStores.ProcessVolumeStores()
+	if err != nil {
+		return err
 	}
 
 	if err := c.processRegistries(); err != nil {
@@ -743,73 +698,6 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 	return nil
 }
 
-func (c *Create) processVolumeStores() error {
-	defer trace.End(trace.Begin(""))
-	c.VolumeLocations = make(map[string]*url.URL)
-	for _, arg := range c.volumeStores {
-		urlTarget, rawTarget, label, err := processVolumeStoreParam(arg)
-		if err != nil {
-			return err
-		}
-
-		switch urlTarget.Scheme {
-		case common.NfsScheme:
-			// nothing needs to be done here. parsing the url is enough for pre-validation checking of an nfs target.
-		case common.EmptyScheme, common.DsScheme:
-			// a datastore target is our default assumption
-			urlTarget.Scheme = common.DsScheme
-			if err := common.CheckUnsupportedCharsDatastore(rawTarget); err != nil {
-				return fmt.Errorf("--volume-store contains unsupported characters for datastore target: %s Allowed characters are alphanumeric, space and symbols - _ ( ) / : ,", err)
-			}
-
-			if len(urlTarget.RawQuery) > 0 {
-				return fmt.Errorf("volume store input must be in format datastore/path:label or %s", nfsInputFormat)
-			}
-
-		default:
-			return fmt.Errorf("%s", "Please specify a datastore or nfs target. See -vs usage for examples.")
-		}
-
-		c.VolumeLocations[label] = urlTarget
-	}
-
-	return nil
-}
-
-// processVolumeStoreParam will pull apart the raw input for -vs and return the parts for the actual store that are needed for validation
-func processVolumeStoreParam(rawVolumeStore string) (*url.URL, string, string, error) {
-	splitMeta := strings.Split(rawVolumeStore, ":")
-	if len(splitMeta) < 2 {
-		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
-	}
-
-	// divide out the label with the target
-	lastIndex := len(splitMeta)
-	label := splitMeta[lastIndex-1]
-	rawTarget := strings.Join(splitMeta[0:lastIndex-1], ":")
-
-	// This case will check if part of the url is assigned as the label (e.g. ds://No.label.target/some/path)
-	if err := common.CheckUnsupportedChars(label); err != nil {
-		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
-	}
-
-	if label == "" {
-		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
-	}
-
-	if rawTarget == "" {
-		return nil, "", "", fmt.Errorf("volume store input must be in format %s or %s", dsInputFormat, nfsInputFormat)
-	}
-
-	// raw target input should be in the form of a url
-	urlTarget, err := url.Parse(rawTarget)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("parsed url for option --volume-store could not be parsed as a url, valid inputs are datastore/path:label or %s. See -h for usage examples.", nfsInputFormat)
-	}
-
-	return urlTarget, rawTarget, label, nil
-}
-
 func (c *Create) processRegistries() error {
 	// load additional certificate authorities for use with registries
 	if len(c.registryCAs) > 0 {
@@ -821,26 +709,8 @@ func (c *Create) processRegistries() error {
 		c.RegistryCAs = registryCAs
 	}
 
-	// load a list of insecure registries
-	for _, registry := range c.insecureRegistries {
-		regurl, err := validate.ParseURL(registry)
-
-		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
-		}
-		c.InsecureRegistries = append(c.InsecureRegistries, *regurl)
-	}
-
-	// load a list of whitelisted registries
-	for _, registry := range c.whitelistRegistries {
-		regurl, err := validate.ParseURL(registry)
-
-		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
-		}
-		c.WhitelistRegistries = append(c.WhitelistRegistries, *regurl)
-	}
-
+	c.InsecureRegistries = c.insecureRegistries.Value()
+	c.WhitelistRegistries = c.whitelistRegistries.Value()
 	return nil
 }
 

@@ -18,7 +18,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -55,19 +57,12 @@ type Data struct {
 	DNS               []net.IP      `cmd:"dns-server"`
 
 	common.ContainerNetworks `cmd:"container-network"`
-
-	VCHCPULimitsMHz       int               `cmd:"cpu"`
-	VCHCPUReservationsMHz int               `cmd:"cpu-reservation"`
-	VCHCPUShares          *types.SharesInfo `cmd:"cpu-shares"`
-
-	VCHMemoryLimitsMB       int               `cmd:"memory"`
-	VCHMemoryReservationsMB int               `cmd:"memory-reservation"`
-	VCHMemoryShares         *types.SharesInfo `cmd:"memory-shares"`
+	common.ResourceLimits
 
 	BridgeIPRange *net.IPNet `cmd:"bridge-network-range"`
 
-	InsecureRegistries  []url.URL `cmd:"insecure-registry"`
-	WhitelistRegistries []url.URL `cmd:"whitelist-registry"`
+	InsecureRegistries  []string `cmd:"insecure-registry"`
+	WhitelistRegistries []string `cmd:"whitelist-registry"`
 
 	HTTPSProxy *url.URL `cmd:"https-proxy"`
 	HTTPProxy  *url.URL `cmd:"http-proxy"`
@@ -115,7 +110,9 @@ func (n *NetworkConfig) IsSet() bool {
 // InstallerData is used to hold the transient installation configuration that shouldn't be serialized
 type InstallerData struct {
 	// Virtual Container Host capacity
-	VCHSize config.Resources
+	VCHSize      config.Resources
+	VCHSizeIsSet bool
+
 	// Appliance capacity
 	ApplianceSize config.Resources
 
@@ -179,8 +176,10 @@ func equalIPSlices(a, b []net.IP) bool {
 	return true
 }
 
-const copyInfoMsg = `Please use vic-machine inspect --conf to find existing
-container network settings and supply them along with new container networks`
+// const copyInfoMsg = `Please use vic-machine inspect config to find existing
+// container network settings and supply them along with new container networks`
+const copyInfoMsg = `Please use vic-machine inspect config to find existing
+%s settings and supply them along with new %s`
 
 // copyContainerNetworks checks that existing container networks (in d) are present
 // in the specified networks (src) and then copies new networks into d. It does not
@@ -189,11 +188,12 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 	// Any existing container networks and their related options must be specified
 	// while performing a configure operation.
 	errMsg := "Existing container-network %s:%s not specified in configure command"
+	var netsMissing, netsChanged bool
 	for vicNet, vmNet := range d.ContainerNetworks.MappedNetworks {
 		if _, ok := src.ContainerNetworks.MappedNetworks[vicNet]; !ok {
+			netsMissing = true
 			log.Errorf(fmt.Sprintf(errMsg, vmNet, vicNet))
-			log.Info(copyInfoMsg)
-			return fmt.Errorf("all existing container networks must also be specified")
+			continue
 		}
 
 		// If an existing container network is specified, ensure that all existing settings match the specified settings.
@@ -202,10 +202,18 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 			!equalIPRanges(d.ContainerNetworks.MappedNetworksIPRanges[vicNet], src.ContainerNetworks.MappedNetworksIPRanges[vicNet]) ||
 			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) {
 
+			netsChanged = true
 			log.Errorf("Found changes to existing container network %s", vicNet)
-			log.Info(copyInfoMsg)
-			return fmt.Errorf("changes to existing container networks are not supported")
 		}
+	}
+
+	if netsMissing {
+		log.Info(fmt.Sprintf(copyInfoMsg, "container network", "container networks"))
+		return fmt.Errorf("all existing container networks must also be specified")
+	}
+	if netsChanged {
+		log.Info(fmt.Sprintf(copyInfoMsg, "container network", "container networks"))
+		return fmt.Errorf("changes to existing container networks are not supported")
 	}
 
 	// Copy data only for new container networks.
@@ -215,6 +223,48 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 			d.ContainerNetworks.MappedNetworksGateways[vicNet] = src.ContainerNetworks.MappedNetworksGateways[vicNet]
 			d.ContainerNetworks.MappedNetworksIPRanges[vicNet] = src.ContainerNetworks.MappedNetworksIPRanges[vicNet]
 			d.ContainerNetworks.MappedNetworksDNS[vicNet] = src.ContainerNetworks.MappedNetworksDNS[vicNet]
+		}
+	}
+
+	return nil
+}
+
+// copyVolumeStores checks that existing volume stores (in d) are present in the
+// specified volume stores (src) and then copies new volume stores into d. It
+// does not overwrite data for existing volume stores.
+func (d *Data) copyVolumeStores(src *Data) error {
+	// Any existing volume stores must be specified while performing a configure operation.
+	errMsg := "Existing volume store %s not specified in configure command"
+	var storesMissing, storesChanged bool
+	for label, url := range d.VolumeLocations {
+		srcURL, ok := src.VolumeLocations[label]
+		if !ok {
+			storesMissing = true
+			log.Errorf(fmt.Sprintf(errMsg, label))
+			continue
+		}
+
+		dURLString := fmt.Sprintf("%s://%s", url.Scheme, filepath.Join(strings.Trim(url.Host, "/"), strings.Trim(url.Path, "/")))
+		srcURLString := fmt.Sprintf("%s://%s", srcURL.Scheme, filepath.Join(strings.Trim(srcURL.Host, "/"), strings.Trim(srcURL.Path, "/")))
+		if dURLString != srcURLString {
+			storesChanged = true
+			log.Errorf("Found changes to existing volume store %s", label)
+		}
+	}
+
+	if storesMissing {
+		log.Info(fmt.Sprintf(copyInfoMsg, "volume store", "volume stores"))
+		return fmt.Errorf("all existing volume stores must also be specified")
+	}
+	if storesChanged {
+		log.Info(fmt.Sprintf(copyInfoMsg, "volume store", "volume stores"))
+		return fmt.Errorf("changes to existing volume stores are not supported")
+	}
+
+	// Copy data only for new volume stores.
+	for label, url := range src.VolumeLocations {
+		if _, ok := d.VolumeLocations[label]; !ok {
+			d.VolumeLocations[label] = url
 		}
 	}
 
@@ -253,6 +303,12 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 		}
 	}
 
+	if len(src.VolumeLocations) > 0 {
+		if err := d.copyVolumeStores(src); err != nil {
+			return err
+		}
+	}
+
 	if src.OpsCredentials.IsSet {
 		d.OpsCredentials = src.OpsCredentials
 	}
@@ -260,6 +316,34 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 	if src.Target.Thumbprint != "" {
 		d.Target.Thumbprint = src.Target.Thumbprint
 	}
+
+	resourceIsSet := false
+	if src.VCHCPULimitsMHz != nil {
+		d.VCHCPULimitsMHz = src.VCHCPULimitsMHz
+		resourceIsSet = true
+	}
+	if src.VCHCPUReservationsMHz != nil {
+		d.VCHCPUReservationsMHz = src.VCHCPUReservationsMHz
+		resourceIsSet = true
+	}
+	if src.VCHCPUShares != nil {
+		d.VCHCPUShares = src.VCHCPUShares
+		resourceIsSet = true
+	}
+
+	if src.VCHMemoryLimitsMB != nil {
+		d.VCHMemoryLimitsMB = src.VCHMemoryLimitsMB
+		resourceIsSet = true
+	}
+	if src.VCHMemoryReservationsMB != nil {
+		d.VCHMemoryReservationsMB = src.VCHMemoryReservationsMB
+		resourceIsSet = true
+	}
+	if src.VCHMemoryShares != nil {
+		d.VCHMemoryShares = src.VCHMemoryShares
+		resourceIsSet = true
+	}
+	d.ResourceLimits.IsSet = resourceIsSet
 
 	d.Timeout = src.Timeout
 

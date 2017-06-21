@@ -319,16 +319,18 @@ func testConvertContainerNetworks(t *testing.T) {
 
 func testConvertSharesInfo(t *testing.T) {
 	data := data.NewData()
+	cLimit, cReserve := 29300, 1024
 	data.NumCPUs = 2
-	data.MemoryMB = 4096
-	data.VCHCPULimitsMHz = 29300
-	data.VCHCPUReservationsMHz = 1024
+	data.VCHCPULimitsMHz = &cLimit
+	data.VCHCPUReservationsMHz = &cReserve
 	data.VCHCPUShares = &types.SharesInfo{
 		Shares: 6000,
 		Level:  types.SharesLevelCustom,
 	}
-	data.VCHMemoryLimitsMB = 13144
-	data.VCHMemoryReservationsMB = 1024
+	mLimit, mReserve := 13144, 1024
+	data.MemoryMB = 4096
+	data.VCHMemoryLimitsMB = &mLimit
+	data.VCHMemoryReservationsMB = &mReserve
 	data.VCHMemoryShares = &types.SharesInfo{
 		Shares: 163840,
 		Level:  types.SharesLevelNormal,
@@ -336,12 +338,11 @@ func testConvertSharesInfo(t *testing.T) {
 
 	options, err := DataToOption(data)
 	assert.Empty(t, err)
-	assert.Equal(t, 8, len(options), "should not have other option generated")
+	assert.Equal(t, 7, len(options), "should not have other option generated")
 	assert.Equal(t, "2", options["endpoint-cpu"][0], "not expected endpoint-cpu option")
 	assert.Equal(t, "4096", options["endpoint-memory"][0], "not expected endpoint-memory option")
 	assert.Equal(t, "13144", options["memory"][0], "not expected memory option")
 	assert.Equal(t, "1024", options["memory-reservation"][0], "not expected memory-reservation option")
-	assert.Equal(t, "normal", options["memory-shares"][0], "not expected memory-shares option")
 	assert.Equal(t, "29300", options["cpu"][0], "not expected cpu option")
 	assert.Equal(t, "1024", options["cpu-reservation"][0], "not expected cpu-reservation option")
 	assert.Equal(t, "6000", options["cpu-shares"][0], "not expected cpu-shares option")
@@ -573,16 +574,9 @@ func testGuestinfo(t *testing.T) {
 		"guestinfo.vice./init/common/ExecutionEnvironment":                   "",
 		"guestinfo.vice./network/bridge_network":                             "bridge",
 		"guestinfo.vice./registry/whitelist_registries":                      "1",
-		"guestinfo.vice./registry/whitelist_registries|1/Scheme":             "https",
-		"guestinfo.vice./registry/whitelist_registries|0/Scheme":             "https",
-		"guestinfo.vice./registry/whitelist_registries|0/ForceQuery":         "false",
-		"guestinfo.vice./registry/whitelist_registries|0/Host":               "harbor.com:2345",
-		"guestinfo.vice./registry/whitelist_registries|1/ForceQuery":         "false",
-		"guestinfo.vice./registry/insecure_registries|0/Scheme":              "https",
-		"guestinfo.vice./registry/insecure_registries|0/Host":                "insecure:2345",
+		"guestinfo.vice./registry/whitelist_registries~":                     "harbor.com:2345|insecure:2345",
+		"guestinfo.vice./registry/insecure_registries~":                      "insecure:2345",
 		"guestinfo.vice./registry/insecure_registries":                       "0",
-		"guestinfo.vice./registry/whitelist_registries|1/Host":               "insecure:2345",
-		"guestinfo.vice./registry/insecure_registries|0/ForceQuery":          "false",
 		"guestinfo.vice./init/sessions|vicadmin/cmd/Env~":                    "PATH=/sbin:/bin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
 		"guestinfo.vice./init/sessions|docker-personality/cmd/Env~":          "PATH=/sbin|GOTRACEBACK=all|HTTP_PROXY=http://proxy.vmware.com:2318|HTTPS_PROXY=https://proxy.vmware.com:2318",
 	}
@@ -604,8 +598,8 @@ func testGuestinfo(t *testing.T) {
 		"container-network-ip-range": {"management:10.10.10.0/24"},
 
 		"debug":              {"3"},
-		"insecure-registry":  {"https://insecure:2345"},
-		"whitelist-registry": {"https://harbor.com:2345", "https://insecure:2345"},
+		"insecure-registry":  {"insecure:2345"},
+		"whitelist-registry": {"harbor.com:2345", "insecure:2345"},
 		"http-proxy":         {"http://proxy.vmware.com:2318"},
 		"https-proxy":        {"https://proxy.vmware.com:2318"},
 	}

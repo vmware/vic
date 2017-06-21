@@ -21,13 +21,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 var (
-	DecodeLogLevel = log.InfoLevel
-	nilValue       = reflect.ValueOf(nil)
+	nilValue = reflect.ValueOf(nil)
 )
 
 type decoder func(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error)
@@ -79,7 +76,7 @@ func decode(src DataSource, dest reflect.Value, prefix string, depth recursion) 
 		return dec(src, dest, prefix, depth)
 	}
 
-	log.Debugf("Skipping unsupported field, interface: %T, kind %s", dest, dest.Kind())
+	logger.Debugf("Skipping unsupported field, interface: %T, kind %s", dest, dest.Kind())
 	return dest, nil
 }
 
@@ -87,7 +84,7 @@ func decode(src DataSource, dest reflect.Value, prefix string, depth recursion) 
 func decodeString(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	v, err := src(prefix)
 	if err != nil {
-		log.Debugf("No value found in data source for string at key %q", prefix)
+		logger.Debugf("No value found in data source for string at key %q", prefix)
 		return nilValue, err
 	}
 
@@ -98,18 +95,18 @@ func decodeString(src DataSource, dest reflect.Value, prefix string, depth recur
 func decodePrimitive(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	var this reflect.Value
 	if !dest.CanAddr() {
-		log.Debugf("Making new primitive for %s", prefix)
+		logger.Debugf("Making new primitive for %s", prefix)
 		ptr := reflect.New(dest.Type())
 		this = ptr.Elem()
 	} else {
-		log.Debugf("Reusing existing struct for %s", prefix)
+		logger.Debugf("Reusing existing struct for %s", prefix)
 		this = dest
 	}
 
 	// see if there's a value to decode
 	v, err := src(prefix)
 	if err != nil {
-		log.Debugf("No value available for key to primitive %s", prefix)
+		logger.Debugf("No value available for key to primitive %s", prefix)
 		return nilValue, err
 	}
 
@@ -126,7 +123,7 @@ func decodePtr(src DataSource, dest reflect.Value, prefix string, depth recursio
 	}
 
 	// value representing the run-time data
-	log.Debugf("Decoding pointer into object: %#v", dest)
+	logger.Debugf("Decoding pointer into object: %#v", dest)
 
 	// if the pointer is nil we need to create the destination type
 	target := dest
@@ -137,7 +134,7 @@ func decodePtr(src DataSource, dest reflect.Value, prefix string, depth recursio
 	// check to see if the resulting object is not nil
 	// If it is nil, then there was nothing to decode and the pointer remains nil
 	result, err := decode(src, target.Elem(), prefix, depth)
-	log.Debugf("target is now %#v, %+q ", target, target.Type())
+	logger.Debugf("target is now %#v, %+q ", target, target.Type())
 	if !result.IsValid() || err == ErrKeyNotFound {
 		// leave the pointer as nil if the result is zero type or invalid
 		return dest, nil
@@ -161,15 +158,15 @@ var typeType = reflect.TypeOf((*reflect.Type)(nil)).Elem()
 
 func decodeStruct(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	// value representing the run-time data
-	log.Debugf("Decoding struct into object: %#v, type: %s", dest, dest.Type().Name())
+	logger.Debugf("Decoding struct into object: %#v, type: %s", dest, dest.Type().Name())
 
 	var this reflect.Value
 	if !dest.CanAddr() {
-		log.Debugf("Making new struct for %s", prefix)
+		logger.Debugf("Making new struct for %s", prefix)
 		ptr := reflect.New(dest.Type())
 		this = ptr.Elem()
 	} else {
-		log.Debugf("Reusing existing struct for %s", prefix)
+		logger.Debugf("Reusing existing struct for %s", prefix)
 		this = dest
 	}
 
@@ -188,44 +185,44 @@ func decodeStruct(src DataSource, dest reflect.Value, prefix string, depth recur
 		}
 
 		// Dump what we have so far
-		log.Debugf("Key: %s, Kind: %s Value: %s", key, field.Kind(), field.String())
+		logger.Debugf("Key: %s, Kind: %s Value: %s", key, field.Kind(), field.String())
 
 		// check to see if the resulting object is not nil
 		// If it is nil, then there was nothing to decode
 		var result reflect.Value
 		result, err = decode(src, field, key, fdepth)
 		if result.IsValid() {
-			log.Debugf("Setting field %s to %#v", this.Type().Field(i).Name, result)
+			logger.Debugf("Setting field %s to %#v", this.Type().Field(i).Name, result)
 			field.Set(result)
 			valid = true
 			if err != ErrKeyNotFound {
 				noKeysFound = false
 			}
 		} else {
-			log.Debugf("Invalid result for field %s", this.Type().Field(i).Name)
+			logger.Debugf("Invalid result for field %s", this.Type().Field(i).Name)
 		}
 	}
 
 	if !valid || noKeysFound {
-		log.Debugf("No valid result, returning nil value")
+		logger.Debugf("No valid result, returning nil value")
 		return nilValue, err
 	}
 
-	log.Debugf("Return decoded structure for %s: %#v", prefix, this)
+	logger.Debugf("Return decoded structure for %s: %#v", prefix, this)
 	return this, nil
 }
 
 func decodeByteSlice(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
-	log.Debugf("Converting string to []byte")
+	logger.Debugf("Converting string to []byte")
 	base, err := src(prefix)
 	if err != nil {
-		log.Debugf("No value found in data source for []byte %q", prefix)
+		logger.Debugf("No value found in data source for []byte %q", prefix)
 		return nilValue, err
 	}
 
 	bytes, err := base64.StdEncoding.DecodeString(base)
 	if err != nil {
-		log.Debugf("Expected base64 encoded string for []byte %q: %s", prefix, err)
+		logger.Debugf("Expected base64 encoded string for []byte %q: %s", prefix, err)
 		return nilValue, err
 	}
 
@@ -234,7 +231,7 @@ func decodeByteSlice(src DataSource, dest reflect.Value, prefix string, depth re
 	// we don't even try to merge byte arrays - no idea how to get append behaviour
 	// correct with reflection
 	// use make([]byte) rather than built in string(bytes) conversion to get an addressable return value
-	log.Debugf("Making new slice for %s", prefix)
+	logger.Debugf("Making new slice for %s", prefix)
 	this := make([]byte, length, length)
 
 	copy(this, bytes)
@@ -244,7 +241,7 @@ func decodeByteSlice(src DataSource, dest reflect.Value, prefix string, depth re
 
 func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	// value representing the run-time data
-	log.Debugf("Decoding struct into object: %#v", dest)
+	logger.Debugf("Decoding struct into object: %#v", dest)
 	kind := dest.Type().Elem().Kind()
 
 	if kind == reflect.Uint8 {
@@ -258,7 +255,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 	// get the length of the array
 	len, err := src(prefix)
 	if err != nil || len == "" {
-		log.Debugf("No value available for key %s - will create empty array if needed", prefix)
+		logger.Debugf("No value available for key %s - will create empty array if needed", prefix)
 	} else {
 		// if there's any data at all then we can assume we need to be extant
 		lengthValue := fromString(reflect.ValueOf(0), len)
@@ -267,7 +264,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 
 	var this reflect.Value
 	if !dest.IsValid() || dest.IsNil() || length > dest.Cap() {
-		log.Debugf("Making new slice for %s", prefix)
+		logger.Debugf("Making new slice for %s", prefix)
 		this = reflect.MakeSlice(dest.Type(), length, length)
 	} else {
 		this = dest
@@ -306,7 +303,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 	key := appendToPrefix(prefix, "", "~")
 	kval, err := src(key)
 	if err != nil {
-		log.Debugf("No value found in data source for key %q", key)
+		logger.Debugf("No value found in data source for key %q", key)
 		return this, err
 	}
 
@@ -325,12 +322,12 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 
 func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	// value representing the run-time data
-	log.Debugf("Decoding struct into object: %#v", dest)
+	logger.Debugf("Decoding struct into object: %#v", dest)
 
 	// if the value is the zero type, we have to create ourselves
 	var this reflect.Value
 	if !dest.IsValid() || dest.IsNil() {
-		log.Debugf("Making new maps for %s", prefix)
+		logger.Debugf("Making new maps for %s", prefix)
 		this = reflect.MakeMap(dest.Type())
 	} else {
 		this = dest
@@ -338,7 +335,7 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursio
 
 	mapkeys, err := src(prefix)
 	if mapkeys == "" || err != nil {
-		log.Debugf("No value found in data source for maps keys %q", prefix)
+		logger.Debugf("No value found in data source for maps keys %q", prefix)
 		return this, err
 	}
 
@@ -369,13 +366,13 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursio
 func decodeTime(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	v, err := src(prefix)
 	if err != nil {
-		log.Debugf("No value found in data source for time %q", prefix)
+		logger.Debugf("No value found in data source for time %q", prefix)
 		return nilValue, err
 	}
 
 	t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", v)
 	if err != nil {
-		log.Debugf("Failed to convert value %q to time", v)
+		logger.Debugf("Failed to convert value %q to time", v)
 	}
 
 	return reflect.ValueOf(t), nil
@@ -395,7 +392,7 @@ func fromString(field reflect.Value, value string) reflect.Value {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		s, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			log.Errorf("Failed to convert value %#v (%s) to int: %s", value, field.Kind(), err.Error())
+			logger.Errorf("Failed to convert value %#v (%s) to int: %s", value, field.Kind(), err.Error())
 			return field
 		}
 		return reflect.ValueOf(s).Convert(field.Type())
@@ -403,7 +400,7 @@ func fromString(field reflect.Value, value string) reflect.Value {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		s, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
-			log.Errorf("Failed to convert value %#v (%s) to uint: %s", value, field.Kind(), err.Error())
+			logger.Errorf("Failed to convert value %#v (%s) to uint: %s", value, field.Kind(), err.Error())
 			return field
 		}
 		return reflect.ValueOf(s).Convert(field.Type())
@@ -411,7 +408,7 @@ func fromString(field reflect.Value, value string) reflect.Value {
 	case reflect.Bool:
 		s, err := strconv.ParseBool(value)
 		if err != nil {
-			log.Errorf("Failed to convert value %#v (%s) to bool: %s", value, field.Kind(), err.Error())
+			logger.Errorf("Failed to convert value %#v (%s) to bool: %s", value, field.Kind(), err.Error())
 			return field
 		}
 		return reflect.ValueOf(s)
@@ -422,13 +419,13 @@ func fromString(field reflect.Value, value string) reflect.Value {
 	case reflect.Float32, reflect.Float64:
 		s, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			log.Errorf("Failed to convert value %#v (%s) to float: %s", value, field.Kind(), err.Error())
+			logger.Errorf("Failed to convert value %#v (%s) to float: %s", value, field.Kind(), err.Error())
 			return field
 		}
 		return reflect.ValueOf(s)
 
 	}
-	log.Debugf("Invalid Kind: %s (%#v)", field.Kind(), value)
+	logger.Debugf("Invalid Kind: %s (%#v)", field.Kind(), value)
 
 	return field
 }
@@ -440,14 +437,10 @@ type DataSource func(string) (string, error)
 
 // Decode populates a destination with data from the supplied data source
 func Decode(src DataSource, dest interface{}) interface{} {
-	defer log.SetLevel(log.GetLevel())
-
 	if src == nil {
-		log.Warnf("Decode source is nil - unable to continue")
+		logger.Warnf("Decode source is nil - unable to continue")
 		return dest
 	}
-
-	log.SetLevel(DecodeLogLevel)
 
 	value, _ := decode(src, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
 
@@ -457,14 +450,10 @@ func Decode(src DataSource, dest interface{}) interface{} {
 // DecodeWithPrefix populates a destination with data from the supplied data source, using
 // the specified prefix - this allows for decode into substructres.
 func DecodeWithPrefix(src DataSource, dest interface{}, prefix string) interface{} {
-	defer log.SetLevel(log.GetLevel())
-
 	if src == nil {
-		log.Warnf("Decode source is nil - unable to continue")
+		logger.Warnf("Decode source is nil - unable to continue")
 		return dest
 	}
-
-	log.SetLevel(DecodeLogLevel)
 
 	value, _ := decode(src, reflect.ValueOf(dest), prefix, Unbounded)
 
