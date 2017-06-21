@@ -285,28 +285,30 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 			// is this the leaf layer?
 			imageLayer := layer.ID == layers[0].ID
 
-			// if this is the leaf layer, we are done and can now create the image config
-			if imageLayer {
-				imageConfig, err := ic.CreateImageConfig(layers)
-				if err != nil {
-					d.err = err
-					return
-				}
-				// cache and persist the image
-				cache.ImageCache().Add(&imageConfig)
-				if err := cache.ImageCache().Save(); err != nil {
-					d.err = fmt.Errorf("error saving image cache: %s", err)
-					return
-				}
+			if !ic.Standalone {
+				// if this is the leaf layer, we are done and can now create the image config
+				if imageLayer {
+					imageConfig, err := ic.CreateImageConfig(layers)
+					if err != nil {
+						d.err = err
+						return
+					}
+					// cache and persist the image
+					cache.ImageCache().Add(&imageConfig)
+					if err := cache.ImageCache().Save(); err != nil {
+						d.err = fmt.Errorf("error saving image cache: %s", err)
+						return
+					}
 
-				// place calculated ImageID in struct
-				ic.ImageID = imageConfig.ImageID
+					// place calculated ImageID in struct
+					ic.ImageID = imageConfig.ImageID
 
-				if err = updateRepositoryCache(ic); err != nil {
-					d.err = err
-					return
+					if err = updateRepositoryCache(ic); err != nil {
+						d.err = err
+						return
+					}
+
 				}
-
 			}
 
 			ldm.m.Lock()
@@ -318,8 +320,10 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				return
 			}
 
-			// mark the layer as finished downloading
-			LayerCache().Commit(layer)
+			if !ic.Standalone {
+				// mark the layer as finished downloading
+				LayerCache().Commit(layer)
+			}
 
 			ldm.unregisterDownload(layer)
 

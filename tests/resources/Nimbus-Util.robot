@@ -98,7 +98,9 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
 
     :FOR  ${process}  IN  @{processes}
     \    ${pid}=  Convert To Integer  ${process}
-    \    Wait For Process  ${pid}
+    \    ${result}=  Wait For Process  ${pid}
+    \    Log  ${result.stdout}
+    \    Log  ${result.stderr}
 
     &{ips}=  Create Dictionary
     :FOR  ${name}  IN  @{names}
@@ -215,7 +217,7 @@ Gather Host IPs
 
 Create a VSAN Cluster
     Log To Console  \nStarting basic VSAN cluster deploy...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --lease=1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
     Should Contain  ${out}  .vcva-${VC_VERSION}' is up. IP:
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}

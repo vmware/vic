@@ -23,11 +23,11 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Check vsphere event stream
     # basic confirmation of function
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
     ${name}=  Generate Random String  15
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} busybox sleep 600
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} ${busybox} sleep 600
     Should Be Equal As Integers  ${rc}  0
     ${shortid}=  Get container shortID  ${id}
 

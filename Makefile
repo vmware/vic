@@ -82,6 +82,7 @@ portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
 portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
 
+imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
 rpctool := $(BIN)/rpctool
 vic-machine-linux := $(BIN)/vic-machine-linux
@@ -116,6 +117,7 @@ portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
 
+imagec: $(imagec)
 vicadmin: $(vicadmin)
 rpctool: $(rpctool)
 vic-init: $(vic-init)
@@ -287,6 +289,10 @@ endif
 $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+
+$(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
+	@echo building imagec...
+	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
 $(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)

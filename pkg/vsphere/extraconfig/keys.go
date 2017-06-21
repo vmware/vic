@@ -16,11 +16,14 @@ package extraconfig
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/pkg/log"
 )
 
 const (
@@ -67,6 +70,20 @@ type recursion struct {
 
 // Unbounded is the value used for unbounded recursion
 var Unbounded = recursion{depth: -1, follow: true}
+
+var logger = &logrus.Logger{
+	Out: os.Stderr,
+	// We're using our own text formatter to skip the \n and \t escaping logrus
+	// was doing on non TTY Out (we redirect to a file) descriptors.
+	Formatter: log.NewTextFormatter(),
+	Hooks:     make(logrus.LevelHooks),
+	Level:     logrus.InfoLevel,
+}
+
+// SetLogLevel for the extraconfig package
+func SetLogLevel(level logrus.Level) {
+	logger.Level = level
+}
 
 // calculateScope returns the uint representation of scope tag
 func calculateScope(scopes []string) uint {
@@ -165,13 +182,13 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 	skip := recursion{}
 	//skip unexported fields
 	if field.PkgPath != "" {
-		log.Debugf("Skipping %s (not exported)", field.Name)
+		logger.Debugf("Skipping %s (not exported)", field.Name)
 		return "", skip
 	}
 
 	// get the annotations
 	tags := field.Tag
-	log.Debugf("Tags: %#v", tags)
+	logger.Debugf("Tags: %#v", tags)
 
 	var key string
 	var scopes []string
@@ -186,11 +203,11 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 	if tags.Get(DefaultTagName) != "" {
 		// get the scopes
 		scopes = strings.Split(tags.Get("scope"), ",")
-		log.Debugf("Scopes: %#v", scopes)
+		logger.Debugf("Scopes: %#v", scopes)
 
 		// get the keys and split properties from it
 		key = tags.Get("key")
-		log.Debugf("Key specified: %s", key)
+		logger.Debugf("Key specified: %s", key)
 
 		// get the keys and split properties from it
 		recurse := tags.Get("recurse")
@@ -202,13 +219,13 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 				if strings.HasPrefix(prop, "depth") {
 					parts := strings.Split(prop, "=")
 					if len(parts) != 2 {
-						log.Warnf("Skipping field with incorrect recurse property: %s", prop)
+						logger.Warnf("Skipping field with incorrect recurse property: %s", prop)
 						return "", skip
 					}
 
 					val, err := strconv.ParseInt(parts[1], 10, 64)
 					if err != nil {
-						log.Warnf("Skipping field with incorrect recurse value: %s", parts[1])
+						logger.Warnf("Skipping field with incorrect recurse value: %s", parts[1])
 						return "", skip
 					}
 					fdepth.depth = int(val)
@@ -217,18 +234,18 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 				} else if prop == "follow" {
 					fdepth.follow = true
 				} else {
-					log.Warnf("Ignoring unknown recurse property %s (%s)", key, prop)
+					logger.Warnf("Ignoring unknown recurse property %s (%s)", key, prop)
 					continue
 				}
 			}
 		}
 	} else {
-		log.Debugf("%s not tagged - inheriting parent scope", field.Name)
+		logger.Debugf("%s not tagged - inheriting parent scope", field.Name)
 		scopes = prefixScopes
 	}
 
 	if key == "" {
-		log.Debugf("%s does not specify key - defaulting to fieldname", field.Name)
+		logger.Debugf("%s does not specify key - defaulting to fieldname", field.Name)
 		key = field.Name
 	}
 
@@ -241,7 +258,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 
 	// re-calculate the key based on the scope and prefix
 	if key = calculateKey(scope, prefix, key); key == "" {
-		log.Debugf("Skipping %s (unknown scope %s)", field.Name, scopes)
+		logger.Debugf("Skipping %s (unknown scope %s)", field.Name, scopes)
 		return "", skip
 	}
 
@@ -251,7 +268,7 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 // calculateKey calculates the key based on the scope and current prefix
 func calculateKey(scope uint, prefix string, key string) string {
 	if scope&Invalid != 0 {
-		log.Debugf("invalid scope")
+		logger.Debugf("invalid scope")
 		return ""
 	}
 
@@ -286,7 +303,7 @@ func calculateKey(scope uint, prefix string, key string) string {
 
 	if scope&NonPersistent != 0 {
 		if hide {
-			log.Debugf("Unable to combine non-persistent and hidden scopes")
+			logger.Debugf("Unable to combine non-persistent and hidden scopes")
 			return ""
 		}
 		out += suffixSeparator + nonpersistentSuffix
@@ -355,7 +372,7 @@ func appendToPrefix(prefix, separator, value string) string {
 }
 
 func calculateKeys(v reflect.Value, field string, prefix string) []string {
-	log.Debugf("v=%#v, field=%#v, prefix=%#v", v, field, prefix)
+	logger.Debugf("v=%#v, field=%#v, prefix=%#v", v, field, prefix)
 	if v.Kind() == reflect.Ptr {
 		return calculateKeys(v.Elem(), field, prefix)
 	}
@@ -489,8 +506,5 @@ func calculateKeys(v reflect.Value, field string, prefix string) []string {
 //	  CalculateKeys(b, "Map.foo.str", "")
 //
 func CalculateKeys(obj interface{}, field string, prefix string) []string {
-	defer log.SetLevel(log.GetLevel())
-	log.SetLevel(EncodeLogLevel)
-
 	return calculateKeys(reflect.ValueOf(obj), field, prefix)
 }

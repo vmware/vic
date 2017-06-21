@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015 VMware, Inc. All Rights Reserved.
+Copyright (c) 2015-2017 VMware, Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package guest
 
 import (
 	"context"
+	"net/url"
+	"strings"
 
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/methods"
@@ -49,13 +51,14 @@ func (m FileManager) ChangeFileAttributes(ctx context.Context, auth types.BaseGu
 	return err
 }
 
-func (m FileManager) CreateTemporaryDirectory(ctx context.Context, auth types.BaseGuestAuthentication, prefix, suffix string) (string, error) {
+func (m FileManager) CreateTemporaryDirectory(ctx context.Context, auth types.BaseGuestAuthentication, prefix, suffix string, path string) (string, error) {
 	req := types.CreateTemporaryDirectoryInGuest{
-		This:   m.Reference(),
-		Vm:     m.vm,
-		Auth:   auth,
-		Prefix: prefix,
-		Suffix: suffix,
+		This:          m.Reference(),
+		Vm:            m.vm,
+		Auth:          auth,
+		Prefix:        prefix,
+		Suffix:        suffix,
+		DirectoryPath: path,
 	}
 
 	res, err := methods.CreateTemporaryDirectoryInGuest(ctx, m.c, &req)
@@ -66,13 +69,14 @@ func (m FileManager) CreateTemporaryDirectory(ctx context.Context, auth types.Ba
 	return res.Returnval, nil
 }
 
-func (m FileManager) CreateTemporaryFile(ctx context.Context, auth types.BaseGuestAuthentication, prefix, suffix string) (string, error) {
+func (m FileManager) CreateTemporaryFile(ctx context.Context, auth types.BaseGuestAuthentication, prefix, suffix string, path string) (string, error) {
 	req := types.CreateTemporaryFileInGuest{
-		This:   m.Reference(),
-		Vm:     m.vm,
-		Auth:   auth,
-		Prefix: prefix,
-		Suffix: suffix,
+		This:          m.Reference(),
+		Vm:            m.vm,
+		Auth:          auth,
+		Prefix:        prefix,
+		Suffix:        suffix,
+		DirectoryPath: path,
 	}
 
 	res, err := methods.CreateTemporaryFileInGuest(ctx, m.c, &req)
@@ -119,6 +123,15 @@ func (m FileManager) InitiateFileTransferFromGuest(ctx context.Context, auth typ
 	res, err := methods.InitiateFileTransferFromGuest(ctx, m.c, &req)
 	if err != nil {
 		return nil, err
+	}
+
+	if strings.HasSuffix(guestFilePath, "/") {
+		// Propagate the trailing '/' for directory download support, see soap.directoryReader
+		u, err := url.Parse(res.Returnval.Url)
+		if err == nil {
+			u.Path += "/"
+			res.Returnval.Url = u.String()
+		}
 	}
 
 	return &res.Returnval, nil

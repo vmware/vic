@@ -39,6 +39,10 @@ Set Test Environment Variables
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
     Log To Console  \nTEST_URL=%{TEST_URL}
+    ${worker_date}=  Run  date
+    Log To Console  \nWorker_Date=${worker_date}
+    ${server_date}=  Run  govc host.date.info
+    Log To Console  \nTest_Server_Date=\n${server_date}\n
 
     ${host}=  Run  govc ls host
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
