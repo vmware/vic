@@ -34,7 +34,15 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     e2fsprogs \
     iptables \
     xfsprogs \
-    xz-utils && \
+    dig \
+    # Speed up ISO builds with already installed reqs
+    yum \
+    yum-utils \
+    cpio \
+    rpm \
+    ca-certificates \
+    xz-utils \
+    xorriso && \
 	# Cleanup
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*

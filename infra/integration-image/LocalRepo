@@ -1,0 +1,26 @@
+# Building:
+# docker build --no-cache -t local-repo -f LocalRepo .
+# docker run -d -p 20:20 -p 21:21 local-repo
+FROM fedora:21
+
+RUN yum install yum-plugin-ovl -y && yum install wget createrepo vsftpd -y
+
+RUN mkdir /photon && mkdir /photon-updates
+
+ENV EXCLUDE_LIST "index.html*,openjdk*,openjre*,perl*,postgresql*,python-*,\
+python3*,ruby*,subversion*,gnome*,NetworkManager*,cloud*,docker*,grub*,ktap*,\
+kubernetes*,linux-docs*,linux-sound*,linux-tools*,docbook*,httpd*,go-*,jna*,\
+linux-debuginfo*,linux-dev*,linux-docs*,linux-drivers*,linux-oprofile*,linux-sound*,\
+linux-tools*,linux-esx-debuginfo*,linux-esx-devel*,linux-esx-docs*,nginx*,sysdig*"
+
+RUN wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://vmware.bintray.com/photon_release_1.0_x86_64/x86_64/ -P /photon
+RUN wget -e robots=off -r -nH -nd -np -R $EXCLUDE_LIST https://dl.bintray.com/vmware/photon_updates_1.0_x86_64/x86_64/ -P /photon-updates
+
+RUN createrepo /photon
+RUN createrepo /photon-updates
+
+RUN echo 'anon_root=/' >> /etc/vsftpd/vsftpd.conf
+
+EXPOSE 20 21
+
+CMD /usr/sbin/vsftpd; tail -f /dev/null
