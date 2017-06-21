@@ -604,9 +604,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		Restart: true,
 		Active:  true,
 	}
-	if conf.Diagnostics.SysLogConfig != nil {
-		cfg.Cmd.Env = append(cfg.Cmd.Env, "SYSLOG_ADDR="+conf.Diagnostics.SysLogConfig.Network+"://"+conf.Diagnostics.SysLogConfig.RAddr)
-	}
 
 	conf.AddComponent(config.PortLayerService, cfg)
 

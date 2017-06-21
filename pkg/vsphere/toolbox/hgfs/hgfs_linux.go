@@ -25,7 +25,11 @@ const attrMask = AttrValidAllocationSize |
 	AttrValidUserID | AttrValidGroupID | AttrValidFileID | AttrValidVolID
 
 func (a *AttrV2) sysStat(info os.FileInfo) {
-	sys := info.Sys().(*syscall.Stat_t)
+	sys, ok := info.Sys().(*syscall.Stat_t)
+
+	if !ok {
+		return
+	}
 
 	a.AllocationSize = uint64(sys.Blocks * 512)
 

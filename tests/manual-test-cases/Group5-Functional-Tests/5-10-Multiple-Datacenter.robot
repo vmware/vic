@@ -73,5 +73,3 @@ Test
     Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Regression Tests
-
-    Cleanup VIC Appliance On Test Server

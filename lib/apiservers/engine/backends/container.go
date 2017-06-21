@@ -741,7 +741,7 @@ func (c *Container) ContainerRestart(name string, seconds *int) error {
 	}
 
 	operation = func() error {
-		return c.containerStart(name, nil, false)
+		return c.containerStart(name, nil, true)
 	}
 	if err := retry.Do(operation, IsConflictError); err != nil {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))

@@ -50,3 +50,22 @@ func TestDefaultGuestNicProto(t *testing.T) {
 		t.Error("decode mismatch")
 	}
 }
+
+func TestMaxGuestNic(t *testing.T) {
+	p := DefaultGuestNicInfo()
+
+	maxNics = len(p.V3.Nics)
+
+	a, _ := net.Interfaces()
+	a = append(a, a...) // double the number of interfaces returned
+	netInterfaces = func() ([]net.Interface, error) {
+		return a, nil
+	}
+
+	p = DefaultGuestNicInfo()
+
+	l := len(p.V3.Nics)
+	if l != maxNics {
+		t.Errorf("Nics=%d", l)
+	}
+}
