@@ -45,19 +45,13 @@ import (
 )
 
 var (
-	hostnameFile          = "/etc/hostname"
-	hostnameFileBindSrc   = "/.tether/etc/hostname"
-	hostsPathBindSrc      = "/.tether/etc/hosts"
-	resolvConfPathBindSrc = "/.tether/etc/resolv.conf"
-	byLabelDir            = "/dev/disk/by-label"
-
 	defaultExecUser = &user.ExecUser{
 		Uid:  syscall.Getuid(),
 		Gid:  syscall.Getgid(),
 		Home: "/",
 	}
 
-	filesForMinOS_linux = map[string]os.FileMode{
+	filesForMinOSLinux = map[string]os.FileMode{
 		"/etc/hostname":            0644,
 		"/etc/hosts":               0644,
 		"/etc/resolv.conf":         0644,
@@ -68,6 +62,12 @@ var (
 )
 
 const (
+	hostnameFile          = "/etc/hostname"
+	hostnameFileBindSrc   = "/.tether/etc/hostname"
+	hostsPathBindSrc      = "/.tether/etc/hosts"
+	resolvConfPathBindSrc = "/.tether/etc/resolv.conf"
+	byLabelDir            = "/dev/disk/by-label"
+
 	pciDevPath         = "/sys/bus/pci/devices"
 	nfsFileSystemType  = "nfs"
 	ext4FileSystemType = "ext4"
@@ -891,7 +891,7 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
-	if err := createBindSrcTarget(filesForMinOS_linux); err != nil {
+	if err := createBindSrcTarget(filesForMinOSLinux); err != nil {
 		return err
 	}
 
