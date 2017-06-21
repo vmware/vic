@@ -15,5 +15,5 @@
 package metadata
 
 type ScratchMetaData struct {
-	ScratchVersion int `json:"scratch_version"`
+	ScratchVersion int `json:"portlayer.storage.scratchVersion"`
 }

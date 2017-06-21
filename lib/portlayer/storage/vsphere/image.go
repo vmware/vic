@@ -64,11 +64,12 @@ var (
 )
 
 const (
-	StorageImageDir  = "images"
-	defaultDiskLabel = "containerfs"
-	defaultDiskSize  = 8388608
-	metaDataDir      = "imageMetadata"
-	manifest         = "manifest"
+	StorageImageDir     = "images"
+	defaultDiskLabel    = "containerfs"
+	defaultDiskSize     = 8388608
+	metaDataDir         = "imageMetadata"
+	manifest            = "manifest"
+	scratchMetaDataFile = "metaData"
 )
 
 type ImageStore struct {
@@ -401,7 +402,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		ScratchVersion: feature.ScratchBaseStructureVersion,
 	}
 	meta := make(map[string][]byte)
-	meta["metaData"] = []byte(fmt.Sprintf("%+v", scratchMetaData))
+	meta[scratchMetaDataFile] = []byte(fmt.Sprintf("%+v", scratchMetaData))
 	if err := writeMetadata(op, v.ds, metaDataDir, meta); err != nil {
 		return err
 	}
