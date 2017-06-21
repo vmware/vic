@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 	"context"
 
 	"github.com/vmware/govmomi/find"
-	"github.com/vmware/vic/pkg/vsphere/simulator"
+	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 

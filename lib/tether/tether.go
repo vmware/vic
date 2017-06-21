@@ -217,6 +217,11 @@ func (t *tether) setLogLevel() {
 
 		once.Do(fn)
 	}
+
+	if t.config.DebugLevel > 3 {
+		// extraconfig is very, very verbose
+		extraconfig.SetLogLevel(log.DebugLevel)
+	}
 }
 
 func (t *tether) setHostname() error {

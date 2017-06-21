@@ -40,18 +40,30 @@ This test requires that a vSphere server is running and available
 27. Run vic-machine inspect config
 28. Configure VCH dns server to 10.118.81.1 and 10.118.81.2
 29. Run vic-machine inspect config
+30. Reset VCH dns server to default
+31. Run vic-machine inspect config
+32. Configure VCH resources
+33. Verify VCH configuration through vic-machine inspect
+34. Configure VCH resources with too small values
+35. Verify VCH configuration is rollback to old value
+35. Configure the VCH by adding a new volume store
+36. Run vic-machine inspect config
+37. Run docker info
+38. Create a volume on the default volume store
+39. Create a volume on the new volume store
+40. Run docker volume ls
+41. Configure the volume stores without specifying an existing volume store
+42. Configure the volume stores by attempting to change an existing volume store
+43. Configure the VCH by adding a new volume store with a URL scheme
+44. Run vic-machine inspect config
 
 # Expected Outcome
 * Step 15 should fail with an error message saying that the existing container network must be specified
 * Step 20 should fail with an error message saying that changes to existing container networks are not supported
 * Step 24's output should contain the operations user's name and the host thumbprint
-* All other steps should succeed
-
-# Configure VCH resources
-1. Configure VCH resources
-2. Verify VCH configuration through vic-machine inspect
-3. Configure VCH resources with too small values
-4. Verify VCH configuration is rollback to old value
-
-# Expected Outcome
+* Step 36 and 37's output should contain both volume stores
+* Step 40's output should contain both volumes
+* Step 41 should fail with an error message saying that existing volume stores must be specified
+* Step 42 should fail with an error message saying that changes to existing volume stores are not supported
+* Step 44's output should contain all three volume stores
 * All other steps should succeed

@@ -49,9 +49,7 @@ Check Memory Usage
     Should Be True  ${vmomiMemory} > 0
     [Return]  ${vmomiMemory}
 
-*** Test Cases ***
-Stats No Stream
-    Create test containers
+Get Memory From Stats
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stats --no-stream %{STRESSED}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Get Line  ${output}  -1
@@ -61,6 +59,17 @@ Stats No Stream
     ${vicMemory}=  Get From List  ${vals}  7
     # only care about the integer value of memory usage
     ${vicMemory}=  Fetch From Left  ${vicMemory}  .
+    [Return]  ${vicMemory}
+
+Check Memory From Stats
+    ${vicMemory}=  Get Memory From Stats
+    Should Be True  ${vicMemory} > 0
+    [Return]  ${vicMemory}
+
+*** Test Cases ***
+Stats No Stream
+    Create test containers
+    ${vicMemory}=  Wait Until Keyword Succeeds  5x  20s  Check Memory From Stats
 
     # get the latest memory value for the "stresser" vm
     ${vmomiMemory}=  Wait Until Keyword Succeeds  5x  20s  Check Memory Usage

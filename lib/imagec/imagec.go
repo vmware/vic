@@ -15,6 +15,7 @@
 package imagec
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
@@ -25,8 +26,6 @@ import (
 	"path"
 	"strings"
 	"time"
-
-	"context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -107,6 +106,9 @@ type Options struct {
 
 	// RegistryCAs will not be modified by imagec
 	RegistryCAs *x509.CertPool
+
+	// If true, do not bother portlayer or persona
+	Standalone bool
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -259,6 +261,10 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 // that resides in the docker persona.  This will add image tag,
 // digest and layer information.
 func updateRepositoryCache(ic *ImageC) error {
+	// if standalone then no persona, so exit
+	if ic.Standalone {
+		return nil
+	}
 
 	// LayerID for the image layer
 	imageLayerID := ic.ImageLayers[0].ID
@@ -325,10 +331,15 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 	)
 	defer in.Close()
 
-	// Write the image
-	err = WriteImage(ic.Host, image, in)
-	if err != nil {
-		return fmt.Errorf("Failed to write to image store: %s", err)
+	if !ic.Standalone {
+		// Write the image
+		err = WriteImage(ic.Host, image, in)
+		if err != nil {
+			return fmt.Errorf("Failed to write to image store: %s", err)
+		}
+	} else {
+		// If standalone, write to a local directory
+		cleanup = false
 	}
 
 	progress.Update(progressOutput, image.String(), "Pull complete")
@@ -452,15 +463,24 @@ func (ic *ImageC) PullImage() error {
 
 	if host != "" {
 		log.Infof("Using UUID (%s) for imagestore name", host)
+	} else if ic.Standalone {
+		host, err = os.Hostname()
+		log.Infof("Using host (%s) for imagestore name", host)
 	}
 
 	ic.Storename = host
 
-	// Ping the server to ensure it's at least running
-	ok, err := PingPortLayer(ic.Host)
-	if err != nil || !ok {
-		log.Errorf("Failed to ping portlayer: %s", err)
-		return err
+	if !ic.Standalone {
+		log.Debugf("Running with portlayer")
+
+		// Ping the server to ensure it's at least running
+		ok, err := PingPortLayer(ic.Host)
+		if err != nil || !ok {
+			log.Errorf("Failed to ping portlayer: %s", err)
+			return err
+		}
+	} else {
+		log.Debugf("Running standalone")
 	}
 
 	// Calculate (and overwrite) the registry URL and make sure that it responds to requests

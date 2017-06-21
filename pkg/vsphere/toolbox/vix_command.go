@@ -19,7 +19,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -60,6 +59,7 @@ const (
 	// VIX_E_* constants from vix.h
 	vixOK                 = 0
 	vixFail               = 1
+	vixInvalidArg         = 3
 	vixFileNotFound       = 4
 	vixFileAlreadyExists  = 12
 	vixFileAccessError    = 13
@@ -1352,17 +1352,17 @@ func (c *VixRelayedCommandHandler) InitiateFileTransferFromGuest(_ string, heade
 		return nil, err
 	}
 
-	info, err := os.Stat(r.GuestPathName)
+	info, err := c.FileServer.Stat(r.GuestPathName)
 	if err != nil {
 		return nil, err
 	}
 
 	if info.Mode()&os.ModeSymlink == os.ModeSymlink {
-		return nil, errors.New("VIX_E_INVALID_ARG")
+		return nil, VixError(vixInvalidArg)
 	}
 
 	if info.IsDir() {
-		return nil, errors.New("VIX_E_NOT_A_FILE")
+		return nil, VixError(vixNotAFile)
 	}
 
 	return []byte(fileExtendedInfoFormat(info)), nil
@@ -1407,18 +1407,18 @@ func (c *VixRelayedCommandHandler) InitiateFileTransferToGuest(_ string, header 
 		return nil, err
 	}
 
-	info, err := os.Stat(r.GuestPathName)
+	info, err := c.FileServer.Stat(r.GuestPathName)
 	if err == nil {
 		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
-			return nil, errors.New("VIX_E_INVALID_ARG")
+			return nil, VixError(vixInvalidArg)
 		}
 
 		if info.IsDir() {
-			return nil, errors.New("VIX_E_NOT_A_FILE")
+			return nil, VixError(vixNotAFile)
 		}
 
 		if !r.header.Overwrite {
-			return nil, errors.New("VIX_E_FILE_ALREADY_EXISTS")
+			return nil, VixError(vixFileAlreadyExists)
 		}
 	} else {
 		if !os.IsNotExist(err) {
