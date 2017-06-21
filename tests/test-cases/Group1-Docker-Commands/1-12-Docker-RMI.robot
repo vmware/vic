@@ -65,10 +65,10 @@ Remove image with a container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Failed to remove image "busybox"
+    Should Contain  ${output}  Failed to remove image "${busybox}"
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  busybox
+    Should Contain  ${output}  ${busybox}
 
 Remove a fake image
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi fakeImage
