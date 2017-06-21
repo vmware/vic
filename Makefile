@@ -297,6 +297,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 $(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
+	@$(SWAGGER) generate client --target lib/config/dynamic/admiral -f lib/config/dynamic/admiral/swagger.json --skip-validation --tags /projects 2>>swagger-gen.log
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
@@ -456,6 +457,8 @@ clean:
 	@rm -rf ./lib/apiservers/portlayer/cmd/
 	@rm -rf ./lib/apiservers/portlayer/models/
 	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
+	@rm -rf ./lib/config/dynamic/admiral/models
+	@rm -rf ./lib/config/dynamic/admiral/client
 
 	@rm -f *.log
 	@rm -f *.pem

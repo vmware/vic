@@ -27,39 +27,39 @@ const (
 )
 
 type AssociatedObject struct {
-	Id   *string `json:"id"`
+	ID   *string `json:"id"`
 	Type *string `json:"type"`
 }
 
 type TagAssociationSpec struct {
-	ObjectId *AssociatedObject `json:"object_id,omitempty"`
-	TagId    *string           `json:"tag_id,omitempty"`
+	ObjectID *AssociatedObject `json:"object_id,omitempty"`
+	TagID    *string           `json:"tag_id,omitempty"`
 }
 
-func (c *RestClient) getAssociatedObject(objId *string, objType *string) *AssociatedObject {
-	if objId == nil && objType == nil {
+func (c *RestClient) getAssociatedObject(objID *string, objType *string) *AssociatedObject {
+	if objID == nil && objType == nil {
 		return nil
 	}
 	object := AssociatedObject{
-		Id:   objId,
+		ID:   objID,
 		Type: objType,
 	}
 	return &object
 }
 
-func (c *RestClient) getAssociationSpec(tagId *string, objId *string, objType *string) *TagAssociationSpec {
-	object := c.getAssociatedObject(objId, objType)
+func (c *RestClient) getAssociationSpec(tagID *string, objID *string, objType *string) *TagAssociationSpec {
+	object := c.getAssociatedObject(objID, objType)
 	spec := TagAssociationSpec{
-		TagId:    tagId,
-		ObjectId: object,
+		TagID:    tagID,
+		ObjectID: object,
 	}
 	return &spec
 }
 
-func (c *RestClient) AttachTagToObject(tagId string, objId string, objType string) error {
-	log.Debugf("Attach Tag %s to object id: %s, type: %s", tagId, objId, objType)
+func (c *RestClient) AttachTagToObject(tagID string, objID string, objType string) error {
+	log.Debugf("Attach Tag %s to object id: %s, type: %s", tagID, objID, objType)
 
-	spec := c.getAssociationSpec(&tagId, &objId, &objType)
+	spec := c.getAssociationSpec(&tagID, &objID, &objType)
 	_, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=attach", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
@@ -70,10 +70,10 @@ func (c *RestClient) AttachTagToObject(tagId string, objId string, objType strin
 	return nil
 }
 
-func (c *RestClient) DetachTagFromObject(tagId string, objId string, objType string) error {
-	log.Debugf("Detach Tag %s to object id: %s, type: %s", tagId, objId, objType)
+func (c *RestClient) DetachTagFromObject(tagID string, objID string, objType string) error {
+	log.Debugf("Detach Tag %s to object id: %s, type: %s", tagID, objID, objType)
 
-	spec := c.getAssociationSpec(&tagId, &objId, &objType)
+	spec := c.getAssociationSpec(&tagID, &objID, &objType)
 	_, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=detach", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
@@ -84,10 +84,10 @@ func (c *RestClient) DetachTagFromObject(tagId string, objId string, objType str
 	return nil
 }
 
-func (c *RestClient) ListAttachedTags(objId string, objType string) ([]string, error) {
-	log.Debugf("List attached tags of object id: %s, type: %s", objId, objType)
+func (c *RestClient) ListAttachedTags(objID string, objType string) ([]string, error) {
+	log.Debugf("List attached tags of object id: %s, type: %s", objID, objType)
 
-	spec := c.getAssociationSpec(nil, &objId, &objType)
+	spec := c.getAssociationSpec(nil, &objID, &objType)
 	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-tags", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
@@ -108,10 +108,10 @@ func (c *RestClient) ListAttachedTags(objId string, objType string) ([]string, e
 	return pTag.Value, nil
 }
 
-func (c *RestClient) ListAttachedObjects(tagId string) ([]AssociatedObject, error) {
-	log.Debugf("List attached objects of tag: %s", tagId)
+func (c *RestClient) ListAttachedObjects(tagID string) ([]AssociatedObject, error) {
+	log.Debugf("List attached objects of tag: %s", tagID)
 
-	spec := c.getAssociationSpec(&tagId, nil, nil)
+	spec := c.getAssociationSpec(&tagID, nil, nil)
 	log.Debugf("List attached objects for tag %v", *spec)
 	//	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
 	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)

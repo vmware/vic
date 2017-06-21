@@ -34,43 +34,43 @@ type TagCreateSpec struct {
 }
 
 type TagCreate struct {
-	CategoryId  string `json:"category_id"`
+	CategoryID  string `json:"category_id"`
 	Description string `json:"description"`
 	Name        string `json:"name"`
 }
 
 type Tag struct {
-	Id          string   `json:"id"`
+	ID          string   `json:"id"`
 	Description string   `json:"description"`
 	Name        string   `json:"name"`
-	CategoryId  string   `json:"category_id"`
+	CategoryID  string   `json:"category_id"`
 	UsedBy      []string `json:"used_by"`
 }
 
-func (c *RestClient) CreateTagIfNotExist(name string, description string, categoryId string) (*string, error) {
-	tagCreate := TagCreate{categoryId, description, name}
+func (c *RestClient) CreateTagIfNotExist(name string, description string, categoryID string) (*string, error) {
+	tagCreate := TagCreate{categoryID, description, name}
 	spec := TagCreateSpec{tagCreate}
 	id, err := c.CreateTag(&spec)
 	if err != nil {
 		log.Debugf("Created tag %s failed for %s", errors.ErrorStack(err))
 		// if already exists, query back
 		if strings.Contains(err.Error(), "already_exists") {
-			tagObjs, err := c.GetTagByNameForCategory(name, categoryId)
+			tagObjs, err := c.GetTagByNameForCategory(name, categoryID)
 			if err != nil {
-				log.Errorf("Failed to query tag %s for category %s", name, categoryId)
+				log.Errorf("Failed to query tag %s for category %s", name, categoryID)
 				return nil, errors.Trace(err)
 			}
 			if tagObjs != nil {
-				return &tagObjs[0].Id, nil
-			} else {
-				// should not happen
-				log.Debugf("Failed to create tag for it's exsited, but could not query back. Please check system")
-				return nil, errors.Errorf("Failed to create tag for it's exsited, but could not query back. Please check system")
+				return &tagObjs[0].ID, nil
 			}
-		} else {
-			log.Debugf("Failed to create inventory category for %s", errors.ErrorStack(err))
-			return nil, errors.Trace(err)
+
+			// should not happen
+			log.Debugf("Failed to create tag for it's exsited, but could not query back. Please check system")
+			return nil, errors.Errorf("Failed to create tag for it's exsited, but could not query back. Please check system")
 		}
+
+		log.Debugf("Failed to create inventory category for %s", errors.ErrorStack(err))
+		return nil, errors.Trace(err)
 	}
 
 	return id, nil
@@ -102,12 +102,12 @@ func (c *RestClient) CreateTag(spec *TagCreateSpec) (*string, error) {
 		Value string
 	}
 
-	var pId RespValue
-	if err := json.NewDecoder(stream).Decode(&pId); err != nil {
+	var pID RespValue
+	if err := json.NewDecoder(stream).Decode(&pID); err != nil {
 		log.Debugf("Decode response body failed for: %s", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
 	}
-	return &(pId.Value), nil
+	return &(pID.Value), nil
 }
 
 func (c *RestClient) GetTag(id string) (*Tag, error) {
@@ -154,7 +154,7 @@ func (c *RestClient) ListTags() ([]string, error) {
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
 
-	return c.handleTagIdList(stream)
+	return c.handleTagIDList(stream)
 }
 
 func (c *RestClient) ListTagsForCategory(id string) ([]string, error) {
@@ -171,10 +171,10 @@ func (c *RestClient) ListTagsForCategory(id string) ([]string, error) {
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
 
-	return c.handleTagIdList(stream)
+	return c.handleTagIDList(stream)
 }
 
-func (c *RestClient) handleTagIdList(stream io.ReadCloser) ([]string, error) {
+func (c *RestClient) handleTagIDList(stream io.ReadCloser) ([]string, error) {
 	type Tags struct {
 		Value []string
 	}
@@ -197,10 +197,10 @@ func (c *RestClient) GetTagByNameForCategory(name string, id string) ([]Tag, err
 	}
 
 	var tags []Tag
-	for _, tId := range tagIds {
-		tag, err := c.GetTag(tId)
+	for _, tID := range tagIds {
+		tag, err := c.GetTag(tID)
 		if err != nil {
-			log.Debugf("Get tag %s failed for %s", tId, errors.ErrorStack(err))
+			log.Debugf("Get tag %s failed for %s", tID, errors.ErrorStack(err))
 			return nil, errors.Trace(err)
 		}
 		if tag.Name == name {
@@ -211,8 +211,8 @@ func (c *RestClient) GetTagByNameForCategory(name string, id string) ([]Tag, err
 }
 
 // Get attached tags through tag name pattern
-func (c *RestClient) GetAttachedTagsByNamePattern(namePattern string, objId string, objType string) ([]Tag, error) {
-	tagIds, err := c.ListAttachedTags(objId, objType)
+func (c *RestClient) GetAttachedTagsByNamePattern(namePattern string, objID string, objType string) ([]Tag, error) {
+	tagIds, err := c.ListAttachedTags(objID, objType)
 	if err != nil {
 		log.Debugf("Get attached tags failed for %s", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
@@ -220,10 +220,10 @@ func (c *RestClient) GetAttachedTagsByNamePattern(namePattern string, objId stri
 
 	var validName = regexp.MustCompile(namePattern)
 	var tags []Tag
-	for _, tId := range tagIds {
-		tag, err := c.GetTag(tId)
+	for _, tID := range tagIds {
+		tag, err := c.GetTag(tID)
 		if err != nil {
-			log.Debugf("Get tag %s failed for %s", tId, errors.ErrorStack(err))
+			log.Debugf("Get tag %s failed for %s", tID, errors.ErrorStack(err))
 		}
 		if validName.MatchString(tag.Name) {
 			tags = append(tags, *tag)
