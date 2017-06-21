@@ -17,7 +17,6 @@ package etcconf
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"sync"
 
@@ -41,7 +40,6 @@ type Hosts interface {
 	RemoveAll()
 
 	HostIP(hostname string) net.IP
-	GetPath() string
 }
 
 type hosts struct {
@@ -71,7 +69,7 @@ func (w *hostsWalker) Next() string {
 
 func NewHosts(path string) Hosts {
 	if path == "" {
-		path = hostsPath
+		path = HostsPath
 	}
 
 	return &hosts{
@@ -117,7 +115,7 @@ func (h *hosts) Load() error {
 	return nil
 }
 
-func (h *hosts) Save(filePath string) error {
+func (h *hosts) Save() error {
 	h.Lock()
 	defer h.Unlock()
 
@@ -142,13 +140,7 @@ func (h *hosts) Save(filePath string) error {
 		}
 	}
 
-	if err := save(filePath, &hostsWalker{entries: entries}); err != nil {
-		return err
-	}
-
-	// make sure the file is readable
-	// #nosec: Expect file permissions to be 0600 or less
-	if err := os.Chmod(h.path, 0644); err != nil {
+	if err := save(h.path, &hostsWalker{entries: entries}); err != nil {
 		return err
 	}
 
@@ -191,6 +183,6 @@ func (h *hosts) HostIP(hostname string) net.IP {
 	return h.hosts[hostname]
 }
 
-func (h *hosts) GetPath() string {
+func (h *hosts) Path() string {
 	return h.path
 }

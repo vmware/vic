@@ -17,7 +17,6 @@ package etcconf
 import (
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,7 +41,6 @@ type ResolvConf interface {
 	Timeout() time.Duration
 	SetAttempts(uint)
 	SetTimeout(time.Duration)
-	GetPath() string
 }
 
 type resolvConf struct {
@@ -152,7 +150,7 @@ func (r *resolvConf) Load() error {
 	return nil
 }
 
-func (r *resolvConf) Save(filePath string) error {
+func (r *resolvConf) Save() error {
 	r.Lock()
 	defer r.Unlock()
 
@@ -163,13 +161,7 @@ func (r *resolvConf) Save(filePath string) error {
 
 	walker := &resolvConfWalker{lines: r.lines()}
 	log.Debugf("%+v", walker)
-	if err := save(filePath, walker); err != nil {
-		return err
-	}
-
-	// make sure the file is readable
-	// #nosec: Expect file permissions to be 0600 or less
-	if err := os.Chmod(r.path, 0644); err != nil {
+	if err := save(r.path, walker); err != nil {
 		return err
 	}
 
@@ -251,7 +243,7 @@ func (r *resolvConf) SetAttempts(attempts uint) {
 	}
 }
 
-func (r *resolvConf) GetPath() string {
+func (r *resolvConf) Path() string {
 	return r.path
 }
 

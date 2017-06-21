@@ -38,6 +38,7 @@ import (
 
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/dhcp/client"
+	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
@@ -54,6 +55,15 @@ var (
 		Uid:  syscall.Getuid(),
 		Gid:  syscall.Getgid(),
 		Home: "/",
+	}
+
+	filesForMinOS_linux = map[string]os.FileMode{
+		"/etc/hostname":            0644,
+		"/etc/hosts":               0644,
+		"/etc/resolv.conf":         0644,
+		"/.tether/etc/hostname":    0644,
+		"/.tether/etc/hosts":       0644,
+		"/.tether/etc/resolv.conf": 0644,
 	}
 )
 
@@ -191,10 +201,8 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	for _, a := range append(aliases, hostname) {
 		Sys.Hosts.SetHost(a, lo4)
 	}
-	if err = Sys.Hosts.Save(hostsPathBindSrc); err != nil {
-		return err
-	}
-	if err = bindMount(hostsPathBindSrc, Sys.Hosts.GetPath()); err != nil {
+
+	if err = bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
 		return err
 	}
 
@@ -478,10 +486,7 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 
 	Sys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
 
-	if err := Sys.Hosts.Save(hostsPathBindSrc); err != nil {
-		return err
-	}
-	if err := bindMount(hostsPathBindSrc, Sys.Hosts.GetPath()); err != nil {
+	if err := bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
 		return err
 	}
 
@@ -506,10 +511,7 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 		log.Infof("Added nameserver: %s", gw.IP)
 	}
 
-	if err := Sys.ResolvConf.Save(resolvConfPathBindSrc); err != nil {
-		return err
-	}
-	if err := bindMount(resolvConfPathBindSrc, Sys.ResolvConf.GetPath()); err != nil {
+	if err := bindMountAndSave(etcconf.ResolvConfPath, Sys.ResolvConf); err != nil {
 		return err
 	}
 
@@ -889,6 +891,13 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
+	if err := createBindSrcTarget(filesForMinOS_linux); err != nil {
+		return err
+	}
+
+	Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
+	Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
+
 	err := Sys.Hosts.Load()
 	if err != nil {
 		return err
@@ -912,10 +921,7 @@ func (t *BaseOperations) Setup(config Config) error {
 		Sys.Hosts.SetHost(e.hostname, e.addr)
 	}
 
-	if err = Sys.Hosts.Save(hostsPathBindSrc); err != nil {
-		return err
-	}
-	if err := bindMount(hostsPathBindSrc, Sys.Hosts.GetPath()); err != nil {
+	if err := bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
 		return err
 	}
 
@@ -1020,5 +1026,21 @@ func bindMount(src, target string) error {
 		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)
 	}
 
+	// make sure the file is readable
+	// #nosec: Expect file permissions to be 0600 or less
+	if err := os.Chmod(target, 0644); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func bindMountAndSave(target string, conf etcconf.Conf) error {
+	if err := conf.Save(); err != nil {
+		return err
+	}
+
+	src := conf.Path()
+
+	return bindMount(src, target)
 }
