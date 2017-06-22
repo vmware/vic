@@ -42,6 +42,7 @@ const (
 	OptsVolumeStoreKey     string = "volumestore"
 	OptsCapacityKey        string = "capacity"
 	dockerMetadataModelKey string = "DockerMetaData"
+	DefaultVolumeDriver    string = "vsphere"
 )
 
 // define a set (whitelist) of valid driver opts keys for command line argument validation
