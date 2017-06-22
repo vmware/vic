@@ -238,7 +238,7 @@ func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
 	sess.Cmd.Env = newEnvs
 }
 
-func (c *Configure) processCertificates(client, public, management *data.NetworkConfig) error {
+func (c *Configure) processCertificates(client, public, management data.NetworkConfig) error {
 
 	if !c.certificates.NoTLSverify && (c.certificates.Skey == "" || c.certificates.Scert == "") {
 		log.Infof("No certificate regeneration requested. No new certificates provided. Certificates left unchanged.")
