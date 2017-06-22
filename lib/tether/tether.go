@@ -906,6 +906,7 @@ func createBindSrcTarget(files map[string]os.FileMode) error {
 	for filePath, fmode := range files {
 		dir := path.Dir(filePath)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			// #nosec: Expect file permissions to be 0600 or less
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %s", dir, err)
 			}

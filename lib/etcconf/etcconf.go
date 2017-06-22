@@ -106,5 +106,11 @@ func save(filePath string, walker EntryWalker) error {
 		return err
 	}
 
+	// make sure the file is readable
+	// #nosec: Expect file permissions to be 0600 or less
+	if err := os.Chmod(filePath, 0644); err != nil {
+		return err
+	}
+
 	return nil
 }
