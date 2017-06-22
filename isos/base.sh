@@ -64,7 +64,7 @@ initialize_bundle $PKGDIR
 # base filesystem setup
 mkdir -p $(rootfs_dir $PKGDIR)/{etc/yum,etc/yum.repos.d}
 ln -s /lib $(rootfs_dir $PKGDIR)/lib64
-if [[ -v $DRONE_BUILD_NUMBER && $DRONE_BUILD_NUMBER > 0 ]]; then
+if [[ $DRONE_BUILD_NUMBER && $DRONE_BUILD_NUMBER > 0 ]]; then
     cp $DIR/base/*-local.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/    
 else
     cp $DIR/base/*-remote.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
