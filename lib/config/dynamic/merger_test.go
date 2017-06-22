@@ -116,31 +116,6 @@ func TestWhitelistMerger(t *testing.T) {
 			orig:  registry.ParseEntry("https://foo"),
 			other: registry.ParseEntry("foo"),
 		},
-		{
-			orig:  registry.ParseEntry("http://foo"),
-			other: registry.ParseEntry("foo:123"),
-		},
-		{
-			orig:  registry.ParseEntry("http://foo"),
-			other: registry.ParseEntry("http://foo:123"),
-		},
-		{
-			orig:  registry.ParseEntry("http://foo:123"),
-			other: registry.ParseEntry("http://foo"),
-		},
-		{
-			orig:  registry.ParseEntry("http://foo/bar"),
-			other: registry.ParseEntry("http://foo"),
-			err:   assert.AnError,
-		},
-		{
-			orig:  registry.ParseEntry("https://foo/bar"),
-			other: registry.ParseEntry("http://foo/bar"),
-		},
-		{
-			orig:  registry.ParseEntry("https://foo"),
-			other: registry.ParseEntry("foo"),
-		},
 	}
 
 	m := &whitelistMerger{}
