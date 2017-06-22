@@ -118,119 +118,6 @@ func TestEntryContains(t *testing.T) {
 	}
 }
 
-func TestEntryEqual(t *testing.T) {
-	var tests = []struct {
-		e, other Entry
-		res      bool
-	}{
-		{
-			e:     &ipEntry{e: "192.168.0.1"},
-			other: &ipEntry{e: "192.168.0.1"},
-			res:   true,
-		},
-		{
-			e:     &ipEntry{e: "192.168.0.1"},
-			other: &ipEntry{e: "192.168.0.2"},
-			res:   false,
-		},
-		{
-			e:     &ipEntry{e: "192.168.0.1"},
-			other: ParseEntry("192.168.1.0/24"),
-			res:   false,
-		},
-		{
-			e:     &ipEntry{e: "192.168.0.1"},
-			other: ParseEntry("*.google.com"),
-			res:   false,
-		},
-		{
-			e:     ParseEntry("192.168.0.1/24"),
-			other: ParseEntry("192.168.0.1/24"),
-			res:   true,
-		},
-		{
-			e:     ParseEntry("192.168.0.1/24"),
-			other: ParseEntry("192.168.0.1/16"),
-			res:   false,
-		},
-		{
-			e:     ParseEntry("192.168.0.1/24"),
-			other: ParseEntry("192.168.0.1"),
-			res:   false,
-		},
-		{
-			e:     ParseEntry("192.168.0.1/24"),
-			other: ParseEntry("*.google.com"),
-			res:   false,
-		},
-		{
-			e:     ParseEntry("*.google.com"),
-			other: ParseEntry("*.google.com"),
-			res:   true,
-		},
-		{
-			e:     ParseEntry("*.google.com"),
-			other: ParseEntry("mail.google.com"),
-			res:   false,
-		},
-		{
-			e:     ParseEntry("*.google.com"),
-			other: ParseEntry("*.yahoo.com"),
-			res:   false,
-		},
-		{
-			e:     ParseEntry("*.google.com"),
-			other: ParseEntry("192.168.0.1"),
-			res:   false,
-		},
-		{
-			e:     ParseEntry("*.google.com"),
-			other: ParseEntry("192.168.0.1/24"),
-			res:   false,
-		},
-	}
-
-	for _, te := range tests {
-		assert.Equal(t, te.res, te.e.Equal(te.other), "test: %s equal %s", te.e, te.other)
-	}
-}
-
-func TestParseEntry(t *testing.T) {
-	var tests = []struct {
-		s   string
-		res Entry
-	}{
-		{
-			s:   "192.168.0.1",
-			res: &ipEntry{e: "192.168.0.1"},
-		},
-		{
-			s:   "192.168.0",
-			res: &domainEntry{e: "192.168.0"},
-		},
-		{
-			s:   "192.168.0.1/24",
-			res: &cidrEntry{ipnet: &net.IPNet{IP: net.ParseIP("192.168.0.0"), Mask: net.CIDRMask(24, 32)}},
-		},
-		{
-			s:   "192.168.0/24",
-			res: &domainEntry{e: "192.168.0/24"},
-		},
-		{
-			s:   "*.google.com",
-			res: &domainEntry{e: "*.google.com"},
-		},
-		{
-			s:   "https://google.com",
-			res: &domainEntry{e: "google.com"},
-		},
-	}
-
-	for _, te := range tests {
-		assert.True(t, te.res.Equal(ParseEntry(te.s)), "ParseEntry(%s) != %s", te.s, te.res)
-	}
-}
-
 func TestEntryMatch(t *testing.T) {
 	var tests = []struct {
 		e   Entry
@@ -428,10 +315,6 @@ func TestParseEntry(t *testing.T) {
 		{
 			s:   "192.168.0.1",
 			res: &urlEntry{u: parseURL("192.168.0.1")},
-		},
-		{
-			s:   "192.168.0.1:80",
-			res: &urlEntry{u: parseURL("192.168.0.1:80")},
 		},
 		{
 			s:   "192.168.0.1:80",
