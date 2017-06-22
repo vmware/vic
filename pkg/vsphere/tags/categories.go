@@ -83,8 +83,8 @@ func (c *RestClient) CreateCategoryIfNotExist(name string, description string, c
 		return &categories[0].ID, nil
 	}
 	// should not happen
-	log.Debugf("Failed to create inventory for it's exsited, but could not query back. Please check system")
-	return nil, errors.Errorf("Failed to create inventory for it's exsited, but could not query back. Please check system")
+	log.Debugf("Failed to create inventory for it's existed, but could not query back. Please check system")
+	return nil, errors.Errorf("Failed to create inventory for it's existed, but could not query back. Please check system")
 }
 
 func (c *RestClient) CreateCategory(spec *CategoryCreateSpec) (*string, error) {
