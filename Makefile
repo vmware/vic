@@ -223,7 +223,7 @@ gofmt:
 
 misspell: $(MISSPELL)
 	@echo checking misspell...
-	@$(MISSPELL) -error $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+	@infra/scripts/misspell.sh
 
 govet:
 	@echo checking go vet...

@@ -65,8 +65,8 @@ func (c *RestClient) CreateTagIfNotExist(name string, description string, catego
 			}
 
 			// should not happen
-			log.Debugf("Failed to create tag for it's exsited, but could not query back. Please check system")
-			return nil, errors.Errorf("Failed to create tag for it's exsited, but could not query back. Please check system")
+			log.Debugf("Failed to create tag for it's existed, but could not query back. Please check system")
+			return nil, errors.Errorf("Failed to create tag for it's existed, but could not query back. Please check system")
 		}
 
 		log.Debugf("Failed to create inventory category for %s", errors.ErrorStack(err))
