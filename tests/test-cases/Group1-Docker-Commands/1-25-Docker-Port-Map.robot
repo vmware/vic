@@ -20,7 +20,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Create container with port mappings
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver
@@ -37,10 +37,10 @@ Create container with port mappings
     Should Not Be Equal As Integers  ${rc}  0
 
 Create container with conflicting port mapping
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver2 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver2 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver3 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8083:80 --name webserver3 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver2
@@ -51,21 +51,21 @@ Create container with conflicting port mapping
     Should Contain  ${output}  port 8083 is not available
 
 Create container with port range
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8081-8088:80 --name webserver5 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 8081-8088:80 --name webserver5 ${nginx}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  host port ranges are not supported for port bindings
 
 Create container with host ip
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10.10.10.10:8088:80 --name webserver5 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10.10.10.10:8088:80 --name webserver5 ${nginx}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  host IP for port bindings is only supported for 0.0.0.0 and the public interface IP address
 
 Create container with host ip equal to 0.0.0.0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 0.0.0.0:8088:80 --name webserver5 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 0.0.0.0:8088:80 --name webserver5 ${nginx}
     Should Be Equal As Integers  ${rc}  0
 
 Create container with host ip equal to public IP
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p %{EXT-IP}:8089:80 --name webserver6 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p %{EXT-IP}:8089:80 --name webserver6 ${nginx}
     Should Be Equal As Integers  ${rc}  0
 
 Create container without specifying host port
@@ -138,7 +138,7 @@ Remap mapped ports after OOB Stop
 Remap mapped ports after OOB Stop and Remove
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx1 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx1 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  5001
@@ -148,7 +148,7 @@ Remap mapped ports after OOB Stop and Remove
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx2 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd -p 5001:80 --name nginx2 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  5001
@@ -156,12 +156,12 @@ Remap mapped ports after OOB Stop and Remove
 Container to container traffic via VCH public interface
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f $(docker %{VCH-PARAMS} ps -aq)
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net bridge -p 8085:80 nginx
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net bridge -p 8085:80 ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
     Log  ${output}

@@ -22,7 +22,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Trap Signal Command
     # Container command runs an infinite loop, trapping and logging the given signal name
     [Arguments]  ${sig}
-    [Return]  busybox sh -c "trap 'echo StopSignal${sig}' ${sig}; echo READY; while true; do sleep 1; done"
+    [Return]  ${busybox} sh -c "trap 'echo StopSignal${sig}' ${sig}; echo READY; while true; do sleep 1; done"
 
 Assert Ready
     # Assert the docker stop signal trap has been set
@@ -57,17 +57,17 @@ Assert Kill Signal
 
 *** Test Cases ***
 Stop an already stopped container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox ls
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} ls
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
 
 Basic docker container stop
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox sleep 30
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} sleep 30
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
     Should Be Equal As Integers  ${rc}  0
@@ -76,7 +76,7 @@ Basic docker container stop
     Assert Kill Signal  ${container}  False
 
 Basic docker stop w/ unclean exit from running process
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
@@ -85,7 +85,7 @@ Basic docker stop w/ unclean exit from running process
     Should Be Equal As Integers  ${output}  143
 
 Stop a container with SIGKILL using default grace period
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${trap}
@@ -98,7 +98,7 @@ Stop a container with SIGKILL using default grace period
     Assert Kill Signal  ${container}  False
 
 Stop a container with SIGKILL using specific stop signal
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  USR1
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --stop-signal USR1 ${trap}
@@ -110,7 +110,7 @@ Stop a container with SIGKILL using specific stop signal
     Assert Kill Signal  ${container}  True
 
 Stop a container with SIGKILL using specific grace period
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --stop-signal HUP ${trap}
@@ -129,10 +129,10 @@ Stop a non-existent container
     Should Contain  ${output}  Error response from daemon: No such container: fakeContainer
 
 Attempt to stop a container that has been started out of band
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Generate Random String  15
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
     Power On VM OOB  ${name}-*
@@ -141,7 +141,7 @@ Attempt to stop a container that has been started out of band
     Assert Kill Signal  ${container}  False
 
 Restart a stopped container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it ${busybox} /bin/ls
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${output}
@@ -154,13 +154,12 @@ Restart a stopped container
     Should Not Contain  ${output}  Error:
 
 Stop a container with Docker 1.13 CLI
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
-   
