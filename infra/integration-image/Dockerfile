@@ -38,7 +38,7 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     iptables \
     xfsprogs \
     xz-utils \
-    dig \
+    dnsutils \
     # Add headless chrome support
     google-chrome-stable && \
 	# Cleanup
