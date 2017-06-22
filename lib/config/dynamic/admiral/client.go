@@ -43,7 +43,7 @@ func newClient() client {
 }
 
 const (
-	ovaTagCategory     = "VsphereIntegratedContainers1"
+	ovaTagCategory     = "VsphereIntegratedContainers"
 	ovaTagName         = "ProductVM"
 	ovaTokenKey        = "some/key" // as yet undetermined
 	admiralEndpointKey = "some/key" // undetermined
@@ -215,18 +215,19 @@ func keys(ctx context.Context, v *vm.VirtualMachine, keys []string) (map[string]
 	}
 
 	res := make(map[string]string)
-	for _, ov := range ovs {
-		for k := range keys {
-			if keys[k] == ov.GetOptionValue().Key {
-				res[keys[k]] = ov.GetOptionValue().Value.(string)
-				keys = append(keys[:k], keys[k+1:]...)
+	for _, k := range keys {
+		found := false
+		for _, ov := range ovs {
+			if k == ov.GetOptionValue().Key {
+				res[k] = ov.GetOptionValue().Value.(string)
+				found = true
 				break
 			}
 		}
-	}
 
-	if len(keys) > 0 {
-		return nil, fmt.Errorf("keys not found: %q", keys)
+		if !found {
+			return nil, fmt.Errorf("key not found: %s", k)
+		}
 	}
 
 	return res, nil
