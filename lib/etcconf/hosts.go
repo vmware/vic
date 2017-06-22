@@ -17,6 +17,7 @@ package etcconf
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync"
 
@@ -141,6 +142,12 @@ func (h *hosts) Save() error {
 	}
 
 	if err := save(h.path, &hostsWalker{entries: entries}); err != nil {
+		return err
+	}
+
+	// make sure the file is readable
+	// #nosec: Expect file permissions to be 0600 or less
+	if err := os.Chmod(h.path, 0644); err != nil {
 		return err
 	}
 
