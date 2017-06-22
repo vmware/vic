@@ -85,8 +85,47 @@ func verifyMeta(t testing.TB, doc *spec.Swagger) {
 	assert.EqualValues(t, []string{"application/json", "application/xml"}, doc.Consumes)
 	assert.EqualValues(t, []string{"application/json", "application/xml"}, doc.Produces)
 	assert.EqualValues(t, []string{"http", "https"}, doc.Schemes)
+	assert.EqualValues(t, []map[string][]string{{"api_key": {}}}, doc.Security)
+	expectedSecuritySchemaKey := spec.SecurityScheme{
+		SecuritySchemeProps: spec.SecuritySchemeProps{
+			Type: "apiKey",
+			In:   "header",
+			Name: "KEY",
+		},
+	}
+	expectedSecuritySchemaOAuth := spec.SecurityScheme{
+		SecuritySchemeProps: spec.SecuritySchemeProps{
+			Type:             "oauth2",
+			In:               "header",
+			AuthorizationURL: "/oauth2/auth",
+			TokenURL:         "/oauth2/token",
+			Flow:             "accessCode",
+			Scopes: map[string]string{
+				"bla1": "foo1",
+				"bla2": "foo2",
+			},
+		},
+	}
+	expectedExtensions := spec.Extensions{
+		"x-meta-array": []interface{}{
+			"value1",
+			"value2",
+		},
+		"x-meta-array-obj": []interface{}{
+			map[string]interface{}{
+				"name":  "obj",
+				"value": "field",
+			},
+		},
+		"x-meta-value": "value",
+	}
+	assert.NotNil(t, doc.SecurityDefinitions["api_key"])
+	assert.NotNil(t, doc.SecurityDefinitions["oauth2"])
+	assert.EqualValues(t, spec.SecurityDefinitions{"api_key": &expectedSecuritySchemaKey, "oauth2": &expectedSecuritySchemaOAuth}, doc.SecurityDefinitions)
+	assert.EqualValues(t, expectedExtensions, doc.Extensions)
 	assert.Equal(t, "localhost", doc.Host)
 	assert.Equal(t, "/v2", doc.BasePath)
+
 }
 
 func verifyInfo(t testing.TB, info *spec.Info) {

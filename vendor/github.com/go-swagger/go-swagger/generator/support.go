@@ -80,6 +80,11 @@ func newAppGenerator(name string, modelNames, operationIDs []string, opts *GenOp
 		if err = validateSpec(opts.Spec, specDoc); err != nil {
 			return nil, err
 		}
+		// Restore spec to original
+		opts.Spec, specDoc, err = loadSpec(opts.Spec)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	analyzed := analysis.New(specDoc.Spec())
@@ -160,8 +165,13 @@ func baseImport(tgt string) string {
 		log.Fatalln(err)
 	}
 
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		gopath = filepath.Join(os.Getenv("HOME"), "go")
+	}
+
 	var pth string
-	for _, gp := range filepath.SplitList(os.Getenv("GOPATH")) {
+	for _, gp := range filepath.SplitList(gopath) {
 		pp := filepath.Join(filepath.Clean(gp), "src")
 		var np, npp string
 		if goruntime.GOOS == "windows" {
@@ -262,8 +272,7 @@ func (a *appGenerator) Generate() error {
 }
 
 func (a *appGenerator) GenerateSupport(ap *GenApp) error {
-	var app *GenApp
-	app = ap
+	app := ap
 	if ap == nil {
 		ca, err := a.makeCodegenApp()
 		if err != nil {
@@ -519,7 +528,11 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 	security := a.makeSecuritySchemes()
 
 	var genMods []GenDefinition
-	importPath := filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ModelsPackage))
+	importPath := a.GenOpts.ExistingModels
+	if a.GenOpts.ExistingModels == "" {
+		importPath = filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ModelsPackage))
+	}
+
 	defaultImports = append(defaultImports, importPath)
 
 	log.Println("planning definitions")
@@ -563,6 +576,8 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		bldr.Method = opp.Method
 		bldr.Path = opp.Path
 		bldr.Authed = len(a.Analyzed.SecurityRequirementsFor(o)) > 0
+		bldr.Security = a.Analyzed.SecurityRequirementsFor(o)
+		bldr.SecurityDefinitions = a.Analyzed.SecurityDefinitionsFor(o)
 		bldr.RootAPIPackage = swag.ToFileName(a.APIPackage)
 		bldr.WithContext = a.GenOpts != nil && a.GenOpts.WithContext
 
@@ -572,6 +587,10 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 			st = a.GenOpts.Tags
 		}
 		intersected := intersectTags(o.Tags, st)
+		if len(st) > 0 && len(intersected) == 0 {
+			continue
+		}
+
 		if len(intersected) == 1 {
 			tag := intersected[0]
 			bldr.APIPackage = a.GenOpts.LanguageOpts.MangleName(swag.ToFileName(tag), a.APIPackage)
@@ -595,16 +614,16 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 	sort.Sort(genOps)
 
 	log.Println("grouping operations into packages")
-	opsGroupedByTag := make(map[string]GenOperations)
+	opsGroupedByPackage := make(map[string]GenOperations)
 	for _, operation := range genOps {
 		if operation.Package == "" {
 			operation.Package = a.Package
 		}
-		opsGroupedByTag[operation.Package] = append(opsGroupedByTag[operation.Package], operation)
+		opsGroupedByPackage[operation.Package] = append(opsGroupedByPackage[operation.Package], operation)
 	}
 
 	var opGroups GenOperationGroups
-	for k, v := range opsGroupedByTag {
+	for k, v := range opsGroupedByPackage {
 		sort.Sort(v)
 		opGroup := GenOperationGroup{
 			Name:           k,

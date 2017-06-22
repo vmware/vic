@@ -363,10 +363,7 @@ func (ctx *paramTestContext) assertGenParam(t testing.TB, param spec.Parameter, 
 	}
 	// verify rendered template
 	if param.In == "body" {
-		if !assertBodyParam(t, param, gp) {
-			return false
-		}
-		return true
+		return assertBodyParam(t, param, gp)
 	}
 
 	if ctx.Items != nil {
@@ -854,6 +851,29 @@ func TestGenParameter_Issue809_Server(t *testing.T) {
 	}
 }
 
+func TestGenParameter_Issue1010_Server(t *testing.T) {
+	assert := assert.New(t)
+
+	gen, err := methodPathOpBuilder("get", "/widgets/", "../fixtures/bugs/1010/swagger.yml")
+	if assert.NoError(err) {
+		op, err := gen.MakeOperation()
+		if assert.NoError(err) {
+			buf := bytes.NewBuffer(nil)
+			opts := opts()
+			err := templates.MustGet("serverParameter").Execute(buf, op)
+			if assert.NoError(err) {
+				ff, err := opts.LanguageOpts.FormatContent("get_widgets.go", buf.Bytes())
+				if assert.NoError(err) {
+					res := string(ff)
+					assertInCode(t, "validate.Pattern(fmt.Sprintf(\"%s.%v\", \"category_id\", i), \"query\", categoryIDI, `^[0-9abcdefghjkmnpqrtuvwxyz]{29}$`)", res)
+				} else {
+					fmt.Println(buf.String())
+				}
+			}
+		}
+	}
+}
+
 func TestGenParameter_Issue710(t *testing.T) {
 	assert := assert.New(t)
 
@@ -878,6 +898,8 @@ func TestGenParameter_Issue710(t *testing.T) {
 }
 
 func TestGenParameter_Issue776_LocalFileRef(t *testing.T) {
+	spec.Debug = true
+	defer func() { spec.Debug = false }()
 	b, err := opBuilder("GetItem", "../fixtures/bugs/776/param.yaml")
 	if assert.NoError(t, err) {
 		op, err := b.MakeOperation()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -90,7 +91,8 @@ var FuncMap template.FuncMap = map[string]interface{}{
 		lines := strings.Split(str, "\n")
 		return strings.Join(lines, "\n// ")
 	},
-	"inspect": pretty.Sprint,
+	"inspect":   pretty.Sprint,
+	"cleanPath": path.Clean,
 }
 
 func init() {
@@ -174,6 +176,16 @@ var protectedTemplates = map[string]bool{
 	"discriminatedSerializer":        true,
 }
 
+// AddFile adds a file to the default repository. It will create a new template based on the filename.
+// It trims the .gotmpl from the end and converts the name using swag.ToJSONName. This will strip
+// directory separators and Camelcase the next letter.
+// e.g validation/primitive.gotmpl will become validationPrimitive
+//
+// If the file contains a definition for a template that is protected the whole file will not be added
+func AddFile(name, data string) error {
+	return templates.addFile(name, data, false)
+}
+
 func asJSON(data interface{}) (string, error) {
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -228,10 +240,11 @@ func (t *Repository) LoadDir(templatePath string) error {
 	err := filepath.Walk(templatePath, func(path string, info os.FileInfo, err error) error {
 
 		if strings.HasSuffix(path, ".gotmpl") {
-			assetName := strings.TrimPrefix(path, templatePath)
-			if data, e := ioutil.ReadFile(path); e == nil {
-				if ee := t.AddFile(assetName, string(data)); ee != nil {
-					log.Fatal(ee)
+			if assetName, e := filepath.Rel(templatePath, path); e == nil {
+				if data, e := ioutil.ReadFile(path); e == nil {
+					if ee := t.AddFile(assetName, string(data)); ee != nil {
+						log.Fatal(ee)
+					}
 				}
 			}
 		}

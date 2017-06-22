@@ -54,7 +54,7 @@ var projectsFilter = "customProperties.enableContentTrust eq 'true'"
 type defaultClient struct {
 	mu       sync.Mutex
 	c        *tags.RestClient
-	adm      *admclient.ContainerManagement
+	adm      *admclient.Admiral
 	loggedIn bool
 	sess     *session.Session
 	vm       *vm.VirtualMachine

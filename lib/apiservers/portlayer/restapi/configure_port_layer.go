@@ -145,7 +145,7 @@ func StopAPIServers() {
 // If you need to modify a config, store server instance to stop it individually later, this is the place.
 // This function can be called multiple times, depending on the number of serving schemes.
 // scheme value will be set accordingly: "http", "https" or "unix"
-func configureServer(s *graceful.Server, scheme string) {
+func configureServer(s *graceful.Server, scheme string, addr string) {
 	s.NoSignalHandling = true
 	s.Timeout = stopTimeout
 	apiServers = append(apiServers, s)
