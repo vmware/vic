@@ -33,10 +33,10 @@ Simple volume rm
     Should Not Contain  ${output}  test2
 
 Volume rm when in use
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v test:/test busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v test:/test ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm test
     Should Be Equal As Integers  ${rc}  1
@@ -51,7 +51,7 @@ Volume rm freed up volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test4
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test4
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v test4:/test4 busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -v test4:/test4 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerID}
    Should Be Equal As Integers  ${rc}  0

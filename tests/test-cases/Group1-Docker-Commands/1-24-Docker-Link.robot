@@ -33,10 +33,10 @@ Link and alias
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull debian
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${debian}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 

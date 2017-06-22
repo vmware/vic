@@ -51,9 +51,15 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 		return nil, err
 	}
 
-	dm, err := disk.NewDiskManager(op, s, DetachAll)
+	dm, err := disk.NewDiskManager(op, s)
 	if err != nil {
 		return nil, err
+	}
+
+	if DetachAll {
+		if err = dm.DetachAll(op); err != nil {
+			return nil, err
+		}
 	}
 
 	u, err := util.VolumeStoreNameToURL(storeName)
@@ -100,12 +106,13 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	// Get the path to the disk in datastore uri format
 	volDiskDsURL := v.volDiskDsURL(ID)
 
+	config := disk.NewPersistentDisk(volDiskDsURL).WithCapacity(int64(capacityKB))
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(op, volDiskDsURL, nil, int64(capacityKB), os.O_RDWR, disk.Ext4)
+	vmdisk, err := v.dm.CreateAndAttach(op, config)
 	if err != nil {
 		return nil, err
 	}
-	defer v.dm.Detach(op, vmdisk)
+	defer v.dm.Detach(op, vmdisk.VirtualDiskConfig)
 	vol, err := storage.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
 	if err != nil {
 		return nil, err
@@ -162,7 +169,8 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		// Get the path to the disk in datastore uri format
 		volDiskDsURL := v.volDiskDsURL(ID)
 
-		dev, err := disk.NewVirtualDisk(volDiskDsURL, disk.Ext4)
+		config := disk.NewPersistentDisk(volDiskDsURL)
+		dev, err := disk.NewVirtualDisk(config, v.dm.Disks)
 		if err != nil {
 			return nil, err
 		}

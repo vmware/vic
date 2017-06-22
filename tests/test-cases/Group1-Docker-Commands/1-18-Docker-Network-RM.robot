@@ -27,7 +27,7 @@ Basic network remove
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  test-network
-    
+
 Multiple network remove
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network2
     Should Be Equal As Integers  ${rc}  0
@@ -48,9 +48,9 @@ Remove already removed network
 Remove network with running container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create test-network
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect test-network ${container}
     Should Be Equal As Integers  ${rc}  0
@@ -59,7 +59,7 @@ Remove network with running container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network rm test-network
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: test-network has active endpoints
-    
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
