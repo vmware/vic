@@ -100,7 +100,7 @@ func TestCreateAndDetach(t *testing.T) {
 	_ = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
 
 	op := trace.NewOperation(context.Background(), "test")
-	vdm, err := NewDiskManager(op, client, false)
+	vdm, err := NewDiskManager(op, client)
 	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
@@ -114,7 +114,8 @@ func TestCreateAndDetach(t *testing.T) {
 		Datastore: client.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
-	parent, err := vdm.Create(op, scratch, diskSize, Ext4)
+	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
+	parent, err := vdm.Create(op, config)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -132,7 +133,8 @@ func TestCreateAndDetach(t *testing.T) {
 			Path:      path.Join(imagestore.Path, fmt.Sprintf("child%d.vmdk", i)),
 		}
 
-		child, cerr := vdm.CreateAndAttach(op, p, parent.DatastoreURI, 0, os.O_RDWR, Ext4)
+		config := NewPersistentDisk(p).WithParent(parent.DatastoreURI)
+		child, cerr := vdm.CreateAndAttach(op, config)
 		if !assert.NoError(t, cerr) {
 			return
 		}
@@ -177,7 +179,7 @@ func TestCreateAndDetach(t *testing.T) {
 
 		f.Close()
 
-		cerr = vdm.Detach(op, child)
+		cerr = vdm.Detach(op, config)
 		if !assert.NoError(t, cerr) {
 			return
 		}
@@ -222,7 +224,7 @@ func TestRefCounting(t *testing.T) {
 	_ = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
 
 	op := trace.NewOperation(context.Background(), "test")
-	vdm, err := NewDiskManager(op, client, false)
+	vdm, err := NewDiskManager(op, client)
 	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
@@ -236,7 +238,8 @@ func TestRefCounting(t *testing.T) {
 		Datastore: client.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
-	p, err := vdm.Create(op, scratch, diskSize, Ext4)
+	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
+	p, err := vdm.Create(op, config)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -247,18 +250,17 @@ func TestRefCounting(t *testing.T) {
 		Datastore: imagestore.Datastore,
 		Path:      path.Join(imagestore.Path, "testDisk.vmdk"),
 	}
-
-	spec := vdm.createDiskSpec(child, scratch, diskSize, os.O_RDWR)
+	config = NewPersistentDisk(child).WithParent(scratch)
 
 	// attempt attach
-	assert.NoError(t, vdm.Attach(op, spec), "Error attempting to attach %s", spec)
+	assert.NoError(t, vdm.attach(op, config), "Error attempting to attach %s", config)
 
 	devicePath, err := vdm.devicePathByURI(op, child)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	d, err := NewVirtualDisk(child, Ext4)
+	d, err := NewVirtualDisk(config, vdm.Disks)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -289,7 +291,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 2, d.attachedRefs, "%s has %d attach references but should have 2", d.DatastoreURI, d.attachedRefs)
 
 	// reduce reference count by calling detach
-	assert.NoError(t, d.setDetached(), "Error attempting to mark %s as detached", d.DatastoreURI)
+	assert.NoError(t, d.setDetached(vdm.Disks), "Error attempting to mark %s as detached", d.DatastoreURI)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
@@ -349,7 +351,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 0, d.mountedRefs, "%s has %d mount references but should have 0", d.DatastoreURI, d.mountedRefs)
 
 	// detach
-	assert.NoError(t, vdm.Detach(op, d), "Error attempting to detach %s", d.DatastoreURI)
+	assert.NoError(t, vdm.Detach(op, config), "Error attempting to detach %s", d.DatastoreURI)
 
 	assert.False(t, d.Attached(), "%s is attached but should not be", d.DatastoreURI)
 	assert.False(t, d.Mounted(), "%s is mounted but should not be", d.DatastoreURI)

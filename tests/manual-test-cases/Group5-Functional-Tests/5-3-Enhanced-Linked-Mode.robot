@@ -61,6 +61,8 @@ Test
 
     # Finish test bed deploy
     ${output}=  Wait For Process  ${pid}
+    Log  ${output.stdout}
+    Log  ${output.stderr}
     Should Be Equal As Integers  ${output.rc}  0
     ${output}=  Split To Lines  ${output.stdout}
     :FOR  ${line}  IN  @{output}

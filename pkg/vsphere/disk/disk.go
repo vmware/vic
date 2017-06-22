@@ -21,9 +21,6 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/pkg/fs"
 )
 
 // FilesystemType represents the filesystem in use by a virtual disk
@@ -48,26 +45,11 @@ type Filesystem interface {
 	Unmount(path string) error
 }
 
-// FilesystemTypeToFilesystem returns a new Filesystem implementation
-// associated with the supplied FilesystemType
-func FilesystemTypeToFilesystem(fstype FilesystemType) Filesystem {
-	switch fstype {
-	case Xfs:
-		return fs.NewXFS()
-	default:
-		return fs.NewExt4()
-	}
-}
-
 // VirtualDisk represents a VMDK in the datastore, the device node it may be
 // attached at (if it's attached), the mountpoint it is mounted at (if
 // mounted), and other configuration.
 type VirtualDisk struct {
-	// The URI in the datastore this disk can be found with
-	DatastoreURI *object.DatastorePath
-
-	// The URI in the datastore to the parent of this disk
-	ParentDatastoreURI *object.DatastorePath
+	*VirtualDiskConfig
 
 	// The device node the disk is attached to
 	DevicePath string
@@ -81,32 +63,27 @@ type VirtualDisk struct {
 	mountedRefs int
 
 	attachedRefs int
-
-	fs Filesystem
 }
 
 // NewVirtualDisk creates and returns a new VirtualDisk object associated with the
 // given datastore formatted with the specified FilesystemType
-func NewVirtualDisk(DatastoreURI *object.DatastorePath, fst FilesystemType) (*VirtualDisk, error) {
-	if err := VerifyDatastoreDiskURI(DatastoreURI.String()); err != nil {
-		return nil, err
+func NewVirtualDisk(config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*VirtualDisk, error) {
+	if !strings.HasSuffix(config.DatastoreURI.String(), ".vmdk") {
+		return nil, fmt.Errorf("%s isn't a vmdk", config.DatastoreURI.String())
 	}
+
+	if d, ok := disks[config.Hash()]; ok {
+		log.Debugf("Found the disk %s in the DiskManager cache, using it", config.DatastoreURI)
+		return d, nil
+	}
+	log.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
 
 	d := &VirtualDisk{
-		DatastoreURI: DatastoreURI,
-		// We only support ext4 for now
-		fs: FilesystemTypeToFilesystem(fst),
+		VirtualDiskConfig: config,
 	}
+	disks[config.Hash()] = d
 
 	return d, nil
-}
-
-func (d *VirtualDisk) lock() {
-	d.l.Lock()
-}
-
-func (d *VirtualDisk) unlock() {
-	d.l.Unlock()
 }
 
 func (d *VirtualDisk) setAttached(devicePath string) (err error) {
@@ -118,7 +95,7 @@ func (d *VirtualDisk) setAttached(devicePath string) (err error) {
 		}
 	}()
 
-	if d.Attached() {
+	if d.attached() {
 		log.Warnf("%s is already attached (%s)", d.DatastoreURI, devicePath)
 		return nil
 	}
@@ -134,31 +111,39 @@ func (d *VirtualDisk) setAttached(devicePath string) (err error) {
 }
 
 func (d *VirtualDisk) canBeDetached() error {
-	if !d.Attached() {
+	if !d.attached() {
 		return fmt.Errorf("%s is already detached", d.DatastoreURI)
 	}
 
-	if d.Mounted() {
+	if d.mounted() {
 		return fmt.Errorf("%s is mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
-	if d.InUseByOther() {
+	if d.inUseByOther() {
 		return fmt.Errorf("%s is still in use", d.DatastoreURI)
 	}
 
 	return nil
 }
 
-func (d *VirtualDisk) setDetached() error {
-	if !d.Attached() {
+func (d *VirtualDisk) setDetached(disks map[uint64]*VirtualDisk) error {
+	defer func() {
+		if d.attachedRefs == 0 {
+			log.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
+
+			delete(disks, d.Hash())
+		}
+	}()
+
+	if !d.attached() {
 		return fmt.Errorf("%s is already detached", d.DatastoreURI)
 	}
 
-	if d.Mounted() {
+	if d.mounted() {
 		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
-	if !d.AttachedByOther() {
+	if !d.attachedByOther() {
 		d.DevicePath = ""
 	} else {
 		log.Warnf("%s is still in use", d.DatastoreURI)
@@ -171,57 +156,85 @@ func (d *VirtualDisk) setDetached() error {
 
 // Mkfs formats the disk with Filesystem and sets the disk label
 func (d *VirtualDisk) Mkfs(labelName string) error {
-	d.lock()
-	defer d.unlock()
+	d.l.Lock()
+	defer d.l.Unlock()
 
-	if !d.Attached() {
+	if !d.attached() {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
-	if d.Mounted() {
-		return fmt.Errorf("%s is mounted mounted", d.DatastoreURI)
+	if d.mounted() {
+		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
-	return d.fs.Mkfs(d.DevicePath, labelName)
+	return d.Filesystem.Mkfs(d.DevicePath, labelName)
 }
 
 // SetLabel sets this disk's label
 func (d *VirtualDisk) SetLabel(labelName string) error {
-	d.lock()
-	defer d.unlock()
+	d.l.Lock()
+	defer d.l.Unlock()
 
-	if !d.Attached() {
+	if !d.attached() {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
-	return d.fs.SetLabel(d.DevicePath, labelName)
+	return d.Filesystem.SetLabel(d.DevicePath, labelName)
+}
+
+func (d *VirtualDisk) attached() bool {
+	return d.DevicePath != ""
 }
 
 // Attached returns true if this disk is attached, false otherwise
 func (d *VirtualDisk) Attached() bool {
-	return d.DevicePath != ""
+	d.l.Lock()
+	defer d.l.Unlock()
+
+	return d.attached()
+}
+
+func (d *VirtualDisk) attachedByOther() bool {
+	return d.attachedRefs > 1
 }
 
 // AttachedByOther returns true if the attached references are > 1
 func (d *VirtualDisk) AttachedByOther() bool {
-	return d.attachedRefs > 1
+	d.l.Lock()
+	defer d.l.Unlock()
+
+	return d.attachedByOther()
+}
+
+func (d *VirtualDisk) mountedByOther() bool {
+	return d.mountedRefs > 1
 }
 
 // MountedByOther returns true if the mounted references are > 1
 func (d *VirtualDisk) MountedByOther() bool {
-	return d.mountedRefs > 1
+	d.l.Lock()
+	defer d.l.Unlock()
+
+	return d.mountedByOther()
+}
+
+func (d *VirtualDisk) inUseByOther() bool {
+	return d.mountedByOther() || d.attachedByOther()
 }
 
 // InUseByOther returns true if the disk is currently attached or
 // mounted by someone else
 func (d *VirtualDisk) InUseByOther() bool {
-	return d.MountedByOther() || d.AttachedByOther()
+	d.l.Lock()
+	defer d.l.Unlock()
+
+	return d.inUseByOther()
 }
 
 // Mount attempts to mount this disk. A NOP occurs if the disk is already mounted
 func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
-	d.lock()
-	defer d.unlock()
+	d.l.Lock()
+	defer d.l.Unlock()
 
 	defer func() {
 		// bump mounted reference count
@@ -229,18 +242,18 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
 		log.Debugf("Increased mount references for %s to %d", d.DatastoreURI, d.mountedRefs)
 	}()
 
-	if d.Mounted() {
-		p, _ := d.MountPath()
+	if d.mounted() {
+		p, _ := d.mountPathFn()
 		log.Warnf("%s already mounted at %s", d.DatastoreURI, p)
 		return nil
 	}
 
-	if !d.Attached() {
+	if !d.attached() {
 		err = fmt.Errorf("%s isn't attached", d.DatastoreURI)
 		return err
 	}
 
-	if err = d.fs.Mount(d.DevicePath, mountPath, options); err != nil {
+	if err = d.Filesystem.Mount(d.DevicePath, mountPath, options); err != nil {
 		return err
 	}
 
@@ -250,10 +263,10 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
 
 // Unmount attempts to unmount a virtual disk
 func (d *VirtualDisk) Unmount() error {
-	d.lock()
-	defer d.unlock()
+	d.l.Lock()
+	defer d.l.Unlock()
 
-	if !d.Mounted() {
+	if !d.mounted() {
 		return fmt.Errorf("%s already unmounted", d.DatastoreURI)
 	}
 
@@ -262,7 +275,7 @@ func (d *VirtualDisk) Unmount() error {
 
 	// no more mount references to this disk, so actually unmount
 	if d.mountedRefs == 0 {
-		if err := d.fs.Unmount(d.mountPath); err != nil {
+		if err := d.Filesystem.Unmount(d.mountPath); err != nil {
 			return err
 		}
 		d.mountPath = ""
@@ -271,19 +284,28 @@ func (d *VirtualDisk) Unmount() error {
 	return nil
 }
 
-// MountPath returns the path on which the virtual disk is mounted,
-// or an error if the disk is not mounted
-func (d *VirtualDisk) MountPath() (string, error) {
-	if !d.Mounted() {
+func (d *VirtualDisk) mountPathFn() (string, error) {
+	if !d.mounted() {
 		return "", fmt.Errorf("%s isn't mounted", d.DatastoreURI)
 	}
 
 	return d.mountPath, nil
 }
 
+// MountPath returns the path on which the virtual disk is mounted,
+// or an error if the disk is not mounted
+func (d *VirtualDisk) MountPath() (string, error) {
+	d.l.Lock()
+	defer d.l.Unlock()
+
+	return d.mountPathFn()
+}
+
 // DiskPath returns a URL referencing the path of the virtual disk
 // on the datastore
 func (d *VirtualDisk) DiskPath() url.URL {
+	d.l.Lock()
+	defer d.l.Unlock()
 
 	return url.URL{
 		Scheme: "ds",
@@ -291,17 +313,24 @@ func (d *VirtualDisk) DiskPath() url.URL {
 	}
 }
 
-// Mounted returns true if the virtual disk is mounted, false otherwise
-func (d *VirtualDisk) Mounted() bool {
+func (d *VirtualDisk) mounted() bool {
 	return d.mountPath != ""
 }
 
+// Mounted returns true if the virtual disk is mounted, false otherwise
+func (d *VirtualDisk) Mounted() bool {
+	d.l.Lock()
+	defer d.l.Unlock()
+
+	return d.mounted()
+}
+
 func (d *VirtualDisk) canBeUnmounted() error {
-	if !d.Attached() {
+	if !d.attached() {
 		return fmt.Errorf("%s is detached", d.DatastoreURI)
 	}
 
-	if !d.Mounted() {
+	if !d.mounted() {
 		return fmt.Errorf("%s is unmounted", d.DatastoreURI)
 	}
 
@@ -309,18 +338,10 @@ func (d *VirtualDisk) canBeUnmounted() error {
 }
 
 func (d *VirtualDisk) setUmounted() error {
-	if !d.Mounted() {
+	if !d.mounted() {
 		return fmt.Errorf("%s already unmounted", d.DatastoreURI)
 	}
 
 	d.mountPath = ""
-	return nil
-}
-
-// VerifyDatastoreDiskURI ensures the disk name ends in ".vmdk"
-func VerifyDatastoreDiskURI(name string) error {
-	if !strings.HasSuffix(name, ".vmdk") {
-		return fmt.Errorf("%s isn't a vmdk", name)
-	}
 	return nil
 }

@@ -69,7 +69,7 @@ func TestCreateFS(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), "test")
 
-	vdm, err := NewDiskManager(op, client, false)
+	vdm, err := NewDiskManager(op, client)
 	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
@@ -82,7 +82,9 @@ func TestCreateFS(t *testing.T) {
 		Datastore: client.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
-	d, err := vdm.CreateAndAttach(op, scratch, nil, diskSize, os.O_RDWR, Ext4)
+
+	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
+	d, err := vdm.CreateAndAttach(op, config)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -121,8 +123,167 @@ func TestCreateFS(t *testing.T) {
 		return
 	}
 
-	err = vdm.Detach(op, d)
+	err = vdm.Detach(op, config)
 	if !assert.NoError(t, err) {
 		return
+	}
+}
+
+func TestAttachFS(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	client := Session(context.Background(), t)
+	if client == nil {
+		return
+	}
+
+	imagestore := &object.DatastorePath{
+		Datastore: client.Datastore.Name(),
+		Path:      datastore.TestName("diskTest"),
+	}
+
+	fm := object.NewFileManager(client.Vim25())
+
+	// create a directory in the datastore
+	// eat the error because we dont care if it exists
+	fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if err != nil && err.Error() == "can't find the hosting vm" {
+			t.Skip("Skipping: test must be run in a VM")
+		}
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	op := trace.NewOperation(context.TODO(), "test")
+
+	vdm, err := NewDiskManager(op, client)
+	if err != nil && err.Error() == "can't find the hosting vm" {
+		t.Skip("Skipping: test must be run in a VM")
+	}
+	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
+		return
+	}
+
+	diskSize := int64(1 << 10)
+	scratch := &object.DatastorePath{
+		Datastore: client.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
+	}
+
+	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
+	d, err := vdm.CreateAndAttach(op, config)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// make the filesysetem
+	if err = d.Mkfs("foo"); !assert.NoError(t, err) {
+		return
+	}
+
+	// set the label
+	if err = d.SetLabel("foo"); !assert.NoError(t, err) {
+		return
+	}
+
+	// make a tempdir to mount the fs to
+	dir, err := ioutil.TempDir("", "mnt")
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer os.RemoveAll(dir)
+
+	// do the mount
+	err = d.Mount(dir, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// boom
+	if mounted, err := mount.Mounted(dir); !assert.NoError(t, err) || !assert.True(t, mounted) {
+		return
+	}
+
+	//  clean up
+	err = d.Unmount()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	err = vdm.Detach(op, config)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	child := &object.DatastorePath{
+		Datastore: client.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "child.vmdk"),
+	}
+
+	config = NewPersistentDisk(child).WithParent(scratch)
+	d, err = vdm.CreateAndAttach(op, config)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// do the mount
+	err = d.Mount(dir, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// boom
+	if mounted, err := mount.Mounted(dir); !assert.NoError(t, err) || !assert.True(t, mounted) {
+		return
+	}
+
+	//  clean up
+	err = d.Unmount()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	err = vdm.Detach(op, config)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	for i := 0; i < 5; i++ {
+		config = NewPersistentDisk(child)
+		d, err = vdm.CreateAndAttach(op, config)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// do the mount
+		err = d.Mount(dir, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// boom
+		if mounted, err := mount.Mounted(dir); !assert.NoError(t, err) || !assert.True(t, mounted) {
+			return
+		}
+
+		//  clean up
+		err = d.Unmount()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		err = vdm.Detach(op, config)
+		if !assert.NoError(t, err) {
+			return
+		}
 	}
 }

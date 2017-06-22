@@ -23,7 +23,7 @@ Simple docker volume create
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create
     Should Be Equal As Integers  ${rc}  0
     Set Suite Variable  ${ContainerName}  unnamedSpecVolContainer
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata ${busybox} /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
@@ -37,7 +37,7 @@ Docker volume create named volume
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test
     Set Suite Variable  ${ContainerName}  specVolContainer
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata ${busybox} /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
@@ -59,7 +59,7 @@ Docker volume create image volume
 
 Docker volume create anonymous volume
     Set Suite Variable  ${ContainerName}  anonVolContainer
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v /mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v /mydata ${busybox} /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
@@ -93,7 +93,7 @@ Docker volume create with mis-capitalized valid driver option
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test4
     Set Suite Variable  ${ContainerName}  capacityVolContainer
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata ${busybox} /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
@@ -107,7 +107,7 @@ Docker volume create with specific capacity no units
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test5
     Set Suite Variable  ${ContainerName}  capacityVolContainer2
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata ${busybox} /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
@@ -121,7 +121,7 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  unitVol1
     Set Suite Variable  ${ContainerName}  unitContainer
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata ${busybox} /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
@@ -132,7 +132,7 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  unitVol2
     Set Suite Variable  ${ContainerName}  unitContainer2
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${output}:/mydata ${busybox} /bin/df -Ph
     Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
