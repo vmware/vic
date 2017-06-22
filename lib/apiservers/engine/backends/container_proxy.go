@@ -54,6 +54,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	dnetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/pkg/stringid"
@@ -1394,7 +1395,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			SizeRw:          nil,
 			SizeRootFs:      nil,
 		},
-		Mounts:          mountsFromContainerInfo(vc, info, portlayerName),
+		Mounts:          mountsFromContainerInfo(vc, info),
 		Config:          containerConfigFromContainerInfo(vc, info),
 		NetworkSettings: networkFromContainerInfo(vc, info),
 	}
@@ -1494,27 +1495,39 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 }
 
 // mountsFromContainerInfo()
-func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo, portlayerName string) []types.MountPoint {
+func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) []types.MountPoint {
 	if vc == nil || info == nil {
 		return nil
 	}
 
+	// Iterate through info.VolumeConfig and build the hostconfig.bind config.volumes
+
+	// Derive the mount data
 	var mounts []types.MountPoint
 
-	for _, vConfig := range info.VolumeConfig {
-		// Fill with defaults
+	rawAnonVolumes := make([]string, 0, len(vc.Config.Volumes))
+	for k := range vc.Config.Volumes {
+		rawAnonVolumes = append(rawAnonVolumes, k)
+	}
+
+	volList, err := finalizeVolumeList(vc.HostConfig.Binds, rawAnonVolumes)
+	if err != nil {
+		return mounts
+	}
+
+	for _, vol := range volList {
 		mountConfig := types.MountPoint{
-			Destination: "",
-			Driver:      portlayerName,
-			Mode:        "",
-			Propagation: "",
+			Type:        mount.TypeVolume,
+			Driver:      DefaultVolumeDriver,
+			Name:        vol.ID,
+			Source:      vol.ID,
+			Destination: vol.Dest,
+			RW:          false,
 		}
 
-		// Fill with info from portlayer
-		mountConfig.Name = vConfig.MountPoint
-		mountConfig.Source = vConfig.MountPoint
-		mountConfig.RW = vConfig.ReadWrite
-
+		if strings.Contains(strings.ToLower(vol.Flags), "rw") {
+			mountConfig.RW = true
+		}
 		mounts = append(mounts, mountConfig)
 	}
 
