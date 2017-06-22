@@ -82,7 +82,7 @@ Basic Whitelisting
     Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from docker hub (should fail)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=vmware!123
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=${DOCKER_PASSWORD}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Access denied to unauthorized registry
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/busybox

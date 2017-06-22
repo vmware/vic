@@ -20,7 +20,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Compose LEMP Server
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=vmware!123
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{DOCKER_PASSWORD}
     Should Be Equal As Integers  ${rc}  0
 
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
