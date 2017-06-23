@@ -1024,7 +1024,7 @@ func bindMount(src, target string) error {
 
 	// bind mount src to target
 	log.Infof("bind-mounting %s on %s", src, target)
-	if err := Sys.Syscall.Mount(src, target, ext4FileSystemType, syscall.MS_BIND, ""); err != nil {
+	if err := Sys.Syscall.Mount(src, target, "bind", syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)
 	}
 
@@ -1045,4 +1045,29 @@ func bindMountAndSave(target string, conf etcconf.Conf) error {
 	src := conf.Path()
 
 	return bindMount(src, target)
+}
+
+// Create necessary folders/files as the src/target for bind mount.
+// See https://github.com/vmware/vic/issues/489
+func createBindSrcTarget(files map[string]os.FileMode) error {
+	// The directory has to exist before creating the new file
+	for filePath, fmode := range files {
+		dir := path.Dir(filePath)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			// #nosec: Expect file permissions to be 0600 or less
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %s", dir, err)
+			}
+		}
+		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
+		if err != nil {
+			return fmt.Errorf("failed to open file %s: %s", filePath, err)
+		}
+
+		if err = f.Close(); err != nil {
+			return fmt.Errorf("failed to close file %s: %s", filePath, err)
+		}
+	}
+
+	return nil
 }
