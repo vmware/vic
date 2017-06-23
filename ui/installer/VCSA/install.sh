@@ -17,11 +17,14 @@
 cleanup () {
     unset VCENTER_ADMIN_USERNAME
     unset VCENTER_ADMIN_PASSWORD
-    unset BASH_ENABLED_ON_VCSA
-    if [[ -f tmp.txt ]] ; then
-        rm tmp.txt
-    fi
 }
+
+echo "-------------------------------------------------------------"
+echo "This script will install vSphere Integrated Containers plugin"
+echo "for vSphere Client (HTML) and vSphere Web Client (Flex)."
+echo ""
+echo "Please provide connection information to the vCenter Server."
+echo "-------------------------------------------------------------"
 
 # check for the configs file
 if [[ ! -f "configs" ]] ; then
@@ -36,14 +39,10 @@ while IFS='' read -r line; do
     eval $line
 done < ./configs
 
-# check for the VC IP
-if [[ $VCENTER_IP == "" ]] ; then
-    echo "Error! vCenter IP cannot be empty. Please provide a valid IP in the configs file"
-    cleanup
-    exit 1
-fi
+# replace space delimiters with colon delimiters 
+VIC_UI_HOST_THUMBPRINT=$(echo $VIC_UI_HOST_THUMBPRINT | sed -e 's/[[:space:]]/\:/g')
 
-# check for the pllugin manifest file
+# check for the plugin manifest file
 if [[ ! -f ../plugin-manifest ]] ; then
     echo "Error! Plugin manifest was not found!"
     cleanup
@@ -55,227 +54,191 @@ while IFS='' read -r p_line; do
     eval "$p_line"
 done < ../plugin-manifest
 
+read -p "Enter IP to target vCenter Server: " VCENTER_IP
 read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
 echo -n "Enter your vCenter Administrator Password: "
 read -s VCENTER_ADMIN_PASSWORD
 echo ""
 
-BASH_ENABLED_ON_VCSA=1
-
-if [[ $VIC_UI_HOST_URL = "NOURL" ]] ; then
-    echo "----------------------------------------"
-    echo "Checking if VCSA has Bash shell enabled..."
-    echo "Please enter the root password"
-    echo "----------------------------------------"
-
-    ssh root@$VCENTER_IP -t "scp" > tmp.txt 2>&1
-    if [[ $(cat tmp.txt | grep -i "unknown command") ]] ; then
-        BASH_ENABLED_ON_VCSA=0
-    elif [[ $(cat tmp.txt | grep -i "Permission denied (publickey,password).") ]] ; then
-        echo "----------------------------------------"
-        echo "Error! Root password is incorrect"
-        cleanup
-        exit 1
-    elif [[ $SIMULATE_NO_BASH_SUPPORT -eq 1 ]] ; then
-        BASH_ENABLED_ON_VCSA=0
-    fi
-fi
-
 OS=$(uname)
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
 COMMONFLAGS="--target $VCENTER_SDK_URL --user $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
-OLD_PLUGIN_FOLDERS=""
-FORCE_INSTALL=""
-WEBCLIENT_PLUGINS_FOLDER=""
 
 case $1 in
     "-f")
-        COMMONFLAGS="$COMMONFLAGS --force"
+        FORCE_INSTALL=1
         ;;
     "--force")
-        COMMONFLAGS="$COMMONFLAGS --force"
+        FORCE_INSTALL=1
         ;;
 esac
 
+# set binary to call based on os
 if [[ $(echo $OS | grep -i "darwin") ]] ; then
     PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
 else
     PLUGIN_MANAGER_BIN="../../vic-ui-linux"
 fi
 
-if [[ $VIC_UI_HOST_URL != 'NOURL' ]] ; then
-    if [[ ${VIC_UI_HOST_URL: -1: 1} != "/" ]] ; then
-        VIC_UI_HOST_URL="$VIC_UI_HOST_URL/"
-    fi
+# add a forward slash to VIC_UI_HOST_URL in case it misses it
+if [[ ${VIC_UI_HOST_URL: -1: 1} != "/" ]] ; then
+    VIC_UI_HOST_URL="$VIC_UI_HOST_URL/"
 fi
 
+prompt_thumbprint_verification() {
+    read -p "Are you sure you trust the authenticity of this host (yes/no)? " SHOULD_ACCEPT_VC_FINGERPRINT
+    if [[ ! $(echo $SHOULD_ACCEPT_VC_FINGERPRINT | grep -woi "yes\|no") ]] ; then
+        echo Please answer either \"yes\" or \"no\"
+        prompt_thumbprint_verification
+        return
+    fi
+
+    if [[ $SHOULD_ACCEPT_VC_FINGERPRINT = "no" ]] ; then
+        read -p "Enter SHA-1 thumbprint of target VC: " VC_THUMBPRINT
+    fi
+}
+
 check_prerequisite () {
-    # if PLUGIN_TYPE is not specified default to html5 plugin
-    if [[ $PLUGIN_TYPE = 'flex' ]] ; then
-        PLUGIN_TYPE=flex
-        if [[ $IS_VCENTER_5_5 -eq 1 ]] ; then
-            WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-        else
-            WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-        fi
-        key=$key_flex
-    else
-        PLUGIN_TYPE=html5
-        WEBCLIENT_PLUGINS_FOLDER="/usr/lib/vmware-vsphere-ui/plugin-packages/"
-        key=$key_h5c
-    fi
-
-    if [[ $VIC_UI_HOST_URL = "NOURL" ]] ; then
-        if [[ $PLUGIN_TYPE = "html5" ]] ; then
-            plugin_folder="plugin-packages"
-        else
-            plugin_folder="vsphere-client-serenity"
-        fi
-
-        if [[ ! -d ../$plugin_folder ]] ; then
-            echo "Error! VIC UI plugin bundle was not found. Please try downloading the VIC UI installer again"
-            cleanup
-            exit 1
-        fi
-    fi
-
-    if [[ $(curl -v --head https://$VCENTER_IP -k 2>&1 | grep -i "could not resolve host") ]] ; then
-        echo "Error! Could not resolve the hostname. Please make sure you set VCENTER_IP correctly in the configuration file"
+    # check if the provided VCENTER_IP is a valid vCenter Server host
+    local CURL_RESPONSE=$(curl -sLk https://$VCENTER_IP)
+    if [[ ! $(echo $CURL_RESPONSE | grep -oi "vmware vsphere") ]] ; then
+        echo "-------------------------------------------------------------"
+        echo "Error! vCenter Server was not found at host $VCENTER_IP"
         cleanup
         exit 1
     fi
+
+    # retrieve VC thumbprint
+    VC_THUMBPRINT=$($PLUGIN_MANAGER_BIN info $COMMONFLAGS --key com.vmware.vic.noop 2>&1 | grep -o "(thumbprint.*)" | awk -F= '{print $2}' | sed 's/.$//')
+
+    # verify the thumbprint of VC
+    echo ""
+    echo "SHA-1 key fingerprint of host '$VCENTER_IP' is '$VC_THUMBPRINT'"
+    prompt_thumbprint_verification
+
+    # replace space delimiters with colon delimiters
+    VC_THUMBPRINT=$(echo $VC_THUMBPRINT | sed -e 's/[[:space:]]/\:/g')
 }
 
 # purpose of this function is to remove an outdated version of vic ui in case it's installed
 remove_old_key_installation () {
-    if [[ ! $(ls -la ../vsphere-client-serenity/ | grep -i "com.vmware.vicui") ]] ; then
-        $PLUGIN_MANAGER_BIN remove $COMMONFLAGS --key com.vmware.vicui.Vicui > /dev/null
-    fi
+    $PLUGIN_MANAGER_BIN remove $COMMONFLAGS --force --key com.vmware.vicui.Vicui > /dev/null 2> /dev/null
 }
 
-parse_and_register_plugins () {
-    local plugin_url=$VIC_UI_HOST_URL
-    local plugin_flags="--key $key --name $name --version $version --summary $summary --company $company --url $plugin_url"
-
-    if [[ $VIC_UI_HOST_URL != "NOURL" ]] ; then
-        #TODO: factor these in integration test 18-1
-        if [[ ! $(echo ${VIC_UI_HOST_URL:0:5} | grep -i "https") ]] ; then
-            echo "-------------------------------------------------------------"
-            echo "Error! VIC_UI_HOST_URL should always start with 'https' in the configs file"
-            cleanup
-            exit 1
-        fi
-
-        if [[ -z $VIC_UI_HOST_THUMBPRINT ]] ; then
-            echo "-------------------------------------------------------------"
-            echo "Error! Please provide VIC_UI_HOST_THUMBPRINT in the configs file"
-            cleanup
-            exit 1
-        fi
-            
-        local plugin_flags="$plugin_flags$key-v$version.zip --server-thumbprint $VIC_UI_HOST_THUMBPRINT"
+register_plugin() {
+    local plugin_name=$1
+    local plugin_key=$2
+    local plugin_url="${VIC_UI_HOST_URL}files/"
+    local plugin_flags="--version $version --summary $summary --company $company --url $plugin_url$plugin_key-v$version.zip"
+    if [[ $FORCE_INSTALL -eq 1 ]] ; then
+        plugin_flags="$plugin_flags --force"
     fi
 
-    echo "----------------------------------------"
-    echo "Registering vCenter Server Extension..."
-    echo "----------------------------------------"
+    echo "-------------------------------------------------------------"
+    echo "Preparing to register vCenter Extension $1..."
+    echo "-------------------------------------------------------------"
 
-    if [[ $OLD_PLUGIN_FOLDERS -eq "" ]] ; then
-        OLD_PLUGIN_FOLDERS="$key-*"
-    else
-        OLD_PLUGIN_FOLDERS="$OLD_PLUGIN_FOLDERS $key-*"
-    fi
-
-    $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags
-
+    $PLUGIN_MANAGER_BIN install --key $plugin_key \
+                                --name $plugin_name $COMMONFLAGS $plugin_flags \
+                                --thumbprint $VC_THUMBPRINT \
+                                --server-thumbprint $VIC_UI_HOST_THUMBPRINT
     if [[ $? > 0 ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! Could not register plugin with vCenter Server. Please see the message above"
         cleanup
         exit 1
     fi
+    echo ""
 }
 
-upload_packages () {
-    if [[ $BASH_ENABLED_ON_VCSA -eq 1 ]] ; then
-        echo "-------------------------------------------------------------"
-        echo "Copying plugin contents to the vSphere Web Client..."
-        echo "Please enter the root password of vSphere Client Appliance"
-        echo "-------------------------------------------------------------"
+parse_and_register_plugins () {
+    echo ""
+    if [[ $FORCE_INSTALL -eq 1 ]] ; then
+        register_plugin $name-FlexClient $key_flex
+        register_plugin $name-H5Client $key_h5c
+        return
+    fi
 
-        scp -qr ../$plugin_folder/$key-v$version root@$VCENTER_IP:/tmp/
-        if [[ $? > 0 ]] ; then
-            echo "Error! Could not upload the VIC plugins to the target VCSA"
-            cleanup
-            exit 1
-        fi
-    else
-        echo "-------------------------------------------------------------"
-        echo "WARNING!! Bash shell is required to complete the installation"
-        echo "automatically, however it is not enabled on this machine."
-        echo "Installation cannot be completed automatically. Please follow the"
-        echo "steps below, or refer to instructions in the UI installation guide."
-        echo ""
-        echo ""
-        echo "1) Make the {vic_extracted_folder}/ui/plugin-packages folder"
-        echo "   accessible by SSH on the system where you are running this script."
-        echo ""
-        echo "2) Connect to the target VCSA using the root account"
-        echo ""
-        echo "3) When greeted with the \"Command>\" prompt, type the following in order:"
-        echo "   shell.set --enabled True"
-        echo "   shell"
-        echo ""
-        echo "4) \"scp\" the folder mentioned in 1) to /usr/lib/vmware-vsphere-ui/plugin-packages/"
-        echo "   on the target VCSA's location. Create any missing folder missing if any"
-        echo ""
-        echo "5) Change owner of the plugin-packages folder by typing the following command:"
-        echo "   chown -R vsphere-ui:root /usr/lib/vmware-vsphere-ui/plugin-packages"
-        echo ""
-        echo "6) When all done, log out of the shell and log into the vSphere Client"
+    echo "-------------------------------------------------------------"
+    echo "Checking existing plugins..."
+    echo "-------------------------------------------------------------"
+    local check_h5c=$($PLUGIN_MANAGER_BIN info $COMMONFLAGS --key $key_h5c --thumbprint $VC_THUMBPRINT 2>&1)
+    local check_flex=$($PLUGIN_MANAGER_BIN info $COMMONFLAGS --key $key_flex --thumbprint $VC_THUMBPRINT 2>&1)
 
-        cleanup
+    if [[ $(echo $check_h5c | grep -oi "fail\|error") ]] ; then
+        echo $check_h5c
+        echo "Error! Failed to check the status of plugin. Please see the message above"
         exit 1
     fi
-}
 
-update_ownership () {
-    echo "--------------------------------------------------------------"
-    echo "Updating ownership of the plugin folders..."
-    echo "Please enter the root password"
-    echo "--------------------------------------------------------------"
-    local SSH_COMMANDS_STR="mkdir -p $WEBCLIENT_PLUGINS_FOLDER; cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $OLD_PLUGIN_FOLDERS; cp -rf /tmp/$key-v$version $WEBCLIENT_PLUGINS_FOLDER"
-    if [[ $PLUGIN_TYPE == "flex" ]] ; then
-        if [[ ! $IS_VCENTER_5_5 -eq 1 ]] ; then
-            local SSH_COMMANDS_STR="$SSH_COMMANDS_STR; chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
-        fi
-    else
-        local SSH_COMMANDS_STR="$SSH_COMMANDS_STR; chown -R vsphere-ui:root $WEBCLIENT_PLUGINS_FOLDER"
+    if [[ $(echo $check_flex | grep -oi "fail\|error") ]] ; then
+        echo $check_flex
+        echo "Error! Failed to check the status of plugin. Please see the message above"
+        exit 1
     fi
 
-    ssh -t root@$VCENTER_IP $SSH_COMMANDS_STR
-    if [[ $? > 0 ]] ; then
+    local h5c_plugin_version=$(echo $check_h5c | grep -oi "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")
+    local flex_plugin_version=$(echo $check_flex | grep -oi "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")
+    local existing_version=""
+
+    if [[ -z $(echo $h5c_plugin_version$flex_plugin_version) ]] ; then
+        echo "No VIC Engine UI plugin was detected. Continuing to install the plugins."
+        echo ""
+        register_plugin $name-FlexClient $key_flex
+        register_plugin $name-H5Client $key_h5c
+    else
+        # assuming user always keeps the both plugins at the same version
+        if [[ $(echo $check_h5c | grep -oi "is registered") ]] ; then
+            echo "Plugin with key '$key_h5c' is already registered with VC. (Version: $h5c_plugin_version)"
+        fi
+
+        if [[ $(echo $check_flex | grep -oi "is registered") ]] ; then
+            echo "Plugin with key '$key_flex' is already registered with VC (Version: $flex_plugin_version)"
+        fi
+
         echo "-------------------------------------------------------------"
-        echo "Error! Failed to finalize the plugin installation."
-        cleanup
+        echo "Error! At least one plugin is already registered with the target VC."
+        echo "Run upgrade.sh, or install.sh --force instead."
+        echo ""
         exit 1
     fi
 }
 
 verify_plugin_url() {
-    local PLUGIN_BASENAME=$key-v$version.zip
-    local CURL_RESPONSE=$(curl -v --head $VIC_UI_HOST_URL$PLUGIN_BASENAME -k 2>&1)
-    local RESPONSE_STATUS=$(echo $CURL_RESPONSE | grep -E "HTTP\/.*\s4\d{2}\s.*")
+    local plugin_key=$1
+    local PLUGIN_BASENAME=$plugin_key-v$version.zip
 
-    if [[ $(echo $CURL_RESPONSE | grep -i "could not resolve host") ]] ; then
+    if [[ $BYPASS_PLUGIN_VERIFICATION ]] ; then
+        return
+    fi
+
+    if [[ ! $(echo ${VIC_UI_HOST_URL:0:5} | grep -i "https") ]] ; then
+        echo "-------------------------------------------------------------"
+        echo "Error! VIC_UI_HOST_URL should always start with 'https' in the configs file"
+        cleanup
+        exit 1
+    fi
+
+    if [[ -z $VIC_UI_HOST_THUMBPRINT ]] ; then
+        echo "-------------------------------------------------------------"
+        echo "Error! Please provide VIC_UI_HOST_THUMBPRINT in the configs file"
+        cleanup
+        exit 1
+    fi
+
+    local CURL_RESPONSE=$(curl --head $VIC_UI_HOST_URL$PLUGIN_BASENAME -k 2>&1)
+
+    if [[ $(echo $CURL_RESPONSE | grep -i "could not resolve\|fail") ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! Could not resolve the host provided. Please make sure the URL is correct"
         cleanup
         exit 1
+    fi
 
-    elif [[ ! $(echo $RESPONSE_STATUS | wc -w) -eq 0 ]] ; then
+    local RESPONSE_STATUS=$(echo $CURL_RESPONSE | grep -i "HTTP" | grep "4[[:digit:]][[:digit:]]\|500")
+    if [[ $(echo $RESPONSE_STATUS | grep -oi "404") ]] ; then
         echo "-------------------------------------------------------------"
-        echo "Error! Plugin was not found in the web server. Please make sure you have uploaded \"$PLUGIN_BASENAME\" to \"$VIC_UI_HOST_URL\", and retry installing the plugin"
+        echo "Error! Plugin bundle was not found. Please make sure \"$PLUGIN_BASENAME\" is available at \"$VIC_UI_HOST_URL\", and retry installing the plugin"
         cleanup
         exit 1
     fi
@@ -283,18 +246,12 @@ verify_plugin_url() {
 
 check_prerequisite
 remove_old_key_installation
-
-if [[ $VIC_UI_HOST_URL = "NOURL" ]] ; then
-    parse_and_register_plugins
-    upload_packages
-    update_ownership
-else
-    verify_plugin_url
-    parse_and_register_plugins
-fi
+verify_plugin_url $key_flex
+verify_plugin_url $key_h5c
+parse_and_register_plugins
 
 cleanup
 
 echo "--------------------------------------------------------------"
-echo "VIC UI registration was successful"
+echo "VIC Engine UI installer exited successfully"
 echo ""
