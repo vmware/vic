@@ -65,3 +65,8 @@ Commit with author and message
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  "Author" : "Robot"
     Should Contain  ${output}  "Comment" : "Robot made a commit"
+
+Commit to nonexistent container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} commit -c "ENV TEST commitEnvTest" fakeContainer image-fake
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Error response from daemon: No such container: fakeContainer

@@ -19,6 +19,7 @@ This test requires that a vSphere server is running and available
 6. Start a new container based on the new image, checking that the environment variable is set
 7. Attempt to commit an unsupported command into the image like `RUN`
 8. Stop the container and commit another environment variable into the image with the author set and commit message set
+9. Attempt to commit to a container that doesn't exist
 
 # Expected Outcome:
 * Steps 1-3 should succeed
@@ -27,6 +28,7 @@ This test requires that a vSphere server is running and available
 * Step 7 should return an error:
 `Error response from daemon: run is not a valid change command`
 * Step 8 should be able to be verified that the author and message are set when you inspect the image afterwards
+* Step 9 should return error and indicate the container does not exist
 
 # Possible Problems:
 * This test relies on our implementation of docker exec in order to work, if there is a problem in exec then these test results will likely not be valid
