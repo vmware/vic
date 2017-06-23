@@ -56,7 +56,6 @@ var (
 		"/lib/modules":      0755,
 		"/proc":             0555,
 		"/sys":              0555,
-		"/usr/lib/iptables": 0755,
 		"/.tether":          0777,
 	}
 )
