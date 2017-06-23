@@ -99,6 +99,11 @@ type Netlink interface {
 	LinkBySlot(slot int32) (netlink.Link, error)
 }
 
+func init() {
+	Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
+	Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
+}
+
 func (t *BaseOperations) LinkByName(name string) (netlink.Link, error) {
 	return netlink.LinkByName(name)
 }
@@ -894,9 +899,6 @@ func (t *BaseOperations) Setup(config Config) error {
 	if err := createBindSrcTarget(filesForMinOSLinux); err != nil {
 		return err
 	}
-
-	Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
-	Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
 
 	err := Sys.Hosts.Load()
 	if err != nil {
