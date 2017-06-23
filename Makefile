@@ -98,6 +98,7 @@ vic-init-test := $(BIN)/vic-init-test
 vic-dns-linux := $(BIN)/vic-dns-linux
 vic-dns-windows := $(BIN)/vic-dns-windows.exe
 vic-dns-darwin := $(BIN)/vic-dns-darwin
+gandalf := $(BIN)/gandalf
 
 tether-linux := $(BIN)/tether-linux
 
@@ -137,6 +138,7 @@ vic-ui: $(vic-ui-linux) $(vic-ui-windows) $(vic-ui-darwin)
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
+gandalf: $(gandalf)
 
 swagger: $(SWAGGER)
 goimports: $(GOIMPORTS)
@@ -435,6 +437,10 @@ $(vic-dns-windows): $$(call godeps,cmd/vic-dns/*.go)
 $(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
+
+$(gandalf):  $$(call godeps,cmd/gandalf/*.go)
+	@echo building gandalf...
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o ./$@ ./$(dir $<)
 
 distro: all
 	@tar czvf $(REV).tar.gz bin/*.iso bin/vic-machine-*
