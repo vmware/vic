@@ -41,6 +41,7 @@ func TestSchemaParser(t *testing.T) {
 	assert.NotNil(t, prop.Minimum)
 	assert.EqualValues(t, 10, *prop.Minimum)
 	assert.True(t, prop.ExclusiveMinimum, "'id' should have had an exclusive minimum")
+	assert.Equal(t, 11, prop.Default, "ID default value is incorrect")
 
 	assertProperty(t, &schema, "string", "NoNameOmitEmpty", "", "")
 	prop, ok = schema.Properties["NoNameOmitEmpty"]
@@ -59,6 +60,7 @@ func TestSchemaParser(t *testing.T) {
 
 	assertProperty(t, &schema, "string", "name", "", "Name")
 	prop, ok = schema.Properties["name"]
+	assert.True(t, ok)
 	assert.Equal(t, "Name of this no model instance", prop.Description)
 	assert.EqualValues(t, 4, *prop.MinLength)
 	assert.EqualValues(t, 50, *prop.MaxLength)
@@ -127,11 +129,14 @@ func TestSchemaParser(t *testing.T) {
 	assert.NotNil(t, iprop.Minimum)
 	assert.EqualValues(t, 10, *iprop.Minimum)
 	assert.True(t, iprop.ExclusiveMinimum, "'id' should have had an exclusive minimum")
+	assert.Equal(t, 11, iprop.Default, "ID default value is incorrect")
 
 	assertRef(t, itprop, "pet", "Pet", "#/definitions/pet")
 	iprop, ok = itprop.Properties["pet"]
 	assert.True(t, ok)
-	assert.Equal(t, "The Pet to add to this NoModel items bucket.\nPets can appear more than once in the bucket", iprop.Description)
+	if itprop.Ref.String() != "" {
+		assert.Equal(t, "The Pet to add to this NoModel items bucket.\nPets can appear more than once in the bucket", iprop.Description)
+	}
 
 	assertProperty(t, itprop, "integer", "quantity", "int16", "Quantity")
 	iprop, ok = itprop.Properties["quantity"]
@@ -157,7 +162,8 @@ func TestSchemaParser(t *testing.T) {
 			nm := filepath.Base(classificationProg.Fset.File(fil.Pos()).Name())
 			if nm == "order.go" {
 				fnd = true
-				sp.Parse(fil, definitions)
+				err := sp.Parse(fil, definitions)
+				assert.NoError(t, err)
 				break
 			}
 		}
@@ -317,8 +323,7 @@ func assertProperty(t testing.TB, schema *spec.Schema, typeName, jsonName, forma
 }
 
 func assertRef(t testing.TB, schema *spec.Schema, jsonName, goName, fragment string) {
-
-	assertProperty(t, schema, "", jsonName, "", goName)
+	assert.Empty(t, schema.Properties[jsonName].Type)
 	psch := schema.Properties[jsonName]
 	assert.Equal(t, fragment, psch.Ref.String())
 }

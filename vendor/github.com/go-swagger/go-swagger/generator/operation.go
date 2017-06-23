@@ -103,6 +103,7 @@ func GenerateServerOperation(operationNames []string, opts *GenOpts) error {
 			ServerPackage:        serverPackage,
 			Operation:            *operation,
 			SecurityRequirements: analyzed.SecurityRequirementsFor(operation),
+			SecurityDefinitions:  analyzed.SecurityDefinitionsFor(operation),
 			Principal:            opts.Principal,
 			Target:               filepath.Join(opts.Target, serverPackage),
 			Base:                 opts.Target,
@@ -148,6 +149,7 @@ type operationGenerator struct {
 	ClientPackage        string
 	Operation            spec.Operation
 	SecurityRequirements []analysis.SecurityRequirement
+	SecurityDefinitions  map[string]spec.SecurityScheme
 	Tags                 []string
 	DefaultScheme        string
 	DefaultProduces      string
@@ -187,16 +189,22 @@ func (o *operationGenerator) Generate() error {
 	bldr.Target = o.Target
 	bldr.Operation = o.Operation
 	bldr.Authed = authed
+	bldr.Security = o.SecurityRequirements
+	bldr.SecurityDefinitions = o.SecurityDefinitions
 	bldr.Doc = o.Doc
 	bldr.Analyzed = o.Analyzed
 	bldr.DefaultScheme = o.DefaultScheme
 	bldr.DefaultProduces = o.DefaultProduces
-	bldr.DefaultImports = []string{filepath.ToSlash(filepath.Join(baseImport(o.Base), o.ModelsPackage))}
 	bldr.RootAPIPackage = o.APIPackage
 	bldr.WithContext = o.WithContext
 	bldr.GenOpts = o.GenOpts
 	bldr.DefaultConsumes = o.DefaultConsumes
 	bldr.IncludeValidator = o.IncludeValidator
+
+	bldr.DefaultImports = []string{o.GenOpts.ExistingModels}
+	if o.GenOpts.ExistingModels == "" {
+		bldr.DefaultImports = []string{filepath.ToSlash(filepath.Join(baseImport(o.Base), o.ModelsPackage))}
+	}
 
 	bldr.APIPackage = bldr.RootAPIPackage
 	st := o.Tags
@@ -235,24 +243,26 @@ type codeGenOpBuilder struct {
 	Authed           bool
 	IncludeValidator bool
 
-	Name            string
-	Method          string
-	Path            string
-	BasePath        string
-	APIPackage      string
-	RootAPIPackage  string
-	ModelsPackage   string
-	Principal       string
-	Target          string
-	Operation       spec.Operation
-	Doc             *loads.Document
-	Analyzed        *analysis.Spec
-	DefaultImports  []string
-	DefaultScheme   string
-	DefaultProduces string
-	DefaultConsumes string
-	ExtraSchemas    map[string]GenSchema
-	GenOpts         *GenOpts
+	Name                string
+	Method              string
+	Path                string
+	BasePath            string
+	APIPackage          string
+	RootAPIPackage      string
+	ModelsPackage       string
+	Principal           string
+	Target              string
+	Operation           spec.Operation
+	Doc                 *loads.Document
+	Analyzed            *analysis.Spec
+	DefaultImports      []string
+	DefaultScheme       string
+	DefaultProduces     string
+	DefaultConsumes     string
+	Security            []analysis.SecurityRequirement
+	SecurityDefinitions map[string]spec.SecurityScheme
+	ExtraSchemas        map[string]GenSchema
+	GenOpts             *GenOpts
 }
 
 func renameTimeout(seenIds map[string][]string, current string) string {
@@ -354,8 +364,13 @@ func (b *codeGenOpBuilder) MakeOperation() (GenOperation, error) {
 	var successResponses []GenResponse
 	if operation.Responses != nil {
 		for _, v := range srs {
+			name, ok := v.Response.Extensions.GetString("x-go-name")
+			if !ok {
+				name = runtime.Statuses[v.Code]
+			}
+			name = swag.ToJSONName(b.Name + " " + name)
 			isSuccess := v.Code/100 == 2
-			gr, err := b.MakeResponse(receiver, swag.ToJSONName(b.Name+" "+runtime.Statuses[v.Code]), isSuccess, resolver, v.Code, v.Response)
+			gr, err := b.MakeResponse(receiver, name, isSuccess, resolver, v.Code, v.Response)
 			if err != nil {
 				return GenOperation{}, err
 			}
@@ -459,6 +474,8 @@ func (b *codeGenOpBuilder) MakeOperation() (GenOperation, error) {
 		HasFileParams:        hasFileParams,
 		HasStreamingResponse: hasStreamingResponse,
 		Authorized:           b.Authed,
+		Security:             b.Security,
+		SecurityDefinitions:  b.SecurityDefinitions,
 		Principal:            prin,
 		Responses:            responses,
 		DefaultResponse:      defaultResponse,
@@ -471,6 +488,7 @@ func (b *codeGenOpBuilder) MakeOperation() (GenOperation, error) {
 		ExtraSchemes:         extraSchemes,
 		WithContext:          b.WithContext,
 		TimeoutName:          timeoutName,
+		Extensions:           operation.Extensions,
 	}, nil
 }
 
@@ -535,6 +553,7 @@ func (b *codeGenOpBuilder) MakeResponse(receiver, name string, isSuccess bool, r
 		Code:           code,
 		Method:         b.Method,
 		Path:           b.Path,
+		Extensions:     resp.Extensions,
 	}
 
 	for hName, header := range resp.Headers {
@@ -711,6 +730,7 @@ func (b *codeGenOpBuilder) MakeHeaderItem(receiver, paramName, indexVar, path, v
 }
 
 func (b *codeGenOpBuilder) MakeParameterItem(receiver, paramName, indexVar, path, valueExpression, location string, resolver *typeResolver, items, parent *spec.Items) (GenItems, error) {
+	debugLog("making parameter item recv=%s param=%s index=%s valueExpr=%s path=%s location=%s", receiver, paramName, indexVar, valueExpression, path, location)
 	var res GenItems
 	res.resolvedType = simpleResolvedType(items.Type, items.Format, items.Items)
 	res.sharedValidations = sharedValidations{
@@ -730,7 +750,7 @@ func (b *codeGenOpBuilder) MakeParameterItem(receiver, paramName, indexVar, path
 	res.Name = paramName
 	res.Path = path
 	res.Location = location
-	res.ValueExpression = valueExpression
+	res.ValueExpression = swag.ToVarName(valueExpression)
 	res.CollectionFormat = items.CollectionFormat
 	res.Converter = stringConverters[res.GoType]
 	res.Formatter = stringFormatters[res.GoType]
@@ -791,6 +811,7 @@ func (b *codeGenOpBuilder) MakeParameter(receiver string, resolver *typeResolver
 		Child:            child,
 		Location:         param.In,
 		AllowEmptyValue:  (param.In == "query" || param.In == "formData") && param.AllowEmptyValue,
+		Extensions:       param.Extensions,
 	}
 
 	if param.In == "body" {

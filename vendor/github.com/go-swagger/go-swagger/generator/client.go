@@ -23,8 +23,8 @@ import (
 	"sort"
 
 	"github.com/go-openapi/analysis"
-	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/loads"
+	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/swag"
 )
 
@@ -54,6 +54,11 @@ func GenerateClient(name string, modelNames, operationIDs []string, opts *GenOpt
 	// Validate if needed
 	if opts.ValidateSpec {
 		if err = validateSpec(opts.Spec, specDoc); err != nil {
+			return err
+		}
+		// Restore spec to original
+		opts.Spec, specDoc, err = loadSpec(opts.Spec)
+		if err != nil {
 			return err
 		}
 	}
@@ -114,7 +119,10 @@ func (c *clientGenerator) Generate() error {
 	if app.Name == "" {
 		app.Name = "APIClient"
 	}
-	app.DefaultImports = []string{filepath.ToSlash(filepath.Join(baseImport(c.Target), c.ModelsPackage))}
+	app.DefaultImports = []string{c.GenOpts.ExistingModels}
+	if c.GenOpts.ExistingModels == "" {
+		app.DefaultImports = []string{filepath.ToSlash(filepath.Join(baseImport(c.Target), c.ModelsPackage))}
+	}
 	if err != nil {
 		return err
 	}
@@ -149,7 +157,7 @@ func (c *clientGenerator) Generate() error {
 		sort.Sort(app.OperationGroups)
 		for i := range app.OperationGroups {
 			opGroup := app.OperationGroups[i]
-			opGroup.DefaultImports = []string{filepath.ToSlash(filepath.Join(baseImport(c.Target), c.ModelsPackage))}
+			opGroup.DefaultImports = app.DefaultImports
 			opGroup.RootPackage = c.ClientPackage
 			app.OperationGroups[i] = opGroup
 			sort.Sort(opGroup.Operations)

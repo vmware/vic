@@ -37,7 +37,7 @@ type validationBuilder interface {
 
 	SetUnique(bool)
 	SetEnum(string)
-	SetDefault(string)
+	SetDefault(interface{})
 }
 
 type valueParser interface {
@@ -298,6 +298,7 @@ func (se *setEnum) Parse(lines []string) error {
 }
 
 type setDefault struct {
+	scheme  *spec.SimpleSchema
 	builder validationBuilder
 	rx      *regexp.Regexp
 }
@@ -312,7 +313,32 @@ func (sd *setDefault) Parse(lines []string) error {
 	}
 	matches := sd.rx.FindStringSubmatch(lines[0])
 	if len(matches) > 1 && len(matches[1]) > 0 {
-		sd.builder.SetDefault(matches[1])
+		if sd.scheme != nil {
+			switch strings.Trim(sd.scheme.TypeName(), "\"") {
+			case "integer", "int", "int64", "int32", "int16":
+				d, err := strconv.Atoi(matches[1])
+				if err != nil {
+					return err
+				}
+				sd.builder.SetDefault(d)
+			case "bool", "boolean":
+				b, err := strconv.ParseBool(matches[1])
+				if err != nil {
+					return err
+				}
+				sd.builder.SetDefault(b)
+			case "number", "float64", "float32":
+				b, err := strconv.ParseFloat(matches[1], 64)
+				if err != nil {
+					return err
+				}
+				sd.builder.SetDefault(b)
+			default:
+				sd.builder.SetDefault(matches[1])
+			}
+		} else {
+			sd.builder.SetDefault(matches[1])
+		}
 	}
 	return nil
 }
@@ -500,23 +526,23 @@ func (ss *setSchemes) Parse(lines []string) error {
 	return nil
 }
 
-func newSetSecurityDefinitions(rx *regexp.Regexp, setter func([]map[string][]string)) *setSecurityDefinitions {
-	return &setSecurityDefinitions{
+func newSetSecurity(rx *regexp.Regexp, setter func([]map[string][]string)) *setSecurity {
+	return &setSecurity{
 		set: setter,
 		rx:  rx,
 	}
 }
 
-type setSecurityDefinitions struct {
+type setSecurity struct {
 	set func([]map[string][]string)
 	rx  *regexp.Regexp
 }
 
-func (ss *setSecurityDefinitions) Matches(line string) bool {
+func (ss *setSecurity) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
-func (ss *setSecurityDefinitions) Parse(lines []string) error {
+func (ss *setSecurity) Parse(lines []string) error {
 	if len(lines) == 0 || (len(lines) == 1 && len(lines[0]) == 0) {
 		return nil
 	}
@@ -566,19 +592,18 @@ func (ss *setOpResponses) Matches(line string) bool {
 	return ss.rx.MatchString(line)
 }
 
-//Tag used when specifying a response to point to a defined swagger:response
+//ResponseTag used when specifying a response to point to a defined swagger:response
 const ResponseTag = "response"
 
-//Tag used when specifying a response to point to a model/schema
+//BodyTag used when specifying a response to point to a model/schema
 const BodyTag = "body"
 
-//Tag used when specifying a response that gives a description of the response
+//DescriptionTag used when specifying a response that gives a description of the response
 const DescriptionTag = "description"
 
 func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef bool, description string, err error) {
 	tags := strings.Split(line, " ")
 	parsedModelOrResponse := false
-	parsedDescription := false
 
 	for i, tagAndValue := range tags {
 		tagValList := strings.SplitN(tagAndValue, ":", 2)
@@ -621,19 +646,16 @@ func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef
 			modelOrResponse = value
 		} else {
 			foundDescription := false
-			if !parsedDescription {
-				if tag == DescriptionTag {
-					foundDescription = true
-				}
+			if tag == DescriptionTag {
+				foundDescription = true
 			}
 			if foundDescription {
 				//Descriptions are special, they make they read the rest of the line
 				descriptionWords := []string{value}
 				if i < len(tags)-1 {
-					descriptionWords = append(descriptionWords, tags[i+1:len(tags)]...)
+					descriptionWords = append(descriptionWords, tags[i+1:]...)
 				}
 				description = strings.Join(descriptionWords, " ")
-				parsedDescription = true
 				break
 			} else {
 				if tag == ResponseTag || tag == BodyTag || tag == DescriptionTag {
@@ -647,7 +669,7 @@ func parseTags(line string) (modelOrResponse string, arrays int, isDefinitionRef
 		}
 	}
 
-	//TODO: Maybe do, if !parsedModelOrResponse && !parsedDescription {return some error}
+	//TODO: Maybe do, if !parsedModelOrResponse {return some error}
 	return
 }
 

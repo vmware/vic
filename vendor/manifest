@@ -473,7 +473,7 @@
 			"importpath": "github.com/go-swagger/go-swagger",
 			"repository": "https://github.com/go-swagger/go-swagger",
 			"vcs": "git",
-			"revision": "04e27555375e7d9a3251bfb35fcb9ae13cec99a1",
+			"revision": "b370a6d0dfe23a23fbed1e10f16c12ef45d6af25",
 			"branch": "master"
 		},
 		{
@@ -687,6 +687,14 @@
 			"vcs": "",
 			"revision": "8ddce2a84170772b95dd5d576c48d517b22cac63",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/juju/errors",
+			"repository": "https://github.com/juju/errors",
+			"vcs": "git",
+			"revision": "8234c829496aaeae67c5c71235a2cbcc289e960a",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/kr/pty",

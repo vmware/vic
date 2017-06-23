@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-openapi/analysis"
 	"github.com/go-openapi/spec"
 )
 
@@ -38,6 +39,7 @@ type GenSchema struct {
 	resolvedType
 	sharedValidations
 	Example                 string
+	OriginalName            string
 	Name                    string
 	Suffix                  string
 	Path                    string
@@ -54,6 +56,7 @@ type GenSchema struct {
 	AdditionalItems         *GenSchema
 	Object                  *GenSchema
 	XMLName                 string
+	CustomTag               string
 	Properties              GenSchemaList
 	AllOf                   []GenSchema
 	HasAdditionalProperties bool
@@ -115,6 +118,8 @@ type GenResponse struct {
 
 	Imports        map[string]string
 	DefaultImports []string
+
+	Extensions map[string]interface{}
 }
 
 // GenHeader represents a header on a response for code generation
@@ -186,6 +191,8 @@ type GenParameter struct {
 	HasDefault      bool
 	ZeroValue       string
 	AllowEmptyValue bool
+
+	Extensions map[string]interface{}
 }
 
 // IsQueryParam returns true when this parameter is a query param
@@ -325,8 +332,10 @@ type GenOperation struct {
 	DefaultImports []string
 	ExtraSchemas   []GenSchema
 
-	Authorized bool
-	Principal  string
+	Authorized          bool
+	Security            []analysis.SecurityRequirement
+	SecurityDefinitions map[string]spec.SecurityScheme
+	Principal           string
 
 	SuccessResponse  *GenResponse
 	SuccessResponses []GenResponse
@@ -350,6 +359,8 @@ type GenOperation struct {
 	ConsumesMediaTypes []string
 	WithContext        bool
 	TimeoutName        string
+
+	Extensions map[string]interface{}
 }
 
 // GenOperations represents a list of operations to generate

@@ -113,15 +113,15 @@ func (sv paramValidations) SetMaxLength(val int64)         { sv.current.MaxLengt
 func (sv paramValidations) SetPattern(val string)          { sv.current.Pattern = val }
 func (sv paramValidations) SetUnique(val bool)             { sv.current.UniqueItems = val }
 func (sv paramValidations) SetCollectionFormat(val string) { sv.current.CollectionFormat = val }
-func (sv paramValidations) SetEnum(val string)           {
-    list := strings.Split(val, ",")
-    interfaceSlice := make([]interface{}, len(list))
-    for i, d := range list {
-        interfaceSlice[i] = d
-    }
-    sv.current.Enum = interfaceSlice
+func (sv paramValidations) SetEnum(val string) {
+	list := strings.Split(val, ",")
+	interfaceSlice := make([]interface{}, len(list))
+	for i, d := range list {
+		interfaceSlice[i] = d
+	}
+	sv.current.Enum = interfaceSlice
 }
-func (sv paramValidations) SetDefault(val string)          { sv.current.Default = val }
+func (sv paramValidations) SetDefault(val interface{}) { sv.current.Default = val }
 
 type itemsValidations struct {
 	current *spec.Items
@@ -143,15 +143,15 @@ func (sv itemsValidations) SetMaxLength(val int64)         { sv.current.MaxLengt
 func (sv itemsValidations) SetPattern(val string)          { sv.current.Pattern = val }
 func (sv itemsValidations) SetUnique(val bool)             { sv.current.UniqueItems = val }
 func (sv itemsValidations) SetCollectionFormat(val string) { sv.current.CollectionFormat = val }
-func (sv itemsValidations) SetEnum(val string)           {
-    list := strings.Split(val, ",")
-    interfaceSlice := make([]interface{}, len(list))
-    for i, d := range list {
-        interfaceSlice[i] = d
-    }
-    sv.current.Enum = interfaceSlice
+func (sv itemsValidations) SetEnum(val string) {
+	list := strings.Split(val, ",")
+	interfaceSlice := make([]interface{}, len(list))
+	for i, d := range list {
+		interfaceSlice[i] = d
+	}
+	sv.current.Enum = interfaceSlice
 }
-func (sv itemsValidations) SetDefault(val string)          { sv.current.Default = val }
+func (sv itemsValidations) SetDefault(val interface{}) { sv.current.Default = val }
 
 type paramDecl struct {
 	File         *ast.File
@@ -160,7 +160,7 @@ type paramDecl struct {
 	OperationIDs []string
 }
 
-func (sd paramDecl) inferOperationIDs() (opids []string) {
+func (sd *paramDecl) inferOperationIDs() (opids []string) {
 	if len(sd.OperationIDs) > 0 {
 		opids = sd.OperationIDs
 		return
@@ -283,7 +283,8 @@ func (pp *paramStructParser) parseEmbeddedStruct(gofile *ast.File, operation *sp
 	case *ast.StarExpr:
 		return pp.parseEmbeddedStruct(gofile, operation, tpe.X, seenPreviously)
 	}
-	return fmt.Errorf("unable to resolve embedded struct for: %v\n", expr)
+	fmt.Printf("3%#v\n", expr)
+	return fmt.Errorf("unable to resolve embedded struct for: %v", expr)
 }
 
 func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.Operation, tpe *ast.StructType, seenPreviously map[string]spec.Parameter) error {
@@ -350,6 +351,7 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 				sp.setDescription = func(lines []string) { ps.Description = joinDropLast(lines) }
 				if ps.Ref.String() == "" {
 					sp.taggers = []tagParser{
+						newSingleLineTagParser("in", &matchOnlyParam{&ps, rxIn}),
 						newSingleLineTagParser("maximum", &setMaximum{paramValidations{&ps}, rxf(rxMaximumFmt, "")}),
 						newSingleLineTagParser("minimum", &setMinimum{paramValidations{&ps}, rxf(rxMinimumFmt, "")}),
 						newSingleLineTagParser("multipleOf", &setMultipleOf{paramValidations{&ps}, rxf(rxMultipleOfFmt, "")}),
@@ -361,9 +363,8 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 						newSingleLineTagParser("maxItems", &setMaxItems{paramValidations{&ps}, rxf(rxMaxItemsFmt, "")}),
 						newSingleLineTagParser("unique", &setUnique{paramValidations{&ps}, rxf(rxUniqueFmt, "")}),
 						newSingleLineTagParser("enum", &setEnum{paramValidations{&ps}, rxf(rxEnumFmt, "")}),
-						newSingleLineTagParser("default", &setDefault{paramValidations{&ps}, rxf(rxDefaultFmt, "")}),
+						newSingleLineTagParser("default", &setDefault{&ps.SimpleSchema, paramValidations{&ps}, rxf(rxDefaultFmt, "")}),
 						newSingleLineTagParser("required", &setRequiredParam{&ps}),
-						newSingleLineTagParser("in", &matchOnlyParam{&ps, rxIn}),
 					}
 
 					itemsTaggers := func(items *spec.Items, level int) []tagParser {
@@ -382,7 +383,7 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 							newSingleLineTagParser(fmt.Sprintf("items%dMaxItems", level), &setMaxItems{itemsValidations{items}, rxf(rxMaxItemsFmt, itemsPrefix)}),
 							newSingleLineTagParser(fmt.Sprintf("items%dUnique", level), &setUnique{itemsValidations{items}, rxf(rxUniqueFmt, itemsPrefix)}),
 							newSingleLineTagParser(fmt.Sprintf("items%dEnum", level), &setEnum{itemsValidations{items}, rxf(rxEnumFmt, itemsPrefix)}),
-							newSingleLineTagParser(fmt.Sprintf("items%dDefault", level), &setDefault{itemsValidations{items}, rxf(rxDefaultFmt, itemsPrefix)}),
+							newSingleLineTagParser(fmt.Sprintf("items%dDefault", level), &setDefault{&items.SimpleSchema, itemsValidations{items}, rxf(rxDefaultFmt, itemsPrefix)}),
 						}
 					}
 
@@ -396,6 +397,12 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 							eleTaggers := itemsTaggers(items, level)
 							sp.taggers = append(eleTaggers, sp.taggers...)
 							otherTaggers, err := parseArrayTypes(iftpe.Elt, items.Items, level+1)
+							if err != nil {
+								return nil, err
+							}
+							return otherTaggers, nil
+						case *ast.SelectorExpr:
+							otherTaggers, err := parseArrayTypes(iftpe.Sel, items.Items, level+1)
 							if err != nil {
 								return nil, err
 							}
@@ -434,12 +441,15 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 				} else {
 
 					sp.taggers = []tagParser{
-						newSingleLineTagParser("required", &matchOnlyParam{&ps, rxRequired}),
 						newSingleLineTagParser("in", &matchOnlyParam{&ps, rxIn}),
+						newSingleLineTagParser("required", &matchOnlyParam{&ps, rxRequired}),
 					}
 				}
 				if err := sp.Parse(fld.Doc); err != nil {
 					return err
+				}
+				if ps.In == "path" {
+					ps.Required = true
 				}
 
 				if ps.Name == "" {
