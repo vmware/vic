@@ -45,6 +45,7 @@ type RestClient struct {
 func NewClient(u *url.URL, insecure bool) *RestClient {
 	log.Debugf("Create rest client")
 	u.Path = RestPrefix
+	// #nosec
 	c := &RestClient{
 		endpoint: u,
 		insecure: insecure,
