@@ -75,26 +75,6 @@ groups:
         include:
           - "pkg/log/*"
 
-  vcsim:
-    users:
-      - dougm
-      - caglar10ur
-    conditions:
-      files:
-        include:
-          - "cmd/vcsim/*"
-          - "pkg/vsphere/simulator/*"
-
-  toolbox:
-    users:
-      - dougm
-      - caglar10ur
-    conditions:
-      files:
-        include:
-          - "cmd/toolbox/*"
-          - "pkg/vsphere/toolbox/*"
-
   docker-persona:
     users:
       - sflxn
@@ -217,6 +197,7 @@ groups:
   vendor:
     users:
       - mdubya66
+      - dougm
     conditions:
       files:
         include:

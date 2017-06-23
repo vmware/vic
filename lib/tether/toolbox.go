@@ -26,8 +26,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/vmware/govmomi/toolbox"
+	"github.com/vmware/govmomi/toolbox/vix"
 	"github.com/vmware/vic/cmd/tether/msgs"
-	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )
 
 // Toolbox is a tether extension that wraps toolbox.Service
@@ -58,7 +59,7 @@ func (t *Toolbox) Start() error {
 	t.stop = make(chan struct{})
 	on := make(chan struct{})
 
-	t.Service.PowerCommand.PowerOn.Handler = func() error {
+	t.Service.Power.PowerOn.Handler = func() error {
 		log.Info("toolbox: service is ready (power on event received)")
 		close(on)
 		return nil
@@ -106,11 +107,11 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 
 // InContainer configures the toolbox to run within a container VM
 func (t *Toolbox) InContainer() *Toolbox {
-	t.PowerCommand.Halt.Handler = t.halt
+	t.Power.Halt.Handler = t.halt
 
-	vix := t.Service.VixCommand
-	vix.Authenticate = t.containerAuthenticate
-	vix.ProcessStartCommand = t.containerStartCommand
+	cmd := t.Service.Command
+	cmd.Authenticate = t.containerAuthenticate
+	cmd.ProcessStartCommand = t.containerStartCommand
 
 	return t
 }
@@ -158,8 +159,8 @@ func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
 	return nil
 }
 
-func (t *Toolbox) containerAuthenticate(_ toolbox.VixCommandRequestHeader, data []byte) error {
-	var c toolbox.VixUserCredentialNamePassword
+func (t *Toolbox) containerAuthenticate(_ vix.CommandRequestHeader, data []byte) error {
+	var c vix.UserCredentialNamePassword
 	if err := c.UnmarshalBinary(data); err != nil {
 		return err
 	}
@@ -180,7 +181,7 @@ func (t *Toolbox) containerAuthenticate(_ toolbox.VixCommandRequestHeader, data 
 	return nil
 }
 
-func (t *Toolbox) containerStartCommand(m *toolbox.ProcessManager, r *toolbox.VixMsgStartProgramRequest) (int64, error) {
+func (t *Toolbox) containerStartCommand(m *toolbox.ProcessManager, r *vix.StartProgramRequest) (int64, error) {
 	switch r.ProgramPath {
 	case "kill":
 		return -1, t.kill(r.Arguments)
