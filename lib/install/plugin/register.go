@@ -15,6 +15,7 @@
 package plugin
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
@@ -50,16 +51,18 @@ type Pluginator struct {
 
 	info *Info
 
-	tURL      *url.URL
-	connected bool
+	tURL        *url.URL
+	tThumbprint string
+	connected   bool
 }
 
-func NewPluginator(ctx context.Context, target *url.URL, i *Info) (*Pluginator, error) {
+func NewPluginator(ctx context.Context, target *url.URL, thumbprint string, i *Info) (*Pluginator, error) {
 	defer trace.End(trace.Begin(""))
 
 	p := &Pluginator{
-		tURL: target,
-		info: i,
+		tURL:        target,
+		tThumbprint: thumbprint,
+		info:        i,
 	}
 	p.Context = ctx
 
@@ -87,8 +90,24 @@ func (p *Pluginator) connect() error {
 	defer trace.End(trace.Begin(""))
 	var err error
 
+	if p.tURL.Scheme == "https" && p.tThumbprint == "" {
+		var cert object.HostCertificateInfo
+		if err = cert.FromURL(p.tURL, new(tls.Config)); err != nil {
+			return err
+		}
+
+		if cert.Err != nil {
+			log.Errorf("Failed to verify certificate for target=%s (thumbprint=%s)",
+				p.tURL.Host, cert.ThumbprintSHA1)
+			return cert.Err
+		}
+
+		p.tThumbprint = cert.ThumbprintSHA1
+		log.Debugf("Accepting host %q thumbprint %s", p.tURL.Host, p.tThumbprint)
+	}
+
 	sessionconfig := &session.Config{
-		Insecure: true,
+		Thumbprint: p.tThumbprint,
 	}
 	sessionconfig.Service = p.tURL.String()
 

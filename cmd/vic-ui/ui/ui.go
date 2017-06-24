@@ -200,7 +200,7 @@ func (p *Plugin) Install(cli *cli.Context) error {
 		Version:               p.Version,
 	}
 
-	pl, err := plugin.NewPluginator(context.TODO(), p.Target.URL, pInfo)
+	pl, err := plugin.NewPluginator(context.TODO(), p.Target.URL, p.Target.Thumbprint, pInfo)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (p *Plugin) Remove(cli *cli.Context) error {
 		Key: p.Key,
 	}
 
-	pl, err := plugin.NewPluginator(context.TODO(), p.Target.URL, pInfo)
+	pl, err := plugin.NewPluginator(context.TODO(), p.Target.URL, p.Target.Thumbprint, pInfo)
 	if err != nil {
 		return err
 	}
