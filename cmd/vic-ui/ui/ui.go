@@ -115,6 +115,22 @@ func (p *Plugin) Flags() []cli.Flag {
 	return flags
 }
 
+// InfoFlags return info command
+func (p *Plugin) InfoFlags() []cli.Flag {
+	flags := []cli.Flag{
+		cli.StringFlag{
+			Name:        "key",
+			Value:       "",
+			Usage:       "Plugin key (required)",
+			Destination: &p.Key,
+		},
+	}
+	flags = append(p.TargetFlags(), flags...)
+	flags = append(flags, p.DebugFlags()...)
+
+	return flags
+}
+
 func (p *Plugin) processInstallParams() error {
 	defer trace.End(trace.Begin(""))
 
@@ -166,6 +182,19 @@ func (p *Plugin) processRemoveParams() error {
 	}
 
 	p.Insecure = true
+	return nil
+}
+
+func (p *Plugin) processInfoParams() error {
+	defer trace.End(trace.Begin(""))
+
+	if err := p.HasCredentials(); err != nil {
+		return err
+	}
+
+	if p.Key == "" {
+		return cli.NewExitError("--key must be specified", 1)
+	}
 	return nil
 }
 
@@ -303,5 +332,43 @@ func (p *Plugin) Remove(cli *cli.Context) error {
 	}
 
 	log.Info("Removed UI plugin")
+	return nil
+}
+
+func (p *Plugin) Info(cli *cli.Context) error {
+	var err error
+	if err = p.processInfoParams(); err != nil {
+		return err
+	}
+
+	if len(cli.Args()) > 0 {
+		log.Error("Info cannot continue: invalid CLI arguments")
+		log.Errorf("Unknown argument: %s", cli.Args()[0])
+		return errors.New("invalid CLI arguments")
+	}
+
+	pInfo := &plugin.Info{
+		Key: p.Key,
+	}
+
+	pl, err := plugin.NewPluginator(context.TODO(), p.Target.URL, p.Target.Thumbprint, pInfo)
+	if err != nil {
+		return err
+	}
+
+	reg, err := pl.GetPlugin(p.Key)
+	if err != nil {
+		return err
+	}
+	if reg == nil {
+		return errors.Errorf("%s is not registered", p.Key)
+	}
+
+	log.Infof("%s is registered", p.Key)
+	log.Info("")
+	log.Infof("Key: %s", reg.Key)
+	log.Infof("Name: %s", reg.Description.GetDescription().Label)
+	log.Infof("Summary: %s", reg.Description.GetDescription().Summary)
+	log.Infof("Company: %s", reg.Company)
 	return nil
 }

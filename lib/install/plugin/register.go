@@ -228,3 +228,13 @@ func (p *Pluginator) IsRegistered(key string) (bool, error) {
 	log.Debugf("%q is not registered", key)
 	return false, nil
 }
+
+// IsRegistered checks for presence of an extension on the target
+func (p *Pluginator) GetPlugin(key string) (*types.Extension, error) {
+	defer trace.End(trace.Begin(""))
+	if !p.connected {
+		return nil, errors.New("not connected")
+	}
+
+	return p.ExtensionManager.Find(p.Context, key)
+}
