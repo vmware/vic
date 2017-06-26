@@ -17,6 +17,8 @@ Documentation  Test 6-13 - Verify vic-machine configure TLS options
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword  Cleanup
 Suite Setup  Run Keyword  Setup Test Environment
+Test Teardown  Test Cleanup
+Suite Teardown  Suite Cleanup
 
 *** Keywords ***
 Setup Test Environment
@@ -38,9 +40,11 @@ Setup Test Environment
     Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
-Cleanup
-    Run  rm -rf bundle; rm -rf foo-bar-certs
+Suite Cleanup
     Run Keyword  Cleanup VIC Appliance On Test Server
+
+Test Cleanup
+    Run  rm -rf bundle cert-bundle.tgz out-bundle /root/ca
 
 *** Test Cases ***
 Configure VCH - Server cert with untrusted CA
@@ -62,12 +66,6 @@ Configure VCH - Server cert with untrusted CA
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
-
-    Run  rm -rf bundle
-    Run  rm -f cert-bundle.tgz
-    Run  rm -f out-bundle
-    Run  rm -rf /root/ca
-
 
 Configure VCH - Server cert with trusted CA
     ${domain}=  Get Environment Variable  DOMAIN  ''
@@ -92,10 +90,6 @@ Configure VCH - Server cert with trusted CA
     ${output}=  Run  openssl s_client -showcerts -connect %{VCH-IP}:2378
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
-
-    Run  rm -rf bundle
-    Run  rm -f cert-bundle.tgz
-    Run  rm -rf /root/ca
 
     Reload Default Certificate Authorities
 
@@ -140,10 +134,6 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs Are Unchanged
     Log  ${output}
     Should Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
 
-    Run  rm -rf bundle
-    Run  rm -f cert-bundle.tgz
-    Run  rm -rf /root/ca
-
     Reload Default Certificate Authorities
 
 Configure VCH - Replace certificates with self-signed certificate using --no-tlsverify
@@ -164,5 +154,3 @@ Configure VCH - Replace certificates with self-signed certificate using --no-tls
     Should Contain  ${output}  Verify return code: 21 (unable to verify the first certificate)
     Should Contain  ${output}  verify error:num=20:unable to get local issuer certificate
     Should Not Contain  ${output}  issuer=/C=US/ST=California/L=Los Angeles/O=Stark Enterprises/OU=Stark Enterprises Certificate Authority/CN=Stark Enterprises Global CA
-
-    Run  rm -rf foo-bar-certs
