@@ -370,5 +370,6 @@ func (p *Plugin) Info(cli *cli.Context) error {
 	log.Infof("Name: %s", reg.Description.GetDescription().Label)
 	log.Infof("Summary: %s", reg.Description.GetDescription().Summary)
 	log.Infof("Company: %s", reg.Company)
+	log.Infof("Version: %s", reg.Version)
 	return nil
 }
