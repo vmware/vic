@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"path/filepath"
 )
 
 const (
@@ -281,7 +282,8 @@ func setVolumeLocations(d *data.Data, conf *config.VirtualContainerHostConfigSpe
 			continue
 		}
 		u := *v
-		u.Path = dsURL.Path
+		u.Path = filepath.Join(dsURL.Datastore, dsURL.Path)
+		u.Host = ""
 		d.VolumeLocations[k] = &u
 	}
 }

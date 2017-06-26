@@ -96,10 +96,20 @@ func validateNFSTarget(nfsURL *url.URL) error {
 
 func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
 	defer trace.End(trace.Begin(path))
-	dsURL, dsErr := url.Parse(path)
+
+	stripRawTarget := path
+
+	if strings.HasPrefix(stripRawTarget, common.DsScheme+"://") {
+		stripRawTarget = strings.Replace(path, common.DsScheme+"://", "", -1)
+	}
+
+	stripRawTarget, _ = url.PathUnescape(stripRawTarget)
+	dsURL, dsErr := url.Parse(stripRawTarget)
 	if dsErr != nil {
 		return nil, nil, errors.Errorf("error parsing datastore path: %s", dsErr)
 	}
+
+	path = stripRawTarget
 
 	// url scheme does not contain ://, so remove it to make url work
 	if dsURL.Scheme != "" && dsURL.Scheme != "ds" {
