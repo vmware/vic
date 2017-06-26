@@ -110,9 +110,6 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 				return err
 			}
 
-			// inform of creation irrespective of remaining operations
-			publishContainerEvent(h.ExecConfig.ID, time.Now().UTC(), events.ContainerStopped)
-
 			// we must refresh now to get the new ChangeVersion - this is used to gate on powerstate in the reconfigure
 			// because we cannot set the ExtraConfig if the VM is powered on. There is still a race here unfortunately because
 			// tasks don't appear to contain the new ChangeVersion
@@ -124,6 +121,9 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			}
 			h.Runtime = base.Runtime
 			h.Config = base.Config
+
+			// inform of state change irrespective of remaining operations
+			publishContainerEvent(h.ExecConfig.ID, time.Now().UTC(), events.ContainerStopped)
 		}
 	}
 
