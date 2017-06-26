@@ -1047,7 +1047,7 @@ func bindMountAndSave(target string, conf etcconf.Conf) error {
 	return bindMount(src, target)
 }
 
-// Create necessary folders/files as the src/target for bind mount.
+// Create necessary directories/files as the src/target for bind mount.
 // See https://github.com/vmware/vic/issues/489
 func createBindSrcTarget(files map[string]os.FileMode) error {
 	// The directory has to exist before creating the new file
