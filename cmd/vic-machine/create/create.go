@@ -247,6 +247,13 @@ func (c *Create) Flags() []cli.Flag {
 		})
 
 	tls := c.certs.CertFlags()
+	tls = append(tls, cli.BoolFlag{
+		Name:        "no-tls",
+		Value:       false,
+		Usage:       "Disable TLs entirely",
+		Hidden:      true,
+		Destination: c.certs.NoTLS,
+	})
 
 	registries := []cli.Flag{
 		cli.StringSliceFlag{
