@@ -15,7 +15,8 @@
 *** Settings ***
 Documentation  Test 6-15 - Verify remote syslog
 Resource  ../../resources/Util.robot
-Test Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC Appliance To Test Server  additional-args=--syslog-address tcp://%{SYSLOG_SERVER}:514 --debug 1
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
 ${SYSLOG_FILE}  /var/log/syslog
@@ -29,50 +30,54 @@ Get Remote PID
 
 *** Test Cases ***
 Verify VCH remote syslog
-    Set Test Environment Variables
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --syslog-address tcp://%{SYSLOG_SERVER}:514 --debug 1 ${vicmachinetls}
-    Should Contain  ${output}  Installer completed successfully
-
     # enable ssh
     ${output}=  Run  bin/vic-machine-linux debug --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Should Contain  ${output}  Completed successfully
-
-    Get Docker Params  ${output}  ${true}
 
     # make sure we use ip address, and not fqdn
     ${ip}=  Run  dig +short %{VCH-IP}
     ${vch-ip}=  Set Variable If  '${ip}' == ''  %{VCH-IP}  ${ip}
 
-    ${vch-conn}=  Open Connection  ${vch-ip}
-    Login  root  password
-
     @{procs}=  Create List  port-layer-server  docker-engine-server  vic-init  vicadmin
     &{proc-pids}=  Create Dictionary
     &{proc-hosts}=  Create Dictionary
 
+    ${vch-conn}=  Open Connection  ${vch-ip}
+    Login  root  password
     :FOR  ${proc}  IN  @{procs}
     \     ${pid}=  Get Remote PID  ${proc}
     \     Set To Dictionary  ${proc-pids}  ${proc}  ${pid}
     \     Set To Dictionary  ${proc-hosts}  ${proc}  ${vch-ip}
-
+    Close Connection
     Set To Dictionary  ${proc-hosts}  vic-init  Photon
+
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps -a
+    Should Be Equal As Integers  ${rc}  0
+
+    Run Regression Tests
 
     ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
-
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
+    Close Connection
+
     ${keys}=  Get Dictionary Keys  ${proc-pids}
     :FOR  ${proc}  IN  @{keys}
     \     ${pid}=  Get From Dictionary  ${proc-pids}  ${proc}
     \     ${host}=  Get From Dictionary  ${proc-hosts}  ${proc}
     \     Should Contain  ${out}  ${host} ${proc}[${pid}]:
 
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps -a
-    Should Be Equal As Integers  ${rc}  0
-
-    ${out}=  Execute Command  cat ${SYSLOG_FILE}
     ${pid}=  Get From Dictionary  ${proc-pids}  docker-engine-server
-    Should Contain  ${out}  ${vch-ip} docker-engine-server[${pid}]: Calling GET /v1.25/containers/json?all=1
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/containers/json\\?all\\=1
+
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/containers/create
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/images/create\\?fromImage\\=busybox\\&tag\\=latest
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/containers/\\w{64}/start
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/containers/\\w{64}/stop
+
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/images/json
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/containers/json
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/info
+
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/containers/\\w{64}
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/images/busybox
