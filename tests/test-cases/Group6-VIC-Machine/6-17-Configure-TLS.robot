@@ -15,10 +15,9 @@
 *** Settings ***
 Documentation  Test 6-13 - Verify vic-machine configure TLS options
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword  Cleanup
+Suite Teardown  Run Keyword  Suite Cleanup
 Suite Setup  Run Keyword  Setup Test Environment
-Test Teardown  Test Cleanup
-Suite Teardown  Suite Cleanup
+Test Teardown  Run Keyword  Test Cleanup
 
 *** Keywords ***
 Setup Test Environment
