@@ -251,7 +251,7 @@ func (c *Create) Flags() []cli.Flag {
 	tls = append(tls, cli.BoolFlag{
 		Name:        "no-tls, k",
 		Usage:       "Disable TLS support completely",
-		Destination: &c.noTLS,
+		Destination: &c.certs.NoTLS,
 		Hidden:      true,
 	})
 
