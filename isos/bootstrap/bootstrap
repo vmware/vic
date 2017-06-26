@@ -40,6 +40,8 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # enable full system functionality in the container
     echo "Publishing modules within container"
     mkdir -p ${MOUNTPOINT}/lib/modules
+    mkdir -p ${MOUNTPOINT}/.tether/lib/modules
+    mount --bind ${MOUNTPOINT}/.tether/lib/modules ${MOUNTPOINT}/lib/modules
     cp -pr /lib/modules/* ${MOUNTPOINT}/lib/modules/
 
     # switch to the new root

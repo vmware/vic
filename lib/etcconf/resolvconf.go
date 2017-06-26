@@ -250,6 +250,10 @@ func (r *resolvConf) SetAttempts(attempts uint) {
 	}
 }
 
+func (r *resolvConf) Path() string {
+	return r.path
+}
+
 func (r *resolvConf) lines() []string {
 	var l []string
 	for _, n := range r.nameservers {

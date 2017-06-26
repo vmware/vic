@@ -70,7 +70,7 @@ func (w *hostsWalker) Next() string {
 
 func NewHosts(path string) Hosts {
 	if path == "" {
-		path = hostsPath
+		path = HostsPath
 	}
 
 	return &hosts{
@@ -188,4 +188,8 @@ func (h *hosts) HostIP(hostname string) net.IP {
 	defer h.Unlock()
 
 	return h.hosts[hostname]
+}
+
+func (h *hosts) Path() string {
+	return h.path
 }
