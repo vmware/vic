@@ -56,12 +56,10 @@ Verify VCH remote syslog
 
     Run Regression Tests
 
-    ${status}=  Get State Of Github Issue  5586
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-15-Syslog.robot needs to be updated now that Issue #5586 has been resolved
-    #${pull}=  Run  docker %{VCH-PARAMS} pull ${busybox}
-    #${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run ${busybox} ls /
-    #Should Be Equal As Integers  ${rc}  0
-    #${shortID}=  Get container shortID  ${id}
+    ${pull}=  Run  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} ls /
+    Should Be Equal As Integers  ${rc}  0
+    ${shortID}=  Get container shortID  ${id}
 
     ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
@@ -90,4 +88,4 @@ Verify VCH remote syslog
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/containers/\\w{64}
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/images/busybox
 
-    #Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: bin
+    Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: bin
