@@ -39,6 +39,7 @@ Setup Test Environment
     Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
+
 Suite Cleanup
     Run Keyword  Cleanup VIC Appliance On Test Server
 
