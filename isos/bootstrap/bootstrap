@@ -65,18 +65,16 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # libdl.so.2 => /baz/lib/libdl.so.2 (0x00007f97fb84f000)
     # /lib64/ld-linux-x86-64.so.2 (0x00007f97fc929000)
 
-    mkdir ${MOUNTPOINT}/.tether/lib
-    mkdir ${MOUNTPOINT}/.tether/lib64
-    cp -a /sbin/*tables* ${MOUNTPOINT}/.tether/
+    ln -s lib64 ${MOUNTPOINT}/.tether/lib
+    mkdir -p ${MOUNTPOINT}/.tether/{lib64,usr/lib/iptables}
 
+    cp -a /sbin/*tables* ${MOUNTPOINT}/.tether/
     cp -a /lib/libm.* /lib/libm-* /lib/libgcc_s* /lib/libip*tc* /lib/libxtables* /lib/libdl* /lib/libc.so* /lib/libc-* ${MOUNTPOINT}/.tether/lib
     cp -a /lib64/ld-* ${MOUNTPOINT}/.tether/lib64
+    cp -r /usr/lib/iptables ${MOUNTPOINT}/.tether/usr/lib/
 
     echo 'tether tmpfs size after copying libraries: '
     df -k ${MOUNTPOINT}/.tether
-
-    mkdir -p ${MOUNTPOINT}/usr/lib
-    cp -r /usr/lib/iptables ${MOUNTPOINT}/usr/lib/
 
     until [[ $(ls -1 /dev/disk/by-label | wc -l) -eq $(ls -1 /sys/block | wc -l) ]]; do sleep 0.1;done
 
