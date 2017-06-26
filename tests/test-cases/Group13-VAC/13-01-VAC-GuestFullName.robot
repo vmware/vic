@@ -25,9 +25,9 @@ Check VCH VM Guest Operating System
     Should Contain  ${output}  Photon - VCH
 
 Create a test container and check Guest Operating System
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name test busybox
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name test ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${shortID}=  Get container shortID  ${id}
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info test-${shortID} | grep 'Guest name'
