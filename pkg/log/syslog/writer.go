@@ -99,9 +99,17 @@ func (w *writer) Write(b []byte) (int, error) {
 
 // Close closes a connection to the syslog daemon.
 func (w *writer) Close() error {
+	for w.parent != nil {
+		w = w.parent
+	}
+
 	w.once.Do(func() {
 		close(w.msgs)
-		<-w.done
+		select {
+		case <-w.running:
+			<-w.done
+		default:
+		}
 	})
 	return nil
 }
@@ -237,7 +245,7 @@ func (w *writer) run() {
 	if err := w.connect(); err != nil {
 		switch err.(type) {
 		case *net.ParseError, *net.AddrError:
-			Logger.Errorf("could not connec to syslog server (will not try again): %s", err)
+			Logger.Errorf("could not connect to syslog server (will not try again): %s", err)
 			return
 		}
 	}
