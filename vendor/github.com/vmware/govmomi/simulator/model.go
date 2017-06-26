@@ -219,9 +219,15 @@ func (m *Model) Create() error {
 					pool, _ = host.ResourcePool(ctx)
 				}
 
-				devices := []types.BaseVirtualDevice{&nic}
+				var devices object.VirtualDeviceList
 
-				config.DeviceChange, _ = object.VirtualDeviceList(devices).ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+				scsi, _ := devices.CreateSCSIController("pvscsi")
+				ide, _ := devices.CreateIDEController()
+				cdrom, _ := devices.CreateCdrom(ide.(*types.VirtualIDEController))
+
+				devices = append(devices, scsi, cdrom, &nic)
+
+				config.DeviceChange, _ = devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 
 				task, err := folders.VmFolder.CreateVM(ctx, config, pool, host)
 				if err != nil {

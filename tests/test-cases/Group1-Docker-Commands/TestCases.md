@@ -74,3 +74,6 @@ Group 1 - Docker Commands
 -
 [Test 1-38 - Docker Exec](1-38-Docker-Exec.md)
 -
+[Test 1-39 - Docker Stats](1-39-Docker-Stats.md)
+-
+[Test 1-40 - Docker Restart](1-40-Docker-Restart.md)

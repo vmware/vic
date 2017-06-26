@@ -28,9 +28,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vmware/govmomi/toolbox"
+	"github.com/vmware/govmomi/toolbox/vix"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/diag"
-	"github.com/vmware/vic/pkg/vsphere/toolbox"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -40,7 +41,7 @@ import (
 // returns:
 //  pid: toolbox ProcessManager Process id
 //  error
-func startCommand(m *toolbox.ProcessManager, r *toolbox.VixMsgStartProgramRequest) (int64, error) {
+func startCommand(m *toolbox.ProcessManager, r *vix.StartProgramRequest) (int64, error) {
 	defer trace.End(trace.Begin(r.ProgramPath))
 	var p *toolbox.Process
 

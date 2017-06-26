@@ -23,13 +23,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
+	"github.com/vmware/govmomi/toolbox"
 	"github.com/vmware/vic/lib/tether"
 	viclog "github.com/vmware/vic/pkg/log"
 	"github.com/vmware/vic/pkg/log/syslog"
 	"github.com/vmware/vic/pkg/logmgr"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
-	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )
 
 var (
@@ -160,8 +160,8 @@ func reboot() {
 }
 
 func configureToolbox(t *tether.Toolbox) *tether.Toolbox {
-	vix := t.Service.VixCommand
-	vix.ProcessStartCommand = startCommand
+	cmd := t.Service.Command
+	cmd.ProcessStartCommand = startCommand
 
 	return t
 }

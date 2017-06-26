@@ -60,9 +60,6 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 	vm.Summary.Guest = &types.VirtualMachineGuestSummary{}
 	vm.Summary.Storage = &types.VirtualMachineStorageSummary{}
 
-	// Add the default devices
-	devices, _ := object.VirtualDeviceList(esx.VirtualDevice).ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
-
 	// Append VM Name as the directory name if not specified
 	if strings.HasSuffix(spec.Files.VmPathName, "]") { // e.g. "[datastore1]"
 		spec.Files.VmPathName += " " + spec.Name
@@ -85,8 +82,10 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 			SuspendDirectory:  dsPath,
 			LogDirectory:      dsPath,
 		},
-		DeviceChange: devices,
 	}
+
+	// Add the default devices
+	defaults.DeviceChange, _ = object.VirtualDeviceList(esx.VirtualDevice).ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
 
 	err := vm.configure(&defaults)
 	if err != nil {
@@ -283,6 +282,22 @@ func (vm *VirtualMachine) configureDevice(devices object.VirtualDeviceList, devi
 	d := device.GetVirtualDevice()
 	var controller types.BaseVirtualController
 
+	if d.Key < 0 {
+		// Choose a unique key
+		if d.Key == -1 {
+			d.Key = devices.NewKey()
+		}
+
+		d.Key *= -1
+
+		for {
+			if devices.FindByKey(d.Key) == nil {
+				break
+			}
+			d.Key++
+		}
+	}
+
 	label := devices.Name(device)
 	summary := label
 
@@ -315,10 +330,6 @@ func (vm *VirtualMachine) configureDevice(devices object.VirtualDeviceList, devi
 		devices.AssignController(device, controller)
 	}
 
-	if d.Key == -1 {
-		d.Key = devices.NewKey()
-	}
-
 	if d.DeviceInfo == nil {
 		d.DeviceInfo = &types.Description{
 			Label:   label,
@@ -329,10 +340,9 @@ func (vm *VirtualMachine) configureDevice(devices object.VirtualDeviceList, devi
 
 func removeDevice(devices object.VirtualDeviceList, device types.BaseVirtualDevice) object.VirtualDeviceList {
 	var result object.VirtualDeviceList
-	name := devices.Name(device)
 
 	for i, d := range devices {
-		if devices.Name(d) == name {
+		if d.GetVirtualDevice().Key == device.GetVirtualDevice().Key {
 			result = append(result, devices[i+1:]...)
 			break
 		}
@@ -354,7 +364,12 @@ func (vm *VirtualMachine) configureDevices(spec *types.VirtualMachineConfigSpec)
 		switch dspec.Operation {
 		case types.VirtualDeviceConfigSpecOperationAdd:
 			if devices.FindByKey(device.Key) != nil {
-				return invalid
+				if vm.Self.Value != "" { // moid isn't set until CreateVM is done
+					return invalid
+				}
+
+				// In this case, the CreateVM() spec included one of the default devices
+				devices = removeDevice(devices, device)
 			}
 
 			vm.configureDevice(devices, dspec.Device)
