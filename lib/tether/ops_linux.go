@@ -38,23 +38,36 @@ import (
 
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/dhcp/client"
+	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
 )
 
 var (
-	hostnameFile = "/etc/hostname"
-	byLabelDir   = "/dev/disk/by-label"
-
 	defaultExecUser = &user.ExecUser{
 		Uid:  syscall.Getuid(),
 		Gid:  syscall.Getgid(),
 		Home: "/",
 	}
+
+	filesForMinOSLinux = map[string]os.FileMode{
+		"/etc/hostname":            0644,
+		"/etc/hosts":               0644,
+		"/etc/resolv.conf":         0644,
+		"/.tether/etc/hostname":    0644,
+		"/.tether/etc/hosts":       0644,
+		"/.tether/etc/resolv.conf": 0644,
+	}
 )
 
 const (
+	hostnameFile          = "/etc/hostname"
+	hostnameFileBindSrc   = "/.tether/etc/hostname"
+	hostsPathBindSrc      = "/.tether/etc/hosts"
+	resolvConfPathBindSrc = "/.tether/etc/resolv.conf"
+	byLabelDir            = "/dev/disk/by-label"
+
 	pciDevPath         = "/sys/bus/pci/devices"
 	nfsFileSystemType  = "nfs"
 	ext4FileSystemType = "ext4"
@@ -84,6 +97,11 @@ type Netlink interface {
 	// Not quite netlink, but tightly associated
 
 	LinkBySlot(slot int32) (netlink.Link, error)
+}
+
+func init() {
+	Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
+	Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
 }
 
 func (t *BaseOperations) LinkByName(name string) (netlink.Link, error) {
@@ -161,6 +179,11 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	}
 	log.Debugf("Updated kernel hostname")
 
+	// bind-mount /.tether/etc/hostname to /etc/hostname
+	if err = bindMount(hostnameFileBindSrc, hostnameFile); err != nil {
+		return err
+	}
+
 	// update /etc/hostname to match
 	err = ioutil.WriteFile(hostnameFile, []byte(hostname), 0644)
 	if err != nil {
@@ -183,7 +206,8 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	for _, a := range append(aliases, hostname) {
 		Sys.Hosts.SetHost(a, lo4)
 	}
-	if err = Sys.Hosts.Save(); err != nil {
+
+	if err = bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
 		return err
 	}
 
@@ -467,7 +491,7 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 
 	Sys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
 
-	if err := Sys.Hosts.Save(); err != nil {
+	if err := bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
 		return err
 	}
 
@@ -492,7 +516,7 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 		log.Infof("Added nameserver: %s", gw.IP)
 	}
 
-	if err := Sys.ResolvConf.Save(); err != nil {
+	if err := bindMountAndSave(etcconf.ResolvConfPath, Sys.ResolvConf); err != nil {
 		return err
 	}
 
@@ -872,6 +896,10 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
+	if err := createBindSrcTarget(filesForMinOSLinux); err != nil {
+		return err
+	}
+
 	err := Sys.Hosts.Load()
 	if err != nil {
 		return err
@@ -895,7 +923,7 @@ func (t *BaseOperations) Setup(config Config) error {
 		Sys.Hosts.SetHost(e.hostname, e.addr)
 	}
 
-	if err = Sys.Hosts.Save(); err != nil {
+	if err := bindMountAndSave(etcconf.HostsPath, Sys.Hosts); err != nil {
 		return err
 	}
 
@@ -985,4 +1013,61 @@ func readDir(dir string) ([]os.FileInfo, error) {
 	}
 
 	return result, nil
+}
+
+func bindMount(src, target string) error {
+	// no need to return if unmount fails; it's possible that the target is not mounted previously
+	log.Infof("unmounting %s", target)
+	if err := Sys.Syscall.Unmount(target, syscall.MNT_DETACH); err != nil {
+		log.Errorf("failed to unmount %s: %s", target, err)
+	}
+
+	// bind mount src to target
+	log.Infof("bind-mounting %s on %s", src, target)
+	if err := Sys.Syscall.Mount(src, target, "bind", syscall.MS_BIND, ""); err != nil {
+		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)
+	}
+
+	// make sure the file is readable
+	// #nosec: Expect file permissions to be 0600 or less
+	if err := os.Chmod(target, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func bindMountAndSave(target string, conf etcconf.Conf) error {
+	if err := conf.Save(); err != nil {
+		return err
+	}
+
+	src := conf.Path()
+
+	return bindMount(src, target)
+}
+
+// Create necessary directories/files as the src/target for bind mount.
+// See https://github.com/vmware/vic/issues/489
+func createBindSrcTarget(files map[string]os.FileMode) error {
+	// The directory has to exist before creating the new file
+	for filePath, fmode := range files {
+		dir := path.Dir(filePath)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			// #nosec: Expect file permissions to be 0600 or less
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %s", dir, err)
+			}
+		}
+		f, err := os.OpenFile(filePath, os.O_CREATE, fmode)
+		if err != nil {
+			return fmt.Errorf("failed to open file %s: %s", filePath, err)
+		}
+
+		if err = f.Close(); err != nil {
+			return fmt.Errorf("failed to close file %s: %s", filePath, err)
+		}
+	}
+
+	return nil
 }
