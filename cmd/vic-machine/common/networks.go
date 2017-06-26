@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package etcconf
+package common
 
-const HostsPath = "/etc/hosts"
+type Networks struct {
+	ClientNetworkName    string
+	ClientNetworkIP      string
+	ClientNetworkGateway string
+
+	PublicNetworkName    string
+	PublicNetworkIP      string
+	PublicNetworkGateway string
+
+	ManagementNetworkName    string
+	ManagementNetworkIP      string
+	ManagementNetworkGateway string
+}

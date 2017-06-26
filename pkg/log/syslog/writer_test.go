@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -203,7 +204,14 @@ func TestWriterWithTag(t *testing.T) {
 	go w.run()
 	<-w.running
 
-	w.Close()
+	child.Close()
+	gchild.Close()
+
+	select {
+	case <-w.done:
+	default:
+		assert.FailNow(t, "parent writer is not closed by child Close call")
+	}
 
 	f.AssertExpectations(t)
 	c.AssertExpectations(t)
@@ -236,7 +244,13 @@ func TestWriterWithPriority(t *testing.T) {
 	go w.run()
 	<-w.running
 
-	w.Close()
+	errw.Close()
+
+	select {
+	case <-w.done:
+	default:
+		assert.FailNow(t, "parent writer is not closed by child Close call")
+	}
 
 	f.AssertExpectations(t)
 	c.AssertExpectations(t)
@@ -261,5 +275,21 @@ func TestWriterInitialConnectError(t *testing.T) {
 			assert.FailNow(t, "writer should not run when connect() fails initially")
 		default:
 		}
+	}
+}
+
+func TestCloseWithNoRun(t *testing.T) {
+	f := &mockFormatter{}
+	dn := &mockNetDialer{}
+	w := newWriter(priority, tag, "", dn, f)
+	done := make(chan struct{})
+	go func() {
+		w.Close()
+		close(done)
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		assert.FailNow(t, "Close() took too long on writer that was not running")
+	case <-done:
 	}
 }
