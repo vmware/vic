@@ -211,11 +211,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 	s := h.Spec.Spec()
 	// if runtime is nil, should be fresh container create
+	var filter int
 	if h.Runtime == nil || h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff || h.TargetState() == StateStopped {
-		extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
+		// any values set with VM powered off are inherently persistent
+		filter = ^extraconfig.NonPersistent
 	} else {
-		extraconfig.Encode(extraconfig.ScopeFilterSink(extraconfig.NonPersistent|extraconfig.Hidden, extraconfig.MapSink(cfg)), h.ExecConfig)
+		filter = extraconfig.NonPersistent | extraconfig.Hidden
 	}
+
+	extraconfig.Encode(extraconfig.ScopeFilterSink(uint(filter), extraconfig.MapSink(cfg)), h.ExecConfig)
 
 	// strip unmodified keys from the update
 	if h.Config != nil {
