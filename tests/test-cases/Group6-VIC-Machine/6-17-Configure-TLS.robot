@@ -15,10 +15,9 @@
 *** Settings ***
 Documentation  Test 6-13 - Verify vic-machine configure TLS options
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword  Cleanup
+Suite Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
 Suite Setup  Run Keyword  Setup Test Environment
-Test Teardown  Test Cleanup
-Suite Teardown  Suite Cleanup
+Test Teardown  Run Keyword  Test Cleanup
 
 *** Keywords ***
 Setup Test Environment
@@ -39,9 +38,6 @@ Setup Test Environment
     ${save_env}=  Run  cat ${EXECDIR}/foo-bar-certs/%{VCH-NAME}.env
     Should Contain  ${save_env}  DOCKER_CERT_PATH=${EXECDIR}/foo-bar-certs
     Log To Console  Installer completed successfully: %{VCH-NAME}
-
-Suite Cleanup
-    Run Keyword  Cleanup VIC Appliance On Test Server
 
 Test Cleanup
     Run  rm -rf bundle cert-bundle.tgz out-bundle /root/ca
