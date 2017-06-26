@@ -31,8 +31,8 @@ import (
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/lib/tether/netfilter"
 	"github.com/vmware/vic/pkg/dio"
-	"github.com/vmware/vic/pkg/netfilter"
 	"github.com/vmware/vic/pkg/trace"
 )
 

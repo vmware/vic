@@ -20,6 +20,8 @@ import (
 	"os/exec"
 	"strconv"
 
+	"syscall"
+
 	"github.com/Sirupsen/logrus"
 )
 
@@ -141,8 +143,14 @@ func iptables(ctx context.Context, args []string) error {
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable
-	cmd := exec.CommandContext(ctx, "/.tether/lib64/ld-linux-x86-64.so.2", append([]string{"/.tether/iptables"}, args...)...)
-	cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=/.tether/lib:/.tether/lib64")
+	cmd := &exec.Cmd{
+		Path: "/lib64/ld-linux-x86-64.so.2",
+		Dir:  "/",
+		Args: append([]string{"/lib64/ld-linux-x86-64.so.2", "/iptables"}, args...),
+		SysProcAttr: &syscall.SysProcAttr{
+			Chroot: "/.tether",
+		},
+	}
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		logrus.Errorf("iptables error: %s", err.Error())
