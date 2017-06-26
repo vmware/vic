@@ -284,7 +284,7 @@ func TestCreateBindSrcTarget(t *testing.T) {
 
 	defer os.RemoveAll(dir)
 
-	// Create a file under existing directory
+	// Create a file under an existing directory
 	file := dir+"/test1"
 	err = createBindSrcTarget(map[string]os.FileMode{file:0644})
 	assert.NoError(t, err, "createBindSrcTarget failed: %s", err)
