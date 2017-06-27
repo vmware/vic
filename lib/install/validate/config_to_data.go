@@ -23,6 +23,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
 
+	"path/filepath"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -30,7 +32,6 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-	"path/filepath"
 )
 
 const (
