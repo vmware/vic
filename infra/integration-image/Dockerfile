@@ -5,10 +5,13 @@
 # gcloud auth login
 # gcloud docker -- push gcr.io/eminent-nation-87317/vic-integration-test:1.x
 # open vpn to CI cluster then run:
-# docker tag vic-test 192.168.31.15/vic-integration-test:1.x
-# docker push vic-test 192.168.31.15/vic-integration-test:1.x
+# docker tag vic-test 192.168.31.15/library/vic-integration-test:1.x
+# docker push 192.168.31.15/library/vic-integration-test:1.x
 
 FROM golang:1.8
+
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
 
 RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -34,7 +37,17 @@ RUN curl -sL https://deb.nodesource.com/setup_7.x | bash - && \
     e2fsprogs \
     iptables \
     xfsprogs \
-    xz-utils && \
+    dnsutils \
+    # Add headless chrome support
+    google-chrome-stable \
+    # Speed up ISO builds with already installed reqs
+    yum \
+    yum-utils \
+    cpio \
+    rpm \
+    ca-certificates \
+    xz-utils \
+    xorriso && \
 	# Cleanup
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*

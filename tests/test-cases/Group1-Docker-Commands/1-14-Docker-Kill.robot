@@ -22,7 +22,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Trap Signal Command
     # Container command runs an infinite loop, trapping and logging the given signal name
     [Arguments]  ${sig}
-    [Return]  busybox sh -c "trap 'echo KillSignal${sig}' ${sig}; echo READY; while true; do date && sleep 1; done"
+    [Return]  ${busybox} sh -c "trap 'echo KillSignal${sig}' ${sig}; echo READY; while true; do date && sleep 1; done"
 
 Assert Container Output
     [Arguments]  ${id}  ${match}
@@ -39,7 +39,7 @@ Check That Container Was Killed
 
 *** Test Cases ***
 Signal a container with default kill signal
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${trap}
@@ -57,7 +57,7 @@ Signal a container with default kill signal
     Should Contain  ${output}  Cannot kill container ${id}
 
 Signal a container with SIGHUP
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${trap}
@@ -81,9 +81,9 @@ Signal a non-existent container
     Should Contain  ${output}  No such container: fakeContainer
 
 Signal a tough to kill container - nginx
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull nginx
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${nginx}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create nginx
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${nginx}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${id}
     Should Be Equal As Integers  ${rc}  0

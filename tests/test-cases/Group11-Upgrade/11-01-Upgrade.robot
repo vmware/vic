@@ -54,10 +54,10 @@ Run Docker Checks
     Should Contain  ${output}  does not support rename
 
     # Check that rename works on a container from a VCH that supports rename
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name new-vch-cont1 busybox
+    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name new-vch-cont1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${contID}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename new-vch-cont1 new-vch-cont2
@@ -77,7 +77,7 @@ Run Docker Checks
     Should Be Equal  ${output}  vch-restart-tes-%{ID1}
 
     # check the display name and datastore folder name of a new container
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${vmName}=  Get VM Display Name  ${id}
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${vmName}
@@ -156,6 +156,7 @@ Upgrade VCH
     Check Upgraded Version
 
     Run Docker Checks
+
 
     Log To Console  Regression Tests...
     Run Regression Tests
