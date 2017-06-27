@@ -89,3 +89,5 @@ Verify VCH remote syslog
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/images/busybox
 
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: bin
+    Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: home
+    Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: var
