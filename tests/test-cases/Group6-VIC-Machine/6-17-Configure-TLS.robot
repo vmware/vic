@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 6-13 - Verify vic-machine configure TLS options
+Documentation  Test 6-17 - Verify vic-machine configure TLS options
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
 Suite Setup  Run Keyword  Setup Test Environment
