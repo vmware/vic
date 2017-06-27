@@ -37,7 +37,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # report the guest disabling the CPU
     mount -t tmpfs -o size=64m tmpfs ${MOUNTPOINT}/.tether/
 
-    # enable full system functionality in the container
+    # enable full system functionality in the container 
     ln -s lib64 ${MOUNTPOINT}/.tether/lib
     mkdir -p ${MOUNTPOINT}/.tether/{lib64,usr/lib/iptables}
 
