@@ -40,7 +40,7 @@ Setup Test Environment
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
 Test Cleanup
-    Run  rm -rf bundle cert-bundle.tgz out-bundle /root/ca
+    Run  rm -rf bundle cert-bundle.tgz out-bundle /root/ca ${EXECDIR}/foo-bar-certs
 
 *** Test Cases ***
 Configure VCH - Server cert with untrusted CA
