@@ -1,4 +1,4 @@
-Test 6-10 - Verify vic-machine version
+Test 6-12 - Verify vic-machine version
 =======
 
 #Purpose:
