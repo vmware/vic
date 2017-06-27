@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 6-13 - Verify vic-machine configure TLS options
+Documentation  Test 6-17 - Verify vic-machine configure TLS options
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword  Cleanup VIC Appliance On Test Server
 Suite Setup  Run Keyword  Setup Test Environment
@@ -40,7 +40,7 @@ Setup Test Environment
     Log To Console  Installer completed successfully: %{VCH-NAME}
 
 Test Cleanup
-    Run  rm -rf bundle cert-bundle.tgz out-bundle /root/ca
+    Run  rm -rf bundle cert-bundle.tgz out-bundle /root/ca ${EXECDIR}/foo-bar-certs
 
 *** Test Cases ***
 Configure VCH - Server cert with untrusted CA
