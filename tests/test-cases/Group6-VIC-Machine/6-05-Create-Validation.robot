@@ -109,7 +109,7 @@ Whitelist registries - blocked registry wildcard domain
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should fail
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Not Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
@@ -120,7 +120,7 @@ Whitelist registries - blocked registry ip address of valid registry fqdn
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should fail
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Not Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
@@ -130,7 +130,7 @@ Whitelist registries - allowed registry fqdn
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
@@ -140,6 +140,6 @@ Whitelist registries - allowed registry wildcard domain
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
