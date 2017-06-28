@@ -26,10 +26,10 @@ Check If Nimbus VMs Exist
     ${ti_exists}=  Run Keyword And Return Status  OperatingSystem.Should Exist  testbed-information
     Run Keyword If  ${ti_exists}  Remove File  testbed-information
 
-    ${nimbus_machines}=  Set Variable  %{NIMBUS_USER}-UITEST-*
+    ${nimbus_machines}=  Set Variable  '%{NIMBUS_USER}'-UITEST-*
     Log To Console  \nFinding Nimbus machines for UI tests
-    Open Connection  %{NIMBUS_GW}
-    Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  '%{NIMBUS_GW}'
+    Login  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
 
     ${out}=  Execute Command  nimbus-ctl list | grep -i "${nimbus_machines}"
     @{out}=  Split To Lines  ${out}
@@ -37,12 +37,12 @@ Check If Nimbus VMs Exist
     Close connection
 
     Run Keyword If  ${out_len} == 0  Setup Testbed  ELSE  Load Testbed  ${out}
-    Create File  testbed-information  TEST_VSPHERE_VER=%{TEST_VSPHERE_VER}\nSELENIUM_SERVER_IP=%{SELENIUM_SERVER_IP}\nTEST_ESX_NAME=%{TEST_ESX_NAME}\nESX_HOST_IP=%{ESX_HOST_IP}\nESX_HOST_PASSWORD=%{ESX_HOST_PASSWORD}\nTEST_VC_NAME=%{TEST_VC_NAME}\nTEST_VC_IP=%{TEST_VC_IP}\nTEST_URL_ARRAY=%{TEST_URL_ARRAY}\nTEST_USERNAME=%{TEST_USERNAME}\nTEST_PASSWORD=%{TEST_PASSWORD}\nTEST_DATASTORE=datastore1\nEXTERNAL_NETWORK=%{EXTERNAL_NETWORK}\nTEST_TIMEOUT=%{TEST_TIMEOUT}\nGOVC_INSECURE=%{GOVC_INSECURE}\nGOVC_USERNAME=%{GOVC_USERNAME}\nGOVC_PASSWORD=%{GOVC_PASSWORD}\nGOVC_URL=%{GOVC_URL}\n
+    Create File  testbed-information  TEST_VSPHERE_VER='%{TEST_VSPHERE_VER}'\nSELENIUM_SERVER_IP='%{SELENIUM_SERVER_IP}'\nTEST_ESX_NAME='%{TEST_ESX_NAME}'\nESX_HOST_IP='%{ESX_HOST_IP}'\nESX_HOST_PASSWORD='%{ESX_HOST_PASSWORD}'\nTEST_VC_NAME='%{TEST_VC_NAME}'\nTEST_VC_IP='%{TEST_VC_IP}'\nTEST_URL_ARRAY='%{TEST_URL_ARRAY}'\nTEST_USERNAME='%{TEST_USERNAME}'\nTEST_PASSWORD='%{TEST_PASSWORD}'\nTEST_DATASTORE=datastore1\nEXTERNAL_NETWORK='%{EXTERNAL_NETWORK}'\nTEST_TIMEOUT='%{TEST_TIMEOUT}'\nGOVC_INSECURE='%{GOVC_INSECURE}'\nGOVC_USERNAME='%{GOVC_USERNAME}'\nGOVC_PASSWORD='%{GOVC_PASSWORD}'\nGOVC_URL='%{GOVC_URL}'\n
 
 Destroy Testbed
     [Arguments]  ${name}
     Log To Console  Destroying VM(s) ${name}
-    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${name}
+    Run Keyword And Ignore Error  Kill Nimbus Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  ${name}
 
 Load Testbed
     [Arguments]  ${list}
@@ -51,38 +51,38 @@ Load Testbed
     @{browservm-found}=  Create List
     @{esx-found}=  Create List
     @{vcsa-found}=  Create List
-    ${browservm-requested}=  Run Keyword If  '%{TEST_OS}' == 'Ubuntu'  Set Variable  BROWSERVM-UBUNTU  ELSE  Set Variable  BROWSERVM-WINDOWS
+    ${browservm-requested}=  Run Keyword If  ''%{TEST_OS}'' == 'Ubuntu'  Set Variable  BROWSERVM-UBUNTU  ELSE  Set Variable  BROWSERVM-WINDOWS
     :FOR  ${vm}  IN  @{list}
     \  @{vm_items}=  Split String  ${vm}  :
-    \  ${is_esx}=  Run Keyword And Return Status  Should Match Regexp  @{vm_items}[1]  (?i)esx%{TEST_VSPHERE_VER}
-    \  ${is_vcsa}=  Run Keyword And Return Status  Should Match Regexp  @{vm_items}[1]  (?i)vc%{TEST_VSPHERE_VER}
+    \  ${is_esx}=  Run Keyword And Return Status  Should Match Regexp  @{vm_items}[1]  (?i)esx'%{TEST_VSPHERE_VER}'
+    \  ${is_vcsa}=  Run Keyword And Return Status  Should Match Regexp  @{vm_items}[1]  (?i)vc'%{TEST_VSPHERE_VER}'
     \  ${is_browservm}=  Run Keyword And Return Status  Should Match Regexp  @{vm_items}[1]  (?i)${browservm-requested}
     \  Run Keyword If  ${is_browservm}  Set Test Variable  @{browservm-found}  @{vm_items}  ELSE IF  ${is_esx}  Set Test Variable  @{esx-found}  @{vm_items}  ELSE IF  ${is_vcsa}  Set Test Variable  @{vcsa-found}  @{vm_items}
     ${browservm_len}=  Get Length  ${browservm-found}
     ${esx_len}=  Get Length  ${esx-found}
     ${vcsa_len}=  Get Length  ${vcsa-found}
     Run Keyword If  ${browservm_len} > 0  Extract BrowserVm Info  @{browservm-found}  ELSE  Deploy BrowserVm
-    Run Keyword If  (${esx_len} == 0 and ${vcsa_len} > 0) or (${esx_len} > 0 and ${vcsa_len} == 0)  Run Keywords  Destroy Testbed  %{NIMBUS_USER}-UITEST-VC%{TEST_VSPHERE_VER}*  AND  Destroy Testbed  %{NIMBUS_USER}-UITEST-ESX%{TEST_VSPHERE_VER}*  AND  Deploy Esx  AND  Deploy Vcsa
+    Run Keyword If  (${esx_len} == 0 and ${vcsa_len} > 0) or (${esx_len} > 0 and ${vcsa_len} == 0)  Run Keywords  Destroy Testbed  '%{NIMBUS_USER}'-UITEST-VC'%{TEST_VSPHERE_VER}'*  AND  Destroy Testbed  '%{NIMBUS_USER}'-UITEST-ESX'%{TEST_VSPHERE_VER}'*  AND  Deploy Esx  AND  Deploy Vcsa
     Run Keyword If  ${esx_len} == 0 and ${vcsa_len} == 0  Run Keywords  Deploy Esx  AND  Deploy Vcsa
     Run Keyword If  ${esx_len} > 0 and ${vcsa_len} > 0  Run Keywords  Extract Esx Info  @{esx-found}  AND  Extract Vcsa Info  @{vcsa-found}
 
 Extract BrowserVm Info
     [Arguments]  @{vm_fields}
-    Open Connection  %{NIMBUS_GW}
-    Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  '%{NIMBUS_GW}'
+    Login  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     ${vm_name}=  Evaluate  '@{vm_fields}[1]'.strip()
-    ${out}=  Execute Command  NIMBUS=@{vm_fields}[0] nimbus-ctl ip ${vm_name} | grep -i ".*: %{NIMBUS_USER}-.*"
+    ${out}=  Execute Command  NIMBUS=@{vm_fields}[0] nimbus-ctl ip ${vm_name} | grep -i ".*: '%{NIMBUS_USER}'-.*"
     @{out}=  Split String  ${out}  :
     ${vm_ip}=  Evaluate  '@{out}[2]'.strip()
-    Run Keyword If  '%{TEST_OS}' == 'Mac'  Set Environment Variable  SELENIUM_SERVER_IP  ${MACOS_SELENIUM_IP}  ELSE IF  '%{TEST_OS}' == 'Ubuntu'  Set Environment Variable  SELENIUM_SERVER_IP  ${UBUNTU_SELENIUM_IP}  ELSE  Set Environment Variable  SELENIUM_SERVER_IP  ${vm_ip}
+    Run Keyword If  ''%{TEST_OS}'' == 'Mac'  Set Environment Variable  SELENIUM_SERVER_IP  ${MACOS_SELENIUM_IP}  ELSE IF  ''%{TEST_OS}'' == 'Ubuntu'  Set Environment Variable  SELENIUM_SERVER_IP  ${UBUNTU_SELENIUM_IP}  ELSE  Set Environment Variable  SELENIUM_SERVER_IP  ${vm_ip}
     Close Connection
 
 Extract Esx Info
     [Arguments]  @{vm_fields}
-    Open Connection  %{NIMBUS_GW}
-    Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  '%{NIMBUS_GW}'
+    Login  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     ${vm_name}=  Evaluate  '@{vm_fields}[1]'.strip()
-    ${out}=  Execute Command  NIMBUS=@{vm_fields}[0] nimbus-ctl ip ${vm_name} | grep -i ".*: %{NIMBUS_USER}-.*"
+    ${out}=  Execute Command  NIMBUS=@{vm_fields}[0] nimbus-ctl ip ${vm_name} | grep -i ".*: '%{NIMBUS_USER}'-.*"
     @{out}=  Split String  ${out}  :
     ${vm_ip}=  Evaluate  '@{out}[2]'.strip()
     Set Environment Variable  TEST_ESX_NAME  ${vm_name}
@@ -92,10 +92,10 @@ Extract Esx Info
 
 Extract Vcsa Info
     [Arguments]  @{vm_fields}
-    Open Connection  %{NIMBUS_GW}
-    Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  '%{NIMBUS_GW}'
+    Login  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     ${vm_name}=  Evaluate  '@{vm_fields}[1]'.strip()
-    ${out}=  Execute Command  NIMBUS=@{vm_fields}[0] nimbus-ctl ip ${vm_name} | grep -i ".*: %{NIMBUS_USER}-.*"
+    ${out}=  Execute Command  NIMBUS=@{vm_fields}[0] nimbus-ctl ip ${vm_name} | grep -i ".*: '%{NIMBUS_USER}'-.*"
     @{out}=  Split String  ${out}  :
     ${vm_ip}=  Evaluate  '@{out}[2]'.strip()
     Set Environment Variable  TEST_VC_NAME  ${vm_name}
@@ -113,19 +113,19 @@ Extract Vcsa Info
 
 Deploy BrowserVm
     # deploy a browser vm
-    ${browservm}  ${browservm-ip}=  Run Keyword If  '%{TEST_OS}' == 'Mac'  No Operation  ELSE IF  '%{TEST_OS}' == 'Ubuntu'  No Operation  ELSE  Deploy Nimbus BrowserVm For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    Run Keyword If  '%{TEST_OS}' == 'Mac'  Set Environment Variable  SELENIUM_SERVER_IP  ${MACOS_SELENIUM_IP}  ELSE IF  '%{TEST_OS}' == 'Ubuntu'  Set Environment Variable  SELENIUM_SERVER_IP  ${UBUNTU_SELENIUM_IP}  ELSE  Set Environment Variable  SELENIUM_SERVER_IP  ${browservm-ip}
+    ${browservm}  ${browservm-ip}=  Run Keyword If  ''%{TEST_OS}'' == 'Mac'  No Operation  ELSE IF  ''%{TEST_OS}'' == 'Ubuntu'  No Operation  ELSE  Deploy Nimbus BrowserVm For NGC Testing  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
+    Run Keyword If  ''%{TEST_OS}'' == 'Mac'  Set Environment Variable  SELENIUM_SERVER_IP  ${MACOS_SELENIUM_IP}  ELSE IF  ''%{TEST_OS}'' == 'Ubuntu'  Set Environment Variable  SELENIUM_SERVER_IP  ${UBUNTU_SELENIUM_IP}  ELSE  Set Environment Variable  SELENIUM_SERVER_IP  ${browservm-ip}
 
 Deploy Esx
     # deploy an esxi server
-    ${esx1}  ${esx1-ip}=  Run Keyword If  %{TEST_VSPHERE_VER} == 60  Deploy Nimbus ESXi Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ELSE  Deploy Nimbus ESXi Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4564106
+    ${esx1}  ${esx1-ip}=  Run Keyword If  '%{TEST_VSPHERE_VER}' == 60  Deploy Nimbus ESXi Server For NGC Testing  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  ELSE  Deploy Nimbus ESXi Server For NGC Testing  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  4564106
     Set Environment Variable  TEST_ESX_NAME  ${esx1}
     Set Environment Variable  ESX_HOST_IP  ${esx1-ip}
     Set Environment Variable  ESX_HOST_PASSWORD  e2eFunctionalTest
 
 Deploy Vcsa
     # deploy a vcsa
-    ${vc}  ${vc-ip}=  Run Keyword If  %{TEST_VSPHERE_VER} == 60  Deploy Nimbus vCenter Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ELSE  Deploy Nimbus vCenter Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4602587
+    ${vc}  ${vc-ip}=  Run Keyword If  '%{TEST_VSPHERE_VER}' == 60  Deploy Nimbus vCenter Server For NGC Testing  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  ELSE  Deploy Nimbus vCenter Server For NGC Testing  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  4602587
 
     # create a datacenter
     Log To Console  Create a datacenter on the VC
@@ -141,7 +141,7 @@ Deploy Vcsa
 
     # add the esx host to the cluster
     Log To Console  Add ESX host to Cluster
-    ${out}=  Run  govc cluster.add -dc=Datacenter -cluster=/Datacenter/host/Cluster -username=root -password=e2eFunctionalTest -noverify=true -hostname=%{ESX_HOST_IP}
+    ${out}=  Run  govc cluster.add -dc=Datacenter -cluster=/Datacenter/host/Cluster -username=root -password=e2eFunctionalTest -noverify=true -hostname='%{ESX_HOST_IP}'
     Should Contain  ${out}  OK
 
     # create a distributed switch
@@ -159,7 +159,7 @@ Deploy Vcsa
     Should Contain  ${out}  OK
 
     Log To Console  Add the ESXi hosts to the portgroups
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 -host.ip=%{ESX_HOST_IP} %{ESX_HOST_IP}
+    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 -host.ip='%{ESX_HOST_IP}' '%{ESX_HOST_IP}'
     Should Contain  ${out}  OK
 
     Set Environment Variable  TEST_VC_NAME  ${vc}
@@ -182,13 +182,13 @@ Setup Testbed
 Deploy Nimbus BrowserVm For NGC Testing
     [Arguments]  ${user}  ${password}
     # for Mac & Ubuntu this keyword will never be called
-    # ${os}=  Run Keyword If  '%{TEST_OS}' == 'Ubuntu'  Set Variable  UBUNTU  ELSE  Set Variable  WINDOWS
-    # ${vm-template}=  Run Keyword If  '%{TEST_OS}' == 'Ubuntu'  Set Variable  hsuia-seleniumNode-ubuntu --memory 2048  ELSE  Set Variable  ngc-testvm-3
+    # ${os}=  Run Keyword If  ''%{TEST_OS}'' == 'Ubuntu'  Set Variable  UBUNTU  ELSE  Set Variable  WINDOWS
+    # ${vm-template}=  Run Keyword If  ''%{TEST_OS}'' == 'Ubuntu'  Set Variable  hsuia-seleniumNode-ubuntu --memory 2048  ELSE  Set Variable  ngc-testvm-3
     ${os}=  Set Variable  WINDOWS
     ${vm-template}=  Set Variable  ngc-testvm-3
     ${name}=  Evaluate  'UITEST-BROWSERVM-${os}-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Browser VM: ${name}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Login  ${user}  ${password}
 
     ${out}=  Execute Command  nimbus-genericdeploy --type ${vm-template} ${name} --lease 3
@@ -208,9 +208,9 @@ Deploy Nimbus BrowserVm For NGC Testing
 
 Deploy Nimbus ESXi Server For NGC Testing
     [Arguments]  ${user}  ${password}  ${version}=3620759
-    ${name}=  Evaluate  'UITEST-ESX%{TEST_VSPHERE_VER}-' + str(random.randint(1000,9999))  modules=random
+    ${name}=  Evaluate  'UITEST-ESX'%{TEST_VSPHERE_VER}'-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus ESXi server: ${name} using build ${version}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Login  ${user}  ${password}
 
     ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
@@ -237,9 +237,9 @@ Deploy Nimbus ESXi Server For NGC Testing
 
 Deploy Nimbus vCenter Server For NGC Testing
     [Arguments]  ${user}  ${password}  ${version}=3634791
-    ${name}=  Evaluate  'UITEST-VC%{TEST_VSPHERE_VER}-' + str(random.randint(1000,9999))  modules=random
+    ${name}=  Evaluate  'UITEST-VC'%{TEST_VSPHERE_VER}'-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus vCenter server: ${name} using build ${version}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Login  ${user}  ${password}
 
     ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} --useQaNgc ${name}
@@ -284,7 +284,7 @@ Check Variables
     Log To Console  TEST_DATASTORE ${isset_TEST_DATASTORE}
     Log To Console  TEST_RESOURCE ${isset_TEST_RESOURCE}
     Log To Console  GOVC_INSECURE ${isset_GOVC_INSECURE}
-    Should Be True  ${isset_SHELL} and ${isset_DRONE_SERVER} and ${isset_DRONE_TOKEN} and ${isset_NIMBUS_USER} and ${isset_NIMBUS_GW} and ${isset_TEST_DATASTORE} and ${isset_TEST_RESOURCE} and ${isset_GOVC_INSECURE} and %{TEST_VSPHERE_VER}
+    Should Be True  ${isset_SHELL} and ${isset_DRONE_SERVER} and ${isset_DRONE_TOKEN} and ${isset_NIMBUS_USER} and ${isset_NIMBUS_GW} and ${isset_TEST_DATASTORE} and ${isset_TEST_RESOURCE} and ${isset_GOVC_INSECURE} and '%{TEST_VSPHERE_VER}'
 
 Check Nimbus Machines
     Check If Nimbus VMs Exist

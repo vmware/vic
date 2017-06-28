@@ -23,15 +23,15 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Check vsphere event stream
     # basic confirmation of function
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
     ${name}=  Generate Random String  15
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${name} ${busybox} sleep 600
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create --name ${name} ${busybox} sleep 600
     Should Be Equal As Integers  ${rc}  0
     ${shortid}=  Get container shortID  ${id}
 
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} start ${name}
+    ${rc}=  Run And Return Rc  docker '%{VCH-PARAMS}' start ${name}
     Should Be Equal As Integers  ${rc}  0
 
     # ensure that portlayer log contains the powered on event - this string comes in the e.Message portion of the vSphere event
@@ -42,7 +42,7 @@ Check vsphere event stream
     # delete the session to suppress reception of events
     ${rc}  ${out}=  Run And Return Rc And Output  govc session.ls
     Log  ${out}
-    ${matches}=  Get Lines Matching Regexp  ${out}  %{VCH-IP}\\s* vic-engine  partial_match=True
+    ${matches}=  Get Lines Matching Regexp  ${out}  '%{VCH-IP}'\\s* vic-engine  partial_match=True
     @{sessions}=  Split to lines  ${matches}
     :FOR  ${session}  IN  @{sessions}
     \  ${key}=  Fetch From Left  ${session}  ${SPACE}

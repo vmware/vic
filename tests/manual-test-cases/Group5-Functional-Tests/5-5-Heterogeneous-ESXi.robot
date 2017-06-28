@@ -22,26 +22,26 @@ Test
     Log To Console  \nStarting test...
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
     ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
-    Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
+    Set Global Variable  @{list}  '%{NIMBUS_USER}'-${vc}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
+    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Append To List  ${list}  ${esx1}
     
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  3029944
+    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
+    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  3029944
     Append To List  ${list}  ${esx2}
 
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4240417
+    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
+    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  4240417
     Append To List  ${list}  ${esx3}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid-vc}
     Should Contain  ${output.stdout}  Overall Status: Succeeded
 
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  '%{NIMBUS_GW}'
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     ${vc-ip}=  Get IP  ${vc}
     Close Connection
 

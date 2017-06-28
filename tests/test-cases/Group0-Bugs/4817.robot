@@ -20,5 +20,5 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Check kernel vsyscall
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -t centos:6 bash -c true
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -t centos:6 bash -c true
     Should Be Equal As Integers  ${rc}  0

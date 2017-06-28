@@ -23,9 +23,9 @@ Default Tags  regression
 Regression test
     Run Regression Tests
 
-    ${out}=  Run  govc vm.info %{VCH-NAME}
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info %{VCH-NAME}/%{VCH-NAME}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info %{VCH-NAME}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    ${out}=  Run  govc vm.info '%{VCH-NAME}'
+    ${ret}=  Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Run  govc vm.info '%{VCH-NAME}'/'%{VCH-NAME}'
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Set Test Variable  ${out}  ${ret}
+    ${ret}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc vm.info '%{VCH-NAME}'
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Set Test Variable  ${out}  ${ret}
     Should Contain  ${out}  Photon - VCH

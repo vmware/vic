@@ -23,18 +23,18 @@ Test
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
 
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  3  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  ${ESX_VERSION}
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
-    Set Global Variable  @{list}  %{NIMBUS_USER}-@{esx_names}[0]  %{NIMBUS_USER}-@{esx_names}[1]  %{NIMBUS_USER}-@{esx_names}[2]  %{NIMBUS_USER}-${vc}
+    Set Global Variable  @{list}  '%{NIMBUS_USER}'-@{esx_names}[0]  '%{NIMBUS_USER}'-@{esx_names}[1]  '%{NIMBUS_USER}'-@{esx_names}[2]  '%{NIMBUS_USER}'-${vc}
 
     # Finish vCenter deploy
     ${output}=  Wait For Process  ${pid}
     Should Contain  ${output.stdout}  Overall Status: Succeeded
 
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  '%{NIMBUS_GW}'
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     ${vc-ip}=  Get IP  ${vc}
     Close Connection
 

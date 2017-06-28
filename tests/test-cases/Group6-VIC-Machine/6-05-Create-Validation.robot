@@ -27,7 +27,7 @@ Suggest resources - Invalid datacenter
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/WOW --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}'/WOW --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --image-store='%{TEST_DATASTORE}' --password='%{TEST_PASSWORD}' ${vicmachinetls}
     Should Contain  ${output}  Suggested datacenters:
     Should Contain  ${output}  vic-machine-linux create failed:
 
@@ -40,7 +40,7 @@ Suggest resources - Invalid target path
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/MUCH/DATACENTER --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}'/MUCH/DATACENTER --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --image-store='%{TEST_DATASTORE}' --password='%{TEST_PASSWORD}' ${vicmachinetls}
     Should Contain  ${output}  Suggested datacenters:
     Should Contain  ${output}  vic-machine-linux create failed:
 
@@ -52,7 +52,7 @@ Create VCH - target thumbprint verification
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Set Test VCH Name
 
-    ${output}=  Run  bin/vic-machine-linux create --thumbprint=NOPE --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --image-store=ENOENT ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --thumbprint=NOPE --name='%{VCH-NAME}' --target="'%{TEST_USERNAME}':'%{TEST_PASSWORD}'@'%{TEST_URL}'" --image-store=ENOENT ${vicmachinetls}
     Should Contain  ${output}  thumbprint does not match
 
 Default image datastore
@@ -65,12 +65,12 @@ Default image datastore
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Log  ${output}
     Should Contain  ${output}  Using default datastore
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'...
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
@@ -84,20 +84,20 @@ Custom image datastore
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --image-store='%{TEST_DATASTORE}'/long/weird/path ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'...
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
 Trailing slash works as expected
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}'/ --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' ${vicmachinetls} --insecure-registry harbor.ci.drone.local
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'...
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
@@ -105,41 +105,41 @@ Whitelist registries - blocked registry wildcard domain
     Set Test Environment Variables
     Log To Console  \nInstalling VCH to test server...
     # *.docker.io
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *.docker.io
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}'/ --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' ${vicmachinetls} --whitelist-registry *.docker.io
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should fail
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Not Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
 Whitelist registries - blocked registry ip address of valid registry fqdn
     Set Test Environment Variables
     # ip address of docker.io
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry 52.200.132.201
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}'/ --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' ${vicmachinetls} --whitelist-registry 52.200.132.201
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should fail
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Not Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
 Whitelist registries - allowed registry fqdn
     Set Test Environment Variables
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry docker.io
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}'/ --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' ${vicmachinetls} --whitelist-registry docker.io
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server
 
 Whitelist registries - allowed registry wildcard domain
     Set Test Environment Variables
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *docker.io
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}'/ --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' ${vicmachinetls} --whitelist-registry *docker.io
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Be Equal As Integers  ${rc}  0
     Cleanup VIC Appliance On Test Server

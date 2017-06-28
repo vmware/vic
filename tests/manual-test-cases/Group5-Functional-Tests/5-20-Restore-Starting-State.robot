@@ -22,20 +22,20 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Restore Container Starting State on Restart
 	# enable firewall
 	Run  govc host.esxcli network firewall set -e true
-	${out}=  Run  docker %{VCH-PARAMS} pull busybox
+	${out}=  Run  docker '%{VCH-PARAMS}' pull busybox
 	# with enabled firewall this will timeout
-	${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -i busybox
+	${rc}  ${container}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -i busybox
 	#Should Be Equal As Integers  ${rc}  0
-	#${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+	#${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start ${container}
 	Should Contain  ${container}  deadline
-	${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+	${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
 	Should Contain  ${out}  Starting
 	# disable firewall
 	Run  govc host.esxcli network firewall set -e false
 	# restart appliance
-	Reboot VM  %{VCH-NAME}
+	Reboot VM  '%{VCH-NAME}'
 	# wait for docker info to succeed
-	Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+	Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  '%{VCH-PARAMS}'
 	# ensure we have a starting container
-	${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+	${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
 	Should Contain  ${out}  Starting

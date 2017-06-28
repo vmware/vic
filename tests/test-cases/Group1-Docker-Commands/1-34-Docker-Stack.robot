@@ -22,26 +22,26 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 #Docker stack deploy
     #${rc}  ${output}=  Run And Return Rc And Output  wget #https://raw.githubusercontent.com/vfarcic/docker-flow-proxy/master/docker-compose-stack.yml
     #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stack deploy -c #./docker-compose-stack.yml proxy
+    #${rc}  ${output}=  Run And Return Rc And Output  docker1.13 '%{VCH-PARAMS}' stack deploy -c #./docker-compose-stack.yml proxy
     #Should Be Equal As Integers  ${rc}  1
     #Should Contain  ${output}  does not yet support Docker Swarm
 
 Docker stack ls
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stack ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 '%{VCH-PARAMS}' stack ls
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  does not yet support Docker Swarm
 
 Docker stack ps
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stack ps test-stack
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 '%{VCH-PARAMS}' stack ps test-stack
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  does not yet support Docker Swarm
 
 Docker stack rm
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stack rm test-stack
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 '%{VCH-PARAMS}' stack rm test-stack
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  does not yet support Docker Swarm
 
 Docker stack services
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 %{VCH-PARAMS} stack services test-stack
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.13 '%{VCH-PARAMS}' stack services test-stack
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  does not yet support Docker Swarm

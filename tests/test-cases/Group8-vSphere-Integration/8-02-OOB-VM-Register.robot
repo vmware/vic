@@ -28,7 +28,7 @@ Extra Cleanup
 *** Test Cases ***
 Verify VIC Still Works When Different VM Is Registered
     Install VIC Appliance To Test Server
-    Set Suite Variable  ${old-vm}  %{VCH-NAME}
+    Set Suite Variable  ${old-vm}  '%{VCH-NAME}'
     Install VIC Appliance To Test Server
 
     ${out}=  Run  govc vm.power -off ${old-vm}
@@ -38,7 +38,7 @@ Verify VIC Still Works When Different VM Is Registered
     ${out}=  Run  govc vm.register ${old-vm}/${old-vm}.vmx
     Should Be Empty  ${out}
 
-    ${out}=  Run  docker %{VCH-PARAMS} ps -a
+    ${out}=  Run  docker '%{VCH-PARAMS}' ps -a
     Log  ${out}
     Should Contain  ${out}  CONTAINER ID
     Should Contain  ${out}  IMAGE

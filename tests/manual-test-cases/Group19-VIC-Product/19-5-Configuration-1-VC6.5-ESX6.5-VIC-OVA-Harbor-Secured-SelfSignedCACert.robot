@@ -56,7 +56,7 @@ ${developer2}  test-user-developer2
     Deploy VIC-OVA To Test Server  protocol=https
     Create Project And Three Users For It  developer=${developer}  developer2=${developer2}  developerEmail=${developerEmail}  developerEmail2=${developerEmail2}  developerFullName=${developerFullName}  password=${password}  userPassword=${newPassword}  comments=${comments}  guest=${guest}  developerRole=${developerRole}  guestRole=${guestRole}  project=${project}  public=${False}
     Install Harbor Self Signed Cert
-    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${False} 
+    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/'%{HARBOR_IP}'/ca.crt  certs=${False} 
     Remove Environment Variable  DOCKER_HOST
 
 19-5-Teardown-OVA-Harbor-Secured-SelfSigned
@@ -74,7 +74,7 @@ Test Pos002 Developer Operations
 Test Neg001 Developer Operations
     # Docker login
     Log To Console  \nRunning docker login guest...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker login -u ${guest} -p ${newPassword} %{HARBOR_IP}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker login -u ${guest} -p ${newPassword} '%{HARBOR_IP}'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Login Succeeded
@@ -82,25 +82,25 @@ Test Neg001 Developer Operations
 
     # Docker pull from harbor through VCH, ensure guest could pull
     Log To Console  docker pull from harbor using VCH...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker pull from dockerhub
     Log To Console  docker pull from dockerhub...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker pull %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker pull '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker tag image
     Log To Console  docker tag...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker tag %{HARBOR_IP}/${project}/${image} %{HARBOR_IP}/${project}/${image}:${tag}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker tag '%{HARBOR_IP}'/${project}/${image} '%{HARBOR_IP}'/${project}/${image}:${tag}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker push image should fail
     Log To Console  push image...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker push %{HARBOR_IP}/${project}/${image}:${tag}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker push '%{HARBOR_IP}'/${project}/${image}:${tag}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  unauthorized: authentication required
@@ -108,15 +108,15 @@ Test Neg001 Developer Operations
 
 Test Pos003 Two VCH With One Harbor
     # Add another VC
-    ${VCH1-URL}=  Set Variable  %{VCH-PARAMS}
+    ${VCH1-URL}=  Set Variable  '%{VCH-PARAMS}'
 
-    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${False}
+    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/'%{HARBOR_IP}'/ca.crt  certs=${False}
     Remove Environment Variable  DOCKER_HOST
-    ${VCH2-URL}=  Set Variable  %{VCH-PARAMS}
+    ${VCH2-URL}=  Set Variable  '%{VCH-PARAMS}'
 
     # Docker login VCH1
     Log To Console  \nRunning docker login developer VCH1...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH1-URL} login -u ${developer} -p ${newPassword} %{HARBOR_IP}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH1-URL} login -u ${developer} -p ${newPassword} '%{HARBOR_IP}'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Login Succeeded
@@ -124,7 +124,7 @@ Test Pos003 Two VCH With One Harbor
 
     # Docker login VCH2
     Log To Console  \nRunning docker login developer2 VCH2...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} login -u ${developer2} -p ${newPassword} %{HARBOR_IP}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} login -u ${developer2} -p ${newPassword} '%{HARBOR_IP}'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Login Succeeded
@@ -138,13 +138,13 @@ Test Pos003 Two VCH With One Harbor
 
     # Docker tag image
     Log To Console  docker tag...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker tag ${image} %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker tag ${image} '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker push image
     Log To Console  push image...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker push %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker push '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  digest:
@@ -153,7 +153,7 @@ Test Pos003 Two VCH With One Harbor
 
     # Docker delete image in local registry
     Log To Console  docker rmi local registry...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker rmi -f %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker rmi -f '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Untagged
@@ -161,13 +161,13 @@ Test Pos003 Two VCH With One Harbor
     # Make sure the image pushed by VCH1 could be used by VCH2
     # Docker pull from harbor using VCH2
     Log To Console  docker pull from dockerhub VCH2...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} pull %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} pull '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker run image
     Log To Console  docker run VCH2...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} run --name ${container_name} '%{HARBOR_IP}'/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  END_OF_THE_TEST
@@ -180,7 +180,7 @@ Test Pos003 Two VCH With One Harbor
 
     # Docker create
     Log To Console  docker create VCH2...
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${VCH2-URL} create --name ${container_name} -i %{HARBOR_IP}/${project}/${image} /bin/top
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${VCH2-URL} create --name ${container_name} -i '%{HARBOR_IP}'/${project}/${image} /bin/top
     Log  ${containerID}
     Should Be Equal As Integers  ${rc}  0
 
@@ -223,7 +223,7 @@ Test Pos003 Two VCH With One Harbor
 
     # Docker delete image
     Log To Console  docker rmi VCH2...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} rmi -f %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${VCH2-URL} rmi -f '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Untagged

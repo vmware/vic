@@ -21,12 +21,12 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 
 Create test containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  RUNNER  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  CREATOR  ${output}
 
@@ -34,53 +34,53 @@ Create test containers
 Restart Running Container
     Create test containers
     # grab the containerVM ip address - will compare after restart to ensure it remains the same
-    ${rc}  ${originalIP}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %{RUNNER}
+    ${rc}  ${originalIP}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' '%{RUNNER}'
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${originalIP}  172
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} restart %{RUNNER}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' restart '%{RUNNER}'
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  %{RUNNER}
+    Should Contain  ${output}  '%{RUNNER}'
     # verify that IP address didn't chnage during restart
-    ${rc}  ${restartIP}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %{RUNNER}
+    ${rc}  ${restartIP}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' '%{RUNNER}'
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${originalIP}  ${restartIP}
     # verify that the containerVM started
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f id=%{RUNNER} -f status=running
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -f id='%{RUNNER}' -f status=running
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
 Restart Created Container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} restart %{CREATOR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' restart '%{CREATOR}'
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  %{CREATOR}
+    Should Contain  ${output}  '%{CREATOR}'
     # verify that the containerVM started
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f id=%{CREATOR} -f status=running
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -f id='%{CREATOR}' -f status=running
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
 
 Restart Stopped Container
     # grab the containerVM ip address - will compare after restart to ensure it remains the same
-    ${rc}  ${originalIP}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %{RUNNER}
+    ${rc}  ${originalIP}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' '%{RUNNER}'
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${originalIP}  172
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop %{RUNNER}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stop '%{RUNNER}'
     Should Be Equal As Integers  ${rc}  0
     # verify that the containerVM exited
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f id=%{RUNNER} -f status=exited
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -f id='%{RUNNER}' -f status=exited
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} restart %{RUNNER}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' restart '%{RUNNER}'
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  %{RUNNER}
+    Should Contain  ${output}  '%{RUNNER}'
     # verify that the containerVM started
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -f id=%{RUNNER} -f status=running
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -f id='%{RUNNER}' -f status=running
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
     # verify that IP address didn't chnage during restart
-    ${rc}  ${restartIP}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %{RUNNER}
+    ${rc}  ${restartIP}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' '%{RUNNER}'
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${originalIP}  ${restartIP}

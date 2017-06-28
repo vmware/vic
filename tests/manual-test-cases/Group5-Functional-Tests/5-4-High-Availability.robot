@@ -20,60 +20,60 @@ Suite Teardown  Nimbus Cleanup  ${list}
 *** Keywords ***
 Run Regression Test With More Log Information
     Check ImageStore
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Be Equal As Integers  ${rc}  0
     Check ImageStore
     # Pull an image that has been pulled already
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Be Equal As Integers  ${rc}  0
     Check ImageStore
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  busybox
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Container Stops  ${container}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
 
     ${vmName}=  Get VM Display Name  ${container}
     Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${vmName}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rm ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  /bin/top
     Check ImageStore
 
     # Check for regression for #1265
-    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -it busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -it busybox
     Should Be Equal As Integers  ${rc}  0
     ${shortname}=  Get Substring  ${container2}  1  12
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     ${lines}=  Get Lines Containing String  ${output}  ${shortname}
     Should Not Contain  ${lines}  /bin/top
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container1}
+    ${rc}=  Run And Return Rc  docker '%{VCH-PARAMS}' rm ${container1}
     Should Be Equal As Integers  ${rc}  0
     Check ImageStore
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container2}
+    ${rc}=  Run And Return Rc  docker '%{VCH-PARAMS}' rm ${container2}
     Should Be Equal As Integers  ${rc}  0
     Check ImageStore
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi busybox
     Should Be Equal As Integers  ${rc}  0
     Check ImageStore
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
 
@@ -86,7 +86,7 @@ Test
 
     Log To Console  \nStarting test...
     # Let's make 5 because it is free and in parallel, but only use 3 of them
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     @{esx-names}=  Get Dictionary Keys  ${esxes}
     @{esx-ips}=  Get Dictionary Values  ${esxes}
     ${esx1}=  Get From List  ${esx-names}  0
@@ -96,7 +96,7 @@ Test
     ${esx2-ip}=  Get From List  ${esx-ips}  1
     ${esx3-ip}=  Get From List  ${esx-ips}  2
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${VC}  ${vc}
 
     Set Global Variable  @{list}  ${esx-names}  ${vc}
@@ -136,7 +136,7 @@ Test
     ${out}=  Run  govc cluster.change -drs-enabled -ha-enabled /ha-datacenter/host/cls
     Should Be Empty  ${out}
 
-    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Append To List  ${list}  ${name}
 
     ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store /ha-datacenter/host/cls
@@ -159,24 +159,24 @@ Test
     # have a few containers running and stopped for when we
     # shut down the host and HA brings it up again
     # make sure we have busybox
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     Should Be Equal As Integers  ${rc}  0
 
     @{running}=  Create List
     :FOR  ${index}  IN RANGE  3
-    \     ${rc}  ${c}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox
+    \     ${rc}  ${c}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -itd busybox
     \     Should Be Equal As Integers  ${rc}  0
     \     Append To List  ${running}  ${c}
 
     @{stopped}=  Create List
     :FOR  ${index}  IN RANGE  3
-    \     ${rc}  ${c}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox ls
+    \     ${rc}  ${c}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d busybox ls
     \     Should Be Equal As Integers  ${rc}  0
     \     Append To List  ${stopped}  ${c}
 
     Sleep  2 minutes
 
-    ${output}=  Run  govc vm.info %{VCH-NAME}/%{VCH-NAME}
+    ${output}=  Run  govc vm.info '%{VCH-NAME}'/'%{VCH-NAME}'
     @{output}=  Split To Lines  ${output}
     ${curHost}=  Fetch From Right  @{output}[-1]  ${SPACE}
 
@@ -195,25 +195,25 @@ Test
     # Really not sure what better to do here?  Otherwise, vic-machine-inspect returns the old IP address... maybe some sort of power monitoring? Can I pull uptime of the system?
     Sleep  4 minutes
     Run VIC Machine Inspect Command
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  '%{VCH-PARAMS}'
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
 
     # check running containers are still running
     :FOR  ${c}  IN  @{running}
-    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format '{{.State.Status}}' ${c}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect --format '{{.State.Status}}' ${c}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  running
-    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rm -f ${c}
     \     Should Be Equal As Integers  ${rc}  0
 
     # check stopped containers are still stopped
     :FOR  ${c}  IN  @{stopped}
-    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format '{{.State.Status}}' ${c}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect --format '{{.State.Status}}' ${c}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  exited
-    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${c}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rm -f ${c}
     \     Should Be Equal As Integers  ${rc}  0
 
 Run Regression Tests

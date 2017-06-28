@@ -26,10 +26,10 @@ Docker run an image from a container that was removed OOB
 
     #Install VIC Appliance To Test Server
 
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd --name removeOOB busybox /bin/top
+    #${rc}  ${container}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -itd --name removeOOB busybox /bin/top
     #Should Be Equal As Integers  ${rc}  0
     #Destroy VM OOB  removeOOB*
-    #${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -itd busybox /bin/top
+    #${rc}  ${container}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -itd busybox /bin/top
     #Should Be Equal As Integers  ${rc}  0

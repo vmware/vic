@@ -27,13 +27,13 @@ Image Store Delete - Image store not found
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --image-store=%{TEST_DATASTORE}/images --password=%{TEST_PASSWORD} --force --kv
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target='%{TEST_URL}' --user='%{TEST_USERNAME}' --bridge-network='%{BRIDGE_NETWORK}' --public-network='%{PUBLIC_NETWORK}' --image-store='%{TEST_DATASTORE}'/images --password='%{TEST_PASSWORD}' --force --kv
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'...
 
     Log To Console  \nDeleting image stores...
-    ${out}=  Run  govc datastore.rm -ds=%{TEST_DATASTORE} images
+    ${out}=  Run  govc datastore.rm -ds='%{TEST_DATASTORE}' images
 
     Log To Console  \nRunning vic-machine delete
     Cleanup VIC Appliance On Test Server

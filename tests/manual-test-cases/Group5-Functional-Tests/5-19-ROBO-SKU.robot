@@ -20,14 +20,14 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${ESX1}  ${esx1}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${ESX2}  ${esx2}
-    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx3}  ${esx3-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${ESX3}  ${esx3}
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${VC}  ${vc}
 
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${vc}
@@ -52,12 +52,12 @@ Test
     Add Host To Distributed Switch  ${esx2-ip}
     Add Host To Distributed Switch  ${esx3-ip}
 
-    Add Vsphere License  %{ROBO_LICENSE}
+    Add Vsphere License  '%{ROBO_LICENSE}'
 
     # Assign license to each of the ESX servers
-    Assign Vsphere License  %{ROBO_LICENSE}  ${esx1-ip}
-    Assign Vsphere License  %{ROBO_LICENSE}  ${esx2-ip}
-    Assign Vsphere License  %{ROBO_LICENSE}  ${esx3-ip}
+    Assign Vsphere License  '%{ROBO_LICENSE}'  ${esx1-ip}
+    Assign Vsphere License  '%{ROBO_LICENSE}'  ${esx2-ip}
+    Assign Vsphere License  '%{ROBO_LICENSE}'  ${esx3-ip}
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}

@@ -24,7 +24,7 @@ Docker Integration Tests
     Log To Console  \nStarting Docker integration tests... NOT EXECUTING NOW.
     # Currently blocked on issue https://github.com/vmware/vic/issues/2549
     #Set Environment Variable  GOPATH  /go:/go/src/github.com/docker/docker/vendor
-    #${ip}=  Remove String  %{VCH-PARAMS}  -H
+    #${ip}=  Remove String  '%{VCH-PARAMS}'  -H
     #${ip}=  Strip String  ${ip}
     #Run  go get github.com/docker/docker
     #${status}  ${out}=  Run Keyword And Ignore Error  Run Process  DOCKER_HOST\=tcp://${ip} go test  shell=True  cwd=/go/src/github.com/docker/docker/integration-cli  timeout=10min  on_timeout=kill

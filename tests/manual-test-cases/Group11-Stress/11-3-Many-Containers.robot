@@ -24,7 +24,7 @@ Docker run 1000 containers rapidly
 
     Log To Console  \nRun 1000 containers rapidly
     :FOR  ${idx}  IN RANGE  0  1000
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} run busybox date  shell=True
+    \   ${pid}=  Start Process  docker '%{VCH-PARAMS}' run busybox date  shell=True
     \   Append To List  ${pids}  ${pid}
 
     Log To Console  \nWait for them to finish and check their RC

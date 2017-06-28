@@ -30,7 +30,7 @@ Enable and disable VIC firewall rule
     ${fwstatus}=  Get Host Firewall Enabled
     Should Be True  ${fwstatus}
 
-    ${output}=  Run  bin/vic-machine-linux update firewall --target %{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --thumbprint=%{TEST_THUMBPRINT} --allow
+    ${output}=  Run  bin/vic-machine-linux update firewall --target '%{TEST_URL}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}' --thumbprint='%{TEST_THUMBPRINT}' --allow
     Should Contain  ${output}  enabled on host
     Should Contain  ${output}  Firewall changes complete
 
@@ -38,14 +38,14 @@ Enable and disable VIC firewall rule
     ${output}=  Run  govc host.esxcli network firewall ruleset list --ruleset-id=vSPC
     Should Contain  ${output}  true
 
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --no-tls --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --name='%{VCH-NAME}' --target="'%{TEST_USERNAME}':'%{TEST_PASSWORD}'@'%{TEST_URL}'" --thumbprint='%{TEST_THUMBPRINT}' --image-store='%{TEST_DATASTORE}' --bridge-network='%{BRIDGE_NETWORK}' --public-network='%{PUBLIC_NETWORK}' --no-tls --insecure-registry harbor.ci.drone.local
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: %{VCH-NAME}
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'
 
     Run Regression Tests
 
-    ${output}=  Run  bin/vic-machine-linux update firewall --target %{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --thumbprint=%{TEST_THUMBPRINT} --deny
+    ${output}=  Run  bin/vic-machine-linux update firewall --target '%{TEST_URL}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}' --thumbprint='%{TEST_THUMBPRINT}' --deny
     Should Contain  ${output}  disabled on host
     Should Contain  ${output}  Firewall changes complete
 

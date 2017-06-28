@@ -27,7 +27,7 @@ Setup Test Environment
     Run Keyword Unless  '${version}' == '${EMPTY}'  Enable VCH SSH  vic/vic-machine-linux
 
 Provision lynis
-    [Arguments]  ${target}=%{VCH-IP}  ${user}=root  ${password}=%{TEST_PASSWORD}
+    [Arguments]  ${target}='%{VCH-IP}'  ${user}=root  ${password}='%{TEST_PASSWORD}'
     Log To Console  \nProvision lynis to vch appliance...
     Open Connection  ${target}
     Login  ${user}  ${password}
@@ -41,7 +41,7 @@ Provision lynis
     Should Be Equal As Integers  ${rc}  0
 
 Lynis Audit System
-    [Arguments]  ${target}=%{VCH-IP}  ${user}=root  ${password}=%{TEST_PASSWORD}  ${lynis_path}=/usr/local/lynis
+    [Arguments]  ${target}='%{VCH-IP}'  ${user}=root  ${password}='%{TEST_PASSWORD}'  ${lynis_path}=/usr/local/lynis
     Log To Console  \nBegin auditing appliance...
     Open Connection  ${target}
     Login  ${user}  ${password}

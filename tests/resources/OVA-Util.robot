@@ -42,7 +42,7 @@ ${tls_not_disabled}  False
 *** Keywords ***
 # Requires vc credential for govc
 Deploy VIC-OVA To Test Server
-    [Arguments]  ${dhcp}=True  ${protocol}=http  ${build}=False  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${cluster}=%{TEST_RESOURCE}  ${datacenter}=%{TEST_DATACENTER}   
+    [Arguments]  ${dhcp}=True  ${protocol}=http  ${build}=False  ${user}='%{TEST_USERNAME}'  ${password}='%{TEST_PASSWORD}'  ${host}='%{TEST_URL_ARRAY}'  ${datastore}='%{TEST_DATASTORE}'  ${cluster}='%{TEST_RESOURCE}'  ${datacenter}='%{TEST_DATACENTER}'   
     Set Global Variable  ${ova_path}  bin/vic-1.1.1-${rev}.ova
     Run Keyword if  ${build}  Build Unified OVA
     ${rev}=  Run  git rev-parse --short HEAD
@@ -77,31 +77,31 @@ Deploy VIC-OVA To Test Server
 
     Set Environment Variable  HARBOR_IP  ${ip}
     
-    Log To Console  \nHarbor IP: %{HARBOR_IP}
+    Log To Console  \nHarbor IP: '%{HARBOR_IP}'
     
     Log To Console  Waiting for Harbor to Come Up...
     :FOR  ${i}  IN RANGE  20
-    \  ${out}=  Run  curl -k ${protocol}://%{HARBOR_IP}
+    \  ${out}=  Run  curl -k ${protocol}://'%{HARBOR_IP}'
     \  Log  ${out}
     \  ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  502 Bad Gateway
     \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Not Contain  ${out}  Connection refused
     \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Contain  ${out}  <title>Harbor</title>
-    \  Return From Keyword If  ${status}  %{HARBOR_IP}
+    \  Return From Keyword If  ${status}  '%{HARBOR_IP}'
     \  Sleep  30s
     Fail  Harbor failed to come up properly!
-    [Return]  %{HARBOR_IP}
+    [Return]  '%{HARBOR_IP}'
 
 # Requires vc credential for govc
 Cleanup VIC-OVA On Test Server  
-    [Arguments]  ${url}=%{GOVC_URL}  ${username}=%{GOVC_USERNAME}  ${password}=%{GOVC_PASSWORD}
+    [Arguments]  ${url}='%{GOVC_URL}'  ${username}='%{GOVC_USERNAME}'  ${password}='%{GOVC_PASSWORD}'
     ${rc}  ${output}=  Run And Return Rc And Output  GOVC_URL=${url} GOVC_USERNAME=${username} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc vm.destroy ${ova_target_vm_name}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Run Keyword And Ignore Error  Run  GOVC_URL=${url} GOVC_USERNAME=${username} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc object.destroy /%{TEST_DATACENTER}/vm/${ova_target_vm_name}
+    Run Keyword And Ignore Error  Run  GOVC_URL=${url} GOVC_USERNAME=${username} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc object.destroy /'%{TEST_DATACENTER}'/vm/${ova_target_vm_name}
     Log To Console  \nUnified-OVA deployment is cleaned up on test server
 
 Build Unified OVA
-    [Arguments]  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}
+    [Arguments]  ${user}='%{TEST_USERNAME}'  ${password}='%{TEST_PASSWORD}'  ${host}='%{TEST_URL}'
     Log To Console  \nStarting to build Unified OVA... 
     Log To Console  \nRemove stale local OVA artifacts
     Run  Remove OVA Artifacts Locally

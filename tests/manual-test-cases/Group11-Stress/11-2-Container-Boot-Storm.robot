@@ -22,16 +22,16 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Container Boot Storm
     ${containers}=  Create List
     ${pids}=  Create List
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
+    ${out}=  Run  docker '%{VCH-PARAMS}' pull busybox
 
     Log To Console  \nCreate 100 containers
     :FOR  ${idx}  IN RANGE  0  100
-    \   ${id}=  Run  docker %{VCH-PARAMS} create busybox /bin/top
+    \   ${id}=  Run  docker '%{VCH-PARAMS}' create busybox /bin/top
     \   Append To List  ${containers}  ${id}
     
     Log To Console  \nRapidly start each container
     :FOR  ${id}  IN  @{containers}
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} start ${id}  shell=True
+    \   ${pid}=  Start Process  docker '%{VCH-PARAMS}' start ${id}  shell=True
     \   Append To List  ${pids}  ${pid}
 
     Log To Console  \nWait for them to finish and check their RC

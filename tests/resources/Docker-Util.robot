@@ -26,7 +26,7 @@ Run Docker Info
 Pull image
     [Arguments]  ${image}
     Log To Console  \nRunning docker pull ${image}...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Digest:
@@ -36,7 +36,7 @@ Pull image
 Wait Until Container Stops
     [Arguments]  ${container}
     :FOR  ${idx}  IN RANGE  0  60
-    \   ${out}=  Run  docker %{VCH-PARAMS} inspect -f '{{.State.Running}}' ${container}
+    \   ${out}=  Run  docker '%{VCH-PARAMS}' inspect -f '{{.State.Running}}' ${container}
     \   Return From Keyword If  '${out}' == 'false'
     \   Sleep  1
     Fail  Container did not stop within 60 seconds
@@ -91,7 +91,7 @@ Get container shortID
 
 Get VM display name
     [Arguments]  ${id}
-    ${rc}  ${name}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect --format='{{.Name}}' ${id}
+    ${rc}  ${name}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect --format='{{.Name}}' ${id}
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Get Substring  ${name}  1
     ${shortID}=  Get container shortID  ${id}
@@ -99,11 +99,11 @@ Get VM display name
 
 Verify Container Rename
     [Arguments]  ${oldname}  ${newname}  ${contID}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${newname}
     Should Not Contain  ${output}  ${oldname}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Name}}' ${newname}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{.Name}}' ${newname}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${newname}
     ${vmName}=  Get VM display name  ${contID}
@@ -112,54 +112,54 @@ Verify Container Rename
     Should Contain  ${output}  ${vmName}
 
 Run Regression Tests
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     # Pull an image that has been pulled already
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  busybox
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
+    ${rc}  ${container}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Container Stops  ${container}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
 
     ${vmName}=  Get VM Display Name  ${container}
     Wait Until Keyword Succeeds  5x  10s  Check For The Proper Log Files  ${vmName}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rm ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  /bin/top
 
     # Check for regression for #1265
-    ${rc}  ${container1}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it ${busybox} /bin/top
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -it ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container2}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it ${busybox}
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -it ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${shortname}=  Get Substring  ${container2}  1  12
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     ${lines}=  Get Lines Containing String  ${output}  ${shortname}
     Should Not Contain  ${lines}  /bin/top
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container1}
+    ${rc}=  Run And Return Rc  docker '%{VCH-PARAMS}' rm ${container1}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} rm ${container2}
+    ${rc}=  Run And Return Rc  docker '%{VCH-PARAMS}' rm ${container2}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  ${busybox}
 
@@ -167,8 +167,8 @@ Run Regression Tests
 
 Launch Container
     [Arguments]  ${name}  ${network}=default  ${dockercmd}=docker
-    ${rc}  ${output}=  Run And Return Rc And Output  ${dockercmd} %{VCH-PARAMS} run --name ${name} --net ${network} -itd busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  ${dockercmd} '%{VCH-PARAMS}' run --name ${name} --net ${network} -itd busybox
     Should Be Equal As Integers  ${rc}  0
     ${id}=  Get Line  ${output}  -1
-    ${ip}=  Get Container IP  %{VCH-PARAMS}  ${id}  ${network}  ${dockercmd}
+    ${ip}=  Get Container IP  '%{VCH-PARAMS}'  ${id}  ${network}  ${dockercmd}
     [Return]  ${id}  ${ip}

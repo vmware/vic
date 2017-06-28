@@ -27,7 +27,7 @@ ${hello-yml}  version: "2"\nservices:\n${SPACE}top:\n${SPACE}${SPACE}image: busy
 
 *** Keywords ***
 Check Compose Logs
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file link-compose.yml logs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file link-compose.yml logs
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  PING aaa
     Should Not Contain  ${output}  bad address 'aaa'
@@ -37,96 +37,96 @@ Compose basic
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
 
     Run  echo '${yml}' > basic-compose.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network create vic_default
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' network create vic_default
     Log  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml create
-    Log  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml start
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml create
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml logs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml start
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml stop
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml logs
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml stop
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose kill
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml up -d
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' -f basic-compose.yml up -d
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml kill redis
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' -f basic-compose.yml kill redis
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml down
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' -f basic-compose.yml down
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
 Compose Up while another container is running (ps filtering related)
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d busybox /bin/top
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f basic-compose.yml up -d
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' -f basic-compose.yml up -d
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml down
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose Up with link
     Run  echo '${link-yml}' > link-compose.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file link-compose.yml up -d
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file link-compose.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  10x  10s  Check Compose Logs
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file link-compose.yml down
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file link-compose.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose bundle creation
-    ${rc}  Run And Return Rc  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml pull
+    ${rc}  Run And Return Rc  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml pull
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml bundle
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml bundle
     Log  ${output}
     Should Contain  ${output}  Wrote bundle
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file basic-compose.yml down
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file basic-compose.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose up -d --force-recreate
     Run  echo '${rename-yml-1}' > compose-rename.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file compose-rename.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d --force-recreate
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file compose-rename.yml up -d --force-recreate
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose up -d with a new image
     Run  echo '${rename-yml-2}' > compose-rename.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml up -d   
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file compose-rename.yml up -d   
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file compose-rename.yml down
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file compose-rename.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 Compose up in foreground (attach path)   
     Run  echo '${hello-yml}' > hello-compose.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f hello-compose.yml pull
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' -f hello-compose.yml pull
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
 
     # Bring up the compose app and wait till they're up and running
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f hello-compose.yml up
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' -f hello-compose.yml up
     Log  ${output}
     Should Contain  ${output}  hello, world
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} -f hello-compose.yml down
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' -f hello-compose.yml down
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
