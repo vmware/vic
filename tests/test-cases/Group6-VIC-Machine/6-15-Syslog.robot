@@ -83,7 +83,7 @@ Verify VCH remote syslog
 
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/images/json
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/containers/json
-    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/info
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /info
 
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/containers/\\w{64}
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/images/(\\S+)*busybox
