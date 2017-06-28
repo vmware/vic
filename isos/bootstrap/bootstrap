@@ -37,7 +37,10 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # report the guest disabling the CPU
     mount -t tmpfs -o size=64m tmpfs ${MOUNTPOINT}/.tether/
 
-    # enable full system functionality in the container
+    # enable full system functionality in the container 
+    ln -s lib64 ${MOUNTPOINT}/.tether/lib
+    mkdir -p ${MOUNTPOINT}/.tether/{lib64,usr/lib/iptables}
+
     echo "Publishing modules within container"
     mkdir -p ${MOUNTPOINT}/lib/modules
     mkdir -p ${MOUNTPOINT}/.tether/lib/modules
@@ -64,9 +67,6 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # libc.so.6 => /baz/lib/libc.so.6 (0x00007f97fba53000)
     # libdl.so.2 => /baz/lib/libdl.so.2 (0x00007f97fb84f000)
     # /lib64/ld-linux-x86-64.so.2 (0x00007f97fc929000)
-
-    ln -s lib64 ${MOUNTPOINT}/.tether/lib
-    mkdir -p ${MOUNTPOINT}/.tether/{lib64,usr/lib/iptables}
 
     cp -a /sbin/*tables* ${MOUNTPOINT}/.tether/
     cp -a /lib/libm.* /lib/libm-* /lib/libgcc_s* /lib/libip*tc* /lib/libxtables* /lib/libdl* /lib/libc.so* /lib/libc-* ${MOUNTPOINT}/.tether/lib
