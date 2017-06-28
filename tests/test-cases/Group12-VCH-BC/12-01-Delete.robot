@@ -30,10 +30,10 @@ Install VIC 0.6.0 to Test Server
     Set Test Environment Variables
 
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  ./vic/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=./vic/appliance.iso --bootstrap-iso=./vic/bootstrap.iso --password=%{TEST_PASSWORD} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${output}=  Run  ./vic/vic-machine-linux create --debug 1 --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --image-store='%{TEST_DATASTORE}' --appliance-iso=./vic/appliance.iso --bootstrap-iso=./vic/bootstrap.iso --password='%{TEST_PASSWORD}' --bridge-network='%{BRIDGE_NETWORK}' --external-network='%{PUBLIC_NETWORK}' --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}'
     Should Contain  ${output}  Installer completed successfully
     Get 0.6.0 VIC Docker Params  ${output}  false
-    Log To Console  Installer completed successfully: %{VCH-NAME}
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'
 
 Get 0.6.0 VIC Docker Params
     # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
@@ -78,34 +78,34 @@ Get 0.6.0 VIC Docker Params
 *** Test Cases ***
 Delete VCH with new vic-machine
     Log To Console  \nRunning docker pull busybox...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 '%{VCH-PARAMS}' pull busybox
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${name}=  Generate Random String  15
-    ${rc}  ${container-id}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create --name ${name} busybox /bin/top
+    ${rc}  ${container-id}=  Run And Return Rc And Output  docker1.11 '%{VCH-PARAMS}' create --name ${name} busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container-id}  Error
     Set Suite Variable  ${containerName}  ${name}
 
     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
     Run Keyword And Ignore Error  Gather Logs From Test Server
-    ${uuid}=  Run  govc vm.info -json\=true %{VCH-NAME} | jq -r '.VirtualMachines[0].Config.Uuid'
-    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+    ${uuid}=  Run  govc vm.info -json\=true '%{VCH-NAME}' | jq -r '.VirtualMachines[0].Config.Uuid'
+    ${ret}=  Run  bin/vic-machine-linux delete --target '%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user '%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}' --name '%{VCH-NAME}'
     Should Contain  ${ret}  is different than installer version
 
     # Delete with force
-    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
+    ${ret}=  Run  bin/vic-machine-linux delete --target '%{TEST_URL}' --user '%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}' --name '%{VCH-NAME}' --force
     Should Contain  ${ret}  Completed successfully
     Should Not Contain  ${ret}  delete failed
 
     # Check VM is removed
     ${ret}=  Run  govc vm.info -json=true ${containerName}-*
     Should Contain  ${ret}  {"VirtualMachines":null}
-    ${ret}=  Run  govc vm.info -json=true %{VCH-NAME}
+    ${ret}=  Run  govc vm.info -json=true '%{VCH-NAME}'
     Should Contain  ${ret}  {"VirtualMachines":null}
 
     # Check resource pool is removed
-    ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
+    ${ret}=  Run  govc pool.info -json=true host/*/Resources/'%{VCH-NAME}'
 	Should Contain  ${ret}  {"ResourcePools":null}
     Run  rm -rf vic.tar.gz vic

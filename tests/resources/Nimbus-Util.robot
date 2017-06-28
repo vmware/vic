@@ -23,7 +23,7 @@ ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 *** Keywords ***
 Fetch IP
   [Arguments]  ${name}
-  ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
+  ${out}=  Execute Command  nimbus-ctl ip '%{NIMBUS_USER}'-${name} | grep '%{NIMBUS_USER}'-${name}
   Should Not Be Empty  ${out}
   [Return]  ${out}
 
@@ -37,7 +37,7 @@ Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
@@ -81,14 +81,14 @@ Set Host Password
     Log To Console  \nNimbus ESXi server IP: ${ip}
 
 Deploy Multiple Nimbus ESXi Servers in Parallel
-    [Arguments]  ${number}  ${user}=%{NIMBUS_USER}  ${password}=%{NIMBUS_PASSWORD}  ${version}=${ESX_VERSION}
+    [Arguments]  ${number}  ${user}='%{NIMBUS_USER}'  ${password}='%{NIMBUS_PASSWORD}'  ${version}=${ESX_VERSION}
     @{names}=  Create List
     ${num}=  Convert To Integer  ${number}
     :FOR  ${x}  IN RANGE  ${num}
     \     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     \     Append To List  ${names}  ${name}
 
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     @{processes}=  Create List
@@ -121,7 +121,7 @@ Deploy Nimbus vCenter Server
     [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}
     ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus vCenter server: ${name}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
@@ -151,14 +151,14 @@ Deploy Nimbus ESXi Server Async
     [Tags]  secret
     [Arguments]  ${name}  ${version}=${ESX_VERSION}
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=1 --nics 2 ${version}'
+    ${out}=  Run Secret SSHPASS command  '%{NIMBUS_USER}'  ''%{NIMBUS_PASSWORD}''  'nimbus-esxdeploy ${name} --disk\=48000000 --ssd\=24000000 --memory\=8192 --lease=1 --nics 2 ${version}'
     [Return]  ${out}
 
 Run Secret SSHPASS command
     [Tags]  secret
     [Arguments]  ${user}  ${password}  ${cmd}
 
-    ${out}=  Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no ${user}@%{NIMBUS_GW} ${cmd}  shell=True
+    ${out}=  Start Process  sshpass -p ${password} ssh -o StrictHostKeyChecking\=no ${user}@'%{NIMBUS_GW}' ${cmd}  shell=True
     [Return]  ${out}
 
 Deploy Nimbus vCenter Server Async
@@ -166,12 +166,12 @@ Deploy Nimbus vCenter Server Async
     [Arguments]  ${name}  ${version}=${VC_VERSION}
     Log To Console  \nDeploying Nimbus VC server: ${name}
 
-    ${out}=  Run Secret SSHPASS command  %{NIMBUS_USER}  '%{NIMBUS_PASSWORD}'  'nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}'
+    ${out}=  Run Secret SSHPASS command  '%{NIMBUS_USER}'  ''%{NIMBUS_PASSWORD}''  'nimbus-vcvadeploy --lease=1 --vcvaBuild ${version} ${name}'
     [Return]  ${out}
 
 Deploy Nimbus Testbed
     [Arguments]  ${user}  ${password}  ${testbed}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     :FOR  ${IDX}  IN RANGE  1  5
@@ -185,14 +185,14 @@ Deploy Nimbus Testbed
 
 Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
 
 Cleanup Nimbus PXE folder
     [Arguments]  ${user}  ${password}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
     ${out}=  Execute Command  rm -rf public_html/pxe/*
     Close connection
@@ -200,10 +200,10 @@ Cleanup Nimbus PXE folder
 Nimbus Cleanup
     [Arguments]  ${vm_list}  ${collect_log}=True  ${dontDelete}=${false}
     Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
-    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Return From Keyword If  ${dontDelete}
     :FOR  ${item}  IN  @{vm_list}
-    \   Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${item}
+    \   Run Keyword And Ignore Error  Kill Nimbus Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  ${item}
 
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
@@ -217,7 +217,7 @@ Gather Host IPs
 
 Create a VSAN Cluster
     Log To Console  \nStarting basic VSAN cluster deploy...
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --lease=1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
+    ${out}=  Deploy Nimbus Testbed  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  --lease=1 --noStatsDump --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
     Should Contain  ${out}  .vcva-${VC_VERSION}' is up. IP:
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
@@ -269,7 +269,7 @@ Create a Simple VC Cluster
     ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
 
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${esx_number}  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${esx_number}  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  ${ESX_VERSION}
     @{esx_names}=  Get Dictionary Keys  ${esxes}
     @{esx_ips}=  Get Dictionary Values  ${esxes}
 
@@ -277,8 +277,8 @@ Create a Simple VC Cluster
     ${output}=  Wait For Process  ${pid}
     Should Contain  ${output.stdout}  Overall Status: Succeeded
 
-    Open Connection  %{NIMBUS_GW}
-    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    Open Connection  '%{NIMBUS_GW}'
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     ${vc_ip}=  Get IP  ${vc}
     Close Connection
 
@@ -378,7 +378,7 @@ Deploy Nimbus NFS Datastore
     [Arguments]  ${user}  ${password}
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus NFS server: ${name}
-    Open Connection  %{NIMBUS_GW}
+    Open Connection  '%{NIMBUS_GW}'
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
     ${out}=  Execute Command  nimbus-nfsdeploy ${name}

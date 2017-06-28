@@ -27,27 +27,27 @@ Cleanup Folders
 
 *** Test Cases ***
 Install VCH With TLS
-    Open Connection  %{WINDOWS_URL}  prompt=>
-    Login  %{WINDOWS_USERNAME}  %{WINDOWS_PASSWORD}
+    Open Connection  '%{WINDOWS_URL}'  prompt=>
+    Login  '%{WINDOWS_USERNAME}'  '%{WINDOWS_PASSWORD}'
     Cleanup Folders
     ${output}=  Execute Command  wget https://storage.googleapis.com/vic-engine-builds/vic_${ver}.tar.gz -OutFile vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar
-    ${output}=  Execute Command  ./vic/vic-machine-windows.exe create --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD}
+    ${output}=  Execute Command  ./vic/vic-machine-windows.exe create --target '%{TEST_URL}' --user '%{TEST_USERNAME}' --password '%{TEST_PASSWORD}'
     Get Docker Params  ${output}  ${true}
     Run Regression Tests
-    ${output}=  Execute Command  ./vic/vic-machine-windows.exe delete --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD}    
+    ${output}=  Execute Command  ./vic/vic-machine-windows.exe delete --target '%{TEST_URL}' --user '%{TEST_USERNAME}' --password '%{TEST_PASSWORD}'    
     Cleanup Folders
     
 Install VCH Without TLS
-    Open Connection  %{WINDOWS_URL}  prompt=>
-    Login  %{WINDOWS_USERNAME}  %{WINDOWS_PASSWORD}
+    Open Connection  '%{WINDOWS_URL}'  prompt=>
+    Login  '%{WINDOWS_USERNAME}'  '%{WINDOWS_PASSWORD}'
     Cleanup Folders
     ${output}=  Execute Command  wget https://storage.googleapis.com/vic-engine-builds/vic_${ver}.tar.gz -OutFile vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar.gz
     ${output}=  Execute Command  7z x vic.tar
-    ${output}=  Execute Command  ./vic/vic-machine-windows.exe create --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD} --no-tls
+    ${output}=  Execute Command  ./vic/vic-machine-windows.exe create --target '%{TEST_URL}' --user '%{TEST_USERNAME}' --password '%{TEST_PASSWORD}' --no-tls
     Get Docker Params  ${output}  ${false}
     Run Regression Tests
-    ${output}=  Execute Command  ./vic/vic-machine-windows.exe delete --target %{TEST_URL} --user %{TEST_USERNAME} --password %{TEST_PASSWORD}    
+    ${output}=  Execute Command  ./vic/vic-machine-windows.exe delete --target '%{TEST_URL}' --user '%{TEST_USERNAME}' --password '%{TEST_PASSWORD}'    
     Cleanup Folders

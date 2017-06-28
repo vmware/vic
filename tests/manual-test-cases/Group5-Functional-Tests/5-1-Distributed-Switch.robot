@@ -21,7 +21,7 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 Test
     Log To Console  \nStarting test...
     # Let's make 5 because it is free and in parallel, but only use 3 of them
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     @{esx-names}=  Get Dictionary Keys  ${esxes}
     @{esx-ips}=  Get Dictionary Values  ${esxes}
     ${esx1}=  Get From List  ${esx-names}  0
@@ -31,7 +31,7 @@ Test
     ${esx2-ip}=  Get From List  ${esx-ips}  1
     ${esx3-ip}=  Get From List  ${esx-ips}  2
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${VC}  ${vc}
 
     Set Global Variable  @{list}  ${esx-names}  ${vc}

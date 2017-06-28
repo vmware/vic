@@ -22,7 +22,7 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Setup Harbor
-    ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx}  ${esx-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Global Variable  @{list}  ${esx}
 
     Set Environment Variable  TEST_URL_ARRAY  ${esx-ip}
@@ -39,53 +39,53 @@ Setup Harbor
 
     # Install a Harbor server with HTTPS a Harbor server with HTTP
     Install Harbor To Test Server  protocol=https  name=harbor-https
-    Set Environment Variable  HTTPS_HARBOR_IP  %{HARBOR-IP}
+    Set Environment Variable  HTTPS_HARBOR_IP  '%{HARBOR-IP}'
 
     Install Harbor To Test Server  protocol=http  name=harbor-http
-    Set Environment Variable  HTTP_HARBOR_IP  %{HARBOR-IP}
+    Set Environment Variable  HTTP_HARBOR_IP  '%{HARBOR-IP}'
 
     Get HTTPS Harbor Certificate
 
 Get HTTPS Harbor Certificate
-    [Arguments]  ${HARBOR_IP}=%{HTTPS_HARBOR_IP}
+    [Arguments]  ${HARBOR_IP}='%{HTTPS_HARBOR_IP}'
     # Get the certificates from the HTTPS server
-    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password %{TEST_PASSWORD} https://${HARBOR_IP}/api/systeminfo/getcert
+    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password '%{TEST_PASSWORD}' https://${HARBOR_IP}/api/systeminfo/getcert
     Log  ${out}
     Move File  getcert  ./ca.crt
 
 *** Test Cases ***
 Basic Whitelisting
     # Install VCH with registry CA for whitelisted registry
-    ${output}=  Install VIC Appliance To Test Server  vol=default --whitelist-registry=%{HTTPS_HARBOR_IP} --registry-ca=./ca.crt
-    Should Contain  ${output}  Secure registry %{HTTPS_HARBOR_IP} confirmed
+    ${output}=  Install VIC Appliance To Test Server  vol=default --whitelist-registry='%{HTTPS_HARBOR_IP}' --registry-ca=./ca.crt
+    Should Contain  ${output}  Secure registry '%{HTTPS_HARBOR_IP}' confirmed
     Should Contain  ${output}  Whitelist registries =
 
     # Check docker info for whitelist info
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Registry Whitelist Mode: enabled
     Should Contain  ${output}  Whitelisted Registries:
     Should Contain  ${output}  Registry: registry-1.docker.io
 
     # Try to login and pull from the HTTPS whitelisted registry (should succeed)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' login -u admin -p '%{TEST_PASSWORD}' '%{HTTPS_HARBOR_IP}'
     Should Contain  ${output}  Succeeded
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTPS_HARBOR_IP}/library/photon:1.0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull '%{HTTPS_HARBOR_IP}'/library/photon:1.0
     Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from the HTTPS whitelisted registry with :443 tacked on at the end (should succeed)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}:443
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' login -u admin -p '%{TEST_PASSWORD}' '%{HTTPS_HARBOR_IP}':443
     Should Contain  ${output}  Succeeded
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTPS_HARBOR_IP}:443/library/photon:1.0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull '%{HTTPS_HARBOR_IP}':443/library/photon:1.0
     Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from docker hub (should fail)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{REGISTRY_PASSWORD}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' login --username=victest --password='%{REGISTRY_PASSWORD}'
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Access denied to unauthorized registry
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull victest/busybox
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Access denied to unauthorized registry
 

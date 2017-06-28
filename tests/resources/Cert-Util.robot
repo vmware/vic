@@ -28,7 +28,7 @@ Generate Certificate Authority
 Generate Wildcard Server Certificate
     # Generates key and signs with CA for *.DOMAIN (csr/*.DOMAIN.csr.pem,
     # private/*.DOMAIN.key.pem, certs/*.DOMAIN.cert.pem) in OUT_DIR
-    [Arguments]  ${DOMAIN}=%{DOMAIN}  ${OUT_DIR}=/root/ca  ${CA_NAME}=STARK_ENTERPRISES_ROOT_CA
+    [Arguments]  ${DOMAIN}='%{DOMAIN}'  ${OUT_DIR}=/root/ca  ${CA_NAME}=STARK_ENTERPRISES_ROOT_CA
     Log To Console  Generating Wildcard Server Certificate
     Run Keyword  Generate Server Key And CSR  *.${DOMAIN}  ${OUT_DIR}
     Run Keyword  Sign Server CSR  ${CA_NAME}  *.${DOMAIN}  ${OUT_DIR}
@@ -43,7 +43,7 @@ Generate Wildcard Server Certificate
 
 Generate Server Key And CSR
     # Generates key and CSR (private/DOMAIN.key.pem, csr/DOMAIN.csr.pem) in OUT_DIR
-    [Arguments]  ${CN}=%{DOMAIN}  ${OUT_DIR}=/root/ca
+    [Arguments]  ${CN}='%{DOMAIN}'  ${OUT_DIR}=/root/ca
     Log To Console  Generating Server Key And CSR
     ${out}=  Run  generate-server-key-csr.sh -d ${OUT_DIR} -n ${CN}
     Log  ${out}
@@ -51,7 +51,7 @@ Generate Server Key And CSR
 
 Sign Server CSR
     # Generates certificate signed by CA (certs/DOMAIN.cert.pem) in OUT_DIR
-    [Arguments]  ${CA_NAME}=STARK_ENTERPRISES_ROOT_CA  ${CN}=%{DOMAIN}  ${OUT_DIR}=/root/ca
+    [Arguments]  ${CA_NAME}=STARK_ENTERPRISES_ROOT_CA  ${CN}='%{DOMAIN}'  ${OUT_DIR}=/root/ca
     Log To Console  Signing Server CSR
     ${out}=  Run  sign-csr.sh -c ${CA_NAME} -d ${OUT_DIR} -n ${CN}
     Log  ${out}
@@ -76,7 +76,7 @@ Reload Default Certificate Authorities
 
 
 Create Certificate Bundle
-    [Arguments]  ${CA_NAME}=STARK_ENTERPRISES_ROOT_CA  ${SRC_DIR}=/root/ca  ${OUT_FILE}=/root/ca/cert-bundle.tgz  ${CN}=%{DOMAIN}  ${TMP_DIR}=/root/ca/bundle
+    [Arguments]  ${CA_NAME}=STARK_ENTERPRISES_ROOT_CA  ${SRC_DIR}=/root/ca  ${OUT_FILE}=/root/ca/cert-bundle.tgz  ${CN}='%{DOMAIN}'  ${TMP_DIR}=/root/ca/bundle
     ${rc}  ${out}=  Run And Return Rc And Output  bundle-certs.sh -c ${CA_NAME} -d ${SRC_DIR} -f ${OUT_FILE} -n ${CN} -o ${TMP_DIR}
     Should Be Equal As Integers  ${rc}  0
     Log  ${out}
@@ -92,7 +92,7 @@ Get Certificate Authority CRT
 Get Server Certificate
     # Return ascii armored certificate from file e.g. `-----BEGIN CERTIFICATE-----`
     # PEM must be provided if using a wildcard cert not specified by DOMAIN
-    [Arguments]  ${PEM}=%{DOMAIN}.cert.pem  ${DIR}=/root/ca/certs
+    [Arguments]  ${PEM}='%{DOMAIN}'.cert.pem  ${DIR}=/root/ca/certs
     ${out}=  Run  cat ${DIR}/${PEM}
     [Return]  ${out}
 
@@ -100,6 +100,6 @@ Get Server Certificate
 Get Server Key
     # Return ascii armored key from file e.g. `-----BEGIN RSA PRIVATE KEY-----`
     # PEM must be provided if using a wildcard cert not specified by DOMAIN
-    [Arguments]  ${PEM}=%{DOMAIN}.key.pem  ${DIR}=/root/ca/private
+    [Arguments]  ${PEM}='%{DOMAIN}'.key.pem  ${DIR}=/root/ca/private
     ${out}=  Run  cat ${DIR}/${PEM}
     [Return]  ${out}

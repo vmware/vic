@@ -21,53 +21,53 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Enable SSH and verify
     # generate a key to use for the Test
-    ${rc}=  Run And Return Rc  ssh-keygen -t rsa -N "" -f %{VCH-NAME}.key
+    ${rc}=  Run And Return Rc  ssh-keygen -t rsa -N "" -f '%{VCH-NAME}'.key
     Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  chmod 600 %{VCH-NAME}.key
+    ${rc}=  Run And Return Rc  chmod 600 '%{VCH-NAME}'.key
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --enable-ssh --authorized-key=%{VCH-NAME}.key.pub
+    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target '%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user '%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}' --name '%{VCH-NAME}' --enable-ssh --authorized-key='%{VCH-NAME}'.key.pub
     Should Be Equal As Integers  ${rc}  0
 
     # check the ssh
-    ${rc}=  Run And Return Rc  ssh -vv -o StrictHostKeyChecking=no -i %{VCH-NAME}.key root@%{VCH-IP} /bin/true
+    ${rc}=  Run And Return Rc  ssh -vv -o StrictHostKeyChecking=no -i '%{VCH-NAME}'.key root@'%{VCH-IP}' /bin/true
     Should Be Equal As Integers  ${rc}  0
 
     # delete the keys
-    Remove Files  %{VCH-NAME}.key  %{VCH-NAME}.key.pub
+    Remove Files  '%{VCH-NAME}'.key  '%{VCH-NAME}'.key.pub
 
 
 Check Password Change When Expired
     # generate a key to use for the Test
-    ${rc}=  Run And Return Rc  ssh-keygen -t rsa -N "" -f %{VCH-NAME}.key
+    ${rc}=  Run And Return Rc  ssh-keygen -t rsa -N "" -f '%{VCH-NAME}'.key
     Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  chmod 600 %{VCH-NAME}.key
+    ${rc}=  Run And Return Rc  chmod 600 '%{VCH-NAME}'.key
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --enable-ssh --authorized-key=%{VCH-NAME}.key.pub
+    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target '%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user '%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}' --name '%{VCH-NAME}' --enable-ssh --authorized-key='%{VCH-NAME}'.key.pub
     Should Be Equal As Integers  ${rc}  0
 
     # push the date forward, past the suport duration
-    ${rc}  ${output}=  Run And Return Rc And Output  ssh -o StrictHostKeyChecking=no -i %{VCH-NAME}.key root@%{VCH-IP} 'date -s " +6 year"'
+    ${rc}  ${output}=  Run And Return Rc And Output  ssh -o StrictHostKeyChecking=no -i '%{VCH-NAME}'.key root@'%{VCH-IP}' 'date -s " +6 year"'
     Should Be Equal As Integers  ${rc}  0
 
     # command should fail with expired password
-    ${rc}=  Run And Return Rc  ssh -vv -o StrictHostKeyChecking=no -i %{VCH-NAME}.key root@%{VCH-IP} /bin/true
+    ${rc}=  Run And Return Rc  ssh -vv -o StrictHostKeyChecking=no -i '%{VCH-NAME}'.key root@'%{VCH-IP}' /bin/true
     Should Not Be Equal As Integers  ${rc}  0
 
     # Set the password to a dictionary word - this should not be rejected via this path
-    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --enable-ssh --rootpw=dictionary
+    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target '%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user '%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}' --name '%{VCH-NAME}' --enable-ssh --rootpw=dictionary
     Should Be Equal As Integers  ${rc}  0
 
     # check we can now log in cleanly - log in via password
-    ${rc}=  Run And Return Rc  sshpass -p dictionary ssh -o StrictHostKeyChecking=no root@%{VCH-IP} /bin/true
+    ${rc}=  Run And Return Rc  sshpass -p dictionary ssh -o StrictHostKeyChecking=no root@'%{VCH-IP}' /bin/true
     Should Be Equal As Integers  ${rc}  0
 
     # delete the keys
-    Remove Files  %{VCH-NAME}.key  %{VCH-NAME}.key.pub
+    Remove Files  '%{VCH-NAME}'.key  '%{VCH-NAME}'.key.pub
 
 Check Error From Incorrect ID
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux debug --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --id=wrong
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux debug --target '%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user '%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --id=wrong
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Failed to get Virtual Container Host 
     Should Contain  ${output}  id "wrong" could not be found

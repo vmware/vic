@@ -20,64 +20,64 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Basic docker pull, restart, and remove image
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${alpine}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${alpine}
     Should Be Equal As Integers  ${rc}  0
 
-    Reboot VM  %{VCH-NAME}
+    Reboot VM  '%{VCH-NAME}'
 
     Log To Console  Getting VCH IP ...
-    ${new-vch-ip}=  Get VM IP  %{VCH-NAME}
+    ${new-vch-ip}=  Get VM IP  '%{VCH-NAME}'
     Log To Console  New VCH IP is ${new-vch-ip}
-    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new-vch-ip}
+    Replace String  '%{VCH-PARAMS}'  '%{VCH-IP}'  ${new-vch-ip}
 
     # wait for docker info to succeed
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  '%{VCH-PARAMS}'
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
     Should Contain  ${output}  alpine
 
 Remove image with a removed container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rm ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
 
 Remove image with a container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi ${busybox}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Failed to remove image "${busybox}"
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
 
 Remove a fake image
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi fakeImage
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi fakeImage
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: Error parsing reference: "fakeImage" is not a valid repository/tag
 
 Remove an image pulled by digest
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2

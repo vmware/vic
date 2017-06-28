@@ -20,54 +20,54 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Compose Voting App
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{REGISTRY_PASSWORD}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' login --username=victest --password='%{REGISTRY_PASSWORD}'
     Should Be Equal As Integers  ${rc}  0
 
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --skip-hostname-check -f %{GOPATH}/src/github.com/vmware/vic/demos/compose/voting-app/docker-compose.yml up -d
+    ${rc}  ${out}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --skip-hostname-check -f '%{GOPATH}'/src/github.com/vmware/vic/demos/compose/voting-app/docker-compose.yml up -d
     Log  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} vote
-    Log  ${out}
-    Should Contain  ${out}  true
-    Should Be Equal As Integers  ${rc}  0
-
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} result
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f {{.State.Running}} vote
     Log  ${out}
     Should Contain  ${out}  true
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} worker
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f {{.State.Running}} result
     Log  ${out}
     Should Contain  ${out}  true
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} db
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f {{.State.Running}} worker
     Log  ${out}
     Should Contain  ${out}  true
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f {{.State.Running}} redis
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f {{.State.Running}} db
     Log  ${out}
     Should Contain  ${out}  true
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{end}}' vote
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f {{.State.Running}} redis
+    Log  ${out}
+    Should Contain  ${out}  true
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{end}}' vote
     Log  ${out}
     Should Not Be Empty  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{index $value "Aliases"}}{{end}}' vote
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{index $value "Aliases"}}{{end}}' vote
     Log  ${out}
     Should Contain  ${out}  vote
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{index $value "IPAddress"}}{{end}}' vote
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{index $value "IPAddress"}}{{end}}' vote
     Log  ${out}
     Should Not Be Empty  ${out}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  wget %{VCH-IP}:5000
+    ${rc}  ${output}=  Run And Return Rc And Output  wget '%{VCH-IP}':5000
     Should Be Equal As Integers  ${rc}  0

@@ -34,7 +34,7 @@ Test
     ${num_of_esxes}=  Evaluate  2
     :FOR  ${i}  IN RANGE  3
     # Deploy some ESXi instances
-    \    &{new_esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${num_of_esxes}  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    \    &{new_esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${num_of_esxes}  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     \    ${esxes}=  Combine Dictionaries  ${esxes}  ${new_esxes}
 
     # Investigate to see how many were actually deployed

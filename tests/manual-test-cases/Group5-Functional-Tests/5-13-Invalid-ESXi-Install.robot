@@ -22,12 +22,12 @@ Test
     Set Suite Variable  ${datacenter}  datacenter1
     Set Suite Variable  ${cluster}  cls
 
-    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${ESX1}  ${esx1}
-    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${ESX2}  ${esx2}
     
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
     Set Suite Variable  ${VC}  ${vc}
 
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${vc}

@@ -28,18 +28,18 @@ ${ova_harbor_admin_password}  harbor-admin-passwd
 *** Keywords ***
 Install Harbor To Test Server
     [Tags]  secret
-    [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${db_password}=%{TEST_PASSWORD}  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL_ARRAY}  ${datastore}=%{TEST_DATASTORE}  ${network}=VM Network
+    [Arguments]  ${name}=harbor  ${protocol}=http  ${verify}=off  ${db_password}='%{TEST_PASSWORD}'  ${user}='%{TEST_USERNAME}'  ${password}='%{TEST_PASSWORD}'  ${host}='%{TEST_URL_ARRAY}'  ${datastore}='%{TEST_DATASTORE}'  ${network}=VM Network
     Log To Console  \nFetching harbor ova...
     ${status}  ${message}=  Run Keyword And Ignore Error  OperatingSystem.File Should Exist  ${HARBOR_VERSION}.ova
     ${out}=  Run Keyword If  '${status}' == 'FAIL'  Run  wget https://github.com/vmware/harbor/releases/download/${HARBOR_SHORT_VERSION}/${HARBOR_VERSION}.ova
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
-    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    @{URLs}=  Split String  '%{TEST_URL_ARRAY}'
     ${len}=  Get Length  ${URLs}
-    ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
+    ${IDX}=  Evaluate  '%{DRONE_BUILD_NUMBER}' \% ${len}
 
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Suite Variable  ${host}  @{URLs}[${IDX}]
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Suite Variable  ${host}  @{URLs}[${IDX}]%{TEST_DATACENTER}/host/%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Set Suite Variable  ${host}  @{URLs}[${IDX}]
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Set Suite Variable  ${host}  @{URLs}[${IDX}]'%{TEST_DATACENTER}'/host/'%{TEST_RESOURCE}'
 
     Log To Console  \nDeploying ova...
     ${out}=  Run  ovftool --noSSLVerify --acceptAllEulas --datastore=${datastore} --name=${name} --net:"Network 1"='${network}' --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:root_pwd=${password} --prop:harbor_admin_password=${password} --prop:db_password=${db_password} --prop:auth_mode=db_auth --prop:verify_remote_cert=${verify} --prop:protocol=${protocol} ${HARBOR_VERSION}.ova 'vi://${user}:${password}@${host}'
@@ -55,14 +55,14 @@ Install Harbor To Test Server
 
     Log To Console  Waiting for Harbor to Come Up...
     :FOR  ${i}  IN RANGE  20
-    \  ${out}=  Run  curl -k ${protocol}://%{HARBOR-IP}
+    \  ${out}=  Run  curl -k ${protocol}://'%{HARBOR-IP}'
     \  Log  ${out}
     \  ${status}=  Run Keyword And Return Status  Should Not Contain Any  ${out}  502 Bad Gateway  Connection refused  Connection timed out
     \  ${status}=  Run Keyword If  ${status}  Run Keyword And Return Status  Should Contain  ${out}  <title>Harbor</title>
-    \  Return From Keyword If  ${status}  %{HARBOR-IP}
+    \  Return From Keyword If  ${status}  '%{HARBOR-IP}'
     \  Sleep  30s
     Fail  Harbor failed to come up properly!
-    [Return]  %{HARBOR-IP}
+    [Return]  '%{HARBOR-IP}'
 
 Restart Docker With Insecure Registry Option
     # Requires you to edit /etc/systemd/system/docker.service.d/overlay.conf or docker.conf to be:
@@ -74,15 +74,15 @@ Restart Docker With Insecure Registry Option
 
 Install Harbor Self Signed Cert
     # Need to provide permissions to /etc/docker folder for your user (sudo chmod -R 777 /etc/docker)
-    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password ${ova_harbor_admin_password} https://%{HARBOR_IP}/api/systeminfo/getcert
+    ${out}=  Run  wget --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user admin --password ${ova_harbor_admin_password} https://'%{HARBOR_IP}'/api/systeminfo/getcert
     Log  ${out}
-    ${out}=  Run  mkdir -p /etc/docker/certs.d/%{HARBOR_IP}
-    Move File  getcert  /etc/docker/certs.d/%{HARBOR_IP}/ca.crt
+    ${out}=  Run  mkdir -p /etc/docker/certs.d/'%{HARBOR_IP}'
+    Move File  getcert  /etc/docker/certs.d/'%{HARBOR_IP}'/ca.crt
     ${out}=  Run  systemctl daemon-reload
     ${out}=  Run  systemctl restart docker
 
 Log Into Harbor
-    [Arguments]  ${user}=%{TEST_USERNAME}  ${pw}=%{TEST_PASSWORD}
+    [Arguments]  ${user}='%{TEST_USERNAME}'  ${pw}='%{TEST_PASSWORD}'
     Maximize Browser Window
     Input Text  login_username  ${user}
     Input Text  login_password  ${pw}
@@ -484,12 +484,12 @@ Go To HomePage
 
 Check That VM Is Removed
     [Arguments]  ${container}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc ls %{VCH-NAME}/vm
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  ${container}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc ls vm
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  ${container}
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Run And Return Rc And Output  govc ls '%{VCH-NAME}'/vm
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Should Not Contain  ${output}  ${container}
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run And Return Rc And Output  govc ls vm
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Not Contain  ${output}  ${container}
 
 Check That Datastore Is Cleaned
     [Arguments]  ${container}
@@ -501,7 +501,7 @@ Create Project And Three Users For It
     [Arguments]  ${developer}  ${developer2}  ${developerEmail}  ${developerEmail2}  ${developerFullName}  ${password}  ${userPassword}  ${comments}  ${guest}  ${developerRole}  ${guestRole}  ${project}  ${public}=${False}
     # 2 developers, 1 guest
     Log To Console  Create Three Users For Project..
-    Open Browser  https://%{HARBOR_IP}/  chrome
+    Open Browser  https://'%{HARBOR_IP}'/  chrome
     Log To Console  Opened
     Log Into Harbor  user=admin  pw=${password}
     
@@ -521,7 +521,7 @@ Basic Docker Command With Harbor
     [Arguments]  ${user}  ${password}  ${project}  ${image}  ${container_name}
     # Docker login
     Log To Console  \nRunning docker login ${user}...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u ${user} -p ${password} %{HARBOR_IP}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' login -u ${user} -p ${password} '%{HARBOR_IP}'
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Login Succeeded
@@ -535,13 +535,13 @@ Basic Docker Command With Harbor
 
     # Docker tag image
     Log To Console  docker tag...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker tag ${image} %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker tag ${image} '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker push image
     Log To Console  push image...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker push %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker push '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  digest:
@@ -550,45 +550,45 @@ Basic Docker Command With Harbor
 
     # Docker delete image in local registry
     Log To Console  docker rmi...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker rmi -f %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker rmi -f '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Untagged
 
     # Docker pull from harbor using VCH
     Log To Console  docker pull from harbor using VCH...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker run image
     Log To Console  docker run...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${container_name} %{HARBOR_IP}/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run --name ${container_name} '%{HARBOR_IP}'/${project}/${image} /bin/ash -c "dmesg;echo END_OF_THE_TEST" 
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  END_OF_THE_TEST
 
     # Docker rm container
     Log To Console  docker rm...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container_name}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rm -f ${container_name}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker create
     Log To Console  docker create...
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${container_name} -i %{HARBOR_IP}/${project}/${image} /bin/top
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create --name ${container_name} -i '%{HARBOR_IP}'/${project}/${image} /bin/top
     Log  ${containerID}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker start
     Log To Console  docker start...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container_name}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start ${container_name}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker attach
     Log To Console  Starting process Docker attach...
-    Start Process  docker %{VCH-PARAMS} attach ${container_name} < /tmp/fifo  shell=True  alias=custom
+    Start Process  docker '%{VCH-PARAMS}' attach ${container_name} < /tmp/fifo  shell=True  alias=custom
     Sleep  3
     Run  echo q > /tmp/fifo
     ${ret}=  Wait For Process  custom
@@ -599,19 +599,19 @@ Basic Docker Command With Harbor
 
     # Docker start
     Log To Console  docker start...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container_name}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start ${container_name}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker stop
     Log To Console  docker stop...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${container_name}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stop ${container_name}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # Docker remove
     Log To Console  docker rm...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${container_name}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rm -f ${container_name}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  10x  6s  Check That VM Is Removed  ${container_name}
@@ -619,14 +619,14 @@ Basic Docker Command With Harbor
 
     # Docker delete image
     Log To Console  docker rmi...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rmi -f %{HARBOR_IP}/${project}/${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rmi -f '%{HARBOR_IP}'/${project}/${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Untagged
 
 Fetch Harbor Self Signed Cert
     [Tags]  secret
-    [Arguments]  ${harbor-ip}  ${user}=admin  ${password}=%{TEST_PASSWORD}
+    [Arguments]  ${harbor-ip}  ${user}=admin  ${password}='%{TEST_PASSWORD}'
     Remove File  ${harbor_cert}
     ${rc}=  Run And Return Rc  wget -q --tries=10 --connect-timeout=10 --auth-no-challenge --no-check-certificate --user ${user} --password ${password} https://${harbor-ip}/api/systeminfo/${harbor_cert}
     Should Be Equal As Integers  ${rc}  0
@@ -635,8 +635,8 @@ Fetch Harbor Self Signed Cert
 # Requires vc credential for govc
 Cleanup Harbor
     [Tags]  secret
-    [Arguments]  ${harbor-name}  ${host}=%{TEST_URL}  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}
-    Log To Console  \nCleanup Harbor... TEST_URL:%{TEST_URL}
+    [Arguments]  ${harbor-name}  ${host}='%{TEST_URL}'  ${user}='%{TEST_USERNAME}'  ${password}='%{TEST_PASSWORD}'
+    Log To Console  \nCleanup Harbor... TEST_URL:'%{TEST_URL}'
     Remove File  ${HARBOR_VERSION}.ova
     Remove File  ${harbor_cert}
     Run Keyword And Ignore Error  Run  GOVC_URL=${host} GOVC_USERNAME=${user} GOVC_PASSWORD=${password} GOVC_INSECURE=1 govc vm.destroy ${harbor-name}

@@ -27,18 +27,18 @@ Set Test Environment Variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_DATACENTER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_DATACENTER  ${SPACE}
 
-    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    @{URLs}=  Split String  '%{TEST_URL_ARRAY}'
     ${len}=  Get Length  ${URLs}
-    ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
+    ${IDX}=  Evaluate  '%{DRONE_BUILD_NUMBER}' \% ${len}
 
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
-    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    Set Environment Variable  GOVC_URL  '%{TEST_USERNAME}':'%{TEST_PASSWORD}'@'%{TEST_URL}'
     # TODO: need an integration/vic-test image update to include the about.cert command
     #${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k | jq -r .ThumbprintSHA1
     ${rc}  ${thumbprint}=  Run And Return Rc And Output  openssl s_client -connect $(govc env -x GOVC_URL_HOST):443 </dev/null 2>/dev/null | openssl x509 -fingerprint -noout | cut -d= -f2
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
-    Log To Console  \nTEST_URL=%{TEST_URL}
+    Log To Console  \nTEST_URL='%{TEST_URL}'
     ${worker_date}=  Run  date
     Log To Console  \nWorker_Date=${worker_date}
     ${server_date}=  Run  govc host.date.info
@@ -47,8 +47,8 @@ Set Test Environment Variables
     ${host}=  Run  govc ls host
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
-    Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
-    ${noQuotes}=  Strip String  %{TEST_DATASTORE}  characters="
+    Set Environment Variable  GOVC_RESOURCE_POOL  '%{TEST_RESOURCE}'
+    ${noQuotes}=  Strip String  '%{TEST_DATASTORE}'  characters="
     Set Environment Variable  GOVC_DATASTORE  ${noQuotes}
 
     ${about}=  Run  govc about
@@ -56,7 +56,7 @@ Set Test Environment Variables
     Run Keyword If  ${status}  Set Environment Variable  HOST_TYPE  ESXi
     Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
 
-    ${about}=  Run  govc datastore.info %{TEST_DATASTORE} | grep 'Type'
+    ${about}=  Run  govc datastore.info '%{TEST_DATASTORE}' | grep 'Type'
     ${status}=  Run Keyword And Return Status  Should Contain  ${about}  vsan
     Run Keyword If  ${status}  Set Environment Variable  DATASTORE_TYPE  VSAN
     Run Keyword Unless  ${status}  Set Environment Variable  DATASTORE_TYPE  Non_VSAN
@@ -68,12 +68,12 @@ Set Test Environment Variables
 
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN %{VCH-NAME}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  %{VCH-NAME}-bridge
+    ${vlan}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${out}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitchLAN '%{VCH-NAME}'-bridge
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  '%{VCH-NAME}'-bridge
 
 Set Test VCH Name
-    ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
+    ${name}=  Evaluate  'VCH-'%{DRONE_BUILD_NUMBER}'-' + str(random.randint(1000,9999))  modules=random
     Set Environment Variable  VCH-NAME  ${name}
 
 Set List Of Env Variables
@@ -159,7 +159,7 @@ Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default  ${cleanup}=${true}  ${additional-args}=  
     Set Test Environment Variables
     # disable firewall
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -173,82 +173,82 @@ Install VIC Appliance To Test Server
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${certs}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'...
     [Return]  ${output}
 
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${additional-args}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} ${vicmachinetls} ${additional-args}
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --image-store='%{TEST_DATASTORE}' --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password='%{TEST_PASSWORD}' --force=true --bridge-network='%{BRIDGE_NETWORK}' --public-network='%{PUBLIC_NETWORK}' --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}' --insecure-registry harbor.ci.drone.local --volume-store='%{TEST_DATASTORE}'/'%{VCH-NAME}'-VOL:${vol} ${vicmachinetls} ${additional-args}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --public-network=%{PUBLIC_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --insecure-registry harbor.ci.drone.local --volume-store=%{TEST_DATASTORE}/%{VCH-NAME}-VOL:${vol} --no-tlsverify ${additional-args}
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --image-store='%{TEST_DATASTORE}' --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password='%{TEST_PASSWORD}' --force=true --bridge-network='%{BRIDGE_NETWORK}' --public-network='%{PUBLIC_NETWORK}' --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}' --insecure-registry harbor.ci.drone.local --volume-store='%{TEST_DATASTORE}'/'%{VCH-NAME}'-VOL:${vol} --no-tlsverify ${additional-args}
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
 Run Secret VIC Machine Delete Command
     [Tags]  secret
     [Arguments]  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --force=true --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}'
     [Return]  ${rc}  ${output}
 
 Run Secret VIC Machine Inspect Command
     [Tags]  secret
     [Arguments]  ${name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --thumbprint='%{TEST_THUMBPRINT}'
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
-    ${rc}  ${output}=  Run Secret VIC Machine Delete Command  %{VCH-NAME}
-    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  %{VCH-NAME}
+    ${rc}  ${output}=  Run Secret VIC Machine Delete Command  '%{VCH-NAME}'
+    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  '%{VCH-NAME}'
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
-    ${output}=  Run  rm -rf %{VCH-NAME}
+    ${output}=  Run  rm -rf '%{VCH-NAME}'
     [Return]  ${output}
 
 Run VIC Machine Inspect Command
-    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  %{VCH-NAME}
+    ${rc}  ${output}=  Run Secret VIC Machine Inspect Command  '%{VCH-NAME}'
     Get Docker Params  ${output}  ${true}
 
 Inspect VCH
     [Arguments]  ${expected}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}'
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
 Check UpdateInProgress
     [Arguments]  ${expected}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e %{VCH-NAME} | grep UpdateInProgress
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e '%{VCH-NAME}' | grep UpdateInProgress
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${expected}
 
 Portlayer Log Should Match Regexp
     [Tags]  secret
     [Arguments]  ${pattern}
-    ${out}=  Run  curl -k -D /tmp/cookies-%{VCH-NAME} -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    ${out}=  Run  curl -k -D /tmp/cookies-'%{VCH-NAME}' -Fusername='%{TEST_USERNAME}' -Fpassword='%{TEST_PASSWORD}' '%{VIC-ADMIN}'/authentication
     Log  ${out}
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q -e \'${pattern}\'
+    ${rc}=  Run And Return Rc  curl -sk '%{VIC-ADMIN}'/logs/port-layer.log -b /tmp/cookies-'%{VCH-NAME}' | grep -q -e \'${pattern}\'
     Should Be Equal As Integers  ${rc}  0
 
 Gather Logs From Test Server
     [Tags]  secret
-    Run Keyword And Continue On Failure  Run  zip %{VCH-NAME}-certs -r %{VCH-NAME}
-    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername=%{TEST_USERNAME} -Fpassword=%{TEST_PASSWORD} %{VIC-ADMIN}/authentication
+    Run Keyword And Continue On Failure  Run  zip '%{VCH-NAME}'-certs -r '%{VCH-NAME}'
+    ${out}=  Run  curl -k -D vic-admin-cookies -Fusername='%{TEST_USERNAME}' -Fpassword='%{TEST_PASSWORD}' '%{VIC-ADMIN}'/authentication
     Log  ${out}
-    ${out}=  Run  curl -k -b vic-admin-cookies %{VIC-ADMIN}/container-logs.zip -o ${SUITE NAME}-%{VCH-NAME}-container-logs.zip
+    ${out}=  Run  curl -k -b vic-admin-cookies '%{VIC-ADMIN}'/container-logs.zip -o ${SUITE NAME}-'%{VCH-NAME}'-container-logs.zip
     Log  ${out}
     Remove File  vic-admin-cookies
-    ${out}=  Run  govc datastore.download %{VCH-NAME}/vmware.log %{VCH-NAME}-vmware.log
+    ${out}=  Run  govc datastore.download '%{VCH-NAME}'/vmware.log '%{VCH-NAME}'-vmware.log
     Should Contain  ${out}  OK
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel.log
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc logs -log=vmkernel -n=10000 > vmkernel.log
 
 Check For The Proper Log Files
     [Arguments]  ${container}
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk '%{VIC-ADMIN}'/authentication -XPOST -F username='%{TEST_USERNAME}' -F password='%{TEST_PASSWORD}' -D /tmp/cookies-'%{VCH-NAME}'
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk %{VIC-ADMIN}/container-logs.tar.gz -b /tmp/cookies-%{VCH-NAME} | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk '%{VIC-ADMIN}'/container-logs.tar.gz -b /tmp/cookies-'%{VCH-NAME}' | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/output.log
@@ -257,33 +257,33 @@ Check For The Proper Log Files
 
 Scrape Logs For the Password
     [Tags]  secret
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-%{VCH-NAME}
+    ${rc}=  Run And Return Rc  curl -sk '%{VIC-ADMIN}'/authentication -XPOST -F username='%{TEST_USERNAME}' -F password='%{TEST_PASSWORD}' -D /tmp/cookies-'%{VCH-NAME}'
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/port-layer.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    ${rc}=  Run And Return Rc  curl -sk '%{VIC-ADMIN}'/logs/port-layer.log -b /tmp/cookies-'%{VCH-NAME}' | grep -q "'%{TEST_PASSWORD}'"
     Should Be Equal As Integers  ${rc}  1
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/init.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    ${rc}=  Run And Return Rc  curl -sk '%{VIC-ADMIN}'/logs/init.log -b /tmp/cookies-'%{VCH-NAME}' | grep -q "'%{TEST_PASSWORD}'"
     Should Be Equal As Integers  ${rc}  1
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/docker-personality.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    ${rc}=  Run And Return Rc  curl -sk '%{VIC-ADMIN}'/logs/docker-personality.log -b /tmp/cookies-'%{VCH-NAME}' | grep -q "'%{TEST_PASSWORD}'"
     Should Be Equal As Integers  ${rc}  1
-    ${rc}=  Run And Return Rc  curl -sk %{VIC-ADMIN}/logs/vicadmin.log -b /tmp/cookies-%{VCH-NAME} | grep -q "%{TEST_PASSWORD}"
+    ${rc}=  Run And Return Rc  curl -sk '%{VIC-ADMIN}'/logs/vicadmin.log -b /tmp/cookies-'%{VCH-NAME}' | grep -q "'%{TEST_PASSWORD}'"
     Should Be Equal As Integers  ${rc}  1
 
-    Remove File  /tmp/cookies-%{VCH-NAME}
+    Remove File  /tmp/cookies-'%{VCH-NAME}'
 
 Cleanup VIC Appliance On Test Server
-    Log To Console  Gathering logs from the test server %{VCH-NAME}
+    Log To Console  Gathering logs from the test server '%{VCH-NAME}'
     Gather Logs From Test Server
-    Log To Console  Deleting the VCH appliance %{VCH-NAME}
+    Log To Console  Deleting the VCH appliance '%{VCH-NAME}'
     ${output}=  Run VIC Machine Delete Command
-    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  '%{VCH-NAME}'
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
     [Arguments]  ${name}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${name}-bridge
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${name}-bridge
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc host.portgroup.remove ${name}-bridge
+    ${out}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc host.portgroup.info
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Not Contain  ${out}  ${name}-bridge
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
@@ -329,7 +329,7 @@ Cleanup Dangling Networks On Test Server
     \   ${uuid}=  Run  govc host.portgroup.remove ${net}
 
 Cleanup Dangling vSwitches On Test Server
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
+    ${out}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
     ${nets}=  Split To Lines  ${out}
     :FOR  ${net}  IN  @{nets}
     \   ${net}=  Fetch From Right  ${net}  ${SPACE}
@@ -374,7 +374,7 @@ Cleanup Dangling Containers On Test Server
 
 Get VCH ID
     [Arguments]  ${vch-name}
-    ${ret}=  Run  bin/vic-machine-linux ls --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    ${ret}=  Run  bin/vic-machine-linux ls --target='%{TEST_URL}''%{TEST_DATACENTER}' --thumbprint='%{TEST_THUMBPRINT}' --user '%{TEST_USERNAME}' --password='%{TEST_PASSWORD}'
     Should Not Contain  ${ret}  Error
     @{lines}=  Split To Lines  ${ret}
     :FOR  ${line}  IN  @{lines}
@@ -396,7 +396,7 @@ Install VIC with version to Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
     Set Environment Variable  TEST_TIMEOUT  20m0s
     Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}  vol=default ${insecureregistry}
-    Set Environment Variable  VIC-ADMIN  %{VCH-IP}:2378
+    Set Environment Variable  VIC-ADMIN  '%{VCH-IP}':2378
     Set Environment Variable  INITIAL-VERSION  ${version}
     Run  rm -rf vic.tar.gz vic
 
@@ -406,15 +406,15 @@ Clean up VIC Appliance And Local Binary
 
 Upgrade
     Log To Console  \nUpgrading VCH...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --force=true --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}'
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
 
 Upgrade with ID
     Log To Console  \nUpgrading VCH using vch ID...
-    ${vch-id}=  Get VCH ID  %{VCH-NAME}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --id=${vch-id} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${vch-id}=  Get VCH ID  '%{VCH-NAME}'
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --id=${vch-id} --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --force=true --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}'
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
@@ -422,10 +422,10 @@ Upgrade with ID
 Check Upgraded Version
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     @{vers}=  Split String  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}'
     Should Contain  ${output}  Completed successfully
     Should Contain  ${output}  @{vers}[2]
-    Should Not Contain  ${output}  %{INITIAL-VERSION}
+    Should Not Contain  ${output}  '%{INITIAL-VERSION}'
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Get Docker Params  ${output}  ${true}
@@ -433,7 +433,7 @@ Check Upgraded Version
 Check Original Version
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     @{vers}=  Split String  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --compute-resource='%{TEST_RESOURCE}'
     Should Contain  ${output}  Completed successfully
     Should Contain  ${output}  @{vers}[2]
     Should Be Equal As Integers  ${rc}  0
@@ -442,12 +442,12 @@ Check Original Version
 
 Rollback
      Log To Console  \nTesting rollback...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --rollback
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --force=true --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}' --rollback
     Should Contain  ${output}  Completed successfully
     Should Be Equal As Integers  ${rc}  0
 
 Enable VCH SSH
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${rootpw}=%{TEST_PASSWORD}  ${target}=%{TEST_URL}%{TEST_DATACENTER}  ${password}=%{TEST_PASSWORD}  ${thumbprint}=%{TEST_THUMBPRINT}  ${name}=%{VCH-NAME}  ${user}=%{TEST_USERNAME}  ${resource}=%{TEST_RESOURCE}
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${rootpw}='%{TEST_PASSWORD}'  ${target}='%{TEST_URL}''%{TEST_DATACENTER}'  ${password}='%{TEST_PASSWORD}'  ${thumbprint}='%{TEST_THUMBPRINT}'  ${name}='%{VCH-NAME}'  ${user}='%{TEST_USERNAME}'  ${resource}='%{TEST_RESOURCE}'
     Log To Console  \nEnable SSH on vch...
     ${rc}  ${output}=  Run And Return Rc And Output  ${vic-machine} debug --rootpw ${rootpw} --target ${target} --password ${password} --thumbprint ${thumbprint} --name ${name} --user ${user} --compute-resource ${resource} --enable-ssh
     Should Be Equal As Integers  ${rc}  0

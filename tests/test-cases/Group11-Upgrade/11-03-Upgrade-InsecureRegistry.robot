@@ -35,7 +35,7 @@ Setup Test Environment
 
 Run Secret Curl Command
     [Tags]  secret
-    [Arguments]  ${registry_ip}  ${protocol}  ${curl_option}  ${user}=admin  ${password}=%{TEST_PASSWORD}
+    [Arguments]  ${registry_ip}  ${protocol}  ${curl_option}  ${user}=admin  ${password}='%{TEST_PASSWORD}'
     ${rc}  ${output}=  Run And Return Rc And Output  curl ${curl_option} -u ${user}:${password} -H "Content-Type: application/json" -X POST -d '{"project_name": "test","public": 1}' ${protocol}://${registry_ip}/api/projects
     [Return]  ${rc}  ${output}
 
@@ -53,7 +53,7 @@ Add Project On Registry
 
 Run Secret Docker Login
     [Tags]  secret
-    [Arguments]    ${registry_ip}  ${registry_user}=admin  ${registry_password}=%{TEST_PASSWORD}  ${docker}=DOCKER_API_VERSION=1.23 docker
+    [Arguments]    ${registry_ip}  ${registry_user}=admin  ${registry_password}='%{TEST_PASSWORD}'  ${docker}=DOCKER_API_VERSION=1.23 docker
     ${rc}  ${output}=  Run And Return Rc And Output  ${docker} -H ${default_local_docker_endpoint} login --username ${registry_user} --password ${registry_password} ${registry_ip}
     [Return]  ${rc}  ${output}
 
@@ -102,11 +102,11 @@ Upgrade VCH with Harbor On HTTP
 
     #Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls
 
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    #Test VCH And Registry  '%{VCH-IP}':'%{VCH-PORT}'  ${harbor_ip}
 
     #Upgrade
     #Check Upgraded Version
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    #Test VCH And Registry  '%{VCH-IP}':'%{VCH-PORT}'  ${harbor_ip}
 
 Upgrade VCH with Harbor On HTTPS
     ${status}=  Get State Of Github Issue  5473
@@ -122,8 +122,8 @@ Upgrade VCH with Harbor On HTTPS
     #${harbor_cert}=  Fetch Harbor Self Signed Cert  ${harbor_ip}
     #Install VIC with version to Test Server  ${test_vic_version}  --insecure-registry ${harbor_ip} --no-tls --registry-ca ${harbor_cert}
 
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    #Test VCH And Registry  '%{VCH-IP}':'%{VCH-PORT}'  ${harbor_ip}
 
     #Upgrade
     #Check Upgraded Version
-    #Test VCH And Registry  %{VCH-IP}:%{VCH-PORT}  ${harbor_ip}
+    #Test VCH And Registry  '%{VCH-IP}':'%{VCH-PORT}'  ${harbor_ip}

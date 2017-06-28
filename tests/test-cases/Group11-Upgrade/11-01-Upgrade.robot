@@ -23,93 +23,93 @@ Default Tags
 Run Docker Checks
     # wait for docker info to succeed
     Log To Console  Verify Containers...
-    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  '%{VCH-PARAMS}'
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' network ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  bar
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network inspect bridge
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' network inspect bridge
     Should Be Equal As Integers  ${rc}  0
-    ${ip}=  Get Container IP  %{VCH-PARAMS}  %{ID1}  bridge
-    Should Be Equal  ${ip}  %{IP1}
-    ${ip}=  Get Container IP  %{VCH-PARAMS}  %{ID2}  bridge
-    Should Be Equal  ${ip}  %{IP2}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect vch-restart-test1
+    ${ip}=  Get Container IP  '%{VCH-PARAMS}'  '%{ID1}'  bridge
+    Should Be Equal  ${ip}  '%{IP1}'
+    ${ip}=  Get Container IP  '%{VCH-PARAMS}'  '%{ID2}'  bridge
+    Should Be Equal  ${ip}  '%{IP2}'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' inspect vch-restart-test1
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  "Id"
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop vch-restart-test1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stop vch-restart-test1
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited (143)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start vch-restart-test1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start vch-restart-test1
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Exited (0)
 
     # Check that rename doesn't work on a container from a VCH that doesn't support rename
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename vch-restart-test1 vch-test2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rename vch-restart-test1 vch-test2
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  does not support rename
 
     # Check that rename works on a container from a VCH that supports rename
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${contID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name new-vch-cont1 ${busybox}
+    ${rc}  ${contID}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create --name new-vch-cont1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${contID}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rename new-vch-cont1 new-vch-cont2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' rename new-vch-cont1 new-vch-cont2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Verify Container Rename  new-vch-cont1  new-vch-cont2  ${contID}
 
     # check the display name and datastore folder name of an existing container
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/*-%{ID1}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  vch-restart-tes-%{ID1}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info *-%{ID1}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  vch-restart-tes-%{ID1}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep vch-restart-tes-%{ID1}
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Run And Return Rc And Output  govc vm.info '%{VCH-NAME}'/*-'%{ID1}'
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Should contain  ${output}  vch-restart-tes-'%{ID1}'
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run And Return Rc And Output  govc vm.info *-'%{ID1}'
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Contain  ${output}  vch-restart-tes-'%{ID1}'
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls | grep vch-restart-tes-'%{ID1}'
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  vch-restart-tes-%{ID1}
+    Should Be Equal  ${output}  vch-restart-tes-'%{ID1}'
 
     # check the display name and datastore folder name of a new container
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${vmName}=  Get VM Display Name  ${id}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info %{VCH-NAME}/${vmName}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should contain  ${output}  ${vmName}
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${vmName}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  ${vmName}
-    ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls | grep ${vmName}
-    Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{DATASTORE_TYPE}' == 'VSAN'  Should contain  ${output}  ${vmName}
-    ${rc}  ${output}=  Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Run And Return Rc And Output  govc datastore.ls | grep ${id}
-    Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{DATASTORE_TYPE}' == 'Non_VSAN'  Should Contain  ${output}  ${id}
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Run And Return Rc And Output  govc vm.info '%{VCH-NAME}'/${vmName}
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Should contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run And Return Rc And Output  govc vm.info ${vmName}
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run Keyword If  ''%{DATASTORE_TYPE}'' == 'VSAN'  Run And Return Rc And Output  govc datastore.ls | grep ${vmName}
+    Run Keyword If  ''%{DATASTORE_TYPE}'' == 'VSAN'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{DATASTORE_TYPE}'' == 'VSAN'  Should contain  ${output}  ${vmName}
+    ${rc}  ${output}=  Run Keyword If  ''%{DATASTORE_TYPE}'' == 'Non_VSAN'  Run And Return Rc And Output  govc datastore.ls | grep ${id}
+    Run Keyword If  ''%{DATASTORE_TYPE}'' == 'Non_VSAN'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  ''%{DATASTORE_TYPE}'' == 'Non_VSAN'  Should Contain  ${output}  ${id}
 
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  '%{VCH-IP}'  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  '%{VCH-IP}'  10001
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver1 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -it -p 10000:80 -p 10001:80 --name webserver1 nginx
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start webserver1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start webserver1
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  port 10000 is not available
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs -n1 docker %{VCH-PARAMS} stop
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} ps -aq | xargs -n1 docker %{VCH-PARAMS} rm
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -aq | xargs -n1 docker '%{VCH-PARAMS}' stop
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' ps -aq | xargs -n1 docker '%{VCH-PARAMS}' rm
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
 Create Docker Containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} network create bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 '%{VCH-PARAMS}' network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch container on bridge network
     ${id1}  ${ip1}=  Launch Container  vch-restart-test1  bridge  docker1.11
@@ -119,14 +119,14 @@ Create Docker Containers
     Set Environment Variable  IP1  ${ip1}
     Set Environment Variable  IP2  ${ip2}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create -it -p 10000:80 -p 10001:80 --name webserver nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 '%{VCH-PARAMS}' create -it -p 10000:80 -p 10001:80 --name webserver nginx
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} start webserver
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 '%{VCH-PARAMS}' start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  %{VCH-IP}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  '%{VCH-IP}'  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  '%{VCH-IP}'  10001
 
 *** Test Cases ***
 Upgrade Present in vic-machine
@@ -135,13 +135,13 @@ Upgrade Present in vic-machine
 
 Upgrade VCH with unreasonably short timeout and automatic rollback after failure
     Log To Console  \nUpgrading VCH with 1s timeout ...
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout 1s
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name='%{VCH-NAME}' --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --force=true --compute-resource='%{TEST_RESOURCE}' --timeout 1s
     Should Contain  ${output}  Upgrading VCH exceeded time limit
     Should Not Contain  ${output}  Completed successfully
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}/%{VCH-NAME}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Not Contain  ${output}  upgrade
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc snapshot.tree -vm=%{VCH-NAME}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${output}  upgrade
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Run And Return Rc And Output  govc snapshot.tree -vm='%{VCH-NAME}'/'%{VCH-NAME}'
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Should Not Contain  ${output}  upgrade
+    ${rc}  ${output}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run And Return Rc And Output  govc snapshot.tree -vm='%{VCH-NAME}'
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Should Not Contain  ${output}  upgrade
 
 Upgrade VCH
     Create Docker Containers

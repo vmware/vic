@@ -32,28 +32,28 @@ Get Average Active Memory
     [Return]  ${vmomiMemory}
 
 Create test containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --name stresser ${busybox} /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d --name stresser ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  STRESSED  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name stopper ${busybox} /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create --name stopper ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  STOPPER  ${output}
-    ${stress}=  Get Container ShortID  %{STRESSED}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  VM-PATH  vm/*${stress}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Environment Variable  VM-PATH  */%{VCH-NAME}/*${stress}
+    ${stress}=  Get Container ShortID  '%{STRESSED}'
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Set Environment Variable  VM-PATH  vm/*${stress}
+    Run Keyword If  ''%{HOST_TYPE}'' == 'VC'  Set Environment Variable  VM-PATH  */'%{VCH-NAME}'/*${stress}
 
 Check Memory Usage
-    ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}
+    ${vmomiMemory}=  Get Average Active Memory  '%{VM-PATH}'
     Should Be True  ${vmomiMemory} > 0
     [Return]  ${vmomiMemory}
 
 Get Memory From Stats
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stats --no-stream %{STRESSED}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stats --no-stream '%{STRESSED}'
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Get Line  ${output}  -1
-    ${short}=  Get Container ShortID  %{STRESSED}
+    ${short}=  Get Container ShortID  '%{STRESSED}'
     Should Contain  ${output}  ${short}
     ${vals}=  Split String  ${output}
     ${vicMemory}=  Get From List  ${vals}  7
@@ -80,18 +80,18 @@ Stats No Stream
     Should Be True  ${diff} < 5
 
 Stats No Stream All Containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stats --no-stream -a
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stats --no-stream -a
     Should Be Equal As Integers  ${rc}  0
-    ${stress}=  Get Container ShortID  %{STRESSED}
-    ${stop}=  Get Container ShortID  %{STOPPER}
+    ${stress}=  Get Container ShortID  '%{STRESSED}'
+    ${stop}=  Get Container ShortID  '%{STOPPER}'
     Should Contain  ${output}  ${stress}
     Should Contain  ${output}  ${stop}
 
 Stats API Memory Validation
-    ${rc}  ${apiMem}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .memory_stats.usage
+    ${rc}  ${apiMem}=  Run And Return Rc And Output  curl -sk --cert '%{DOCKER_CERT_PATH}'/cert.pem --key '%{DOCKER_CERT_PATH}'/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://'%{VCH-IP}':'%{VCH-PORT}'/containers/'%{STRESSED}'/stats?stream=false | jq -r .memory_stats.usage
     Should Be Equal As Integers  ${rc}  0
-    ${stress}=  Get Container ShortID  %{STRESSED}
-    ${vmomiMemory}=  Get Average Active Memory  %{VM-PATH}
+    ${stress}=  Get Container ShortID  '%{STRESSED}'
+    ${vmomiMemory}=  Get Average Active Memory  '%{VM-PATH}'
     Should Be Equal As Integers  ${rc}  0
     ${vmomiMemory}=  Evaluate  ${vmomiMemory}*1024
     ${diff}=  Evaluate  ${apiMem}-${vmomiMemory}
@@ -99,20 +99,20 @@ Stats API Memory Validation
     Should Be True  ${diff} < 1000
 
 Stats API CPU Validation
-    ${rc}  ${apiCPU}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false | jq -r .cpu_stats.cpu_usage.percpu_usage[0]
+    ${rc}  ${apiCPU}=  Run And Return Rc And Output  curl -sk --cert '%{DOCKER_CERT_PATH}'/cert.pem --key '%{DOCKER_CERT_PATH}'/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://'%{VCH-IP}':'%{VCH-PORT}'/containers/'%{STRESSED}'/stats?stream=false | jq -r .cpu_stats.cpu_usage.percpu_usage[0]
     Should Be Equal As Integers  ${rc}  0
-    ${stress}=  Get Container ShortID  %{STRESSED}
-    ${rc}  ${vmomiCPU}=  Run And Return Rc And Output  govc metric.sample -json %{VM-PATH} cpu.usagemhz.average | jq -r .Sample[].Value[0].Value[]
+    ${stress}=  Get Container ShortID  '%{STRESSED}'
+    ${rc}  ${vmomiCPU}=  Run And Return Rc And Output  govc metric.sample -json '%{VM-PATH}' cpu.usagemhz.average | jq -r .Sample[].Value[0].Value[]
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${vmomiCPU}  ${apiCPU}
 
 Stats No Stream Non-Existent Container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stats --no-stream fake
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stats --no-stream fake
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  No such container: fake
 
 Stats No Stream Specific Stopped Container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stats --no-stream %{STOPPER}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' stats --no-stream '%{STOPPER}'
     Should Be Equal As Integers  ${rc}  0
-    ${stop}=  Get Container ShortID  %{STOPPER}
+    ${stop}=  Get Container ShortID  '%{STOPPER}'
     Should Contain  ${output}  ${stop}

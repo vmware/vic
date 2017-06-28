@@ -25,7 +25,7 @@ Harbor Test Cleanup
 Pull image
     [Arguments]  ${image}
     Log To Console  \nRunning docker pull ${image}...
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${image}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Digest:
@@ -35,5 +35,5 @@ Pull image
 *** Test Cases ***
 Basic Harbor Install
     Install Harbor To Test Server
-    Install VIC Appliance To Test Server  vol=default --insecure-registry %{HARBOR_IP}
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  %{HARBOR_IP}/library/photon:1.0
+    Install VIC Appliance To Test Server  vol=default --insecure-registry '%{HARBOR_IP}'
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  '%{HARBOR_IP}'/library/photon:1.0

@@ -21,12 +21,12 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Basic attach
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox /bin/top
+    ${out}=  Run  docker '%{VCH-PARAMS}' pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -i busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start ${containerID}
     Should Be Equal As Integers  ${rc}  0
-    Start Process  docker %{VCH-PARAMS} attach ${containerID} < /tmp/fifo  shell=True  alias=custom
+    Start Process  docker '%{VCH-PARAMS}' attach ${containerID} < /tmp/fifo  shell=True  alias=custom
     Sleep  3
     Run  echo q > /tmp/fifo
     ${ret}=  Wait For Process  custom
@@ -35,15 +35,15 @@ Basic attach
     Should Be Empty  ${ret.stderr}
 
 Attach to stopped container
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    ${out}=  Run  docker '%{VCH-PARAMS}' pull busybox
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -it busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach ${out}
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' attach ${out}
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal  ${out}  You cannot attach to a stopped container, start it first
 
 Attach to fake container
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} attach fakeContainer
+    ${rc}  ${out}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' attach fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${out}  Error: No such container: fakeContainer
 
@@ -53,11 +53,11 @@ Attach with short input
     ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     Should Be Equal As Integers  ${rc}  0
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i busybox sort
+    ${out}=  Run  docker '%{VCH-PARAMS}' pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -i busybox sort
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \     Start Process  docker %{VCH-PARAMS} start -ai ${containerID} < ${fifo}  shell=True  alias=custom
+    \     Start Process  docker '%{VCH-PARAMS}' start -ai ${containerID} < ${fifo}  shell=True  alias=custom
     \     Run  echo one > ${fifo}
     \     ${ret}=  Wait For Process  custom
     \     Log  ${ret.stderr}
@@ -67,19 +67,19 @@ Attach with short input
     Run  rm -rf ${tmp}
 
 Attach with short output
-    Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create busybox echo one
+    Run  docker '%{VCH-PARAMS}' pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create busybox echo one
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start -a ${containerID}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  one
 
 Attach with short output with tty
-    Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -t busybox echo one
+    Run  docker '%{VCH-PARAMS}' pull busybox
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create -t busybox echo one
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerID}
+    \     ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start -a ${containerID}
     \     Should Be Equal As Integers  ${rc}  0
     \     Should Be Equal  ${output}  one

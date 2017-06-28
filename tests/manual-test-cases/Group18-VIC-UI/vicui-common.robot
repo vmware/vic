@@ -29,7 +29,7 @@ ${DATASTORE_TYPE}           NFS
 ${DATASTORE_NAME}           fake
 ${DATASTORE_IP}             1.1.1.1
 ${CONTAINER_VM_NAME}        sharp_feynman-d39db0a231f2f639a073814c2affc03e4737d9ad361649069eb424e6c4e09b52
-${TEST_OS}                  %{TEST_OS}
+${TEST_OS}                  '%{TEST_OS}'
 
 # should have a keyword that runs the tests based on test matrix
 
@@ -42,14 +42,14 @@ Load Nimbus Testbed Env
     \  @{kv}=  Split String  ${item}  =
     \  Set Environment Variable  @{kv}[0]  @{kv}[1]
     \  Set Suite Variable  \$@{kv}[0]  @{kv}[1]
-    Set Suite Variable  ${TEST_VC_USERNAME}  %{TEST_USERNAME}
-    Set Suite Variable  ${TEST_VC_PASSWORD}  %{TEST_PASSWORD}
+    Set Suite Variable  ${TEST_VC_USERNAME}  '%{TEST_USERNAME}'
+    Set Suite Variable  ${TEST_VC_PASSWORD}  '%{TEST_PASSWORD}'
 
 Install VIC Appliance For VIC UI
     [Arguments]  ${vic-machine}=ui-nightly-run-bin/vic-machine-linux  ${appliance-iso}=ui-nightly-run-bin/appliance.iso  ${bootstrap-iso}=ui-nightly-run-bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
     Set Test Environment Variables
     # disable firewall
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
+    Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On VIC UI Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -62,7 +62,7 @@ Install VIC Appliance For VIC UI
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${certs}
-    Log To Console  Installer completed successfully: %{VCH-NAME}...
+    Log To Console  Installer completed successfully: '%{VCH-NAME}'...
 
 Cleanup Dangling VMs On VIC UI Test Server
     ${out}=  Run  govc ls vm
@@ -84,16 +84,16 @@ Check Config And Install VCH
     Load Nimbus Testbed Env
     Set Environment Variable  DOMAIN  ${EMPTY}
     Install VIC Appliance For VIC UI  ../../../ui-nightly-run-bin/vic-machine-linux  ../../../ui-nightly-run-bin/appliance.iso  ../../../ui-nightly-run-bin/bootstrap.iso
-    Set Environment Variable  VCH_VM_NAME  %{VCH-NAME}
+    Set Environment Variable  VCH_VM_NAME  '%{VCH-NAME}'
 
 Set Absolute Script Paths
     ${UI_INSTALLERS_ROOT}=  Run  pwd
     ${UI_INSTALLERS_ROOT}=  Join Path  ${UI_INSTALLERS_ROOT}  ../../../ui/installer
-    Run Keyword If  %{TEST_VSPHERE_VER} == 65  Set Suite Variable  ${UI_INSTALLER_PATH}  ${UI_INSTALLERS_ROOT}/HTML5Client  ELSE  Set Suite Variable  ${UI_INSTALLER_PATH}  ${UI_INSTALLERS_ROOT}/VCSA
+    Run Keyword If  '%{TEST_VSPHERE_VER}' == 65  Set Suite Variable  ${UI_INSTALLER_PATH}  ${UI_INSTALLERS_ROOT}/HTML5Client  ELSE  Set Suite Variable  ${UI_INSTALLER_PATH}  ${UI_INSTALLERS_ROOT}/VCSA
     Should Exist  ${UI_INSTALLER_PATH}
     ${configs_content}=  OperatingSystem.GetFile  ${UI_INSTALLER_PATH}/configs
     Set Suite Variable  ${configs}  ${configs_content}
-    Run Keyword If  %{TEST_VSPHERE_VER} == 65  Set Suite Variable  ${plugin_folder}  plugin-packages  ELSE  Set Suite Variable  ${plugin_folder}  vsphere-client-serenity
+    Run Keyword If  '%{TEST_VSPHERE_VER}' == 65  Set Suite Variable  ${plugin_folder}  plugin-packages  ELSE  Set Suite Variable  ${plugin_folder}  vsphere-client-serenity
 
     # set exact paths for installer and uninstaller scripts
     Set Script Filename  INSTALLER_SCRIPT_PATH  ./install
@@ -143,16 +143,16 @@ Cleanup Installer Environment
 Delete VIC Machine
     [Tags]  secret
     [Arguments]  ${vch-name}  ${vic-machine}=ui-nightly-run-bin/vic-machine-linux
-    ${rc}  ${output}=  Run And Return Rc And Output  ${vic-machine} delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  ${vic-machine} delete --name=${vch-name} --target='%{TEST_URL}''%{TEST_DATACENTER}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}' --force=true --compute-resource='%{TEST_RESOURCE}' --timeout '%{TEST_TIMEOUT}'
     [Return]  ${rc}  ${output}
 
 Uninstall VCH
     Log To Console  Gathering logs from the test server...
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
-    ${rc}  ${output}=  Delete VIC Machine  %{VCH-NAME}  ../../../ui-nightly-run-bin/vic-machine-linux
-    Check Delete Success  %{VCH-NAME}
+    ${rc}  ${output}=  Delete VIC Machine  '%{VCH-NAME}'  ../../../ui-nightly-run-bin/vic-machine-linux
+    Check Delete Success  '%{VCH-NAME}'
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
-    ${output}=  Run  rm -f %{VCH-NAME}-*.pem
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove %{VCH-NAME}-bridge
+    ${output}=  Run  rm -f '%{VCH-NAME}'-*.pem
+    ${out}=  Run Keyword If  ''%{HOST_TYPE}'' == 'ESXi'  Run  govc host.portgroup.remove '%{VCH-NAME}'-bridge

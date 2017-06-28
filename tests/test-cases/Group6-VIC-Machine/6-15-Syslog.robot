@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 6-15 - Verify remote syslog
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  additional-args=--syslog-address tcp://%{SYSLOG_SERVER}:514 --debug 1
+Suite Setup  Install VIC Appliance To Test Server  additional-args=--syslog-address tcp://'%{SYSLOG_SERVER}':514 --debug 1
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Variables ***
@@ -31,12 +31,12 @@ Get Remote PID
 *** Test Cases ***
 Verify VCH remote syslog
     # enable ssh
-    ${output}=  Run  bin/vic-machine-linux debug --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    ${output}=  Run  bin/vic-machine-linux debug --name='%{VCH-NAME}' --target='%{TEST_URL}' --thumbprint='%{TEST_THUMBPRINT}' --user='%{TEST_USERNAME}' --password='%{TEST_PASSWORD}'
     Should Contain  ${output}  Completed successfully
 
     # make sure we use ip address, and not fqdn
-    ${ip}=  Run  dig +short %{VCH-IP}
-    ${vch-ip}=  Set Variable If  '${ip}' == ''  %{VCH-IP}  ${ip}
+    ${ip}=  Run  dig +short '%{VCH-IP}'
+    ${vch-ip}=  Set Variable If  '${ip}' == ''  '%{VCH-IP}'  ${ip}
 
     @{procs}=  Create List  port-layer-server  docker-engine-server  vic-init  vicadmin
     &{proc-pids}=  Create Dictionary
@@ -51,18 +51,18 @@ Verify VCH remote syslog
     Close Connection
     Set To Dictionary  ${proc-hosts}  vic-init  Photon
 
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} ps -a
+    ${rc}=  Run And Return Rc  docker '%{VCH-PARAMS}' ps -a
     Should Be Equal As Integers  ${rc}  0
 
     Run Regression Tests
 
-    ${pull}=  Run  docker %{VCH-PARAMS} pull ${busybox}
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} ls /
+    ${pull}=  Run  docker '%{VCH-PARAMS}' pull ${busybox}
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} ls /
     Should Be Equal As Integers  ${rc}  0
     ${shortID}=  Get container shortID  ${id}
 
-    ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
-    Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
+    ${syslog-conn}=  Open Connection  '%{SYSLOG_SERVER}'
+    Login  '%{SYSLOG_USER}'  '%{SYSLOG_PASSWD}'
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
     Close Connection
     Log  ${out}

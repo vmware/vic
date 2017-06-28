@@ -56,14 +56,14 @@ Get resource pool CPU and mem usages
 Set resource pool CPU and mem limits
     [Arguments]  ${cpuval}  ${memval}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} %{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} '%{VCH-NAME}'
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} %{VCH-NAME}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} '%{VCH-NAME}'
     Should Be Equal As Integers  ${rc}  0
 
 *** Test Cases ***
 Basic Info
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  vSphere
@@ -74,36 +74,36 @@ Debug Info
     ${status}=  Get State Of Github Issue  780
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-1-Docker-Info.robot needs to be updated now that Issue #780 has been resolved
     #Log To Console  \nRunning docker -D info command...
-    #${output}=  Run  docker %{VCH-PARAMS} -D info
+    #${output}=  Run  docker '%{VCH-PARAMS}' -D info
     #Log  ${output}
     #Should Contain  ${output}  Debug mode
 
 Correct container count
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  Containers: 0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${cid}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  Containers: 1
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${cid}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start ${cid}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  Containers: 1
     Should Contain  ${output}  Running: 1
 
 Check modified resource pool CPU and memory limits
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
 
     ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem limits  ${output}
@@ -112,7 +112,7 @@ Check modified resource pool CPU and memory limits
     ${newmemval}=  Evaluate  1000
     Set resource pool CPU and mem limits  ${newcpuval}  ${newmemval}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
 
     ${cpuval}  ${memval}=  Get resource pool CPU and mem limits  ${output}
@@ -122,29 +122,29 @@ Check modified resource pool CPU and memory limits
     Set resource pool CPU and mem limits  ${oldcpuval}  ${oldmemval}
 
 Check updated resource pool CPU and memory usages
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
 
     ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem usages  ${output}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top
+	${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
 
     Sleep  60s  wait for vsphere stats update
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' info
     Should Be Equal As Integers  ${rc}  0
 
     ${cpuval}  ${memval}=  Get resource pool CPU and mem usages  ${output}

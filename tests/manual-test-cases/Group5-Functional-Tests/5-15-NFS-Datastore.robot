@@ -24,7 +24,7 @@ Test
 
     Set Global Variable  @{list}  ${esx1}  ${esx2}  ${esx3}  ${esx4}  ${esx5}  ${vc}
 
-    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${name}  ${ip}=  Deploy Nimbus NFS Datastore  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'
 
     ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store cls
     Should Be Empty  ${out}

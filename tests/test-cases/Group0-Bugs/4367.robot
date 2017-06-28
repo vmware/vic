@@ -21,9 +21,9 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Check running twice
     ${name}=  Generate Random String  15
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -t --name ${name} ${busybox} ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -t --name ${name} ${busybox} ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  proc
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${name}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' start -a ${name}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  proc

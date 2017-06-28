@@ -20,47 +20,47 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Exec -d
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d ${id} /bin/touch tmp/force
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' exec -d ${id} /bin/touch tmp/force
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/ls -al /tmp/force
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' exec ${id} /bin/ls -al /tmp/force
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  force
 
 Exec Echo
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /bin/echo "Help me, Obi-Wan Kenobi. You're my only hope."
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' exec ${id} /bin/echo "Help me, Obi-Wan Kenobi. You're my only hope."
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Be Equal As Strings  ${output}  Help me, Obi-Wan Kenobi. You're my only hope.
 
 Exec Echo -i
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${id} /bin/echo "Your eyes can deceive you. Don't trust them."
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' exec -i ${id} /bin/echo "Your eyes can deceive you. Don't trust them."
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Be Equal As Strings  ${output}  Your eyes can deceive you. Don't trust them.
 
 Exec Echo -t
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d ${busybox} /bin/top -d 600
+    ${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -t ${id} /bin/echo "Do. Or do not. There is no try."
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' exec -t ${id} /bin/echo "Do. Or do not. There is no try."
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Be Equal As Strings  ${output}  Do. Or do not. There is no try.
 
@@ -72,13 +72,13 @@ Exec Sort
     #${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
     #${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  Error
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    #${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d busybox /bin/top -d 600
     #Should Be Equal As Integers  ${rc}  0
     #:FOR  ${idx}  IN RANGE  0  5
-    #\     Start Process  docker %{VCH-PARAMS} exec ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    #\     Start Process  docker '%{VCH-PARAMS}' exec ${output} /bin/sort < ${fifo}  shell=True  alias=custom
     #\     Run  echo one > ${fifo}
     #\     ${ret}=  Wait For Process  custom
     #\     Log  ${ret.stderr}
@@ -95,13 +95,13 @@ Exec Sort -i
     #${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
     #${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
     #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  Error
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    #${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d busybox /bin/top -d 600
     #Should Be Equal As Integers  ${rc}  0
     #:FOR  ${idx}  IN RANGE  0  5
-    #\     Start Process  docker %{VCH-PARAMS} exec -i ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    #\     Start Process  docker '%{VCH-PARAMS}' exec -i ${output} /bin/sort < ${fifo}  shell=True  alias=custom
     #\     Run  echo one > ${fifo}
     #\     ${ret}=  Wait For Process  custom
     #\     Log  ${ret.stderr}
@@ -113,12 +113,12 @@ Exec Sort -i
 Exec NonExisting
     ${status}=  Get State Of Github Issue  5479
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-38-Docker-Exec.robot needs to be updated now that Issue #5479 has been resolved
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' pull busybox
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  Error
-    #${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    #${rc}  ${id}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' run -d busybox /bin/top -d 600
     #Should Be Equal As Integers  ${rc}  0
     #:FOR  ${idx}  IN RANGE  0  5
-    #\   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${id} /NonExisting
+    #\   ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' exec ${id} /NonExisting
     #\   Should Be Equal As Integers  ${rc}  0
     #\   Should Contain  ${output}  no such file or directory

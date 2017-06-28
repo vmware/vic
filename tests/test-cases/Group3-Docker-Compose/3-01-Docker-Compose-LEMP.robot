@@ -20,15 +20,15 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Compose LEMP Server
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{REGISTRY_PASSWORD}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker '%{VCH-PARAMS}' login --username=victest --password='%{REGISTRY_PASSWORD}'
     Should Be Equal As Integers  ${rc}  0
 
     Set Environment Variable  COMPOSE_HTTP_TIMEOUT  300
 
-    ${vch_ip}=  Get Environment Variable  VCH_IP  %{VCH-IP}
-    Log To Console  \nThe VCH IP is %{VCH-IP}
+    ${vch_ip}=  Get Environment Variable  VCH_IP  '%{VCH-IP}'
+    Log To Console  \nThe VCH IP is '%{VCH-IP}'
 
-    Run  cat %{GOPATH}/src/github.com/vmware/vic/demos/compose/webserving-app/docker-compose.yml | sed -e "s/192.168.60.130/${vch_ip}/g" > lemp-compose.yml
-    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose %{COMPOSE-PARAMS} --file lemp-compose.yml up -d
+    Run  cat '%{GOPATH}'/src/github.com/vmware/vic/demos/compose/webserving-app/docker-compose.yml | sed -e "s/192.168.60.130/${vch_ip}/g" > lemp-compose.yml
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose '%{COMPOSE-PARAMS}' --file lemp-compose.yml up -d
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0

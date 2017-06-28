@@ -21,7 +21,7 @@ Test Teardown  VSAN Cleanup
 VSAN Cleanup
     Cleanup VIC Appliance On Test Server
 
-    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+    ${out}=  Run  govc datastore.vsan.dom.ls -ds '%{TEST_DATASTORE}' -l -o
     Should Be Empty  ${out}
 
     Nimbus Cleanup  ${list}  ${false}
@@ -29,8 +29,8 @@ VSAN Cleanup
 *** Test Cases ***
 Complex VSAN
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
-    Set Test Variable  ${user}  %{NIMBUS_USER}
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-complex-pxeBoot-vcva --runName ${name}
+    Set Test Variable  ${user}  '%{NIMBUS_USER}'
+    ${out}=  Deploy Nimbus Testbed  '%{NIMBUS_USER}'  '%{NIMBUS_PASSWORD}'  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-complex-pxeBoot-vcva --runName ${name}
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
@@ -66,7 +66,7 @@ Complex VSAN
     Set Environment Variable  TEST_RESOURCE  cluster-vsan-1
     Set Environment Variable  TEST_TIMEOUT  30m
 
-    ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
+    ${out}=  Run  govc datastore.vsan.dom.ls -ds '%{TEST_DATASTORE}' -l -o
     Should Be Empty  ${out}
 
     Install VIC Appliance To Test Server
