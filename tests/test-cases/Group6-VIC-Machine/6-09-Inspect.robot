@@ -111,10 +111,10 @@ Verify inspect output for a full tls VCH
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT}
     Should Contain  ${output}  DOCKER_CERT_PATH=${EXECDIR}/%{VCH-NAME}
 
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --cert-path=%{VCH-NAME}
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path=%{VCH-NAME}
     Should Contain  ${output}  DOCKER_CERT_PATH=${EXECDIR}/%{VCH-NAME}
 
-    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --cert-path=fakeDir
+    ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --tls-cert-path=fakeDir
     Should Not Contain  ${output}  DOCKER_CERT_PATH=${EXECDIR}/%{VCH-NAME}
     Should Contain  ${output}  Unable to find valid client certs
     Should Contain  ${output}  DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments
