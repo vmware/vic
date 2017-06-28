@@ -23,6 +23,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
 
+	"path/filepath"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -281,7 +283,8 @@ func setVolumeLocations(d *data.Data, conf *config.VirtualContainerHostConfigSpe
 			continue
 		}
 		u := *v
-		u.Path = dsURL.Path
+		u.Path = filepath.Join(dsURL.Datastore, dsURL.Path)
+		u.Host = ""
 		d.VolumeLocations[k] = &u
 	}
 }

@@ -22,7 +22,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/portlayer/constants"
-	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
 )
@@ -290,31 +289,6 @@ func (s *Scope) DNS() []net.IP {
 	defer s.RUnlock()
 
 	return s.dns
-}
-
-func (s *Scope) Refresh(h *exec.Handle) error {
-	s.Lock()
-	defer s.Unlock()
-
-	if !s.isDynamic() {
-		return nil
-	}
-
-	ne := h.ExecConfig.Networks[s.name]
-	if ip.IsUnspecifiedSubnet(&ne.Network.Assigned.Gateway) {
-		return fmt.Errorf("updating container %s: gateway not present for scope %s", h.ExecConfig.ID, s.name)
-	}
-
-	gw, snet, err := net.ParseCIDR(ne.Network.Assigned.Gateway.String())
-	if err != nil {
-		return err
-	}
-
-	s.gateway = gw
-	s.subnet = new(net.IPNet)
-	*s.subnet = *snet
-
-	return nil
 }
 
 type scopeJSON struct {
