@@ -21,6 +21,7 @@ Test Teardown  Run Keyword  Test Cleanup
 
 *** Keywords ***
 Setup Test Environment
+
     Set Test Environment Variables
     Run Keyword And Ignore Error  Test Cleanup
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
