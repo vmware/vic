@@ -75,7 +75,6 @@ endef
 LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
 
 # target aliases - environment variable definition
-admiralapi-client := lib/config/dynamic/admiral/client/admiral_client.go
 docker-engine-api := $(BIN)/docker-engine-server
 docker-engine-api-test := $(BIN)/docker-engine-server-test
 portlayerapi := $(BIN)/port-layer-server
@@ -112,7 +111,6 @@ bootstrap-debug := $(BIN)/bootstrap-debug.iso
 iso-base := $(BIN)/.iso-base.tgz
 
 # target aliases - target mapping
-admiralapi-client: $(admiralapi-client)
 docker-engine-api: $(docker-engine-api)
 docker-engine-api-test: $(docker-engine-api-test)
 portlayerapi: $(portlayerapi)
@@ -257,7 +255,7 @@ install-govmomi:
 # manually install govmomi so the huge types package doesn't break cover
 	$(GO) install ./vendor/github.com/vmware/govmomi
 
-test: install-govmomi portlayerapi admiralapi-client $(TEST_JOBS)
+test: install-govmomi portlayerapi $(TEST_JOBS)
 
 
 focused-test:
@@ -303,12 +301,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
-$(admiralapi-client): $(SWAGGER)
-	@echo regenerating swagger models and operations for Admiral API client...
-	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral/ -f lib/config/dynamic/admiral/swagger.json --tags /projects 2>>swagger-gen.log
-	@echo done regenerating swagger models and operations for Admiral API client...
-
-$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client) $(admiralapi-client)
+$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
@@ -473,8 +466,6 @@ clean:
 	@rm -rf ./lib/apiservers/portlayer/cmd/
 	@rm -rf ./lib/apiservers/portlayer/models/
 	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
-	@rm -rf ./lib/config/dynamic/admiral/models
-	@rm -rf ./lib/config/dynamic/admiral/client
 
 	@rm -f *.log
 	@rm -f *.pem
