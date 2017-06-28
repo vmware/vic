@@ -77,7 +77,7 @@ Verify VCH remote syslog
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/containers/json\\?all\\=1
 
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/containers/create
-    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/images/create\\?fromImage\\=busybox\\&tag\\=latest
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/images/create\\?fromImage\\=(\\S+)*busybox\\&tag\\=latest
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/containers/\\w{64}/start
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling POST /v\\d.\\d{2}/containers/\\w{64}/stop
 
@@ -86,7 +86,7 @@ Verify VCH remote syslog
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling GET /v\\d.\\d{2}/info
 
     Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/containers/\\w{64}
-    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/images/busybox
+    Should Match Regexp  ${out}  ${vch-ip} docker-engine-server\\[${pid}\\]: Calling DELETE /v\\d.\\d{2}/images/(\\S+)*busybox
 
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: bin
     Should Match Regexp  ${out}  ${shortID} ${shortID}\\[1\\]: home
