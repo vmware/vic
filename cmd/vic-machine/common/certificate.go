@@ -60,13 +60,13 @@ type CertFactory struct {
 func (c *CertFactory) CertFlags() []cli.Flag {
 	return []cli.Flag{
 		cli.StringFlag{
-			Name:        "key",
+			Name:        "tls-server-key",
 			Value:       "",
 			Usage:       "Virtual Container Host private key file (server certificate)",
 			Destination: &c.Skey,
 		},
 		cli.StringFlag{
-			Name:        "cert",
+			Name:        "tls-server-cert",
 			Value:       "",
 			Usage:       "Virtual Container Host x509 certificate file (server certificate)",
 			Destination: &c.Scert,
@@ -78,7 +78,7 @@ func (c *CertFactory) CertFlags() []cli.Flag {
 			Destination: &c.Cname,
 		},
 		cli.StringFlag{
-			Name:        "cert-path",
+			Name:        "tls-cert-path",
 			Value:       "",
 			Usage:       "The path to check for existing certificates and in which to save generated certificates. Defaults to './<vch name>/'",
 			Destination: &c.CertPath,
@@ -333,12 +333,12 @@ func (c *CertFactory) generateCertificates(server bool, client bool) ([]byte, *c
 	// generate the certs and keys with names conforming the default the docker client expects
 	files, err := ioutil.ReadDir(c.CertPath)
 	if len(files) > 0 {
-		return nil, nil, fmt.Errorf("Specified directory to store certificates is not empty. Specify a new path in which to store generated certificates using --cert-path or remove the contents of \"%s\" and run vic-machine again.", c.CertPath)
+		return nil, nil, fmt.Errorf("Specified directory to store certificates is not empty. Specify a new path in which to store generated certificates using --tls-cert-path or remove the contents of \"%s\" and run vic-machine again.", c.CertPath)
 	}
 
 	err = os.MkdirAll(c.CertPath, 0700)
 	if err != nil {
-		log.Errorf("Unable to make directory \"%s\" to hold certificates (set via --cert-path)", c.CertPath)
+		log.Errorf("Unable to make directory \"%s\" to hold certificates (set via --tls-cert-path)", c.CertPath)
 		return nil, nil, err
 	}
 
