@@ -33,6 +33,6 @@ Configure VCH - Run Configure Without Cert Options & Ensure Certs are Unchanged
 
 Configure VCH - Replace certificates with self-signed certificate using --no-tlsverify
 ===
-1) Calls configure against the existing VCH with --no-tlsverify and an empty --cert-path 
+1) Calls configure against the existing VCH with --no-tlsverify and an empty --tls-cert-path
 2) Checks that a self-signed certificate is generated
 3) Checks that the installed certificate is the self-signed one that we just generated
