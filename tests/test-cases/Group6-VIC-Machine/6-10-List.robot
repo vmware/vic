@@ -36,7 +36,7 @@ Verify Listed Machines
     ${vch-path}=  Strip String  @{vch}[1]
     ${vch-name}=  Strip String  @{vch}[2]
     ${vch-version}=  Strip String  @{vch}[3]
-    Should Be Equal As Strings  @{version}[2]  ${vch-version}
+    Should Be Equal As Strings  @{version}[-1]  ${vch-version}
     # Run vic-machine inspect
     ${ret}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --id ${vch-id}
     Should Contain  ${ret}  Completed successfully
