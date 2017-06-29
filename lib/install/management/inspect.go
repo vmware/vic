@@ -135,13 +135,13 @@ func findCertPaths(vchName, certPath string) []string {
 	var possibleCertPaths []string
 
 	if certPath != "" {
-		log.Infof("cert-path supplied - only checking for certs in %s/", certPath)
+		log.Infof("--tls-cert-path supplied - only checking for certs in %s/", certPath)
 		possibleCertPaths = append(possibleCertPaths, certPath)
 		return possibleCertPaths
 	}
 
 	possibleCertPaths = append(possibleCertPaths, vchName, ".")
-	logMsg := fmt.Sprintf("cert-path not supplied - checking for certs in current directory, %s/", vchName)
+	logMsg := fmt.Sprintf("--tls-cert-path not supplied - checking for certs in current directory, %s/", vchName)
 
 	dockerConfPath := ""
 	user, err := user.Current()

@@ -15,13 +15,13 @@ This test requires that a vSphere server is running and available
 2. Issue vic-machine inspect config command
 3. Issue vic-machine inspect config --format raw command
 4. Create a VCH with tlsverify
-5. Inspect the VCH without specifying --cert-path
-6. Inspect the VCH with a valid --cert-path
-7. Inspect the VCH with an invalid --cert-path
+5. Inspect the VCH without specifying --tls-cert-path
+6. Inspect the VCH with a valid --tls-cert-path
+7. Inspect the VCH with an invalid --tls-cert-path
 8. Create a VCH with --no-tls
-9. Inspect the VCH without specifying --cert-path
+9. Inspect the VCH without specifying --tls-cert-path
 10. Create a VCH with --no-tlsverify
-11. Inspect the VCH without specifying --cert-path
+11. Inspect the VCH without specifying --tls-cert-path
 
 # Expected Outcome:
 * Steps 1 should succeed, and output from step 2 and 3 should contain expected flags & values

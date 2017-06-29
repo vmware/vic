@@ -610,7 +610,7 @@ func (c *Create) logArguments(cliContext *cli.Context) []string {
 			continue
 		}
 
-		if f == "cert" || f == "cert-path" || f == "key" || f == "registry-ca" || f == "tls-ca" {
+		if f == "tls-server-cert" || f == "tls-cert-path" || f == "tls-server-key" || f == "registry-ca" || f == "tls-ca" {
 			continue
 		}
 
