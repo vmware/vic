@@ -56,6 +56,7 @@ This test requires that a vSphere server is running and available
 42. Configure the volume stores by attempting to change an existing volume store
 43. Configure the VCH by adding a new volume store with a URL scheme
 44. Run vic-machine inspect config
+45. Verify configure is in vic-machine dialog
 
 # Expected Outcome
 * Step 15 should fail with an error message saying that the existing container network must be specified
