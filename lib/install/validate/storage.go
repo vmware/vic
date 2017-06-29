@@ -65,7 +65,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 			v.NoteIssue(vsErr)
 		case common.DsScheme:
 			// TODO: change v.DatastoreHelper to take url struct instead of string and modify tests.
-			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.String(), label, "--volume-store")
+			targetURL, _, vsErr = v.DatastoreHelper(ctx, targetURL.Path, label, "--volume-store")
 			v.NoteIssue(vsErr)
 		default:
 			// We should not reach here, if we do we will attempt to treat this as a vsphere datastore
@@ -96,10 +96,20 @@ func validateNFSTarget(nfsURL *url.URL) error {
 
 func (v *Validator) DatastoreHelper(ctx context.Context, path string, label string, flag string) (*url.URL, *object.Datastore, error) {
 	defer trace.End(trace.Begin(path))
-	dsURL, dsErr := url.Parse(path)
+
+	stripRawTarget := path
+
+	if strings.HasPrefix(stripRawTarget, common.DsScheme+"://") {
+		stripRawTarget = strings.Replace(path, common.DsScheme+"://", "", -1)
+	}
+
+	stripRawTarget, _ = url.PathUnescape(stripRawTarget)
+	dsURL, dsErr := url.Parse(stripRawTarget)
 	if dsErr != nil {
 		return nil, nil, errors.Errorf("error parsing datastore path: %s", dsErr)
 	}
+
+	path = stripRawTarget
 
 	// url scheme does not contain ://, so remove it to make url work
 	if dsURL.Scheme != "" && dsURL.Scheme != "ds" {

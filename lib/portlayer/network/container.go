@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/uid"
 )
@@ -106,19 +108,8 @@ func (c *Container) Refresh(ctx context.Context) error {
 	defer h.Close()
 
 	for _, e := range c.endpoints {
-		s := e.Scope()
-		if !s.isDynamic() {
-			continue
-		}
-
-		ne := h.ExecConfig.Networks[s.Name()]
-		if ne == nil {
-			return fmt.Errorf("container config does not have info for network scope %s", s.Name())
-		}
-
-		e.ip = ne.Assigned.IP
-		if err := s.Refresh(h); err != nil {
-			return err
+		if err := e.refresh(h); err != nil {
+			log.Warnf("could not refresh endpoint for container %s: %s", h.ExecConfig.ID, err)
 		}
 	}
 

@@ -251,7 +251,7 @@ func (c *Configure) processCertificates(client, public, management data.NetworkC
 
 	_, err := os.Lstat(c.certificates.CertPath)
 	if err == nil || os.IsExist(err) {
-		return fmt.Errorf("Specified or default certificate output location \"%s\" already exists. Specify a location that does not yet exist with --cert-path to continue or do not specify --tls-noverify if, instead, you want to load certificates from %s", c.certificates.CertPath, c.certificates.CertPath)
+		return fmt.Errorf("Specified or default certificate output location \"%s\" already exists. Specify a location that does not yet exist with --tls-cert-path to continue or do not specify --tls-noverify if, instead, you want to load certificates from %s", c.certificates.CertPath, c.certificates.CertPath)
 	}
 
 	var debug int

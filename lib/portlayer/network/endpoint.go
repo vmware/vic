@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
 )
@@ -38,6 +39,8 @@ type Endpoint struct {
 	static    bool
 	ports     map[Port]interface{} // exposed ports
 	aliases   map[string][]alias
+	gw        *net.IP
+	subnet    *net.IPNet
 }
 
 // scopeName returns the "fully qualified" name of an alias. Aliases are scoped
@@ -111,6 +114,10 @@ func (e *Endpoint) Scope() *Scope {
 }
 
 func (e *Endpoint) Subnet() *net.IPNet {
+	if e.subnet != nil {
+		return e.subnet
+	}
+
 	return e.Scope().Subnet()
 }
 
@@ -127,6 +134,10 @@ func (e *Endpoint) Name() string {
 }
 
 func (e *Endpoint) Gateway() net.IP {
+	if e.gw != nil {
+		return *e.gw
+	}
+
 	return e.Scope().Gateway()
 }
 
@@ -176,12 +187,43 @@ func (e *Endpoint) getAliases(con string) []alias {
 }
 
 func (e *Endpoint) copy() *Endpoint {
-	other := &Endpoint{}
-	*other = *e
+	other := *e
+	other.aliases = make(map[string][]alias)
+	for k, v := range e.aliases {
+		a := make([]alias, len(v))
+		copy(a, v)
+		other.aliases[k] = a
+	}
 	other.ports = make(map[Port]interface{})
 	for p := range e.ports {
 		other.ports[p] = nil
 	}
 
-	return other
+	return &other
+}
+
+func (e *Endpoint) refresh(h *exec.Handle) error {
+	if !e.scope.isDynamic() {
+		return nil
+	}
+
+	s := e.scope
+	ne := h.ExecConfig.Networks[s.Name()]
+	if ne == nil {
+		return fmt.Errorf("container config does not have info for network scope %s", s.Name())
+	}
+
+	if ip.IsUnspecifiedSubnet(&ne.Network.Assigned.Gateway) {
+		return fmt.Errorf("updating endpoint for container %s: gateway not present for scope %s", h.ExecConfig.ID, s.name)
+	}
+
+	gw, snet, err := net.ParseCIDR(ne.Network.Assigned.Gateway.String())
+	if err != nil {
+		return fmt.Errorf("could not parse gateway for container %s: %s", h.ExecConfig.ID, err)
+	}
+
+	e.ip = ne.Assigned.IP
+	e.gw = &gw
+	e.subnet = snet
+	return nil
 }

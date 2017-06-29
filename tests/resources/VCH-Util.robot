@@ -166,6 +166,7 @@ Install VIC Appliance To Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Containers On Test Server
+    Run Keyword If  ${cleanup}  Run Keyword And Ignore Error  Cleanup Dangling Resource Pools On Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -314,6 +315,21 @@ Cleanup Dangling VMs On Test Server
     \   Log To Console  Destroying dangling VCH: ${vm}
     \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
     \   Run Keyword And Continue On Failure  Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vm}
+
+Cleanup Dangling Resource Pools On Test Server
+    ${out}=  Run  govc ls host/*/Resources/*
+    ${pools}=  Split To Lines  ${out}
+    :FOR  ${pool}  IN  @{pools}
+    \   ${shortPool}=  Fetch From Right  ${pool}  /
+    \   ${build}=  Split String  ${shortPool}  -
+    \   # Skip any pool that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any pool that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Destroying dangling resource pool: ${pool}
+    \   ${output}=  Run  govc pool.destroy ${pool}
+    \   Log  ${output}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network

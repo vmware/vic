@@ -51,10 +51,10 @@ While Logged Out Fail To Get Docker Personality Log
     Should Contain  ${output}  <a href="/authentication">See Other</a>.
 
 While Logged Out Fail To Get Container Logs
-    ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${container}=  Run And Return Rc and Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc and Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container}  Error
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} start ${container}
@@ -95,10 +95,10 @@ Get Docker Personality Log
 
 Get Container Logs
     Login And Save Cookies
-    ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${container}=  Run And Return Rc and Output  docker %{VCH-PARAMS} create busybox /bin/top
+    ${rc}  ${container}=  Run And Return Rc and Output  docker %{VCH-PARAMS} create ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container}  Error
     ${rc}  ${output}=  Run And Return Rc and Output  docker %{VCH-PARAMS} start ${container}
