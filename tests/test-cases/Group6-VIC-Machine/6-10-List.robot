@@ -20,7 +20,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
 Verify Listed Machines
-    [Arguments]  ${list}  ${total}
+    [Arguments]  ${list}
     Should Contain  ${list}  ID
     Should Contain  ${list}  PATH
     Should Contain  ${list}  NAME
@@ -28,33 +28,33 @@ Verify Listed Machines
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux version
     Should Be Equal As Integers  ${rc}  0
     @{version}=  Split String  ${output}
-    ${machines}=  Get Lines Containing String  ${list}  @{version}[-1]
+    ${machines}=  Get Lines Containing String  ${list}  %{VCH-NAME}
     @{lines}=  Split To Lines  ${machines}
-    ${n}=  Get Length  ${lines}
-    Should Be Equal As Integers  ${n}  ${total}
     # Get VCH ID, PATH and NAME
     @{vch}=  Split String  @{lines}[-1]
     ${vch-id}=  Strip String  @{vch}[0]
     ${vch-path}=  Strip String  @{vch}[1]
     ${vch-name}=  Strip String  @{vch}[2]
+    ${vch-version}=  Strip String  @{vch}[3]
+    Should Be Equal As Strings  @{version}[2]  ${vch-version}
     # Run vic-machine inspect
     ${ret}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --id ${vch-id}
     Should Contain  ${ret}  Completed successfully
-    ${ret}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource ${vch-path} --name %{VCH-NAME}
+    ${ret}=  Run  bin/vic-machine-linux inspect --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource ${vch-path} --name ${vch-name}
     Should Contain  ${ret}  Completed successfully
 
 *** Test Cases ***
 List all VCHs
     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
-    Verify Listed Machines  ${ret}  1
+    Verify Listed Machines  ${ret}
 
 List with compute-resource
     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource %{TEST_RESOURCE}
-    Verify Listed Machines  ${ret}  1
+    Verify Listed Machines  ${ret}
 
 List with trailing slash
     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource %{TEST_RESOURCE}
-    Verify Listed Machines  ${ret}  1
+    Verify Listed Machines  ${ret}
 
 List suggest compute resource
     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource fakeComputeResource
@@ -71,4 +71,4 @@ List with valid datacenter
 
     ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Set Environment Variable  TEST_DATACENTER  ${orig}
-    Verify Listed Machines  ${ret}  1
+    Verify Listed Machines  ${ret}
