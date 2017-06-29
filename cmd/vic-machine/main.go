@@ -67,7 +67,6 @@ func main() {
 			Usage:  "Update VCH configuration",
 			Action: configure.Run,
 			Flags:  configure.Flags(),
-			Hidden: true,
 		},
 		{
 			Name:   "delete",
