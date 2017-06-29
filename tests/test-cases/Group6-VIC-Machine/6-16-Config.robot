@@ -228,3 +228,7 @@ Configure VCH volume stores
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-scheme:scheme
+
+Configure Present in vic-machine
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
+    Should Contain ${output} configure
