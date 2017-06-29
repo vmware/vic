@@ -24,10 +24,11 @@ import (
 	"path"
 	"strings"
 
-	"github.com/docker/docker/pkg/archive"
+	docker "github.com/docker/docker/pkg/archive"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -270,6 +271,60 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 	return newImage, nil
 }
 
+// Export reads the delta between child and parent image layers, returning
+// the difference as a tar archive.
+//
+// store - the image store containing the two layers
+// id - must inherit from ancestor if ancestor is specified
+// ancestor - the layer up the chain against which to diff
+// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
+// data - set to true to include file data in the tar archive, false to include headers only
+func (v *ImageStore) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	storeName, err := util.ImageStoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	mounts := []*object.DatastorePath{}
+	cleanFunc := func() {
+		for _, mount := range mounts {
+			if err := v.dm.UnmountAndDetach(op, mount); err != nil {
+				op.Infof("Error cleaning up disk: %s", err.Error())
+			}
+		}
+	}
+
+	c := v.imageDiskDSPath(storeName, id)
+	childFs, err := v.dm.AttachAndMount(op, c)
+	if err != nil {
+		return nil, err
+	}
+	mounts = append(mounts, c)
+
+	ancestorFs := ancestor
+	if ancestor != "" {
+		a := v.imageDiskDSPath(storeName, ancestor)
+		ancestorFs, err = v.dm.AttachAndMount(op, a)
+		if err != nil {
+			cleanFunc()
+			return nil, err
+		}
+		mounts = append(mounts, a)
+	}
+
+	tar, err := archive.Diff(op, childFs, ancestorFs, spec, data)
+	if err != nil {
+		cleanFunc()
+		return nil, err
+	}
+
+	// wrap in a cleanReader so we can cleanup after the stream finishes
+	return &cleanReader{
+		ReadCloser: tar,
+		clean:      cleanFunc,
+	}, nil
+}
+
 // cleanup safely on error
 func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdisk *disk.VirtualDisk) {
 	op.Errorf("Cleaning up failed image %s", ID)
@@ -349,7 +404,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 
 	// Untar the archive
 	var n int64
-	if n, err = archive.ApplyLayer(dir, t); err != nil {
+	if n, err = docker.ApplyLayer(dir, t); err != nil {
 		return nil, err
 	}
 

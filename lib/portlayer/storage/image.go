@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
@@ -73,6 +74,9 @@ type ImageStorer interface {
 	// use either by way of inheritance or because it's attached to a
 	// container, this will return an error.
 	DeleteImage(op trace.Operation, image *Image) (*Image, error)
+
+	// Archiver defines the Export and WriteArchive interface methods
+	archive.Archiver
 }
 
 // Image is the handle to identify an image layer on the backing store.  The

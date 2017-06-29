@@ -16,12 +16,14 @@ package vsphere
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -89,7 +91,7 @@ func (v *VolumeStore) volMetadataDirPath(ID string) string {
 }
 
 // Returns the path to the vmdk itself (in datastore URL format)
-func (v *VolumeStore) volDiskDsURL(ID string) *object.DatastorePath {
+func (v *VolumeStore) volDiskDSPath(ID string) *object.DatastorePath {
 	return &object.DatastorePath{
 		Datastore: v.ds.RootURL.Datastore,
 		Path:      path.Join(v.ds.RootURL.Path, v.volDirPath(ID), ID+".vmdk"),
@@ -104,9 +106,9 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	}
 
 	// Get the path to the disk in datastore uri format
-	volDiskDsURL := v.volDiskDsURL(ID)
+	volDiskDSPath := v.volDiskDSPath(ID)
 
-	config := disk.NewPersistentDisk(volDiskDsURL).WithCapacity(int64(capacityKB))
+	config := disk.NewPersistentDisk(volDiskDSPath).WithCapacity(int64(capacityKB))
 	// Create the disk
 	vmdisk, err := v.dm.CreateAndAttach(op, config)
 	if err != nil {
@@ -167,9 +169,9 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		ID := file.Path
 
 		// Get the path to the disk in datastore uri format
-		volDiskDsURL := v.volDiskDsURL(ID)
+		volDiskDSPath := v.volDiskDSPath(ID)
 
-		config := disk.NewPersistentDisk(volDiskDsURL)
+		config := disk.NewPersistentDisk(volDiskDSPath)
 		dev, err := disk.NewVirtualDisk(config, v.dm.Disks)
 		if err != nil {
 			return nil, err
@@ -190,4 +192,58 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	}
 
 	return volumes, nil
+}
+
+// Export reads the delta between child and parent volume layers, returning
+// the difference as a tar archive.
+//
+// store - the volume store containing the two layers
+// id - must inherit from ancestor if ancestor is specified
+// ancestor - the volume layer up the chain against which to diff
+// spec - describes filters on paths found in the data (include, exclude, strip)
+// data - set to true to include file data in the tar archive, false to include headers only
+func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	_, err := util.VolumeStoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	mounts := []*object.DatastorePath{}
+	cleanFunc := func() {
+		for _, mount := range mounts {
+			if err := v.dm.UnmountAndDetach(op, mount); err != nil {
+				op.Infof("Error cleaning up disk: %s", err.Error())
+			}
+		}
+	}
+
+	c := v.volDiskDSPath(id)
+	childFs, err := v.dm.AttachAndMount(op, c)
+	if err != nil {
+		return nil, err
+	}
+	mounts = append(mounts, c)
+
+	ancestorFs := ancestor
+	if ancestor != "" {
+		a := v.volDiskDSPath(ancestor)
+		ancestorFs, err = v.dm.AttachAndMount(op, a)
+		if err != nil {
+			cleanFunc()
+			return nil, err
+		}
+		mounts = append(mounts, a)
+	}
+
+	tar, err := archive.Diff(op, childFs, ancestorFs, spec, data)
+	if err != nil {
+		cleanFunc()
+		return nil, err
+	}
+
+	// wrap in a cleanReader so we can cleanup after the stream finishes
+	return &cleanReader{
+		ReadCloser: tar,
+		clean:      cleanFunc,
+	}, nil
 }

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,13 +37,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// API defines the interface the REST server used by the portlayer expects the
-// implementation side to export
-type API interface {
-	storage.ImageStorer
-	storage.VolumeStorer
-}
-
+// Init initializes portlayer components at startup
 func Init(ctx context.Context, sess *session.Session) error {
 	source, err := extraconfig.GuestInfoSource()
 	if err != nil {

@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -47,6 +49,14 @@ func NewVolumeLookupCache(op trace.Operation) *VolumeLookupCache {
 	}
 
 	return v
+}
+
+func (v *VolumeLookupCache) GetVolumeStore(op trace.Operation, storeName string) (*url.URL, error) {
+	u, err := util.VolumeStoreNameToURL(storeName)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 // AddStore adds a volumestore by name.  The url returned is the service url to the volume store.
@@ -189,6 +199,21 @@ func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
 	}
 
 	return l, nil
+}
+
+func (v *VolumeLookupCache) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	storeName, err := util.VolumeStoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	vs, ok := v.volumeStores[storeName]
+	if !ok {
+		err := fmt.Errorf("Volume store not found: %s", storeName)
+		return nil, err
+	}
+
+	return vs.Export(op, store, id, ancestor, spec, data)
 }
 
 // goto the volume store and repopulate the cache.
