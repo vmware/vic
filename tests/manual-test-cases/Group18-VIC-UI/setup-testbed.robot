@@ -62,7 +62,7 @@ Load Testbed
     ${esx_len}=  Get Length  ${esx-found}
     ${vcsa_len}=  Get Length  ${vcsa-found}
     Run Keyword If  ${browservm_len} > 0  Extract BrowserVm Info  @{browservm-found}  ELSE  Deploy BrowserVm
-    Run Keyword If  (${esx_len} == 0 and ${vcsa_len} > 0) or (${esx_len} > 0 and ${vcsa_len} == 0)  Run Keywords  Destroy Testbed  %{NIMBUS_USER}-UITEST-VC%{TEST_VSPHERE_VER}*  AND  Destroy Testbed  %{NIMBUS_USER}-UITEST-ESX%{TEST_VSPHERE_VER}*  AND  Deploy Esx  AND  Deploy Vcsa
+    Run Keyword If  (${esx_len} == 0 and ${vcsa_len} > 0) or (${esx_len} > 0 and ${vcsa_len} == 0)  Run Keywords  Destroy Testbed  '%{NIMBUS_USER}-UITEST-VC%{TEST_VSPHERE_VER}*'  AND  Destroy Testbed  '%{NIMBUS_USER}-UITEST-ESX%{TEST_VSPHERE_VER}*'  AND  Deploy Esx  AND  Deploy Vcsa
     Run Keyword If  ${esx_len} == 0 and ${vcsa_len} == 0  Run Keywords  Deploy Esx  AND  Deploy Vcsa
     Run Keyword If  ${esx_len} > 0 and ${vcsa_len} > 0  Run Keywords  Extract Esx Info  @{esx-found}  AND  Extract Vcsa Info  @{vcsa-found}
 
