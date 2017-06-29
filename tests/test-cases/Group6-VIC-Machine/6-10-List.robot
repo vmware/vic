@@ -30,6 +30,7 @@ Verify Listed Machines
     @{version}=  Split String  ${output}
     ${machines}=  Get Lines Containing String  ${list}  %{VCH-NAME}
     @{lines}=  Split To Lines  ${machines}
+    Length Should Be  ${lines}  1
     # Get VCH ID, PATH and NAME
     @{vch}=  Split String  @{lines}[-1]
     ${vch-id}=  Strip String  @{vch}[0]
