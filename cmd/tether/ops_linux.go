@@ -28,6 +28,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
@@ -169,31 +170,65 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			ifaceName := iface.Attrs().Name
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
-			established.Interface = ifaceName
-			_ = established.Commit(context.TODO())
+			switch endpoint.Network.TrustLevel {
+			case common.Open:
+				// Accept all incoming and outgoing traffic
+				generalPolicy(netfilter.Accept)
 
-			// handle the ports
-			for _, p := range endpoint.Ports {
-				// parse the port maps
-				r, err := portToRule(p)
-				if err != nil {
-					log.Errorf("can't apply port rule (%s): %s", p, err.Error())
-					continue
+			case common.Closed:
+				// Reject all incoming and outgoing traffic
+				generalPolicy(netfilter.Drop)
+
+			case common.Outbound:
+				// Reject all incoming traffic, but allow outgoing
+				netfilter.Policy(context.TODO(), netfilter.Input, netfilter.Drop)
+				netfilter.Policy(context.TODO(), netfilter.Output, netfilter.Accept)
+				netfilter.Policy(context.TODO(), netfilter.Forward, netfilter.Drop)
+				(&netfilter.Rule{
+					Chain:     netfilter.Input,
+					States:    []netfilter.State{netfilter.Established, netfilter.Related},
+					Target:    netfilter.Accept,
+					Interface: ifaceName,
+				}).Commit(context.TODO())
+
+			case common.Published:
+				established.Interface = ifaceName
+				_ = established.Commit(context.TODO())
+				// handle the ports
+				for _, p := range endpoint.Ports {
+					// parse the port maps
+					r, err := portToRule(p)
+					if err != nil {
+						log.Errorf("can't apply port rule (%s): %s", p, err.Error())
+						continue
+					}
+
+					log.Infof("Applying rule for port %s", p)
+					r.Interface = ifaceName
+					_ = r.Commit(context.TODO())
 				}
+				reject.Interface = ifaceName
+				_ = reject.Commit(context.TODO())
 
-				log.Infof("Applying rule for port %s", p)
-				r.Interface = ifaceName
-				_ = r.Commit(context.TODO())
+			default:
+				log.Warning("Received invalid firewall configuration %v: defaulting to open.",
+					endpoint.Network.TrustLevel)
+				generalPolicy(netfilter.Accept)
 			}
-
-			reject.Interface = ifaceName
-			_ = reject.Commit(context.TODO())
-
 			break
 		}
 	}
 
 	return nil
+}
+
+func generalPolicy(target netfilter.Target) {
+	for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
+		err := netfilter.Policy(context.TODO(), chain, target)
+		if err != nil {
+			log.Errorf("Couldn't set policy rule: %v.", err)
+		}
+	}
 }
 
 func portToRule(p string) (*netfilter.Rule, error) {

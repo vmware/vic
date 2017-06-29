@@ -118,9 +118,7 @@ func (r *Rule) args() ([]string, error) {
 	}
 
 	if len(r.States) > 0 {
-		for _, state := range r.States {
-			args = append(args, "-m", "state", "--state", string(state))
-		}
+		args = append(args, "-m", "state", "--state", stateJoin(r.States))
 	}
 
 	if r.Interface != "" {
@@ -175,4 +173,24 @@ func Flush(ctx context.Context, table string) error {
 	}
 
 	return iptables(ctx, args)
+}
+
+func Policy(ctx context.Context, chain Chain, target Target) error {
+	return iptables(ctx, []string{"-P", string(chain), string(target)})
+}
+
+func stateJoin(states []State) string {
+	// see godoc --src strings Join
+    n := len(states) - 1
+    for i := 0; i < len(states); i++ {
+        n += len(states[i])
+    }
+
+    b := make([]byte, n)
+    bp := copy(b, string(states[0]))
+    for _, s := range states[1:] {
+        bp += copy(b[bp:], ",")
+        bp += copy(b[bp:], string(s))
+    }
+    return string(b)
 }

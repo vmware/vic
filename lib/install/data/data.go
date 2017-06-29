@@ -200,7 +200,8 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 		if !reflect.DeepEqual(d.ContainerNetworks.MappedNetworks[vicNet], src.ContainerNetworks.MappedNetworks[vicNet]) ||
 			!reflect.DeepEqual(d.ContainerNetworks.MappedNetworksGateways[vicNet], src.ContainerNetworks.MappedNetworksGateways[vicNet]) ||
 			!equalIPRanges(d.ContainerNetworks.MappedNetworksIPRanges[vicNet], src.ContainerNetworks.MappedNetworksIPRanges[vicNet]) ||
-			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) {
+			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) ||
+			!reflect.DeepEqual(d.ContainerNetworks.MappedNetworksFirewalls[vicNet], src.ContainerNetworks.MappedNetworksFirewalls[vicNet]) {
 
 			netsChanged = true
 			log.Errorf("Found changes to existing container network %s", vicNet)

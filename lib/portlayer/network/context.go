@@ -28,6 +28,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -139,12 +140,13 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
 
 		scopeData = &ScopeData{
-			ScopeType: n.Type,
-			Name:      nn,
-			Subnet:    &subnet,
-			Gateway:   n.Gateway.IP,
-			DNS:       n.Nameservers,
-			Pools:     pools,
+			ScopeType:  n.Type,
+			Name:       nn,
+			Subnet:     &subnet,
+			Gateway:    n.Gateway.IP,
+			DNS:        n.Nameservers,
+			TrustLevel: n.TrustLevel,
+			Pools:      pools,
 		}
 
 		s, err := ctx.newScope(scopeData)
@@ -496,6 +498,7 @@ type ScopeData struct {
 	Subnet      *net.IPNet
 	Gateway     net.IP
 	DNS         []net.IP
+	TrustLevel  common.TrustLevel
 	Pools       []string
 	Annotations map[string]string
 	Internal    bool
@@ -1094,8 +1097,9 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			Common: executor.Common{
 				Name: s.Name(),
 			},
-			Aliases: options.Aliases,
-			Type:    s.Type(),
+			Aliases:    options.Aliases,
+			Type:       s.Type(),
+			TrustLevel: s.TrustLevel(),
 		},
 		Ports: options.Ports,
 	}
