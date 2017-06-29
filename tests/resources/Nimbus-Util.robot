@@ -187,7 +187,7 @@ Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
-    ${out}=  Execute Command  nimbus-ctl kill '${name}'
+    ${out}=  Execute Command  nimbus-ctl kill ${name}
     Close connection
 
 Cleanup Nimbus PXE folder
