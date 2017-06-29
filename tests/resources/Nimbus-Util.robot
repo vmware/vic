@@ -202,8 +202,8 @@ Nimbus Cleanup
     Run Keyword If  ${collect_log}  Run Keyword And Continue On Failure  Gather Logs From Test Server
     Run Keyword And Ignore Error  Cleanup Nimbus PXE folder  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Return From Keyword If  ${dontDelete}
-    :FOR  ${item}  IN  @{vm_list}
-    \   Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${item}
+    ${list}=  Catenate  @{vm_list}
+    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${list}
 
 Gather Host IPs
     ${out}=  Run  govc ls host/cls
