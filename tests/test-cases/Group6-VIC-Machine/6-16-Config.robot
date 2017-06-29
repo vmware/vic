@@ -231,4 +231,4 @@ Configure VCH volume stores
 
 Configure Present in vic-machine
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
-    Should Contain ${output} configure
+    Should Contain  ${output}  configure
