@@ -48,15 +48,11 @@ func TestGuestInfoSecret(t *testing.T) {
 
 		var s *session.Session
 		if i == 0 {
-			s, err = getESXSession(ctx, server.URL.String())
+			s, err = session.GetESXSession(ctx, server.URL.String())
 		} else {
-			s, err = getVPXSession(ctx, server.URL.String())
+			s, err = session.GetVPXSession(ctx, server.URL.String())
 		}
 		if err != nil {
-			t.Fatal(err)
-		}
-
-		if s, err = s.Populate(ctx); err != nil {
 			t.Fatal(err)
 		}
 

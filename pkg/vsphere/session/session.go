@@ -319,6 +319,23 @@ func (s *Session) Folders(ctx context.Context) *object.DatacenterFolders {
 	return s.folders
 }
 
+// QueryOptionValue looks up the option and returns the value. If more/less values are
+// received, an error is returned.
+func (s *Session) QueryOptionValue(ctx context.Context, option string) (string, error) {
+	client := s.Vim25()
+	optMgr := object.NewOptionManager(client, *client.ServiceContent.Setting)
+	opts, err := optMgr.Query(ctx, option)
+	if err != nil {
+		return "", fmt.Errorf("error querying option %q: %s", option, err)
+	}
+
+	if len(opts) == 1 {
+		return fmt.Sprintf("%v", opts[0].GetOptionValue().Value), nil
+	}
+
+	return "", fmt.Errorf("%d values querying option %q", len(opts), option)
+}
+
 func isNotAuthenticated(err error) bool {
 	if soap.IsSoapFault(err) {
 		switch soap.ToSoapFault(err).VimFault().(type) {
@@ -327,4 +344,50 @@ func isNotAuthenticated(err error) bool {
 		}
 	}
 	return false
+}
+
+// GetESXSession returns a general-purpose ESX session for tests.
+func GetESXSession(ctx context.Context, service string) (*Session, error) {
+	config := &Config{
+		Service:        service,
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "/ha-datacenter",
+		ClusterPath:    "*",
+		DatastorePath:  "/ha-datacenter/datastore/LocalDS_0",
+		PoolPath:       "/ha-datacenter/host/localhost.localdomain/Resources",
+	}
+
+	s, err := NewSession(config).Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if s, err = s.Populate(ctx); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// GetVPXSession returns a general-purpose VPX session for tests.
+func GetVPXSession(ctx context.Context, service string) (*Session, error) {
+	config := &Config{
+		Service:        service,
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "/DC0",
+		ClusterPath:    "/DC0/host/DC0_C0",
+		DatastorePath:  "/DC0/datastore/LocalDS_0",
+		PoolPath:       "/DC0/host/DC0_C0/Resources",
+	}
+
+	s, err := NewSession(config).Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if s, err = s.Populate(ctx); err != nil {
+		return nil, err
+	}
+	return s, nil
 }

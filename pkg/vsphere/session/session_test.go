@@ -15,12 +15,11 @@
 package session
 
 import (
+	"context"
 	"crypto/tls"
 	"strings"
 	"testing"
 	"time"
-
-	"context"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/simulator"
@@ -184,5 +183,47 @@ func TestConnect(t *testing.T) {
 				t.Fatal("expected URL parse error")
 			}
 		}
+	}
+}
+
+func TestQueryOptionValue(t *testing.T) {
+	ctx := context.Background()
+
+	model := simulator.VPX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := model.Service.NewServer()
+	defer server.Close()
+
+	s, err := GetVPXSession(ctx, server.URL.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Multiple value error
+	optValue, err := s.QueryOptionValue(ctx, "")
+	if err == nil {
+		t.Fatal("expected multiple value error")
+	}
+
+	// Invalid option
+	optValue, err = s.QueryOptionValue(ctx, "foo-bar")
+	if err == nil {
+		t.Fatal("expected invalid query error")
+	}
+
+	// Valid option
+	adminOptKey := "config.vpxd.sso.default.admin"
+	adminOptVal := "Administrator@vsphere.local"
+	optValue, err = s.QueryOptionValue(ctx, "config.vpxd.sso.default.admin")
+	if err != nil {
+		t.Fatalf("expected nil error, got: %s", err)
+	}
+	if optValue != adminOptVal {
+		t.Fatalf("expected value %s for query %q, got: %s", adminOptVal, adminOptKey, optValue)
 	}
 }
