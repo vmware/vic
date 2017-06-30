@@ -15,6 +15,7 @@
 package tags
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,15 +48,15 @@ type Tag struct {
 	UsedBy      []string `json:"used_by"`
 }
 
-func (c *RestClient) CreateTagIfNotExist(name string, description string, categoryID string) (*string, error) {
+func (c *RestClient) CreateTagIfNotExist(ctx context.Context, name string, description string, categoryID string) (*string, error) {
 	tagCreate := TagCreate{categoryID, description, name}
 	spec := TagCreateSpec{tagCreate}
-	id, err := c.CreateTag(&spec)
+	id, err := c.CreateTag(ctx, &spec)
 	if err != nil {
 		log.Debugf("Created tag %s failed for %s", errors.ErrorStack(err))
 		// if already exists, query back
 		if strings.Contains(err.Error(), "already_exists") {
-			tagObjs, err := c.GetTagByNameForCategory(name, categoryID)
+			tagObjs, err := c.GetTagByNameForCategory(ctx, name, categoryID)
 			if err != nil {
 				log.Errorf("Failed to query tag %s for category %s", name, categoryID)
 				return nil, errors.Trace(err)
@@ -76,8 +77,8 @@ func (c *RestClient) CreateTagIfNotExist(name string, description string, catego
 	return id, nil
 }
 
-func (c *RestClient) DeleteTagIfNoObjectAttached(id string) error {
-	objs, err := c.ListAttachedObjects(id)
+func (c *RestClient) DeleteTagIfNoObjectAttached(ctx context.Context, id string) error {
+	objs, err := c.ListAttachedObjects(ctx, id)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -85,12 +86,12 @@ func (c *RestClient) DeleteTagIfNoObjectAttached(id string) error {
 		log.Debugf("tag %s related objects is not empty, do not delete it.", id)
 		return nil
 	}
-	return c.DeleteTag(id)
+	return c.DeleteTag(ctx, id)
 }
 
-func (c *RestClient) CreateTag(spec *TagCreateSpec) (*string, error) {
+func (c *RestClient) CreateTag(ctx context.Context, spec *TagCreateSpec) (*string, error) {
 	log.Debugf("Create Tag %v", spec)
-	stream, _, status, err := c.call("POST", TagURL, spec, nil)
+	stream, _, status, err := c.call(ctx, "POST", TagURL, spec, nil)
 
 	log.Debugf("Get status code: %d", status)
 	if status != 200 || err != nil {
@@ -110,10 +111,10 @@ func (c *RestClient) CreateTag(spec *TagCreateSpec) (*string, error) {
 	return &(pID.Value), nil
 }
 
-func (c *RestClient) GetTag(id string) (*Tag, error) {
+func (c *RestClient) GetTag(ctx context.Context, id string) (*Tag, error) {
 	log.Debugf("Get tag %s", id)
 
-	stream, _, status, err := c.call("GET", fmt.Sprintf("%s/id:%s", TagURL, id), nil, nil)
+	stream, _, status, err := c.call(ctx, "GET", fmt.Sprintf("%s/id:%s", TagURL, id), nil, nil)
 
 	if status != 200 || err != nil {
 		log.Debugf("Get tag failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
@@ -132,10 +133,10 @@ func (c *RestClient) GetTag(id string) (*Tag, error) {
 	return &(pTag.Value), nil
 }
 
-func (c *RestClient) DeleteTag(id string) error {
+func (c *RestClient) DeleteTag(ctx context.Context, id string) error {
 	log.Debugf("Delete tag %s", id)
 
-	_, _, status, err := c.call("DELETE", fmt.Sprintf("%s/id:%s", TagURL, id), nil, nil)
+	_, _, status, err := c.call(ctx, "DELETE", fmt.Sprintf("%s/id:%s", TagURL, id), nil, nil)
 
 	if status != 200 || err != nil {
 		log.Debugf("Delete tag failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
@@ -144,10 +145,10 @@ func (c *RestClient) DeleteTag(id string) error {
 	return nil
 }
 
-func (c *RestClient) ListTags() ([]string, error) {
+func (c *RestClient) ListTags(ctx context.Context) ([]string, error) {
 	log.Debugf("List all tags")
 
-	stream, _, status, err := c.call("GET", TagURL, nil, nil)
+	stream, _, status, err := c.call(ctx, "GET", TagURL, nil, nil)
 
 	if status != 200 || err != nil {
 		log.Debugf("Get tags failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
@@ -157,14 +158,14 @@ func (c *RestClient) ListTags() ([]string, error) {
 	return c.handleTagIDList(stream)
 }
 
-func (c *RestClient) ListTagsForCategory(id string) ([]string, error) {
+func (c *RestClient) ListTagsForCategory(ctx context.Context, id string) ([]string, error) {
 	log.Debugf("List tags for category: %s", id)
 
 	type PostCategory struct {
 		CId string `json:"category_id"`
 	}
 	spec := PostCategory{id}
-	stream, _, status, err := c.call("POST", fmt.Sprintf("%s/id:%s?~action=list-tags-for-category", TagURL, id), spec, nil)
+	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s/id:%s?~action=list-tags-for-category", TagURL, id), spec, nil)
 
 	if status != 200 || err != nil {
 		log.Debugf("List tags for category failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
@@ -188,9 +189,9 @@ func (c *RestClient) handleTagIDList(stream io.ReadCloser) ([]string, error) {
 }
 
 // Get tag through tag name and category id
-func (c *RestClient) GetTagByNameForCategory(name string, id string) ([]Tag, error) {
+func (c *RestClient) GetTagByNameForCategory(ctx context.Context, name string, id string) ([]Tag, error) {
 	log.Debugf("Get tag %s for category %s", name, id)
-	tagIds, err := c.ListTagsForCategory(id)
+	tagIds, err := c.ListTagsForCategory(ctx, id)
 	if err != nil {
 		log.Debugf("Get tag failed for %s", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
@@ -198,7 +199,7 @@ func (c *RestClient) GetTagByNameForCategory(name string, id string) ([]Tag, err
 
 	var tags []Tag
 	for _, tID := range tagIds {
-		tag, err := c.GetTag(tID)
+		tag, err := c.GetTag(ctx, tID)
 		if err != nil {
 			log.Debugf("Get tag %s failed for %s", tID, errors.ErrorStack(err))
 			return nil, errors.Trace(err)
@@ -211,8 +212,8 @@ func (c *RestClient) GetTagByNameForCategory(name string, id string) ([]Tag, err
 }
 
 // Get attached tags through tag name pattern
-func (c *RestClient) GetAttachedTagsByNamePattern(namePattern string, objID string, objType string) ([]Tag, error) {
-	tagIds, err := c.ListAttachedTags(objID, objType)
+func (c *RestClient) GetAttachedTagsByNamePattern(ctx context.Context, namePattern string, objID string, objType string) ([]Tag, error) {
+	tagIds, err := c.ListAttachedTags(ctx, objID, objType)
 	if err != nil {
 		log.Debugf("Get attached tags failed for %s", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
@@ -221,7 +222,7 @@ func (c *RestClient) GetAttachedTagsByNamePattern(namePattern string, objID stri
 	var validName = regexp.MustCompile(namePattern)
 	var tags []Tag
 	for _, tID := range tagIds {
-		tag, err := c.GetTag(tID)
+		tag, err := c.GetTag(ctx, tID)
 		if err != nil {
 			log.Debugf("Get tag %s failed for %s", tID, errors.ErrorStack(err))
 		}

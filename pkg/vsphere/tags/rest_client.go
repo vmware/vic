@@ -16,6 +16,7 @@ package tags
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -71,7 +72,7 @@ func (c *RestClient) encodeData(data interface{}) (*bytes.Buffer, error) {
 	return params, nil
 }
 
-func (c *RestClient) call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
+func (c *RestClient) call(ctx context.Context, method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
 	//	log.Debugf("%s: %s, headers: %+v", method, path, headers)
 	params, err := c.encodeData(data)
 	if err != nil {
@@ -85,17 +86,17 @@ func (c *RestClient) call(method, path string, data interface{}, headers map[str
 		headers["Content-Type"] = []string{"application/json"}
 	}
 
-	body, hdr, statusCode, err := c.clientRequest(method, path, params, headers)
+	body, hdr, statusCode, err := c.clientRequest(ctx, method, path, params, headers)
 	if statusCode == 401 && strings.Contains(err.Error(), "This method requires authentication") {
-		c.Login()
+		c.Login(ctx)
 		log.Debugf("Rerun request after login")
-		return c.clientRequest(method, path, params, headers)
+		return c.clientRequest(ctx, method, path, params, headers)
 	}
 
 	return body, hdr, statusCode, errors.Trace(err)
 }
 
-func (c *RestClient) clientRequest(method, path string, in io.Reader, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
+func (c *RestClient) clientRequest(ctx context.Context, method, path string, in io.Reader, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
 	expectedPayload := (method == "POST" || method == "PUT")
 	if expectedPayload && in == nil {
 		in = bytes.NewReader([]byte{})
@@ -106,6 +107,7 @@ func (c *RestClient) clientRequest(method, path string, in io.Reader, headers ma
 		return nil, nil, -1, errors.Trace(err)
 	}
 
+	req = req.WithContext(ctx)
 	req.URL.Host = c.host
 	req.URL.Scheme = c.scheme
 	if c.cookies != nil {
@@ -154,19 +156,19 @@ func (c *RestClient) handleResponse(resp *http.Response, err error) (io.ReadClos
 	return resp.Body, resp.Header, statusCode, nil
 }
 
-func (c *RestClient) Login() error {
+func (c *RestClient) Login(ctx context.Context) error {
 	log.Debugf("Login to %s through rest API.", c.host)
 
 	targetURL := c.endpoint.String() + "/com/vmware/cis/session"
 
 	request, err := http.NewRequest("POST", targetURL, nil)
-	password, _ := c.endpoint.User.Password()
-	request.SetBasicAuth(c.endpoint.User.Username(), password)
 	if err != nil {
 		return errors.Trace(err)
 	}
+	request = request.WithContext(ctx)
+	password, _ := c.endpoint.User.Password()
+	request.SetBasicAuth(c.endpoint.User.Username(), password)
 	resp, err := c.HTTP.Do(request)
-
 	if err != nil {
 		return errors.Trace(err)
 	}

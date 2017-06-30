@@ -15,6 +15,7 @@
 package tags
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -56,11 +57,11 @@ func (c *RestClient) getAssociationSpec(tagID *string, objID *string, objType *s
 	return &spec
 }
 
-func (c *RestClient) AttachTagToObject(tagID string, objID string, objType string) error {
+func (c *RestClient) AttachTagToObject(ctx context.Context, tagID string, objID string, objType string) error {
 	log.Debugf("Attach Tag %s to object id: %s, type: %s", tagID, objID, objType)
 
 	spec := c.getAssociationSpec(&tagID, &objID, &objType)
-	_, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=attach", TagAssociationURL), *spec, nil)
+	_, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=attach", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
 	if status != 200 || err != nil {
@@ -70,11 +71,11 @@ func (c *RestClient) AttachTagToObject(tagID string, objID string, objType strin
 	return nil
 }
 
-func (c *RestClient) DetachTagFromObject(tagID string, objID string, objType string) error {
+func (c *RestClient) DetachTagFromObject(ctx context.Context, tagID string, objID string, objType string) error {
 	log.Debugf("Detach Tag %s to object id: %s, type: %s", tagID, objID, objType)
 
 	spec := c.getAssociationSpec(&tagID, &objID, &objType)
-	_, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=detach", TagAssociationURL), *spec, nil)
+	_, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=detach", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
 	if status != 200 || err != nil {
@@ -84,11 +85,11 @@ func (c *RestClient) DetachTagFromObject(tagID string, objID string, objType str
 	return nil
 }
 
-func (c *RestClient) ListAttachedTags(objID string, objType string) ([]string, error) {
+func (c *RestClient) ListAttachedTags(ctx context.Context, objID string, objType string) ([]string, error) {
 	log.Debugf("List attached tags of object id: %s, type: %s", objID, objType)
 
 	spec := c.getAssociationSpec(nil, &objID, &objType)
-	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-tags", TagAssociationURL), *spec, nil)
+	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=list-attached-tags", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
 	if status != 200 || err != nil {
@@ -108,13 +109,13 @@ func (c *RestClient) ListAttachedTags(objID string, objType string) ([]string, e
 	return pTag.Value, nil
 }
 
-func (c *RestClient) ListAttachedObjects(tagID string) ([]AssociatedObject, error) {
+func (c *RestClient) ListAttachedObjects(ctx context.Context, tagID string) ([]AssociatedObject, error) {
 	log.Debugf("List attached objects of tag: %s", tagID)
 
 	spec := c.getAssociationSpec(&tagID, nil, nil)
 	log.Debugf("List attached objects for tag %v", *spec)
 	//	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
-	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
+	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
 	log.Debugf("Get status code: %d", status)
 	if status != 200 || err != nil {
 		log.Debugf("List object failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
