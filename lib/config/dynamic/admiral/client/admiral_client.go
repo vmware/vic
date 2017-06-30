@@ -9,7 +9,9 @@ import (
 
 	strfmt "github.com/go-openapi/strfmt"
 
+	"github.com/vmware/vic/lib/config/dynamic/admiral/client/config_registries"
 	"github.com/vmware/vic/lib/config/dynamic/admiral/client/projects"
+	"github.com/vmware/vic/lib/config/dynamic/admiral/client/resources_compute"
 )
 
 // Default admiral HTTP client.
@@ -53,7 +55,11 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *Admiral {
 	cli := new(Admiral)
 	cli.Transport = transport
 
+	cli.ConfigRegistries = config_registries.New(transport, formats)
+
 	cli.Projects = projects.New(transport, formats)
+
+	cli.ResourcesCompute = resources_compute.New(transport, formats)
 
 	return cli
 }
@@ -99,7 +105,11 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // Admiral is a client for admiral
 type Admiral struct {
+	ConfigRegistries *config_registries.Client
+
 	Projects *projects.Client
+
+	ResourcesCompute *resources_compute.Client
 
 	Transport runtime.ClientTransport
 }
@@ -108,6 +118,10 @@ type Admiral struct {
 func (c *Admiral) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
 
+	c.ConfigRegistries.SetTransport(transport)
+
 	c.Projects.SetTransport(transport)
+
+	c.ResourcesCompute.SetTransport(transport)
 
 }
