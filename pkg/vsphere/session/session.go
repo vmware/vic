@@ -119,14 +119,15 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 	}
 
 	extraconfig.Decode(source, &vchExtraConfig)
+	return s.CreateFromVchConfig(ctx, &vchExtraConfig)
+}
 
-	s.Service = vchExtraConfig.Target
+func (s *Session) CreateFromVchConfig(ctx context.Context, cfg *config.VirtualContainerHostConfigSpec) (*Session, error) {
+	s.Service = cfg.Target
+	s.User = url.UserPassword(cfg.Username, cfg.Token)
+	s.Thumbprint = cfg.TargetThumbprint
 
-	s.User = url.UserPassword(vchExtraConfig.Username, vchExtraConfig.Token)
-
-	s.Thumbprint = vchExtraConfig.TargetThumbprint
-
-	_, err = s.Connect(ctx)
+	_, err := s.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -45,6 +45,7 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
+	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
@@ -67,6 +68,8 @@ var (
 	archiveProxy     vicproxy.VicArchiveProxy
 
 	eventService *events.Events
+
+	servicePort uint
 )
 
 type dynConfig struct {
@@ -75,11 +78,13 @@ type dynConfig struct {
 	Cfg    *config.VirtualContainerHostConfigSpec
 	src    dynamic.Source
 	merger dynamic.Merger
+	sess   *session.Session
 
 	Whitelist, Blacklist, Insecure registry.Set
 }
 
-func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec) error {
+func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
+	servicePort = port
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
 		return err
@@ -105,12 +110,17 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		if vchConfig.Whitelist, err = dynamic.ParseRegistries(config.RegistryWhitelist); err != nil {
 			return err
 		}
-		vchConfig.src, err = admiral.NewSource()
+
+		sess, err := session.NewSession(&session.Config{}).CreateFromVchConfig(ctx, config)
 		if err != nil {
 			return err
 		}
 
+		vchConfig.sess = sess
 		vchConfig.merger = dynamic.NewMerger()
+		if err := vchConfig.resetSrc(); err != nil {
+			return err
+		}
 		loadRegistryCACerts()
 	} else {
 		portLayerName = product + " Backend Engine"
@@ -355,7 +365,11 @@ func EventService() *events.Events {
 // RegistryCheck checkes the given url against the registry whitelist, blacklist, and insecure
 // registries lists. It returns true for each list where u matches that list.
 func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
-	c, err := d.src.Get(ctx)
+	d.Lock()
+	src := d.src
+	d.Unlock()
+
+	c, err := src.Get(ctx)
 
 	d.Lock()
 	defer d.Unlock()
@@ -365,8 +379,14 @@ func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl 
 		if err := d.update(c); err != nil {
 			log.Warnf("error updating config: %s", err)
 		}
-	} else {
+	} else if err != dynamic.ErrConfigNotModified {
 		log.Warnf("could not get config from remote source: %s", err)
+		if src == d.src {
+			// update the source
+			if err := d.resetSrc(); err != nil {
+				log.Errorf("could not reset dynamic source: %s", err)
+			}
+		}
 	}
 
 	us := u.String()
@@ -374,6 +394,16 @@ func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl 
 	bl = len(d.Blacklist) == 0 || !d.Blacklist.Match(us)
 	insecure = d.Insecure.Match(us)
 	return
+}
+
+func (d *dynConfig) resetSrc() error {
+	ep, err := d.address()
+	if err != nil {
+		return err
+	}
+
+	d.src = admiral.NewSource(d.sess, ep.String())
+	return nil
 }
 
 // update merges another config into this config. d should be locked before
@@ -403,4 +433,18 @@ func (d *dynConfig) update(c *config.VirtualContainerHostConfigSpec) error {
 	vchConfig.Cfg = newcfg
 
 	return nil
+}
+
+func (d *dynConfig) address() (*url.URL, error) {
+	ips, err := net.LookupIP("client.localhost")
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := "https"
+	if d.Cfg.HostCertificate.IsNil() {
+		scheme = "http"
+	}
+
+	return url.Parse(fmt.Sprintf("%s://%s:%d", scheme, ips[0], servicePort))
 }
