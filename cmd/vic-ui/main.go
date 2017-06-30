@@ -60,6 +60,12 @@ func main() {
 			Flags:  ui.Flags(),
 		},
 		{
+			Name:   "info",
+			Usage:  "Show UI plugin information",
+			Action: ui.Info,
+			Flags:  ui.InfoFlags(),
+		},
+		{
 			Name:   "version",
 			Usage:  "Show VIC version information",
 			Action: showVersion,
