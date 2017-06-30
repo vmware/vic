@@ -47,9 +47,13 @@ func TestCreateFS(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), t.Name())
 
-	_, err := guest.GetSelf(op, session)
+	vchvm, err := guest.GetSelf(op, session)
 	if err != nil {
 		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
 	}
 
 	imagestore := &object.DatastorePath{
@@ -78,7 +82,7 @@ func TestCreateFS(t *testing.T) {
 	}()
 
 	// create a diskmanager
-	vdm, err := NewDiskManager(op, session)
+	vdm, err := NewDiskManager(op, session, view)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
@@ -148,9 +152,13 @@ func TestAttachFS(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), t.Name())
 
-	_, err := guest.GetSelf(op, session)
+	vchvm, err := guest.GetSelf(op, session)
 	if err != nil {
 		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
 	}
 
 	imagestore := &object.DatastorePath{
@@ -179,7 +187,7 @@ func TestAttachFS(t *testing.T) {
 	}()
 
 	// create a diskmanager
-	vdm, err := NewDiskManager(op, session)
+	vdm, err := NewDiskManager(op, session, view)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
