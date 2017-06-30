@@ -139,7 +139,7 @@ for i in $nightly_list_var; do
 done
 
 # Setting the NSX test status to Not Implemented.
-nightlystatus[24]="N/A"
+nightlystatus[25]="N/A"
 
 for i in "${nightlystatus[@]}"
 do
