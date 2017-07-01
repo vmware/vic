@@ -247,3 +247,25 @@ func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor st
 		clean:      cleanFunc,
 	}, nil
 }
+
+func (v *VolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	_, err := util.VolumeStoreName(store)
+	if err != nil {
+		return err
+	}
+
+	diskRefPath := v.volDiskDSPath(id)
+
+	mountPath, err := v.dm.AttachAndMount(op, diskRefPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := v.dm.UnmountAndDetach(op, diskRefPath)
+		if err != nil {
+			op.Infof("Error cleaning up disk: %s", err.Error())
+		}
+	}()
+
+	return archive.Untar(op, tarstream, spec, mountPath)
+}
