@@ -27,10 +27,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -81,37 +81,57 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 // Create a lineage of disks inheriting from eachother, write portion of a
 // string to each, the confirm the result is the whole string
 func TestCreateAndDetach(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
 
-	client := Session(context.Background(), t)
-	if client == nil {
+	session := Session(context.Background(), t)
+	if session == nil {
 		return
 	}
 
+	op := trace.NewOperation(context.TODO(), t.Name())
+
+	_, err := guest.GetSelf(op, session)
+	if err != nil {
+		t.Skip("Not in a vm")
+	}
+
 	imagestore := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
-		Path:      datastore.TestName("diskManagerTest"),
+		Datastore: session.Datastore.Name(),
+		Path:      datastore.TestName(t.Name()),
 	}
 
-	fm := object.NewFileManager(client.Vim25())
-
+	// file manager
+	fm := object.NewFileManager(session.Vim25())
 	// create a directory in the datastore
-	// eat the error because we dont care if it exists
-	_ = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
-
-	op := trace.NewOperation(context.Background(), "test")
-	vdm, err := NewDiskManager(op, client)
-	if err != nil && err.Error() == "can't find the hosting vm" {
-		t.Skip("Skipping: test must be run in a VM")
+	err = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	if !assert.NoError(t, err) {
+		return
 	}
 
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	// create a diskmanager
+	vdm, err := NewDiskManager(op, session)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
 
 	diskSize := int64(1 << 10)
 	scratch := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
+		Datastore: session.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
 	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
@@ -187,46 +207,55 @@ func TestCreateAndDetach(t *testing.T) {
 		// use this image as the next parent
 		parent = child
 	}
-
-	//	// Nuke the images
-	//	for i := len(children) - 1; i >= 0; i-- {
-	//		err = vdm.Delete(context.TODO(), children[i])
-	//		if !assert.NoError(t, err) {
-	//			return
-	//		}
-	//	}
-
-	// Nuke the image store
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, imagestore.String(), nil)
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
 }
 
 func TestRefCounting(t *testing.T) {
-	client := Session(context.Background(), t)
-	if client == nil {
+	log.SetLevel(log.InfoLevel)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	session := Session(context.Background(), t)
+	if session == nil {
 		return
 	}
 
-	imagestore := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
-		Path:      datastore.TestName("diskManagerTest"),
+	op := trace.NewOperation(context.TODO(), t.Name())
+
+	_, err := guest.GetSelf(op, session)
+	if err != nil {
+		t.Skip("Not in a vm")
 	}
 
-	fm := object.NewFileManager(client.Vim25())
+	imagestore := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      datastore.TestName(t.Name()),
+	}
 
+	// file manager
+	fm := object.NewFileManager(session.Vim25())
 	// create a directory in the datastore
-	// eat the error because we dont care if it exists
-	_ = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	err = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	if !assert.NoError(t, err) {
+		return
+	}
 
-	op := trace.NewOperation(context.Background(), "test")
-	vdm, err := NewDiskManager(op, client)
-	if err != nil && err.Error() == "can't find the hosting vm" {
-		t.Skip("Skipping: test must be run in a VM")
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	// create a diskmanager
+	vdm, err := NewDiskManager(op, session)
+	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
+		return
 	}
 
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
@@ -235,7 +264,7 @@ func TestRefCounting(t *testing.T) {
 
 	diskSize := int64(1 << 10)
 	scratch := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
+		Datastore: session.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
 	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
@@ -359,13 +388,4 @@ func TestRefCounting(t *testing.T) {
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
 	assert.Equal(t, 0, d.attachedRefs, "%s has %d attach references but should have 0", d.DatastoreURI, d.attachedRefs)
 	assert.Equal(t, 0, d.mountedRefs, "%s has %d mount references but should have 0", d.DatastoreURI, d.mountedRefs)
-
-	// Nuke the image store
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, imagestore.String(), nil)
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
 }
