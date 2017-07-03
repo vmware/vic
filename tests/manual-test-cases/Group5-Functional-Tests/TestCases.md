@@ -40,3 +40,4 @@ Group 5 - Functional Tests
 -
 [Test 5-19 - ROBO SKU](5-19-ROBO-SKU.md)
 -
+[Test 5-21 - Datastore Path](5-21-Datastore-Path.md)
