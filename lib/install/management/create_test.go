@@ -15,9 +15,9 @@
 package management
 
 import (
+	"context"
 	"net/url"
 	"testing"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -26,8 +26,6 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	"context"
 )
 
 func TestMain(t *testing.T) {
@@ -123,42 +121,6 @@ func getVPXData(vcURL *url.URL) *data.Data {
 	result.VolumeLocations["volume-store"] = testURL
 
 	return result
-}
-
-func getESXSession(ctx context.Context, service string) (*session.Session, error) {
-	config := &session.Config{
-		Service:        service,
-		Insecure:       true,
-		Keepalive:      time.Duration(5) * time.Minute,
-		DatacenterPath: "/ha-datacenter",
-		ClusterPath:    "*",
-		DatastorePath:  "/ha-datacenter/datastore/LocalDS_0",
-		PoolPath:       "/ha-datacenter/host/localhost.localdomain/Resources",
-	}
-
-	s, err := session.NewSession(config).Connect(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func getVPXSession(ctx context.Context, service string) (*session.Session, error) {
-	config := &session.Config{
-		Service:        service,
-		Insecure:       true,
-		Keepalive:      time.Duration(5) * time.Minute,
-		DatacenterPath: "/DC0",
-		DatastorePath:  "/DC0/datastore/LocalDS_0",
-		PoolPath:       "/DC0/host/DC0_C0/Resources",
-		ClusterPath:    "/DC0/host/DC0_C0",
-	}
-
-	s, err := session.NewSession(config).Connect(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return s, nil
 }
 
 func testCreateNetwork(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {

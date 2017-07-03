@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/test"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -48,15 +49,11 @@ func TestGuestInfoSecret(t *testing.T) {
 
 		var s *session.Session
 		if i == 0 {
-			s, err = getESXSession(ctx, server.URL.String())
+			s, err = test.SessionWithESX(ctx, server.URL.String())
 		} else {
-			s, err = getVPXSession(ctx, server.URL.String())
+			s, err = test.SessionWithVPX(ctx, server.URL.String())
 		}
 		if err != nil {
-			t.Fatal(err)
-		}
-
-		if s, err = s.Populate(ctx); err != nil {
 			t.Fatal(err)
 		}
 

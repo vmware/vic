@@ -15,14 +15,13 @@
 package compute
 
 import (
+	"context"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/vmware/govmomi/simulator"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	"context"
+	"github.com/vmware/vic/pkg/vsphere/test"
 )
 
 func TestMain(t *testing.T) {
@@ -45,9 +44,9 @@ func TestMain(t *testing.T) {
 
 		var sess *session.Session
 		if i == 0 {
-			sess, err = getESXSession(ctx, s.URL.String())
+			sess, err = test.SessionWithESX(ctx, s.URL.String())
 		} else {
-			sess, err = getVPXSession(ctx, s.URL.String())
+			sess, err = test.SessionWithVPX(ctx, s.URL.String())
 		}
 		if err != nil {
 			t.Fatal(err)
@@ -57,50 +56,6 @@ func TestMain(t *testing.T) {
 		testGetChildVM(ctx, sess, t)
 		testGetCluster(ctx, sess, t)
 	}
-}
-
-func getESXSession(ctx context.Context, service string) (*session.Session, error) {
-	config := &session.Config{
-		Service:        service,
-		Insecure:       true,
-		Keepalive:      time.Duration(5) * time.Minute,
-		DatacenterPath: "/ha-datacenter",
-		ClusterPath:    "*",
-		DatastorePath:  "/ha-datacenter/datastore/LocalDS_0",
-		PoolPath:       "/ha-datacenter/host/localhost.localdomain/Resources",
-	}
-
-	s, err := session.NewSession(config).Connect(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if s, err = s.Populate(ctx); err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func getVPXSession(ctx context.Context, service string) (*session.Session, error) {
-	config := &session.Config{
-		Service:        service,
-		Insecure:       true,
-		Keepalive:      time.Duration(5) * time.Minute,
-		DatacenterPath: "/DC0",
-		ClusterPath:    "/DC0/host/DC0_C0",
-		DatastorePath:  "/DC0/datastore/LocalDS_0",
-		PoolPath:       "/DC0/host/DC0_C0/Resources",
-	}
-
-	s, err := session.NewSession(config).Connect(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if s, err = s.Populate(ctx); err != nil {
-		return nil, err
-	}
-	return s, nil
 }
 
 func testGetChildrenVMs(ctx context.Context, sess *session.Session, t *testing.T) {

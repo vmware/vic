@@ -15,12 +15,11 @@
 package session
 
 import (
+	"context"
 	"crypto/tls"
 	"strings"
 	"testing"
 	"time"
-
-	"context"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/simulator"
