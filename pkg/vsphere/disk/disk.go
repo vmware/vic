@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -45,6 +46,43 @@ type Filesystem interface {
 	Unmount(path string) error
 }
 
+// Semaphore represents the number of references to a disk
+type Semaphore struct {
+	resource string
+	refname  string
+	count    uint64
+}
+
+// NewSemaphore creates and returns a Semaphore initialized to 0
+func NewSemaphore(r, n string) *Semaphore {
+	return &Semaphore{
+		resource: r,
+		refname:  n,
+		count:    0,
+	}
+}
+
+// Increment increases the reference count by one
+func (r *Semaphore) Increment() uint64 {
+	return atomic.AddUint64(&r.count, 1)
+}
+
+// Decrement decreases the reference count by one
+func (r *Semaphore) Decrement() uint64 {
+	return atomic.AddUint64(&r.count, ^uint64(0))
+}
+
+// Count returns the current reference count
+func (r *Semaphore) Count() uint64 {
+	return atomic.LoadUint64(&r.count)
+}
+
+// InUseError is returned when a detach is attempted on a disk that is
+// still in use
+type InUseError struct {
+	error
+}
+
 // VirtualDisk represents a VMDK in the datastore, the device node it may be
 // attached at (if it's attached), the mountpoint it is mounted at (if
 // mounted), and other configuration.
@@ -60,9 +98,9 @@ type VirtualDisk struct {
 	// To avoid attach/detach races, this lock serializes operations to the disk.
 	l sync.Mutex
 
-	mountedRefs int
+	mountedRefs *Semaphore
 
-	attachedRefs int
+	attachedRefs *Semaphore
 }
 
 // NewVirtualDisk creates and returns a new VirtualDisk object associated with the
@@ -78,8 +116,11 @@ func NewVirtualDisk(config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*
 	}
 	log.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
 
+	uri := config.DatastoreURI.String()
 	d := &VirtualDisk{
 		VirtualDiskConfig: config,
+		mountedRefs:       NewSemaphore(uri, "mount"),
+		attachedRefs:      NewSemaphore(uri, "attach"),
 	}
 	disks[config.Hash()] = d
 
@@ -90,8 +131,7 @@ func (d *VirtualDisk) setAttached(devicePath string) (err error) {
 	defer func() {
 		if err == nil {
 			// bump the attached reference count
-			d.attachedRefs++
-			log.Debugf("Increased attach references for %s to %d", d.DatastoreURI, d.attachedRefs)
+			d.attachedRefs.Increment()
 		}
 	}()
 
@@ -120,7 +160,7 @@ func (d *VirtualDisk) canBeDetached() error {
 	}
 
 	if d.inUseByOther() {
-		return fmt.Errorf("%s is still in use", d.DatastoreURI)
+		return fmt.Errorf("Detach skipped - %s is still in use", d.DatastoreURI)
 	}
 
 	return nil
@@ -128,7 +168,7 @@ func (d *VirtualDisk) canBeDetached() error {
 
 func (d *VirtualDisk) setDetached(disks map[uint64]*VirtualDisk) error {
 	defer func() {
-		if d.attachedRefs == 0 {
+		if d.attachedRefs.Count() == 0 {
 			log.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
 
 			delete(disks, d.Hash())
@@ -148,8 +188,6 @@ func (d *VirtualDisk) setDetached(disks map[uint64]*VirtualDisk) error {
 	} else {
 		log.Warnf("%s is still in use", d.DatastoreURI)
 	}
-	d.attachedRefs--
-	log.Debugf("Decreased attach references for %s to %d", d.DatastoreURI, d.attachedRefs)
 
 	return nil
 }
@@ -195,7 +233,7 @@ func (d *VirtualDisk) Attached() bool {
 }
 
 func (d *VirtualDisk) attachedByOther() bool {
-	return d.attachedRefs > 1
+	return d.attachedRefs.Count() > 1
 }
 
 // AttachedByOther returns true if the attached references are > 1
@@ -207,7 +245,7 @@ func (d *VirtualDisk) AttachedByOther() bool {
 }
 
 func (d *VirtualDisk) mountedByOther() bool {
-	return d.mountedRefs > 1
+	return d.mountedRefs.Count() > 1
 }
 
 // MountedByOther returns true if the mounted references are > 1
@@ -238,8 +276,7 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
 
 	defer func() {
 		// bump mounted reference count
-		d.mountedRefs++
-		log.Debugf("Increased mount references for %s to %d", d.DatastoreURI, d.mountedRefs)
+		d.mountedRefs.Increment()
 	}()
 
 	if d.mounted() {
@@ -270,11 +307,10 @@ func (d *VirtualDisk) Unmount() error {
 		return fmt.Errorf("%s already unmounted", d.DatastoreURI)
 	}
 
-	d.mountedRefs--
-	log.Debugf("Decreased mount references for %s to %d", d.DatastoreURI, d.mountedRefs)
+	d.mountedRefs.Decrement()
 
 	// no more mount references to this disk, so actually unmount
-	if d.mountedRefs == 0 {
+	if d.mountedRefs.Count() == 0 {
 		if err := d.Filesystem.Unmount(d.mountPath); err != nil {
 			return err
 		}
