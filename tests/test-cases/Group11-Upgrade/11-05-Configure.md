@@ -4,7 +4,7 @@ Test 11-05 - Configure
 # Purpose:
 To verify vic-machine configure can upgrade with --upgrade specified
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
 # Test Steps:
