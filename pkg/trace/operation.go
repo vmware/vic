@@ -120,6 +120,10 @@ func (o *Operation) Debugf(format string, args ...interface{}) {
 	Logger.Debugf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
 
+func (o *Operation) Warnf(format string, args ...interface{}) {
+	Logger.Warnf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
 func (o *Operation) Errorf(format string, args ...interface{}) {
 	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
