@@ -66,17 +66,15 @@ type Create struct {
 	*data.Data
 	certs             common.CertFactory
 	containerNetworks common.CNetworks
+	registries        common.Registries
 
 	volumeStores common.VolumeStores
 
-	insecureRegistries  cli.StringSlice `arg:"insecure-registry"`
-	whitelistRegistries cli.StringSlice `arg:"whitelist-registry"`
-	dns                 common.DNS
+	dns common.DNS
 
 	memoryReservLimits string
 	cpuReservLimits    string
 
-	registryCAs     cli.StringSlice `arg:"registry-ca"`
 	advancedOptions bool
 	BridgeIPRange   string
 
@@ -255,24 +253,7 @@ func (c *Create) Flags() []cli.Flag {
 		Hidden:      true,
 	})
 
-	registries := []cli.Flag{
-		cli.StringSliceFlag{
-			Name:   "registry-ca, rc",
-			Usage:  "Specify a list of additional certificate authority files to use to verify secure registry servers",
-			Value:  &c.registryCAs,
-			Hidden: true,
-		},
-		cli.StringSliceFlag{
-			Name:  "insecure-registry, dir",
-			Value: &c.insecureRegistries,
-			Usage: "Specify a list of permitted insecure registry server addresses",
-		},
-		cli.StringSliceFlag{
-			Name:  "whitelist-registry, wr",
-			Value: &c.whitelistRegistries,
-			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
-		},
-	}
+	registries := c.registries.Flags()
 
 	syslog := []cli.Flag{
 		cli.StringFlag{
@@ -431,7 +412,7 @@ func (c *Create) loadRegistryCAs() ([]byte, error) {
 	defer trace.End(trace.Begin(""))
 
 	var registryCerts []byte
-	for _, f := range c.registryCAs {
+	for _, f := range c.registries.RegistryCAs {
 		b, err := ioutil.ReadFile(f)
 		if err != nil {
 			err = errors.Errorf("Failed to load authority from file %s: %s", f, err)
@@ -567,7 +548,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 
 func (c *Create) processRegistries() error {
 	// load additional certificate authorities for use with registries
-	if len(c.registryCAs) > 0 {
+	if len(c.registries.RegistryCAs) > 0 {
 		registryCAs, err := c.loadRegistryCAs()
 		if err != nil {
 			return errors.Errorf("Unable to load CA certificates for registry logins: %s", err)
@@ -576,8 +557,8 @@ func (c *Create) processRegistries() error {
 		c.RegistryCAs = registryCAs
 	}
 
-	c.InsecureRegistries = c.insecureRegistries.Value()
-	c.WhitelistRegistries = c.whitelistRegistries.Value()
+	c.InsecureRegistries = c.registries.InsecureRegistries.Value()
+	c.WhitelistRegistries = c.registries.WhitelistRegistries.Value()
 	return nil
 }
 
