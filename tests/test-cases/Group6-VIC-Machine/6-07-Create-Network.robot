@@ -126,7 +126,7 @@ Connectivity Bridge to Public
     Log To Console  Create a bridge portgroup.
     ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN bridge
 
-    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --no-tlsverify --insecure-registry harbor.ci.drone.local
+    ${output}=  Run  bin/vic-machine-linux create --debug 1 --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --force=true --bridge-network=bridge --public-network=vm-network --compute-resource=%{TEST_RESOURCE} --container-network vm-network --container-network-firewall vm-network:published --no-tlsverify --insecure-registry harbor.ci.drone.local
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
