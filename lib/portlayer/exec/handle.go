@@ -74,6 +74,9 @@ type Handle struct {
 
 	// desired spec
 	Spec *spec.VirtualMachineConfigSpec
+	// desired changes to extraconfig
+	changes []types.BaseOptionValue
+
 	// desired state
 	targetState State
 
@@ -210,6 +213,10 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	}
 
 	s := h.Spec.Spec()
+	if h.Config != nil {
+		s.ChangeVersion = h.Config.ChangeVersion
+	}
+
 	// if runtime is nil, should be fresh container create
 	var filter int
 	if h.Runtime == nil || h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff || h.TargetState() == StateStopped {
@@ -223,10 +230,11 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 	// strip unmodified keys from the update
 	if h.Config != nil {
-		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueUpdatesFromMap(h.Config.ExtraConfig, cfg)...)
+		h.changes = append(s.ExtraConfig, vmomi.OptionValueUpdatesFromMap(h.Config.ExtraConfig, cfg)...)
 	} else {
-		s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg, true)...)
+		h.changes = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg, true)...)
 	}
+	s.ExtraConfig = h.changes
 
 	if err := Commit(ctx, sess, h, waitTime); err != nil {
 		return err
@@ -234,6 +242,19 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 	h.Close()
 	return nil
+}
+
+// refresh is for internal use only - it's sole purpose at this time is to allow the stop path to update ChangeVersion
+// and corresponding state before performing any associated reconfigure
+func (h *Handle) refresh(ctx context.Context) {
+	// update Config and Runtime to reflect current state
+	h.containerBase.refresh(ctx)
+
+	// reapply extraconfig changes
+	s := h.Spec.Spec()
+
+	s.ExtraConfig = h.changes
+	s.ChangeVersion = h.Config.ChangeVersion
 }
 
 // CommitWithoutSpec sets the handle's spec to nil so that Commit operation only does a state change and won't touch the extraconfig
@@ -247,6 +268,7 @@ func (h *Handle) CommitWithoutSpec(ctx context.Context, sess *session.Session, w
 	h.Close()
 	return nil
 }
+
 func (h *Handle) Close() {
 	handlesLock.Lock()
 	defer handlesLock.Unlock()

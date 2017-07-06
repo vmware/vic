@@ -113,17 +113,11 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			// we must refresh now to get the new ChangeVersion - this is used to gate on powerstate in the reconfigure
 			// because we cannot set the ExtraConfig if the VM is powered on. There is still a race here unfortunately because
 			// tasks don't appear to contain the new ChangeVersion
-			// we don't use refresh because we want to keep the extraconfig state
-			base, err := h.updates(ctx)
-			if err != nil {
-				// TODO: can we recover here, or at least set useful state for inspection?
-				return err
-			}
-			h.Runtime = base.Runtime
-			h.Config = base.Config
+			h.refresh(ctx)
 
-			// inform of state change irrespective of remaining operations
-			publishContainerEvent(h.ExecConfig.ID, time.Now().UTC(), events.ContainerStopped)
+			// inform of state change irrespective of remaining operations - but allow remaining operations to complete first
+			// to avoid data race on container config
+			defer publishContainerEvent(h.ExecConfig.ID, time.Now().UTC(), events.ContainerStopped)
 		}
 	}
 
@@ -137,12 +131,11 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			// NOTE: this inline refresh can be removed when switching away from guestinfo where we have non-persistence issues
 			// when updating ExtraConfig via the API with a powered on VM - we therefore have to be absolutely certain about the
 			// power state to decide if we can continue without nilifying extraconfig
+			//
+			// For the power off path this depends on handle.refresh() having been called to update the ChangeVersion
 			s := h.Spec.Spec()
 
-			// poor man's test and set
-			s.ChangeVersion = h.Config.ChangeVersion
-
-			log.Infof("Reconfigure: attempting update to %s with change version %s (%s)", h.ExecConfig.ID, s.ChangeVersion, h.Runtime.PowerState)
+			log.Infof("Reconfigure: attempting update to %s with change version %q (%s)", h.ExecConfig.ID, s.ChangeVersion, h.Runtime.PowerState)
 
 			// nilify ExtraConfig if container configuration is migrated
 			// in this case, VCH and container are in different version. Migrated configuration cannot be written back to old container, to avoid data loss in old version's container

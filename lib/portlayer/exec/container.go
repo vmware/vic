@@ -326,6 +326,12 @@ func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
 		return
 	}
 
+	// power off doesn't necessarily cause a change version increment and bug1898149 occasionally impacts power on
+	if c.Runtime != nil && (h.Runtime == nil || h.Runtime.PowerState != c.Runtime.PowerState) {
+		log.Warnf("container and handle PowerStates do not match: %s != %s", c.Runtime.PowerState, h.Runtime.PowerState)
+		return
+	}
+
 	// copy over the new state
 	c.containerBase = h.containerBase
 	if c.Config != nil {

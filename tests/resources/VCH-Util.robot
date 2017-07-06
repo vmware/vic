@@ -451,7 +451,7 @@ Check Original Version
     @{vers}=  Split String  ${output}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
     Should Contain  ${output}  Completed successfully
-    Should Contain  ${output}  @{vers}[2]
+    Should Contain  ${output}  %{INITIAL-VERSION}
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Get Docker Params  ${output}  ${true}
