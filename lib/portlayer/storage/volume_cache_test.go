@@ -110,7 +110,7 @@ func (m *MockVolumeStore) Export(op trace.Operation, store *url.URL, child, ance
 	return nil, nil
 }
 
-func (c *MockVolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+func (m *MockVolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
 	return nil
 }
 
