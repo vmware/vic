@@ -102,6 +102,22 @@ func (l *mockLink) Attrs() *LinkAttrs {
 	return &LinkAttrs{Name: "foo"}
 }
 
+type mockNetwork struct {
+	name string
+}
+
+func (n mockNetwork) Reference() types.ManagedObjectReference {
+	return types.ManagedObjectReference{Type: "mockNetwork", Value: n.name}
+}
+
+func (n mockNetwork) EthernetCardBackingInfo(ctx context.Context) (types.BaseVirtualDeviceBackingInfo, error) {
+	return &types.VirtualEthernetCardNetworkBackingInfo{
+		VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
+			DeviceName: n.name,
+		},
+	}, nil
+}
+
 func testConfig() *Configuration {
 	return &Configuration{
 		source:     extraconfig.MapSource(map[string]string{}),
@@ -160,13 +176,8 @@ func testConfig() *Configuration {
 }
 
 func TestMain(m *testing.M) {
-	n := object.NewNetwork(nil, types.ManagedObjectReference{})
-	n.InventoryPath = "testBridge"
-	testBridgeNetwork = n
-
-	n = object.NewNetwork(nil, types.ManagedObjectReference{})
-	n.InventoryPath = "testExternal"
-	testExternalNetwork = n
+	testBridgeNetwork = &mockNetwork{name: "testBridge"}
+	testExternalNetwork = &mockNetwork{name: "testExternal"}
 
 	log.SetLevel(log.DebugLevel)
 
