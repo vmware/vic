@@ -19,6 +19,7 @@ import (
 	"errors"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"syscall"
 
@@ -118,7 +119,7 @@ func (r *Rule) args() ([]string, error) {
 	}
 
 	if len(r.States) > 0 {
-		args = append(args, "-m", "state", "--state", stateJoin(r.States))
+		args = append(args, "-m", "state", "--state", joinStates(r.States))
 	}
 
 	if r.Interface != "" {
@@ -179,18 +180,10 @@ func Policy(ctx context.Context, chain Chain, target Target) error {
 	return iptables(ctx, []string{"-P", string(chain), string(target)})
 }
 
-func stateJoin(states []State) string {
-	// see godoc --src strings Join
-	n := len(states) - 1
-	for i := 0; i < len(states); i++ {
-		n += len(states[i])
+func joinStates(states []State) string {
+	tmp := make([]string, len(states))
+	for i, v := range states {
+		tmp[i] = string(v)
 	}
-
-	b := make([]byte, n)
-	bp := copy(b, string(states[0]))
-	for _, s := range states[1:] {
-		bp += copy(b[bp:], ",")
-		bp += copy(b[bp:], string(s))
-	}
-	return string(b)
+	return strings.Join(tmp, ",")
 }
