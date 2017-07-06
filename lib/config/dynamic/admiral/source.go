@@ -18,14 +18,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
 
-	"net/http"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime"
-
 	"github.com/vmware/govmomi/vim25/types"
+
 	vchcfg "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/dynamic/admiral/client"
@@ -41,8 +41,8 @@ import (
 const (
 	VicProductCategory = "VsphereIntegratedContainers"
 	ProductVMTag       = "ProductVM"
-	admiralTokenKey    = "some/key"
-	admiralEndpointKey = "some/key"
+	admiralTokenKey    = "guestinfo.vicova.admiral.token"
+	admiralEndpointKey = "guestinfo.vicova.admiral.endpoint"
 
 	clusterFilter = "(address eq %s and customProperties.__containerHostType eq 'VCH'"
 )
@@ -72,6 +72,7 @@ type source struct {
 func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpec, error) {
 	var err error
 	if err = a.discover(ctx); err != nil {
+		log.Debugf(err.Error())
 		return nil, transformErr(err)
 	}
 
@@ -198,7 +199,8 @@ func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (tok
 		return
 	}
 
-	t := tags.NewClient(service, sess.Insecure)
+	service.User = sess.User
+	t := tags.NewClient(service, sess.Insecure, sess.Thumbprint)
 	if err = t.Login(ctx); err != nil {
 		return
 	}
@@ -224,8 +226,9 @@ func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (tok
 
 		v := vm.NewVirtualMachine(ctx, sess, types.ManagedObjectReference{Type: *o.Type, Value: *o.ID})
 		var values map[string]string
-		values, err = keys(ctx, v, []string{admiralTokenKey, admiralEndpointKey})
+		values, err = keys(ctx, v, []string{admiralEndpointKey})
 		if err != nil {
+			log.Debugf("keys not found in %q: %s", v, err)
 			err = nil // keys not found
 			continue
 		}
@@ -233,6 +236,7 @@ func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (tok
 		token = values[admiralTokenKey]
 		u, err = url.Parse(values[admiralEndpointKey])
 		if err != nil {
+			log.Warnf("ignoring bad admiral endpoint %s: %s", values[admiralEndpointKey], err)
 			err = nil // ignore bad endpoint
 			continue
 		}
@@ -242,6 +246,7 @@ func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (tok
 
 	if u == nil {
 		err = fmt.Errorf("could not find admiral")
+		log.Debugf(err.Error())
 	}
 
 	return
@@ -281,7 +286,9 @@ func keys(ctx context.Context, v *vm.VirtualMachine, keys []string) (map[string]
 	for _, k := range keys {
 		found := false
 		for _, ov := range ovs {
+			log.Debugf("key: %s", ov.GetOptionValue().Key)
 			if k == ov.GetOptionValue().Key {
+				log.Debugf("found %s", ov.GetOptionValue().Key)
 				res[k] = ov.GetOptionValue().Value.(string)
 				found = true
 				break
