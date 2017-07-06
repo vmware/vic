@@ -181,16 +181,16 @@ func Policy(ctx context.Context, chain Chain, target Target) error {
 
 func stateJoin(states []State) string {
 	// see godoc --src strings Join
-    n := len(states) - 1
-    for i := 0; i < len(states); i++ {
-        n += len(states[i])
-    }
+	n := len(states) - 1
+	for i := 0; i < len(states); i++ {
+		n += len(states[i])
+	}
 
-    b := make([]byte, n)
-    bp := copy(b, string(states[0]))
-    for _, s := range states[1:] {
-        bp += copy(b[bp:], ",")
-        bp += copy(b[bp:], string(s))
-    }
-    return string(b)
+	b := make([]byte, n)
+	bp := copy(b, string(states[0]))
+	for _, s := range states[1:] {
+		bp += copy(b[bp:], ",")
+		bp += copy(b[bp:], string(s))
+	}
+	return string(b)
 }
