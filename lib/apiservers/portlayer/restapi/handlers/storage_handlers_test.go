@@ -126,6 +126,10 @@ func (m *MockVolumeStore) Export(op trace.Operation, store *url.URL, child, ance
 	return nil, nil
 }
 
+func (m *MockVolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
+}
+
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
@@ -155,6 +159,9 @@ func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) 
 
 func (c *MockDataStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
 	return nil, nil
+}
+func (c *MockDataStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
 }
 
 func (c *MockDataStore) WriteImage(op trace.Operation, parent *spl.Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*spl.Image, error) {
