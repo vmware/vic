@@ -54,7 +54,7 @@
 
    <!-- Build Angular app -->
    <target name="compile-angular-app" depends="get-build-mode">
-      <exec executable="${basedir}/vic/src/vic-app/build.sh" dir="${basedir}/vic/src/vic-app" failonerror="true">
+      <exec executable="${basedir}/vic/src/vic-webapp/build.sh" dir="${basedir}/vic/src/vic-webapp" failonerror="true">
          <arg value="-s"/>
          <arg value="${VSPHERE_H5C_SDK_HOME}"/>
          <arg value="-b"/>
