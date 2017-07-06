@@ -30,10 +30,18 @@ ${DATASTORE_NAME}           fake
 ${DATASTORE_IP}             1.1.1.1
 ${CONTAINER_VM_NAME}        sharp_feynman-d39db0a231f2f639a073814c2affc03e4737d9ad361649069eb424e6c4e09b52
 ${TEST_OS}                  %{TEST_OS}
-
-# should have a keyword that runs the tests based on test matrix
+${vic_macmini_fileserver_url}  https://10.20.121.192:3443/vsphere-plugins/
+${vic_macmini_fileserver_thumbprint}  BE:64:39:8B:BD:98:47:4D:E8:3B:2F:20:A5:21:8B:86:5F:AD:79:CE
 
 *** Keywords ***
+Set Fileserver And Thumbprint In Configs
+    [Arguments]  ${fake}=${FALSE}
+    ${fileserver_url}=  Run Keyword If  ${fake} == ${TRUE}  Set Variable  256.256.256.256  ELSE  Set Variable  ${vic_macmini_fileserver_url}
+    ${fileserver_thumbprint}=  Run Keyword If  ${fake} == ${TRUE}  Set Variable  ab:cd:ef  ELSE  Set Variable  ${vic_macmini_fileserver_thumbprint}
+    ${results}=  Replace String Using Regexp  ${configs}  VIC_UI_HOST_URL=.*  VIC_UI_HOST_URL=\"${fileserver_url}\"
+    ${results}=  Replace String Using Regexp  ${results}  VIC_UI_HOST_THUMBPRINT=.*  VIC_UI_HOST_THUMBPRINT=\"${fileserver_thumbprint}\"
+    Create File  ${UI_INSTALLER_PATH}/configs  ${results}
+
 Load Nimbus Testbed Env
     Should Exist  testbed-information
     ${envs}=  OperatingSystem.Get File  testbed-information
@@ -58,7 +66,7 @@ Install VIC Appliance For VIC UI
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
+    ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}  ${EMPTY}
     Log  ${output}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${certs}
@@ -80,16 +88,21 @@ Cleanup Dangling VMs On VIC UI Test Server
     \   ${rc}  ${output}=  Delete VIC Machine  ${vm}  ../../../ui-nightly-run-bin/vic-machine-linux
 
 Check Config And Install VCH
+    [Arguments]  ${plugin}=noop
     Run Keyword  Set Absolute Script Paths
     Load Nimbus Testbed Env
     Set Environment Variable  DOMAIN  ${EMPTY}
     Install VIC Appliance For VIC UI  ../../../ui-nightly-run-bin/vic-machine-linux  ../../../ui-nightly-run-bin/appliance.iso  ../../../ui-nightly-run-bin/bootstrap.iso
     Set Environment Variable  VCH_VM_NAME  %{VCH-NAME}
+    ${vc_fingerprint}=  Run  ../../../ui-nightly-run-bin/vic-ui-linux info --user ${TEST_VC_USERNAME} --password ${TEST_VC_PASSWORD} --target ${TEST_VC_IP} --key com.vmware.vic.noop 2>&1 | grep -o "(thumbprint.*)" | awk -F= '{print $2}' | sed 's/.$//'
+    Set Environment Variable  VC_FINGERPRINT  ${vc_fingerprint}
+    Run Keyword If  '${plugin}' == 'install'  Force Install Vicui Plugin
+    Run Keyword If  '${plugin}' == 'remove'  Force Remove Vicui Plugin
 
 Set Absolute Script Paths
     ${UI_INSTALLERS_ROOT}=  Run  pwd
     ${UI_INSTALLERS_ROOT}=  Join Path  ${UI_INSTALLERS_ROOT}  ../../../ui/installer
-    Run Keyword If  %{TEST_VSPHERE_VER} == 65  Set Suite Variable  ${UI_INSTALLER_PATH}  ${UI_INSTALLERS_ROOT}/HTML5Client  ELSE  Set Suite Variable  ${UI_INSTALLER_PATH}  ${UI_INSTALLERS_ROOT}/VCSA
+    Set Suite Variable  ${UI_INSTALLER_PATH}  ${UI_INSTALLERS_ROOT}/VCSA
     Should Exist  ${UI_INSTALLER_PATH}
     ${configs_content}=  OperatingSystem.GetFile  ${UI_INSTALLER_PATH}/configs
     Set Suite Variable  ${configs}  ${configs_content}
@@ -105,29 +118,27 @@ Set Script Filename
     ${SCRIPT_FILENAME}=  Join Path  ${UI_INSTALLER_PATH}  ${SCRIPT_FILENAME}
     Set Suite Variable  \$${suite_varname}  ${SCRIPT_FILENAME}
 
-Set Vcenter Ip
-    # Populate VCENTER_IP with ${TEST_VC_IP}
-    Remove File  ${UI_INSTALLER_PATH}/configs
-    ${results}=  Replace String Using Regexp  ${configs}  VCENTER_IP=.*  VCENTER_IP=\"${TEST_VC_IP}\"
-    ${results}=  Run Keyword If  ${TEST_VC_VERSION} == '5.5'  Replace String Using Regexp  ${results}  IS_VCENTER_5_5=.*  IS_VCENTER_5_5=1  ELSE  Set Variable  ${results}
-    Create File  ${UI_INSTALLER_PATH}/configs  ${results}
-    ${check}=  OperatingSystem.Get File  ${UI_INSTALLER_PATH}/configs
-    Should Contain  ${check}  ${TEST_VC_IP}
-
-Unset Vcenter Ip
+Reset Configs
     # Revert the configs file back to what it was
-    #Remove File  ${UI_INSTALLER_PATH}/configs
-    ${results}=  Replace String Using Regexp  ${configs}  VCENTER_IP=.*  VCENTER_IP=\"\"
-    ${results}=  Replace String Using Regexp  ${results}  IS_VCENTER_5_5=.*  IS_VCENTER_5_5=0
-    #Generate Config  ${UI_INSTALLER_PATH}/configs  '${results}'
-    Run  echo '${results}' > ${UI_INSTALLER_PATH}/configs
+    ${results}=  Replace String Using Regexp  ${configs}  VIC_UI_HOST_URL=.*  VIC_UI_HOST_URL=\"\"
+    ${results}=  Replace String Using Regexp  ${results}  VIC_UI_HOST_THUMBPRINT=.*  VIC_UI_HOST_THUMBPRINT=\"\"
+    Create File  ${UI_INSTALLER_PATH}/configs  ${results}
     Should Exist  ${UI_INSTALLER_PATH}/configs
 
+Force Install Vicui Plugin
+    Set Fileserver And Thumbprint In Configs
+    Append To File  ${UI_INSTALLER_PATH}/configs  BYPASS_PLUGIN_VERIFICATION=1\n
+    Install Plugin Successfully  ${TEST_VC_IP}  ${TEST_VC_USERNAME}  ${TEST_VC_PASSWORD}  ${TRUE}  None  ${TRUE}
+    Reset Configs
+    ${output}=  OperatingSystem.GetFile  install.log
+    ${passed}=  Run Keyword And Return Status  Should Contain  ${output}  exited successfully
+    Run Keyword Unless  ${passed}  Copy File  install.log  fail-force-install-vicui-plugin.log
+    Remove File  install.log
+    Should Be True  ${passed}
+
 Force Remove Vicui Plugin
-    Uninstall Vicui  ${TEST_VC_USERNAME}  ${TEST_VC_PASSWORD}
-    ${output}=  OperatingSystem.GetFile  uninstall.log
-    Should Match Regexp  ${output}  (unregistration was successful|failed to find target plugin)
-    Remove File  uninstall.log
+    ${rc}  ${output}=  Run And Return Rc And Output  ../../../ui-nightly-run-bin/vic-ui-linux remove --thumbprint %{VC_FINGERPRINT} --target ${TEST_VC_IP} --user ${TEST_VC_USERNAME} --password ${TEST_VC_PASSWORD} --key com.vmware.vic.ui
+    ${rc}  ${output}=  Run And Return Rc And Output  ../../../ui-nightly-run-bin/vic-ui-linux remove --thumbprint %{VC_FINGERPRINT} --target ${TEST_VC_IP} --user ${TEST_VC_USERNAME} --password ${TEST_VC_PASSWORD} --key com.vmware.vic
 
 Rename Folder
     [Arguments]  ${old}  ${new}
@@ -136,7 +147,7 @@ Rename Folder
 
 Cleanup Installer Environment
     # Reverts the configs file and make sure the folder containing the UI binaries has its original name that might've been left modified due to a test failure
-    Unset Vcenter Ip
+    Reset Configs
     @{folders}=  OperatingSystem.List Directory  ${UI_INSTALLER_PATH}/..  ${plugin_folder}*
     Run Keyword If  ('@{folders}[0]' != '${plugin_folder}')  Rename Folder  ${UI_INSTALLER_PATH}/../@{folders}[0]  ${UI_INSTALLER_PATH}/../${plugin_folder}
 
@@ -147,6 +158,7 @@ Delete VIC Machine
     [Return]  ${rc}  ${output}
 
 Uninstall VCH
+    [Arguments]  ${remove_plugin}=${FALSE}
     Log To Console  Gathering logs from the test server...
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
@@ -156,3 +168,4 @@ Uninstall VCH
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f %{VCH-NAME}-*.pem
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove %{VCH-NAME}-bridge
+    Run Keyword If  ${remove_plugin} == ${TRUE}  Force Remove Vicui Plugin

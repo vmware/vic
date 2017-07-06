@@ -1,14 +1,14 @@
-REM Enter the IP of the server running vCenter for Windows
-SET target_vcenter_ip=
+REM WARNING: This file no longer should be edited by the user manually
+REM If you see VIC_UI_HOST_URL and/or VIC_UI_HOST_THUMBPRINT empty,
+REM please file an issue at https://github.com/vmware/vic
 
-REM Change the following line to the full URL of the path where the zip files are located
-REM For example, if vic-ui.zip is available at https://192.168.1.5/vic-ui-plugins/vic-ui.zip, type in: https://192.168.1.5/vic-ui-plugins/
-REM Note: each uploaded zip file will be accessed only once when the user logs into vSphere Web Client for the first time after successful installation
-SET vic_ui_host_url=NOURL
+REM Change the VIC_UI_HOST_URL variable to the URL to the path where
+REM the plugin zip files are located. For example, if com.vmware.vic-v1.1.0.zip is
+REM available at https://192.168.1.5/com.vmware.vic-v1.1.0.zip,
+REM simply type in https://192.168.1.5/
+SET vic_ui_host_url=
 
-REM If line 11 starts with "https", enter the SHA-1 thumbprint of the web server hosting the zip files
-REM The fingerprint should be in the format of A0:B1:C2:... In case you retrieved the fingerprint from Google Chrome make sure to replace spaces with colons (:)
+REM Enter the SHA-1 thumbprint of the web server hosting the plugin files.
+REM Taking an example above, it should be the SHA-1 thumbprint of
+REM the SSL certificate on https://192.168.1.5
 SET vic_ui_host_thumbprint=
-
-REM If you are installing the Flex plugin for vSphere Web Client, please update the value to 6.0, otherwise please leave the value as-is
-SET target_vc_version=6.5
