@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -149,6 +150,10 @@ func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []str
 func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
 	delete(c.db[*image.Store], image.ID)
 	return image, nil
+}
+
+func (c *MockDataStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func TestListImages(t *testing.T) {

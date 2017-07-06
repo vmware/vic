@@ -16,11 +16,13 @@ package nfs
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -52,6 +54,9 @@ type VolumeStore struct {
 
 	// Service selflink to volume store.
 	SelfLink *url.URL
+
+	// Archiver defines WriteArchive and Export interface methods
+	archive.Archiver
 }
 
 func NewVolumeStore(op trace.Operation, storeName string, mount MountServer) (*VolumeStore, error) {
@@ -200,6 +205,11 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	}
 
 	return volumes, nil
+}
+
+// Export creates and returns a tar archive containing data found between an nfs layer one or all of its ancestors
+func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("vSphere Integrated Containers does not yet implement Export for nfs volumes")
 }
 
 func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[string][]byte, target Target) error {

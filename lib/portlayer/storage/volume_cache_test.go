@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"sync"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -102,6 +104,10 @@ func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
 	}
 
 	return list, nil
+}
+
+func (m *MockVolumeStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func TestVolumeCreateGetListAndDelete(t *testing.T) {

@@ -17,6 +17,8 @@ package disk
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sync"
 
 	"github.com/vmware/govmomi/object"
@@ -438,4 +440,52 @@ func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.Datas
 	sysPath := fmt.Sprintf(m.byPathFormat, *disk.UnitNumber)
 
 	return sysPath, nil
+}
+
+// AttachAndMount creates and attaches a vmdk as a non-persistent disk, mounts it, and returns the mount path.
+func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.DatastorePath) (string, error) {
+	config := NewNonPersistentDisk(datastoreURI)
+	d, err := m.CreateAndAttach(op, config)
+	if err != nil {
+		return "", err
+	}
+
+	op.Infof("Attach/Mount %s", datastoreURI.String())
+
+	path, err := ioutil.TempDir("", "mnt")
+	if err != nil {
+		op.Debugf("Error creating mount path: %s", err.Error())
+		return "", err
+	}
+	if err := d.Mount(path, nil); err != nil {
+		op.Debugf("Error mounting disk: %s", err.Error())
+		return "", err
+	}
+	return path, nil
+}
+
+// UnmountAndDetach unmounts and detaches a disk, subsequently cleaning the mount path
+func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.DatastorePath) error {
+	config := NewNonPersistentDisk(datastoreURI)
+	d, err := m.Get(op, config)
+	if err != nil {
+		return err
+	}
+	op.Infof("Unmount/Detach %s", datastoreURI.String())
+	if err := d.Unmount(); err != nil {
+		op.Debugf("Error unmounting disk: %s", err.Error())
+		return err
+	}
+	if err := m.Detach(op, config); err != nil {
+		op.Debugf("Error detaching disk: %s", err.Error())
+		return err
+	}
+
+	if path, err := d.MountPath(); err == nil {
+		if err = os.RemoveAll(path); err != nil {
+			op.Debugf("Error cleaning up mount path: %s", err.Error())
+			return err
+		}
+	}
+	return err
 }

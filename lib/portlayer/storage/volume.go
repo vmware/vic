@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -45,6 +46,9 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(op trace.Operation) ([]*Volume, error)
+
+	// Archiver defines the Import and Export interface methods
+	archive.Archiver
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI

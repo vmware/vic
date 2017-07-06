@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
@@ -230,6 +231,10 @@ func (c *NameLookupCache) WriteImage(op trace.Operation, parent *Image, ID strin
 	}
 
 	return i, nil
+}
+
+func (c *NameLookupCache) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return c.DataStore.Export(op, store, id, ancestor, spec, data)
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
