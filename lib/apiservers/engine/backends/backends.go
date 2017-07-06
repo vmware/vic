@@ -53,7 +53,8 @@ const (
 	PortlayerName = "Backend Engine"
 
 	// RetryTimeSeconds defines how many seconds to wait between retries
-	RetryTimeSeconds = 2
+	RetryTimeSeconds        = 2
+	defaultSessionKeepAlive = 20 * time.Second
 )
 
 var (
@@ -111,7 +112,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 			return err
 		}
 
-		sess, err := session.NewSession(&session.Config{}).CreateFromVchConfig(ctx, config)
+		sess, err := session.NewSession(&session.Config{Keepalive: defaultSessionKeepAlive}).CreateFromVchConfig(ctx, config)
 		if err != nil {
 			return err
 		}
