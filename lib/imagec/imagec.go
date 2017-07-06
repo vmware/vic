@@ -123,6 +123,27 @@ type ImageWithMeta struct {
 	Downloading bool
 }
 
+// ManifestLayer holds the layer metadata needed in the schema 2 manifest in order to push
+type ManifestLayer struct {
+		MediaType LayerMediaType `json:"mediaType"`
+		Size int `json:"size"`
+		Digest string `json:"digest"`
+}
+
+// ContainerConfig references a configuration object for a container
+type ContainerConfig struct {
+	MediaType ConfigMediaType `json:"mediaType"`
+	Size int `json:"size"`
+	Digest string `json:"digest"`
+}
+
+type Schema2Manifest struct {
+	SchemaVersion SupportedSchemaVersion `json:"schemaVersion"`
+	MediaType ManifestMediaType `json:"mediaType"`
+	Config *ContainerConfig `json:"config"`
+	Layers []*ManifestLayer `json:"layers"`
+}
+
 func (i *ImageWithMeta) String() string {
 	return stringid.TruncateID(i.Layer.BlobSum)
 }
@@ -150,6 +171,21 @@ const (
 	// attribute update actions
 	Add = iota + 1
 	Remove
+
+	// ManifestMediaType specifies the default mediaType used for the schema 2 manifest
+	ManifestMediaType = "application/vnd.docker.distribution.manifest.v2+json"
+
+	// ConfigMediaType specifies the default mediaType used in schema 2 manifest
+	ConfigMediaType = "application/vnd.docker.container.image.v1+json"
+
+	//LayerMediaType specifies the default mediaType used for pushing with schema 2 manifest
+	LayerMediaType = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+
+	//SchemaVersion is the currently supported schema version
+	SupportedSchemaVersion = 2
+
+
+
 )
 
 func init() {
@@ -292,7 +328,7 @@ func updateRepositoryCache(ic *ImageC) error {
 	dig, err := reference.ParseNamed(fmt.Sprintf("%s@%s", ic.Reference.Name(), ic.ManifestDigest))
 	if err != nil {
 		return fmt.Errorf("Unable to parse digest: %s", err.Error())
-	}
+	ContainerConfigMediaType}
 
 	// AddReference will add the digest and persist to the portLayer
 	err = repoCache.AddReference(dig, ic.ImageID, true, imageLayerID, true)
@@ -441,6 +477,62 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 	}
 
 	return imageConfig, nil
+}
+
+// PushImage pushes an image to a regitstry
+func (ic *ImageC) PushImage() error {
+
+	// do a preparetransfer for authentication
+
+	// build image layers (ImageWithMeta) from ReadArchive()
+
+
+
+	// get config and calculate digest/size, mediatype is constant
+	id, err := cache.RepositoryCache().Get(ic.Options.Reference)
+	if err != nil {
+		return fmt.Errorf("Could not retrieve image id from repository cache using reference: %s", err)
+	}
+
+	config, err := cache.ImageCache().Get(id).ContainerConfig
+	if err != nil {
+		return fmt.Errorf("Could not retrieve config from image cache using id: %s", err)
+	}
+
+	configSize := len([]byte(config))
+	configDigest := sha256.Sum256([]byte(config)])
+
+	containerConfig := &ContainerConfig {
+		Size: configSize,
+		Digest: configDigest,
+	}
+
+	// build out ManifestLayers by iterating through imagelayers and calculating size/digest (starting with base image)
+	// should be ordered with manifestlayers[0] being the base image
+	manifestLayers := make([]*ManifestLayer, len(ic.ImageLayers))
+	for i := len(ic.ImageLayers) - 1; i >= 0; i-- {
+		layer := ic.ImageLayers[i]
+		layerSize := layer.Size //?
+		layerDigest := sha256.Sum256([]byte(layer.Layer)]) //?
+
+		manifestLayers[i] = &ManifestLayer {
+			Size: layerSize,
+			Digest: layerDigest,
+		}
+	}
+
+	// build out Schema2Manifest with all generated components
+	schema2Manifest := &Schema2Manifest {
+		Config: containerConfig,
+		Layers: manifestLayers.
+	}
+
+	// do I marshal this schema2Manifest or not? How is it  received?
+
+
+
+
+
 }
 
 // PullImage pulls an image from docker hub
