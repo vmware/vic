@@ -216,6 +216,21 @@ func (v *VolumeLookupCache) Export(op trace.Operation, store *url.URL, id, ances
 	return vs.Export(op, store, id, ancestor, spec, data)
 }
 
+func (v *VolumeLookupCache) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
+	storeName, err := util.VolumeStoreName(store)
+	if err != nil {
+		return err
+	}
+
+	vs, ok := v.volumeStores[storeName]
+	if !ok {
+		err := fmt.Errorf("Volume store not found: %s", storeName)
+		return err
+	}
+
+	return vs.Import(op, store, id, spec, tarStream)
+}
+
 // goto the volume store and repopulate the cache.
 func (v *VolumeLookupCache) rebuildCache(op trace.Operation) error {
 	op.Infof("Refreshing volume cache.")

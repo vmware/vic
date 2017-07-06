@@ -282,3 +282,7 @@ func (v *VolumeStore) getMetadata(op trace.Operation, ID string, target Target) 
 	op.Infof("Successfully read volume metadata at (%s)", metadataPath)
 	return info, nil
 }
+
+func Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
+	return fmt.Errorf("Write for nfs volumes is not Implemented")
+}

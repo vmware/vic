@@ -39,6 +39,10 @@ const (
 	// The inverse of a rebase, the path is stripped from the header path
 	// before writing to disk.
 	Strip
+	// Target specifies a write target path
+	// this target path is relative to the target device
+	// target path is joined with the local mount path to create a writable target
+	Target
 )
 
 // FilterSpec describes rules for handling specified paths during archival
@@ -47,6 +51,7 @@ type FilterSpec struct {
 	Exclusions map[string]struct{}
 	RebasePath string
 	StripPath  string
+	TargetPath string
 }
 
 // Archiver defines an API for creating archives consisting of data that
@@ -63,11 +68,20 @@ type Archiver interface {
 	// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
 	// data - include file data in the tar archive if true, headers only otherwise
 	Export(op trace.Operation, store *url.URL, id, ancestor string, spec *FilterSpec, data bool) (io.ReadCloser, error)
+
+	// Import will process the input tar stream based on the supplied path spec and write the stream to the
+	// target device.
+	//
+	// store - the device store containing the target device
+	// id - the id for the device that is contained within the store
+	// spec - describes filters on paths found in the data (include, exclude, strip, target)
+	// tarstream - the tar stream that is to be written to the target on the device
+	Import(op trace.Operation, store *url.URL, id string, spec *FilterSpec, tarstream io.ReadCloser) error
 }
 
 // CreateFilterSpec creates a FilterSpec from a supplied map
 func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSpec, error) {
-	var rebase, strip string
+	var rebase, strip, target string
 
 	fs := &FilterSpec{
 		Inclusions: make(map[string]struct{}),
@@ -94,6 +108,11 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 				return nil, fmt.Errorf("Error creating filter spec: only one strip path allowed")
 			}
 			strip = k
+		case Target:
+			if target != "" {
+				return nil, fmt.Errorf("Error creating filter spec: only one target path allowed")
+			}
+			target = k
 		default:
 			return nil, fmt.Errorf("Invalid filter specification: %d", v)
 		}
@@ -101,6 +120,7 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 
 	fs.RebasePath = rebase
 	fs.StripPath = strip
+	fs.TargetPath = target
 
 	return fs, nil
 }

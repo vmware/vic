@@ -325,6 +325,28 @@ func (v *ImageStore) Export(op trace.Operation, store *url.URL, id, ancestor str
 	}, nil
 }
 
+func (v *ImageStore) Import(op trace.Operation, store *url.URL, ID string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
+	storeName, err := util.ImageStoreName(store)
+	if err != nil {
+		return err
+	}
+
+	imageDiskref := v.imageDiskDSPath(storeName, ID)
+
+	mountPath, err := v.dm.AttachAndMount(op, imageDiskref)
+	if err != nil {
+		return nil
+	}
+	defer func() {
+		err := v.dm.UnmountAndDetach(op, imageDiskref)
+		if err != nil {
+			op.Infof("Error cleaning up child disk: %s", err.Error())
+		}
+	}()
+
+	return archive.Untar(op, tarStream, spec, mountPath)
+}
+
 // cleanup safely on error
 func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdisk *disk.VirtualDisk) {
 	op.Errorf("Cleaning up failed image %s", ID)
