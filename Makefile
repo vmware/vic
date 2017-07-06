@@ -402,9 +402,9 @@ ENV_HTML_SDK_HOME = "/tmp/sdk/html-client-sdk"
 
 vic-ui-plugins:
 	@npm install -g yarn > /dev/null
-	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_SOURCE_PATH)/plugin-package.xml > ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml
-	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_H5_UI_PATH)/plugin-package.xml > ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml
-	sed "s/UI_VERSION_PLACEHOLDER/$(shell printf %s ${TAG})/" ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties > ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties
+	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_H5_UI_PATH)/plugin-package.xml > ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml
+	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_SOURCE_PATH)/plugin-package.xml > ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml
+	sed "s/UI_VERSION_PLACEHOLDER/$(shell printf %s ${TAG}.${BUILD_NUMBER})/" ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties > ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties
 	rm ./$(VICUI_SOURCE_PATH)/plugin-package.xml ./$(VICUI_H5_UI_PATH)/plugin-package.xml ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties
 	mv ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml ./$(VICUI_SOURCE_PATH)/plugin-package.xml
 	mv ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml ./$(VICUI_H5_UI_PATH)/plugin-package.xml

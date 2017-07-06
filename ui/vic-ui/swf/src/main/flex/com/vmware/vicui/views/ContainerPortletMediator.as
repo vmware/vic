@@ -1,4 +1,7 @@
-package com.vmware.vicui.views {
+/**
+ * Copyright (c) 2016-2017 VMware, Inc. All rights reserved.
+ */
+ package com.vmware.vicui.views {
 
 	import com.vmware.core.model.IResourceReference;
 	import com.vmware.data.query.DataUpdateSpec;

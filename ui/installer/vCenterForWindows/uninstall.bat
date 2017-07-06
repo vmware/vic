@@ -1,5 +1,5 @@
 @ECHO OFF
-REM Copyright 2016 VMware, Inc. All Rights Reserved.
+REM Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 REM
 REM Licensed under the Apache License, Version 2.0 (the "License");
 REM you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@ REM limitations under the License.
 
 SETLOCAL ENABLEEXTENSIONS
 SETLOCAL DISABLEDELAYEDEXPANSION
+SETLOCAL
 
 SET me=%~n0
 SET parent=%~dp0
@@ -28,6 +29,7 @@ FOR /F "tokens=*" %%A IN (configs) DO (
 IF NOT EXIST configs (
     ECHO -------------------------------------------------------------
     ECHO Error! Configs file is missing. Please try downloading the VIC UI installer again
+    ENDLOCAL
     EXIT /b 1
 )
 
@@ -72,6 +74,7 @@ IF %ERRORLEVEL% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 
@@ -114,7 +117,9 @@ DEL scratch*.tmp 2>NUL
 IF %uninstall_successful% NEQ 1 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
+    ENDLOCAL
     EXIT /b 1
 )
 ECHO --------------------------------------------------------------
 ECHO VIC Engine UI uninstaller exited successfully
+ENDLOCAL
