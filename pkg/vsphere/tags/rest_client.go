@@ -17,11 +17,14 @@ package tags
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -38,26 +41,60 @@ type RestClient struct {
 	host     string
 	scheme   string
 	endpoint *url.URL
-	insecure bool
 	HTTP     *http.Client
 	cookies  []*http.Cookie
 }
 
-func NewClient(u *url.URL, insecure bool) *RestClient {
+func NewClient(u *url.URL, insecure bool, thumbprint string) *RestClient {
 	log.Debugf("Create rest client")
 	u.Path = RestPrefix
+
+	if thumbprint != "" {
+		thumbprint = strings.Replace(thumbprint, ":", "", -1)
+	}
+
 	// #nosec
 	c := &RestClient{
 		endpoint: u,
-		insecure: insecure,
 		host:     u.Host,
 		scheme:   u.Scheme,
 		HTTP: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+				DialTLS: func(network, addr string) (net.Conn, error) {
+					c, err := tls.Dial(network, addr, &tls.Config{InsecureSkipVerify: insecure})
+					if err == nil {
+						return c, nil
+					}
+
+					switch err := err.(type) {
+					case x509.UnknownAuthorityError:
+					case x509.HostnameError:
+					default:
+						return nil, err
+					}
+
+					if thumbprint == "" {
+						return nil, err
+					}
+
+					if c, err = tls.Dial(network, addr, &tls.Config{InsecureSkipVerify: true}); err != nil {
+						return nil, err
+					}
+
+					// verify thumbprint
+					sum := sha1.Sum(c.ConnectionState().PeerCertificates[0].Raw)
+					if fmt.Sprintf("%X", sum) != thumbprint {
+						_ = c.Close()
+
+						return nil, fmt.Errorf("Host %q thumbprint does not match", addr)
+					}
+
+					return c, nil
+				},
 			},
 		},
 	}
+
 	return c
 }
 
