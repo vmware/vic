@@ -1,0 +1,8 @@
+.idea/
+typings/
+build-dev/
+node_modules/
+tsc-results/
+coverage/
+yarn.lock
+yarn-error.log
