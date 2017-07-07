@@ -428,8 +428,6 @@ Container Firewalls
     ...  --container-network peers-net-2 --container-network-firewall peers-net-2:peers
     ...  --container-network-ip-range peers-net-2:192.168.0.0/16 --container-network-gateway peers-net-2:192.168.0.1/16
 
-    Log To Console  ${createcommand}
-
     ${output}=  Run  ${createcommand}
 
     Should Contain  ${output}  Installer completed successfully
