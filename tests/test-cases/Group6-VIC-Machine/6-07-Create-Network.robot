@@ -390,56 +390,7 @@ Container network - space in network name valid
     Cleanup VCH Bridge Network  %{VCH-NAME}
     Cleanup VIC Appliance On Test Server
 
-Container network invalid 1
-    Pass execution  Test not implemented
-
-Container network invalid 2
-    Pass execution  Test not implemented
-
-Container network 1
-    Pass execution  Test not implemented
-
-Container network 2
-    Pass execution  Test not implemented
-
-Network mapping invalid
-    Pass execution  Test not implemented
-
-Network mapping gateway invalid
-    Pass execution  Test not implemented
-
-Network mapping IP invalid
-    Pass execution  Test not implemented
-
-DNS format invalid
-    Pass execution  Test not implemented
-
-Network mapping
-    Pass execution  Test not implemented
-
-VCH static IP - Static public
-    Pass execution  Test not implemented
-
-VCH static IP - Static client
-    Pass execution  Test not implemented
-
-VCH static IP - Static management
-    Pass execution  Test not implemented
-
-VCH static IP - different port groups 1
-    Pass execution  Test not implemented
-
-VCH static IP - different port groups 2
-    Pass execution  Test not implemented
-
-VCH static IP - same port group
-    Pass execution  Test not implemented
-
-VCH static IP - same subnet for multiple port groups
-    Pass execution  Test not implemented
-
-#Container Firewalls
-G
+Container Firewalls
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -472,9 +423,9 @@ G
     ...  --container-network closed-net --container-network-firewall closed-net:closed
     ...  --container-network outbound-net --container-network-firewall outbound-net:outbound
     ...  --container-network published-net --container-network-firewall published-net:published
-    ...  --container-network peers-1-net --container-network-firewall peers-1-net:peers
+    ...  --container-network peers-net-1 --container-network-firewall peers-net-1:peers
     ...  --container-network-ip-range peers-net-1:10.10.10.0/24 --container-network-gateway peers-net-1:10.10.10.1/24
-    ...  --container-network peers-2-net --container-network-firewall peers-2-net:peers
+    ...  --container-network peers-net-2 --container-network-firewall peers-net-2:peers
     ...  --container-network-ip-range peers-net-2:192.168.0.0/16 --container-network-gateway peers-net-2:192.168.0.1/16
 
     Log To Console  ${createcommand}
@@ -567,3 +518,51 @@ G
     Should Not Be Equal As Integers  ${rc}  0
  
     Cleanup VIC Appliance On Test Server
+
+Container network invalid 1
+    Pass execution  Test not implemented
+
+Container network invalid 2
+    Pass execution  Test not implemented
+
+Container network 1
+    Pass execution  Test not implemented
+
+Container network 2
+    Pass execution  Test not implemented
+
+Network mapping invalid
+    Pass execution  Test not implemented
+
+Network mapping gateway invalid
+    Pass execution  Test not implemented
+
+Network mapping IP invalid
+    Pass execution  Test not implemented
+
+DNS format invalid
+    Pass execution  Test not implemented
+
+Network mapping
+    Pass execution  Test not implemented
+
+VCH static IP - Static public
+    Pass execution  Test not implemented
+
+VCH static IP - Static client
+    Pass execution  Test not implemented
+
+VCH static IP - Static management
+    Pass execution  Test not implemented
+
+VCH static IP - different port groups 1
+    Pass execution  Test not implemented
+
+VCH static IP - different port groups 2
+    Pass execution  Test not implemented
+
+VCH static IP - same port group
+    Pass execution  Test not implemented
+
+VCH static IP - same subnet for multiple port groups
+    Pass execution  Test not implemented
