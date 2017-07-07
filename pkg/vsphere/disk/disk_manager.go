@@ -17,6 +17,8 @@ package disk
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sync"
 
 	"github.com/vmware/govmomi/object"
@@ -142,6 +144,24 @@ func (m *Manager) toSpec(config *VirtualDiskConfig) *types.VirtualDisk {
 func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(config.DatastoreURI.String()))
 
+	// reuse the disk if it already exists and is attached
+	if _, err := findDiskByFilename(op, m.vm, config.DatastoreURI.String()); err == nil {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		// if the disk is attached, it should be in the disk cache
+		d, err := m.Get(op, config)
+		if err != nil {
+			return nil, err
+		}
+
+		d.l.Lock()
+		defer d.l.Unlock()
+		// bump the attach refcount
+		d.attachedRefs.Increment()
+		return d, nil
+	}
+
 	// ensure we abide by max attached disks limits
 	m.maxAttached <- true
 
@@ -180,9 +200,9 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 		return nil, errors.Trace(err)
 	}
-	d.setAttached(blockDev)
+	err = d.setAttached(blockDev)
 
-	return d, nil
+	return d, err
 }
 
 // Create creates a disk without a parent (and doesn't attach it).
@@ -329,19 +349,16 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	d.l.Lock()
 	defer d.l.Unlock()
 
-	op.Infof("Detaching disk %s", d.DevicePath)
-
-	if !d.attached() {
-		op.Infof("Disk %s is already detached", d.DevicePath)
+	count := d.attachedRefs.Decrement()
+	if count > 0 {
 		return nil
 	}
 
 	if err := d.canBeDetached(); err != nil {
-		// even though canBeDetached() is called here and nowhere else, it does not imply
-		// an attempt to detach, so decrease the ref count from here for that reason
-		d.attachedRefs--
 		return errors.Trace(err)
 	}
+
+	op.Infof("Detaching disk %s", d.DevicePath)
 
 	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
 	if err != nil {
@@ -358,8 +375,11 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	default:
 	}
 
-	// don't decrement reference count here as setDetached() does it already
-	return d.setDetached(m.Disks)
+	if err = d.setDetached(m.Disks); err != nil {
+		op.Errorf(err.Error())
+	}
+
+	return nil
 }
 
 func (m *Manager) DetachAll(op trace.Operation) error {
@@ -420,4 +440,52 @@ func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.Datas
 	sysPath := fmt.Sprintf(m.byPathFormat, *disk.UnitNumber)
 
 	return sysPath, nil
+}
+
+// AttachAndMount creates and attaches a vmdk as a non-persistent disk, mounts it, and returns the mount path.
+func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.DatastorePath) (string, error) {
+	config := NewNonPersistentDisk(datastoreURI)
+	d, err := m.CreateAndAttach(op, config)
+	if err != nil {
+		return "", err
+	}
+
+	op.Infof("Attach/Mount %s", datastoreURI.String())
+
+	path, err := ioutil.TempDir("", "mnt")
+	if err != nil {
+		op.Debugf("Error creating mount path: %s", err.Error())
+		return "", err
+	}
+	if err := d.Mount(path, nil); err != nil {
+		op.Debugf("Error mounting disk: %s", err.Error())
+		return "", err
+	}
+	return path, nil
+}
+
+// UnmountAndDetach unmounts and detaches a disk, subsequently cleaning the mount path
+func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.DatastorePath) error {
+	config := NewNonPersistentDisk(datastoreURI)
+	d, err := m.Get(op, config)
+	if err != nil {
+		return err
+	}
+	op.Infof("Unmount/Detach %s", datastoreURI.String())
+	if err := d.Unmount(); err != nil {
+		op.Debugf("Error unmounting disk: %s", err.Error())
+		return err
+	}
+	if err := m.Detach(op, config); err != nil {
+		op.Debugf("Error detaching disk: %s", err.Error())
+		return err
+	}
+
+	if path, err := d.MountPath(); err == nil {
+		if err = os.RemoveAll(path); err != nil {
+			op.Debugf("Error cleaning up mount path: %s", err.Error())
+			return err
+		}
+	}
+	return err
 }

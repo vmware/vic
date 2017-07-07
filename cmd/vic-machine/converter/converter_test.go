@@ -46,18 +46,18 @@ type testObject struct {
 	object.Common
 }
 
-func (c testObject) ObjectName(ctx context.Context) (string, error) {
+func (c testObject) Name() string {
 	switch c.Common.Reference().String() {
 	case "DistributedVirtualPortgroup:dvportgroup-357":
-		return "management", nil
+		return "management"
 	case "DistributedVirtualPortgroup:dvportgroup-358":
-		return "vm-network", nil
+		return "vm-network"
 	case "DistributedVirtualPortgroup:dvportgroup-55":
-		return "bridge", nil
+		return "bridge"
 	case "DistributedVirtualPortgroup:dvportgroup-56":
-		return "external", nil
+		return "external"
 	default:
-		return "unknown", nil
+		return "unknown"
 	}
 }
 

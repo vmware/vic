@@ -109,3 +109,4 @@ TEXT ·bdoor_inout_test(SB), NOSPLIT|WRAPPER, $0
 	MOVQ DI, retdi+96(FP)
 	MOVQ BP, retbp+104(FP)
 	RET
+

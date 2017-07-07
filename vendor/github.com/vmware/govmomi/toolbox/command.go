@@ -23,8 +23,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/vmware/govmomi/toolbox/hgfs"
@@ -89,6 +92,8 @@ func commandResult(header vix.CommandRequestHeader, rc int, err error, response 
 		// TODO: inspect err for system error, setting errno
 
 		response = []byte(err.Error())
+
+		log.Printf("[vix] op=%d error: %s", header.OpCode, err)
 	}
 
 	buf := bytes.NewBufferString(fmt.Sprintf("%d %d ", rc, errno))
@@ -227,7 +232,20 @@ func (c *CommandServer) StartCommand(header vix.CommandRequestHeader, data []byt
 }
 
 func (c *CommandServer) ExecCommandStart(m *ProcessManager, r *vix.StartProgramRequest) (int64, error) {
-	return m.Start(r, NewProcess())
+	p := NewProcess()
+
+	switch r.ProgramPath {
+	case "http.RoundTrip":
+		p = NewProcessRoundTrip()
+	default:
+		// Standard vmware-tools requires an absolute path,
+		// we'll enable IO redirection by default without an absolute path.
+		if !strings.Contains(r.ProgramPath, "/") {
+			p = p.WithIO()
+		}
+	}
+
+	return m.Start(r, p)
 }
 
 func (c *CommandServer) KillProcess(header vix.CommandRequestHeader, data []byte) ([]byte, error) {
@@ -472,19 +490,22 @@ func (c *CommandServer) ListFiles(header vix.CommandRequestHeader, data []byte) 
 		return nil, err
 	}
 
-	info, err := os.Stat(r.GuestPathName)
+	info, err := os.Lstat(r.GuestPathName)
 	if err != nil {
 		return nil, err
 	}
 
+	var dir string
 	var files []os.FileInfo
 
 	if info.IsDir() {
+		dir = r.GuestPathName
 		files, err = ioutil.ReadDir(r.GuestPathName)
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		dir = filepath.Dir(r.GuestPathName)
 		files = append(files, info)
 	}
 
@@ -504,7 +525,7 @@ func (c *CommandServer) ListFiles(header vix.CommandRequestHeader, data []byte) 
 	buf.WriteString(fmt.Sprintf("<rem>%d</rem>", remaining))
 
 	for _, info = range files {
-		buf.WriteString(fileExtendedInfoFormat(info))
+		buf.WriteString(fileExtendedInfoFormat(dir, info))
 	}
 
 	return buf.Bytes(), nil
@@ -615,7 +636,7 @@ func (c *CommandServer) InitiateFileTransferFromGuest(header vix.CommandRequestH
 		return nil, vix.Error(vix.NotAFile)
 	}
 
-	return []byte(fileExtendedInfoFormat(info)), nil
+	return []byte(fileExtendedInfoFormat("", info)), nil
 }
 
 func (c *CommandServer) InitiateFileTransferToGuest(header vix.CommandRequestHeader, data []byte) ([]byte, error) {

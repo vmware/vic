@@ -1,10 +1,10 @@
 Test 21-01 - Whitelist Registries
 =======
 
-#Purpose:
+# Purpose:
 To verify that VIC appliance can whitelist registries
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
 Test Case -- Basic whitelisting

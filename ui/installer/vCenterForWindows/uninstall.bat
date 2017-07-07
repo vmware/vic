@@ -14,6 +14,8 @@ REM See the License for the specific language governing permissions and
 REM limitations under the License.
 
 SETLOCAL ENABLEEXTENSIONS
+SETLOCAL DISABLEDELAYEDEXPANSION
+
 SET me=%~n0
 SET parent=%~dp0
 
@@ -23,11 +25,19 @@ FOR /F "tokens=*" %%A IN (configs) DO (
     )
 )
 
-IF [%target_vcenter_ip%] == [] (
-    ECHO Error! vCenter IP cannot be empty. Please provide a valid IP in the configs file
-    GOTO:EOF
+IF NOT EXIST configs (
+    ECHO -------------------------------------------------------------
+    ECHO Error! Configs file is missing. Please try downloading the VIC UI installer again
+    EXIT /b 1
 )
 
+ECHO -------------------------------------------------------------
+ECHO This script will uninstall vSphere Integrated Containers plugin
+ECHO for vSphere Client (HTML) and vSphere Web Client (Flex).
+ECHO.
+ECHO Please provide connection information to the vCenter Server.
+ECHO -------------------------------------------------------------
+SET /p target_vcenter_ip="Enter IP to target vCenter Server: "
 SET /p vcenter_username="Enter your vCenter Administrator Username: "
 SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Administrator Password' -AsSecureString ; ^
     $BSTR=[System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($pword); ^
@@ -37,25 +47,74 @@ FOR /f "usebackq delims=" %%p in (`%psCommand%`) do set vcenter_password=%%p
 SET plugin_manager_bin=%parent%..\..\vic-ui-windows.exe
 SET vcenter_unreg_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
 
+REM read plugin-manifest
 FOR /F "tokens=1,2 delims==" %%A IN (..\plugin-manifest) DO (
     IF NOT %%A=="" (
         CALL SET %%A=%%B
     )
 )
 
-IF %target_vc_version% EQU 6.5 (
-    SET key=%key_h5c%
+REM entry routine
+GOTO retrieve_vc_thumbprint
+
+:retrieve_vc_thumbprint
+"%parent%..\..\vic-ui-windows.exe" info %vcenter_unreg_flags% --key com.vmware.vic.noop > scratch.tmp 2> NUL
+TYPE scratch.tmp | findstr -c:"Failed to verify certificate" > NUL
+IF %ERRORLEVEL% EQU 0 (
+    SETLOCAL ENABLEDELAYEDEXPANSION
+    FOR /F "usebackq tokens=2 delims=(" %%B IN (scratch.tmp) DO SET vc_thumbprint=%%B
+    SET vc_thumbprint=!vc_thumbprint:~11,-1!
+    ECHO.
+    ECHO SHA-1 key fingerprint of host '%target_vcenter_ip%' is '!vc_thumbprint!'
+    GOTO validate_vc_thumbprint
 ) ELSE (
-    SET key=%key_flex%
+    TYPE scratch.tmp
+    ECHO -------------------------------------------------------------
+    ECHO Error! Could not register plugin with vCenter Server. Please see the message above
+    DEL scratch*.tmp 2>NUL
+    EXIT /b 1
 )
 
-ECHO Unregistering VIC UI Plugins...
-
-"%plugin_manager_bin%" remove %vcenter_unreg_flags% --key %key:"=%
-IF %ERRORLEVEL% NEQ 0 (
-    ECHO Error! Could not unregister plugin from vCenter Server. Please see the message above 
-    GOTO:EOF
+:validate_vc_thumbprint
+SET /p accept_vc_thumbprint="Are you sure you trust the authenticity of this host [yes/no]? "
+IF /I [%accept_vc_thumbprint%] == [yes] (
+    SETLOCAL DISABLEDELAYEDEXPANSION
+    GOTO parse_and_unregister_plugins
 )
+IF /I [%accept_vc_thumbprint%] == [no] (
+    SET /p vc_thumbprint="Enter SHA-1 thumbprint of target VC: "
+    SETLOCAL DISABLEDELAYEDEXPANSION
+    GOTO parse_and_unregister_plugins
+)
+ECHO Please answer either "yes" or "no"
+GOTO validate_vc_thumbprint
 
+:parse_and_unregister_plugins
+SET uninstall_successful=1
 ECHO.
-ECHO VIC UI was successfully uninstalled. Make sure to log out of vSphere Web Client if are logged in, and log back in.
+ECHO -------------------------------------------------------------
+ECHO Preparing to unregister vCenter Extension %name:"=%-H5Client...
+ECHO -------------------------------------------------------------
+"%plugin_manager_bin%" remove %vcenter_unreg_flags% --key com.vmware.vic --thumbprint %vc_thumbprint%
+IF %ERRORLEVEL% NEQ 0 (
+    SET uninstall_successful=0
+)
+ECHO.
+ECHO -------------------------------------------------------------
+ECHO Preparing to unregister vCenter Extension %name:"=%-FlexClient...
+ECHO -------------------------------------------------------------
+"%plugin_manager_bin%" remove %vcenter_unreg_flags% --key com.vmware.vic.ui --thumbprint %vc_thumbprint%
+IF %ERRORLEVEL% NEQ 0 (
+    SET uninstall_successful=0
+)
+GOTO end
+
+:end
+DEL scratch*.tmp 2>NUL
+IF %uninstall_successful% NEQ 1 (
+    ECHO -------------------------------------------------------------
+    ECHO Error! Could not register plugin with vCenter Server. Please see the message above
+    EXIT /b 1
+)
+ECHO --------------------------------------------------------------
+ECHO VIC Engine UI uninstaller exited successfully

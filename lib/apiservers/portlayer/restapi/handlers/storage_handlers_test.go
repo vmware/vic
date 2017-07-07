@@ -27,6 +27,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
+	"github.com/vmware/vic/lib/archive"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -121,6 +122,10 @@ func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*spl.Volume, error)
 	return list, nil
 }
 
+func (m *MockVolumeStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, nil
+}
+
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
@@ -145,6 +150,10 @@ func (c *MockDataStore) DeleteImageStore(op trace.Operation, storeName string) e
 }
 
 func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
 	return nil, nil
 }
 
