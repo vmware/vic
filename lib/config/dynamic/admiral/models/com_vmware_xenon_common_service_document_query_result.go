@@ -24,7 +24,7 @@ type ComVmwareXenonCommonServiceDocumentQueryResult struct {
 	DocumentLinks []string `json:"documentLinks"`
 
 	// documents
-	Documents map[string]string `json:"documents,omitempty"`
+	Documents map[string]interface{} `json:"documents,omitempty"`
 
 	// next page link
 	NextPageLink string `json:"nextPageLink,omitempty"`
