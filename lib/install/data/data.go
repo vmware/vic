@@ -146,10 +146,11 @@ func NewData() *Data {
 	d := &Data{
 		Target: common.NewTarget(),
 		ContainerNetworks: common.ContainerNetworks{
-			MappedNetworks:         make(map[string]string),
-			MappedNetworksGateways: make(map[string]net.IPNet),
-			MappedNetworksIPRanges: make(map[string][]ip.Range),
-			MappedNetworksDNS:      make(map[string][]net.IP),
+			MappedNetworks:          make(map[string]string),
+			MappedNetworksGateways:  make(map[string]net.IPNet),
+			MappedNetworksIPRanges:  make(map[string][]ip.Range),
+			MappedNetworksDNS:       make(map[string][]net.IP),
+			MappedNetworksFirewalls: make(map[string]common.TrustLevel),
 		},
 		Timeout: 3 * time.Minute,
 	}

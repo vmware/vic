@@ -36,6 +36,23 @@ const (
 	Peers
 )
 
+func (t TrustLevel) String() string {
+	switch t {
+	case Open:
+		return "open"
+	case Closed:
+		return "closed"
+	case Published:
+		return "published"
+	case Outbound:
+		return "outbound"
+	case Peers:
+		return "peers"
+	}
+	log.Warningf("Unknown trust level %d. Defaulting to open.", int(t))
+	return "open"
+}
+
 // CNetworks holds user input from container network flags
 type CNetworks struct {
 	ContainerNetworks         cli.StringSlice `arg:"container-network"`
