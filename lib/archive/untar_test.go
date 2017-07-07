@@ -84,7 +84,7 @@ func TestSimpleWrite(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -166,7 +166,7 @@ func TestSimpleWriteSymLink(t *testing.T) {
 		return
 	}
 
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -257,7 +257,7 @@ func TestSimpleWriteSymLinkNonRootTarget(t *testing.T) {
 		return
 	}
 
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -319,7 +319,7 @@ func TestSimpleWriteNonRootTarget(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -377,7 +377,7 @@ func TestSimpleExclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -464,7 +464,7 @@ func TestInclusionAfterExclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -542,7 +542,7 @@ func TestMultiExclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -634,7 +634,7 @@ func TestMultiExclusionMultiInclusion(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -718,7 +718,7 @@ func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return
@@ -812,7 +812,7 @@ func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	err = Untar(op, tarStream, filterSpec, tempPath)
+	err = Unpack(op, tarStream, filterSpec, tempPath)
 
 	if !assert.NoError(t, err) {
 		return

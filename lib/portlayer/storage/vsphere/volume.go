@@ -266,5 +266,5 @@ func (v *VolumeStore) Import(op trace.Operation, store *url.URL, id string, spec
 		}
 	}()
 
-	return archive.Untar(op, tarstream, spec, mountPath)
+	return archive.Unpack(op, tarstream, spec, mountPath)
 }

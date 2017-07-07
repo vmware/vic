@@ -344,7 +344,7 @@ func (v *ImageStore) Import(op trace.Operation, store *url.URL, ID string, spec 
 		}
 	}()
 
-	return archive.Untar(op, tarStream, spec, mountPath)
+	return archive.Unpack(op, tarStream, spec, mountPath)
 }
 
 // cleanup safely on error
