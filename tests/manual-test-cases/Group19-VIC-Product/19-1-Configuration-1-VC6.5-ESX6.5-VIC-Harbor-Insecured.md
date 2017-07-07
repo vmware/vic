@@ -1,13 +1,13 @@
 Test 19-1 - Configuration 1 VC6.5 ESX6.5 VIC Harbor Insecured
 =======
 
-#Purpose:
+# Purpose:
 To verify the VIC Product (Engine/Harbor) work using insecure registry with a VC6.5 and ESX6.5 server
 
-#References:
+# References:
 [1 - VIC+Harbor Integration Test Plan](https://confluence.eng.vmware.com/pages/viewpage.action?spaceKey=corevc&title=VIC+-+Harbor+Integration+Test+Plan)
 
-#Environment:
+# Environment:
 * This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter creation
 * Login to Harbor using an LDAP user1 (say admin role)
 * Create a Project named say 'vic-harbor' (publicity off)
@@ -15,7 +15,7 @@ To verify the VIC Product (Engine/Harbor) work using insecure registry with a VC
 * Login as user1 and add other users with different roles (developer, guest) under Project 'vic-harbor'
 * Prepare 3 windows client machines (3rd client machine could be a Linux machine as we couldn't figure out the VT-X issue for running docker on Windows 7/10 VM)
 
-#Test Steps:
+# Test Steps:
 ###pos001:
 1. Create a VCH with Harbor private registry as an option (using --insecure-registry <harbor-ip>:80)
 2. Do docker login to harbor using an user with admin role
@@ -65,7 +65,7 @@ To verify the VIC Product (Engine/Harbor) work using insecure registry with a VC
 8. Run the applications using different users from Harbor registry (in parallel)
 9. Stop, Start, attach, kill, rm and rmi using different users from Harbor registry (in parallel)
 
-#Expected Outcome:
+# Expected Outcome:
 ###pos001:
 * VCH Creation with Harbor private registry should succeed - Limitation (Issue#)
 * Validate that VCH is communicating with Harbor Registry by doing a docker login (using docker H <vchip>:2375 login <harbor-ip>:80)
@@ -95,5 +95,5 @@ To verify the VIC Product (Engine/Harbor) work using insecure registry with a VC
 * Ensure that the application runs in the containerVm and it is functional
 * Ensure that the application tty gets attached and able to delete the ContainerVM and the images
 
-#Possible Problems:
+# Possible Problems:
 * Not planning on using LDAP at this time, in all cases where LDAP is specified substitute users manually created within the product

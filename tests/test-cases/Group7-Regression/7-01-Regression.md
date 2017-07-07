@@ -1,16 +1,16 @@
 Test 7-01 - Regression test
 =======
 
-#Purpose:
+# Purpose:
 To verify general functionality of the product in a rapid, repeatable manner for regression testing of all commits
 
-#References:
+# References:
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/)
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Deploy VIC appliance to the vSphere server
 2. Issue a docker pull busybox
 3. Issue a docker images, verify that busybox image shows up
@@ -26,8 +26,8 @@ This test requires that a vSphere server is running and available
 13. Issue a docker images, verify that busybox image is gone
 14. Remove the VIC appliance with vic-machine delete command, verify that the appliance was removed
 
-#Expected Outcome:
+# Expected Outcome:
 VIC appliance should respond without error to each of the commands
 
-#Possible Problems:
+# Possible Problems:
 None
