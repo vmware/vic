@@ -18,6 +18,7 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Test Cases ***
 Simple case: copy a file and directory from host to online container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
@@ -25,12 +26,15 @@ Simple case: copy a file and directory from host to online container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name test1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Create File ${CURDIR}/foo.txt   hello world
-    Create Directory ${CURDIR}/bar
+    Create File  ${CURDIR}/foo.txt   hello world
+    Create Directory  ${CURDIR}/bar
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt test1:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar test1:/
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /
@@ -59,20 +63,20 @@ Simple case: copy a directory from online container to host, dst path doesn't ex
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp test1:/newdir ${CURDIR}/newdir
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Directory Should Exist ${CURDIR}/newdir
-    File Should Exist ${CURDIR}/newdir/test.txt
+    Directory Should Exist  ${CURDIR}/newdir
+    File Should Exist  ${CURDIR}/newdir/test.txt
 
 Simple case: copy the content of a directory from online container to host
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp test1:/newdir/. ${CURDIR}/bar
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    File Should Exist ${CURDIR}/bar/test.txt
+    File Should Exist  ${CURDIR}/bar/test.txt
 
 Simple case: copy a file from online container to host, overwrite dst file
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp test1:/newdir/test.txt ${CURDIR}/foo.txt
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${content}= Get File  ${CURDIR}/foo.txt
+    ${content}=  Get File  ${CURDIR}/foo.txt
     Should Contain  ${content}   testing
 
 Simple case: copy a file from online container to host, dst directory doesn't exist
@@ -177,8 +181,6 @@ Copy a file from host to offline container, dst is a nested volume with 3 levels
 
 
 Clean up current directory
-    Remove File ${CURDIR}/foo.txt
-    Remove File ${CURDIR}/bar/foo.txt
-    Remove Directory ${CURDIR}/bar
-    Remove File ${CURDIR}/newdir/test.txt
-    Remove Directory ${CURDIR}/newdir
+    Remove File  ${CURDIR}/foo.txt
+    Remove Directory  ${CURDIR}/bar recursive=True
+    Remove Directory  ${CURDIR}/newdir recursive=True

@@ -16,7 +16,7 @@ This test requires that a vSphere server is running and available
 3. Create a file named foo.txt and a directory named bar
 4. Issue docker cp foo.txt test1:/ to the new VIC appliance
 5. Issue docker cp bar test1:/ to the new VIC appliance
-6. Issue docker exec test1 ls / to the new VIC appliance to verify the copy operations succeeded
+6. Start test1 and issue docker exec test1 ls / to the new VIC appliance to verify the copy operations succeeded
 7. Issue docker exec test1 sh -c 'rm /foo.txt && rmdir /bar' to the new VIC appliance to clean up
 8. Issue docker cp bar test1:/bar to the new VIC appliance
 9. Issue docker exec test1 ls / to the new VIC appliance to verify bar is there
