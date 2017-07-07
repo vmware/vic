@@ -458,8 +458,15 @@ func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.Datas
 }
 
 // AttachAndMount creates and attaches a vmdk as a non-persistent disk, mounts it, and returns the mount path.
-func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.DatastorePath) (string, error) {
-	config := NewNonPersistentDisk(datastoreURI)
+func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) (string, error) {
+	var config *VirtualDiskConfig
+
+	if !persistent {
+		config = NewNonPersistentDisk(datastoreURI)
+	} else {
+		config = NewPersistentDisk(datastoreURI)
+	}
+
 	d, err := m.CreateAndAttach(op, config)
 	if err != nil {
 		return "", err
@@ -480,12 +487,20 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 }
 
 // UnmountAndDetach unmounts and detaches a disk, subsequently cleaning the mount path
-func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.DatastorePath) error {
-	config := NewNonPersistentDisk(datastoreURI)
+func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) error {
+	var config *VirtualDiskConfig
+
+	if !persistent {
+		config = NewNonPersistentDisk(datastoreURI)
+	} else {
+		config = NewPersistentDisk(datastoreURI)
+	}
+
 	d, err := m.Get(op, config)
 	if err != nil {
 		return err
 	}
+
 	op.Infof("Unmount/Detach %s", datastoreURI.String())
 	if err := d.Unmount(); err != nil {
 		op.Debugf("Error unmounting disk: %s", err.Error())
