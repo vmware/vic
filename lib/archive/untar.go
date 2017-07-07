@@ -40,12 +40,14 @@ const (
 // - include : any tar entry that has a path below(after stripping) the include path will be written
 // - strip : The strip string will indicate the
 // - exlude : marks paths that are to be excluded from the write operation
-// - target : marks the the write path that will be tacked onto the "unpackPath". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
+// - rebase : marks the the write path that will be tacked onto the "unpackPath". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
 func Untar(op trace.Operation, tarStream io.ReadCloser, filter *FilterSpec, unpackPath string) error {
+	// the tar stream should be wrapped up at the end of this call
+	defer tarStream.Close()
 	tr := tar.NewReader(tarStream)
 
 	strip := filter.StripPath
-	target := filter.TargetPath
+	target := filter.RebasePath
 
 	if target == "" {
 		op.Debugf("Bad target path in FilterSpec (%#v)", filter)
@@ -70,7 +72,6 @@ func Untar(op trace.Operation, tarStream io.ReadCloser, filter *FilterSpec, unpa
 		header, err := tr.Next()
 		if err == io.EOF {
 			// This indicates the end of the archive
-			tarStream.Close()
 			break
 		}
 		if err != nil {

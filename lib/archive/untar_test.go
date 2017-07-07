@@ -78,7 +78,7 @@ func TestSimpleWrite(t *testing.T) {
 
 	writetarget := "/"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	filterSpec, err := CreateFilterSpec(op, specMap)
 	if !assert.NoError(t, err) {
@@ -159,7 +159,7 @@ func TestSimpleWriteSymLink(t *testing.T) {
 	op.Infof("%s", tempPath)
 
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	filterSpec, err := CreateFilterSpec(op, specMap)
 	if !assert.NoError(t, err) {
@@ -250,7 +250,7 @@ func TestSimpleWriteSymLinkNonRootTarget(t *testing.T) {
 	op.Infof("%s", tempPath)
 
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	filterSpec, err := CreateFilterSpec(op, specMap)
 	if !assert.NoError(t, err) {
@@ -313,7 +313,7 @@ func TestSimpleWriteNonRootTarget(t *testing.T) {
 
 	writetarget := "/data/target"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	filterSpec, err := CreateFilterSpec(op, specMap)
 	if !assert.NoError(t, err) {
@@ -367,7 +367,7 @@ func TestSimpleExclusion(t *testing.T) {
 
 	writetarget := "/"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	for _, v := range exclusions {
 		specMap[v] = Exclude
@@ -450,7 +450,7 @@ func TestInclusionAfterExclusion(t *testing.T) {
 
 	writetarget := "/"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	for _, v := range exclusions {
 		specMap[v] = Exclude
@@ -532,7 +532,7 @@ func TestMultiExclusion(t *testing.T) {
 
 	writetarget := "/"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	for _, v := range exclusions {
 		specMap[v] = Exclude
@@ -620,7 +620,7 @@ func TestMultiExclusionMultiInclusion(t *testing.T) {
 
 	writetarget := "/"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	for _, v := range exclusions {
 		specMap[v] = Exclude
@@ -704,7 +704,7 @@ func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
 
 	writetarget := "/"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	for _, v := range exclusions {
 		specMap[v] = Exclude
@@ -798,7 +798,7 @@ func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
 
 	writetarget := "/data/target"
 	specMap := make(map[string]FilterType)
-	specMap[writetarget] = Target
+	specMap[writetarget] = Rebase
 
 	for _, v := range exclusions {
 		specMap[v] = Exclude

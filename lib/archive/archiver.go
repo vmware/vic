@@ -34,15 +34,14 @@ const (
 	Exclude
 	// Rebase specifies a path rebase.
 	// The rebase path is prepended to the path in the archive header.
+	// for an Export this will ensure proper headers on the way out.
+	// for an Import it will ensure that the tar unpacking occurs in
+	// right location
 	Rebase
 	// Strip specifies a path strip.
 	// The inverse of a rebase, the path is stripped from the header path
 	// before writing to disk.
 	Strip
-	// Target specifies a write target path
-	// this target path is relative to the target device
-	// target path is joined with the local mount path to create a writable target
-	Target
 )
 
 // FilterSpec describes rules for handling specified paths during archival
@@ -51,7 +50,6 @@ type FilterSpec struct {
 	Exclusions map[string]struct{}
 	RebasePath string
 	StripPath  string
-	TargetPath string
 }
 
 // Archiver defines an API for creating archives consisting of data that
@@ -81,8 +79,6 @@ type Archiver interface {
 
 // CreateFilterSpec creates a FilterSpec from a supplied map
 func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSpec, error) {
-	var rebase, strip, target string
-
 	fs := &FilterSpec{
 		Inclusions: make(map[string]struct{}),
 		Exclusions: make(map[string]struct{}),
@@ -99,28 +95,19 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 		case Exclude:
 			fs.Exclusions[k] = struct{}{}
 		case Rebase:
-			if rebase != "" {
+			if fs.RebasePath != "" {
 				return nil, fmt.Errorf("Error creating filter spec: only one rebase path allowed")
 			}
-			rebase = k
+			fs.RebasePath = k
 		case Strip:
-			if strip != "" {
+			if fs.StripPath != "" {
 				return nil, fmt.Errorf("Error creating filter spec: only one strip path allowed")
 			}
-			strip = k
-		case Target:
-			if target != "" {
-				return nil, fmt.Errorf("Error creating filter spec: only one target path allowed")
-			}
-			target = k
+			fs.StripPath = k
 		default:
 			return nil, fmt.Errorf("Invalid filter specification: %d", v)
 		}
 	}
-
-	fs.RebasePath = rebase
-	fs.StripPath = strip
-	fs.TargetPath = target
 
 	return fs, nil
 }

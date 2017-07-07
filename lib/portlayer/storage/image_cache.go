@@ -238,16 +238,7 @@ func (c *NameLookupCache) Export(op trace.Operation, store *url.URL, id, ancesto
 }
 
 func (c *NameLookupCache) Import(op trace.Operation, store *url.URL, diskID string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
-	_, err := util.ImageStoreName(store)
-	if err != nil {
-		return err
-	}
-
-	if archiver, ok := c.DataStore.(archive.Archiver); ok {
-		return archiver.Import(op, store, diskID, spec, tarStream)
-	}
-
-	return fmt.Errorf("NameLookupCache does not implement Write")
+	return c.DataStore.Import(op, store, diskID, spec, tarStream)
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
