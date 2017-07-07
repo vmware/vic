@@ -54,6 +54,7 @@ type Repo interface {
 
 	Save() error
 	GetImageID(layerID string) string
+	GetLayerID(imageID string) string
 	Tags(imageID string) []string
 	Digests(imageID string) []string
 	AddReference(ref reference.Named, imageID string, force bool, layerID string, save bool) error
@@ -342,6 +343,19 @@ func (store *repoCache) Get(ref reference.Named) (string, error) {
 	}
 
 	return imageID, nil
+}
+
+// GetLayerID will return the layerID associated with the
+// specified imageID
+func (store *repoCache) GetLayerID(imageID string) string {
+	defer trace.End(trace.Begin(imageID))
+	var layerID string
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	if layer, exists := store.images[imageID]; exists {
+		layerID = layer
+	}
+	return layerID
 }
 
 // Tags returns a slice of tags for the specified imageID

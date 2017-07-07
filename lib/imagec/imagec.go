@@ -131,7 +131,7 @@ type ManifestLayer struct {
 }
 
 // ContainerConfig references a configuration object for a container
-type ContainerConfig struct {
+type Config struct {
 	MediaType ConfigMediaType `json:"mediaType"`
 	Size int `json:"size"`
 	Digest string `json:"digest"`
@@ -140,7 +140,7 @@ type ContainerConfig struct {
 type Schema2Manifest struct {
 	SchemaVersion SupportedSchemaVersion `json:"schemaVersion"`
 	MediaType ManifestMediaType `json:"mediaType"`
-	Config *ContainerConfig `json:"config"`
+	Config *Config `json:"config"`
 	Layers []*ManifestLayer `json:"layers"`
 }
 
@@ -270,6 +270,8 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 		if v1.Parent != "" {
 			parent = v1.Parent
 		}
+		//log the parent for testing
+		log.Infof("layer: %s parent:%s", layer,parent)
 
 		// add image to ImageWithMeta list
 		images[i] = &ImageWithMeta{
@@ -484,46 +486,61 @@ func (ic *ImageC) PushImage() error {
 
 	// do a preparetransfer for authentication
 
-	// build image layers (ImageWithMeta) from ReadArchive()
-
-
-
-	// get config and calculate digest/size, mediatype is constant
+	// get id of image from the reference
 	id, err := cache.RepositoryCache().Get(ic.Options.Reference)
 	if err != nil {
 		return fmt.Errorf("Could not retrieve image id from repository cache using reference: %s", err)
 	}
 
+	// get the leaf layerID from repo cache using the image id
+	layerID := cache.RepositoryCache().GetLayerID(id)
+
+	// get the layer (ImageWithMeta) from the layer cache using the layer id
+	layer := LayerCache().Get(layerID)
+
+	// create []ManifestLayers to append the layers in
+	manifestLayerCount := 0
+	manifestLayers := make([]*ManifestLayer, manifestLayerCount)
+
+	// use the leaf layer to walk the chain of layers down to the base parent (scratch)
+	while( layer.Image.Parent != "") {
+		// TO-DO: call ReadArchive here and upload the returned tars
+
+		// add to the ManifestLayers[] by calculating layer digest and size
+		layerSize := layer.Size // ?
+		layerDigest := sha256.Sum256([]byte(layer)]) // ? or is it layer.Layer? needs to be tested
+
+		manifestLayers[manifestLayerCount] = &ManifestLayer {
+			Size: layerSize,
+			Digest: layerDigest,
+		}
+		manifestLayerCount++
+
+		// set the layer to the parent layer
+		layerID := layer.Image.Parent
+		layer := LayerCache().Get(layerID)
+
+	}
+
+
+	// get config and calculate digest/size, mediatype is constant
+	// TO-DO : figure out what config is supposed to be, ContainerConfig is no longer correct
 	config, err := cache.ImageCache().Get(id).ContainerConfig
 	if err != nil {
 		return fmt.Errorf("Could not retrieve config from image cache using id: %s", err)
 	}
 
 	configSize := len([]byte(config))
-	configDigest := sha256.Sum256([]byte(config)])
+	configDigest := "sha256:" + sha256.Sum256([]byte(config)])
 
-	containerConfig := &ContainerConfig {
+	config := &Config {
 		Size: configSize,
 		Digest: configDigest,
 	}
 
-	// build out ManifestLayers by iterating through imagelayers and calculating size/digest (starting with base image)
-	// should be ordered with manifestlayers[0] being the base image
-	manifestLayers := make([]*ManifestLayer, len(ic.ImageLayers))
-	for i := len(ic.ImageLayers) - 1; i >= 0; i-- {
-		layer := ic.ImageLayers[i]
-		layerSize := layer.Size //?
-		layerDigest := sha256.Sum256([]byte(layer.Layer)]) //?
-
-		manifestLayers[i] = &ManifestLayer {
-			Size: layerSize,
-			Digest: layerDigest,
-		}
-	}
-
 	// build out Schema2Manifest with all generated components
 	schema2Manifest := &Schema2Manifest {
-		Config: containerConfig,
+		Config: config,
 		Layers: manifestLayers.
 	}
 
