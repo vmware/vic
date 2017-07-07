@@ -48,11 +48,6 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 		}
 	}
 
-	// whitelist should not grow
-	if len(wl) > len(origWl) {
-		return nil, fmt.Errorf("whitelist cannot grow")
-	}
-
 	res := *orig
 	res.RegistryWhitelist = wl.Strings()
 	return &res, nil
