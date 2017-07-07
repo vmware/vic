@@ -202,7 +202,6 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 // spec - describes filters on paths found in the data (include, exclude, strip)
 // data - set to true to include file data in the tar archive, false to include headers only
 func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	isNotPersistentDisk := false
 	_, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -211,14 +210,14 @@ func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor st
 	mounts := []*object.DatastorePath{}
 	cleanFunc := func() {
 		for _, mount := range mounts {
-			if err := v.dm.UnmountAndDetach(op, mount, isNotPersistentDisk); err != nil {
+			if err := v.dm.UnmountAndDetach(op, mount, !persistent); err != nil {
 				op.Infof("Error cleaning up disk: %s", err.Error())
 			}
 		}
 	}
 
 	c := v.volDiskDSPath(id)
-	childFs, err := v.dm.AttachAndMount(op, c, isNotPersistentDisk)
+	childFs, err := v.dm.AttachAndMount(op, c, !persistent)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +226,7 @@ func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor st
 	ancestorFs := ancestor
 	if ancestor != "" {
 		a := v.volDiskDSPath(ancestor)
-		ancestorFs, err = v.dm.AttachAndMount(op, a, isNotPersistentDisk)
+		ancestorFs, err = v.dm.AttachAndMount(op, a, !persistent)
 		if err != nil {
 			cleanFunc()
 			return nil, err
@@ -249,7 +248,6 @@ func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor st
 }
 
 func (v *VolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
-	isPersistentDisk := true
 	_, err := util.VolumeStoreName(store)
 	if err != nil {
 		return err
@@ -257,12 +255,12 @@ func (v *VolumeStore) Import(op trace.Operation, store *url.URL, id string, spec
 
 	diskRefPath := v.volDiskDSPath(id)
 
-	mountPath, err := v.dm.AttachAndMount(op, diskRefPath, isPersistentDisk)
+	mountPath, err := v.dm.AttachAndMount(op, diskRefPath, persistent)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err := v.dm.UnmountAndDetach(op, diskRefPath, isPersistentDisk)
+		err := v.dm.UnmountAndDetach(op, diskRefPath, persistent)
 		if err != nil {
 			op.Infof("Error cleaning up disk: %s", err.Error())
 		}
