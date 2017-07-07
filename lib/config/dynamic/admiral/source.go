@@ -16,15 +16,23 @@ package admiral
 
 import (
 	"context"
-	"errors"
+	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime"
+	rtclient "github.com/go-openapi/runtime/client"
+	strfmt "github.com/go-openapi/strfmt"
+	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	"github.com/vmware/govmomi/vim25/types"
+
+	"strings"
 
 	vchcfg "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
@@ -44,16 +52,21 @@ const (
 	admiralTokenKey    = "guestinfo.vicova.admiral.token"
 	admiralEndpointKey = "guestinfo.vicova.admiral.endpoint"
 
-	clusterFilter = "(address eq %s and customProperties.__containerHostType eq 'VCH'"
+	clusterFilter = "(address eq '%s' and customProperties.__containerHostType eq 'VCH')"
 )
 
-var trueStr = "true"
-var projectsFilter = "customProperties.__enableContentTrust eq 'true'"
-var errHostNotFound = errors.New("host not found")
+var (
+	trueStr        = "true"
+	projectsFilter = "customProperties.__enableContentTrust eq 'true'"
+)
 
+// NewSource creates a new Admiral dynamic config source. sess
+// is a valid vsphere session object. vchID is a unique identifier
+// that will be used to lookup the VCH in the Admiral instance; currently
+// this is a URI to the docker endpoint in the VCH.
 func NewSource(sess *session.Session, vchID string) dynamic.Source {
 	return &source{
-		d:     &ovaDiscovery{},
+		d:     &productDiscovery{},
 		sess:  sess,
 		vchID: vchID,
 	}
@@ -72,37 +85,24 @@ type source struct {
 func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpec, error) {
 	var err error
 	if err = a.discover(ctx); err != nil {
-		log.Debugf(err.Error())
-		return nil, transformErr(err)
+		return nil, err
 	}
 
 	var projs []string
 	projs, err = a.projects(ctx)
 	if err != nil {
-		return nil, transformErr(err)
+		return nil, err
 	}
 
 	var wl []string
 	wl, err = a.whitelist(ctx, projs)
 	if err != nil {
-		return nil, transformErr(err)
+		return nil, err
 	}
 
 	return &vchcfg.VirtualContainerHostConfigSpec{
 		Registry: vchcfg.Registry{RegistryWhitelist: wl},
 	}, nil
-}
-
-func transformErr(err interface{}) error {
-	switch err := err.(type) {
-	case runtime.APIError:
-		switch err.Code {
-		case http.StatusForbidden, http.StatusUnauthorized:
-			return dynamic.ErrAccessDenied
-		}
-	}
-
-	return dynamic.ErrSourceUnavailable
 }
 
 func (a *source) discover(ctx context.Context) error {
@@ -112,40 +112,88 @@ func (a *source) discover(ctx context.Context) error {
 	if a.c != nil {
 		return nil
 	}
-	var u *url.URL
-	_, u, err := a.d.Discover(ctx, a.sess)
+
+	token, u, err := a.d.Discover(ctx, a.sess)
 	if err != nil {
 		return err
 	}
 
-	a.c = client.NewHTTPClientWithConfig(
-		nil,
-		&client.TransportConfig{
-			Host:     u.Host,
-			BasePath: u.Path,
-			Schemes:  []string{u.Scheme},
-		})
+	// copied from http.DefaultTransport
+	tp := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	cl := &http.Client{
+		Transport: tp,
+	}
+
+	if u.Scheme == "https" {
+		tp.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	rt := rtclient.NewWithClient(u.Host, u.Path, []string{u.Scheme}, cl)
+	rt.DefaultAuthentication = &admiralAuth{token: token}
+	a.c = client.New(rt, strfmt.Default)
 
 	return nil
 }
 
+type admiralAuth struct {
+	token string
+}
+
+func (a *admiralAuth) AuthenticateRequest(req runtime.ClientRequest, _ strfmt.Registry) error {
+	return req.SetHeaderParam("x-xenon-auth-token", a.token)
+}
+
 func (a *source) projects(ctx context.Context) ([]string, error) {
-	filter := fmt.Sprintf(clusterFilter, a.vchID)
-	comps, err := a.c.ResourcesCompute.GetResourcesCompute(resources_compute.NewGetResourcesComputeParamsWithContext(ctx).WithExpand(&trueStr).WithDollarFilter(&filter))
+	ids := []string{a.vchID}
+	if u, err := url.Parse(a.vchID); err == nil {
+		if u.Scheme == "" {
+			ids = append(ids, "https://"+a.vchID)
+		} else {
+			ids = append(ids, strings.TrimPrefix(a.vchID, u.Scheme))
+		}
+	}
+
+	var err error
+	var comps *resources_compute.GetResourcesComputeOK
+	for _, vchID := range ids {
+		filter := fmt.Sprintf(clusterFilter, vchID)
+		log.Debugf("getting compute resources with filter %s", filter)
+		comps, err = a.c.ResourcesCompute.GetResourcesCompute(resources_compute.NewGetResourcesComputeParamsWithContext(ctx).WithDollarFilter(&filter))
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	if comps.Payload.DocumentCount != 1 {
-		return nil, errHostNotFound
+	if comps.Payload.DocumentCount == 0 {
+		return nil, errors.Errorf("no admiral instances have host %s registered", a.vchID)
 	}
 
 	comp := &models.ComVmwarePhotonControllerModelResourcesComputeServiceComputeState{}
-	comp.UnmarshalBinary([]byte(comps.Payload.Documents[comps.Payload.DocumentLinks[0]]))
+	if err := mapstructure.Decode(comps.Payload.Documents[comps.Payload.DocumentLinks[0]], comp); err != nil {
+		return nil, err
+	}
+
 	return comp.TenantLinks, nil
 }
 
 func (a *source) whitelist(ctx context.Context, hostProjs []string) ([]string, error) {
+	// find at least one project with enable content trust
+	// that also contains the vch
 	projs, err := a.c.Projects.GetProjects(projects.NewGetProjectsParamsWithContext(ctx).WithDollarFilter(&projectsFilter))
 	if err != nil {
 		return nil, err
@@ -166,6 +214,7 @@ func (a *source) whitelist(ctx context.Context, hostProjs []string) ([]string, e
 	}
 
 	if !trust {
+		// no project with enable content trust and vch
 		return nil, nil
 	}
 
@@ -174,13 +223,15 @@ func (a *source) whitelist(ctx context.Context, hostProjs []string) ([]string, e
 		return nil, nil
 	}
 
-	wl := make([]string, regs.Payload.DocumentCount)
-	i := 0
+	var wl []string
 	for _, r := range regs.Payload.Documents {
 		m := &models.ComVmwareAdmiralServiceCommonRegistryServiceRegistryState{}
-		m.UnmarshalBinary([]byte(r))
-		wl[i] = m.Address
-		i++
+		if err := mapstructure.Decode(r, m); err != nil {
+			log.Warnf("skipping registry: %s", err)
+			continue
+		}
+
+		wl = append(wl, m.Address)
 	}
 
 	return wl, nil
@@ -190,10 +241,10 @@ type discovery interface {
 	Discover(ctx context.Context, sess *session.Session) (token string, u *url.URL, err error)
 }
 
-type ovaDiscovery struct {
+type productDiscovery struct {
 }
 
-func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (token string, u *url.URL, err error) {
+func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) (token string, u *url.URL, err error) {
 	service, err := url.Parse(sess.Service)
 	if err != nil {
 		return
@@ -208,13 +259,13 @@ func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (tok
 	var tag string
 	tag, err = findOVATag(ctx, t)
 	if err != nil {
-		err = fmt.Errorf("could not find ova tag: %s", err)
+		err = errors.Errorf("could not find ova tag: %s", err)
 		return
 	}
 
 	objs, err := t.ListAttachedObjects(ctx, tag)
 	if err != nil || len(objs) == 0 {
-		err = fmt.Errorf("could not find ova vm: %s", err)
+		err = errors.Errorf("could not find ova vm: %s", err)
 		return
 	}
 
@@ -224,9 +275,10 @@ func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (tok
 			continue
 		}
 
+		log.Debugf("%v", o)
 		v := vm.NewVirtualMachine(ctx, sess, types.ManagedObjectReference{Type: *o.Type, Value: *o.ID})
 		var values map[string]string
-		values, err = keys(ctx, v, []string{admiralEndpointKey})
+		values, err = keys(ctx, v, []string{admiralEndpointKey, admiralTokenKey})
 		if err != nil {
 			log.Debugf("keys not found in %q: %s", v, err)
 			err = nil // keys not found
@@ -234,18 +286,21 @@ func (o *ovaDiscovery) Discover(ctx context.Context, sess *session.Session) (tok
 		}
 
 		token = values[admiralTokenKey]
+		if token == "" {
+			// not a useable product installation
+			continue
+		}
+
 		u, err = url.Parse(values[admiralEndpointKey])
 		if err != nil {
 			log.Warnf("ignoring bad admiral endpoint %s: %s", values[admiralEndpointKey], err)
 			err = nil // ignore bad endpoint
 			continue
 		}
-
-		return
 	}
 
-	if u == nil {
-		err = fmt.Errorf("could not find admiral")
+	if u == nil || token == "" {
+		err = errors.Errorf("could not find admiral")
 		log.Debugf(err.Error())
 	}
 
@@ -296,7 +351,7 @@ func keys(ctx context.Context, v *vm.VirtualMachine, keys []string) (map[string]
 		}
 
 		if !found {
-			return nil, fmt.Errorf("key not found: %s", k)
+			return nil, errors.Errorf("key not found: %s", k)
 		}
 	}
 
