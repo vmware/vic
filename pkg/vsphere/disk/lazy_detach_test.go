@@ -47,9 +47,13 @@ func TestLazyDetach(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), t.Name())
 
-	_, err := guest.GetSelf(op, session)
+	vchvm, err := guest.GetSelf(op, session)
 	if err != nil {
 		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
 	}
 
 	imagestore := &object.DatastorePath{
@@ -78,7 +82,7 @@ func TestLazyDetach(t *testing.T) {
 	}()
 
 	// create a diskmanager
-	vdm, err := NewDiskManager(op, session)
+	vdm, err := NewDiskManager(op, session, view)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
@@ -230,14 +234,4 @@ func TestLazyDetach(t *testing.T) {
 		return
 	}
 	t.Logf("child detached")
-
-	// Expected outcome; 3 reconfigure operations
-	//	--- PASS: TestLazyDetach (0.68s)
-	//        lazy_detach_test.go:80: Calling reconfigure
-	//        lazy_detach_test.go:119: scratch created and attached
-	//        lazy_detach_test.go:80: Calling reconfigure
-	//        lazy_detach_test.go:154: scratch detached, child created and attached
-	//        lazy_detach_test.go:80: Calling reconfigure
-	//        lazy_detach_test.go:174: child detached
-	//	PASS
 }

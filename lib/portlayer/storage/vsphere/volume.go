@@ -53,7 +53,7 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 		return nil, err
 	}
 
-	dm, err := disk.NewDiskManager(op, s)
+	dm, err := disk.NewDiskManager(op, s, storage.Config.ContainerView)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,6 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 		op.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
-
 	return nil
 }
 
