@@ -72,7 +72,7 @@ type Archiver interface {
 	//
 	// store - the device store containing the target device
 	// id - the id for the device that is contained within the store
-	// spec - describes filters on paths found in the data (include, exclude, strip, target)
+	// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
 	// tarstream - the tar stream that is to be written to the target on the device
 	Import(op trace.Operation, store *url.URL, id string, spec *FilterSpec, tarstream io.ReadCloser) error
 }
