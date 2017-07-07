@@ -181,14 +181,20 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 
 			case common.Outbound:
 				// Reject all incoming traffic, but allow outgoing
-				netfilter.Policy(context.TODO(), netfilter.Input, netfilter.Drop)
-				netfilter.Policy(context.TODO(), netfilter.Output, netfilter.Accept)
-				netfilter.Policy(context.TODO(), netfilter.Forward, netfilter.Drop)
+				setupOutboundFirewall(ifaceName)
+
+			case common.Peers:
+				// Outbound + all ports open to source addresses in --container-network-ip-range
+				setupOutboundFirewall(ifaceName)
+				sourceAddresses := make([]string, len(endpoint.Network.Pools))
+				for i, v := range endpoint.Network.Pools {
+					sourceAddresses[i] = v.String()
+				}
 				(&netfilter.Rule{
-					Chain:     netfilter.Input,
-					States:    []netfilter.State{netfilter.Established, netfilter.Related},
-					Target:    netfilter.Accept,
-					Interface: ifaceName,
+					Chain:           netfilter.Input,
+					Target:          netfilter.Accept,
+					SourceAddresses: sourceAddresses,
+					Interface:       ifaceName,
 				}).Commit(context.TODO())
 
 			case common.Published:
@@ -220,6 +226,18 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	}
 
 	return nil
+}
+
+func setupOutboundFirewall(ifaceName string) {
+	netfilter.Policy(context.TODO(), netfilter.Input, netfilter.Drop)
+	netfilter.Policy(context.TODO(), netfilter.Output, netfilter.Accept)
+	netfilter.Policy(context.TODO(), netfilter.Forward, netfilter.Drop)
+	(&netfilter.Rule{
+		Chain:     netfilter.Input,
+		States:    []netfilter.State{netfilter.Established, netfilter.Related},
+		Target:    netfilter.Accept,
+		Interface: ifaceName,
+	}).Commit(context.TODO())
 }
 
 func generalPolicy(target netfilter.Target) {

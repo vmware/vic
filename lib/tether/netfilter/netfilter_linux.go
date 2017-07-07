@@ -89,6 +89,7 @@ type Rule struct {
 	Target
 
 	Interface        string
+	SourceAddresses  []string
 	FromPort, ToPort int
 }
 
@@ -112,6 +113,10 @@ func (r *Rule) args() ([]string, error) {
 
 	if r.Protocol != "" {
 		args = append(args, "-p", string(r.Protocol))
+	}
+
+	if len(r.SourceAddresses) > 0 {
+		args = append(args, "-s", strings.Join(r.SourceAddresses, ","))
 	}
 
 	if r.FromPort != 0 {

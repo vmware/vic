@@ -33,6 +33,7 @@ const (
 	Closed
 	Published
 	Outbound
+	Peers
 )
 
 // CNetworks holds user input from container network flags
@@ -89,7 +90,7 @@ func (c *CNetworks) CNetworkFlags(hidden bool) []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "container-network-firewall, cnf",
 			Value:  &c.ContainerNetworksFirewall,
-			Usage:  "Container network trust level. Options: Open, Closed, Published, Outbound.",
+			Usage:  "Container network trust level. Options: Open, Closed, Outbound, Peers, Published.",
 			Hidden: hidden,
 		},
 	}
@@ -165,6 +166,8 @@ func parseContainerNetworkFirewalls(cfs []string) (map[string]TrustLevel, error)
 			trust = Published
 		case "outbound":
 			trust = Outbound
+		case "peers":
+			trust = Peers
 		default:
 			return nil, fmt.Errorf("Unrecognized container trust level %s.", cf)
 		}
