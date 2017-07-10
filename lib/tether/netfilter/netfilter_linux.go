@@ -56,6 +56,7 @@ type State string
 type Protocol string
 type Target string
 type Table string
+type ICMPType string
 
 const (
 	Prerouting = Chain("PREROUTING")
@@ -69,8 +70,9 @@ const (
 	Related     = State("RELATED")
 	Untracked   = State("UNTRACKED")
 
-	TCP = Protocol("tcp")
-	UDP = Protocol("udp")
+	TCP  = Protocol("tcp")
+	UDP  = Protocol("udp")
+	ICMP = Protocol("icmp")
 
 	Drop     = Target("DROP")
 	Accept   = Target("ACCEPT")
@@ -78,12 +80,16 @@ const (
 	Redirect = Target("REDIRECT")
 
 	NAT = Table("nat")
+
+	EchoRequest = ICMPType("echo-request")
+	EchoReply   = ICMPType("echo-reply")
 )
 
 type Rule struct {
 	Table
 	Chain
 	States []State
+	ICMPType
 
 	Protocol
 	Target
@@ -113,6 +119,10 @@ func (r *Rule) args() ([]string, error) {
 
 	if r.Protocol != "" {
 		args = append(args, "-p", string(r.Protocol))
+	}
+
+	if r.ICMPType != "" {
+		args = append(args, "--icmp-type", string(r.ICMPType))
 	}
 
 	if len(r.SourceAddresses) > 0 {

@@ -29,9 +29,9 @@ import (
 type TrustLevel int
 
 const (
-	Open TrustLevel = iota
+	Published TrustLevel = iota
+	Open
 	Closed
-	Published
 	Outbound
 	Peers
 )
@@ -49,8 +49,8 @@ func (t TrustLevel) String() string {
 	case Peers:
 		return "peers"
 	}
-	log.Warningf("Unknown trust level %d. Defaulting to open.", int(t))
-	return "open"
+	log.Warningf("Unknown trust level %d. Defaulting to Published.", int(t))
+	return "published"
 }
 
 // CNetworks holds user input from container network flags
@@ -107,7 +107,7 @@ func (c *CNetworks) CNetworkFlags(hidden bool) []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "container-network-firewall, cnf",
 			Value:  &c.ContainerNetworksFirewall,
-			Usage:  "Container network trust level. Options: Open, Closed, Outbound, Peers, Published.",
+			Usage:  "Container network trust level. Options: Closed, Outbound, Peers, Published, Open.",
 			Hidden: hidden,
 		},
 	}

@@ -140,18 +140,6 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	// have raptured the pid before that.  So, best effort, just keep going.
 	_ = netfilter.Flush(context.Background(), "")
 
-	// default rule set
-	established := &netfilter.Rule{
-		Chain:  netfilter.Input,
-		States: []netfilter.State{netfilter.Established},
-		Target: netfilter.Accept,
-	}
-
-	reject := &netfilter.Rule{
-		Chain:  netfilter.Input,
-		Target: netfilter.Reject,
-	}
-
 	for _, endpoint := range config.Networks {
 		if endpoint.Network.Type == constants.ExternalScopeType {
 
@@ -196,30 +184,15 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 					SourceAddresses: sourceAddresses,
 					Interface:       ifaceName,
 				}).Commit(context.TODO())
+				allowPingTraffic(ifaceName, sourceAddresses)
 
 			case common.Published:
-				established.Interface = ifaceName
-				_ = established.Commit(context.TODO())
-				// handle the ports
-				for _, p := range endpoint.Ports {
-					// parse the port maps
-					r, err := portToRule(p)
-					if err != nil {
-						log.Errorf("can't apply port rule (%s): %s", p, err.Error())
-						continue
-					}
-
-					log.Infof("Applying rule for port %s", p)
-					r.Interface = ifaceName
-					_ = r.Commit(context.TODO())
-				}
-				reject.Interface = ifaceName
-				_ = reject.Commit(context.TODO())
+				setupPublishedFirewall(endpoint, ifaceName)
 
 			default:
-				log.Warning("Received invalid firewall configuration %v: defaulting to open.",
+				log.Warningf("Received invalid firewall configuration %v: defaulting to published.",
 					endpoint.Network.TrustLevel)
-				generalPolicy(netfilter.Accept)
+				setupPublishedFirewall(endpoint, ifaceName)
 			}
 			break
 		}
@@ -240,6 +213,25 @@ func setupOutboundFirewall(ifaceName string) {
 	}).Commit(context.TODO())
 }
 
+func setupPublishedFirewall(endpoint *tether.NetworkEndpoint, ifaceName string) {
+	setupOutboundFirewall(ifaceName)
+	allowPingTraffic(ifaceName, nil)
+
+	// handle the ports
+	for _, p := range endpoint.Ports {
+		// parse the port maps
+		r, err := portToRule(p)
+		if err != nil {
+			log.Errorf("can't apply port rule (%s): %s", p, err.Error())
+			continue
+		}
+
+		log.Infof("Applying rule for port %s", p)
+		r.Interface = ifaceName
+		_ = r.Commit(context.TODO())
+	}
+}
+
 func generalPolicy(target netfilter.Target) {
 	for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
 		err := netfilter.Policy(context.TODO(), chain, target)
@@ -247,6 +239,24 @@ func generalPolicy(target netfilter.Target) {
 			log.Errorf("Couldn't set policy rule: %v.", err)
 		}
 	}
+}
+
+func allowPingTraffic(ifaceName string, sourceAddresses []string) {
+	(&netfilter.Rule{
+		Chain:     netfilter.Input,
+		Target:    netfilter.Accept,
+		Interface: ifaceName,
+		Protocol:  netfilter.ICMP,
+		ICMPType:  netfilter.EchoRequest,
+		SourceAddresses: sourceAddresses,
+	}).Commit(context.TODO())
+	(&netfilter.Rule{
+		Chain:     netfilter.Output,
+		Target:    netfilter.Accept,
+		Protocol:  netfilter.ICMP,
+		ICMPType:  netfilter.EchoReply,
+		SourceAddresses: sourceAddresses,
+	}).Commit(context.TODO())
 }
 
 func portToRule(p string) (*netfilter.Rule, error) {
