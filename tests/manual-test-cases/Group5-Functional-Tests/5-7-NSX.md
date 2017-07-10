@@ -1,16 +1,16 @@
 Test 5-7 - NSX
 =======
 
-#Purpose:
+# Purpose:
 To verify the VIC appliance works when the vCenter is using NSX-v networking
 
-#References:
+# References:
 [1 - VMware NSX](http://www.vmware.com/products/nsx.html)
 
-#Environment:
+# Environment:
 This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter creation
 
-#Test Steps:
+# Test Steps:
 1. Deploy NSX
 	`/mts/git/bin/nimbus-vsmdeploy --nics 1 --vsmBuild ob-5007049 vic-3-nsxv-mgr`
 
@@ -28,7 +28,7 @@ This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter 
 
 6. Prepare IP of NSX Controller
    - Select one host which will create NSX controller in.
-   - Login the host via ssh, get host's network info 1). Netmask  2). Gateway. 
+   - Login the host via ssh, get host's network info 1). Netmask  2). Gateway.
      - `esxcli network ip interface ipv4 get`
 
 7. Install a NSX Controller from Networking & Security
@@ -47,11 +47,11 @@ This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter 
    - For 'VMKNic IP Addressing' field, default is 'Use DHCP', change it to 'Use IP Pool'.
    - Choose 'New IP Pool', add new ip pool info.
       - `It's recommended to define an internal IP pool in order to isolate from management network`
-      - `Example: Name → internel-vxlan-ip-pool, Gateway → 192.168.0.254, Prefix Legth → 24` 
+      - `Example: Name → internel-vxlan-ip-pool, Gateway → 192.168.0.254, Prefix Legth → 24`
       - `Static IP Pool → 192.168.0.1-192.168.0.10 (Depends on how many host this VXLAN managed, length of IP pool > num of hosts)`
    - Check VXLAN is installed on ESX (vmk1 is newly created)
    - Show the vmknic info of VXLAN from Web Client: ( Installation → Logical Network Preparation → VXLAN Transport)
-   - Check the network settings from the host 
+   - Check the network settings from the host
       - `esxcli network ip interface list`
       - `net-vdl2 -l`
    - Check vmknic created by VXLAN among all hosts are ping-able
@@ -61,16 +61,15 @@ This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter 
     - Go to Home → Networking & Security → Installation → Logical Network Preparation
     - Remain info in 'VXLAN Transport' as default
     - Go to 'Segment ID' → Edit → Add the value of 'Segment ID pool', for example '5001-50000'
-    - Go to 'Transport Zones' → Click Add → Create a Transport Zone → Add Name / Description properly, 
+    - Go to 'Transport Zones' → Click Add → Create a Transport Zone → Add Name / Description properly,
        - `Remain Replication mode as 'Unicast', Select   cluster that will be part of this Transport Zones`
 
 11. Deploy VCH Appliance to the new vCenter
 
 12. Run a variety of docker commands on the VCH appliance
 
-#Expected Outcome:
+# Expected Outcome:
 The VCH appliance should deploy without error and each of the docker commands executed against it should return without error
 
-#Possible Problems:
+# Possible Problems:
 None
-

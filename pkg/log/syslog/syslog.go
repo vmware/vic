@@ -31,6 +31,9 @@ type Priority int
 const severityMask = 0x07
 const facilityMask = 0xf8
 
+// maxLogBuffer was set to 100 but debug logging of config overflows that easily so pushing it up
+const maxLogBuffer = 500
+
 const (
 	// Severity.
 
@@ -99,8 +102,6 @@ func Dial(network, raddr string, priority Priority, tag string) (Writer, error) 
 
 	return d.dial()
 }
-
-const maxLogBuffer = 100
 
 type defaultDialer struct {
 	network, raddr, tag string

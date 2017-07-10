@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+   Copyright (c) 2016 VMware, Inc. All rights reserved.
+   
    The main plugin module class.
    This class is instantiated by the Extension framework when the plugin is loaded.
 -->

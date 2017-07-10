@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
  */
 package com.vmware.vicui.model {
    import com.vmware.core.model.DataObject;
