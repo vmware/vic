@@ -1048,6 +1048,13 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 				return err
 			}
 		}
+		// Check that ports are only opened on published network firewall configuration.
+		if len(options.Ports) > 0 && s.TrustLevel() != common.Published {
+			err = fmt.Errorf("Ports can only be published via the \"published\" container network firewall.\n%s%s.",
+				"Current firewall configuration: ", s.TrustLevel().String())
+			log.Errorln(err)
+			return err
+		}
 	}
 
 	// figure out if we need to add a new NIC

@@ -138,7 +138,11 @@ func (r *Rule) args() ([]string, error) {
 	}
 
 	if r.Interface != "" {
-		args = append(args, "-i", r.Interface)
+		if r.Chain == Output {
+			args = append(args, "-o", r.Interface)
+		} else {
+			args = append(args, "-i", r.Interface)
+		}
 	}
 
 	if r.Target == "" {

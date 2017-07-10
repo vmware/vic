@@ -139,10 +139,11 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	// calls wait and attempts to collect its child, but the reaper will
 	// have raptured the pid before that.  So, best effort, just keep going.
 	_ = netfilter.Flush(context.Background(), "")
+	configuredExternal := false
 
 	for _, endpoint := range config.Networks {
-		if endpoint.Network.Type == constants.ExternalScopeType {
-
+		if endpoint.Network.Type == constants.ExternalScopeType && !configuredExternal {
+			configuredExternal = true
 			id, err := strconv.Atoi(endpoint.ID)
 			if err != nil {
 				log.Errorf("can't apply port rules: %s", err.Error())
@@ -194,7 +195,30 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 					endpoint.Network.TrustLevel)
 				setupPublishedFirewall(endpoint, ifaceName)
 			}
-			break
+		} else if endpoint.Network.Type == constants.BridgeScopeType {
+			id, err := strconv.Atoi(endpoint.ID)
+			if err != nil {
+				log.Errorf("can't apply port rules: %s", err.Error())
+				continue
+			}
+
+			iface, err := t.LinkBySlot(int32(id))
+			if err != nil {
+				log.Errorf("can't apply rules: %s", err.Error())
+				continue
+			}
+
+			ifaceName := iface.Attrs().Name
+			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
+
+			// Accept all traffic over container bridge network.
+			for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
+				(&netfilter.Rule{
+					Chain:     chain,
+					Target:    netfilter.Accept,
+					Interface: ifaceName,
+				}).Commit(context.TODO())
+			}
 		}
 	}
 
@@ -253,6 +277,7 @@ func allowPingTraffic(ifaceName string, sourceAddresses []string) {
 	(&netfilter.Rule{
 		Chain:           netfilter.Output,
 		Target:          netfilter.Accept,
+		Interface:       ifaceName,
 		Protocol:        netfilter.ICMP,
 		ICMPType:        netfilter.EchoReply,
 		SourceAddresses: sourceAddresses,
