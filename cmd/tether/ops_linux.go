@@ -243,18 +243,18 @@ func generalPolicy(target netfilter.Target) {
 
 func allowPingTraffic(ifaceName string, sourceAddresses []string) {
 	(&netfilter.Rule{
-		Chain:     netfilter.Input,
-		Target:    netfilter.Accept,
-		Interface: ifaceName,
-		Protocol:  netfilter.ICMP,
-		ICMPType:  netfilter.EchoRequest,
+		Chain:           netfilter.Input,
+		Target:          netfilter.Accept,
+		Interface:       ifaceName,
+		Protocol:        netfilter.ICMP,
+		ICMPType:        netfilter.EchoRequest,
 		SourceAddresses: sourceAddresses,
 	}).Commit(context.TODO())
 	(&netfilter.Rule{
-		Chain:     netfilter.Output,
-		Target:    netfilter.Accept,
-		Protocol:  netfilter.ICMP,
-		ICMPType:  netfilter.EchoReply,
+		Chain:           netfilter.Output,
+		Target:          netfilter.Accept,
+		Protocol:        netfilter.ICMP,
+		ICMPType:        netfilter.EchoReply,
 		SourceAddresses: sourceAddresses,
 	}).Commit(context.TODO())
 }
