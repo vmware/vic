@@ -78,7 +78,7 @@ func (d *VirtualDiskConfig) WithCapacity(capacity int64) *VirtualDiskConfig {
 }
 
 func (d *VirtualDiskConfig) Hash() uint64 {
-	key := fmt.Sprintf("%s-%s-%s", d.DatastoreURI, d.ParentDatastoreURI, d.DiskMode)
+	key := fmt.Sprintf("%s-%s", d.DatastoreURI, d.DiskMode)
 
 	hash := fnv.New64a()
 	hash.Write([]byte(key))

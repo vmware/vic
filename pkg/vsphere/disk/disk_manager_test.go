@@ -29,10 +29,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/view"
+	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -80,6 +84,22 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 	return s
 }
 
+func ContainerView(ctx context.Context, session *session.Session, vm *object.VirtualMachine) *view.ContainerView {
+	mngr := view.NewManager(session.Vim25())
+
+	pool, err := vm.ResourcePool(ctx)
+	if err != nil {
+		return nil
+	}
+
+	// Create view of VirtualMachine objects under the VCH's resource pool
+	v, err := mngr.CreateContainerView(ctx, pool.Reference(), []string{"VirtualMachine"}, true)
+	if err != nil {
+		return nil
+	}
+	return v
+}
+
 // Create a lineage of disks inheriting from eachother, write portion of a
 // string to each, the confirm the result is the whole string
 func TestCreateAndDetach(t *testing.T) {
@@ -95,9 +115,13 @@ func TestCreateAndDetach(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), t.Name())
 
-	_, err := guest.GetSelf(op, session)
+	vchvm, err := guest.GetSelf(op, session)
 	if err != nil {
 		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
 	}
 
 	imagestore := &object.DatastorePath{
@@ -126,7 +150,7 @@ func TestCreateAndDetach(t *testing.T) {
 	}()
 
 	// create a diskmanager
-	vdm, err := NewDiskManager(op, session)
+	vdm, err := NewDiskManager(op, session, view)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
@@ -244,9 +268,13 @@ func TestRefCounting(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), t.Name())
 
-	_, err := guest.GetSelf(op, session)
+	vchvm, err := guest.GetSelf(op, session)
 	if err != nil {
 		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
 	}
 
 	imagestore := &object.DatastorePath{
@@ -275,7 +303,7 @@ func TestRefCounting(t *testing.T) {
 	}()
 
 	// create a diskmanager
-	vdm, err := NewDiskManager(op, session)
+	vdm, err := NewDiskManager(op, session, view)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
@@ -429,9 +457,13 @@ func TestRefCountingParallel(t *testing.T) {
 
 	op := trace.NewOperation(context.TODO(), t.Name())
 
-	_, err := guest.GetSelf(op, session)
+	vchvm, err := guest.GetSelf(op, session)
 	if err != nil {
 		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
 	}
 
 	imagestore := &object.DatastorePath{
@@ -460,7 +492,7 @@ func TestRefCountingParallel(t *testing.T) {
 	}()
 
 	// create a diskmanager
-	vdm, err := NewDiskManager(op, session)
+	vdm, err := NewDiskManager(op, session, view)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
@@ -527,4 +559,179 @@ func TestRefCountingParallel(t *testing.T) {
 	assert.Error(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
 	assert.EqualValues(t, 0, d.attachedRefs.Count(), "%s has %d attach references but should have 0", d.DatastoreURI, d.attachedRefs.Count())
+}
+
+func TestInUse(t *testing.T) {
+	log.SetLevel(log.InfoLevel)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	session := Session(context.Background(), t)
+	if session == nil {
+		return
+	}
+
+	op := trace.NewOperation(context.TODO(), t.Name())
+
+	vchvm, err := guest.GetSelf(op, session)
+	if err != nil {
+		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
+	}
+
+	imagestore := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      datastore.TestName(t.Name()),
+	}
+
+	// file manager
+	fm := object.NewFileManager(session.Vim25())
+	// create a directory in the datastore
+	err = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	// create a diskmanager
+	vdm, err := NewDiskManager(op, session, view)
+	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
+		return
+	}
+
+	// helper fn
+	reconfigure := func(changes []types.BaseVirtualDeviceConfigSpec) error {
+		t.Logf("Calling reconfigure")
+
+		machineSpec := types.VirtualMachineConfigSpec{}
+		machineSpec.DeviceChange = changes
+
+		_, err := vdm.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+			t, er := vdm.vm.Reconfigure(ctx, machineSpec)
+
+			if t != nil {
+				op.Debugf("reconfigure task=%s", t.Reference())
+			}
+
+			return t, er
+		})
+		return err
+	}
+	// 1MB
+	diskSize := int64(1 << 10)
+	scratch := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
+	}
+	// config
+	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
+
+	// attach + create spec (scratch)
+	spec := []types.BaseVirtualDeviceConfigSpec{
+		&types.VirtualDeviceConfigSpec{
+			Device:        vdm.toSpec(config),
+			Operation:     types.VirtualDeviceConfigSpecOperationAdd,
+			FileOperation: types.VirtualDeviceConfigSpecFileOperationCreate,
+		},
+	}
+
+	// filter powered off vms
+	filter := func(vm *mo.VirtualMachine) bool {
+		return vm.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOn
+	}
+
+	vms, err := vdm.InUse(op, config, filter)
+	if !assert.NoError(t, err) && !assert.Len(t, vms, 0) {
+		return
+	}
+
+	// reconfigure
+	err = reconfigure(spec)
+	if !assert.NoError(t, err) {
+		return
+	}
+	t.Logf("scratch created and attached")
+
+	vms, err = vdm.InUse(op, config, filter)
+	if !assert.NoError(t, err) && !assert.Len(t, vms, 1) {
+		return
+	}
+	t.Logf("InUse by %s", vms)
+
+	// ref to scratch (needed for detach as initial spec's Key and UnitNumber was unset)
+	disk, err := findDiskByFilename(op, vdm.vm, scratch.Path)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// DO NOT DETACH AND START WORKING ON THE CHILD
+
+	// child
+	child := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "child.vmdk"),
+	}
+	// config
+	config = NewPersistentDisk(child).WithParent(scratch)
+
+	// detach (scratch) AND attach + create (child) spec
+	spec = []types.BaseVirtualDeviceConfigSpec{
+		&types.VirtualDeviceConfigSpec{
+			Device:    disk,
+			Operation: types.VirtualDeviceConfigSpecOperationRemove,
+		},
+		&types.VirtualDeviceConfigSpec{
+			Device:        vdm.toSpec(config),
+			Operation:     types.VirtualDeviceConfigSpecOperationAdd,
+			FileOperation: types.VirtualDeviceConfigSpecFileOperationCreate,
+		},
+	}
+
+	// reconfigure
+	err = reconfigure(spec)
+	if !assert.NoError(t, err) {
+		return
+	}
+	t.Logf("scratch detached, child created and attached")
+
+	vms, err = vdm.InUse(op, config, filter)
+	if !assert.NoError(t, err) && !assert.Len(t, vms, 1) {
+		return
+	}
+	t.Logf("InUse by %s", vms)
+
+	// ref to child (needed for detach as initial spec's Key and UnitNumber was unset)
+	disk, err = findDiskByFilename(op, vdm.vm, child.Path)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// detach  spec (child)
+	spec = []types.BaseVirtualDeviceConfigSpec{
+		&types.VirtualDeviceConfigSpec{
+			Device:    disk,
+			Operation: types.VirtualDeviceConfigSpecOperationRemove,
+		},
+	}
+	// reconfigure
+	err = reconfigure(spec)
+	if !assert.NoError(t, err) {
+		return
+	}
+	t.Logf("child detached")
 }

@@ -79,7 +79,7 @@ type ImageStore struct {
 }
 
 func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
-	dm, err := disk.NewDiskManager(op, s)
+	dm, err := disk.NewDiskManager(op, s, portlayer.Config.ContainerView)
 	if err != nil {
 		return nil, err
 	}
