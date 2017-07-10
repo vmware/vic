@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -139,6 +139,21 @@ get_comparable_ver() {
     echo $raw | awk -F. '{print $1 * 100 + $2 * 10 + $3}'
 }
 
+should_show_version_warning() {
+    local existing=$1
+    local new=$2
+    local buildnum_1=$(echo $existing | awk -F. '{print $4}')
+    local buildnum_2=$(echo $new | awk -F. '{print $4}')
+    local versionint_1=$(get_comparable_ver $existing)
+    local versionint_2=$(get_comparable_ver $new)
+    # compare by build number if both have it
+    if [ ! -z "$(echo "$buildnum_1 $buildnum_2" | grep -oi "[[:digit:]]\{1,\}[[:space:]][[:digit:]]\{1,\}")" ] ; then
+        echo $[$buildnum_1 - $buildnum_2]
+    else
+        echo $[$versionint_1 - $versionint_2]
+    fi
+}
+
 check_existing_plugins() {
     echo ""
     echo "-------------------------------------------------------------"
@@ -161,8 +176,9 @@ check_existing_plugins() {
         exit 1
     fi
 
-    local h5c_plugin_version=$(echo $check_h5c | grep -oi "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")
-    local flex_plugin_version=$(echo $check_flex | grep -oi "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")
+    local pattern="\([[:digit:]]\.\)\{2\}[[:digit:]]\(\.[[:digit:]]\{1,\}\)\{0,1\}"
+    local h5c_plugin_version=$(echo $check_h5c | grep -oi "$pattern")
+    local flex_plugin_version=$(echo $check_flex | grep -oi "$pattern")
     local existing_version=""
 
     if [[ -z $(echo $h5c_plugin_version$flex_plugin_version) ]] ; then
@@ -182,7 +198,7 @@ check_existing_plugins() {
         fi
 
         echo "The version you are about to install is '$version'."
-        if [[ $(get_comparable_ver $existing_version) -ge $(get_comparable_ver $version) ]] ; then
+        if [[ $(should_show_version_warning $existing_version $version) -ge 0 ]] ; then
             echo ""
             echo "You are trying to install plugins of an older or same version. For changes to take effect,"
             echo "please restart the vSphere Web Client and vSphere Client services after upgrade is completed"
