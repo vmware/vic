@@ -41,9 +41,8 @@ const (
 // - strip : The strip string will indicate the
 // - exlude : marks paths that are to be excluded from the write operation
 // - rebase : marks the the write path that will be tacked onto the "unpackPath". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
-func Unpack(op trace.Operation, tarStream io.ReadCloser, filter *FilterSpec, unpackPath string) error {
+func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, unpackPath string) error {
 	// the tar stream should be wrapped up at the end of this call
-	defer tarStream.Close()
 	tr := tar.NewReader(tarStream)
 
 	strip := filter.StripPath

@@ -16,6 +16,7 @@ package archive
 
 import (
 	"archive/tar"
+	"bytes"
 	"context"
 	"io/ioutil"
 	"os"
@@ -60,7 +61,7 @@ func TestSimpleWrite(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -118,11 +119,11 @@ func TestSimpleWriteSymLink(t *testing.T) {
 
 	filesToWrite := prepareTarFileSlice()
 
-	symLinks := []tarFile{}
+	symLinks := []TarFile{}
 	// assemble standard file symlink
 	symlinkName := filepath.Join(path1dir1, "link1")
 	symlinkBody := filepath.Join("../", l1file1)
-	symLink := tarFile{
+	symLink := TarFile{
 		Name: symlinkName,
 		Type: tar.TypeSymlink,
 		Body: symlinkBody,
@@ -132,7 +133,7 @@ func TestSimpleWriteSymLink(t *testing.T) {
 	// assemble broken symlink
 	brokenlinkName := filepath.Join(path1dir1, "BrokenSymLink")
 	brokenlinkBody := filepath.Join("../DOES_NOT_EXIST")
-	brokenLink := tarFile{
+	brokenLink := TarFile{
 		Name: brokenlinkName,
 		Type: tar.TypeSymlink,
 		Body: brokenlinkBody,
@@ -141,7 +142,7 @@ func TestSimpleWriteSymLink(t *testing.T) {
 
 	dirlinkName := filepath.Join(path1dir1, "DirSymLink")
 	dirlinkBody := filepath.Join("../", path1dir1)
-	dirLink := tarFile{
+	dirLink := TarFile{
 		Name: dirlinkName,
 		Type: tar.TypeSymlink,
 		Body: dirlinkBody,
@@ -150,7 +151,7 @@ func TestSimpleWriteSymLink(t *testing.T) {
 	op.Infof("Assembled list of test symlinks : (%s)", symLinks)
 	filesToWrite = append(filesToWrite, symLinks...)
 
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -209,11 +210,11 @@ func TestSimpleWriteSymLinkNonRootTarget(t *testing.T) {
 
 	filesToWrite := prepareTarFileSlice()
 
-	symLinks := []tarFile{}
+	symLinks := []TarFile{}
 	// assemble standard file symlink
 	symlinkName := filepath.Join(path1dir1, "link1")
 	symlinkBody := filepath.Join("../", l1file1)
-	symLink := tarFile{
+	symLink := TarFile{
 		Name: symlinkName,
 		Type: tar.TypeSymlink,
 		Body: symlinkBody,
@@ -223,7 +224,7 @@ func TestSimpleWriteSymLinkNonRootTarget(t *testing.T) {
 	// assemble broken symlink
 	brokenlinkName := filepath.Join(path1dir1, "BrokenSymLink")
 	brokenlinkBody := filepath.Join("../DOES_NOT_EXIST")
-	brokenLink := tarFile{
+	brokenLink := TarFile{
 		Name: brokenlinkName,
 		Type: tar.TypeSymlink,
 		Body: brokenlinkBody,
@@ -232,7 +233,7 @@ func TestSimpleWriteSymLinkNonRootTarget(t *testing.T) {
 
 	dirlinkName := filepath.Join(path1dir1, "DirSymLink")
 	dirlinkBody := filepath.Join("../", path1dir1)
-	dirLink := tarFile{
+	dirLink := TarFile{
 		Name: dirlinkName,
 		Type: tar.TypeSymlink,
 		Body: dirlinkBody,
@@ -241,7 +242,7 @@ func TestSimpleWriteSymLinkNonRootTarget(t *testing.T) {
 	op.Infof("Assembled list of test symlinks : (%s)", symLinks)
 	filesToWrite = append(filesToWrite, symLinks...)
 
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -295,7 +296,7 @@ func TestSimpleWriteNonRootTarget(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -345,7 +346,7 @@ func TestSimpleExclusion(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -424,7 +425,7 @@ func TestInclusionAfterExclusion(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -509,7 +510,7 @@ func TestMultiExclusion(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -592,7 +593,7 @@ func TestMultiExclusionMultiInclusion(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -676,7 +677,7 @@ func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -770,7 +771,7 @@ func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
-	tarBytes, err := tarFiles(filesToWrite)
+	tarBytes, err := TarFiles(filesToWrite)
 
 	if !assert.NoError(t, err) {
 		return
@@ -860,7 +861,7 @@ func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
 
 }
 
-func prepareTarFileSlice() []tarFile {
+func prepareTarFileSlice() []TarFile {
 
 	defaultTestFileBody := "There is not a single vacant room throughout the entire infinite hotel."
 
@@ -883,7 +884,7 @@ func prepareTarFileSlice() []tarFile {
 	//     └── path2dir3
 
 	// This is an assembled default file structure to imitate an incoming tar stream
-	filesToWrite := []tarFile{
+	filesToWrite := []TarFile{
 		// level 1 directories
 		{
 			Name: path1dir1,
@@ -965,4 +966,70 @@ func prepareTarFileSlice() []tarFile {
 	}
 
 	return filesToWrite
+}
+
+// Below are some structs and utility functions for unit testing the untar functionality
+
+type TarFile struct {
+	Name string
+	Type byte
+	Body string
+}
+
+func TarFiles(files []TarFile) (*bytes.Buffer, error) {
+	// Create a buffer to write our archive to.
+	buf := new(bytes.Buffer)
+
+	// Create a new tar archive.
+	tw := tar.NewWriter(buf)
+
+	// Write data to the tar as if it came from the hub
+	for _, file := range files {
+
+		var hdr *tar.Header
+
+		switch file.Type {
+		case tar.TypeDir:
+			hdr = &tar.Header{
+				Name:     file.Name,
+				Mode:     0777,
+				Typeflag: file.Type,
+				Size:     0,
+			}
+		case tar.TypeSymlink:
+			hdr = &tar.Header{
+				Name:     file.Name,
+				Mode:     0777,
+				Typeflag: file.Type,
+				Size:     0,
+				Linkname: file.Body,
+			}
+		default:
+			hdr = &tar.Header{
+				Name:     file.Name,
+				Mode:     0777,
+				Typeflag: file.Type,
+				Size:     int64(len(file.Body)),
+			}
+		}
+
+		if err := tw.WriteHeader(hdr); err != nil {
+			return nil, err
+		}
+
+		if file.Type == tar.TypeDir || file.Type == tar.TypeSymlink {
+			continue
+		}
+
+		if _, err := tw.Write([]byte(file.Body)); err != nil {
+			return nil, err
+		}
+	}
+
+	// Make sure to check the error on Close.
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf, nil
 }
