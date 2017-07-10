@@ -30,7 +30,7 @@ Create test containers
     Should Be Equal As Integers  ${rc}  0
     Set Environment Variable  CREATOR  ${output}
 
-#*** Test Cases ***
+*** Test Cases ***
 Restart Running Container
     Create test containers
     # grab the containerVM ip address - will compare after restart to ensure it remains the same
@@ -84,7 +84,7 @@ Restart Stopped Container
     ${rc}  ${restartIP}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' %{RUNNER}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${originalIP}  ${restartIP}
-*** Test Cases ***
+
 Restart with start-stop stress
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit ${busybox}
