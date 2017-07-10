@@ -184,8 +184,8 @@ This test requires that a vSphere server is running and available
 ## Container Firewalls
 1. Create an open container and verify another open container can connect to it on arbitrary ports.
 2. Create a closed container and verify an open container cannot connect to it on an arbitrary port.
-3. a. Create an outbound container. Verify first that a container on the bridge cannot connect to the 
-      outbound container. 
+3. a. Create an outbound container. Verify that an outbound container on the same external network cannot 
+      connect to the first outbound container.
    b. Verify that the outbound container can initiate a connection with an open network on an arbitrary port.
 4. a. Create a published container that publishes port 1337. Verify that an outbound container can connect to port
       1337 on the published container.

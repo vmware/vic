@@ -460,12 +460,12 @@ Container Firewalls
     ### OUTBOUND FIREWALL ###
     Log To Console  Checking Outbound Firewall
     # Create an outbound-only container listening on port 1234.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=closed-net --name p3 ${busybox} nc -l -p 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=outbound-net --name p3 ${busybox} nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p3
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound ${busybox} nc ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
     # The connection should not be established. However, an outbound network should be able to connect to an open network.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=open-net --name p4 ${busybox} nc -l -p 1234
