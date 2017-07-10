@@ -58,8 +58,12 @@ This test requires that a vSphere server is running and available
 45. Issue docker exec online ls /vol1 to the new VIC appliance to verify the copy operation succeeded
 46. Issue docker cp offline:/vol1 . to the new VIC appliance
 47. Verify the vol1 directory is copied over successfully
-48. Issue docker rm -f online and docker rm -f offline to the new VIC appliance to clean up the containers
-49. Clean up current working directory
+48. Issue docker rm -f offline to the new VIC appliance to clean up the offline container
+49. Create a 4mb file with all zeros
+50. Issue docker cp ${CURDIR}/largefile.txt online:/vol1/ to the new VIC appliance
+51. Issue docker exec online ls -l /vol1/ to the new VIC appliance to verify the copy operation succeeded and the file size remain the same
+52. Issue docker cp rm -f online to the new VIC appliance to clean up the online container
+53. Clean up current working directory
 
 # Expected Outcome:
 * Step 2-7 should all succeed
@@ -69,8 +73,8 @@ This test requires that a vSphere server is running and available
 * Step 24-32 should all succeed
 * Step 33-40 should all succeed
 * Step 41-45 should all succeed
-* Step 46-49 should all succeed
-
+* Step 46-48 should all succeed
+* Step 49-53 should all succeed
 
 # Possible Problems:
 Step 41-48 won't succeed until we have guest tool support for disk label

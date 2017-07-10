@@ -13,7 +13,7 @@
 # limitations under the License
 
 *** Settings ***
-Documentation  Test 1-41 - Docker CP
+Documentation  Test 1-43 - Docker CP
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
@@ -202,14 +202,25 @@ Copy a directory from offline container to host, dst is a volume shared with an 
     Directory Should Exist  ${CURDIR}/vol1/vol2
     File Should Exist  ${CURDIR}/vol1/foo.txt
     File Should Exist  ${CURDIR}/vol1/content
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-#Need to generate large file and copy to container
+Copy a large file to an online container, dst is a volume
+    ${output}=  Run  dd if=/dev/zero of=${CURDIR}/largefile.txt count=4096 bs=1024
+    Should Contain  ${output}  4194304 bytes
+    File Should Exist  ${CURDIR}/largefile.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt online:/vol1/
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls -l /vol1/
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  4194304
+    Should Contain  ${output}  largefile.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Clean up current directory
     Remove File  ${CURDIR}/foo.txt
