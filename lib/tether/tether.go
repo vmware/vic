@@ -78,6 +78,9 @@ type tether struct {
 	cancel context.CancelFunc
 
 	incoming chan os.Signal
+
+	// syslog writer shared by all sessions
+	writer syslog.Writer
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
@@ -608,8 +611,6 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 }
 
 func (t *tether) loggingLocked(session *SessionConfig) error {
-	var writer syslog.Writer
-
 	stdout, stderr, err := t.ops.SessionLog(session)
 	if err != nil {
 		detail := fmt.Errorf("failed to get log writer for session: %s", err)
@@ -624,14 +625,14 @@ func (t *tether) loggingLocked(session *SessionConfig) error {
 	if session.Diagnostics.SysLogConfig != nil {
 		cfg := session.Diagnostics.SysLogConfig
 		var w syslog.Writer
-		if writer == nil {
-			writer, err = syslog.Dial(cfg.Network, cfg.RAddr, syslog.Info|syslog.Daemon, fmt.Sprintf("%s", t.config.ID[:shortLen]))
+		if t.writer == nil {
+			t.writer, err = syslog.Dial(cfg.Network, cfg.RAddr, syslog.Info|syslog.Daemon, fmt.Sprintf("%s", t.config.ID[:shortLen]))
 			if err != nil {
 				log.Warnf("could not connect to syslog server: %s", err)
 			}
-			w = writer
+			w = t.writer
 		} else {
-			w = writer.WithTag(fmt.Sprintf("%s", t.config.ID[:shortLen]))
+			w = t.writer.WithTag(fmt.Sprintf("%s", t.config.ID[:shortLen]))
 		}
 
 		if w != nil {
