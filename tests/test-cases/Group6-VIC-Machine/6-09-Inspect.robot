@@ -105,6 +105,26 @@ Inspect VCH Configuration with Resource Limitation
 
     Cleanup VIC Appliance On Test Server
 
+Inspect VCH Configuration with Container Networks
+
+    ${out}=  Run  govc host.portgroup.remove published-net
+    ${out}=  Run  govc host.portgroup.remove peers-net
+
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN published-net
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net 
+
+    Install VIC Appliance To Test Server  additional-args=-cn published-net -cn peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --format raw
+
+    Should Contain  ${output}  --container-network=published-net:published-net
+    Should Contain  ${output}  --container-network-firewall=published-net:published
+    Should Contain  ${output}  --container-network=peers-net:peers-net
+    Should Contain  ${output}  --container-network-gateway=peers-net:10.10.10.1/24
+    Should Contain  ${output}  --container-network-ip-range=peers-net:10.10.10.0/24
+    Should Contain  ${output}  --container-network-firewall:peers-net:peers
+    Should Be Equal As Integers  0  ${rc}
+
 Verify inspect output for a full tls VCH
     Install VIC Appliance To Test Server
 
