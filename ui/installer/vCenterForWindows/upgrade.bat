@@ -1,5 +1,5 @@
 @ECHO OFF
-REM Copyright 2016 VMware, Inc. All Rights Reserved.
+REM Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 REM
 REM Licensed under the Apache License, Version 2.0 (the "License");
 REM you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@ REM limitations under the License.
 
 SETLOCAL ENABLEEXTENSIONS
 SETLOCAL DISABLEDELAYEDEXPANSION
+SETLOCAL
 
 SET me=%~n0
 SET parent=%~dp0
@@ -28,6 +29,7 @@ FOR /F "tokens=*" %%A IN (configs) DO (
 IF NOT EXIST configs (
     ECHO -------------------------------------------------------------
     ECHO Error! Configs file is missing. Please try downloading the VIC UI installer again
+    ENDLOCAL
     EXIT /b 1
 )
 
@@ -84,6 +86,7 @@ IF %ERRORLEVEL% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 
@@ -116,6 +119,7 @@ IF %ERRORLEVEL% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 REM check if plugin (h5c) is not registered
@@ -138,6 +142,7 @@ IF %ERRORLEVEL% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 REM check if plugin (flex) is not registered
@@ -158,13 +163,21 @@ IF %plugins_installed% EQU 0 (
 ) ELSE (
     ECHO The version you are about to install is '%version:"=%'.
     SETLOCAL ENABLEDELAYEDEXPANSION
-    FOR /F "usebackq tokens=1,2,3 delims=." %%m IN ('%version:"=%') DO (
+    FOR /F "usebackq tokens=1,2,3,4 delims=." %%m IN ('%version:"=%') DO (
+        SET new_plugin_build=%%p
         SET /A "new_plugin_ver=%%m*100+%%n*10+%%o"
     )
-    FOR /F "usebackq tokens=1,2,3 delims=." %%m IN ('%old_plugin_ver%') DO (
+    FOR /F "usebackq tokens=1,2,3,4 delims=." %%m IN ('%old_plugin_ver%') DO (
+        SET old_plugin_build=%%p
         SET /A "old_plugin_ver=%%m*100+%%n*10+%%o"
     )
-    IF !new_plugin_ver! LEQ !old_plugin_ver! (
+
+    IF NOT "!new_plugin_build!"=="" IF NOT "!old_plugin_build!"=="" SET /A "version_comparison=!old_plugin_build!-!new_plugin_build!"
+    IF [!version_comparison!]==[] (
+        SET /A "version_comparison=!old_plugin_ver!-!new_plugin_ver!"
+    )
+
+    IF !version_comparison! GEQ 0 (
         ECHO.
         ECHO You are trying to install plugins of an older or same version. For changes to take effect,
         ECHO please restart the vSphere Web Client and vSphere Client services after upgrade is completed
@@ -184,6 +197,7 @@ IF /I [%accept_install%] == [no] (
     ECHO -------------------------------------------------------------
     ECHO Error! Upgrade was cancelled by user
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 ECHO Please answer either "yes" or "no"
@@ -198,6 +212,7 @@ IF /I [%accept_install%] == [no] (
     ECHO -------------------------------------------------------------
     ECHO Error! Upgrade was cancelled by user
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 ECHO Please answer either "yes" or "no"
@@ -216,6 +231,7 @@ IF %ERRORLEVEL% NEQ 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 ECHO.
@@ -228,6 +244,7 @@ IF %ERRORLEVEL% NEQ 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 GOTO end
@@ -236,3 +253,4 @@ GOTO end
 DEL scratch*.tmp 2>NUL
 ECHO --------------------------------------------------------------
 ECHO VIC Engine UI upgrader exited successfully
+ENDLOCAL

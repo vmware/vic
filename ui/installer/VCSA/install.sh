@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2017 VMware, Inc. All Rights Reserved.
+# Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -177,8 +177,9 @@ parse_and_register_plugins () {
         exit 1
     fi
 
-    local h5c_plugin_version=$(echo $check_h5c | grep -oi "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")
-    local flex_plugin_version=$(echo $check_flex | grep -oi "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")
+    local pattern="\([[:digit:]]\.\)\{2\}[[:digit:]]\(\.[[:digit:]]\{1,\}\)\{0,1\}"
+    local h5c_plugin_version=$(echo $check_h5c | grep -oi "$pattern")
+    local flex_plugin_version=$(echo $check_flex | grep -oi "$pattern")
     local existing_version=""
 
     if [[ -z $(echo $h5c_plugin_version$flex_plugin_version) ]] ; then

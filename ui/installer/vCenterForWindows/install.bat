@@ -1,5 +1,5 @@
 @ECHO OFF
-REM Copyright 2016 VMware, Inc. All Rights Reserved.
+REM Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 REM
 REM Licensed under the Apache License, Version 2.0 (the "License");
 REM you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@ REM limitations under the License.
 
 SETLOCAL ENABLEEXTENSIONS
 SETLOCAL DISABLEDELAYEDEXPANSION
+SETLOCAL
 
 SET me=%~n0
 SET parent=%~dp0
@@ -28,6 +29,7 @@ FOR /F "tokens=*" %%A IN (configs) DO (
 IF NOT EXIST configs (
     ECHO -------------------------------------------------------------
     ECHO Error! Configs file is missing. Please try downloading the VIC UI installer again
+    ENDLOCAL
     EXIT /b 1
 )
 
@@ -90,6 +92,7 @@ IF %ERRORLEVEL% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 
@@ -130,6 +133,7 @@ IF %ERRORLEVEL% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 REM check if plugin (h5c) is not registered
@@ -152,6 +156,7 @@ IF %ERRORLEVEL% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 REM check if plugin (flex) is not registered
@@ -171,6 +176,7 @@ IF %can_install_continue% EQU 0 (
     ECHO Error! At least one plugin is already registered with the target VC.
     ECHO Run upgrade.bat, or install.bat --force instead.
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 ECHO No VIC Engine UI plugin was detected. Continuing to install the plugins.
@@ -192,6 +198,7 @@ IF %ERRORLEVEL% NEQ 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 ECHO.
@@ -207,6 +214,7 @@ IF %ERRORLEVEL% NEQ 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! Could not register plugin with vCenter Server. Please see the message above
     DEL scratch*.tmp 2>NUL
+    ENDLOCAL
     EXIT /b 1
 )
 GOTO end
@@ -215,3 +223,4 @@ GOTO end
 DEL scratch*.tmp 2>NUL
 ECHO --------------------------------------------------------------
 ECHO VIC Engine UI installer exited successfully
+ENDLOCAL
