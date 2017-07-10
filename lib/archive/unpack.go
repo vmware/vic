@@ -74,6 +74,8 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, unpackP
 			break
 		}
 		if err != nil {
+			// it is likely in this case that we were not given a legitimate tar stream
+			op.Debugf("Received error (%s) when attempting a tar read operation on target stream", err)
 			return err
 		}
 

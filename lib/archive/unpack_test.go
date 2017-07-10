@@ -57,6 +57,38 @@ var (
 	l3file2 = filepath.Join(path2dir2, "file1")
 )
 
+func TestInvalidStream(t *testing.T) {
+	op := trace.NewOperation(context.TODO(), "")
+
+	// assemble an invalid stream
+	var invalidBuffer *bytes.Buffer
+	invalidBuffer = bytes.NewBufferString("I am not a tar stream, I am just a simple string.")
+	tarStream := bytes.NewReader(invalidBuffer.Bytes())
+
+	tempPath, err := ioutil.TempDir("", "write-unit-test")
+	// just in case this test fails and attempts to write to the filesystem
+	defer os.RemoveAll(tempPath)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	op.Infof("%s", tempPath)
+
+	writetarget := "/"
+	specMap := make(map[string]FilterType)
+	specMap[writetarget] = Rebase
+
+	filterSpec, err := CreateFilterSpec(op, specMap)
+	if !assert.NoError(t, err) {
+		return
+	}
+	err = Unpack(op, tarStream, filterSpec, tempPath)
+
+	if !assert.Error(t, err) {
+		return
+	}
+}
+
 func TestSimpleWrite(t *testing.T) {
 	op := trace.NewOperation(context.TODO(), "")
 
