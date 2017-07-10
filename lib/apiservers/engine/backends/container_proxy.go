@@ -41,6 +41,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -103,6 +104,7 @@ type VicContainerProxy interface {
 
 	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
 	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error)
+	StatPath(ctx context.Context, sotre, deviceID, path string) (*types.ContainerPathStat, error)
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
@@ -153,6 +155,7 @@ const (
 	swaggerSubstringEOF                 = "EOF"
 	forceLogType                        = "json-file" //Use in inspect to allow docker logs to work
 	ShortIDLen                          = 12
+	archiveStreamBufSize                = 64 * 1024
 
 	DriverArgFlagKey      = "flags"
 	DriverArgContainerKey = "container"
@@ -713,12 +716,9 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 	go func() {
 		defer close(done)
 
-		params := storage.NewExportArchiveParamsWithContext(ctx).
-			WithStore(store).
-			WithAncestorStore(&ancestorStore).
-			WithDeviceID(deviceID).
-			WithAncestor(&ancestor).
-			WithData(data)
+		WithAncestor(&ancestor).
+			WithData(data).
+			WithFilterSpec(encodedFilter)
 
 		// Encode the filter spec
 		encodedFilter := ""
@@ -750,8 +750,6 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 					pipeWriter.CloseWithError(err)
 				}
 			}
-		} else {
-			pipeWriter.Close()
 		}
 	}()
 
@@ -840,6 +838,39 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 	}()
 
 	return pipeWriter, nil
+}
+
+// StatPath requests the portlayer to stat the filesystem resource at the
+// specified path in the container vc.
+func (c *ContainerProxy) StatPath(ctx context.Context, store, deviceID, path string) (*types.ContainerPathStat, error) {
+	defer trace.End(trace.Begin(deviceID))
+
+	statPathParams := storage.
+		NewStatPathParamsWithContext(ctx).
+		WithStore(store).
+		WithDeviceID(deviceID).
+		WithTargetPath(path)
+	statPathOk, err := c.client.Storage.StatPath(statPathParams)
+	if err != nil {
+		log.Errorf(err.Error())
+		return nil, InternalServerError(err.Error())
+	}
+
+	stat := &types.ContainerPathStat{
+		Name:       statPathOk.Name,
+		Mode:       os.FileMode(statPathOk.Mode),
+		Size:       statPathOk.Size,
+		LinkTarget: statPathOk.LinkTarget,
+	}
+
+	var modTime time.Time
+	if err := modTime.GobDecode([]byte(statPathOk.ModTime)); err != nil {
+		log.Debugf("error getting mod time from statpath: %s", err.Error())
+	} else {
+		stat.Mtime = modTime
+	}
+
+	return stat, nil
 }
 
 // Stop will stop (shutdown) a VIC container.
@@ -1103,8 +1134,10 @@ func (c *ContainerProxy) createGzipTarClient(connectTimeout, responseTimeout, re
 
 	plClient := client.New(r, nil)
 	bsc := runtime.ByteStreamConsumer()
+	bsp := runtime.ByteStreamProducer()
+
 	r.Consumers["application/octet-stream"] = bsc
-	r.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
+	r.Producers["application/octet-stream"] = bsp
 
 	r.Consumers["application/x-gzip"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
 		gzReader, err := gzip.NewReader(tar.NewReader(rdr))
@@ -1113,9 +1146,18 @@ func (c *ContainerProxy) createGzipTarClient(connectTimeout, responseTimeout, re
 		}
 		return bsc.Consume(gzReader, data)
 	})
-	r.Consumers["application/x-tar"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
-		return bsc.Consume(tar.NewReader(rdr), data)
+	r.Producers["application/x-gzip"] = runtime.ProducerFunc(func(wtr io.Writer, data interface{}) error {
+		gzWriter := gzip.NewWriter(tar.NewWriter(wtr))
+		return bsp.Produce(gzWriter, data)
 	})
+
+	r.Consumers["application/x-tar"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
+		return bsc.Consume(rdr, data)
+	})
+	r.Producers["application/x-tar"] = runtime.ProducerFunc(func(wtr io.Writer, data interface{}) error {
+		return bsp.Produce(wtr, data)
+	})
+
 	return plClient, transport
 }
 
@@ -1722,7 +1764,7 @@ func mountsFromContainer(vc *viccontainer.VicContainer) []types.MountPoint {
 	for _, vol := range volList {
 		mountConfig := types.MountPoint{
 			Type:        mount.TypeVolume,
-			Driver:      DefaultVolumeDriver,
+			Driver:      "vsphere",
 			Name:        vol.ID,
 			Source:      vol.ID,
 			Destination: vol.Dest,
@@ -2159,3 +2201,19 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 }
 
 // End
+
+//------------------------------------
+// Stream Archive Utility Functions
+//------------------------------------
+
+// PackCopyArchive packs a filespec map and the contents of an archive tar
+// into a new tar and returns a reader for it.
+func packCopyArchive(pathspec map[string]string, archiveReader io.Reader) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// unpackCopyArchive unpacks a copy archive into a filespec map and a reader
+// that the caller can use to read the actual tar archive.
+func unpackCopyArchive(packedArchiveReader io.Reader) (io.Reader, error) {
+	return nil, nil
+}

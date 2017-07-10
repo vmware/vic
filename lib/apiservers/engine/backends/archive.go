@@ -22,13 +22,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/tchap/go-patricia/patricia"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
@@ -46,28 +46,16 @@ const (
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
 func (c *Container) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	err = fmt.Errorf("%s does not yet implement ContainerArchivePath", ProductName())
+	filterSpec := vicarchive.FilterSpec{}
+	filterSpec.RebasePath = path
 
-	// defer trace.End(trace.Begin(name))
+	reader, err := c.containerProxy.ArchiveExportReader(context.Background(), "guesttools", "", vc.ContainerID, "", true, filterSpec)
+	if err != nil {
+		log.Errorf("Errors getting reader for export: %s", err.Error())
+		return nil, err
+	}
 
-	// vc := cache.ContainerCache().GetContainer(name)
-	// if vc == nil {
-	// 	return nil, nil, NotFoundError(name)
-	// }
-
-	// var reader io.ReadCloser
-
-	// reader, err = c.exportFromContainer(vc, path)
-	// if err != nil && IsResourceInUse(err) {
-	// 	log.Errorf("ContainerArchivePath failed, resource in use: %s", err.Error())
-	// 	err = fmt.Errorf("Resource in use")
-	// }
-	// if err == nil || reader != nil {
-	// 	content = reader
-	// }
-	// stat = nil
-
-	return
+	return ioutil.NopCloser(reader), nil
 }
 
 func (c *Container) exportFromContainer(vc *viccontainer.VicContainer, path string) (io.ReadCloser, error) {
@@ -107,23 +95,38 @@ func (c *Container) ContainerExport(name string, out io.Writer) error {
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	err := fmt.Errorf("%s does not yet implement ContainerExtractToDir", ProductName())
+	// gZip the tar for use in guest tools upload
+	filterSpec := vicarchive.FilterSpec{}
+	filterSpec.RebasePath = path
 
-	// defer trace.End(trace.Begin(name))
+	writer, err := c.containerProxy.ArchiveImportWriter(context.Background(), "guesttools", vc.ContainerID, filterSpec)
+	defer writer.Close()
+	if err != nil {
+		return err
+	}
 
-	// vc := cache.ContainerCache().GetContainer(name)
-	// if vc == nil {
-	// 	return NotFoundError(name)
-	// }
+	tarWriter := tar.NewWriter(writer)
+	defer tarWriter.Close()
 
-	// err := c.importToContainer(vc, path, content)
-	// if err != nil && IsResourceInUse(err) {
-	// 	log.Errorf("ContainerExtractToDir failed, resource in use: %s", err.Error())
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
 
-	// 	err = fmt.Errorf("Resouce in use")
-	// }
+		if err != nil {
+			return err
+		}
 
-	return err
+		if err := tarWriter.WriteHeader(header); err != nil {
+			return err
+		}
+		if _, err := io.Copy(tarWriter, tarReader); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string, content io.Reader) error {
@@ -181,13 +184,21 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
-func (c *Container) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("** statpath, name=%s, path=%s", name, path)))
+func (c *Container) ContainerStatPath(name string, path string) (*types.ContainerPathStat, error) {
+	defer trace.End(trace.Begin(name))
 
-	fakeStat := &types.ContainerPathStat{}
-	fakeStat.Mode = os.ModeDir
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, NotFoundError(name)
+	}
 
-	return fakeStat, nil
+	stat, err := c.containerProxy.StatPath(context.Background(), "guesttools", vc.ContainerID, path)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("online container stat path %#v", stat)
+	return stat, nil
 }
 
 //----------------------------------

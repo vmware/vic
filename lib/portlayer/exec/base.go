@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/task"
+	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
@@ -95,6 +96,15 @@ func (c *containerBase) VMReference() types.ManagedObjectReference {
 		moref = c.vm.Reference()
 	}
 	return moref
+}
+
+// VIM25Reference will provide the vm vim25 Client
+func (c *containerBase) VIM25Reference() *vim25.Client {
+	var v25c *vim25.Client
+	if c.vm.Client.Client != nil {
+		v25c = c.vm.Client.Client
+	}
+	return v25c
 }
 
 // unlocked refresh of container state

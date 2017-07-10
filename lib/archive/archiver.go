@@ -15,10 +15,13 @@
 package archive
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -110,4 +113,36 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 	}
 
 	return fs, nil
+}
+
+// Decodes a base64 encoded string from EncodeFilterSpec into a FilterSpec
+func DecodeFilterSpec(filterSpec *string) *FilterSpec {
+	var fs FilterSpec
+	if filterSpec != nil && len(*filterSpec) > 0 {
+		if decodedSpec, err := base64.StdEncoding.DecodeString(*filterSpec); err == nil {
+			if len(decodedSpec) > 0 {
+				if err = json.Unmarshal(decodedSpec, &fs); err != nil {
+					log.Errorf("unable to unmarshal decoded spec: %s", err)
+					return nil
+				}
+			} else {
+				log.Info("filterSpec is empty")
+				fs = FilterSpec{}
+			}
+		}
+	} else {
+		log.Info("filterSpec is empty")
+		fs = FilterSpec{}
+	}
+	return &fs
+}
+
+func EncodeFilterSpec(filterSpec *FilterSpec) *string {
+	// Encode the filter spec
+	encodedFilter := ""
+	if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
+		encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
+		log.Infof("encodedFilter = %s", encodedFilter)
+	}
+	return &encodedFilter
 }
