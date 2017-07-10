@@ -77,7 +77,7 @@ Configure VCH Container Networks
     Should Not Contain  ${output}  Completed successfully
 
     # Add another container network while specifying the existing one
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --container-network-firewall:management:open
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt --container-network-ip-range=management:10.10.10.0/24 --container-network-gateway=management:10.10.10.1/24 --container-network-firewall=management:open
     Should Contain  ${output}  Completed successfully
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network ls
@@ -90,7 +90,7 @@ Configure VCH Container Networks
     Should Contain  ${output}  --container-network=management:mgmt
     Should Contain  ${output}  --container-network-ip-range=management:10.10.10.0/24
     Should Contain  ${output}  --container-network-gateway=management:10.10.10.1/24
-    Should Contain  ${output}  --container-network-firewall:management:open
+    Should Contain  ${output}  --container-network-firewall=management:open
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --net=mgmt ${busybox}
     Should Be Equal As Integers  ${rc}  0
@@ -105,7 +105,7 @@ Configure VCH Container Networks
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt
     Should Contain  ${output}  changes to existing container networks are not supported
     Should Not Contain  ${output}  Completed successfully
-    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt --container-network-firewall:management:closed
+    ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --container-network vm-network:vmnet --container-network management:mgmt --container-network-firewall=management:closed
     Should Contain  ${output}  changes to existing container networks are not supported
     Should Not Contain  ${output}  Completed successfully
 

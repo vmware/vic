@@ -122,7 +122,7 @@ Inspect VCH Configuration with Container Networks
     Should Contain  ${output}  --container-network=peers-net:peers-net
     Should Contain  ${output}  --container-network-gateway=peers-net:10.10.10.1/24
     Should Contain  ${output}  --container-network-ip-range=peers-net:10.10.10.0/24
-    Should Contain  ${output}  --container-network-firewall:peers-net:peers
+    Should Contain  ${output}  --container-network-firewall=peers-net:peers
     Should Be Equal As Integers  0  ${rc}
 
 Verify inspect output for a full tls VCH
