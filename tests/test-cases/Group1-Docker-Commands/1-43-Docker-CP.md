@@ -1,4 +1,4 @@
-Test 1-41 - Docker CP
+Test 1-43 - Docker CP
 =======
 
 # Purpose:
@@ -51,7 +51,15 @@ This test requires that a vSphere server is running and available
 38. Issue docker create -i --name test1 -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 busybox to the new VIC appliance
 39. Issue docker cp foo.txt test1:/vol1/vol2/vol3 to the new VIC appliance
 40. Start the container and issue docker exec test1 ls /vol1/vol2/vol3 to the new VIC appliance to verify the copy operation succeeded
-41.
+41. Issue docker create create -i --name online -v vol1:/vol1 busybox to the new VIC appliance
+42. Issue docker create create -i --name offline -v vol1:/vol1 busybox to the new VIC appliance
+43. Issue docker start online to the new VIC appliance
+44. Create a file named content in cwd and issue docker cp content offline:/vol1 to the new VIC appliance
+45. Issue docker exec online ls /vol1 to the new VIC appliance to verify the copy operation succeeded
+46. Issue docker cp offline:/vol1 . to the new VIC appliance
+47. Verify the vol1 directory is copied over successfully
+48. Issue docker rm -f online and docker rm -f offline to the new VIC appliance to clean up the containers
+49. Clean up current working directory
 
 # Expected Outcome:
 * Step 2-7 should all succeed
@@ -60,11 +68,9 @@ This test requires that a vSphere server is running and available
 * Step 18-23 should all succeed
 * Step 24-32 should all succeed
 * Step 33-40 should all succeed
-
-
-
-
+* Step 41-45 should all succeed
+* Step 46-49 should all succeed
 
 
 # Possible Problems:
-
+Step 41-48 won't succeed until we have guest tool support for disk label

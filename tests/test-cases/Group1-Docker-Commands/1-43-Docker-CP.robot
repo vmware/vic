@@ -173,14 +173,46 @@ Copy a file from host to offline container, dst is a nested volume with 3 levels
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  foo.txt
 
-#====== haven't been added to md ========
-#Copy a file from host to online container, dst is a volume shared with another online container
+# depends on disk in use error and online working
+Copy a file from host to offline container, dst is a volume shared with an online container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name online -v vol1:/vol1 ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start online
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Create File  ${CURDIR}/content   fake file content for testing only
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/content offline:/vol1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /vol1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  content
 
+Copy a directory from offline container to host, dst is a volume shared with an online container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/vol1 ${CURDIR}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Directory Should Exist  ${CURDIR}/vol1
+    Directory Should Exist  ${CURDIR}/vol1/bar
+    Directory Should Exist  ${CURDIR}/vol1/vol2
+    File Should Exist  ${CURDIR}/vol1/foo.txt
+    File Should Exist  ${CURDIR}/vol1/content
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
-#Copy a file from host to offline container, dst is a volume shared with an online container
-
+#Need to generate large file and copy to container
 
 Clean up current directory
     Remove File  ${CURDIR}/foo.txt
     Remove Directory  ${CURDIR}/bar recursive=True
     Remove Directory  ${CURDIR}/newdir recursive=True
+    Remove Directory  ${CURDIR}/vol1 recursive=True
