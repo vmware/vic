@@ -237,6 +237,10 @@ func (c *NameLookupCache) Export(op trace.Operation, store *url.URL, id, ancesto
 	return c.DataStore.Export(op, store, id, ancestor, spec, data)
 }
 
+func (c *NameLookupCache) Import(op trace.Operation, store *url.URL, diskID string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
+	return c.DataStore.Import(op, store, diskID, spec, tarStream)
+}
+
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *NameLookupCache) GetImage(op trace.Operation, store *url.URL, ID string) (*Image, error) {
 	op.Debugf("Getting image %s from %s", ID, store.String())

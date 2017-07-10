@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"github.com/vmware/govmomi/view"
 	"github.com/vmware/vic/lib/config"
 )
 
@@ -27,4 +28,8 @@ type Configuration struct {
 
 	// Port Layer - storage
 	config.Storage `vic:"0.1" scope:"read-only" key:"storage"`
+
+	// ContainerView
+	// https://pubs.vmware.com/vsphere-6-0/index.jsp#com.vmware.wssdk.apiref.doc/vim.view.ContainerView.html
+	ContainerView *view.ContainerView
 }

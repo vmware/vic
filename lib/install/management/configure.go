@@ -429,7 +429,7 @@ func (d *Dispatcher) addExtraConfig(spec *types.VirtualMachineConfigSpec, conf *
 	if err != nil {
 		return err
 	}
-	spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
+	spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg, true)...)
 
 	// get back old configuration, to remove keys not existed in new guestinfo. We don't care about value atm
 	oldConfig, err := d.GetNoSecretVCHConfig(d.appliance)

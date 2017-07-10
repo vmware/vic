@@ -1,20 +1,20 @@
 Test 8-02 - OOB VM Register
 =======
 
-#Purpose:
+# Purpose:
 Verify that when a VM is registered OOB, the VIC continues to work
 
-#References:
+# References:
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Steps:
 1. Install new VCH appliance
 2. Create a VM out of band
 3. Unregister the created VM
 4. Register the created VM
 5. Issue docker ps -a
 
-#Expected Outcome:
+# Expected Outcome:
 * The VCH should continue to function properly and docker ps -a should return proper output without error

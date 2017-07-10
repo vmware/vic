@@ -30,10 +30,7 @@ func OptionValueMap(src []types.BaseOptionValue) map[string]string {
 	for i := range src {
 		k := src[i].GetOptionValue().Key
 		v := src[i].GetOptionValue().Value.(string)
-		if v == "<nil>" {
-			v = ""
-		}
-		kv[k] = v
+		kv[k] = unescapeNil(v)
 	}
 	return kv
 }
@@ -46,7 +43,9 @@ func OptionValueSource(src []types.BaseOptionValue) extraconfig.DataSource {
 }
 
 // OptionValueFromMap is a convenience method to convert a map into a BaseOptionValue array
-func OptionValueFromMap(data map[string]string) []types.BaseOptionValue {
+// escapeNil - if true a nil string is replaced with "<nil>". Allows us to distinguish between
+// deletion and nil as a value
+func OptionValueFromMap(data map[string]string, escape bool) []types.BaseOptionValue {
 	if len(data) == 0 {
 		return nil
 	}
@@ -55,8 +54,8 @@ func OptionValueFromMap(data map[string]string) []types.BaseOptionValue {
 
 	i := 0
 	for k, v := range data {
-		if v == "" {
-			v = "<nil>"
+		if escape {
+			v = escapeNil(v)
 		}
 		array[i] = &types.OptionValue{Key: k, Value: v}
 		i++
@@ -76,4 +75,66 @@ func OptionValueArrayToString(options []types.BaseOptionValue) string {
 	}
 
 	return fmt.Sprintf("%#v", kv)
+}
+
+// OptionValueUpdatesFromMap generates an optionValue array for those entries in the map that do not
+// already exist, are changed from the reference array, or a removed
+// A removed entry will have a nil string for the value
+// NOTE: DOES NOT CURRENTLY SUPPORT DELETION OF KEYS - KEYS MISSING FROM NEW MAP ARE IGNORED
+func OptionValueUpdatesFromMap(existing []types.BaseOptionValue, new map[string]string) []types.BaseOptionValue {
+	e := len(existing)
+	if e == 0 {
+		return OptionValueFromMap(new, true)
+	}
+
+	n := len(new)
+	updates := make(map[string]string, n+e)
+	unchanged := make(map[string]struct{}, n+e)
+
+	// first the existing keys
+	for i := range existing {
+		v := existing[i].GetOptionValue()
+		if nV, ok := new[v.Key]; ok && nV == v.Value.(string) {
+			unchanged[v.Key] = struct{}{}
+			// no change
+			continue
+		} else if ok {
+			// changed
+			updates[v.Key] = escapeNil(nV)
+		} else {
+			// deletion
+			// NOTE: ignored as this also deletes non VIC entries currently
+			// there's no prefix for the non-guestinfo keys so cannot easily filter
+			// updates[v.Key] = ""
+		}
+	}
+
+	// now the new keys
+	for k, v := range new {
+		if _, ok := unchanged[k]; ok {
+			continue
+		}
+
+		if _, ok := updates[k]; !ok {
+			updates[k] = escapeNil(v)
+		}
+	}
+
+	return OptionValueFromMap(updates, false)
+}
+
+func escapeNil(input string) string {
+	if input == "" {
+		return "<nil>"
+	}
+
+	return input
+}
+
+func unescapeNil(input string) string {
+	if input == "<nil>" {
+		return ""
+	}
+
+	return input
 }

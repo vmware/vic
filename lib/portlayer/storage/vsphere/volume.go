@@ -53,7 +53,7 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 		return nil, err
 	}
 
-	dm, err := disk.NewDiskManager(op, s)
+	dm, err := disk.NewDiskManager(op, s, storage.Config.ContainerView)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,6 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 		op.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
-
 	return nil
 }
 
@@ -211,14 +210,14 @@ func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor st
 	mounts := []*object.DatastorePath{}
 	cleanFunc := func() {
 		for _, mount := range mounts {
-			if err := v.dm.UnmountAndDetach(op, mount); err != nil {
+			if err := v.dm.UnmountAndDetach(op, mount, !persistent); err != nil {
 				op.Infof("Error cleaning up disk: %s", err.Error())
 			}
 		}
 	}
 
 	c := v.volDiskDSPath(id)
-	childFs, err := v.dm.AttachAndMount(op, c)
+	childFs, err := v.dm.AttachAndMount(op, c, !persistent)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +226,7 @@ func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor st
 	ancestorFs := ancestor
 	if ancestor != "" {
 		a := v.volDiskDSPath(ancestor)
-		ancestorFs, err = v.dm.AttachAndMount(op, a)
+		ancestorFs, err = v.dm.AttachAndMount(op, a, !persistent)
 		if err != nil {
 			cleanFunc()
 			return nil, err
@@ -246,4 +245,26 @@ func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor st
 		ReadCloser: tar,
 		clean:      cleanFunc,
 	}, nil
+}
+
+func (v *VolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	_, err := util.VolumeStoreName(store)
+	if err != nil {
+		return err
+	}
+
+	diskRefPath := v.volDiskDSPath(id)
+
+	mountPath, err := v.dm.AttachAndMount(op, diskRefPath, persistent)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := v.dm.UnmountAndDetach(op, diskRefPath, persistent)
+		if err != nil {
+			op.Infof("Error cleaning up disk: %s", err.Error())
+		}
+	}()
+
+	return archive.Unpack(op, tarstream, spec, mountPath)
 }

@@ -120,3 +120,12 @@ Start a container with removed network
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${container}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  network test-network not found
+
+Simple start with attach
+    Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create ${busybox} ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  bin
+    Should Contain  ${output}  root
+    Should Contain  ${output}  var

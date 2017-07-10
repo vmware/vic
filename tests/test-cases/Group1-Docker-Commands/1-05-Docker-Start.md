@@ -22,6 +22,7 @@ This test requires that a vSphere server is running and available
 9. Create and start 5 ubuntu containers running /bin/top serially
 10. Create and start 5 busybox containers running /bin/top all at once
 11. Run a container with a test-network, stop the container, remove the test-network, then start the container again
+12. Issue docker start -a <containerID> to a busybox ls container
 
 # Expected Outcome:
 * Commands 1-5 should all return without error and respond with the container ID
@@ -38,6 +39,7 @@ Error: failed to start containers: fakeContainer
 Error response from daemon: Server error from portlayer: network test-network not found
 Error: failed to start containers: containerID
 ```
+* Step 12 should succeed and provide the output from the ls command to the screen
 
 # Possible Problems:
 None
