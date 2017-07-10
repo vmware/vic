@@ -156,6 +156,10 @@ func (c *MockDataStore) Export(op trace.Operation, store *url.URL, child, ancest
 	return nil, nil
 }
 
+func (c *MockDataStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
+}
+
 func TestListImages(t *testing.T) {
 	s := NewLookupCache(NewMockDataStore())
 

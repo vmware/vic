@@ -18,6 +18,11 @@ import (
 	"io"
 )
 
+const (
+	// Persistent is used as a constant input for disk persistence configuration
+	persistent = true
+)
+
 // cleanReader wraps an io.ReadCloser, calling the supplied cleanup function on Close()
 type cleanReader struct {
 	io.ReadCloser
