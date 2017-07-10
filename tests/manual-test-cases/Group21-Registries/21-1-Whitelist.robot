@@ -56,9 +56,12 @@ Get HTTPS Harbor Certificate
 *** Test Cases ***
 Basic Whitelisting
     # Install VCH with registry CA for whitelisted registry
+    Remove Environment Variable  GOVC_USERNAME
+    Remove Environment Variable  GOVC_PASSWORD
     ${output}=  Install VIC Appliance To Test Server  vol=default --whitelist-registry=%{HTTPS_HARBOR_IP} --registry-ca=./ca.crt
     Should Contain  ${output}  Secure registry %{HTTPS_HARBOR_IP} confirmed
     Should Contain  ${output}  Whitelist registries =
+    Get Docker Params  ${output}  true
 
     # Check docker info for whitelist info
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info

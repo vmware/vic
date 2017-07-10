@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 
@@ -36,6 +37,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -115,6 +117,72 @@ func TestParseURL(t *testing.T) {
 		_, err := ParseURL(urlString)
 		assert.NotNil(t, err)
 	}
+}
+
+func TestDenormalizeRegistryURLs(t *testing.T) {
+	parseEntry := func(input string) (outputs []string) {
+		rs := registry.ParseEntry(input)
+		r, ok := rs.(registry.URLEntry)
+		if !ok {
+			t.FailNow()
+		}
+
+		var err error
+		entries, err := denormalizeRegistryURL(r)
+		if err != nil {
+			t.FailNow()
+		}
+		for _, entry := range entries {
+			outputs = append(outputs, entry.String())
+		}
+
+		return
+	}
+
+	testCases := map[string][]string{
+		"foo.local": {
+			"https://foo.local",
+			"https://foo.local:443",
+			"foo.local:443",
+		},
+
+		"https://foo.local": {
+			"https://foo.local",
+			"https://foo.local:443",
+			"foo.local:443",
+		},
+
+		"https://foo.local:443": {
+			"https://foo.local",
+			"https://foo.local:443",
+			"foo.local:443",
+		},
+
+		"foo.local:443": {
+			"https://foo.local",
+			"https://foo.local:443",
+			"foo.local:443",
+		},
+
+		"foo.local:80": {
+			"http://foo.local",
+			"http://foo.local:80",
+			"foo.local:80",
+		},
+	}
+
+	confirmOutputs := func(input string, expected []string) {
+		actual := parseEntry(input)
+		sort.Strings(actual)
+		sort.Strings(expected)
+		assert.Equal(t, expected, actual)
+	}
+
+	for key, value := range testCases {
+		// I'm so good at naming things wow
+		confirmOutputs(key, value)
+	}
+
 }
 
 func TestMain(t *testing.T) {
