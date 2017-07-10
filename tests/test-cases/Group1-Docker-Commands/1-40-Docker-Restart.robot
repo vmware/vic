@@ -89,9 +89,12 @@ Restart with start-stop stress
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit ${busybox}
     ${restart-pid}=  Start Process  while true; do docker %{VCH-PARAMS} restart ${container}; done  shell=${true}
-    :FOR  ${idx}  IN RANGE  0  100
-    \   ${out}=  Run  docker %{VCH-PARAMS} start ${container}
-    \   Should Not Contain  ${out}  EOF
-    \   ${out}=  Run  docker %{VCH-PARAMS} stop -t1 ${container}
-    \   Should Not Contain  ${out}  EOF
+    ${restart-pid2}=  Start Process  while true; do docker %{VCH-PARAMS} restart ${container}; done  shell=${true}
+    ${loopOutput}=  Create List
+    :FOR  ${idx}  IN RANGE  0  50
+    \   ${out}=  Run  (docker %{VCH-PARAMS} start ${container} && docker %{VCH-PARAMS} stop -t1 ${container})
+    \   Append To List  ${loopOutput}  ${out}
     Terminate Process  ${restart-pid}
+    Terminate Process  ${restart-pid2}
+    Log  ${loopOutput}
+    Should Not Contain Match  ${loopOutput}  *EOF*
