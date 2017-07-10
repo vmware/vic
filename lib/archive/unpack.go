@@ -34,7 +34,7 @@ const (
 	fileWriteFlags = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 )
 
-// Untar untars the given tarstream(if it is a tar stream) on the local filesystem based on the unpackPath in the path spec
+// unpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the unpackPath in the path spec
 //
 // the pathSpec will include the following elements
 // - include : any tar entry that has a path below(after stripping) the include path will be written
