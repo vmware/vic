@@ -146,11 +146,12 @@ func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storag
 }
 
 func (c *ContainerStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
-	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
+	op.Debugf("Constructing toolbox data source: %s.%s", owner.Reference(), id)
 
 	return &ToolboxDataSource{
-		VM: owner,
-		ID: id,
+		VM:    owner,
+		ID:    id,
+		Clean: func() { return },
 	}, nil
 }
 
@@ -210,8 +211,9 @@ func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.Virtual
 	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
 
 	return &ToolboxDataSink{
-		VM: owner,
-		ID: id,
+		VM:    owner,
+		ID:    id,
+		Clean: func() { return },
 	}, nil
 }
 
@@ -274,7 +276,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, errors.New("mismatched datasource types")
 	}
 
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, false)
 	if err != nil {
 		go closers()
 		return nil, err

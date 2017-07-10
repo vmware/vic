@@ -18,6 +18,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
@@ -53,6 +54,40 @@ func (m *MountDataSource) Source() interface{} {
 }
 
 // Export reads data from the associated data source and returns it as a tar archive
+func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error) {
+	defer m.Close()
+
+	var targetPath string
+	for path := range spec.Inclusions {
+		targetPath = path
+	}
+
+	filePath := filepath.Join(m.Path.Name(), targetPath)
+	fileInfo, err := os.Lstat(filePath)
+	if err != nil {
+		op.Errorf("failed to stat file")
+		return nil, err
+	}
+
+	var linkTarget string
+	// check for symlink
+	if fileInfo.Mode()&os.ModeSymlink != 0 {
+		linkTarget, err = os.Readlink(filePath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	fileName := fileInfo.Name()
+	// handle root directory special case: don't want to return mntdir name
+	if targetPath == "/" && spec.RebasePath == "" {
+		fileName = "/"
+	}
+
+	return &FileStat{linkTarget, uint32(fileInfo.Mode()), fileName, fileInfo.Size(), fileInfo.ModTime()}, nil
+}
+
+// Export reads data from the associated data source and returns it as a tar archive
 func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
 	// reparent cleanup to Export operation
 	m.cleanOp = trace.FromOperation(op, "clean up from export")
@@ -70,7 +105,7 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 
 	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
 	op.Infof("Exporting data from %s", name)
-	rc, err := archive.Diff(op, name, "", spec, data)
+	rc, err := archive.Diff(op, name, "", spec, data, false)
 
 	// return the proxy regardless of error so that Close can be called
 	return &ProxyReadCloser{

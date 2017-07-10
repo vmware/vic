@@ -41,7 +41,7 @@ func (c changesByPath) Len() int           { return len(c) }
 func (c changesByPath) Swap(i, j int)      { c[j], c[i] = c[i], c[j] }
 
 // Diff produces a tar archive containing the differences between two filesystems
-func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool) (io.ReadCloser, error) {
+func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
 
 	var err error
 	if spec == nil {
@@ -55,10 +55,11 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 	if err != nil {
 		return nil, err
 	}
+	changes = append([]docker.Change{{Path: "/"}}, changes...)
 
 	sort.Sort(changesByPath(changes))
 
-	return Tar(op, newDir, changes, spec, data, oldDir != "")
+	return Tar(op, newDir, changes, spec, data, xattr)
 }
 
 func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
@@ -73,6 +74,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		tw := tar.NewWriter(w)
 		defer func() {
 			var cerr error
+			defer w.Close()
 
 			if oerr := op.Err(); oerr != nil {
 				// don't close the archive if we're truncating the copy - it's misleading
@@ -84,28 +86,28 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				op.Errorf("Error closing tar writer: %s", cerr.Error())
 			}
 			if err == nil {
-				op.Debugf("Closing down tar writer with clean exit: %s", cerr)
+				op.Errorf("Closing down tar writer with clean exit: %s", cerr)
 				_ = w.CloseWithError(cerr)
 			} else {
-				op.Debugf("Closing down tar writer with error during tar: %s", err)
+				op.Errorf("Closing down tar writer with error during tar: %s", err)
 				_ = w.CloseWithError(err)
 			}
-
-			return
 		}()
 
 		for _, change := range changes {
 			if cerr := op.Err(); cerr != nil {
 				// this will still trigger the defer to close the archive neatly
-				op.Warnf("Aborting tar due to cancelation: %s", cerr)
+				op.Warnf("Aborting tar due to cancellation: %s", cerr)
 				break
 			}
-
 			if spec.Excludes(op, change.Path) {
 				continue
 			}
 
 			hdr, err = createHeader(op, dir, change, spec, xattr)
+
+			op.Debugf("writing header for: %s -- %#v", change.Path, hdr)
+
 			if err != nil {
 				op.Errorf("Error creating header from change: %s", err.Error())
 				return
@@ -118,7 +120,6 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			}
 
 			_ = tw.WriteHeader(hdr)
-
 			p := filepath.Join(dir, change.Path)
 			if (hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA) && hdr.Size != 0 {
 				f, err = os.Open(p)
@@ -163,7 +164,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		whiteOutBase := filepath.Base(change.Path)
 		whiteOut := filepath.Join(whiteOutDir, docker.WhiteoutPrefix+whiteOutBase)
 		hdr = &tar.Header{
-			Name:       filepath.Join(spec.RebasePath, whiteOut),
+			Name:       strings.TrimPrefix(whiteOut, spec.StripPath),
 			ModTime:    timestamp,
 			AccessTime: timestamp,
 			ChangeTime: timestamp,
@@ -175,21 +176,21 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 			return nil, err
 		}
 
-		hdr, err = tar.FileInfoHeader(fi, change.Path)
+		link, err := os.Readlink(filepath.Join(dir, change.Path))
+		if err != nil {
+			link = change.Path
+		}
+		hdr, err = tar.FileInfoHeader(fi, link)
 		if err != nil {
 			op.Errorf("Error getting file info header: %s", err.Error())
 			return nil, err
 		}
 
-		hdr.Name = filepath.Join(spec.RebasePath, change.Path)
-
-		if hdr.Typeflag == tar.TypeDir {
-			hdr.Name += "/"
-		}
+		hdr.Name = strings.TrimPrefix(change.Path, spec.StripPath)
 	}
 
 	// first rebase (happens above), then strip any unnecessary leading directory elements
-	hdr.Name = strings.TrimPrefix(hdr.Name, spec.StripPath)
+	hdr.Name = filepath.Join(spec.RebasePath, hdr.Name)
 
 	if xattr {
 		hdr.Xattrs = make(map[string]string)

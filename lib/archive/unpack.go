@@ -45,7 +45,14 @@ const (
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
 
-	tr := tar.NewReader(tarStream)
+	// Guest tools is sending a tar reader instead of an io reader.
+	// Type check here to see if we actually need a tar reader.
+	var tr *tar.Reader
+	if trCheck, ok := tarStream.(*tar.Reader); ok {
+		tr = trCheck
+	} else {
+		tr = tar.NewReader(tarStream)
+	}
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -66,6 +73,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		header, err := tr.Next()
 		if err == io.EOF {
 			// This indicates the end of the archive
+			op.Debugf("EOF")
 			break
 		}
 
@@ -76,16 +84,20 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 
 		op.Debugf("processing tar header: %s", header.Name)
 
-		// skip excluded elements unless explicitly included
-		if filter.Excludes(op, header.Name) {
-			continue
-		}
-
 		// fix up path
 		// TODO: update with revised filterspec
 		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
 		rebased := filepath.Join(filter.RebasePath, stripped)
 		absPath := filepath.Join(root, rebased)
+
+		// skip excluded elements unless explicitly included
+		op.Debugf("checking exclusion for %s, %t -- %#v", rebased, filter.Excludes(op, rebased), filter)
+
+		if filter.Excludes(op, rebased) {
+			continue
+		}
+
+		op.Debugf("writing to: %s", absPath)
 
 		switch header.Typeflag {
 		case tar.TypeDir:
@@ -93,7 +105,6 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 			if err != nil {
 				return err
 			}
-			continue
 		case tar.TypeSymlink:
 
 			err := os.Symlink(header.Linkname, absPath)

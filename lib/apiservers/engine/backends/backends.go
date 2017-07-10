@@ -26,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/events"
+	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
 
@@ -109,6 +110,10 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	}
 
 	t := rc.New(portLayerAddr, "/", []string{"http"})
+	t.Consumers["application/x-tar"] = runtime.ByteStreamConsumer()
+	t.Consumers["application/octet-stream"] = runtime.ByteStreamConsumer()
+	t.Producers["application/x-tar"] = runtime.ByteStreamProducer()
+	t.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
 
 	portLayerClient = apiclient.New(t, nil)
 	portLayerServerAddr = portLayerAddr

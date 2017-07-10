@@ -114,6 +114,12 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 
 	api.BinConsumer = runtime.ByteStreamConsumer()
 
+	api.BinProducer = runtime.ByteStreamProducer()
+
+	api.TarConsumer = runtime.ByteStreamConsumer()
+
+	api.TarProducer = runtime.ByteStreamProducer()
+
 	api.JSONConsumer = runtime.JSONConsumer()
 
 	api.JSONProducer = runtime.JSONProducer()

@@ -1279,6 +1279,7 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 // ContainerChanges returns a list of container fs changes
 func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerChanges: %s", name)
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -1286,7 +1287,7 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 	}
 	log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
 
-	r, err := c.containerProxy.GetContainerChanges(context.Background(), vc)
+	r, err := c.containerProxy.GetContainerChanges(op, vc)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}

@@ -103,9 +103,9 @@ func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.D
 
 func (v *VolumeStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
 	return &ToolboxDataSource{
-		VM: owner,
-		// TODO: there's some mangling that happens from volume id to disk label so this isn't currently correct
-		ID: id,
+		VM:    owner,
+		ID:    storage.Label(id),
+		Clean: func() { return },
 	}, nil
 }
 
@@ -126,7 +126,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return l.Export(op, spec, data)
 	}
 
-	// for now we assume ancetor instead of entirely generic left/right
+	// for now we assume ancestor instead of entirely generic left/right
 	// this allows us to assume it's an image
 	r, err := i.NewDataSource(op, ancestor)
 	if err != nil {
@@ -150,7 +150,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return nil, fmt.Errorf("mismatched datasource types: %T, %T", ls, rs)
 	}
 
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, false)
 	if err != nil {
 		go closers()
 		return nil, err
