@@ -582,7 +582,7 @@ func (vm *VirtualMachine) SetVCHUpdateStatus(ctx context.Context, status bool) e
 	info[UpdateStatus] = strconv.FormatBool(status)
 
 	s := &types.VirtualMachineConfigSpec{
-		ExtraConfig: vmomi.OptionValueFromMap(info),
+		ExtraConfig: vmomi.OptionValueFromMap(info, true),
 	}
 
 	_, err := vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {

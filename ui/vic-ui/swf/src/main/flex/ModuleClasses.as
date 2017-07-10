@@ -1,3 +1,6 @@
+/**
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
+ */
 package {
 	import com.vmware.vicui.views.*;
 	/**

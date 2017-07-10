@@ -78,7 +78,7 @@ func State(info *models.ContainerInfo) *types.ContainerState {
 				// most likely the process was killed via the cli
 				// or received a sigkill
 				exitCode = 137
-			} else if info.ProcessConfig.Status == "" && exitCode == 0 {
+			} else if info.ProcessConfig.Status == "" && exitCode == -1 {
 				// the process was stopped via the cli
 				// or received a sigterm
 				exitCode = 143
