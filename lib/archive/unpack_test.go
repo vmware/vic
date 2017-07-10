@@ -87,6 +87,15 @@ func TestInvalidStream(t *testing.T) {
 	if !assert.Error(t, err) {
 		return
 	}
+
+	validEmptyBuffer := bytes.NewBufferString("")
+	tarStream = bytes.NewReader(validEmptyBuffer.Bytes())
+
+	err = Unpack(op, tarStream, filterSpec, tempPath)
+
+	if !assert.NoError(t, err) {
+		return
+	}
 }
 
 func TestSimpleWrite(t *testing.T) {
