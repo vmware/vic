@@ -16,14 +16,12 @@ package vsphere
 
 import (
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -37,11 +35,7 @@ const VolumesDir = "volumes"
 
 // VolumeStore caches Volume references to volumes in the system.
 type VolumeStore struct {
-	// helper to the backend
-	ds *datastore.Helper
-
-	// wraps our vmdks and filesystem primitives.
-	dm *disk.Manager
+	disk.Vmdk
 
 	// Service url to this VolumeStore
 	SelfLink *url.URL
@@ -70,8 +64,11 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 	}
 
 	v := &VolumeStore{
-		dm:       dm,
-		ds:       ds,
+		Vmdk: disk.Vmdk{
+			Manager: dm,
+			Helper:  ds,
+			Session: s,
+		},
 		SelfLink: u,
 	}
 
@@ -93,15 +90,15 @@ func (v *VolumeStore) volMetadataDirPath(ID string) string {
 // Returns the path to the vmdk itself (in datastore URL format)
 func (v *VolumeStore) volDiskDSPath(ID string) *object.DatastorePath {
 	return &object.DatastorePath{
-		Datastore: v.ds.RootURL.Datastore,
-		Path:      path.Join(v.ds.RootURL.Path, v.volDirPath(ID), ID+".vmdk"),
+		Datastore: v.Helper.RootURL.Datastore,
+		Path:      path.Join(v.Helper.RootURL.Path, v.volDirPath(ID), ID+".vmdk"),
 	}
 }
 
 func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
 
 	// Create the volume directory in the store.
-	if _, err := v.ds.Mkdir(op, false, v.volDirPath(ID)); err != nil {
+	if _, err := v.Mkdir(op, false, v.volDirPath(ID)); err != nil {
 		return nil, err
 	}
 
@@ -110,11 +107,11 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 
 	config := disk.NewPersistentDisk(volDiskDSPath).WithCapacity(int64(capacityKB))
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(op, config)
+	vmdisk, err := v.CreateAndAttach(op, config)
 	if err != nil {
 		return nil, err
 	}
-	defer v.dm.Detach(op, vmdisk.VirtualDiskConfig)
+	defer v.Detach(op, vmdisk.VirtualDiskConfig)
 	vol, err := storage.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
 	if err != nil {
 		return nil, err
@@ -127,7 +124,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 
 	// Persist the metadata
 	metaDataDir := v.volMetadataDirPath(ID)
-	if err = writeMetadata(op, v.ds, metaDataDir, info); err != nil {
+	if err = writeMetadata(op, v.Helper, metaDataDir, info); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +136,7 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 	volDir := v.volDirPath(vol.ID)
 
 	op.Infof("VolumeStore: Deleting %s", volDir)
-	if err := v.ds.Rm(op, volDir); err != nil {
+	if err := v.Rm(op, volDir); err != nil {
 		op.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
@@ -154,7 +151,7 @@ func (v *VolumeStore) VolumeGet(op trace.Operation, ID string) (*storage.Volume,
 func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
 	volumes := []*storage.Volume{}
 
-	res, err := v.ds.Ls(op, VolumesDir)
+	res, err := v.Ls(op, VolumesDir)
 	if err != nil {
 		return nil, fmt.Errorf("error listing vols: %s", err)
 	}
@@ -171,13 +168,13 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		volDiskDSPath := v.volDiskDSPath(ID)
 
 		config := disk.NewPersistentDisk(volDiskDSPath)
-		dev, err := disk.NewVirtualDisk(config, v.dm.Disks)
+		dev, err := disk.NewVirtualDisk(config, v.Manager.Disks)
 		if err != nil {
 			return nil, err
 		}
 
 		metaDataDir := v.volMetadataDirPath(ID)
-		meta, err := getMetadata(op, v.ds, metaDataDir)
+		meta, err := getMetadata(op, v.Helper, metaDataDir)
 		if err != nil {
 			return nil, err
 		}
@@ -193,78 +190,14 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	return volumes, nil
 }
 
-// Export reads the delta between child and parent volume layers, returning
-// the difference as a tar archive.
-//
-// store - the volume store containing the two layers
-// id - must inherit from ancestor if ancestor is specified
-// ancestor - the volume layer up the chain against which to diff
-// spec - describes filters on paths found in the data (include, exclude, strip)
-// data - set to true to include file data in the tar archive, false to include headers only
-func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	_, err := util.VolumeStoreName(store)
-	if err != nil {
-		return nil, err
+func (v *VolumeStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	path := v.volDiskDSPath(id).String()
+	if path == "" {
+		return nil, fmt.Errorf("unable to translate %s into datastore path", id)
 	}
 
-	mounts := []*object.DatastorePath{}
-	cleanFunc := func() {
-		for _, mount := range mounts {
-			if err := v.dm.UnmountAndDetach(op, mount, !persistent); err != nil {
-				op.Infof("Error cleaning up disk: %s", err.Error())
-			}
-		}
-	}
-
-	c := v.volDiskDSPath(id)
-	childFs, err := v.dm.AttachAndMount(op, c, !persistent)
-	if err != nil {
-		return nil, err
-	}
-	mounts = append(mounts, c)
-
-	ancestorFs := ancestor
-	if ancestor != "" {
-		a := v.volDiskDSPath(ancestor)
-		ancestorFs, err = v.dm.AttachAndMount(op, a, !persistent)
-		if err != nil {
-			cleanFunc()
-			return nil, err
-		}
-		mounts = append(mounts, a)
-	}
-
-	tar, err := archive.Diff(op, childFs, ancestorFs, spec, data)
-	if err != nil {
-		cleanFunc()
-		return nil, err
-	}
-
-	// wrap in a cleanReader so we can cleanup after the stream finishes
-	return &cleanReader{
-		ReadCloser: tar,
-		clean:      cleanFunc,
+	return &url.URL{
+		Scheme: "ds",
+		Path:   path,
 	}, nil
-}
-
-func (v *VolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
-	_, err := util.VolumeStoreName(store)
-	if err != nil {
-		return err
-	}
-
-	diskRefPath := v.volDiskDSPath(id)
-
-	mountPath, err := v.dm.AttachAndMount(op, diskRefPath, persistent)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err := v.dm.UnmountAndDetach(op, diskRefPath, persistent)
-		if err != nil {
-			op.Infof("Error cleaning up disk: %s", err.Error())
-		}
-	}()
-
-	return archive.Unpack(op, tarstream, spec, mountPath)
 }

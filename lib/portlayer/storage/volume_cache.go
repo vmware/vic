@@ -16,14 +16,12 @@ package storage
 
 import (
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -199,36 +197,6 @@ func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
 	}
 
 	return l, nil
-}
-
-func (v *VolumeLookupCache) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	storeName, err := util.VolumeStoreName(store)
-	if err != nil {
-		return nil, err
-	}
-
-	vs, ok := v.volumeStores[storeName]
-	if !ok {
-		err := fmt.Errorf("Volume store not found: %s", storeName)
-		return nil, err
-	}
-
-	return vs.Export(op, store, id, ancestor, spec, data)
-}
-
-func (v *VolumeLookupCache) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
-	storeName, err := util.VolumeStoreName(store)
-	if err != nil {
-		return err
-	}
-
-	vs, ok := v.volumeStores[storeName]
-	if !ok {
-		err := fmt.Errorf("Volume store not found: %s", storeName)
-		return err
-	}
-
-	return vs.Import(op, store, id, spec, tarStream)
 }
 
 // goto the volume store and repopulate the cache.

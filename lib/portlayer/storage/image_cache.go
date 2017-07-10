@@ -22,10 +22,12 @@ import (
 	"os"
 	"sync"
 
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 var Scratch = Image{
@@ -55,7 +57,7 @@ func NewLookupCache(ds ImageStorer) *NameLookupCache {
 	}
 }
 
-// GetImageStore checks to see if a named image store exists and returls the
+// GetImageStore checks to see if a named image store exists and returns the
 // URL to it if so or error.
 func (c *NameLookupCache) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
 	store, err := util.ImageStoreNameToURL(storeName)
@@ -234,11 +236,23 @@ func (c *NameLookupCache) WriteImage(op trace.Operation, parent *Image, ID strin
 }
 
 func (c *NameLookupCache) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	return c.DataStore.Export(op, store, id, ancestor, spec, data)
+	return c.DataStore.Export(op, id, ancestor, spec, data)
 }
 
 func (c *NameLookupCache) Import(op trace.Operation, store *url.URL, diskID string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
-	return c.DataStore.Import(op, store, diskID, spec, tarStream)
+	return c.DataStore.Import(op, diskID, spec, tarStream)
+}
+
+func (c *NameLookupCache) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+	return c.DataStore.NewDataSource(op, id)
+}
+
+func (c *NameLookupCache) URL(op trace.Operation, id string) (*url.URL, error) {
+	return c.DataStore.URL(op, id)
+}
+
+func (c *NameLookupCache) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
+	return c.DataStore.Owners(op, url, filter)
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.

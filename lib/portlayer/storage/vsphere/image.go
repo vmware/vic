@@ -27,8 +27,8 @@ import (
 	docker "github.com/docker/docker/pkg/archive"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
@@ -70,12 +71,7 @@ const (
 )
 
 type ImageStore struct {
-	dm *disk.Manager
-
-	// govmomi session
-	s *session.Session
-
-	ds *datastore.Helper
+	disk.Vmdk
 }
 
 func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
@@ -105,9 +101,11 @@ func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageSt
 	}
 
 	vis := &ImageStore{
-		dm: dm,
-		ds: ds,
-		s:  s,
+		Vmdk: disk.Vmdk{
+			Manager: dm,
+			Helper:  ds,
+			Session: s,
+		},
 	}
 
 	return vis, nil
@@ -133,8 +131,8 @@ func (v *ImageStore) imageDiskPath(storeName, imageName string) string {
 // Returns the path to the vmdk itself in datastore url format
 func (v *ImageStore) imageDiskDSPath(storeName, imageName string) *object.DatastorePath {
 	return &object.DatastorePath{
-		Datastore: v.ds.RootURL.Datastore,
-		Path:      path.Join(v.ds.RootURL.Path, v.imageDiskPath(storeName, imageName)),
+		Datastore: v.Helper.RootURL.Datastore,
+		Path:      path.Join(v.Helper.RootURL.Path, v.imageDiskPath(storeName, imageName)),
 	}
 }
 
@@ -155,7 +153,7 @@ func (v *ImageStore) CreateImageStore(op trace.Operation, storeName string) (*ur
 		return nil, err
 	}
 
-	if _, err = v.ds.Mkdir(op, true, v.imageStorePath(storeName)); err != nil {
+	if _, err = v.Mkdir(op, true, v.imageStorePath(storeName)); err != nil {
 		return nil, err
 	}
 
@@ -165,7 +163,7 @@ func (v *ImageStore) CreateImageStore(op trace.Operation, storeName string) (*ur
 // DeleteImageStore deletes the image store top level directory
 func (v *ImageStore) DeleteImageStore(op trace.Operation, storeName string) error {
 	op.Infof("Cleaning up image store %s", storeName)
-	return v.ds.Rm(op, v.imageStorePath(storeName))
+	return v.Rm(op, v.imageStorePath(storeName))
 }
 
 // GetImageStore checks to see if the image store exists on disk and returns an
@@ -177,7 +175,7 @@ func (v *ImageStore) GetImageStore(op trace.Operation, storeName string) (*url.U
 	}
 
 	p := v.imageStorePath(storeName)
-	info, err := v.ds.Stat(op, p)
+	info, err := v.Stat(op, p)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +195,7 @@ func (v *ImageStore) GetImageStore(op trace.Operation, storeName string) (*url.U
 }
 
 func (v *ImageStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
-	res, err := v.ds.Ls(op, v.imageStorePath(""))
+	res, err := v.Ls(op, v.imageStorePath(""))
 	if err != nil {
 		return nil, err
 	}
@@ -271,80 +269,24 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 	return newImage, nil
 }
 
-// Export reads the delta between child and parent image layers, returning
-// the difference as a tar archive.
-//
-// store - the image store containing the two layers
-// id - must inherit from ancestor if ancestor is specified
-// ancestor - the layer up the chain against which to diff
-// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
-// data - set to true to include file data in the tar archive, false to include headers only
-func (v *ImageStore) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	storeName, err := util.ImageStoreName(store)
+// URL returns a url to the disk image represented by `id`
+func (v *ImageStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	stores, err := v.ListImageStores(op)
 	if err != nil {
 		return nil, err
 	}
 
-	mounts := []*object.DatastorePath{}
-	cleanFunc := func() {
-		for _, mount := range mounts {
-			if err := v.dm.UnmountAndDetach(op, mount, !persistent); err != nil {
-				op.Infof("Error cleaning up disk: %s", err.Error())
-			}
-		}
-	}
-
-	c := v.imageDiskDSPath(storeName, id)
-	childFs, err := v.dm.AttachAndMount(op, c, !persistent)
+	storeName, err := util.ImageStoreName(stores[0])
 	if err != nil {
 		return nil, err
 	}
-	mounts = append(mounts, c)
 
-	ancestorFs := ancestor
-	if ancestor != "" {
-		a := v.imageDiskDSPath(storeName, ancestor)
-		ancestorFs, err = v.dm.AttachAndMount(op, a, !persistent)
-		if err != nil {
-			cleanFunc()
-			return nil, err
-		}
-		mounts = append(mounts, a)
-	}
-
-	tar, err := archive.Diff(op, childFs, ancestorFs, spec, data)
-	if err != nil {
-		cleanFunc()
-		return nil, err
-	}
-
-	// wrap in a cleanReader so we can cleanup after the stream finishes
-	return &cleanReader{
-		ReadCloser: tar,
-		clean:      cleanFunc,
-	}, nil
+	return util.ImageURL(storeName, id)
 }
 
-func (v *ImageStore) Import(op trace.Operation, store *url.URL, ID string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
-	storeName, err := util.ImageStoreName(store)
-	if err != nil {
-		return err
-	}
-
-	imageDiskref := v.imageDiskDSPath(storeName, ID)
-
-	mountPath, err := v.dm.AttachAndMount(op, imageDiskref, persistent)
-	if err != nil {
-		return nil
-	}
-	defer func() {
-		err := v.dm.UnmountAndDetach(op, imageDiskref, persistent)
-		if err != nil {
-			op.Infof("Error cleaning up child disk: %s", err.Error())
-		}
-	}()
-
-	return archive.Unpack(op, tarStream, spec, mountPath)
+// Owners returns a list of VMs that are using the disk specified by `url`
+func (v *ImageStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
+	return nil, nil
 }
 
 // cleanup safely on error
@@ -359,7 +301,7 @@ func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdis
 
 		if vmdisk.Attached() {
 			op.Debugf("Detaching abandoned disk")
-			v.dm.Detach(op, vmdisk.VirtualDiskConfig)
+			v.Detach(op, vmdisk.VirtualDiskConfig)
 		}
 	}
 
@@ -376,14 +318,14 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 
 	// Create a temp image directory in the store.
 	imageDir := v.imageDirPath(storeName, ID)
-	_, err := v.ds.Mkdir(op, true, imageDir)
+	_, err := v.Mkdir(op, true, imageDir)
 	if err != nil {
 		return nil, err
 	}
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	err = writeMetadata(op, v.ds, metaDataDir, meta)
+	err = writeMetadata(op, v.Helper, metaDataDir, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +348,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 
 	config := disk.NewPersistentDisk(diskDsURI).WithParent(parentDiskDsURI)
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(op, config)
+	vmdisk, err = v.CreateAndAttach(op, config)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +384,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 		return nil, err
 	}
 
-	if err = v.dm.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
+	if err = v.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
 		return nil, err
 	}
 
@@ -472,13 +414,13 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	// Create the image directory in the store.
 	imageDir := v.imageDirPath(storeName, portlayer.Scratch.ID)
-	if _, err := v.ds.Mkdir(op, false, imageDir); err != nil {
+	if _, err := v.Mkdir(op, false, imageDir); err != nil {
 		return err
 	}
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
-	if err := writeMetadata(op, v.ds, metaDataDir, nil); err != nil {
+	if err := writeMetadata(op, v.Helper, metaDataDir, nil); err != nil {
 		return err
 	}
 
@@ -499,7 +441,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	config := disk.NewPersistentDisk(imageDiskDsURI).WithCapacity(size)
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(op, config)
+	vmdisk, err = v.CreateAndAttach(op, config)
 	if err != nil {
 		op.Errorf("CreateAndAttach(%s) error: %s", imageDiskDsURI, err)
 		return err
@@ -516,7 +458,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 		return err
 	}
 
-	if err = v.dm.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
+	if err = v.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
 		return err
 	}
 
@@ -545,7 +487,7 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 
 	// get the metadata
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	meta, err := getMetadata(op, v.ds, metaDataDir)
+	meta, err := getMetadata(op, v.Helper, metaDataDir)
 	if err != nil {
 		return nil, err
 	}
@@ -555,7 +497,7 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 	var s = *store
 
 	config := disk.NewPersistentDisk(diskDsURI)
-	dsk, err := v.dm.Get(op, config)
+	dsk, err := v.Get(op, config)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +531,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 		return nil, err
 	}
 
-	res, err := v.ds.Ls(op, v.imageStorePath(storeName))
+	res, err := v.Ls(op, v.imageStorePath(storeName))
 	if err != nil {
 		return nil, err
 	}
@@ -649,7 +591,7 @@ func (v *ImageStore) deleteImage(op trace.Operation, storeName, ID string) error
 	}
 
 	for _, pth := range paths {
-		err := v.ds.Rm(op, pth)
+		err := v.Rm(op, pth)
 
 		// not exist is ok
 		if err == nil || types.IsFileNotFound(err) {
@@ -673,7 +615,7 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 		return err
 	}
 
-	res, err := v.ds.Ls(op, v.imageStorePath(storeName))
+	res, err := v.Ls(op, v.imageStorePath(storeName))
 	if err != nil {
 		return err
 	}
@@ -707,7 +649,7 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 // Manifest file for the image.
 func (v *ImageStore) writeManifest(op trace.Operation, storeName, ID string, r io.Reader) error {
 
-	if err := v.ds.Upload(op, r, v.manifestPath(storeName, ID)); err != nil {
+	if err := v.Upload(op, r, v.manifestPath(storeName, ID)); err != nil {
 		return err
 	}
 
@@ -719,7 +661,7 @@ func (v *ImageStore) verifyImage(op trace.Operation, storeName, ID string) error
 
 	// Check for the manifiest file and the vmdk
 	for _, p := range []string{v.manifestPath(storeName, ID), v.imageDiskPath(storeName, ID)} {
-		if _, err := v.ds.Stat(op, p); err != nil {
+		if _, err := v.Stat(op, p); err != nil {
 			return err
 		}
 	}

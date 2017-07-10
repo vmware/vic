@@ -128,6 +128,10 @@ func (o *Operation) Errorf(format string, args ...interface{}) {
 	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
 
+func (o *Operation) Panicf(format string, args ...interface{}) {
+	Logger.Panicf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
 	child := newOperation(ctx, o.id, 4, msg)
 	child.t = append(child.t, o.t...)

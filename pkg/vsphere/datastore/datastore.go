@@ -325,7 +325,7 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 	return nil
 }
 
-func DatastorePathFromString(dsp string) (*object.DatastorePath, error) {
+func PathFromString(dsp string) (*object.DatastorePath, error) {
 	var p object.DatastorePath
 	if !p.FromString(dsp) {
 		return nil, errors.New(dsp + " not a datastore path")

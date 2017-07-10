@@ -15,12 +15,8 @@
 package handlers
 
 import (
-	"bufio"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,8 +24,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
-
-	"bytes"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -46,8 +40,9 @@ import (
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
 type StorageHandlersImpl struct {
-	imageCache  *spl.NameLookupCache
-	volumeCache *spl.VolumeLookupCache
+	imageCache     *spl.NameLookupCache
+	volumeCache    *spl.VolumeLookupCache
+	containerStore *spl.ContainerStore
 }
 
 const (
@@ -66,24 +61,36 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	op := trace.NewOperation(ctx, "configure")
 
 	if len(spl.Config.ImageStores) == 0 {
-		log.Panicf("No image stores provided; unable to instantiate storage layer")
+		op.Panicf("No image stores provided; unable to instantiate storage layer")
 	}
 
 	imageStoreURL := spl.Config.ImageStores[0]
 	// TODO: support multiple image stores. Right now we only support the first one
 	if len(spl.Config.ImageStores) > 1 {
-		log.Warningf("Multiple image stores found. Multiple image stores are not yet supported. Using [%s] %s", imageStoreURL.Host, imageStoreURL.Path)
+		op.Warnf("Multiple image stores found. Multiple image stores are not yet supported. Using [%s] %s", imageStoreURL.Host, imageStoreURL.Path)
 	}
 
 	ds, err := vsphere.NewImageStore(op, handlerCtx.Session, &imageStoreURL)
 	if err != nil {
-		log.Panicf("Cannot instantiate storage layer: %s", err)
+		op.Panicf("Cannot instantiate storage layer: %s", err)
 	}
 
 	// The imagestore is implemented via a cache which is backed via an
 	// implementation that writes to disks.  The cache is used to avoid
 	// expensive metadata lookups.
 	h.imageCache = spl.NewLookupCache(ds)
+
+	spl.RegisterImporter(op, imageStoreURL.String(), ds)
+	spl.RegisterExporter(op, imageStoreURL.String(), ds)
+
+	c, err := spl.NewContainerStore(op, handlerCtx.Session, h.imageCache)
+	if err != nil {
+		op.Panicf("Couldn't create containerStore: %s", err.Error())
+	}
+	h.containerStore = c
+
+	spl.RegisterImporter(op, "container", h.containerStore)
+	spl.RegisterExporter(op, "container", h.containerStore)
 
 	// add the volume stores, errors are logged within this function.
 	h.configureVolumeStores(op, handlerCtx)
@@ -136,6 +143,9 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 		if _, err = h.volumeCache.AddStore(op, name, vs); err != nil {
 			log.Errorf("volume addition error %s", err)
 		}
+
+		spl.RegisterImporter(op, dsurl.String(), vs)
+		spl.RegisterExporter(op, dsurl.String(), vs)
 	}
 }
 
@@ -517,68 +527,65 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }
 
+// ImportArchive takes an input tar archive and unpacks to destination
+func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	defer params.Archive.Close()
+
+	id := params.DeviceID
+	op := trace.NewOperation(context.Background(), "ImportArchive: %s", id)
+
+	filterSpec, err := vicarchive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
+		// hickeng: should be a 422 instead of 500
+		return storage.NewImportArchiveInternalServerError()
+	}
+
+	store, ok := spl.GetImporter(params.Store)
+	if !ok {
+		return storage.NewImportArchiveNotFound()
+	}
+
+	err = store.Import(op, id, filterSpec, params.Archive)
+	if err != nil {
+		// hickeng: see if we can return usefully typed errors here
+		return storage.NewExportArchiveInternalServerError()
+	}
+
+	return storage.NewImportArchiveOK()
+}
+
 // ExportArchive creates a tar archive and returns to caller
 func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 
-	var filterSpec vicarchive.FilterSpec
-	if params.FilterSpec != nil && len(*params.FilterSpec) > 0 {
-		if decodedSpec, err := base64.StdEncoding.DecodeString(*params.FilterSpec); err == nil {
-			if len(decodedSpec) > 0 {
-				log.Infof("decoded spec = %s", string(decodedSpec))
-				if err = json.Unmarshal(decodedSpec, &filterSpec); err != nil {
-					log.Errorf("Unable to unmarshal decoded spec: %s", err)
-					return storage.NewImportArchiveInternalServerError()
-				}
-			}
-		}
+	id := params.DeviceID
+	ancestor := ""
+	if params.Ancestor != nil {
+		ancestor = *params.Ancestor
 	}
 
-	// Return the data back to the caller
-	pipeReader, pipeWriter := io.Pipe()
-	go func() {
-		pipeWriter.Write([]byte("This is a test!"))
-		pipeWriter.Close()
-	}()
-	detachableOut := NewFlushingReader(pipeReader)
+	op := trace.NewOperation(context.Background(), "ExportArchive: %s:%s", id, ancestor)
 
-	return NewStreamOutputHandler("ExportArchive").WithPayload(detachableOut, params.DeviceID, nil)
-}
-
-// ImportArchive takes an input tar archive and unpacks to destination
-func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-
-	var filterSpec vicarchive.FilterSpec
-	if params.FilterSpec != nil && len(*params.FilterSpec) > 0 {
-		if decodedSpec, err := base64.StdEncoding.DecodeString(*params.FilterSpec); err == nil {
-			if len(decodedSpec) > 0 {
-				log.Debugf("decoded spec = %s", string(decodedSpec))
-				if err = json.Unmarshal(decodedSpec, &filterSpec); err != nil {
-					log.Errorf("Unable to unmarshal decoded spec: %s", err)
-					return storage.NewImportArchiveInternalServerError()
-				}
-			}
-		}
-	}
-
-	detachableIn := NewFlushingReader(params.Archive)
-
-	// This is where you need to take the reader and do something with the tar data
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-	_, err := io.Copy(writer, detachableIn)
+	filterSpec, err := vicarchive.DecodeFilterSpec(op, params.FilterSpec)
 	if err != nil {
-		log.Errorf("Copy tar stream returned error - %s", err.Error())
-		params.Archive.Close()
-		return storage.NewImportArchiveInternalServerError()
+		// hickeng: should be a 422 instead of 500
+		return storage.NewExportArchiveInternalServerError()
 	}
 
-	params.Archive.Close()
+	store, ok := spl.GetExporter(params.Store)
+	if !ok {
+		// TODO: this should be a 404 but cannot seem to figure that out #shamed
+		return storage.NewExportArchiveNotFound()
+	}
 
-	log.Infof(buf.String())
+	r, err := store.Export(op, id, ancestor, filterSpec, params.Data)
+	if err != nil {
+		// hickeng: we're in need of typed errors - should check for id not found for 404 return
+		return storage.NewExportArchiveInternalServerError()
+	}
 
-	return storage.NewImportArchiveOK()
+	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, nil)
 }
 
 //utility functions

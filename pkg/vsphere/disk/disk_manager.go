@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"sync"
 
@@ -274,7 +275,7 @@ func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDi
 	p := info[len(info)-1]
 
 	if p.Parent != "" {
-		ppth, err := datastore.DatastorePathFromString(p.Parent)
+		ppth, err := datastore.PathFromString(p.Parent)
 		if err != nil {
 			return nil, err
 		}
@@ -567,4 +568,58 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 		}
 	}
 	return vms, nil
+}
+
+func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (string, error) {
+	defer trace.End(trace.Begin(""))
+
+	if m.view == nil {
+		return "", fmt.Errorf("ContainerView is nil")
+	}
+
+	var mos []mo.VirtualMachine
+	// Retrieve needed properties of all machines under this view
+	err := m.view.Retrieve(op, []string{"VirtualMachine"}, []string{"name", "config.hardware", "runtime.powerState"}, &mos)
+	if err != nil {
+		return "", err
+	}
+
+	// iterate over them to see whether they have the disk we want
+	for i := range mos {
+		mo := mos[i]
+		log.Debugf("Working on vm %q", mo.Name)
+
+		log.Debugf("Working on devices on vm %q", mo.Name)
+		for _, device := range mo.Config.Hardware.Device {
+			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
+			db := device.GetVirtualDevice().Backing
+			if db == nil {
+				log.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
+				continue
+			}
+
+			switch t := db.(type) {
+			case types.BaseVirtualDeviceFileBackingInfo:
+				log.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
+				diskPath := t.GetVirtualDeviceFileBackingInfo().FileName
+				op.Infof("Disk path: %s", diskPath)
+				if filter(diskPath) {
+					log.Debugf("Match found. Returning filepath %s", diskPath)
+					return diskPath, nil
+				}
+			default:
+				log.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
+			}
+		}
+	}
+	return "", errors.New("Not found")
+}
+
+func (m *Manager) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
+	dsPath, err := datastore.PathFromString(url.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.InUse(op, NewPersistentDisk(dsPath), filter)
 }
