@@ -48,6 +48,23 @@ func IsErrVolumeInUse(err error) bool {
 	return ok
 }
 
+type ErrDiskInUse struct {
+	Msg string
+}
+
+func (e *ErrDiskInUse) Error() string {
+	return e.Msg
+}
+
+func IsErrDiskInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := err.(*ErrDiskInUse)
+
+	return ok
+}
+
 // VolumeStoreNotFoundError : custom error type for when we fail to find a target volume store
 type VolumeStoreNotFoundError struct {
 	Msg string

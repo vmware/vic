@@ -847,14 +847,14 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 
 // StatPath requests the portlayer to stat the filesystem resource at the
 // specified path in the container vc.
-func (c *ContainerProxy) StatPath(ctx context.Context, store, deviceID, path string) (*types.ContainerPathStat, error) {
+func (c *ContainerProxy) StatPath(ctx context.Context, store, deviceID, spec string) (*types.ContainerPathStat, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	statPathParams := storage.
 	NewStatPathParamsWithContext(ctx).
 		WithStore(store).
 		WithDeviceID(deviceID).
-		WithTargetPath(path)
+		WithFilterSpec(spec)
 	statPathOk, err := c.client.Storage.StatPath(statPathParams)
 	if err != nil {
 		log.Errorf(err.Error())

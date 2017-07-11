@@ -586,24 +586,30 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 	// do offline container stat path, if fails do online
 	op := trace.NewOperation(context.Background(), fmt.Sprintf("StatPath(%s)", params.DeviceID))
 
-	fileStat, err := h.volumeCache.StatPath(op, "", params.DeviceID, params.TargetPath)
-	if err != nil {
-		//fileStat, err = h.imageCache.StatPath(op, params.DeviceID, params.TargetPath)
-		// for debugging only:
-		return storage.
-		NewStatPathOK().
-			WithMode(1).
-			WithLinkTarget("symlink").
-			WithName(err.Error()).
-			WithSize(60)
+	resp, err := h.performOfflineStatPath(op, params)
+	if err == nil {
+		return resp
 	}
 
-	// offline succeeded
+	if spl.IsErrDiskInUse(err) {
+		// do online statpath
+		// return ok for testing now
+		return storage.NewStatPathInternalServerError()
+	}
+
+	return storage.NewStatPathNotFound()
+}
+
+func (h *StorageHandlersImpl) performOfflineStatPath(op trace.Operation, params storage.StatPathParams) (middleware.Responder, error) {
+	spec := vicarchive.DecodeFilterSpec(&params.FilterSpec)
+
+	// try volume store first
+	fileStat, err := h.volumeCache.StatPath(op, params.Store, params.DeviceID, spec.RebasePath)
+	// offline volume succeeded
 	if err == nil {
 		modTimeBytes, err := fileStat.ModTime.GobEncode()
 		if err != nil {
 			op.Debugf("failed to encode modtime from statpath %s", err.Error())
-			return storage.NewStatPathNotFound()
 		}
 
 		return storage.
@@ -612,11 +618,17 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 			WithLinkTarget(fileStat.LinkTarget).
 			WithName(fileStat.Name).
 			WithSize(fileStat.Size).
-			WithModTime(string(modTimeBytes))
+			WithModTime(string(modTimeBytes)), nil
 	}
 
-	//TODO: if throws disk in use error, proceed to online
-	return storage.NewStatPathNotFound()
+	//offline volume failed and it's not a disk in use error, try r/w layer
+	if !spl.IsErrDiskInUse(err) {
+		//fileStat, err = h.imageCache.StatPath(op, params.DeviceID, params.TargetPath)
+		// for debugging only
+		return storage.NewStatPathNotFound(), err
+	}
+
+	return nil, err
 }
 
 //utility functions

@@ -191,11 +191,10 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 
 	// inspect mountpoints
 	mounts := mountsFromContainer(vc)
-	// still need to work on this to do a filterspec instead
-	store, deviceId, resolvedPath := resolvePathWithMountPoints(mounts, path, vc.ContainerID)
+	store, deviceId, filterSpec := resolvePathWithMountPoints(mounts, path, vc.ContainerID)
+	spec := vicarchive.EncodeFilterSpec(filterSpec)
 
-	// resolvedpath will be a filterspec instead.
-	stat, err = c.containerProxy.StatPath(context.Background(), store, deviceId, resolvedPath)
+	stat, err = c.containerProxy.StatPath(context.Background(), store, deviceId, *spec)
 	if err != nil {
 		return nil, err
 	}
@@ -575,24 +574,25 @@ func (rm *ArchiveStreamReaderMap) Close() {
 }
 
 // use mountpoints to strip the target to a relative path
-func resolvePathWithMountPoints (mounts []types.MountPoint, path, defaultDevice string) (string, string, string) {
+func resolvePathWithMountPoints (mounts []types.MountPoint, path, defaultDevice string) (string, string, *vicarchive.FilterSpec) {
+	var fs vicarchive.FilterSpec
 	deviceId := defaultDevice
 	store := containerStoreName
 	mntpoint := ""
+	rebasePath := path
 
 	// trim / off from path and then append / to ensure the format is correct
-	resolvedPath := path
-	for strings.HasPrefix(resolvedPath, "/") {
-		resolvedPath = strings.TrimPrefix(resolvedPath, "/")
+	for strings.HasPrefix(rebasePath, "/") {
+		rebasePath = strings.TrimPrefix(path, "/")
 	}
-	for strings.HasSuffix(resolvedPath, "/") {
-		resolvedPath = strings.TrimSuffix(resolvedPath, "/")
+	for strings.HasSuffix(rebasePath, "/") {
+		rebasePath = strings.TrimSuffix(rebasePath, "/")
 	}
-	resolvedPath = "/" + resolvedPath
+	rebasePath = "/" + rebasePath
 
 	for _, mount := range mounts {
-		if strings.HasPrefix(resolvedPath, mount.Destination) {
-			if len(mount.Destination) != len(resolvedPath) &&
+		if strings.HasPrefix(rebasePath, mount.Destination) {
+			if len(mount.Destination) != len(rebasePath) &&
 				(mntpoint == "" || (len(mount.Destination) > len(mntpoint))) {
 				deviceId = mount.Name
 				mntpoint = mount.Destination
@@ -600,12 +600,16 @@ func resolvePathWithMountPoints (mounts []types.MountPoint, path, defaultDevice 
 		}
 	}
 
-	if deviceId != "" {
+	if mntpoint != "" {
 		store = volumeStoreName
-		resolvedPath = strings.TrimPrefix(resolvedPath, mntpoint)
+		rebasePath = strings.TrimPrefix(rebasePath, mntpoint)
 	}
 
-	return store, deviceId, resolvedPath
+	fs.RebasePath = rebasePath
+	fs.Inclusions = make(map[string]struct{})
+	fs.Inclusions[mntpoint] = struct{}{}
+
+	return store, deviceId, &fs
 }
 
 // End

@@ -360,13 +360,13 @@
 						"type": "string",
 						"x-nullable": false
 					},
-					{
-						"name": "targetPath",
-						"in": "query",
-						"required": true,
-						"type": "string",
-						"x-nullable": false
-					}
+                    {
+                        "name": "filterSpec",
+                        "in": "query",
+                        "required": true,
+                        "type": "string",
+                        "x-nullable": false
+                    }
 				],
 				"responses": {
 					"200": {
@@ -396,21 +396,12 @@
 					},
 					"404": {
 						"description": "supplied target not found",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
 					},
 					"500": {
 						"description": "failed to fetch stat path from target",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
 					},
 					"default": {
 						"description": "error",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
 					}
 				}
 			}
