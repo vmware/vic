@@ -611,7 +611,7 @@ func SetUpdateStatus(ctx context.Context, updateStatus string, vm *VirtualMachin
 	info[UpdateStatus] = updateStatus
 
 	s := &types.VirtualMachineConfigSpec{
-		ExtraConfig: vmomi.OptionValueFromMap(info),
+		ExtraConfig: vmomi.OptionValueFromMap(info, true),
 	}
 
 	_, err := vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {

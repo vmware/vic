@@ -1,16 +1,16 @@
 Test 18-1 - VIC UI Installation
 ======
 
-#Purpose:
+# Purpose:
 To test all possible installation failures and success scenarios on VCSA
 
-#References:
+# References:
 
-#Environment:
+# Environment:
 * Testing VIC UI requires a working VCSA setup with VCH installed
 * Target VCSA has Bash enabled for the root account
 
-#Test Steps:
+# Test Steps:
 1. Check if the configs file exists
 2. Ensure UI plugin is not registered with VC before testing
 3. Try installing UI without the configs file
@@ -25,8 +25,8 @@ To test all possible installation failures and success scenarios on VCSA
 12. Install UI successfully with the --force flag when the plugin is already registered
 13. Try installing UI with a web server and an invalid URL to the plugin zip file
 
-#Expected Outcome:
+# Expected Outcome:
 * Each step should return success
 
-#Possible Problems:
+# Possible Problems:
 Attempting to `ssh` into VCSA with a wrong root password three times locks the account for a certain amount of time. For this reason Step 8 is skipped.

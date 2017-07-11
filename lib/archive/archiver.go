@@ -34,6 +34,9 @@ const (
 	Exclude
 	// Rebase specifies a path rebase.
 	// The rebase path is prepended to the path in the archive header.
+	// for an Export this will ensure proper headers on the way out.
+	// for an Import it will ensure that the tar unpacking occurs in
+	// right location
 	Rebase
 	// Strip specifies a path strip.
 	// The inverse of a rebase, the path is stripped from the header path
@@ -63,12 +66,19 @@ type Archiver interface {
 	// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
 	// data - include file data in the tar archive if true, headers only otherwise
 	Export(op trace.Operation, store *url.URL, id, ancestor string, spec *FilterSpec, data bool) (io.ReadCloser, error)
+
+	// Import will process the input tar stream based on the supplied path spec and write the stream to the
+	// target device.
+	//
+	// store - the device store containing the target device
+	// id - the id for the device that is contained within the store
+	// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
+	// tarstream - the tar stream that is to be written to the target on the device
+	Import(op trace.Operation, store *url.URL, id string, spec *FilterSpec, tarstream io.ReadCloser) error
 }
 
 // CreateFilterSpec creates a FilterSpec from a supplied map
 func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSpec, error) {
-	var rebase, strip string
-
 	fs := &FilterSpec{
 		Inclusions: make(map[string]struct{}),
 		Exclusions: make(map[string]struct{}),
@@ -85,22 +95,19 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 		case Exclude:
 			fs.Exclusions[k] = struct{}{}
 		case Rebase:
-			if rebase != "" {
+			if fs.RebasePath != "" {
 				return nil, fmt.Errorf("Error creating filter spec: only one rebase path allowed")
 			}
-			rebase = k
+			fs.RebasePath = k
 		case Strip:
-			if strip != "" {
+			if fs.StripPath != "" {
 				return nil, fmt.Errorf("Error creating filter spec: only one strip path allowed")
 			}
-			strip = k
+			fs.StripPath = k
 		default:
 			return nil, fmt.Errorf("Invalid filter specification: %d", v)
 		}
 	}
-
-	fs.RebasePath = rebase
-	fs.StripPath = strip
 
 	return fs, nil
 }

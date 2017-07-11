@@ -110,6 +110,10 @@ func (m *MockVolumeStore) Export(op trace.Operation, store *url.URL, child, ance
 	return nil, nil
 }
 
+func (m *MockVolumeStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
+}
+
 func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "test")
 

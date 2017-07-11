@@ -15,8 +15,12 @@
 package handlers
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,9 +29,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 
+	"bytes"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
+	vicarchive "github.com/vmware/vic/lib/archive"
 	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/storage/nfs"
@@ -94,6 +101,9 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(h.VolumeJoin)
 	api.StorageListVolumesHandler = storage.ListVolumesHandlerFunc(h.VolumesList)
 	api.StorageGetVolumeHandler = storage.GetVolumeHandlerFunc(h.GetVolume)
+
+	api.StorageExportArchiveHandler = storage.ExportArchiveHandlerFunc(h.ExportArchive)
+	api.StorageImportArchiveHandler = storage.ImportArchiveHandlerFunc(h.ImportArchive)
 }
 
 func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) {
@@ -505,6 +515,70 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 
 	op.Infof("volume %s has been joined to a container", volume.ID)
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
+}
+
+// ExportArchive creates a tar archive and returns to caller
+func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+
+	var filterSpec vicarchive.FilterSpec
+	if params.FilterSpec != nil && len(*params.FilterSpec) > 0 {
+		if decodedSpec, err := base64.StdEncoding.DecodeString(*params.FilterSpec); err == nil {
+			if len(decodedSpec) > 0 {
+				log.Infof("decoded spec = %s", string(decodedSpec))
+				if err = json.Unmarshal(decodedSpec, &filterSpec); err != nil {
+					log.Errorf("Unable to unmarshal decoded spec: %s", err)
+					return storage.NewImportArchiveInternalServerError()
+				}
+			}
+		}
+	}
+
+	// Return the data back to the caller
+	pipeReader, pipeWriter := io.Pipe()
+	go func() {
+		pipeWriter.Write([]byte("This is a test!"))
+		pipeWriter.Close()
+	}()
+	detachableOut := NewFlushingReader(pipeReader)
+
+	return NewStreamOutputHandler("ExportArchive").WithPayload(detachableOut, params.DeviceID, nil)
+}
+
+// ImportArchive takes an input tar archive and unpacks to destination
+func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+
+	var filterSpec vicarchive.FilterSpec
+	if params.FilterSpec != nil && len(*params.FilterSpec) > 0 {
+		if decodedSpec, err := base64.StdEncoding.DecodeString(*params.FilterSpec); err == nil {
+			if len(decodedSpec) > 0 {
+				log.Debugf("decoded spec = %s", string(decodedSpec))
+				if err = json.Unmarshal(decodedSpec, &filterSpec); err != nil {
+					log.Errorf("Unable to unmarshal decoded spec: %s", err)
+					return storage.NewImportArchiveInternalServerError()
+				}
+			}
+		}
+	}
+
+	detachableIn := NewFlushingReader(params.Archive)
+
+	// This is where you need to take the reader and do something with the tar data
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+	_, err := io.Copy(writer, detachableIn)
+	if err != nil {
+		log.Errorf("Copy tar stream returned error - %s", err.Error())
+		params.Archive.Close()
+		return storage.NewImportArchiveInternalServerError()
+	}
+
+	params.Archive.Close()
+
+	log.Infof(buf.String())
+
+	return storage.NewImportArchiveOK()
 }
 
 //utility functions

@@ -17,7 +17,6 @@ package communication
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"sync"
 	"time"
@@ -288,17 +287,29 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		}
 		if err = serial.HandshakeClient(conn); err == nil {
 			conn.SetReadDeadline(time.Time{})
-			log.Debugf("attach connector: New connection")
+			log.Debugf("HandshakeClient: connection handshake established")
 			cancel()
 			break
-		} else if err == io.EOF {
-			log.Debugf("caught EOF")
+		}
+
+		switch e := err.(type) {
+		case *serial.HandshakeError:
+			log.Debugf("HandshakeClient: %v", e)
+			continue
+		case *net.OpError:
+			if e.Temporary() || e.Timeout() {
+				// if it's a passing error or timeout then try again
+				continue
+			}
+			// if it's not a temporary condition, then treat it as a transport error
+			log.Errorf("HandshakeClient: transport op-error: %v", e)
 			conn.Close()
 			return
-		} else if _, ok := err.(*serial.HandshakeError); ok {
-			log.Debugf("HandshakeClient: %v", err)
-		} else {
-			log.Errorf("HandshakeClient: %v", err)
+		default: // includes the io.EOF case
+			// treat everything unknown as transport errror
+			log.Errorf("HandshakeClient: transport error: %v (%T)", e, e)
+			conn.Close()
+			return
 		}
 	}
 

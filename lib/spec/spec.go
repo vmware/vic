@@ -127,7 +127,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	// encode the config as optionvalues
 	cfg := map[string]string{}
 	extraconfig.Encode(extraconfig.MapSink(cfg), config.Metadata)
-	metaCfg := vmomi.OptionValueFromMap(cfg)
+	metaCfg := vmomi.OptionValueFromMap(cfg, true)
 
 	// merge it with the sec
 	s.ExtraConfig = append(s.ExtraConfig, metaCfg...)
