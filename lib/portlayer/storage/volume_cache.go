@@ -25,7 +25,9 @@ import (
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/storage/compute"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -271,4 +273,23 @@ func volumeInUse(ID string) error {
 	}
 
 	return nil
+}
+
+func (v *VolumeLookupCache) StatPath(op trace.Operation, storeId, deviceId string, target string) (*compute.FileStat, error) {
+	v.vlcLock.Lock()
+	defer v.vlcLock.Unlock()
+	// FIXME: If we change the structure of volume cache, we can no longer get volume store from a deviceID.
+
+	// check if the device is a volume
+	vol, ok := v.vlc[deviceId]
+	if !ok {
+		return nil, errors.Errorf("Device is not a volume")
+	}
+
+	vs, err := v.volumeStore(vol.Store)
+	if err != nil {
+		return nil, errors.Errorf("In volume cache: ", err.Error())
+	}
+
+	return vs.StatPath(op, storeId, deviceId, target)
 }

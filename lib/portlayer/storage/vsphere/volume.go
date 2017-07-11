@@ -20,12 +20,14 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/compute"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -267,4 +269,21 @@ func (v *VolumeStore) Import(op trace.Operation, store *url.URL, id string, spec
 	}()
 
 	return archive.Unpack(op, tarstream, spec, mountPath)
+}
+
+func (v *VolumeStore) StatPath(op trace.Operation, storeId, deviceId, target string) (*compute.FileStat, error) {
+	diskDsURI := v.volDiskDSPath(deviceId)
+	mountPath, err := v.dm.AttachAndMount(op, diskDsURI, persistent)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		e1 := v.dm.UnmountAndDetach(op, diskDsURI, persistent)
+		if e1 != nil {
+			op.Errorf(e1.Error())
+		}
+	}()
+
+	return compute.InspectFileStat(filepath.Join(mountPath, target))
 }

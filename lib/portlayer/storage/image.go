@@ -22,8 +22,9 @@ import (
 	"strings"
 
 	"github.com/vmware/vic/lib/archive"
-	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
+	"github.com/vmware/vic/lib/portlayer/storage/compute"
+	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 )
@@ -77,6 +78,8 @@ type ImageStorer interface {
 
 	// Archiver defines the Export and WriteArchive interface methods
 	archive.Archiver
+
+	compute.ContainerStatPath
 }
 
 // Image is the handle to identify an image layer on the backing store.  The

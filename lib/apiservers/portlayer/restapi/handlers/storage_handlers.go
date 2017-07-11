@@ -104,6 +104,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 	api.StorageExportArchiveHandler = storage.ExportArchiveHandlerFunc(h.ExportArchive)
 	api.StorageImportArchiveHandler = storage.ImportArchiveHandlerFunc(h.ImportArchive)
+	api.StorageStatPathHandler = storage.StatPathHandlerFunc(h.StatPath)
 }
 
 func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) {
@@ -579,6 +580,43 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 	log.Infof(buf.String())
 
 	return storage.NewImportArchiveOK()
+}
+
+func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware.Responder {
+	// do offline container stat path, if fails do online
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("StatPath(%s)", params.DeviceID))
+
+	fileStat, err := h.volumeCache.StatPath(op, "", params.DeviceID, params.TargetPath)
+	if err != nil {
+		//fileStat, err = h.imageCache.StatPath(op, params.DeviceID, params.TargetPath)
+		// for debugging only:
+		return storage.
+		NewStatPathOK().
+			WithMode(1).
+			WithLinkTarget("symlink").
+			WithName(err.Error()).
+			WithSize(60)
+	}
+
+	// offline succeeded
+	if err == nil {
+		modTimeBytes, err := fileStat.ModTime.GobEncode()
+		if err != nil {
+			op.Debugf("failed to encode modtime from statpath %s", err.Error())
+			return storage.NewStatPathNotFound()
+		}
+
+		return storage.
+		NewStatPathOK().
+			WithMode(fileStat.Mode).
+			WithLinkTarget(fileStat.LinkTarget).
+			WithName(fileStat.Name).
+			WithSize(fileStat.Size).
+			WithModTime(string(modTimeBytes))
+	}
+
+	//TODO: if throws disk in use error, proceed to online
+	return storage.NewStatPathNotFound()
 }
 
 //utility functions
