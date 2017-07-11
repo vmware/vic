@@ -73,11 +73,12 @@ func NewSource(sess *session.Session, vchID string) dynamic.Source {
 }
 
 type source struct {
-	mu    sync.Mutex
-	d     discovery
-	sess  *session.Session
-	vchID string
-	c     *client.Admiral
+	mu      sync.Mutex
+	d       discovery
+	sess    *session.Session
+	vchID   string
+	c       *client.Admiral
+	lastCfg *vchcfg.VirtualContainerHostConfigSpec
 }
 
 // Get returns the dynamic config portion from an Admiral instance. For now,
@@ -100,9 +101,44 @@ func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpe
 		return nil, err
 	}
 
-	return &vchcfg.VirtualContainerHostConfigSpec{
+	newCfg := &vchcfg.VirtualContainerHostConfigSpec{
 		Registry: vchcfg.Registry{RegistryWhitelist: wl},
-	}, nil
+	}
+
+	err = a.diff(newCfg)
+	a.lastCfg = newCfg
+	return newCfg, err
+}
+
+func (a *source) diff(newCfg *vchcfg.VirtualContainerHostConfigSpec) error {
+	if a.lastCfg == nil {
+		return nil
+	}
+
+	if newCfg == nil {
+		return dynamic.ErrConfigNotModified
+	}
+
+	// compare whitelists
+	if len(a.lastCfg.RegistryWhitelist) != len(newCfg.RegistryWhitelist) {
+		return nil
+	}
+
+	for _, w1 := range a.lastCfg.RegistryWhitelist {
+		found := false
+		for _, w2 := range newCfg.RegistryWhitelist {
+			if w2 == w1 {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil
+		}
+	}
+
+	return dynamic.ErrConfigNotModified
 }
 
 func (a *source) discover(ctx context.Context) error {
@@ -160,7 +196,7 @@ func (a *source) projects(ctx context.Context) ([]string, error) {
 		if u.Scheme == "" {
 			ids = append(ids, "https://"+a.vchID)
 		} else {
-			ids = append(ids, strings.TrimPrefix(a.vchID, u.Scheme))
+			ids = append(ids, strings.TrimPrefix(a.vchID, u.Scheme+"://"))
 		}
 	}
 
@@ -170,7 +206,7 @@ func (a *source) projects(ctx context.Context) ([]string, error) {
 		filter := fmt.Sprintf(clusterFilter, vchID)
 		log.Debugf("getting compute resources with filter %s", filter)
 		comps, err = a.c.ResourcesCompute.GetResourcesCompute(resources_compute.NewGetResourcesComputeParamsWithContext(ctx).WithDollarFilter(&filter))
-		if err == nil {
+		if err == nil && comps.Payload.DocumentCount > 0 {
 			break
 		}
 	}
