@@ -185,6 +185,8 @@ This test requires that a vSphere server is running and available
 1. Create an open container and verify another open container can connect to it on arbitrary ports.
 2. a. Try to publish a port on a closed firewall and verify an error is received.
    b. Create a closed container and verify an open container cannot connect to it on an arbitrary port.
+   c. Create a container connected to a bridge and a closed network. Verify that another container connected
+      to the same bridge can connect to the closed container.
 3. a. Create an outbound container. Verify that an outbound container on the same external network cannot 
       connect to the first outbound container.
    b. Verify that the outbound container can initiate a connection with an open network on an arbitrary port.

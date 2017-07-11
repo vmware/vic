@@ -448,6 +448,11 @@ Container Firewalls
 
     ### CLOSED FIREWALL ###
     Log To Console  Checking Closed Firewall
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=closed-net --name shouldfail -p 123 ${busybox} nc -l -p 1234
+    Should Contain  ${output}  Ports can only be published
+    Should Not Be Equal As Integers  ${rc}  0
+
     # Create a closed container listening on port 1234.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=closed-net --name p2 ${busybox} nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
@@ -456,6 +461,24 @@ Container Firewalls
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=bridge ${busybox} nc ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
+    
+    # Create a container on a bridge and closed network listening on port 1234.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --net=bridge --name closedbridge ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p2
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect closed-net closedbridge
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start closedbridge
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d closedbridge nc -l -p 1234
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network=bridge nc ${ip} 1234
+    Should Be Equal As Integers  ${rc}  0
 
     ### OUTBOUND FIREWALL ###
     Log To Console  Checking Outbound Firewall
