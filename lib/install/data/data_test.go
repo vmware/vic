@@ -94,10 +94,12 @@ func TestCopyContainerNetworks(t *testing.T) {
 		FirstIP: net.ParseIP("10.10.10.10"),
 		LastIP:  net.ParseIP("10.10.10.24"),
 	}
+	trust := common.Closed
 	src.ContainerNetworks.MappedNetworks[fooLabel] = fooNet
 	src.ContainerNetworks.MappedNetworksGateways[fooLabel] = *mask
 	src.ContainerNetworks.MappedNetworksIPRanges[fooLabel] = []ip.Range{ipRange}
 	src.ContainerNetworks.MappedNetworksDNS[fooLabel] = []net.IP{ipAddr}
+	src.ContainerNetworks.MappedNetworksFirewalls[fooLabel] = trust
 
 	// Everything in src should be copied to d.
 	err := d.copyContainerNetworks(src)
@@ -110,6 +112,7 @@ func TestCopyContainerNetworks(t *testing.T) {
 	src.ContainerNetworks.MappedNetworksGateways[barLabel] = net.IPNet{}
 	src.ContainerNetworks.MappedNetworksIPRanges[barLabel] = []ip.Range{}
 	src.ContainerNetworks.MappedNetworksDNS[barLabel] = []net.IP{}
+	src.ContainerNetworks.MappedNetworksFirewalls[barLabel] = common.Published
 
 	// The new network should be copied to d.
 	err = d.copyContainerNetworks(src)
@@ -120,6 +123,7 @@ func TestCopyContainerNetworks(t *testing.T) {
 	delete(src.ContainerNetworks.MappedNetworksGateways, barLabel)
 	delete(src.ContainerNetworks.MappedNetworksIPRanges, barLabel)
 	delete(src.ContainerNetworks.MappedNetworksDNS, barLabel)
+	delete(src.ContainerNetworks.MappedNetworksFirewalls, barLabel)
 
 	// There should be an error if anything in d is not in src.
 	err = d.copyContainerNetworks(src)
@@ -129,6 +133,7 @@ func TestCopyContainerNetworks(t *testing.T) {
 	src.ContainerNetworks.MappedNetworksGateways[barLabel] = net.IPNet{}
 	src.ContainerNetworks.MappedNetworksIPRanges[barLabel] = []ip.Range{ipRange}
 	src.ContainerNetworks.MappedNetworksDNS[barLabel] = []net.IP{ipAddr}
+	src.ContainerNetworks.MappedNetworksFirewalls[barLabel] = trust
 
 	// There should be an error on an attempt to change an existing network.
 	err = d.copyContainerNetworks(src)
