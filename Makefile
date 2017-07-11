@@ -77,6 +77,7 @@ LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/versio
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
 docker-engine-api-test := $(BIN)/docker-engine-server-test
+admiralapi-client := lib/config/dynamic/admiral/client/admiral_client.go
 portlayerapi := $(BIN)/port-layer-server
 portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
@@ -117,6 +118,7 @@ portlayerapi: $(portlayerapi)
 portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
+admiralapi-client: $(admiralapi-client)
 
 imagec: $(imagec)
 vicadmin: $(vicadmin)
@@ -301,7 +303,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
-$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
+$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client) $(admiralapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
@@ -321,6 +323,11 @@ endif
 PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
 				  lib/apiservers/portlayer/restapi/options/*.go
+
+$(admiralapi-client): lib/config/dynamic/admiral/swagger.json $(SWAGGER)
+	@echo regenerating swagger models and operations for Admiral API client...
+	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral -f lib/config/dynamic/admiral/swagger.json --tags /projects --tags /resources/compute --tags /config/registries 2>>swagger-gen.log
+	@echo done regenerating swagger models and operations for Admiral API client...
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...

@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,10 +31,8 @@ import (
 	strfmt "github.com/go-openapi/strfmt"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+
 	"github.com/vmware/govmomi/vim25/types"
-
-	"strings"
-
 	vchcfg "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/config/dynamic/admiral/client"

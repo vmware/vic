@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
