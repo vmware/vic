@@ -89,7 +89,8 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 	}
 
 	filter := vicarchive.FilterSpec{}
-	rc, err := containerEngine.containerProxy.ArchiveExportReader(context.Background(), containerStoreName, imageStoreName, vc.ContainerID, vc.LayerID, true, filter)
+	// rc, err := containerEngine.containerProxy.GetContainerChanges()
+	rc, err := containerEngine.containerProxy.ArchiveExportReader(context.Background(), containerStoreName, "host", vc.ContainerID, vc.LayerID, true, filter)
 	if err != nil {
 		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)
 	}
@@ -218,12 +219,8 @@ func setLayerConfig(lm *imagec.ImageWithMeta, container *types.ContainerJSON, co
 	}
 	// layer metadata
 	lm.Meta = string(m)
-	lm.Image = &models.Image{
-		ID:     lm.ID,
-		Parent: vc.ImageID,
-		Store:  host,
-	}
-
+	lm.Image.Parent = vc.ImageID
+	lm.Image.Store = host
 	return nil
 }
 
@@ -299,6 +296,9 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 
 	// layer metadata
 	lm := &imagec.ImageWithMeta{
+		Image: &models.Image{
+			ID: layerID,
+		},
 		DiffID: diffID.String(),
 		Layer: imagec.FSLayer{
 			BlobSum: blobSum.String(),
