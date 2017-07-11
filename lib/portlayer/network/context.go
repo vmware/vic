@@ -28,7 +28,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -498,7 +497,7 @@ type ScopeData struct {
 	Subnet      *net.IPNet
 	Gateway     net.IP
 	DNS         []net.IP
-	TrustLevel  common.TrustLevel
+	TrustLevel  executor.TrustLevel
 	Pools       []string
 	Annotations map[string]string
 	Internal    bool
@@ -1049,7 +1048,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			}
 		}
 		// Check that ports are only opened on published network firewall configuration.
-		if len(options.Ports) > 0 && s.TrustLevel() != common.Published {
+		if len(options.Ports) > 0 && s.TrustLevel() != executor.Published {
 			err = fmt.Errorf("Ports can only be published via the \"published\" container network firewall.\n%s%s.",
 				"Current firewall configuration: ", s.TrustLevel().String())
 			log.Errorln(err)

@@ -23,35 +23,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 )
-
-type TrustLevel int
-
-const (
-	Published TrustLevel = iota
-	Open
-	Closed
-	Outbound
-	Peers
-)
-
-func (t TrustLevel) String() string {
-	switch t {
-	case Open:
-		return "open"
-	case Closed:
-		return "closed"
-	case Published:
-		return "published"
-	case Outbound:
-		return "outbound"
-	case Peers:
-		return "peers"
-	}
-	log.Warningf("Unknown trust level %d. Defaulting to Published.", int(t))
-	return "published"
-}
 
 // CNetworks holds user input from container network flags
 type CNetworks struct {
@@ -65,18 +39,19 @@ type CNetworks struct {
 
 // ContainerNetworks holds container network data after processing
 type ContainerNetworks struct {
-	MappedNetworks          map[string]string     `cmd:"parent" label:"key-value"`
-	MappedNetworksGateways  map[string]net.IPNet  `cmd:"gateway" label:"key-value"`
-	MappedNetworksIPRanges  map[string][]ip.Range `cmd:"ip-range" label:"key-value"`
-	MappedNetworksDNS       map[string][]net.IP   `cmd:"dns" label:"key-value"`
-	MappedNetworksFirewalls map[string]TrustLevel `cmd:"firewall" label:"key-value"`
+	MappedNetworks          map[string]string              `cmd:"parent" label:"key-value"`
+	MappedNetworksGateways  map[string]net.IPNet           `cmd:"gateway" label:"key-value"`
+	MappedNetworksIPRanges  map[string][]ip.Range          `cmd:"ip-range" label:"key-value"`
+	MappedNetworksDNS       map[string][]net.IP            `cmd:"dns" label:"key-value"`
+	MappedNetworksFirewalls map[string]executor.TrustLevel `cmd:"firewall" label:"key-value"`
 }
 
 func (c *ContainerNetworks) IsSet() bool {
 	return len(c.MappedNetworks) > 0 ||
 		len(c.MappedNetworksGateways) > 0 ||
 		len(c.MappedNetworksIPRanges) > 0 ||
-		len(c.MappedNetworksDNS) > 0
+		len(c.MappedNetworksDNS) > 0 ||
+		len(c.MappedNetworksFirewalls) > 0
 }
 
 func (c *CNetworks) CNetworkFlags(hidden bool) []cli.Flag {
@@ -107,7 +82,7 @@ func (c *CNetworks) CNetworkFlags(hidden bool) []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "container-network-firewall, cnf",
 			Value:  &c.ContainerNetworksFirewall,
-			Usage:  "Container network trust level. Options: Closed, Outbound, Peers, Published, Open.",
+			Usage:  "Container network trust level in CONTAINER-NETWORK:LEVEL format. Options: Closed, Outbound, Peers, Published, Open.",
 			Hidden: hidden,
 		},
 	}
@@ -166,27 +141,16 @@ func parseContainerNetworkDNS(cds []string) (map[string][]net.IP, error) {
 	return dns, nil
 }
 
-func parseContainerNetworkFirewalls(cfs []string) (map[string]TrustLevel, error) {
-	firewalls := make(map[string]TrustLevel)
+func parseContainerNetworkFirewalls(cfs []string) (map[string]executor.TrustLevel, error) {
+	firewalls := make(map[string]executor.TrustLevel)
 	for _, cf := range cfs {
-		var trust TrustLevel
 		vnet, value, err := splitVnetParam(cf)
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing container network parameter %s: %s", cf, err)
 		}
-		switch strings.ToLower(value) {
-		case "open":
-			trust = Open
-		case "closed":
-			trust = Closed
-		case "published":
-			trust = Published
-		case "outbound":
-			trust = Outbound
-		case "peers":
-			trust = Peers
-		default:
-			return nil, fmt.Errorf("Unrecognized container trust level %s.", cf)
+		trust, err := executor.ConvertStringToTrustLevel(value)
+		if err != nil {
+			return nil, err
 		}
 		firewalls[vnet] = trust
 	}
@@ -262,7 +226,7 @@ func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
 		MappedNetworksGateways:  make(map[string]net.IPNet),
 		MappedNetworksIPRanges:  make(map[string][]ip.Range),
 		MappedNetworksDNS:       make(map[string][]net.IP),
-		MappedNetworksFirewalls: make(map[string]TrustLevel),
+		MappedNetworksFirewalls: make(map[string]executor.TrustLevel),
 	}
 
 	if c.ContainerNetworks != nil || c.ContainerNetworksGateway != nil ||

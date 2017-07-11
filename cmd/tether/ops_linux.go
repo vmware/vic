@@ -28,7 +28,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/tether"
@@ -160,19 +160,19 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
 			switch endpoint.Network.TrustLevel {
-			case common.Open:
+			case executor.Open:
 				// Accept all incoming and outgoing traffic
 				generalPolicy(netfilter.Accept)
 
-			case common.Closed:
+			case executor.Closed:
 				// Reject all incoming and outgoing traffic
 				generalPolicy(netfilter.Drop)
 
-			case common.Outbound:
+			case executor.Outbound:
 				// Reject all incoming traffic, but allow outgoing
 				setupOutboundFirewall(ifaceName)
 
-			case common.Peers:
+			case executor.Peers:
 				// Outbound + all ports open to source addresses in --container-network-ip-range
 				setupOutboundFirewall(ifaceName)
 				sourceAddresses := make([]string, len(endpoint.Network.Pools))
@@ -187,7 +187,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 				}).Commit(context.TODO())
 				allowPingTraffic(ifaceName, sourceAddresses)
 
-			case common.Published:
+			case executor.Published:
 				setupPublishedFirewall(endpoint, ifaceName)
 
 			default:

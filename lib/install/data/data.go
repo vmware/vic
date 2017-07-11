@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -150,7 +151,7 @@ func NewData() *Data {
 			MappedNetworksGateways:  make(map[string]net.IPNet),
 			MappedNetworksIPRanges:  make(map[string][]ip.Range),
 			MappedNetworksDNS:       make(map[string][]net.IP),
-			MappedNetworksFirewalls: make(map[string]common.TrustLevel),
+			MappedNetworksFirewalls: make(map[string]executor.TrustLevel),
 		},
 		Timeout: 3 * time.Minute,
 	}

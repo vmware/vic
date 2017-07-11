@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
@@ -36,7 +36,7 @@ type Scope struct {
 	subnet      *net.IPNet
 	gateway     net.IP
 	dns         []net.IP
-	trustLevel  common.TrustLevel
+	trustLevel  executor.TrustLevel
 	containers  map[uid.UID]*Container
 	endpoints   []*Endpoint
 	spaces      []*AddressSpace
@@ -115,7 +115,7 @@ func (s *Scope) Pools() []*ip.Range {
 	return s.pools()
 }
 
-func (s *Scope) TrustLevel() common.TrustLevel {
+func (s *Scope) TrustLevel() executor.TrustLevel {
 	s.RLock()
 	defer s.RUnlock()
 

@@ -17,7 +17,6 @@ package executor
 import (
 	"net"
 
-	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -76,7 +75,7 @@ type ContainerNetwork struct {
 	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
 
 	// Level of trust configured for this network
-	TrustLevel common.TrustLevel
+	TrustLevel
 
 	Assigned struct {
 		Gateway     net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`

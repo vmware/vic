@@ -27,6 +27,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/ip"
 	viclog "github.com/vmware/vic/pkg/log"
@@ -82,7 +83,7 @@ func init() {
 	typeConverters["ip.Range"] = convertIPRange
 	typeConverters["data.NetworkConfig"] = convertNetwork
 	typeConverters["common.ContainerNetworks"] = convertContainerNetworks
-	typeConverters["common.TrustLevel"] = convertTrustLevel
+	typeConverters["executor.TrustLevel"] = convertTrustLevel
 	typeConverters["types.SharesInfo"] = convertShares
 
 	labelHandlers[keyAfterValueLabel] = keyAfterValueLabelHandler
@@ -331,7 +332,7 @@ func convertIP(src reflect.Value, prefix string, tags reflect.StructTag, dest ma
 
 func convertTrustLevel(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
 	log.Debugf("convertTrustLevel: prefix: %s, src: %s", prefix, src.String())
-	trustLevel, ok := src.Interface().(common.TrustLevel)
+	trustLevel, ok := src.Interface().(executor.TrustLevel)
 	if !ok {
 		panic(fmt.Sprintf(src.Type().String() + " is not TrustLevel"))
 	}
