@@ -108,7 +108,7 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 	// we allow the primary session
 	t.authIDs[config.ID] = struct{}{}
 	// we also allow any device IDs that are attached
-	for mspec := range config.Mounts {
+	for _, mspec := range config.Mounts {
 		t.authIDs[mspec.Source.Host] = struct{}{}
 	}
 
