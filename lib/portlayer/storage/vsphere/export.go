@@ -76,7 +76,7 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 	// TODO(jzt): tweak this when online export is available
 	for _, o := range owners {
 		// o is a VM
-		_, _ = v.newOnlineDataSource(op, o)
+		_, _ = v.newOnlineDataSource(op, o, id)
 		// if a != nil && a.available() {
 		// 	return a, nil
 		// }
@@ -102,8 +102,12 @@ func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.D
 	}, nil
 }
 
-func (v *VolumeStore) newOnlineDataSource(op trace.Operation, vm *vm.VirtualMachine) (storage.DataSource, error) {
-	return nil, errors.New("online source not yet supported - expecting this to be a common toolbox implementaiton")
+func (v *VolumeStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
+	return &ToolboxDataSource{
+		VM: owner,
+		// TODO: there's some mangling that happens from volume id to disk label so this isn't currently correct
+		ID: id,
+	}, nil
 }
 
 // Export reads the delta between child and parent image layers, returning

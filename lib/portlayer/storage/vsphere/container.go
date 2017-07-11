@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package vsphere
 
 import (
 	"errors"
@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -33,9 +34,9 @@ import (
 // ContainerStorer defines the interface contract expected to allow import and export
 // against containers
 type ContainerStorer interface {
-	Resolver
-	Importer
-	Exporter
+	storage.Resolver
+	storage.Importer
+	storage.Exporter
 }
 
 // ContainerStore stores container storage information
@@ -43,12 +44,12 @@ type ContainerStore struct {
 	disk.Vmdk
 
 	// used to resolve images when diffing
-	images Resolver
+	images storage.Resolver
 }
 
 // NewContainerStore creates and returns a new container store
-func NewContainerStore(op trace.Operation, s *session.Session, imageResolver Resolver) (*ContainerStore, error) {
-	dm, err := disk.NewDiskManager(op, s, Config.ContainerView)
+func NewContainerStore(op trace.Operation, s *session.Session, imageResolver storage.Resolver) (*ContainerStore, error) {
+	dm, err := disk.NewDiskManager(op, s, storage.Config.ContainerView)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func (c *ContainerStore) Owners(op trace.Operation, url *url.URL, filter func(vm
 }
 
 // NewDataSource creates and returns an DataSource associated with container storage
-func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
 	uri, err := c.URL(op, id)
 	if err != nil {
 		return nil, err
@@ -119,7 +120,7 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (DataSourc
 	// TODO(jzt): tweak this when online export is available
 	for _, o := range owners {
 		// o is a VM
-		_, _ = c.newOnlineDataSource(op, o)
+		_, _ = c.newOnlineDataSource(op, o, id)
 		// if a != nil && a.available() {
 		// 	return a, nil
 		// }
@@ -128,7 +129,7 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (DataSourc
 	return nil, errors.New("Unavailable")
 }
 
-func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (DataSource, error) {
+func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storage.DataSource, error) {
 	mountPath, cleanFunc, err := c.Mount(op, url, false)
 	if err != nil {
 		return nil, err
@@ -139,18 +140,21 @@ func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (DataSo
 		return nil, err
 	}
 
-	return &MountDataSource{
+	return &storage.MountDataSource{
 		Path:  f,
 		Clean: cleanFunc,
 	}, nil
 }
 
-func (c *ContainerStore) newOnlineDataSource(op trace.Operation, vm *vm.VirtualMachine) (DataSource, error) {
-	return nil, errors.New("online source not yet supported - expecting this to be a common toolbox implementaiton")
+func (c *ContainerStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
+	return &ToolboxDataSource{
+		VM: owner,
+		ID: id,
+	}, nil
 }
 
 // NewDataSink creates and returns an DataSink associated with container storage
-func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
 	uri, err := c.URL(op, id)
 	if err != nil {
 		return nil, err
@@ -176,7 +180,7 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (DataSink, e
 	// TODO(jzt): tweak this when online export is available
 	for _, o := range owners {
 		// o is a VM
-		_, _ = c.newOnlineDataSink(op, o)
+		_, _ = c.newOnlineDataSink(op, o, id)
 		// if a != nil && a.available() {
 		// 	return a, nil
 		// }
@@ -185,7 +189,7 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (DataSink, e
 	return nil, errors.New("Unavailable")
 }
 
-func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (DataSink, error) {
+func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {
 	mountPath, cleanFunc, err := c.Mount(op, url, true)
 	if err != nil {
 		return nil, err
@@ -196,14 +200,17 @@ func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (DataSink
 		return nil, err
 	}
 
-	return &MountDataSink{
+	return &storage.MountDataSink{
 		Path:  f,
 		Clean: cleanFunc,
 	}, nil
 }
 
-func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine) (DataSink, error) {
-	return nil, errors.New("online sink not yet supported - expecting this to be a common toolbox implementaiton")
+func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {
+	return &ToolboxDataSink{
+		VM: owner,
+		ID: id,
+	}, nil
 }
 
 func (c *ContainerStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
@@ -260,7 +267,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, err
 	}
 
-	return &CleanupReader{
+	return &storage.CleanupReader{
 		ReadCloser: tar,
 		Clean:      closers,
 	}, nil

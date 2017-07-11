@@ -29,6 +29,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/tchap/go-patricia/patricia"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
@@ -46,26 +47,24 @@ const (
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
 func (c *Container) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	err = fmt.Errorf("%s does not yet implement ContainerArchivePath", ProductName())
+	defer trace.End(trace.Begin(name))
 
-	// defer trace.End(trace.Begin(name))
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, nil, NotFoundError(name)
+	}
 
-	// vc := cache.ContainerCache().GetContainer(name)
-	// if vc == nil {
-	// 	return nil, nil, NotFoundError(name)
-	// }
+	var reader io.ReadCloser
 
-	// var reader io.ReadCloser
-
-	// reader, err = c.exportFromContainer(vc, path)
-	// if err != nil && IsResourceInUse(err) {
-	// 	log.Errorf("ContainerArchivePath failed, resource in use: %s", err.Error())
-	// 	err = fmt.Errorf("Resource in use")
-	// }
-	// if err == nil || reader != nil {
-	// 	content = reader
-	// }
-	// stat = nil
+	reader, err = c.exportFromContainer(vc, path)
+	if err != nil && IsResourceInUse(err) {
+		log.Errorf("ContainerArchivePath failed, resource in use: %s", err.Error())
+		err = fmt.Errorf("Resource in use")
+	}
+	if err == nil || reader != nil {
+		content = reader
+	}
+	stat = nil
 
 	return
 }
@@ -107,21 +106,19 @@ func (c *Container) ContainerExport(name string, out io.Writer) error {
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	err := fmt.Errorf("%s does not yet implement ContainerExtractToDir", ProductName())
+	defer trace.End(trace.Begin(name))
 
-	// defer trace.End(trace.Begin(name))
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return NotFoundError(name)
+	}
 
-	// vc := cache.ContainerCache().GetContainer(name)
-	// if vc == nil {
-	// 	return NotFoundError(name)
-	// }
+	err := c.importToContainer(vc, path, content)
+	if err != nil && IsResourceInUse(err) {
+		log.Errorf("ContainerExtractToDir failed, resource in use: %s", err.Error())
 
-	// err := c.importToContainer(vc, path, content)
-	// if err != nil && IsResourceInUse(err) {
-	// 	log.Errorf("ContainerExtractToDir failed, resource in use: %s", err.Error())
-
-	// 	err = fmt.Errorf("Resouce in use")
-	// }
+		err = fmt.Errorf("Resouce in use")
+	}
 
 	return err
 }
@@ -603,6 +600,11 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, 
 			} else {
 				store = volumeStoreName
 				deviceID = node.mountPoint.Name
+			}
+
+			if strings.HasPrefix(containerSourcePath, node.mountPoint.Destination) {
+				// add the include path back
+				node.filterSpec.Includes[strings.TrimPrefix(containerSourcePath, node.mountPoint.Destination)] = struct{}{}
 			}
 
 			log.Infof("Lazily initializing export stream for %s [%s]", node.mountPoint.Name, node.mountPoint.Destination)

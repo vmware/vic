@@ -42,7 +42,7 @@ import (
 type StorageHandlersImpl struct {
 	imageCache     *spl.NameLookupCache
 	volumeCache    *spl.VolumeLookupCache
-	containerStore *spl.ContainerStore
+	containerStore *vsphere.ContainerStore
 }
 
 const (
@@ -83,7 +83,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	spl.RegisterImporter(op, imageStoreURL.String(), ds)
 	spl.RegisterExporter(op, imageStoreURL.String(), ds)
 
-	c, err := spl.NewContainerStore(op, handlerCtx.Session, h.imageCache)
+	c, err := vsphere.NewContainerStore(op, handlerCtx.Session, h.imageCache)
 	if err != nil {
 		op.Panicf("Couldn't create containerStore: %s", err.Error())
 	}

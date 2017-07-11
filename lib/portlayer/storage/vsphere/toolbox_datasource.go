@@ -12,45 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+package vsphere
 
 import (
 	"errors"
 	"io"
-	"os"
 
+	"github.com/vmware/govmomi/guest"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// MountDataSource implements the DataSource interface for mounted devices
-type MountDataSource struct {
-	Path  *os.File
+// ToolboxDataSource implements the DataSource interface for mounted devices
+type ToolboxDataSource struct {
+	ID    string
+	VM    *vm.VirtualMachine
 	Clean func()
 }
 
 // Source returns the data source associated with the DataSource
-func (m *MountDataSource) Source() interface{} {
-	return m.Path
+func (t *ToolboxDataSource) Source() interface{} {
+	return t.VM
 }
 
 // Export reads data from the associated data source and returns it as a tar archive
-func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	fi, err := m.Path.Stat()
+func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	defer trace.End(trace.Begin(""))
+
+	// set up file manager
+	client := t.VM.Session.Client.Client
+	filemgr, err := guest.NewOperationsManager(client, t.VM.Reference()).FileManager(op)
 	if err != nil {
 		return nil, err
 	}
 
-	if !fi.IsDir() {
-		return nil, errors.New("path must be a directory")
+	// authenticate client and parse container host/port
+	auth := types.NamePasswordAuthentication{
+		Username: t.ID,
 	}
 
-	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
-	return archive.Diff(op, m.Path.Name(), "", spec, data)
+	_ = filemgr
+	_ = auth
+
+	return nil, errors.New("toolbox export is not yet implemented")
 }
 
-func (m *MountDataSource) Close() error {
-	m.Clean()
+func (t *ToolboxDataSource) Close() error {
+	t.Clean()
 
 	return nil
 }

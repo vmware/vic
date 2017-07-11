@@ -89,7 +89,7 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 	}, nil
 }
 
-func (v *VolumeStore) newOnlineDataSink(op trace.Operation, vm *vm.VirtualMachine) (storage.DataSink, error) {
+func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine) (storage.DataSink, error) {
 	return nil, errors.New("online sink not yet supported - expecting this to be a common toolbox implementaiton")
 }
 
