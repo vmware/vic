@@ -233,7 +233,7 @@ govet:
 
 gas: $(GAS)
 	@echo checking security problems
-	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -skip=*_responses.go ./... > ../$$i.gas 2> /dev/null || (cat ../$$i.gas; exit 1); popd > /dev/null; done
+	@$(GAS) -skip=*_responses.go -quiet lib/... cmd/... pkg/... 2> /dev/null
 
 vendor: $(GVT)
 	@echo restoring vendor
