@@ -174,8 +174,11 @@ func TestMergerMergeWhitelist(t *testing.T) {
 					RegistryWhitelist: []string{"docker.io", "malicious.io"},
 				},
 			},
-			res: nil,
-			err: assert.AnError,
+			res: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"docker.io", "malicious.io"},
+				},
+			},
 		},
 	}
 
