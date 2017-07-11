@@ -225,6 +225,7 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 			d.ContainerNetworks.MappedNetworksGateways[vicNet] = src.ContainerNetworks.MappedNetworksGateways[vicNet]
 			d.ContainerNetworks.MappedNetworksIPRanges[vicNet] = src.ContainerNetworks.MappedNetworksIPRanges[vicNet]
 			d.ContainerNetworks.MappedNetworksDNS[vicNet] = src.ContainerNetworks.MappedNetworksDNS[vicNet]
+			d.ContainerNetworks.MappedNetworksFirewalls[vicNet] = src.ContainerNetworks.MappedNetworksFirewalls[vicNet]
 		}
 	}
 
