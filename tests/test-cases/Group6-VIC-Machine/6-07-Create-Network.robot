@@ -466,7 +466,7 @@ Container Firewalls
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --net=bridge --name closedbridge ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
-    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p2
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{.NetworkSettings.Networks.bridge.IPAddress}}' closedbridge
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect closed-net closedbridge
     Should Be Equal As Integers  ${rc}  0
