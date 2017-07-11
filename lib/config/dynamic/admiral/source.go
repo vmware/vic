@@ -48,11 +48,13 @@ import (
 const (
 	VicProductCategory = "VsphereIntegratedContainers"
 	ProductVMTag       = "ProductVM"
-	admiralTokenKey    = "guestinfo.vicova.admiral.token"
 	admiralEndpointKey = "guestinfo.vicova.admiral.endpoint"
 
 	clusterFilter = "(address eq '%s' and customProperties.__containerHostType eq 'VCH')"
 )
+
+// #nosec
+const admiralTokenKey = "guestinfo.vicova.admiral.token"
 
 var (
 	trueStr        = "true"
@@ -171,7 +173,7 @@ func (a *source) discover(ctx context.Context) error {
 	}
 
 	if u.Scheme == "https" {
-		tp.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		tp.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec
 	}
 
 	rt := rtclient.NewWithClient(u.Host, u.Path, []string{u.Scheme}, cl)
