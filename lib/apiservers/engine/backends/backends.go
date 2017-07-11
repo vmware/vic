@@ -64,7 +64,7 @@ var (
 	productName         string
 	productVersion      string
 
-	vchConfig        dynConfig
+	vchConfig        *dynConfig
 	RegistryCertPool *x509.CertPool
 	archiveProxy     vicproxy.VicArchiveProxy
 
@@ -91,41 +91,26 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 		return err
 	}
 
-	vchConfig.Cfg = config
+	if config == nil {
+		return fmt.Errorf("port layer requires VCH config")
+	}
+
 	productName = product
 
-	if config != nil {
-		if config.Version != nil {
-			productVersion = config.Version.ShortVersion()
-		}
-		if productVersion == "" {
-			portLayerName = product + " Backend Engine"
-		} else {
-			portLayerName = product + " " + productVersion + " Backend Engine"
-		}
-
-		var err error
-		if vchConfig.Insecure, err = dynamic.ParseRegistries(config.InsecureRegistries); err != nil {
-			return err
-		}
-		if vchConfig.Whitelist, err = dynamic.ParseRegistries(config.RegistryWhitelist); err != nil {
-			return err
-		}
-
-		sess, err := session.NewSession(&session.Config{Keepalive: defaultSessionKeepAlive}).CreateFromVchConfig(ctx, config)
-		if err != nil {
-			return err
-		}
-
-		vchConfig.sess = sess
-		vchConfig.merger = dynamic.NewMerger()
-		if err := vchConfig.resetSrc(); err != nil {
-			return err
-		}
-		loadRegistryCACerts()
-	} else {
-		portLayerName = product + " Backend Engine"
+	if config.Version != nil {
+		productVersion = config.Version.ShortVersion()
 	}
+	if productVersion == "" {
+		portLayerName = product + " Backend Engine"
+	} else {
+		portLayerName = product + " " + productVersion + " Backend Engine"
+	}
+
+	if vchConfig, err = newDynConfig(ctx, config); err != nil {
+		return err
+	}
+
+	loadRegistryCACerts()
 
 	t := rc.New(portLayerAddr, "/", []string{"http"})
 	t.Consumers["application/x-tar"] = runtime.ByteStreamConsumer()
@@ -377,10 +362,12 @@ func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl 
 
 	if err == nil {
 		// update config
-		if err := d.update(c); err != nil {
+		if err = d.update(c); err != nil {
 			log.Warnf("error updating config: %s", err)
 		}
-	} else if err != dynamic.ErrConfigNotModified {
+	}
+
+	if err != nil && err != dynamic.ErrConfigNotModified {
 		log.Warnf("could not get config from remote source: %s", err)
 		if src == d.src {
 			// update the source
@@ -398,13 +385,35 @@ func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl 
 }
 
 func (d *dynConfig) resetSrc() error {
-	ep, err := d.address()
+	ep, err := d.clientEndpoint()
 	if err != nil {
 		return err
 	}
 
 	d.src = admiral.NewSource(d.sess, ep.String())
 	return nil
+}
+
+func newDynConfig(ctx context.Context, c *config.VirtualContainerHostConfigSpec) (*dynConfig, error) {
+	d := &dynConfig{Cfg: c}
+	var err error
+	if d.Insecure, err = dynamic.ParseRegistries(c.InsecureRegistries); err != nil {
+		return nil, err
+	}
+	if d.Whitelist, err = dynamic.ParseRegistries(c.RegistryWhitelist); err != nil {
+		return nil, err
+	}
+
+	if d.sess, err = newSession(ctx, c); err != nil {
+		return nil, err
+	}
+
+	d.merger = dynamic.NewMerger()
+	if err := d.resetSrc(); err != nil {
+		return nil, err
+	}
+
+	return d, nil
 }
 
 // update merges another config into this config. d should be locked before
@@ -436,7 +445,7 @@ func (d *dynConfig) update(c *config.VirtualContainerHostConfigSpec) error {
 	return nil
 }
 
-func (d *dynConfig) address() (*url.URL, error) {
+func (d *dynConfig) clientEndpoint() (*url.URL, error) {
 	ips, err := net.LookupIP("client.localhost")
 	if err != nil {
 		return nil, err
@@ -448,4 +457,28 @@ func (d *dynConfig) address() (*url.URL, error) {
 	}
 
 	return url.Parse(fmt.Sprintf("%s://%s:%d", scheme, ips[0], servicePort))
+}
+
+func newSession(ctx context.Context, config *config.VirtualContainerHostConfigSpec) (*session.Session, error) {
+	// strip the path off of the target url since it may contain the
+	// datacenter
+	u, err := url.Parse(config.Target)
+	if err != nil {
+		return nil, err
+	}
+
+	u.Path = ""
+	sessCfg := &session.Config{
+		Service:    u.String(),
+		User:       url.UserPassword(config.Username, config.Token),
+		Thumbprint: config.TargetThumbprint,
+		Keepalive:  defaultSessionKeepAlive,
+	}
+
+	sess := session.NewSession(sessCfg)
+	if sess.Connect(ctx); err != nil {
+		return nil, err
+	}
+
+	return sess, nil
 }
