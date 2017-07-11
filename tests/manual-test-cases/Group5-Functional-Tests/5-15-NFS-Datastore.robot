@@ -15,7 +15,7 @@
 *** Settings ***
 Documentation  Test 5-15 - NFS Datastore
 Resource  ../../resources/Util.robot
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 *** Test Cases ***
 Test
@@ -29,9 +29,9 @@ Test
     ${out}=  Run  govc datastore.create -mode readWrite -type nfs -name nfsDatastore -remote-host ${ip} -remote-path /store cls
     Should Be Empty  ${out}
 
-    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_DATASTORE  nfsDatastore
     Install VIC Appliance To Test Server
 
-    #Run Regression Tests
+    Run Regression Tests
 
-    #Cleanup VIC Appliance On Test Server
+    Cleanup VIC Appliance On Test Server
