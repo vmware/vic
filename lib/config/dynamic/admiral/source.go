@@ -54,7 +54,7 @@ const (
 )
 
 // #nosec
-const admiralTokenKey = "guestinfo.vicova.admiral.token"
+const admiralTokenKey = "guestinfo.vicova.engine.token"
 
 var (
 	trueStr        = "true"
