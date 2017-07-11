@@ -16,6 +16,8 @@ package backends
 
 import (
 	"archive/tar"
+	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -29,6 +31,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -36,7 +39,6 @@ import (
 	"github.com/docker/docker/builder/dockerfile"
 	dockerimage "github.com/docker/docker/image"
 	dockerLayer "github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -44,6 +46,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -84,9 +87,12 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 			return "", err
 		}
 	}
-	// TODO: integrate with PL interface to get container r/w diff
-	// rc, err :=
-	var rc io.ReadCloser
+
+	filter := vicarchive.FilterSpec{}
+	rc, err := containerEngine.containerProxy.ArchiveExportReader(context.Background(), containerStoreName, imageStoreName, vc.ContainerID, vc.LayerID, true, filter)
+	if err != nil {
+		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)
+	}
 
 	ic, err := getImagec(config)
 	if err != nil {
@@ -227,7 +233,7 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 	// generate random string as layer ID
 	layerID := stringid.GenerateRandomID()
 
-	tmpLayerFileName, sum, err := compressDiffToTmpFile(rc, containerID)
+	tmpLayerFileName, diffIDSum, gzSum, err := compressDiffToTmpFile(rc, containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,8 +245,10 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 		}
 	}()
 
-	blobSum := fmt.Sprintf("sha256:%x", sum)
-	log.Debugf("container %s blob sum: %s", containerID, blobSum)
+	blobSum := digest.NewDigestFromBytes(digest.SHA256, gzSum)
+	log.Debugf("container %s blob sum: %s", containerID, blobSum.String())
+	diffID := digest.NewDigestFromBytes(digest.SHA256, diffIDSum)
+	log.Debugf("container %s diff id: %s", containerID, diffID.String())
 
 	layerFile, err := os.Open(string(tmpLayerFileName))
 	if err != nil {
@@ -248,16 +256,14 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 	}
 	defer layerFile.Close()
 
-	decompressed, err := archive.DecompressStream(layerFile)
+	decompressed, err := gzip.NewReader(layerFile)
 	if err != nil {
 		return nil, err
 	}
-
-	diffIDSum := sha256.New()
-	diffTr := io.TeeReader(decompressed, diffIDSum)
+	defer decompressed.Close()
 
 	// get a tar reader
-	tr := tar.NewReader(diffTr)
+	tr := tar.NewReader(decompressed)
 
 	// iterate through tar headers to get file sizes
 	var layerSize int64
@@ -272,11 +278,11 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 		}
 		layerSize += tarHeader.Size
 	}
-	diffID := fmt.Sprintf("sha256:%x", diffIDSum.Sum(nil))
+
 	if layerSize == 0 {
-		diffID = dockerLayer.DigestSHA256EmptyTar.String()
+		diffID = digest.Digest(dockerLayer.DigestSHA256EmptyTar)
 	}
-	log.Debugf("container %s diff id: %s", containerID, diffID)
+	log.Debugf("container %s size: %d", containerID, layerSize)
 
 	// Ensure the parent directory exists
 	destination := path.Join(imagec.DestinationDirectory(options), layerID)
@@ -293,46 +299,62 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 
 	// layer metadata
 	lm := &imagec.ImageWithMeta{
-		DiffID: diffID,
+		DiffID: diffID.String(),
 		Layer: imagec.FSLayer{
-			BlobSum: blobSum,
+			BlobSum: blobSum.String(),
 		},
 		Size: layerSize,
 	}
 	return lm, nil
 }
 
-// compressDiffToTmpFile will write stream to temp file, and return temp file name and compressed file checksum
-func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte, error) {
+// compressDiffToTmpFile will write stream to temp file, and return temp file name and tar file checksum, compressed file checksum
+func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte, []byte, error) {
 	defer trace.End(trace.Begin(containerID))
 	// Create a temporary file and stream the res.Body into it
-	out, err := ioutil.TempFile("", containerID)
-	if err != nil {
-		return "", nil, err
+	var out *os.File
+	var gzWriter *gzip.Writer
+	var err error
+
+	cleanup := func() {
+		if gzWriter != nil {
+			gzWriter.Close()
+			gzWriter = nil
+		}
+		if out != nil {
+			out.Close()
+			if err != nil {
+				os.Remove(out.Name())
+			}
+			out = nil
+		}
 	}
-	defer out.Close()
+	defer cleanup()
 
-	checkSum := sha256.New()
-	mw := io.MultiWriter(out, checkSum)
-
-	compressedOut, err := archive.CompressStream(mw, archive.Gzip)
+	out, err = ioutil.TempFile("", containerID)
 	if err != nil {
-		log.Errorf("Failed to compress stream: %s", err)
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
-	// Stream into temp file
-	_, err = io.Copy(compressedOut, rc)
-	if err != nil {
-		log.Errorf("Diff to file failed to stream to file: %s", err)
+	// compress tar file using gzip and calculate blobsum and diffID all together using multi writer
+	blobSum := sha256.New()
+	diffID := sha256.New()
+	compressedMW := io.MultiWriter(out, blobSum)
 
-		// cleanup
-		defer os.Remove(out.Name())
-		return "", nil, err
+	gzWriter = gzip.NewWriter(compressedMW)
+	tarMW := io.MultiWriter(gzWriter, diffID)
+	_, err = io.Copy(tarMW, rc)
+	if err != nil {
+		log.Errorf("failed to stream to file: %s", err)
+		return "", nil, nil, err
 	}
 
+	// close writer before calculate checksum
+	fileName := out.Name()
+	gzWriter.Flush()
+	cleanup()
 	// Return the temporary file name and checksum
-	return out.Name(), checkSum.Sum(nil), nil
+	return fileName, diffID.Sum(nil), blobSum.Sum(nil), nil
 }
 
 // ***** Code from Docker v17.03.2-ce PullImage to merge two Configs
