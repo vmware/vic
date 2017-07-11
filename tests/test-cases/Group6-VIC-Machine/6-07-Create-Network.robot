@@ -477,7 +477,7 @@ Container Firewalls
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d closedbridge nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network=bridge nc ${ip} 1234
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --network=bridge ${busybox} nc ${ip} 1234
     Should Be Equal As Integers  ${rc}  0
 
     ### OUTBOUND FIREWALL ###
