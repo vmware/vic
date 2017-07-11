@@ -604,7 +604,7 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, 
 
 			if strings.HasPrefix(containerSourcePath, node.mountPoint.Destination) {
 				// add the include path back
-				node.filterSpec.Includes[strings.TrimPrefix(containerSourcePath, node.mountPoint.Destination)] = struct{}{}
+				node.filterSpec.Inclusions[strings.TrimPrefix(containerSourcePath, node.mountPoint.Destination)] = struct{}{}
 			}
 
 			log.Infof("Lazily initializing export stream for %s [%s]", node.mountPoint.Name, node.mountPoint.Destination)
