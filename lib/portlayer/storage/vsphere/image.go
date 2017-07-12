@@ -51,6 +51,7 @@ var (
 		"/etc/hostname":    0644,
 		"/etc/hosts":       0644,
 		"/etc/resolv.conf": 0644,
+		"/etc/mtab":        0644,
 	}
 	// Here the permission of .tether should be drwxrwxrwt.
 	// The sticky bit 't' is added when mounting the tmpfs in bootstrap
@@ -59,6 +60,7 @@ var (
 		"/lib/modules": 0755,
 		"/proc":        0555,
 		"/sys":         0555,
+		"/run":         0755,
 		"/.tether":     0777,
 	}
 )
@@ -206,7 +208,7 @@ func (v *ImageStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 	stores := []*url.URL{}
 	for _, f := range res.File {
 		path := f.GetFileInfo().Path
-		folder, ok := f.(*types.FolderFileInfo)
+		_, ok := f.(*types.FolderFileInfo)
 		if !ok {
 			op.Debugf("Skipping directory element %s as it's not a folder: %T", path, f)
 			continue
@@ -656,7 +658,7 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 
 		if err := v.verifyImage(op, storeName, ID); err != nil {
 			if ID == portlayer.Scratch.ID {
-				op.Errorf("Failed to verify scratch image - skipping deletion so as not to invalidate image chain but tihs is probably non-functional")
+				op.Errorf("Failed to verify scratch image - skipping deletion so as not to invalidate image chain but this is probably non-functional")
 				continue
 			}
 

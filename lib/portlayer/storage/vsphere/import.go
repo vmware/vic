@@ -90,7 +90,7 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 }
 
 func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine) (storage.DataSink, error) {
-	return nil, errors.New("online sink not yet supported - expecting this to be a common toolbox implementaiton")
+	return nil, errors.New("online sink not yet supported - expecting this to be a common toolbox implementation")
 }
 
 func (i *ImageStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
