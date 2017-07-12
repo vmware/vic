@@ -24,36 +24,30 @@ Test Teardown  Cleanup VIC Appliance On Test Server
 Setup Registries
     Install VIC Appliance To Test Server
     Remove Environment Variable  DOCKER_HOST
-    Set Environment Variable  INSECURE-URL  %{VCH-IP}:5000
-    Set Environment Variable  INSECURE-NAME  %{VCH-NAME}
-    Set Environment Variable  INSECURE-ADMIN  %{VIC-ADMIN}
+    Set Environment Variable  REGISRTRY-URL  %{VCH-IP}
+    Set Environment Variable  REGISRTRY-NAME  %{VCH-NAME}
+    Set Environment Variable  REGISRTRY-ADMIN  %{VIC-ADMIN}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -p 5000:5000 --restart=always --name insecure-registry registry:2
     Should Be Equal As Integers  ${rc}  0
 
-    Install VIC Appliance To Test Server  cleanup=${false}
-    Remove Environment Variable  DOCKER_HOST
-    Set Environment Variable  SECURE-URL  %{VCH-IP}:8000
-    Set Environment Variable  SECURE-NAME  %{VCH-NAME}
-    Set Environment Variable  SECURE-ADMIN  %{VIC-ADMIN}
     Create Self Signed Certs
     ${rc}  ${output}=  Run And Return Rc And Output  docker run -d -p 8000:80 --restart=always --name secure-registry -e REGISTRY_HTTP_ADDR=0.0.0.0:80 -v certs:/certs -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/ca.crt -e REGISTRY_HTTP_TLS_KEY=/certs/ca.key registry:2
     Should Be Equal As Integers  ${rc}  0
 
+    # Ensure we don't accidentally delete the registry in case of single test failure
+    Remove Environment Variable  VCH-IP
     Remove Environment Variable  VCH-NAME
     Remove Environment Variable  VIC-ADMIN
 
 Cleanup Registries
-    Set Environment Variable  VCH-NAME  %{INSECURE-NAME}
-    Set Environment Variable  VIC-ADMIN  %{INSECURE-ADMIN}
-    Cleanup VIC Appliance On Test Server
-    Set Environment Variable  VCH-NAME  %{SECURE-NAME}
-    Set Environment Variable  VIC-ADMIN  %{SECURE-ADMIN}
+    Set Environment Variable  VCH-NAME  %{REGISTRY-NAME}
+    Set Environment Variable  VIC-ADMIN  %{REGISTRY-ADMIN}
     Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Insecure Registry Whitelist
     # Install VCH with insecure registry for whitelisted registry
-    ${output}=  Install VIC Appliance To Test Server  cleanup=${false}  additional-args=--whitelist-registry=%{INSECURE-URL} --insecure-registry=%{INSECURE-URL}
+    ${output}=  Install VIC Appliance To Test Server  cleanup=${false}  additional-args=--whitelist-registry=%{REGISTRY-URL}:5000 --insecure-registry=%{REGISTRY-URL}:5000
     Should Contain  ${output}  Whitelist registries =
 
     # Check docker info for whitelist info
@@ -64,16 +58,16 @@ Insecure Registry Whitelist
     Should Contain  ${output}  Registry: registry-1.docker.io
     
     # Try to login and pull from the whitelisted insecure registry with (should succeed)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p anyPassword %{INSECURE-URL}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p anyPassword %{REGISTRY-URL}:5000
     Should Contain  ${output}  Succeeded
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag busybox %{INSECURE-URL}/busybox:insecure
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag busybox %{REGISTRY-URL}:5000/busybox:insecure
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} push %{INSECURE-URL}/busybox:insecure
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} push %{REGISTRY-URL}:5000/busybox:insecure
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{INSECURE-URL}/busybox:insecure
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{REGISTRY-URL}:5000/busybox:insecure
     Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from docker hub (should fail)
@@ -86,7 +80,7 @@ Insecure Registry Whitelist
 
 Secure Registry Whitelist
     # Install VCH with registry CA for whitelisted registry
-    ${output}=  Install VIC Appliance To Test Server  cleanup=${false}  additional-args=--whitelist-registry=%{SECURE-URL} --registry-ca=certs/ca.crt
+    ${output}=  Install VIC Appliance To Test Server  cleanup=${false}  additional-args=--whitelist-registry=%{REGISTRY-URL}:8000 --registry-ca=certs/ca.crt
     Should Contain  ${output}  Secure registry %{SECURE-URL} confirmed
     Should Contain  ${output}  Whitelist registries =
 
@@ -98,16 +92,16 @@ Secure Registry Whitelist
     Should Contain  ${output}  Registry: registry-1.docker.io
 
     # Try to login and pull from the secure whitelisted registry (should succeed)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p anyPassword %{SECURE-URL}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p anyPassword %{REGISTRY-URL}:8000
     Should Contain  ${output}  Succeeded
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag busybox %{SECURE-URL}/busybox:secure
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} tag busybox %{REGISTRY-URL}:8000/busybox:secure
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} push %{SECURE-URL}/busybox:secure
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} push %{REGISTRY-URL}:8000/busybox:secure
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{SECURE-URL}/busybox:secure
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{REGISTRY-URL}:8000/busybox:secure
     Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from docker hub (should fail)
