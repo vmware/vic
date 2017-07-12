@@ -84,7 +84,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		}()
 
 		for _, change := range changes {
-			if excluded(change.Path, spec) {
+			if spec.Excludes(op, change.Path) {
 				continue
 			}
 
@@ -122,19 +122,6 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		}
 	}()
 	return r, err
-}
-
-// handle exclusion/inclusion of paths
-func excluded(filePath string, spec *FilterSpec) bool {
-	for p := filePath; p != string(filepath.Separator); p = filepath.Dir(p) {
-		if _, ok := spec.Inclusions[p]; ok {
-			return false
-		}
-		if _, ok := spec.Exclusions[p]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 func createHeader(op trace.Operation, dir string, change docker.Change, spec *FilterSpec) (*tar.Header, error) {

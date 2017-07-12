@@ -604,6 +604,10 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, 
 
 			if strings.HasPrefix(containerSourcePath, node.mountPoint.Destination) {
 				// add the include path back
+				if node.filterSpec.Inclusions == nil {
+					node.filterSpec.Inclusions = make(map[string]struct{})
+				}
+
 				node.filterSpec.Inclusions[strings.TrimPrefix(containerSourcePath, node.mountPoint.Destination)] = struct{}{}
 			}
 

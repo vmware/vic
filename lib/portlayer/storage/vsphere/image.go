@@ -630,11 +630,11 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 
 		ID := file.Path
 
-		if ID == portlayer.Scratch.ID {
-			continue
-		}
-
 		if err := v.verifyImage(op, storeName, ID); err != nil {
+			if ID == portlayer.Scratch.ID {
+				op.Errorf("Failed to verify scratch image - skipping deletion so as not to invalidate image chain but tihs is probably non-functional")
+				continue
+			}
 
 			if err = v.deleteImage(op, storeName, ID); err != nil {
 				// deleteImage logs the error in the event there is one.

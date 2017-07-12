@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -137,9 +138,11 @@ func DecodeFilterSpec(op trace.Operation, spec *string) (*FilterSpec, error) {
 
 	// normalize empty spec
 	if filterSpec.Inclusions == nil {
+		op.Debugf("Empty inclusion set")
 		filterSpec.Inclusions = make(map[string]struct{})
 	}
 	if filterSpec.Exclusions == nil {
+		op.Debugf("Empty exclusion set")
 		filterSpec.Exclusions = make(map[string]struct{})
 	}
 
@@ -158,4 +161,47 @@ func EncodeFilterSpec(op trace.Operation, spec *FilterSpec) (*string, error) {
 	op.Debugf("encodedFilter = %s", encoded)
 
 	return &encoded, nil
+}
+
+// Excludes returns true if the provided filter excludes the provided filepath
+// If the spec is completely empty it will match everything.
+// If an inclusion is set, but not exclusion, then we'll only return matches for the inclusions.
+func (spec *FilterSpec) Excludes(op trace.Operation, filePath string) bool {
+	il := len(spec.Inclusions)
+	el := len(spec.Exclusions)
+
+	if il == 0 && el == 0 {
+		// empty spec means include everything
+		return false
+	}
+
+	inclusion := ""
+	exclusion := "/"
+
+	if il == 0 {
+		// if only exclusions are specified then default is include all others
+		inclusion = "/"
+	}
+
+	for path := range spec.Inclusions {
+		if strings.HasPrefix(filePath, path) {
+			if len(path) > len(inclusion) {
+				// more specific inclusion, so update
+				inclusion = path
+			}
+		}
+	}
+
+	for path := range spec.Exclusions {
+		if strings.HasPrefix(filePath, path) {
+			if len(path) > len(exclusion) {
+				// more specific exclusion, so update
+				exclusion = path
+			}
+		}
+	}
+
+	op.Debugf("Most specific match for %s - include: %s, exclude: %s", filePath, inclusion, exclusion)
+
+	return len(inclusion) < len(exclusion)
 }

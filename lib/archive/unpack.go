@@ -80,7 +80,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, unpackP
 		}
 
 		// skip excluded elements unless explicitly included
-		if excluded(header.Name, filter) {
+		if filter.Excludes(op, header.Name) {
 			continue
 		}
 

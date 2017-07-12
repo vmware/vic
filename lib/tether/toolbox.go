@@ -54,7 +54,10 @@ func NewToolbox() *Toolbox {
 	service := toolbox.NewService(in, out)
 	service.PrimaryIP = toolbox.DefaultIP
 
-	return &Toolbox{Service: service}
+	return &Toolbox{
+		Service: service,
+		authIDs: make(map[string]struct{}),
+	}
 }
 
 // Start implementation of the tether.Extension interface

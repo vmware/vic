@@ -573,13 +573,19 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (string, error) {
 	defer trace.End(trace.Begin(""))
 
-	if m.view == nil {
-		return "", fmt.Errorf("ContainerView is nil")
+	mngr := view.NewManager(m.vm.Vim25())
+
+	// Create view of VirtualMachine objects under the VCH's resource pool
+	view2, err := mngr.CreateContainerView(op, m.vm.Session.Pool.Reference(), []string{"VirtualMachine"}, true)
+	if err != nil {
+		op.Errorf("failed to create view: %s", err)
+		return "", err
 	}
+	defer view2.Destroy(op)
 
 	var mos []mo.VirtualMachine
 	// Retrieve needed properties of all machines under this view
-	err := m.view.Retrieve(op, []string{"VirtualMachine"}, []string{"name", "config.hardware", "runtime.powerState"}, &mos)
+	err = view2.Retrieve(op, []string{"VirtualMachine"}, []string{"name", "config.hardware", "runtime.powerState"}, &mos)
 	if err != nil {
 		return "", err
 	}

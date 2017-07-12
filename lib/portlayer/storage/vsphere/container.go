@@ -190,6 +190,7 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 }
 
 func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {
+	op.Debugf("Mounting %s", url.String())
 	mountPath, cleanFunc, err := c.Mount(op, url, true)
 	if err != nil {
 		return nil, err
@@ -207,6 +208,8 @@ func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.
 }
 
 func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {
+	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
+
 	return &ToolboxDataSink{
 		VM: owner,
 		ID: id,
@@ -229,12 +232,14 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 	}
 
 	if ancestor == "" {
+		op.Infof("No ancester specified so following basic export path")
 		return l.Export(op, spec, data)
 	}
 
 	// for now we assume ancetor instead of entirely generic left/right
 	// this allows us to assume it's an image
 	img, err := c.images.URL(op, ancestor)
+	op.Debugf("Mapped ancester %s to %s", ancestor, img.String())
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +263,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 
 	if !lok || !rok {
 		go closers()
-		return nil, errors.New("Mismatched datasource types")
+		return nil, errors.New("mismatched datasource types")
 	}
 
 	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
