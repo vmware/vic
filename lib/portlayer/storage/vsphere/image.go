@@ -16,6 +16,7 @@ package vsphere
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -195,23 +196,30 @@ func (v *ImageStore) GetImageStore(op trace.Operation, storeName string) (*url.U
 }
 
 func (v *ImageStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
-	res, err := v.Ls(op, v.imageStorePath(""))
+	op.Debugf("Listing image stores under %s", v.Helper.RootURL)
+	res, err := v.Ls(op, "")
 	if err != nil {
+		op.Errorf("Error listing image stores: %s", err.Error())
 		return nil, err
 	}
 
 	stores := []*url.URL{}
 	for _, f := range res.File {
+		path := f.GetFileInfo().Path
 		folder, ok := f.(*types.FolderFileInfo)
 		if !ok {
+			op.Debugf("Skipping directory element %s as it's not a folder: %T", path, f)
 			continue
 		}
-		u, err := util.ImageStoreNameToURL(folder.Path)
+
+		u, err := util.ImageStoreNameToURL(path)
 		if err != nil {
+			op.Errorf("Error converting image store name to URL: %s", err.Error())
 			return nil, err
 		}
-		stores = append(stores, u)
 
+		op.Debugf("Mapped image store name %s to %s", path, u.String())
+		stores = append(stores, u)
 	}
 
 	return stores, nil
@@ -270,18 +278,34 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 }
 
 // URL returns a url to the disk image represented by `id`
+// This is a "ds://" URL so cannot be used as input to most of the ImageStore methods that
+// take URLs.
 func (v *ImageStore) URL(op trace.Operation, id string) (*url.URL, error) {
 	stores, err := v.ListImageStores(op)
 	if err != nil {
 		return nil, err
 	}
 
+	if len(stores) < 1 {
+		detail := "expected to find at least one image store available"
+		op.Errorf("Listing image stores: %s", detail)
+		return nil, errors.New(detail)
+	}
+
 	storeName, err := util.ImageStoreName(stores[0])
 	if err != nil {
+		op.Infof("Error getting image store name for %s: %s", stores[0], err.Error())
 		return nil, err
 	}
 
-	return util.ImageURL(storeName, id)
+	url := util.ImageDatastoreURL(v.imageDiskDSPath(storeName, id))
+	if err != nil {
+		op.Infof("Error getting image URL: %s", err.Error())
+		return nil, err
+	}
+
+	op.Debugf("Mapped image %s to %s", id, url)
+	return url, err
 }
 
 // Owners returns a list of VMs that are using the disk specified by `url`
@@ -296,7 +320,7 @@ func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdis
 	if vmdisk != nil {
 		if vmdisk.Mounted() {
 			op.Debugf("Unmounting abandoned disk")
-			vmdisk.Unmount()
+			vmdisk.Unmount(op)
 		}
 
 		if vmdisk.Attached() {
@@ -359,7 +383,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	}
 	defer os.RemoveAll(dir)
 
-	if err := vmdisk.Mount(dir, nil); err != nil {
+	if err := vmdisk.Mount(op, dir, nil); err != nil {
 		return nil, err
 	}
 
@@ -380,7 +404,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 		return nil, err
 	}
 
-	if err = vmdisk.Unmount(); err != nil {
+	if err = vmdisk.Unmount(op); err != nil {
 		return nil, err
 	}
 
@@ -450,7 +474,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	op.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
 
 	// Make the filesystem and set its label to defaultDiskLabel
-	if err = vmdisk.Mkfs(defaultDiskLabel); err != nil {
+	if err = vmdisk.Mkfs(op, defaultDiskLabel); err != nil {
 		return err
 	}
 
@@ -710,13 +734,13 @@ func createBaseStructure(op trace.Operation, vmdisk *disk.VirtualDisk) (err erro
 		}
 	}()
 
-	if err = vmdisk.Mount(dir, nil); err != nil {
+	if err = vmdisk.Mount(op, dir, nil); err != nil {
 		op.Errorf("Failed to mount device %s to dir %s", vmdisk.DevicePath, dir)
 		return err
 	}
 
 	defer func() {
-		e2 := vmdisk.Unmount()
+		e2 := vmdisk.Unmount(op)
 		if e2 != nil {
 			op.Errorf("Failed to unmount device: %s", e2)
 			if err == nil {

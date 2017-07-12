@@ -21,7 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // FilesystemType represents the filesystem in use by a virtual disk
@@ -40,10 +40,10 @@ const (
 
 // Filesystem defines the interface for handling an attached virtual disk
 type Filesystem interface {
-	Mkfs(devPath, label string) error
-	SetLabel(devPath, labelName string) error
-	Mount(devPath, targetPath string, options []string) error
-	Unmount(path string) error
+	Mkfs(op trace.Operation, devPath, label string) error
+	SetLabel(op trace.Operation, devPath, labelName string) error
+	Mount(op trace.Operation, devPath, targetPath string, options []string) error
+	Unmount(op trace.Operation, path string) error
 }
 
 // Semaphore represents the number of references to a disk
@@ -105,16 +105,16 @@ type VirtualDisk struct {
 
 // NewVirtualDisk creates and returns a new VirtualDisk object associated with the
 // given datastore formatted with the specified FilesystemType
-func NewVirtualDisk(config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*VirtualDisk, error) {
+func NewVirtualDisk(op trace.Operation, config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*VirtualDisk, error) {
 	if !strings.HasSuffix(config.DatastoreURI.String(), ".vmdk") {
 		return nil, fmt.Errorf("%s isn't a vmdk", config.DatastoreURI.String())
 	}
 
 	if d, ok := disks[config.Hash()]; ok {
-		log.Debugf("Found the disk %s in the DiskManager cache, using it", config.DatastoreURI)
+		op.Debugf("Found the disk %s in the DiskManager cache, using it", config.DatastoreURI)
 		return d, nil
 	}
-	log.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
+	op.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
 
 	uri := config.DatastoreURI.String()
 	d := &VirtualDisk{
@@ -127,7 +127,7 @@ func NewVirtualDisk(config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*
 	return d, nil
 }
 
-func (d *VirtualDisk) setAttached(devicePath string) (err error) {
+func (d *VirtualDisk) setAttached(op trace.Operation, devicePath string) (err error) {
 	defer func() {
 		if err == nil {
 			// bump the attached reference count
@@ -136,7 +136,7 @@ func (d *VirtualDisk) setAttached(devicePath string) (err error) {
 	}()
 
 	if d.attached() {
-		log.Warnf("%s is already attached (%s)", d.DatastoreURI, devicePath)
+		op.Warnf("%s is already attached (%s)", d.DatastoreURI, devicePath)
 		return nil
 	}
 
@@ -166,10 +166,10 @@ func (d *VirtualDisk) canBeDetached() error {
 	return nil
 }
 
-func (d *VirtualDisk) setDetached(disks map[uint64]*VirtualDisk) error {
+func (d *VirtualDisk) setDetached(op trace.Operation, disks map[uint64]*VirtualDisk) error {
 	defer func() {
 		if d.attachedRefs.Count() == 0 {
-			log.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
+			op.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
 
 			delete(disks, d.Hash())
 		}
@@ -186,14 +186,14 @@ func (d *VirtualDisk) setDetached(disks map[uint64]*VirtualDisk) error {
 	if !d.attachedByOther() {
 		d.DevicePath = ""
 	} else {
-		log.Warnf("%s is still in use", d.DatastoreURI)
+		op.Warnf("%s is still in use", d.DatastoreURI)
 	}
 
 	return nil
 }
 
 // Mkfs formats the disk with Filesystem and sets the disk label
-func (d *VirtualDisk) Mkfs(labelName string) error {
+func (d *VirtualDisk) Mkfs(op trace.Operation, labelName string) error {
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -205,11 +205,11 @@ func (d *VirtualDisk) Mkfs(labelName string) error {
 		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
-	return d.Filesystem.Mkfs(d.DevicePath, labelName)
+	return d.Filesystem.Mkfs(op, d.DevicePath, labelName)
 }
 
 // SetLabel sets this disk's label
-func (d *VirtualDisk) SetLabel(labelName string) error {
+func (d *VirtualDisk) SetLabel(op trace.Operation, labelName string) error {
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -217,7 +217,7 @@ func (d *VirtualDisk) SetLabel(labelName string) error {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
-	return d.Filesystem.SetLabel(d.DevicePath, labelName)
+	return d.Filesystem.SetLabel(op, d.DevicePath, labelName)
 }
 
 func (d *VirtualDisk) attached() bool {
@@ -270,7 +270,7 @@ func (d *VirtualDisk) InUseByOther() bool {
 }
 
 // Mount attempts to mount this disk. A NOP occurs if the disk is already mounted
-func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
+func (d *VirtualDisk) Mount(op trace.Operation, mountPath string, options []string) (err error) {
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -281,7 +281,7 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
 
 	if d.mounted() {
 		p, _ := d.mountPathFn()
-		log.Warnf("%s already mounted at %s", d.DatastoreURI, p)
+		op.Warnf("%s already mounted at %s", d.DatastoreURI, p)
 		return nil
 	}
 
@@ -290,7 +290,7 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
 		return err
 	}
 
-	if err = d.Filesystem.Mount(d.DevicePath, mountPath, options); err != nil {
+	if err = d.Filesystem.Mount(op, d.DevicePath, mountPath, options); err != nil {
 		return err
 	}
 
@@ -299,7 +299,7 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
 }
 
 // Unmount attempts to unmount a virtual disk
-func (d *VirtualDisk) Unmount() error {
+func (d *VirtualDisk) Unmount(op trace.Operation) error {
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -311,7 +311,7 @@ func (d *VirtualDisk) Unmount() error {
 
 	// no more mount references to this disk, so actually unmount
 	if d.mountedRefs.Count() == 0 {
-		if err := d.Filesystem.Unmount(d.mountPath); err != nil {
+		if err := d.Filesystem.Unmount(op, d.mountPath); err != nil {
 			return err
 		}
 		d.mountPath = ""

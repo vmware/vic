@@ -171,6 +171,10 @@ func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs .
 func (d *Helper) Ls(ctx context.Context, p string) (*types.HostDatastoreBrowserSearchResults, error) {
 	spec := types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
+		Details: &types.FileQueryFlags{
+			FileType:  true,
+			FileOwner: types.NewBool(true),
+		},
 	}
 
 	b, err := d.ds.Browser(ctx)
@@ -196,6 +200,10 @@ func (d *Helper) Ls(ctx context.Context, p string) (*types.HostDatastoreBrowserS
 func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
 	spec := &types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
+		Details: &types.FileQueryFlags{
+			FileType:  true,
+			FileOwner: types.NewBool(true),
+		},
 	}
 
 	b, err := d.ds.Browser(ctx)

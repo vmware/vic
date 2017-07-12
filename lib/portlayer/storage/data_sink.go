@@ -57,7 +57,9 @@ func (m *MountDataSink) Import(op trace.Operation, spec *archive.FilterSpec, dat
 
 func (m *MountDataSink) Close() error {
 	m.Path.Close()
-	m.Clean()
+	if m.Clean != nil {
+		m.Clean()
+	}
 
 	return nil
 }

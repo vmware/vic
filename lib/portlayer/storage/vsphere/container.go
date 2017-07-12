@@ -239,18 +239,25 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 	// for now we assume ancetor instead of entirely generic left/right
 	// this allows us to assume it's an image
 	img, err := c.images.URL(op, ancestor)
-	op.Debugf("Mapped ancester %s to %s", ancestor, img.String())
 	if err != nil {
+		op.Errorf("Failed to map ancestor %s to image: %s", ancestor, err)
+
+		l.Close()
 		return nil, err
 	}
+	op.Debugf("Mapped ancester %s to %s", ancestor, img.String())
 
 	r, err := c.newDataSource(op, img)
 	if err != nil {
+		op.Debugf("Unable to get datasource for ancester: %s", err)
+
 		l.Close()
 		return nil, err
 	}
 
 	closers := func() {
+		op.Debugf("Callback to io.Closer function for container export")
+
 		l.Close()
 		r.Close()
 	}

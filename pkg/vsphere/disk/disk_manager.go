@@ -191,7 +191,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 		return nil, errors.Trace(err)
 	}
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -214,7 +214,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 		return nil, errors.Trace(err)
 	}
-	err = d.setAttached(blockDev)
+	err = d.setAttached(op, blockDev)
 
 	return d, err
 }
@@ -225,7 +225,7 @@ func (m *Manager) Create(op trace.Operation, config *VirtualDiskConfig) (*Virtua
 
 	var err error
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -256,7 +256,7 @@ func (m *Manager) Create(op trace.Operation, config *VirtualDiskConfig) (*Virtua
 func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(config.DatastoreURI.String()))
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -356,7 +356,7 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	defer trace.End(trace.Begin(""))
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -389,7 +389,7 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	default:
 	}
 
-	if err = d.setDetached(m.Disks); err != nil {
+	if err = d.setDetached(op, m.Disks); err != nil {
 		op.Errorf(err.Error())
 	}
 
@@ -478,7 +478,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 		op.Debugf("Error creating mount path: %s", err.Error())
 		return "", err
 	}
-	if err := d.Mount(path, nil); err != nil {
+	if err := d.Mount(op, path, nil); err != nil {
 		op.Debugf("Error mounting disk: %s", err.Error())
 		return "", err
 	}
@@ -501,7 +501,7 @@ func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.Data
 	}
 
 	op.Infof("Unmount/Detach %s", datastoreURI.String())
-	if err := d.Unmount(); err != nil {
+	if err := d.Unmount(op); err != nil {
 		op.Debugf("Error unmounting disk: %s", err.Error())
 		return err
 	}

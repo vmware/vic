@@ -118,7 +118,7 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 	}
 
 	// Make the filesystem and set its label
-	if err = vmdisk.Mkfs(vol.Label); err != nil {
+	if err = vmdisk.Mkfs(op, vol.Label); err != nil {
 		return nil, err
 	}
 
@@ -168,7 +168,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 		volDiskDSPath := v.volDiskDSPath(ID)
 
 		config := disk.NewPersistentDisk(volDiskDSPath)
-		dev, err := disk.NewVirtualDisk(config, v.Manager.Disks)
+		dev, err := disk.NewVirtualDisk(op, config, v.Manager.Disks)
 		if err != nil {
 			return nil, err
 		}

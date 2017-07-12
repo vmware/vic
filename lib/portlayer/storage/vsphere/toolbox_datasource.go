@@ -60,7 +60,9 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 }
 
 func (t *ToolboxDataSource) Close() error {
-	t.Clean()
+	if t.Clean != nil {
+		t.Clean()
+	}
 
 	return nil
 }

@@ -60,7 +60,9 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 }
 
 func (t *ToolboxDataSink) Close() error {
-	t.Clean()
+	if t.Clean != nil {
+		t.Clean()
+	}
 
 	return nil
 }

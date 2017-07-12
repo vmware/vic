@@ -106,6 +106,8 @@ type VicContainerProxy interface {
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
 
+	GetContainerChanges(vc *viccontainer.VicContainer) (io.ReadCloser, error)
+
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
 	exitCode(vc *viccontainer.VicContainer) (string, error)
@@ -672,6 +674,26 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 	return nil
 }
 
+func (c *ContainerProxy) GetContainerChanges(vc *viccontainer.VicContainer) (io.ReadCloser, error) {
+	host, err := sys.UUID()
+	if err != nil {
+		return nil, InternalServerError("Failed to determine host UUID")
+	}
+
+	parent := vc.LayerID
+	spec := archive.FilterSpec{
+		Inclusions: map[string]struct{}{},
+		Exclusions: map[string]struct{}{},
+	}
+
+	r, err := c.ArchiveExportReader(context.Background(), "container", host, vc.ContainerID, parent, false, spec)
+	if err != nil {
+		return nil, InternalServerError(err.Error())
+	}
+
+	return r, nil
+}
+
 // ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
 // an io.Reader is returned and the caller can use that reader to parse the data.
 func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
@@ -721,6 +743,7 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 
 		_, err = PortLayerClient().Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
+			log.Infof("\n\n\nGot error from ExportArchive: %s", err.Error())
 			switch err := err.(type) {
 			case *storage.ExportArchiveInternalServerError:
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))

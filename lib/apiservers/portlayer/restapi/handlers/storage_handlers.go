@@ -97,7 +97,6 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(h.CreateImageStore)
 	api.StorageGetImageHandler = storage.GetImageHandlerFunc(h.GetImage)
-	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(h.GetImageTar)
 	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(h.ListImages)
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(h.WriteImage)
 	api.StorageDeleteImageHandler = storage.DeleteImageHandlerFunc(h.DeleteImage)
@@ -266,11 +265,6 @@ func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) midd
 	}
 
 	return storage.NewDeleteImageOK().WithPayload(result)
-}
-
-// GetImageTar returns an image tar file
-func (h *StorageHandlersImpl) GetImageTar(params storage.GetImageTarParams) middleware.Responder {
-	return middleware.NotImplemented("operation storage.GetImageTar has not yet been implemented")
 }
 
 // ListImages returns a list of images in a store
@@ -602,7 +596,7 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 		return storage.NewExportArchiveInternalServerError()
 	}
 
-	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, func() { r.Close() })
+	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, func() { op.Debugf("Calling closer for export"); r.Close() })
 }
 
 //utility functions
