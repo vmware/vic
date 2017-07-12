@@ -211,14 +211,19 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			ifaceName := iface.Attrs().Name
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
-			// Accept all traffic over container bridge network.
-			for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
-				(&netfilter.Rule{
-					Chain:     chain,
-					Target:    netfilter.Accept,
-					Interface: ifaceName,
-				}).Commit(context.TODO())
+			// Traffic over container bridge network should be peers+outbound+published.
+			setupPublishedFirewall(endpoint, ifaceName)
+			sourceAddresses := make([]string, len(endpoint.Network.Pools))
+
+			for i, v := range endpoint.Network.Pools {
+				sourceAddresses[i] = v.String()
 			}
+			(&netfilter.Rule{
+				Chain:           netfilter.Input,
+				Target:          netfilter.Accept,
+				SourceAddresses: sourceAddresses,
+				Interface:       ifaceName,
+			}).Commit(context.TODO())
 		}
 	}
 
