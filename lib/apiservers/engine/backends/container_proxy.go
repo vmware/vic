@@ -32,11 +32,8 @@ package backends
 //		- Please USE the aliased docker error package 'derr'
 
 import (
-	"archive/tar"
 	"compress/gzip"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -102,9 +99,9 @@ type VicContainerProxy interface {
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
 
-	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error)
-	StatPath(ctx context.Context, sotre, deviceID, path string) (*types.ContainerPathStat, error)
+	ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
+	ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error)
+	StatPath(op trace.Operation, sotre, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error)
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
@@ -686,7 +683,7 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 
 // ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
 // an io.Reader is returned and the caller can use that reader to parse the data.
-func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
+func (c *ContainerProxy) ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	if store == "" || deviceID == "" {
@@ -695,8 +692,6 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 
 	plClient, transport := c.createGzipTarClient(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
-
-	var err error
 
 	pipeReader, pipeWriter := io.Pipe()
 
@@ -716,40 +711,45 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 	go func() {
 		defer close(done)
 
-		WithAncestor(&ancestor).
-			WithData(data).
-			WithFilterSpec(encodedFilter)
+		params := storage.NewExportArchiveParamsWithContext(op).
+			WithStore(store).
+			WithAncestorStore(&ancestorStore).
+			WithDeviceID(deviceID).
+			WithAncestor(&ancestor).
+			WithData(data)
 
-		// Encode the filter spec
-		encodedFilter := ""
-		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
-			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
-			params = params.WithFilterSpec(&encodedFilter)
-			log.Infof(" encodedFilter = %s", encodedFilter)
+		spec, err := archive.EncodeFilterSpec(op, &filterSpec)
+		if err != nil {
+			op.Errorf(err.Error())
+			pipeReader.CloseWithError(err)
 		}
+		params = params.WithFilterSpec(*spec)
 
 		_, err = plClient.Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ExportArchiveInternalServerError:
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
-				log.Errorf(plErr.Error())
+				op.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			case *storage.ImportArchiveLocked:
 				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				log.Errorf(plErr.Error())
+				op.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			default:
 				//Check for EOF.  Since the connection, transport, and data handling are
 				//encapsulated inside of Swagger, we can only detect EOF by checking the
 				//error string
 				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					log.Infof("swagger error %s", err.Error())
+					op.Infof("swagger error %s", err.Error())
 					pipeWriter.Close()
 				} else {
+					op.Errorf(err.Error())
 					pipeWriter.CloseWithError(err)
 				}
 			}
+		} else {
+			pipeWriter.Close()
 		}
 	}()
 
@@ -758,7 +758,7 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 
 // ArchiveImportWriter initializes a write stream for a path.  This is usually called
 // for gettine a writer during docker cp TO container.
-func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
+func (c *ContainerProxy) ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	if store == "" || deviceID == "" {
@@ -768,15 +768,13 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
 
-	var err error
-
 	pipeReader, pipeWriter := io.Pipe()
 
 	go func() {
 		// Write the init string to "wakeup" swagger on the portlayer side.  Must do
 		// it in a goroutine because pipeWriter.Write() will block till data is read
 		// off.
-		log.Debugf("writing primer bytes for ImportStream for ArchiveImportWriter")
+		op.Debugf("writing primer bytes for ImportStream for ArchiveImportWriter")
 		pipeWriter.Write([]byte(attachStdinInitString))
 	}()
 
@@ -798,37 +796,38 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 
 		// encodedFilter and destination are not required (from swagge spec) because
 		// they are allowed to be empty.
-		params := storage.NewImportArchiveParamsWithContext(ctx).
+		params := storage.NewImportArchiveParamsWithContext(op).
 			WithStore(store).
 			WithDeviceID(deviceID).
 			WithArchive(pipeReader)
 
-		// Encode the filter spec
-		encodedFilter := ""
-		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
-			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
-			params = params.WithFilterSpec(&encodedFilter)
+		spec, err := archive.EncodeFilterSpec(op, &filterSpec)
+		if err != nil {
+			op.Errorf(err.Error())
+			pipeReader.CloseWithError(err)
 		}
+		params = params.WithFilterSpec(*spec)
 
 		_, err = plClient.Storage.ImportArchive(params)
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ImportArchiveInternalServerError:
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
-				log.Errorf(plErr.Error())
+				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveLocked:
 				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				log.Errorf(plErr.Error())
+				op.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			default:
 				//Check for EOF.  Since the connection, transport, and data handling are
 				//encapsulated inside of Swagger, we can only detect EOF by checking the
 				//error string
 				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					log.Errorf(err.Error())
+					op.Errorf(err.Error())
 					pipeReader.Close()
 				} else {
+					op.Errorf(err.Error())
 					pipeReader.CloseWithError(err)
 				}
 			}
@@ -842,17 +841,24 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 
 // StatPath requests the portlayer to stat the filesystem resource at the
 // specified path in the container vc.
-func (c *ContainerProxy) StatPath(ctx context.Context, store, deviceID, path string) (*types.ContainerPathStat, error) {
+func (c *ContainerProxy) StatPath(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	statPathParams := storage.
-		NewStatPathParamsWithContext(ctx).
+		NewStatPathParamsWithContext(op).
 		WithStore(store).
-		WithDeviceID(deviceID).
-		WithTargetPath(path)
+		WithDeviceID(deviceID)
+
+	spec, err := archive.EncodeFilterSpec(op, &filterSpec)
+	if err != nil {
+		op.Errorf(err.Error())
+		return nil, InternalServerError(err.Error())
+	}
+	statPathParams = statPathParams.WithFilterSpec(*spec)
+
 	statPathOk, err := c.client.Storage.StatPath(statPathParams)
 	if err != nil {
-		log.Errorf(err.Error())
+		op.Errorf(err.Error())
 		return nil, InternalServerError(err.Error())
 	}
 
@@ -865,7 +871,7 @@ func (c *ContainerProxy) StatPath(ctx context.Context, store, deviceID, path str
 
 	var modTime time.Time
 	if err := modTime.GobDecode([]byte(statPathOk.ModTime)); err != nil {
-		log.Debugf("error getting mod time from statpath: %s", err.Error())
+		op.Debugf("error getting mod time from statpath: %s", err.Error())
 	} else {
 		stat.Mtime = modTime
 	}
@@ -1139,23 +1145,19 @@ func (c *ContainerProxy) createGzipTarClient(connectTimeout, responseTimeout, re
 	r.Consumers["application/octet-stream"] = bsc
 	r.Producers["application/octet-stream"] = bsp
 
+	r.Consumers["application/x-tar"] = bsc
+	r.Producers["application/x-tar"] = bsp
+
 	r.Consumers["application/x-gzip"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
-		gzReader, err := gzip.NewReader(tar.NewReader(rdr))
+		gzReader, err := gzip.NewReader(rdr)
 		if err != nil {
 			return err
 		}
 		return bsc.Consume(gzReader, data)
 	})
 	r.Producers["application/x-gzip"] = runtime.ProducerFunc(func(wtr io.Writer, data interface{}) error {
-		gzWriter := gzip.NewWriter(tar.NewWriter(wtr))
+		gzWriter := gzip.NewWriter(wtr)
 		return bsp.Produce(gzWriter, data)
-	})
-
-	r.Consumers["application/x-tar"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
-		return bsc.Consume(rdr, data)
-	})
-	r.Producers["application/x-tar"] = runtime.ProducerFunc(func(wtr io.Writer, data interface{}) error {
-		return bsp.Produce(wtr, data)
 	})
 
 	return plClient, transport

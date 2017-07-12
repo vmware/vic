@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"path/filepath"
+	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -99,16 +100,16 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 			fs.Exclusions[k] = struct{}{}
 		case Rebase:
 			if fs.RebasePath != "" {
-				return nil, fmt.Errorf("Error creating filter spec: only one rebase path allowed")
+				return nil, fmt.Errorf("error creating filter spec: only one rebase path allowed")
 			}
 			fs.RebasePath = k
 		case Strip:
 			if fs.StripPath != "" {
-				return nil, fmt.Errorf("Error creating filter spec: only one strip path allowed")
+				return nil, fmt.Errorf("error creating filter spec: only one strip path allowed")
 			}
 			fs.StripPath = k
 		default:
-			return nil, fmt.Errorf("Invalid filter specification: %d", v)
+			return nil, fmt.Errorf("invalid filter specification: %d", v)
 		}
 	}
 
@@ -116,33 +117,61 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 }
 
 // Decodes a base64 encoded string from EncodeFilterSpec into a FilterSpec
-func DecodeFilterSpec(filterSpec *string) *FilterSpec {
-	var fs FilterSpec
-	if filterSpec != nil && len(*filterSpec) > 0 {
-		if decodedSpec, err := base64.StdEncoding.DecodeString(*filterSpec); err == nil {
-			if len(decodedSpec) > 0 {
-				if err = json.Unmarshal(decodedSpec, &fs); err != nil {
-					log.Errorf("unable to unmarshal decoded spec: %s", err)
-					return nil
-				}
-			} else {
-				log.Info("filterSpec is empty")
-				fs = FilterSpec{}
+func DecodeFilterSpec(op trace.Operation, spec string) (*FilterSpec, error) {
+	var filterSpec FilterSpec
+
+	// empty spec means don't apply any filtering
+	if len(spec) > 0 {
+		decoded, err := base64.StdEncoding.DecodeString(spec)
+		if err != nil {
+			op.Errorf("Unable to decode filter spec: %s", err)
+			return nil, err
+		}
+		op.Debugf("decoded spec: %+s", string(decoded))
+
+		if len(decoded) > 0 {
+			if err = json.Unmarshal(decoded, &filterSpec); err != nil {
+				op.Errorf("Unable to unmarshal decoded spec: %s", err)
+				return nil, err
 			}
 		}
-	} else {
-		log.Info("filterSpec is empty")
-		fs = FilterSpec{}
 	}
-	return &fs
+
+	// normalize empty spec
+	if filterSpec.Inclusions == nil {
+		filterSpec.Inclusions = make(map[string]struct{})
+	}
+	if filterSpec.Exclusions == nil {
+		filterSpec.Exclusions = make(map[string]struct{})
+	}
+
+	return &filterSpec, nil
 }
 
-func EncodeFilterSpec(filterSpec *FilterSpec) *string {
-	// Encode the filter spec
-	encodedFilter := ""
-	if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
-		encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
-		log.Infof("encodedFilter = %s", encodedFilter)
+// Encode the filter spec
+func EncodeFilterSpec(op trace.Operation, spec *FilterSpec) (*string, error) {
+	mashalled, err := json.Marshal(spec)
+	if err != nil {
+		op.Errorf("Unable to encode filter spec: %s", err)
+		return nil, err
 	}
-	return &encodedFilter
+
+	encoded := base64.StdEncoding.EncodeToString(mashalled)
+	op.Debugf("encodedFilter = %s", encoded)
+
+	return &encoded, nil
+}
+
+// ResolveImportPath returns a string slice that represents the full paths of a file asset on a mount point
+func ResolveImportPath(fs *FilterSpec) []string {
+	// this avoids the case when stripPath is root and resolvedPath would have been '//<rebasepath>'
+	var resolvedPaths []string
+
+	for path := range fs.Inclusions {
+		rebasePath := strings.TrimSuffix(fs.RebasePath, "/")
+		resolvedPath := rebasePath + string(filepath.Separator) + path
+		resolvedPaths = append(resolvedPaths, resolvedPath)
+	}
+
+	return resolvedPaths
 }

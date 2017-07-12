@@ -15,11 +15,8 @@
 package handlers
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -519,51 +516,24 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }
 
-func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware.Responder {
-	defer trace.End(trace.Begin(""))
-	op := trace.NewOperation(context.Background(), "StatPath: %s", params.DeviceID)
-
-	var resp middleware.Responder
-	switch params.Store {
-	case "container":
-		resp = storage.NewStatPathInternalServerError()
-	case "guesttools":
-		resp = preformOnlineStatPath(op, params)
-	default:
-		resp = storage.NewStatPathInternalServerError()
-	}
-
-	return resp
-
-}
-
 // ExportArchive creates a tar archive and returns to caller
 func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 	op := trace.NewOperation(context.Background(), "ExportArchive: %s", params.DeviceID)
 
-	filterSpec := archive.DecodeFilterSpec(params.FilterSpec)
-	if filterSpec == nil {
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
 		return storage.NewExportArchiveInternalServerError()
 	}
 
-	var rc io.ReadCloser
-	var err error
-	switch params.Store {
-	case "container":
-		return storage.NewExportArchiveLocked()
-	case "guesttools":
-		vc := epl.Containers.Container(params.DeviceID)
-		if vc == nil {
-			return storage.NewExportArchiveNotFound()
-		}
+	vc := epl.Containers.Container(params.DeviceID)
+	if vc == nil {
+		return storage.NewExportArchiveNotFound()
+	}
 
-		rc, err = splc.FileTransferFromGuest(op, vc, filterSpec.RebasePath)
-		if err != nil {
-			op.Errorf("FileTransferFromGuest error: %s", err.Error())
-			return storage.NewExportArchiveInternalServerError()
-		}
-	default:
+	rc, err := splc.FileTransferFromGuest(op, vc, *filterSpec)
+	if err != nil {
+		op.Errorf("FileTransferFromGuest error: %s", err.Error())
 		return storage.NewExportArchiveInternalServerError()
 	}
 
@@ -578,51 +548,66 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 	defer params.Archive.Close()
 	op := trace.NewOperation(context.Background(), "ImportArchive: %s", params.DeviceID)
 
-	filterSpec := archive.DecodeFilterSpec(params.FilterSpec)
-	if filterSpec == nil {
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
 		return storage.NewExportArchiveInternalServerError()
 	}
 
 	detachableIn := NewFlushingReader(params.Archive)
 
-	switch params.Store {
-	case "container":
-		var buf bytes.Buffer
-		writer := bufio.NewWriter(&buf)
-		_, err := io.Copy(writer, detachableIn)
-		if err != nil {
-			op.Errorf("Copy tar stream returned error - %s", err.Error())
-			return storage.NewImportArchiveInternalServerError()
-		}
-	case "guesttools":
-		vc := epl.Containers.Container(params.DeviceID)
-		if vc == nil {
-			return storage.NewImportArchiveNotFound()
-		}
+	vc := epl.Containers.Container(params.DeviceID)
+	if vc == nil {
+		return storage.NewImportArchiveNotFound()
+	}
 
-		err := splc.FileTransferToGuest(op, vc, filterSpec.RebasePath, ioutil.NopCloser(detachableIn))
-		if err != nil {
-			op.Errorf("FileTransferToGuest error: %s", err)
-			return storage.NewImportArchiveInternalServerError()
-		}
-	default:
+	err = splc.FileTransferToGuest(op, vc, *filterSpec, ioutil.NopCloser(detachableIn))
+	if err != nil {
+		op.Errorf("FileTransferToGuest error: %s", err)
 		return storage.NewImportArchiveInternalServerError()
 	}
 
 	return storage.NewImportArchiveOK()
 }
 
+func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "StatPath: %s", params.DeviceID)
+
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
+		return storage.NewExportArchiveInternalServerError()
+	}
+
+	var resp middleware.Responder
+	switch params.Store {
+	case "container":
+		resp = preformOnlineStatPath(op, params, filterSpec)
+	default:
+		op.Errorf("Offline CSP not implemented.")
+		resp = storage.NewStatPathInternalServerError()
+	}
+
+	return resp
+
+}
+
 //utility functions
 
-func preformOnlineStatPath(op trace.Operation, params storage.StatPathParams) middleware.Responder {
+func preformOnlineStatPath(op trace.Operation, params storage.StatPathParams, fs *archive.FilterSpec) middleware.Responder {
 	vc := epl.Containers.Container(params.DeviceID)
 	if vc == nil {
 		return storage.NewStatPathNotFound()
 	}
 
-	file, err := splc.StatPath(op, vc, params.TargetPath)
+	paths := archive.ResolveImportPath(fs)
+	if len(paths) != 1 {
+		op.Errorf("incorrect number of paths to stat: %s. --- %d != 1", params.DeviceID, len(paths))
+		return storage.NewStatPathInternalServerError()
+	}
+
+	file, err := splc.StatPath(op, vc, paths[0])
 	if err != nil {
-		op.Errorf("Error getting stat from device %d: %s", params.DeviceID, err.Error())
+		op.Errorf("error getting stat from device %s: %s", params.DeviceID, err.Error())
 		return storage.NewStatPathInternalServerError()
 	}
 

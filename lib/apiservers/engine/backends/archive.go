@@ -16,9 +16,7 @@ package backends
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,7 +27,6 @@ import (
 	"github.com/tchap/go-patricia/patricia"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
-	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
 
@@ -45,35 +42,38 @@ const (
 // ContainerArchivePath creates an archive of the filesystem resource at the
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
-func (c *Container) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	filterSpec := vicarchive.FilterSpec{}
-	filterSpec.RebasePath = path
+func (c *Container) ContainerArchivePath(name string, path string) (io.ReadCloser, *types.ContainerPathStat, error) {
+	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerArchivePath: %s", name)
 
-	reader, err := c.containerProxy.ArchiveExportReader(context.Background(), "guesttools", "", vc.ContainerID, "", true, filterSpec)
-	if err != nil {
-		log.Errorf("Errors getting reader for export: %s", err.Error())
-		return nil, err
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, nil, NotFoundError(name)
 	}
 
-	return ioutil.NopCloser(reader), nil
-}
+	stat, err := c.ContainerStatPath(name, path)
+	if err != nil {
+		return nil, nil, InternalServerError(err.Error())
+	}
 
-func (c *Container) exportFromContainer(vc *viccontainer.VicContainer, path string) (io.ReadCloser, error) {
-	mounts := mountsFromContainer(vc)
-	mounts = append(mounts, types.MountPoint{Destination: "/"})
-	readerMap := NewArchiveStreamReaderMap(mounts)
+	// match io readers with countainer source paths
+	// mounts := mountsFromContainer(vc)
+	// mounts = append(mounts, types.MountPoint{Destination: "/"})
+
+	// force online only at the moment
+	mounts := []types.MountPoint{types.MountPoint{Destination: "/"}}
+	readerMap := NewArchiveStreamReaderMap(op, mounts)
 
 	readers, err := readerMap.ReadersForSourcePath(c.containerProxy, vc.ContainerID, path)
 	if err != nil {
-		log.Errorf("Errors getting readers for export: %s", err.Error())
-		return nil, err
+		return nil, nil, InternalServerError(err.Error())
 	}
 
 	//FIXME: We need a multi reader that can be closed.  MultiReader returns a regular reader
-	log.Infof("Got %d archive readers", len(readers))
+	op.Infof("Got %d archive readers", len(readers))
 	finalTarReader := io.MultiReader(readers...)
 
-	return ioutil.NopCloser(finalTarReader), nil
+	return ioutil.NopCloser(finalTarReader), stat, nil
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
@@ -95,41 +95,14 @@ func (c *Container) ContainerExport(name string, out io.Writer) error {
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	// gZip the tar for use in guest tools upload
-	filterSpec := vicarchive.FilterSpec{}
-	filterSpec.RebasePath = path
+	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerExtractToDir: %s", name)
 
-	writer, err := c.containerProxy.ArchiveImportWriter(context.Background(), "guesttools", vc.ContainerID, filterSpec)
-	defer writer.Close()
-	if err != nil {
-		return err
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return NotFoundError(name)
 	}
 
-	tarWriter := tar.NewWriter(writer)
-	defer tarWriter.Close()
-
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return err
-		}
-
-		if err := tarWriter.WriteHeader(header); err != nil {
-			return err
-		}
-		if _, err := io.Copy(tarWriter, tarReader); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string, content io.Reader) error {
 	rawReader, err := archive.DecompressStream(content)
 	if err != nil {
 		log.Errorf("Input tar stream to ContainerExtractToDir not recognized: %s", err.Error())
@@ -137,9 +110,12 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string
 	}
 	tarReader := tar.NewReader(rawReader)
 
-	mounts := mountsFromContainer(vc)
-	mounts = append(mounts, types.MountPoint{Destination: "/"})
-	writerMap := NewArchiveStreamWriterMap(mounts, path)
+	// mounts := mountsFromContainer(vc)
+	// mounts = append(mounts, types.MountPoint{Destination: "/"})
+
+	// force online only at the moment
+	mounts := []types.MountPoint{types.MountPoint{Destination: "/"}}
+	writerMap := NewArchiveStreamWriterMap(op, mounts, path)
 	defer writerMap.Close() // This should shutdown all the stream connections to the portlayer.
 
 	for {
@@ -150,32 +126,27 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string
 		if err != nil {
 			return err
 		}
+		if header == nil {
+			continue
+		}
 
 		// Lookup the writer for that mount prefix
 		writer, err := writerMap.WriterForAsset(c.containerProxy, vc.ContainerID, path, *header)
 		if err != nil {
 			return err
 		}
-
-		var buf bytes.Buffer
-		enc := gob.NewEncoder(&buf)
-		err = enc.Encode(header)
-		if err != nil {
-			log.Errorf("Unable to encode header")
+		log.Debugf("writing asset: %#v", header)
+		tarWriter := tar.NewWriter(writer)
+		if err := tarWriter.WriteHeader(header); err != nil {
+			op.Errorf("Error while copying tar header: %s", err.Error())
 			return err
 		}
 
-		headerReader := bytes.NewReader(buf.Bytes())
-		_, err = io.Copy(writer, headerReader)
-		if err != nil {
-			log.Errorf("Error while copying tar header: %s", err.Error())
-			return err
-		}
-
-		_, err = io.Copy(writer, tarReader)
-		if err != nil {
-			log.Errorf("Error while copying tar data for %s: %s", header.Name, err.Error())
-			return err
+		if header.Typeflag == tar.TypeReg {
+			if _, err := io.Copy(writer, tarReader); err != nil {
+				op.Errorf("Error while copying tar data for %s: %s", header.Name, err.Error())
+				return err
+			}
 		}
 	}
 
@@ -186,18 +157,24 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string
 // container identified by the given name.
 func (c *Container) ContainerStatPath(name string, path string) (*types.ContainerPathStat, error) {
 	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerStatPath: %s", name)
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return nil, NotFoundError(name)
 	}
 
-	stat, err := c.containerProxy.StatPath(context.Background(), "guesttools", vc.ContainerID, path)
+	mounts := mountsFromContainer(vc)
+	// still need to work on this to do a filterspec instead
+	store, deviceID, fs := resolvePathWithMountPoints(mounts, path, vc.ContainerID)
+
+	stat, err := c.containerProxy.StatPath(op, store, deviceID, fs)
 	if err != nil {
+		op.Errorf("error getting statpath: %s", err.Error())
 		return nil, err
 	}
 
-	log.Debugf("online container stat path %#v", stat)
+	op.Debugf("online container stat path %#v", stat)
 	return stat, nil
 }
 
@@ -220,11 +197,13 @@ type ArchiveReader struct {
 // ArchiveStreamWriterMap maps mount prefix to io.WriteCloser
 type ArchiveStreamWriterMap struct {
 	prefixTrie *patricia.Trie
+	op         trace.Operation
 }
 
 // ArchiveStreamReaderMap maps mount prefix to io.ReadCloser
 type ArchiveStreamReaderMap struct {
 	prefixTrie *patricia.Trie
+	op         trace.Operation
 }
 
 // NewArchiveStreamWriterMap creates a new ArchiveStreamWriterMap.  The map contains all information
@@ -233,9 +212,10 @@ type ArchiveStreamReaderMap struct {
 //
 // mounts is the mount data from inspect
 // containerDestPath is the destination path in the container
-func NewArchiveStreamWriterMap(mounts []types.MountPoint, containerDestPath string) *ArchiveStreamWriterMap {
+func NewArchiveStreamWriterMap(op trace.Operation, mounts []types.MountPoint, containerDestPath string) *ArchiveStreamWriterMap {
 	writerMap := &ArchiveStreamWriterMap{}
 	writerMap.prefixTrie = patricia.NewTrie()
+	writerMap.op = op
 
 	for _, m := range mounts {
 		aw := ArchiveWriter{
@@ -260,9 +240,9 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, containerDestPath stri
 		// file data.txt from local /mnt/A/data.txt will come to the persona as mnt/A/data.txt.
 		// Here, we must tell the portlayer to remove "mnt/A".  The key to determining whether to
 		// strip "A" or "mnt/A" is based on the container destination path.
-		if containerDestPath != "/" && strings.HasPrefix(aw.mountPoint.Destination, containerDestPath) {
-			aw.filterSpec.StripPath = strings.TrimPrefix(aw.mountPoint.Destination, containerDestPath)
-		}
+		aw.filterSpec.StripPath = strings.TrimPrefix(containerDestPath, aw.mountPoint.Destination)
+		aw.filterSpec.Exclusions = make(map[string]struct{})
+		aw.filterSpec.Inclusions = make(map[string]struct{})
 
 		writerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &aw)
 	}
@@ -274,9 +254,10 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, containerDestPath stri
 // information to create readers for every volume mounts for the container
 //
 // mounts is the mount data from inspect
-func NewArchiveStreamReaderMap(mounts []types.MountPoint) *ArchiveStreamReaderMap {
+func NewArchiveStreamReaderMap(op trace.Operation, mounts []types.MountPoint) *ArchiveStreamReaderMap {
 	readerMap := &ArchiveStreamReaderMap{}
 	readerMap.prefixTrie = patricia.NewTrie()
+	readerMap.op = op
 
 	for _, m := range mounts {
 		ar := ArchiveReader{
@@ -299,7 +280,10 @@ func NewArchiveStreamReaderMap(mounts []types.MountPoint) *ArchiveStreamReaderMa
 			ar.filterSpec.RebasePath = ar.mountPoint.Destination
 		}
 
-		readerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), ar)
+		ar.filterSpec.Exclusions = make(map[string]struct{})
+		ar.filterSpec.Inclusions = make(map[string]struct{})
+
+		readerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &ar)
 	}
 
 	return readerMap
@@ -392,14 +376,16 @@ func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy VicContainerProxy, cid, c
 	if aw.writer == nil {
 		// lazy initialize.
 		log.Debugf("Lazily initializing import stream for %s", aw.mountPoint.Destination)
-		var deviceID string
+		var deviceID, store string
 		if aw.mountPoint.Destination == "/" {
 			// Special case. / refers to container VMDK and not a volume vmdk.
+			store = containerStoreName
 			deviceID = cid
 		} else {
+			store = volumeStoreName
 			deviceID = aw.mountPoint.Name
 		}
-		streamWriter, err = proxy.ArchiveImportWriter(context.Background(), "container", deviceID, aw.filterSpec)
+		streamWriter, err = proxy.ArchiveImportWriter(wm.op, store, deviceID, aw.filterSpec)
 		if err != nil {
 			err = fmt.Errorf("Unable to initialize import stream writer for mount prefix %s", aw.mountPoint.Destination)
 			log.Errorf(err.Error())
@@ -439,35 +425,30 @@ func (wm *ArchiveStreamWriterMap) Close() {
 //
 // For the above example, this function returns the readers for mount A and mount AB but not the
 // readers for / or mount B.
-func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string) ([]ArchiveReader, error) {
+func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string) ([]*ArchiveReader, error) {
 	defer trace.End(trace.Begin(containerSourcePath))
 
-	var nodes []ArchiveReader
-	var startingNode ArchiveReader
+	var nodes []*ArchiveReader
+	var startingNode *ArchiveReader
 	var err error
 
 	findStartingPrefix := func(prefix patricia.Prefix, item patricia.Item) error {
-		if _, ok := item.(ArchiveReader); !ok {
+		if _, ok := item.(*ArchiveReader); !ok {
 			return fmt.Errorf("item not ArchiveReader")
 		}
 
-		startingNode = item.(ArchiveReader)
+		startingNode = item.(*ArchiveReader)
 		return nil
 	}
 
-	// go function used later for searching
 	walkPrefixSubtree := func(prefix patricia.Prefix, item patricia.Item) error {
-		if _, ok := item.(ArchiveReader); !ok {
+		if _, ok := item.(*ArchiveReader); !ok {
 			return fmt.Errorf("item not ArchiveReader")
 		}
 
-		ar, _ := item.(ArchiveReader)
+		ar, _ := item.(*ArchiveReader)
 		nodes = append(nodes, ar)
 		return nil
-	}
-
-	if strings.HasSuffix(containerSourcePath, "/") {
-		containerSourcePath = strings.TrimSuffix(containerSourcePath, "/")
 	}
 
 	// Find all mounts for the sourcepath
@@ -481,6 +462,8 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 
 	// The above subtree walking MAY NOT find the starting prefix.  For example /etc will not find /.
 	// Subtree only finds prefix that starts with /etc.  VisitPrefixes will find the starting prefix.
+	// If the search was for /, then it will not find the starting node.  In that case, we grab the
+	// first node in the slice.
 	err = rm.prefixTrie.VisitPrefixes(prefix, findStartingPrefix)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to find starting node for prefix %s: %s", containerSourcePath, err.Error())
@@ -488,7 +471,7 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 		return nil, fmt.Errorf(msg)
 	}
 
-	if startingNode.mountPoint.Destination != "" {
+	if startingNode != nil {
 		found := false
 		for _, node := range nodes {
 			if node.mountPoint.Destination == startingNode.mountPoint.Destination {
@@ -498,11 +481,90 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 		}
 
 		if !found {
-			nodes = append(nodes, startingNode)
+			// prepend the starting node at the beginning
+			nodes = append([]*ArchiveReader{startingNode}, nodes...)
 		}
+	} else {
+		startingNode = nodes[0]
+	}
+
+	err = rm.buildFilterSpec(containerSourcePath, nodes, startingNode)
+	if err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
+}
+
+func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, nodes []*ArchiveReader, startingNode *ArchiveReader) error {
+	var err error
+
+	// Build an exclusion filter for each writer.  For example, the reader for / should not read
+	// from submounts as there are separate readers for those.
+	buildExclusion := func(path string, node *ArchiveReader) error {
+		var walkResults []string
+
+		childWalker := func(prefix patricia.Prefix, item patricia.Item) error {
+			if _, ok := item.(*ArchiveReader); !ok {
+				return fmt.Errorf("item not ArchiveReader")
+			}
+
+			ar, _ := item.(*ArchiveReader)
+			walkResults = append(walkResults, ar.mountPoint.Destination)
+			return nil
+		}
+
+		// prefix = current node's mount path
+		nodePrefix := patricia.Prefix(path)
+
+		err = rm.prefixTrie.VisitSubtree(nodePrefix, childWalker)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to build exclusion filter for %s: %s", path, err.Error())
+			log.Error(msg)
+			return fmt.Errorf(msg)
+		}
+
+		for _, child := range walkResults {
+			if child != path {
+				node.filterSpec.Exclusions[child] = struct{}{}
+			}
+		}
+
+		return nil
+	}
+
+	for _, node := range nodes {
+		// Clear out existing exclusions and inclusions
+		node.filterSpec.Exclusions = make(map[string]struct{})
+		node.filterSpec.Inclusions = make(map[string]struct{})
+
+		err = buildExclusion(node.mountPoint.Destination, node)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Add inclusion filter.  When there is an inclusion, there should be only one node in
+	// the slice that is returned.
+	//
+	//	Example 1:
+	//		containerSourcePath -	/file.txt
+	//
+	//		ArchiveReader path -	/
+	//		Inclusion filter -		file.txt
+	//
+	//	Example 2:
+	//		containerSourcePath -	/mnt/A/a/file.txt
+	//
+	//		ArchiveReader path -	/mnt/A
+	//		Inclusion filter -		a/file.txt
+	inclusionPath := strings.TrimPrefix(containerSourcePath, startingNode.mountPoint.Destination)
+	inclusionPath = strings.TrimPrefix(inclusionPath, "/")
+	if len(nodes) == 1 {
+		nodes[0].filterSpec.Inclusions[inclusionPath] = struct{}{}
+	}
+
+	return nil
 }
 
 // ReadersForSourcePath returns all an array of io.Reader for all the readers within a container source path.
@@ -536,7 +598,7 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, 
 			}
 
 			log.Infof("Lazily initializing export stream for %s [%s]", node.mountPoint.Name, node.mountPoint.Destination)
-			reader, err := proxy.ArchiveExportReader(context.Background(), store, "", deviceID, "", true, node.filterSpec)
+			reader, err := proxy.ArchiveExportReader(rm.op, store, "", deviceID, "", true, node.filterSpec)
 			if err != nil {
 				err = fmt.Errorf("Unable to initialize export stream reader for prefix %s", node.mountPoint.Destination)
 				log.Errorf(err.Error())
@@ -569,4 +631,32 @@ func (rm *ArchiveStreamReaderMap) Close() {
 	}
 
 	rm.prefixTrie.Visit(closeStream)
+}
+
+// use mountpoints to strip the target to a relative path
+func resolvePathWithMountPoints(mounts []types.MountPoint, path, defaultDevice string) (string, string, vicarchive.FilterSpec) {
+	var fs vicarchive.FilterSpec
+	deviceID := defaultDevice
+	store := containerStoreName
+	mntpoint := ""
+
+	// trim / off from path and then append / to ensure the format is correct
+	path = "/" + strings.TrimPrefix(strings.TrimSuffix(path, "/"), "/")
+
+	for _, mount := range mounts {
+		if strings.HasPrefix(path, mount.Destination) {
+			if len(mount.Destination) != len(path) &&
+				(mntpoint == "" || (len(mount.Destination) > len(mntpoint))) {
+				deviceID = mount.Name
+				mntpoint = mount.Destination
+				store = volumeStoreName
+			}
+		}
+	}
+
+	fs.RebasePath = mntpoint
+	fs.Inclusions = make(map[string]struct{})
+	fs.Inclusions[strings.TrimPrefix(path, mntpoint)] = struct{}{}
+
+	return store, deviceID, fs
 }

@@ -21,19 +21,30 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-
+	"strings"
 	"sync"
 
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func FileTransferToGuest(op trace.Operation, vc *exec.Container, path string, reader io.ReadCloser) error {
+// GuestTransfer provides a mechanism to serially download multiple files from
+// Guest Tools. This should be replaced with a portlayer-wide, container-specific
+// Download Manager, as VIX calls cannot be made in parallel on a vm.
+type GuestTransfer struct {
+	GuestTransferURL string
+	Reader           io.Reader
+	Size             int64
+}
+
+func FileTransferToGuest(op trace.Operation, vc *exec.Container, fs archive.FilterSpec, reader io.ReadCloser) error {
 	defer trace.End(trace.Begin(""))
 
 	// set up file manager
@@ -48,53 +59,90 @@ func FileTransferToGuest(op trace.Operation, vc *exec.Container, path string, re
 		Username: vc.ExecConfig.ID,
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	tarReader := tar.NewReader(reader)
+	defer reader.Close()
 
-	var buf bytes.Buffer
-	var size int64
-	gZipReader := zipTar(op, reader)
-
-	go func() {
-		defer reader.Close()
-		defer wg.Done()
-
-		size, err = io.Copy(&buf, gZipReader)
-		if err != nil {
-			op.Errorf("error gzipping tar stream: %s", err.Error())
-			size = 0
+	var uploadLock = &sync.Mutex{}
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
 		}
-	}()
+		if err != nil {
+			return err
+		}
+		if header == nil {
+			continue
+		}
+		gZipOut, gZipIn := io.Pipe()
+		go func() {
+			gZipWriter := gzip.NewWriter(gZipIn)
+			tarWriter := tar.NewWriter(gZipWriter)
+			defer gZipIn.Close()
+			defer gZipWriter.Close()
+			defer tarWriter.Close()
 
-	wg.Wait()
+			if err = tarWriter.WriteHeader(header); err != nil {
+				op.Errorf(err.Error())
+				gZipIn.CloseWithError(err)
+				return
+			}
 
-	if size == 0 {
-		return fmt.Errorf("archive upload size cannot be 0")
-	}
+			if header.Typeflag == tar.TypeReg {
+				if _, err = io.Copy(tarWriter, tarReader); err != nil {
+					op.Errorf(err.Error())
+					gZipIn.CloseWithError(err)
+					return
+				}
+			}
 
-	guestTransferURL, err := filemgr.InitiateFileTransferToGuest(op, &auth, path, &types.GuestPosixFileAttributes{}, size, true)
-	if err != nil {
-		return err
-	}
+		}()
+		var byteWrapper []byte
+		var size int64
+		uploadLock.Lock()
+		go func() {
+			defer uploadLock.Unlock()
 
-	url, err := client.ParseURL(guestTransferURL)
-	if err != nil {
-		return err
-	}
+			byteWrapper, err = ioutil.ReadAll(gZipOut)
+			if err != nil {
+				op.Errorf(err.Error())
+				gZipOut.CloseWithError(err)
+				return
+			}
+			size = int64(len(byteWrapper))
+		}()
+		uploadLock.Lock()
+		if size == 0 {
+			return fmt.Errorf("upload size cannot be 0")
+		}
 
-	// upload tar archive to url
-	op.Debugf("Uploading: %v --- %s on %s", url, path, vc.ExecConfig.ID)
-	params := soap.DefaultUpload
-	params.ContentLength = size
-	op.Debugf("%s", string(buf.Bytes()))
-	err = client.Upload(bytes.NewReader(buf.Bytes()), url, &params)
-	if err != nil {
-		return err
+		path := "/" + strings.TrimSuffix(strings.TrimPrefix(fs.StripPath, "/"), "/") + "/"
+		op.Debugf("Initiating upload: path: %s to %s, size: %d on %s", header.Name, path, size, vc.ExecConfig.ID)
+		guestTransferURL, err := filemgr.InitiateFileTransferToGuest(op, &auth, path, &types.GuestPosixFileAttributes{}, size, true)
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+		url, err := client.ParseURL(guestTransferURL)
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+		// upload tar archive to url
+		op.Debugf("Uploading: %v --- %s", url, vc.ExecConfig.ID)
+		params := soap.DefaultUpload
+		params.ContentLength = size
+		err = client.Upload(bytes.NewReader(byteWrapper), url, &params)
+		if err != nil {
+			op.Errorf(err.Error())
+			return err
+		}
+		uploadLock.Unlock()
 	}
 	return nil
 }
 
-func FileTransferFromGuest(op trace.Operation, vc *exec.Container, path string) (io.ReadCloser, error) {
+func FileTransferFromGuest(op trace.Operation, vc *exec.Container, fs archive.FilterSpec) (io.ReadCloser, error) {
 	defer trace.End(trace.Begin(""))
 
 	// set up file manager.
@@ -107,32 +155,38 @@ func FileTransferFromGuest(op trace.Operation, vc *exec.Container, path string) 
 		Username: vc.ExecConfig.ID,
 	}
 
-	// authenticate client and parse container host/port.
-	guestInfo, err := filemgr.InitiateFileTransferFromGuest(op, &auth, path)
-	if err != nil {
-		return nil, err
+	paths := archive.ResolveImportPath(&fs)
+	var readers []io.Reader
+	for _, path := range paths {
+		// authenticate client and parse container host/port.
+		guestInfo, err := filemgr.InitiateFileTransferFromGuest(op, &auth, path)
+		if err != nil {
+			return nil, err
+		}
+
+		url, err := client.ParseURL(guestInfo.Url)
+		if err != nil {
+			return nil, err
+		}
+
+		// download from guest. if download is a file, create a tar out of it.
+		// guest tools will not tar up single files.
+		op.Debugf("Downloading: %v --- %s from %d", url, path, vc.ExecConfig.ID)
+		params := soap.DefaultDownload
+		rc, contentLength, err := client.Download(url, &params)
+		if err != nil {
+			return nil, err
+		}
+
+		gc, err := createTarFromFile(op, rc, vc, path, contentLength)
+		if err != nil {
+			return nil, err
+		}
+		readers = append(readers, gc)
+
 	}
 
-	url, err := client.ParseURL(guestInfo.Url)
-	if err != nil {
-		return nil, err
-	}
-
-	// download from guest. if download is a file, create a tar out of it.
-	// guest tools will not tar up single files.
-	op.Debugf("Downloading: %v --- %s from %d", url, path, vc.ExecConfig.ID)
-	params := soap.DefaultDownload
-	rc, contentLength, err := client.Download(url, &params)
-	if err != nil {
-		return nil, err
-	}
-
-	gc, err := createTarFromFile(op, rc, vc, path, contentLength)
-	if err != nil {
-		return nil, err
-	}
-
-	return unZipTar(op, gc), nil
+	return unZipTar(op, ioutil.NopCloser(io.MultiReader(readers...))), nil
 }
 
 //----------
@@ -239,42 +293,4 @@ func unZipTar(op trace.Operation, reader io.ReadCloser) io.ReadCloser {
 	}()
 
 	return tarOut
-}
-
-func zipTar(op trace.Operation, reader io.Reader) io.ReadCloser {
-	gZipOut, gZipIn := io.Pipe()
-	go func() {
-		tarReader := tar.NewReader(reader)
-		gZipWriter := gzip.NewWriter(gZipIn)
-		tarWriter := tar.NewWriter(gZipWriter)
-		defer gZipIn.Close()
-		defer gZipWriter.Close()
-		defer tarWriter.Close()
-
-		for {
-			header, err := tarReader.Next()
-
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				op.Errorf("Error in zipTar: %s", err.Error())
-				gZipIn.CloseWithError(err)
-				return
-			}
-
-			if err := tarWriter.WriteHeader(header); err != nil {
-				op.Errorf("Error in zipTar: %s", err.Error())
-				gZipIn.CloseWithError(err)
-				return
-			}
-
-			if _, err := io.Copy(tarWriter, tarReader); err != nil {
-				op.Errorf("Error in zipTar: %s", err.Error())
-				gZipIn.CloseWithError(err)
-				return
-			}
-		}
-	}()
-	return gZipOut
 }

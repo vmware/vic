@@ -228,9 +228,9 @@
 					{
 						"name": "filterSpec",
 						"in": "query",
-						"required": false,
+						"required": true,
 						"type": "string",
-						"x-nullable": true
+						"x-nullable": false
 					}
 				],
 				"responses": {
@@ -291,9 +291,9 @@
 					{
 						"name": "filterSpec",
 						"in": "query",
-						"required": false,
+						"required": true,
 						"type": "string",
-						"x-nullable": true
+						"x-nullable": false
 					},
 					{
 						"name": "Archive",
@@ -360,7 +360,7 @@
 						"x-nullable": false
 					},
 					{
-						"name": "targetPath",
+						"name": "filterSpec",
 						"in": "query",
 						"required": true,
 						"type": "string",
@@ -392,6 +392,12 @@
 								"x-nullable": false
 							}
 						}
+					},
+					"404": {
+						"description": "Supplied target not found"
+					},
+					"500": {
+						"description": "failed to export tar archive from target"
 					}
 				}
 			}
