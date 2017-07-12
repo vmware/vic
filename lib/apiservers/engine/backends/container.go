@@ -514,43 +514,6 @@ func (c *Container) ExecExists(eid string) (bool, error) {
 	return true, nil
 }
 
-// docker's container.copyBackend
-
-// ContainerArchivePath creates an archive of the filesystem resource at the
-// specified path in the container identified by the given name. Returns a
-// tar archive of the resource and whether it was a directory or a single file.
-func (c *Container) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	return nil, nil, fmt.Errorf("%s does not yet implement ContainerArchivePath", ProductName())
-}
-
-// ContainerCopy performs a deprecated operation of archiving the resource at
-// the specified path in the container identified by the given name.
-func (c *Container) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("%s does not yet implement ContainerCopy", ProductName())
-}
-
-// ContainerExport writes the contents of the container to the given
-// writer. An error is returned if the container cannot be found.
-func (c *Container) ContainerExport(name string, out io.Writer) error {
-	return fmt.Errorf("%s does not yet implement ContainerExport", ProductName())
-}
-
-// ContainerExtractToDir extracts the given archive to the specified location
-// in the filesystem of the container identified by the given name. The given
-// path must be of a directory in the container. If it is not, the error will
-// be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
-// be an error if unpacking the given content would cause an existing directory
-// to be replaced with a non-directory and vice versa.
-func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	return fmt.Errorf("%s does not yet implement ContainerExtractToDir", ProductName())
-}
-
-// ContainerStatPath stats the filesystem resource at the specified path in the
-// container identified by the given name.
-func (c *Container) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	return nil, fmt.Errorf("%s does not yet implement ContainerStatPath", ProductName())
-}
-
 // docker's container.stateBackend
 
 // ContainerCreate creates a container.
