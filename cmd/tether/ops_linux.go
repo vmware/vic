@@ -139,6 +139,7 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	// calls wait and attempts to collect its child, but the reaper will
 	// have raptured the pid before that.  So, best effort, just keep going.
 	_ = netfilter.Flush(context.Background(), "")
+	generalPolicy(netfilter.Drop)
 	configuredExternal := false
 
 	for _, endpoint := range config.Networks {
@@ -162,11 +163,17 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			switch endpoint.Network.TrustLevel {
 			case executor.Open:
 				// Accept all incoming and outgoing traffic
-				generalPolicy(netfilter.Accept)
+				for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
+					(&netfilter.Rule{
+						Chain:     chain,
+						Target:    netfilter.Accept,
+						Interface: ifaceName,
+					}).Commit(context.TODO())
+				}
 
 			case executor.Closed:
 				// Reject all incoming and outgoing traffic
-				generalPolicy(netfilter.Drop)
+				// Since our default policy is to drop traffic, nothing is needed here.
 
 			case executor.Outbound:
 				// Reject all incoming traffic, but allow outgoing
@@ -231,12 +238,16 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 }
 
 func setupOutboundFirewall(ifaceName string) {
-	netfilter.Policy(context.TODO(), netfilter.Input, netfilter.Drop)
-	netfilter.Policy(context.TODO(), netfilter.Output, netfilter.Accept)
-	netfilter.Policy(context.TODO(), netfilter.Forward, netfilter.Drop)
+	// All already established inputs are accepted
 	(&netfilter.Rule{
 		Chain:     netfilter.Input,
 		States:    []netfilter.State{netfilter.Established, netfilter.Related},
+		Target:    netfilter.Accept,
+		Interface: ifaceName,
+	}).Commit(context.TODO())
+	// All output is accepted
+	(&netfilter.Rule{
+		Chain:     netfilter.Output,
 		Target:    netfilter.Accept,
 		Interface: ifaceName,
 	}).Commit(context.TODO())
