@@ -15,28 +15,26 @@
 package handlers
 
 import (
-	"bufio"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime/middleware"
 
-	"bytes"
-
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
-	vicarchive "github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/archive"
 	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
+	splc "github.com/vmware/vic/lib/portlayer/storage/compute"
 	"github.com/vmware/vic/lib/portlayer/storage/nfs"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -104,6 +102,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 	api.StorageExportArchiveHandler = storage.ExportArchiveHandlerFunc(h.ExportArchive)
 	api.StorageImportArchiveHandler = storage.ImportArchiveHandlerFunc(h.ImportArchive)
+	api.StorageStatPathHandler = storage.StatPathHandlerFunc(h.StatPath)
 }
 
 func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) {
@@ -520,68 +519,125 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 // ExportArchive creates a tar archive and returns to caller
 func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "ExportArchive: %s", params.DeviceID)
 
-	var filterSpec vicarchive.FilterSpec
-	if params.FilterSpec != nil && len(*params.FilterSpec) > 0 {
-		if decodedSpec, err := base64.StdEncoding.DecodeString(*params.FilterSpec); err == nil {
-			if len(decodedSpec) > 0 {
-				log.Infof("decoded spec = %s", string(decodedSpec))
-				if err = json.Unmarshal(decodedSpec, &filterSpec); err != nil {
-					log.Errorf("Unable to unmarshal decoded spec: %s", err)
-					return storage.NewImportArchiveInternalServerError()
-				}
-			}
-		}
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
+		return storage.NewExportArchiveInternalServerError()
 	}
 
-	// Return the data back to the caller
-	pipeReader, pipeWriter := io.Pipe()
-	go func() {
-		pipeWriter.Write([]byte("This is a test!"))
-		pipeWriter.Close()
-	}()
-	detachableOut := NewFlushingReader(pipeReader)
+	vc := epl.Containers.Container(params.DeviceID)
+	if vc == nil {
+		return storage.NewExportArchiveNotFound()
+	}
 
+	rc, err := splc.FileTransferFromGuest(op, vc, *filterSpec)
+	if err != nil {
+		op.Errorf("FileTransferFromGuest error: %s", err.Error())
+		return storage.NewExportArchiveInternalServerError()
+	}
+
+	detachableOut := NewFlushingReader(rc)
 	return NewStreamOutputHandler("ExportArchive").WithPayload(detachableOut, params.DeviceID, nil)
+
 }
 
 // ImportArchive takes an input tar archive and unpacks to destination
 func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
+	defer params.Archive.Close()
+	op := trace.NewOperation(context.Background(), "ImportArchive: %s", params.DeviceID)
 
-	var filterSpec vicarchive.FilterSpec
-	if params.FilterSpec != nil && len(*params.FilterSpec) > 0 {
-		if decodedSpec, err := base64.StdEncoding.DecodeString(*params.FilterSpec); err == nil {
-			if len(decodedSpec) > 0 {
-				log.Debugf("decoded spec = %s", string(decodedSpec))
-				if err = json.Unmarshal(decodedSpec, &filterSpec); err != nil {
-					log.Errorf("Unable to unmarshal decoded spec: %s", err)
-					return storage.NewImportArchiveInternalServerError()
-				}
-			}
-		}
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
+		return storage.NewExportArchiveInternalServerError()
 	}
 
 	detachableIn := NewFlushingReader(params.Archive)
 
-	// This is where you need to take the reader and do something with the tar data
-	var buf bytes.Buffer
-	writer := bufio.NewWriter(&buf)
-	_, err := io.Copy(writer, detachableIn)
-	if err != nil {
-		log.Errorf("Copy tar stream returned error - %s", err.Error())
-		params.Archive.Close()
-		return storage.NewImportArchiveInternalServerError()
+	vc := epl.Containers.Container(params.DeviceID)
+	if vc == nil {
+		return storage.NewImportArchiveNotFound()
 	}
 
-	params.Archive.Close()
-
-	log.Infof(buf.String())
+	err = splc.FileTransferToGuest(op, vc, *filterSpec, ioutil.NopCloser(detachableIn))
+	if err != nil {
+		op.Errorf("FileTransferToGuest error: %s", err)
+		return storage.NewImportArchiveInternalServerError()
+	}
 
 	return storage.NewImportArchiveOK()
 }
 
+func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "StatPath: %s", params.DeviceID)
+
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
+		return storage.NewExportArchiveInternalServerError()
+	}
+
+	var resp middleware.Responder
+	switch params.Store {
+	case "container":
+		resp = preformOnlineStatPath(op, params, filterSpec)
+	default:
+		op.Errorf("Offline CSP not implemented.")
+		resp = storage.NewStatPathInternalServerError()
+	}
+
+	return resp
+
+}
+
 //utility functions
+
+func preformOnlineStatPath(op trace.Operation, params storage.StatPathParams, fs *archive.FilterSpec) middleware.Responder {
+	vc := epl.Containers.Container(params.DeviceID)
+	if vc == nil {
+		return storage.NewStatPathNotFound()
+	}
+
+	paths := archive.ResolveImportPath(fs)
+	if len(paths) != 1 {
+		op.Errorf("incorrect number of paths to stat: %s. --- %d != 1", params.DeviceID, len(paths))
+		return storage.NewStatPathInternalServerError()
+	}
+
+	file, err := splc.StatPath(op, vc, paths[0])
+	if err != nil {
+		op.Errorf("error getting stat from device %s: %s", params.DeviceID, err.Error())
+		return storage.NewStatPathInternalServerError()
+	}
+
+	var mode uint32
+	switch types.GuestFileType(file.Type) {
+	case types.GuestFileTypeDirectory:
+		mode = uint32(os.ModeDir)
+	case types.GuestFileTypeSymlink:
+		mode = uint32(os.ModeSymlink)
+	default:
+		mode = uint32(os.FileMode(uint32(0600)))
+	}
+
+	ok := storage.
+		NewStatPathOK().
+		WithMode(mode).
+		WithLinkTarget(file.Attributes.GetGuestFileAttributes().SymlinkTarget).
+		WithName(filepath.Base(file.Path)).
+		WithSize(file.Size)
+
+	// add mod time bytes
+	modTimeBytes, err := file.Attributes.GetGuestFileAttributes().ModificationTime.GobEncode()
+	if err != nil {
+		op.Debugf("error getting mod time from statpath: %s", err.Error())
+	} else {
+		ok.ModTime = string(modTimeBytes)
+	}
+
+	return ok
+}
 
 // convert an SPL Image to a swagger-defined Image
 func convertImage(image *spl.Image) *models.Image {
