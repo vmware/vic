@@ -642,7 +642,14 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 			continue
 		}
 
-		if _, err = registry.Reachable(w.String(), w.URL().Scheme, "", "", pool, registryValidationTime, false); err != nil {
+		var scheme string
+		if w.URL().Scheme == "" {
+			scheme = "https"
+		} else {
+			scheme = w.URL().Scheme
+		}
+
+		if _, err = registry.Reachable(w.String(), scheme, "", "", pool, registryValidationTime, false); err != nil {
 			log.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w)
 		} else {
 			log.Debugf("Secure registry %s confirmed.", w)

@@ -129,8 +129,41 @@ func (u *urlEntry) Contains(e Entry) bool {
 	return false
 }
 
-func (u *urlEntry) Match(s string) bool {
-	return u.Contains(ParseEntry(s))
+func (u *urlEntry) Match(s string) (result bool) {
+	q := ParseEntry(s)
+	query, ok := q.(URLEntry)
+	if !ok {
+		return false
+	}
+
+	result = u.Contains(query)
+	if result {
+		return
+	}
+
+	if query.URL().Scheme != "" {
+		if u.URL().Scheme == "" {
+			query.URL().Scheme = u.URL().Scheme
+		}
+	} else if u.URL().Scheme != "" {
+		if query.URL().Scheme == "" {
+			u.URL().Scheme = query.URL().Scheme
+		}
+	}
+
+	if query.URL().Scheme == "" {
+		// this means both schemes are still empty and there is still no match
+		// last chance means ignoring the port; ensurePort inside Contains only works if a scheme is specified
+		if query.URL().Port() != "" {
+			query.URL().Host = query.URL().Hostname()
+		}
+
+		if u.URL().Port() != "" {
+			u.URL().Host = u.URL().Hostname()
+		}
+	}
+
+	return u.Contains(query)
 }
 
 func (u *urlEntry) String() string {

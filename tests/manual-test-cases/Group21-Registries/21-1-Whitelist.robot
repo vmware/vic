@@ -56,9 +56,12 @@ Get HTTPS Harbor Certificate
 *** Test Cases ***
 Basic Whitelisting
     # Install VCH with registry CA for whitelisted registry
+    Remove Environment Variable  GOVC_USERNAME
+    Remove Environment Variable  GOVC_PASSWORD
     ${output}=  Install VIC Appliance To Test Server  vol=default --whitelist-registry=%{HTTPS_HARBOR_IP} --registry-ca=./ca.crt
     Should Contain  ${output}  Secure registry %{HTTPS_HARBOR_IP} confirmed
     Should Contain  ${output}  Whitelist registries =
+    Get Docker Params  ${output}  true
 
     # Check docker info for whitelist info
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} info
@@ -82,7 +85,7 @@ Basic Whitelisting
     Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from docker hub (should fail)
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{REGISTRY_PASSWORD}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=victest --password=%{TEST_PASSWORD}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Access denied to unauthorized registry
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/busybox
