@@ -566,6 +566,66 @@ func (v *Validator) friendlyRegistryList(registryType string, registryList []str
 	return registryType + " = " + strings.Join(registryList, ", ")
 }
 
+// takes a registry url form and generates the synonymous forms
+func denormalizeRegistryURL(entry registry.URLEntry) (allUrls []registry.URLEntry, err error) {
+	stringEntry := entry.String()
+	if strings.HasPrefix(stringEntry, "/") {
+		return nil, fmt.Errorf("Registry URLs cannot start with a /")
+	}
+
+	if !strings.HasPrefix(stringEntry, "http") {
+		stringEntry = fmt.Sprintf("scheme://%s", stringEntry)
+	}
+
+	u, err := (&url.URL{}).Parse(stringEntry)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.Port() == "" && u.Scheme == "scheme" {
+		log.Warnf("Protocol not specified for registry URL %s; assuming https", u.Hostname())
+		u.Scheme = "https"
+	} else if u.Scheme == "scheme" {
+		if u.Port() == "80" {
+			u.Scheme = "http"
+		} else {
+			if u.Port() == "443" {
+				log.Warnf("Unspecified protocol for unrecognized port \"%s\"; assuming https", u.Port())
+			}
+			u.Scheme = "https"
+		}
+	}
+
+	if u.Port() == "" {
+		var port int
+		if u.Scheme == "https" {
+			port = 443
+		} else if u.Scheme == "http" {
+			port = 80
+		} else {
+			return nil, fmt.Errorf("Could not guess port for \"%s\" with unrecognized protocol scheme \"%s\" and unspecified port number", stringEntry, u.Scheme)
+		}
+		u.Host = fmt.Sprintf("%s:%d", u.Host, port)
+	}
+
+	// the whitelist check in the persona reads in user input from docker, then it does a blind compare against what's stored in the whitelist. We need to return each of the acceptable forms of the normalized URL so that any of these forms will properly match against the list. The forms are: name:port, scheme://name:port, and scheme://name
+
+	all := []registry.Entry{
+		registry.ParseEntry(u.String()),
+		registry.ParseEntry(fmt.Sprintf("%s:%s", u.Hostname(), u.Port())),
+		registry.ParseEntry(fmt.Sprintf("%s://%s", u.Scheme, u.Hostname()))}
+
+	for _, e := range all {
+		f, ok := (e).(registry.URLEntry)
+		if !ok {
+			return nil, fmt.Errorf("got error trying to generate denormalized URL entry: %s", err.Error())
+		}
+		allUrls = append(allUrls, f)
+	}
+
+	return
+}
+
 // Validate registries are reachable.  Secure registries that are not specified as insecure are validated with the
 // CA certs passed into vic-machine.
 func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, pool *x509.CertPool) (insecureRegistries []string, whitelistRegistries []string, err error) {
@@ -623,6 +683,8 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 		}
 	}
 
+	confirmedRegistriesSet := registry.Set{}
+
 	// Test secure registries' reachability
 	for _, w := range secureRegistriesSet {
 		// Make sure address is not a wildcard domain or CIDR.  If it is, do not validate.
@@ -642,20 +704,41 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 			continue
 		}
 
-		if _, err = registry.Reachable(w.String(), w.URL().Scheme, "", "", pool, registryValidationTime, false); err != nil {
-			log.Warnf("Unable to confirm secure registry %s is a valid registry at this time.", w)
+		possibleFormats, err := denormalizeRegistryURL(w)
+		if err != nil || possibleFormats == nil || len(possibleFormats) <= 0 {
+			log.Warnf("couldn't normalize registry url \"%s\"", w.String())
+			if err != nil {
+				log.Errorf("error was %s", err.Error())
+			}
+			continue
+		}
+
+		// the first element in possibleFormats is the full URL w/ scheme://host:port explicitly specified
+		if _, err = registry.Reachable(possibleFormats[0].String(), "", "", "", pool, registryValidationTime, false); err == nil {
+
+			log.Debugf("Secure registry %s confirmed.", w.String())
+			for _, p := range possibleFormats {
+				confirmedRegistriesSet = append(confirmedRegistriesSet, p)
+				log.Debugf("Whitelisting URL format %s", p.String())
+			}
+
 		} else {
-			log.Debugf("Secure registry %s confirmed.", w)
+			log.Warnf("Unable to confirm secure registry %s is a valid registry at this time. Reported error: %s", w.String(), err.Error())
 		}
 	}
 
 	// Return output
 	insecureRegistries = input.InsecureRegistries
+
 	// If vic-machine had whitelist registry specified
 	if len(input.WhitelistRegistries) > 0 {
 		// ignoring error since default merge policy is union, so should never return
 		// an error
 		m, _ := secureRegistriesSet.Merge(insecureRegistriesSet, nil)
+		m, err = m.Merge(confirmedRegistriesSet, nil)
+		if err != nil {
+			return nil, nil, err
+		}
 		whitelistRegistries = m.Strings()
 	}
 
