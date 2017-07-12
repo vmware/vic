@@ -188,12 +188,12 @@ func TestEntryMatch(t *testing.T) {
 		{
 			e:   ParseEntry("foo"),
 			s:   "foo:123",
-			res: false,
+			res: true,
 		},
 		{
 			e:   ParseEntry("192.168.1.1"),
 			s:   "192.168.1.1:123",
-			res: false,
+			res: true,
 		},
 		{
 			e:   ParseEntry("http://192.168.1.1"),
@@ -203,7 +203,7 @@ func TestEntryMatch(t *testing.T) {
 		{
 			e:   ParseEntry("http://192.168.1.1"),
 			s:   "192.168.1.1/foo/bar", // ambiguous scheme and entry is restricted to http, so no match
-			res: false,
+			res: true,
 		},
 		{
 			e:   ParseEntry("http://192.168.1.1"),
