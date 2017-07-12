@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -94,7 +95,7 @@ func TestCopyContainerNetworks(t *testing.T) {
 		FirstIP: net.ParseIP("10.10.10.10"),
 		LastIP:  net.ParseIP("10.10.10.24"),
 	}
-	trust := common.Closed
+	trust := executor.Closed
 	src.ContainerNetworks.MappedNetworks[fooLabel] = fooNet
 	src.ContainerNetworks.MappedNetworksGateways[fooLabel] = *mask
 	src.ContainerNetworks.MappedNetworksIPRanges[fooLabel] = []ip.Range{ipRange}
@@ -112,7 +113,7 @@ func TestCopyContainerNetworks(t *testing.T) {
 	src.ContainerNetworks.MappedNetworksGateways[barLabel] = net.IPNet{}
 	src.ContainerNetworks.MappedNetworksIPRanges[barLabel] = []ip.Range{}
 	src.ContainerNetworks.MappedNetworksDNS[barLabel] = []net.IP{}
-	src.ContainerNetworks.MappedNetworksFirewalls[barLabel] = common.Published
+	src.ContainerNetworks.MappedNetworksFirewalls[barLabel] = executor.Published
 
 	// The new network should be copied to d.
 	err = d.copyContainerNetworks(src)
