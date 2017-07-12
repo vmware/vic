@@ -121,6 +121,9 @@ func (u *urlEntry) Contains(e Entry) bool {
 	case *urlEntry:
 		up := ensurePort(u.u)
 		ep := ensurePort(e.u)
+		if up.Port() == "" && ep.Port() != "" {
+			ep.Host = ep.Hostname()
+		}
 		return (u.u.Scheme == "" || u.u.Scheme == e.u.Scheme) &&
 			strings.HasPrefix(e.u.Path, u.u.Path) &&
 			glob.Glob(up.Host, ep.Host)
@@ -141,26 +144,10 @@ func (u *urlEntry) Match(s string) (result bool) {
 		return
 	}
 
-	if query.URL().Scheme != "" {
-		if u.URL().Scheme == "" {
-			query.URL().Scheme = u.URL().Scheme
-		}
-	} else if u.URL().Scheme != "" {
-		if query.URL().Scheme == "" {
-			u.URL().Scheme = query.URL().Scheme
-		}
-	}
-
-	if query.URL().Scheme == "" {
-		// this means both schemes are still empty and there is still no match
-		// last chance means ignoring the port; ensurePort inside Contains only works if a scheme is specified
-		if query.URL().Port() != "" {
-			query.URL().Host = query.URL().Hostname()
-		}
-
-		if u.URL().Port() != "" {
-			u.URL().Host = u.URL().Hostname()
-		}
+	if query.URL().Scheme != "" && u.URL().Scheme == "" {
+		query.URL().Scheme = u.URL().Scheme
+	} else if u.URL().Scheme != "" && query.URL().Scheme == "" {
+		u.URL().Scheme = query.URL().Scheme
 	}
 
 	return u.Contains(query)
