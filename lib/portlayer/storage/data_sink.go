@@ -43,6 +43,7 @@ func (m *MountDataSink) Import(op trace.Operation, spec *archive.FilterSpec, dat
 
 	fi, err := m.Path.Stat()
 	if err != nil {
+		op.Errorf("Unable to stat mount path %s for data sink: %s", m.Path.Name(), err)
 		return err
 	}
 

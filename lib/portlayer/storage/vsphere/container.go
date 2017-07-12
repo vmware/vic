@@ -114,6 +114,7 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 	// online - Owners() should filter out the appliance VM
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
+		op.Infof("No online owners were found for %s", id)
 		return nil, errors.New("Unavailable")
 	}
 
@@ -147,6 +148,8 @@ func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storag
 }
 
 func (c *ContainerStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
+	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
+
 	return &ToolboxDataSource{
 		VM: owner,
 		ID: id,
@@ -174,6 +177,7 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	// online - Owners() should filter out the appliance VM
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
+		op.Infof("No online owners were found for %s", id)
 		return nil, errors.New("Unavailable")
 	}
 
@@ -273,7 +277,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, errors.New("mismatched datasource types")
 	}
 
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, closers)
 	if err != nil {
 		go closers()
 		return nil, err

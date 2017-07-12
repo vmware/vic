@@ -38,6 +38,7 @@ func (m *MountDataSource) Source() interface{} {
 func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
 	fi, err := m.Path.Stat()
 	if err != nil {
+		op.Errorf("Unable to stat mount path %s for data source: %s", m.Path.Name(), err)
 		return nil, err
 	}
 
@@ -46,7 +47,7 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 	}
 
 	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
-	return archive.Diff(op, m.Path.Name(), "", spec, data)
+	return archive.Diff(op, m.Path.Name(), "", spec, data, m.Clean)
 }
 
 func (m *MountDataSource) Close() error {

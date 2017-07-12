@@ -17,6 +17,7 @@ package disk
 import (
 	"fmt"
 	"net/url"
+	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -298,6 +299,12 @@ func (d *VirtualDisk) Mount(op trace.Operation, mountPath string, options []stri
 	return nil
 }
 
+func logOpenFilesForMount(op trace.Operation, path string) {
+	lsof := exec.Command("/usr/sbin/lsof", "+D", path)
+	out, err := lsof.CombinedOutput()
+	op.Debugf("Mount %s still has the following files open (%s): %s", path, err, out)
+}
+
 // Unmount attempts to unmount a virtual disk
 func (d *VirtualDisk) Unmount(op trace.Operation) error {
 	d.l.Lock()
@@ -312,6 +319,7 @@ func (d *VirtualDisk) Unmount(op trace.Operation) error {
 	// no more mount references to this disk, so actually unmount
 	if d.mountedRefs.Count() == 0 {
 		if err := d.Filesystem.Unmount(op, d.mountPath); err != nil {
+			logOpenFilesForMount(op, d.mountPath)
 			return err
 		}
 		d.mountPath = ""

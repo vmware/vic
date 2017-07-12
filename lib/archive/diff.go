@@ -40,27 +40,29 @@ func (c changesByPath) Len() int           { return len(c) }
 func (c changesByPath) Swap(i, j int)      { c[j], c[i] = c[i], c[j] }
 
 // Diff produces a tar archive containing the differences between two filesystems
-func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool) (io.ReadCloser, error) {
+func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool, closer func()) (io.ReadCloser, error) {
 
 	var err error
 	if spec == nil {
 		spec, err = CreateFilterSpec(op, nil)
 		if err != nil {
+			closer()
 			return nil, err
 		}
 	}
 
 	changes, err := docker.ChangesDirs(newDir, oldDir)
 	if err != nil {
+		closer()
 		return nil, err
 	}
 
 	sort.Sort(changesByPath(changes))
 
-	return Tar(op, newDir, changes, spec, data)
+	return Tar(op, newDir, changes, spec, data, closer)
 }
 
-func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool) (io.ReadCloser, error) {
+func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, closer func()) (io.ReadCloser, error) {
 	var (
 		err error
 		hdr *tar.Header
@@ -76,10 +78,14 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				op.Errorf("Error closing tar writer: %s", cerr.Error())
 			}
 			if err == nil {
+				op.Debugf("Closing down tar writer with clean exit: %s", cerr)
 				_ = w.CloseWithError(cerr)
 			} else {
+				op.Debugf("Closing down tar writer with error during tar: %s", err)
 				_ = w.CloseWithError(err)
 			}
+
+			// closer()
 			return
 		}()
 

@@ -539,7 +539,7 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 		mo := mos[i]
 		op.Debugf("Working on vm %q", mo.Name)
 
-		if filter(&mo) {
+		if !filter(&mo) {
 			op.Debugf("Filtering out vm %q", mo.Name)
 			continue
 		}

@@ -151,7 +151,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return nil, fmt.Errorf("mismatched datasource types: %T, %T", ls, rs)
 	}
 
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, closers)
 	if err != nil {
 		go closers()
 		return nil, err
