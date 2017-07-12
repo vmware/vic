@@ -486,7 +486,7 @@ Container Firewalls
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=outbound-net --name p3 ${busybox} nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
 
-    ${ip}=  Run docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p3
+    ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress }}{{end}}' p3
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=outbound ${busybox} nc ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
