@@ -22,8 +22,6 @@ import (
 	"os"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -539,31 +537,31 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 	// iterate over them to see whether they have the disk we want
 	for i := range mos {
 		mo := mos[i]
-		log.Debugf("Working on vm %q", mo.Name)
+		op.Debugf("Working on vm %q", mo.Name)
 
 		if filter(&mo) {
-			log.Debugf("Filtering out vm %q", mo.Name)
+			op.Debugf("Filtering out vm %q", mo.Name)
 			continue
 		}
 
-		log.Debugf("Working on devices on vm %q", mo.Name)
+		op.Debugf("Working on devices on vm %q", mo.Name)
 		for _, device := range mo.Config.Hardware.Device {
 			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
 			db := device.GetVirtualDevice().Backing
 			if db == nil {
-				log.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
+				op.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
 				continue
 			}
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				log.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
+				op.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
 				if config.DatastoreURI.String() == t.GetVirtualDeviceFileBackingInfo().FileName {
-					log.Debugf("Match found. Appending vm %q to the response", mo.Name)
+					op.Debugf("Match found. Appending vm %q to the response", mo.Name)
 					vms = append(vms, vm.NewVirtualMachine(context.Background(), m.vm.Session, mo.Reference()))
 				}
 			default:
-				log.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
+				op.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
 			}
 		}
 	}
@@ -593,28 +591,28 @@ func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (st
 	// iterate over them to see whether they have the disk we want
 	for i := range mos {
 		mo := mos[i]
-		log.Debugf("Working on vm %q", mo.Name)
+		op.Debugf("Working on vm %q", mo.Name)
 
-		log.Debugf("Working on devices on vm %q", mo.Name)
+		op.Debugf("Working on devices on vm %q", mo.Name)
 		for _, device := range mo.Config.Hardware.Device {
 			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
 			db := device.GetVirtualDevice().Backing
 			if db == nil {
-				log.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
+				op.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
 				continue
 			}
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				log.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
+				op.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
 				diskPath := t.GetVirtualDeviceFileBackingInfo().FileName
 				op.Infof("Disk path: %s", diskPath)
 				if filter(diskPath) {
-					log.Debugf("Match found. Returning filepath %s", diskPath)
+					op.Debugf("Match found. Returning filepath %s", diskPath)
 					return diskPath, nil
 				}
 			default:
-				log.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
+				op.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
 			}
 		}
 	}

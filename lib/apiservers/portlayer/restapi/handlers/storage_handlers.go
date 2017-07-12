@@ -121,6 +121,10 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 
 	h.volumeCache = spl.NewVolumeLookupCache(op)
 
+	// register the pseudo-store to handle the generic "volume" store name
+	spl.RegisterImporter(op, "volume", h.volumeCache)
+	spl.RegisterExporter(op, "volume", h.volumeCache)
+
 	// Configure the datastores
 	// Each volume store name maps to a datastore + path, which can be referred to by the name.
 	for name, dsurl := range spl.Config.VolumeLocations {
@@ -131,7 +135,7 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 			vs, err = createVsphereVolumeStore(op, dsurl, name, handlerCtx)
 		default:
 			err = fmt.Errorf("unknown scheme for %s", dsurl.String())
-			log.Error(err.Error())
+			op.Error(err)
 		}
 
 		// if an error has been logged skip volume store cache addition
@@ -141,11 +145,18 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 
 		op.Infof("Adding volume store %s (%s)", name, dsurl.String())
 		if _, err = h.volumeCache.AddStore(op, name, vs); err != nil {
-			log.Errorf("volume addition error %s", err)
+			op.Errorf("volume addition error %s", err)
 		}
 
 		spl.RegisterImporter(op, dsurl.String(), vs)
 		spl.RegisterExporter(op, dsurl.String(), vs)
+
+		// get the mangled store URLs that the cache uses
+		cURL, _ := h.volumeCache.GetVolumeStore(op, name)
+		if cURL != nil {
+			spl.RegisterImporter(op, cURL.String(), vs)
+			spl.RegisterExporter(op, cURL.String(), vs)
+		}
 	}
 }
 
@@ -374,7 +385,7 @@ func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) mi
 	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeCreate(%s)", params.VolumeRequest.Name))
 	volume, err := h.volumeCache.VolumeCreate(op, params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
 	if err != nil {
-		log.Errorf("storagehandler: VolumeCreate error: %#v", err)
+		op.Errorf("storagehandler: VolumeCreate error: %#v", err)
 
 		if os.IsExist(err) {
 			return storage.NewCreateVolumeConflict().WithPayload(&models.Error{
@@ -421,7 +432,7 @@ func (h *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middlewa
 		})
 	}
 
-	log.Debugf("VolumeGet returned : %#v", response)
+	op.Debugf("VolumeGet returned : %#v", response)
 	return storage.NewGetVolumeOK().WithPayload(&response)
 }
 
@@ -460,19 +471,19 @@ func (h *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) midd
 	op := trace.NewOperation(context.Background(), "VolumeList")
 	portlayerVolumes, err := h.volumeCache.VolumesList(op)
 	if err != nil {
-		log.Error(err)
+		op.Error(err)
 		return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		})
 	}
 
-	log.Debugf("volumes fetched from list call : %#v", portlayerVolumes)
+	op.Debugf("volumes fetched from list call : %#v", portlayerVolumes)
 
 	for i := range portlayerVolumes {
 		model, err := fillVolumeModel(portlayerVolumes[i])
 		if err != nil {
-			log.Error(err)
+			op.Error(err)
 			return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
@@ -482,7 +493,7 @@ func (h *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) midd
 		result = append(result, &model)
 	}
 
-	log.Debugf("volumes returned from list call : %#v", result)
+	op.Debugf("volumes returned from list call : %#v", result)
 	return storage.NewListVolumesOK().WithPayload(result)
 }
 
@@ -543,6 +554,9 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 
 	store, ok := spl.GetImporter(params.Store)
 	if !ok {
+		op.Errorf("Failed to locate import capable store %s", params.Store)
+		op.Debugf("Available importers are: %+q", spl.GetImporters())
+
 		return storage.NewImportArchiveNotFound()
 	}
 
@@ -575,6 +589,9 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 
 	store, ok := spl.GetExporter(params.Store)
 	if !ok {
+		op.Errorf("Failed to locate export capable store %s", params.Store)
+		op.Debugf("Available exporters are: %+q", spl.GetExporters())
+
 		// TODO: this should be a 404 but cannot seem to figure that out #shamed
 		return storage.NewExportArchiveNotFound()
 	}
@@ -585,7 +602,7 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 		return storage.NewExportArchiveInternalServerError()
 	}
 
-	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, nil)
+	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, func() { r.Close() })
 }
 
 //utility functions

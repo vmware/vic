@@ -201,7 +201,5 @@ func (spec *FilterSpec) Excludes(op trace.Operation, filePath string) bool {
 		}
 	}
 
-	op.Debugf("Most specific match for %s - include: %s, exclude: %s", filePath, inclusion, exclusion)
-
 	return len(inclusion) < len(exclusion)
 }

@@ -128,6 +128,10 @@ func (o *Operation) Errorf(format string, args ...interface{}) {
 	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
 
+func (o *Operation) Error(err error) {
+	Logger.Errorf("%s: %s", o.header(), err.Error())
+}
+
 func (o *Operation) Panicf(format string, args ...interface{}) {
 	Logger.Panicf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }

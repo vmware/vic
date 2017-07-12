@@ -50,6 +50,7 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 }
 
 func (m *MountDataSource) Close() error {
+	m.Path.Close()
 	m.Clean()
 
 	return nil

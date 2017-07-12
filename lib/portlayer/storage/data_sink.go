@@ -23,19 +23,24 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// MountDataSource implements the DataSource interface for mounted devices
+// MountDataSink implements the DataSink interface for mounted devices
+// This is a single use mechanism and will be tidied up on exit from MountDataSource.Import
 type MountDataSink struct {
 	Path  *os.File
 	Clean func()
 }
 
-// Source returns the data source associated with the DataSource
+// Sink returns the data source associated with the DataSink
 func (m *MountDataSink) Sink() interface{} {
 	return m.Path
 }
 
 // Import writes `data` to the data source associated with this DataSource
+// This will call MountDataSink.Close on exit, irrespective of success or error
 func (m *MountDataSink) Import(op trace.Operation, spec *archive.FilterSpec, data io.ReadCloser) error {
+	// ensure that mounts are tidied up - a data sink is a single use mechanism.
+	defer m.Close()
+
 	fi, err := m.Path.Stat()
 	if err != nil {
 		return err
@@ -51,6 +56,7 @@ func (m *MountDataSink) Import(op trace.Operation, spec *archive.FilterSpec, dat
 }
 
 func (m *MountDataSink) Close() error {
+	m.Path.Close()
 	m.Clean()
 
 	return nil

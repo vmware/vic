@@ -92,6 +92,24 @@ func GetExporter(store string) (Exporter, bool) {
 	return e, ok
 }
 
+func GetImporters() []string {
+	keys := make([]string, 0, len(importers))
+	for key := range importers {
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
+func GetExporters() []string {
+	keys := make([]string, 0, len(exporters))
+	for key := range exporters {
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
 // Resolver defines methods for mapping ids to URLS, and urls to owners of that device
 type Resolver interface {
 	// URL returns a url to the data source representing `id`
@@ -130,7 +148,7 @@ type DataSink interface {
 
 // Importer defines the methods needed to write data into a storage element
 type Importer interface {
-	Import(op trace.Operation, ID string, spec *archive.FilterSpec, tarStream io.ReadCloser) error
+	Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error
 	NewDataSink(op trace.Operation, id string) (DataSink, error)
 }
 
