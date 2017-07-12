@@ -21,10 +21,13 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/compute"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -285,4 +288,33 @@ func (v *VolumeStore) getMetadata(op trace.Operation, ID string, target Target) 
 
 func Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
 	return fmt.Errorf("Write for nfs volumes is not Implemented")
+}
+
+func (v *VolumeStore) StatPath(op trace.Operation, storeId, deviceId, targetPath string) (*compute.FileStat, error) {
+	target, err := v.Service.Mount(op)
+	if err != nil {
+		return nil, err
+	}
+	defer v.Service.Unmount(op)
+
+	files, err := target.ReadDir(v.volDirPath(deviceId))
+	var result string
+	for _, file := range files {
+		result = result + " " + file.Name()
+	}
+
+	fileInfo, _, err := target.Lookup(path.Join(v.volDirPath(deviceId), targetPath))
+	if err != nil {
+		return nil, err
+	}
+
+	// nfs server returns "" for file name when doing a look up, need to fill in the value from targetPath instead
+	newPath := targetPath
+	for strings.HasSuffix(newPath, "/") {
+		newPath = strings.TrimSuffix(newPath, "/")
+	}
+	_, fileName := filepath.Split(newPath)
+
+	// FIXME: cannot read symlink.
+	return &compute.FileStat{"", uint32(fileInfo.Mode()), fileName, fileInfo.Size(), fileInfo.ModTime()}, nil
 }

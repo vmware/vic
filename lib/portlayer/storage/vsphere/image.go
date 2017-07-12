@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	docker "github.com/docker/docker/pkg/archive"
@@ -31,11 +32,13 @@ import (
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/storage/compute"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
@@ -808,4 +811,46 @@ func createBaseStructure(op trace.Operation, vmdisk *disk.VirtualDisk) (err erro
 	}
 
 	return nil
+}
+
+func (v *ImageStore) StatPath(op trace.Operation, storeId, deviceId, target string) (*compute.FileStat, error) {
+	// TODO: fix how it's retrieving the r/w layer once that's implemented
+	host, err := sys.UUID()
+	if err != nil {
+		op.Debugf("Failed to determine host UUID")
+		return nil, err
+	}
+
+	if err = v.verifyImage(op, host, deviceId); err != nil {
+		op.Debugf("Device is not an image")
+		return nil, err
+	}
+
+	// TODO: not sure if these checks are needed
+	//store, err := v.GetImageStore(op, host)
+	//if err != nil {
+	//	op.Debugf("Failed to get image store")
+	//	return nil, err
+	//}
+	//
+	//_, err = v.GetImage(op, store, deviceId)
+	//if err != nil {
+	//	op.Debugf("Device is not an image")
+	//	return nil, err
+	//}
+
+	diskDsURI := v.imageDiskDSPath(host, deviceId)
+	mountPath, err := v.dm.AttachAndMount(op, diskDsURI, true)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		e1 := v.dm.UnmountAndDetach(op, diskDsURI, true)
+		if e1 != nil {
+			op.Errorf(e1.Error())
+		}
+	}()
+
+	return compute.InspectFileStat(filepath.Join(mountPath, target))
 }

@@ -22,13 +22,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/tchap/go-patricia/patricia"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
@@ -182,12 +182,25 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
 func (c *Container) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("** statpath, name=%s, path=%s", name, path)))
+	defer trace.End(trace.Begin(name))
 
-	fakeStat := &types.ContainerPathStat{}
-	fakeStat.Mode = os.ModeDir
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, NotFoundError(name)
+	}
 
-	return fakeStat, nil
+	// inspect mountpoints
+	mounts := mountsFromContainer(vc)
+	store, deviceId, filterSpec := resolvePathWithMountPoints(mounts, path, vc.ContainerID)
+	spec := vicarchive.EncodeFilterSpec(filterSpec)
+
+	stat, err = c.containerProxy.StatPath(context.Background(), store, deviceId, *spec)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("container stat path %#v", stat)
+	return stat, nil
 }
 
 //----------------------------------
@@ -559,3 +572,44 @@ func (rm *ArchiveStreamReaderMap) Close() {
 
 	rm.prefixTrie.Visit(closeStream)
 }
+
+// use mountpoints to strip the target to a relative path
+func resolvePathWithMountPoints (mounts []types.MountPoint, path, defaultDevice string) (string, string, *vicarchive.FilterSpec) {
+	var fs vicarchive.FilterSpec
+	deviceId := defaultDevice
+	store := containerStoreName
+	mntpoint := ""
+	rebasePath := path
+
+	// trim / off from path and then append / to ensure the format is correct
+	for strings.HasPrefix(rebasePath, "/") {
+		rebasePath = strings.TrimPrefix(path, "/")
+	}
+	for strings.HasSuffix(rebasePath, "/") {
+		rebasePath = strings.TrimSuffix(rebasePath, "/")
+	}
+	rebasePath = "/" + rebasePath
+
+	for _, mount := range mounts {
+		if strings.HasPrefix(rebasePath, mount.Destination) {
+			if len(mount.Destination) != len(rebasePath) &&
+				(mntpoint == "" || (len(mount.Destination) > len(mntpoint))) {
+				deviceId = mount.Name
+				mntpoint = mount.Destination
+			}
+		}
+	}
+
+	if mntpoint != "" {
+		store = volumeStoreName
+		rebasePath = strings.TrimPrefix(rebasePath, mntpoint)
+	}
+
+	fs.RebasePath = rebasePath
+	fs.Inclusions = make(map[string]struct{})
+	fs.Inclusions[mntpoint] = struct{}{}
+
+	return store, deviceId, &fs
+}
+
+// End

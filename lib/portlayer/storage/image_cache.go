@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/portlayer/storage/compute"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
@@ -450,4 +451,9 @@ func (c *NameLookupCache) DeleteBranch(op trace.Operation, image *Image, keepNod
 	}
 
 	return deletedImages, nil
+}
+
+//ListImageStores returns a list of strings representing all existing image stores
+func (c *NameLookupCache) StatPath(op trace.Operation, storeId, deviceId, target string) (*compute.FileStat, error) {
+	return c.DataStore.StatPath(op, storeId, deviceId, target)
 }
