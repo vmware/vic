@@ -53,10 +53,20 @@ func (s *StreamOutputHandler) WriteResponse(rw http.ResponseWriter, producer run
 		s.outputStream.AddFlusher(f)
 	}
 
+	// prevent us from being dependent on client closing the connection once we've copied
+	// all available data.
+	done := make(chan bool)
+	defer close(done)
+
 	if s.onHTTPClose != nil {
 		notify := rw.(http.CloseNotifier).CloseNotify()
 		go func() {
-			<-notify
+			// continue on either
+			select {
+			case <-notify:
+			case <-done:
+			}
+
 			// execute cleanup function
 			s.onHTTPClose()
 		}()

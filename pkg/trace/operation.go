@@ -171,6 +171,12 @@ func WithDeadline(parent *Operation, expiration time.Time, format string, args .
 	return op, cancelFunc
 }
 
+// FromOperation creates a child operation from the one supplied
+// uses the same context as the parent
+func FromOperation(parent Operation, format string, args ...interface{}) Operation {
+	return parent.newChild(parent.Context, fmt.Sprintf(format, args...))
+}
+
 // FromContext unpacks the values in the ctx to create an Operation
 func FromContext(ctx context.Context) (Operation, error) {
 

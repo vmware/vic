@@ -96,10 +96,8 @@ func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.D
 		return nil, err
 	}
 
-	return &storage.MountDataSource{
-		Path:  f,
-		Clean: cleanFunc,
-	}, nil
+	op.Debugf("Created mount data source for access to %s at %s", url, mountPath)
+	return storage.NewMountDataSource(op, f, cleanFunc), nil
 }
 
 func (v *VolumeStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
@@ -183,8 +181,6 @@ func (i *ImageStore) newDataSource(op trace.Operation, url *url.URL) (storage.Da
 		return nil, err
 	}
 
-	return &storage.MountDataSource{
-		Path:  f,
-		Clean: cleanFunc,
-	}, nil
+	op.Debugf("Created mount data source for access to %s at %s", url, mountPath)
+	return storage.NewMountDataSource(op, f, cleanFunc), nil
 }

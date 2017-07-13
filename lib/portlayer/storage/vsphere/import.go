@@ -83,10 +83,8 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 		return nil, err
 	}
 
-	return &storage.MountDataSink{
-		Path:  f,
-		Clean: cleanFunc,
-	}, nil
+	op.Debugf("Created mount data sink for access to %s at %s", url, mountPath)
+	return storage.NewMountDataSink(op, f, cleanFunc), nil
 }
 
 func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine) (storage.DataSink, error) {

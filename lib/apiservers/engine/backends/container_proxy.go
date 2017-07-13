@@ -829,7 +829,7 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ImportArchiveInternalServerError:
-				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
+				plErr := InternalServerError(fmt.Sprintf("Server error from archive writer for device %s", deviceID))
 				log.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveLocked:

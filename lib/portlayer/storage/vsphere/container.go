@@ -141,10 +141,8 @@ func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storag
 		return nil, err
 	}
 
-	return &storage.MountDataSource{
-		Path:  f,
-		Clean: cleanFunc,
-	}, nil
+	op.Debugf("Created mount data source for access to %s at %s", url, mountPath)
+	return storage.NewMountDataSource(op, f, cleanFunc), nil
 }
 
 func (c *ContainerStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
@@ -194,7 +192,6 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 }
 
 func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {
-	op.Debugf("Mounting %s", url.String())
 	mountPath, cleanFunc, err := c.Mount(op, url, true)
 	if err != nil {
 		return nil, err
@@ -205,10 +202,8 @@ func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.
 		return nil, err
 	}
 
-	return &storage.MountDataSink{
-		Path:  f,
-		Clean: cleanFunc,
-	}, nil
+	op.Debugf("Created mount data sink for access to %s at %s", url, mountPath)
+	return storage.NewMountDataSink(op, f, cleanFunc), nil
 }
 
 func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {

@@ -25,8 +25,26 @@ import (
 
 // MountDataSource implements the DataSource interface for mounted devices
 type MountDataSource struct {
-	Path  *os.File
-	Clean func()
+	Path    *os.File
+	Clean   func()
+	cleanOp trace.Operation
+}
+
+// NewMountDataSource creates a new data source assocaited with a specific mount, with the mount
+// point being the path argument.
+// The cleanup function is invoked with the Close of the ReadCloser from Export, or explicitly
+func NewMountDataSource(op trace.Operation, path *os.File, cleanup func()) *MountDataSource {
+	if path == nil {
+		return nil
+	}
+
+	op.Debugf("Created mount data source at %s", path.Name())
+
+	return &MountDataSource{
+		Path:    path,
+		Clean:   cleanup,
+		cleanOp: trace.FromOperation(op, "clean up from new mount source"),
+	}
 }
 
 // Source returns the data source associated with the DataSource
@@ -36,9 +54,13 @@ func (m *MountDataSource) Source() interface{} {
 
 // Export reads data from the associated data source and returns it as a tar archive
 func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	// reparent cleanup to Export operation
+	m.cleanOp = trace.FromOperation(op, "clean up from export")
+
+	name := m.Path.Name()
 	fi, err := m.Path.Stat()
 	if err != nil {
-		op.Errorf("Unable to stat mount path %s for data source: %s", m.Path.Name(), err)
+		op.Errorf("Unable to stat mount path %s for data source: %s", name, err)
 		return nil, err
 	}
 
@@ -47,12 +69,24 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 	}
 
 	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
-	return archive.Diff(op, m.Path.Name(), "", spec, data, m.Clean)
+	op.Infof("Exporting data from %s", name)
+	rc, err := archive.Diff(op, name, "", spec, data, m.Clean)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProxyReadCloser{
+		rc,
+		m.Close,
+	}, nil
 }
 
 func (m *MountDataSource) Close() error {
+	m.cleanOp.Infof("cleaning up after export")
+
 	m.Path.Close()
 	if m.Clean != nil {
+		m.cleanOp.Debugf("calling specified cleaner function")
 		m.Clean()
 	}
 
