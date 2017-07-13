@@ -104,12 +104,12 @@ func TestEntryContains(t *testing.T) {
 		{
 			first:  ParseEntry("foo"),
 			second: ParseEntry("foo:123"),
-			res:    false,
+			res:    true,
 		},
 		{
 			first:  ParseEntry("192.168.1.1"),
 			second: ParseEntry("192.168.1.1:123"),
-			res:    false,
+			res:    true,
 		},
 	}
 
