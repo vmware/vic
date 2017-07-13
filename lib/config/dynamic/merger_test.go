@@ -78,18 +78,22 @@ func TestWhitelistMerger(t *testing.T) {
 		{
 			orig:  registry.ParseEntry("192.168.1.1:123"),
 			other: registry.ParseEntry("192.168.1.1"),
+			err:   assert.AnError,
 		},
 		{
 			orig:  registry.ParseEntry("192.168.1.1"),
 			other: registry.ParseEntry("192.168.1.1:123"),
+			res:   registry.ParseEntry("192.168.1.1"),
 		},
 		{
 			orig:  registry.ParseEntry("foo:123"),
 			other: registry.ParseEntry("foo"),
+			err:   assert.AnError,
 		},
 		{
 			orig:  registry.ParseEntry("foo"),
 			other: registry.ParseEntry("foo:123"),
+			res:   registry.ParseEntry("foo"),
 		},
 		{
 			orig:  registry.ParseEntry("http://foo"),
@@ -115,6 +119,7 @@ func TestWhitelistMerger(t *testing.T) {
 		{
 			orig:  registry.ParseEntry("https://foo"),
 			other: registry.ParseEntry("foo"),
+			err:   assert.AnError,
 		},
 	}
 

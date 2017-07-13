@@ -642,11 +642,9 @@ func (v *Validator) reachableRegistries(ctx context.Context, input *data.Data, p
 			continue
 		}
 
-		var scheme string
-		if w.URL().Scheme == "" {
+		scheme := w.URL().Scheme
+		if scheme == "" {
 			scheme = "https"
-		} else {
-			scheme = w.URL().Scheme
 		}
 
 		if _, err = registry.Reachable(w.String(), scheme, "", "", pool, registryValidationTime, false); err != nil {
