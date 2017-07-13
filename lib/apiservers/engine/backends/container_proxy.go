@@ -741,6 +741,7 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 			log.Infof(" encodedFilter = %s", encodedFilter)
 		}
 
+		log.Debugf("Starting export from %s", deviceID)
 		_, err = PortLayerClient().Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
 			log.Infof("\n\n\nGot error from ExportArchive: %s", err.Error())
@@ -785,14 +786,6 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 
 	pipeReader, pipeWriter := io.Pipe()
 
-	go func() {
-		// Write the init string to "wakeup" swagger on the portlayer side.  Must do
-		// it in a goroutine because pipeWriter.Write() will block till data is read
-		// off.
-		log.Debugf("writing primer bytes for ImportStream for ArchiveImportWriter")
-		pipeWriter.Write([]byte(attachStdinInitString))
-	}()
-
 	done := make(chan struct{})
 	go func() {
 		// make sure we get out of io.Copy if context is canceled
@@ -825,7 +818,9 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 			params = params.WithFilterSpec(&encodedFilter)
 		}
 
+		log.Debugf("Starting import to %s", deviceID)
 		_, err = PortLayerClient().Storage.ImportArchive(params)
+
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ImportArchiveInternalServerError:

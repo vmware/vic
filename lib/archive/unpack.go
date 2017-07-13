@@ -16,7 +16,6 @@ package archive
 
 import (
 	"archive/tar"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,37 +33,32 @@ const (
 	fileWriteFlags = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 )
 
-// unpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the unpackPath in the path spec
+// unpack will unpack the given tarstream(if it is a tar stream) on the local filesystem based on the specified root
+// combined with any rebase from the path spec
 //
 // the pathSpec will include the following elements
 // - include : any tar entry that has a path below(after stripping) the include path will be written
 // - strip : The strip string will indicate the
 // - exlude : marks paths that are to be excluded from the write operation
 // - rebase : marks the the write path that will be tacked onto the "unpackPath". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
-func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, unpackPath string) error {
-	// the tar stream should be wrapped up at the end of this call
+func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
+	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
+
 	tr := tar.NewReader(tarStream)
 
-	strip := filter.StripPath
-	target := filter.RebasePath
+	rebase := filter.RebasePath
 
-	if target == "" {
-		op.Debugf("Bad target path in FilterSpec (%#v)", filter)
-		return fmt.Errorf("Invalid write target specified")
-	}
-
-	if strip == "" {
-		op.Debugf("Strip path was set to \"\"")
-	}
-
-	if _, err := os.Stat(unpackPath); err != nil {
+	fi, err := os.Stat(root)
+	if err != nil {
 		// the target unpack path does not exist. We should not get here.
-		op.Errorf("tar unpack target does not exist (%s)", unpackPath)
+		op.Errorf("tar unpack target does not exist: %s", root)
 		return err
 	}
 
-	finalTargetPath := filepath.Join(unpackPath, target)
-	op.Debugf("finalized target path for Tar unpack operation at (%s)", finalTargetPath)
+	if !fi.IsDir() {
+		op.Errorf("tar unpack target is not a directory: %s", root)
+		return err
+	}
 
 	// process the tarball onto the filesystem
 	for {
@@ -73,11 +67,13 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, unpackP
 			// This indicates the end of the archive
 			break
 		}
+
 		if err != nil {
-			// it is likely in this case that we were not given a legitimate tar stream
-			op.Debugf("Received error (%s) when attempting a tar read operation on target stream", err)
+			op.Errorf("Error reading tar header: %s", err)
 			return err
 		}
+
+		op.Debugf("processing tar header: %s", header.Name)
 
 		// skip excluded elements unless explicitly included
 		if filter.Excludes(op, header.Name) {
@@ -85,52 +81,39 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, unpackP
 		}
 
 		// fix up path
-		strippedTargetPath := strings.TrimPrefix(header.Name, strip)
-		writePath := filepath.Join(finalTargetPath, strippedTargetPath)
+		relativePath := strings.TrimPrefix(header.Name, rebase)
+		absPath := filepath.Join(root, relativePath)
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err = os.MkdirAll(writePath, header.FileInfo().Mode())
+			err = os.MkdirAll(absPath, header.FileInfo().Mode())
 			if err != nil {
 				return err
 			}
 			continue
 		case tar.TypeSymlink:
 
-			// NOTE: symbolic links cannot span mounts.
-			// This can cause us to create a regular file instead of
-			// a symlink. this behavior should be evaluated for a proper
-			// response, for now a regular file is made since that is the
-			// target of a sym link operation
-			err := os.Symlink(header.Linkname, writePath)
-			if err == nil {
-				continue
+			err := os.Symlink(header.Linkname, absPath)
+			if err != nil {
+				op.Errorf("Failed to create symlink %s->%s: %s", absPath, header.Linkname, err)
+				return err
 			}
-			op.Infof("error from os symlink (%s)", err.Error())
-			fallthrough
-		default:
-			// we will treat the default as a regular file
-			targetDir, _ := filepath.Split(writePath)
 
-			// FIXME: this is a hack we must include the directory before this instead of excluding it. since the permissions could be different.
-			err = os.MkdirAll(targetDir, header.FileInfo().Mode())
-
-			err = func(path string, flags int, perm os.FileMode, tr *tar.Reader) error {
-				writtenTarFile, err := os.OpenFile(path, flags, perm)
-				if err != nil {
-					return nil
-				}
-				defer writtenTarFile.Close()
-
-				_, err = io.Copy(writtenTarFile, tr)
-				if err != nil {
-					return err
-				}
+		case tar.TypeReg:
+			f, err := os.OpenFile(absPath, fileWriteFlags, header.FileInfo().Mode())
+			if err != nil {
 				return nil
-			}(writePath, fileWriteFlags, header.FileInfo().Mode(), tr)
+			}
+
+			_, err = io.Copy(f, tr)
+			// TODO: add ctx.Done cancellation
+			f.Close()
 			if err != nil {
 				return err
 			}
+
+		default:
+			// TODO: add support for special file types - otherwise we will do absurd things such as read infinitely from /dev/random
 		}
 	}
 	return nil

@@ -90,6 +90,12 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		}()
 
 		for _, change := range changes {
+			if cerr := op.Err(); cerr != nil {
+				// this will still trigger the defer to close the archive neatly
+				op.Warnf("Aborting tar due to cancelation: %s", cerr)
+				break
+			}
+
 			if spec.Excludes(op, change.Path) {
 				continue
 			}
@@ -117,8 +123,20 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 					}
 					return
 				}
+
 				if f != nil {
+					// make sure we get out of io.Copy if context is canceled
+					done := make(chan struct{})
+					go func() {
+						select {
+						case <-op.Done():
+							f.Close()
+						case <-done:
+						}
+					}()
+
 					_, err = io.Copy(tw, f)
+					close(done)
 					if err != nil {
 						op.Errorf("Error writing archive data: %s", err.Error())
 					}

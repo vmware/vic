@@ -115,19 +115,19 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
-		return nil, errors.New("Unavailable")
+		return nil, errors.New("unable to create offline data source and no online owners found")
 	}
 
-	// TODO(jzt): tweak this when online export is available
 	for _, o := range owners {
-		// o is a VM
-		_, _ = c.newOnlineDataSource(op, o, id)
-		// if a != nil && a.available() {
-		// 	return a, nil
-		// }
+		online, err := c.newOnlineDataSource(op, o, id)
+		if online != nil {
+			return online, err
+		}
+
+		op.Debugf("Failed to create online datasource with owner %s: %s", o.Reference(), err)
 	}
 
-	return nil, errors.New("Unavailable")
+	return nil, errors.New("unable to create online or offline data source")
 }
 
 func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storage.DataSource, error) {
@@ -176,19 +176,19 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
-		return nil, errors.New("Unavailable")
+		return nil, errors.New("unable to create offline data sink and no online owners found")
 	}
 
-	// TODO(jzt): tweak this when online export is available
 	for _, o := range owners {
-		// o is a VM
-		_, _ = c.newOnlineDataSink(op, o, id)
-		// if a != nil && a.available() {
-		// 	return a, nil
-		// }
+		online, err := c.newOnlineDataSink(op, o, id)
+		if online != nil {
+			return online, err
+		}
+
+		op.Debugf("Failed to create online datasink with owner %s: %s", o.Reference(), err)
 	}
 
-	return nil, errors.New("Unavailable")
+	return nil, errors.New("unable to create online or offline data sink")
 }
 
 func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {

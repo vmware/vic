@@ -57,19 +57,19 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 	// online - Owners() should filter out the appliance VM
 	owners, _ := v.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
-		return nil, errors.New("Unavailable")
+		return nil, errors.New("unable to create offline data sink and no online owners found")
 	}
 
-	// TODO(jzt): tweak this when online export is available
 	for _, o := range owners {
-		// o is a VM
-		_, _ = v.newOnlineDataSink(op, o)
-		// if a != nil && a.available() {
-		// 	return a, nil
-		// }
+		online, err := v.newOnlineDataSink(op, o)
+		if online != nil {
+			return online, err
+		}
+
+		op.Debugf("Failed to create online sink with owner %s: %s", o.Reference(), err)
 	}
 
-	return nil, errors.New("Unavailable")
+	return nil, errors.New("unable to create online or offline data sink")
 }
 
 func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.DataSink, error) {

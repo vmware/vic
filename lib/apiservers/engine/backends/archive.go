@@ -16,9 +16,7 @@ package backends
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -32,15 +30,11 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	vicarchive "github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
-)
-
-const (
-	containerStoreName = "container"
-	volumeStoreName    = "volume"
 )
 
 // ContainerArchivePath creates an archive of the filesystem resource at the
@@ -123,7 +117,7 @@ func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDi
 	return err
 }
 
-func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string, content io.Reader) error {
+func (c *Container) importToContainer(vc *viccontainer.VicContainer, target string, content io.Reader) error {
 	rawReader, err := archive.DecompressStream(content)
 	if err != nil {
 		log.Errorf("Input tar stream to ContainerExtractToDir not recognized: %s", err.Error())
@@ -133,7 +127,7 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string
 
 	mounts := mountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
-	writerMap := NewArchiveStreamWriterMap(mounts, path)
+	writerMap := NewArchiveStreamWriterMap(mounts, target)
 	defer writerMap.Close() // This should shutdown all the stream connections to the portlayer.
 
 	for {
@@ -146,25 +140,17 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, path string
 		}
 
 		// Lookup the writer for that mount prefix
-		writer, err := writerMap.WriterForAsset(c.containerProxy, vc.ContainerID, path, *header)
+		writer, err := writerMap.WriterForAsset(c.containerProxy, vc.ContainerID, target, *header)
 		if err != nil {
 			return err
 		}
 
-		var buf bytes.Buffer
-		enc := gob.NewEncoder(&buf)
-		err = enc.Encode(header)
-		if err != nil {
-			log.Errorf("Unable to encode header")
-			return err
-		}
+		// hickeng: this is just playing around as cp file id:/tmp/ placed it in the root of the filesystem.
+		header.Name = path.Join(target, header.Name)
 
-		headerReader := bytes.NewReader(buf.Bytes())
-		_, err = io.Copy(writer, headerReader)
-		if err != nil {
-			log.Errorf("Error while copying tar header: %s", err.Error())
-			return err
-		}
+		tarWriter := tar.NewWriter(writer)
+		tarWriter.WriteHeader(header)
+		// do NOT call tarWriter.Close() or that will create the double nil record for end-of-archive
 
 		_, err = io.Copy(writer, tarReader)
 		if err != nil {
@@ -284,9 +270,7 @@ func NewArchiveStreamReaderMap(mounts []types.MountPoint) *ArchiveStreamReaderMa
 		//
 		// Neither the volume nor the storage portlayer knows about /mnt/A.  The persona must tell
 		// the portlayer to rebase all files from this volume to the /mnt/A/ in the final tar stream.
-		if ar.mountPoint.Destination != "/" {
-			ar.filterSpec.RebasePath = ar.mountPoint.Destination
-		}
+		ar.filterSpec.RebasePath = ar.mountPoint.Destination
 
 		ar.filterSpec.Exclusions = make(map[string]struct{})
 		ar.filterSpec.Inclusions = make(map[string]struct{})
@@ -385,13 +369,16 @@ func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy VicContainerProxy, cid, c
 		// lazy initialize.
 		log.Debugf("Lazily initializing import stream for %s", aw.mountPoint.Destination)
 		var deviceID string
+		var store string
 		if aw.mountPoint.Destination == "/" {
 			// Special case. / refers to container VMDK and not a volume vmdk.
 			deviceID = cid
+			store = constants.ContainerStoreName
 		} else {
 			deviceID = aw.mountPoint.Name
+			store = constants.VolumeStoreName
 		}
-		streamWriter, err = proxy.ArchiveImportWriter(context.Background(), "container", deviceID, aw.filterSpec)
+		streamWriter, err = proxy.ArchiveImportWriter(context.Background(), store, deviceID, aw.filterSpec)
 		if err != nil {
 			err = fmt.Errorf("Unable to initialize import stream writer for mount prefix %s", aw.mountPoint.Destination)
 			log.Errorf(err.Error())
@@ -596,10 +583,10 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, 
 			subpath := containerSourcePath
 			if node.mountPoint.Destination == "/" {
 				// Special case. / refers to container VMDK and not a volume vmdk.
-				store = containerStoreName
+				store = constants.ContainerStoreName
 				deviceID = cid
 			} else {
-				store = volumeStoreName
+				store = constants.VolumeStoreName
 				deviceID = node.mountPoint.Name
 				subpath = strings.TrimPrefix(containerSourcePath, node.mountPoint.Destination)
 			}
