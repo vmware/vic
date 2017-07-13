@@ -132,25 +132,23 @@ func (u *urlEntry) Contains(e Entry) bool {
 	return false
 }
 
-func (u *urlEntry) Match(s string) (result bool) {
+func (u *urlEntry) Match(s string) bool {
 	q := ParseEntry(s)
 	query, ok := q.(URLEntry)
 	if !ok {
 		return false
 	}
 
-	result = u.Contains(query)
-	if result {
-		return
+	// copy u to nu ("new u") so we don't modify the record
+	nu, _ := ParseEntry(u.String()).(URLEntry)
+
+	if query.URL().Scheme != "" && nu.URL().Scheme == "" {
+		query.URL().Scheme = nu.URL().Scheme
+	} else if nu.URL().Scheme != "" && query.URL().Scheme == "" {
+		nu.URL().Scheme = query.URL().Scheme
 	}
 
-	if query.URL().Scheme != "" && u.URL().Scheme == "" {
-		query.URL().Scheme = u.URL().Scheme
-	} else if u.URL().Scheme != "" && query.URL().Scheme == "" {
-		u.URL().Scheme = query.URL().Scheme
-	}
-
-	return u.Contains(query)
+	return nu.Contains(query)
 }
 
 func (u *urlEntry) String() string {
