@@ -200,7 +200,6 @@ func TestEntryMatch(t *testing.T) {
 			s:   "http://192.168.1.1",
 			res: true,
 		},
-
 		{
 			e:   ParseEntry("http://192.168.1.1"),
 			s:   "192.168.1.1/foo/bar",
