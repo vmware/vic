@@ -89,7 +89,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 	}
 
 	filter := vicarchive.FilterSpec{}
-	// rc, err := containerEngine.containerProxy.GetContainerChanges()
+	// rc, err := containerEngine.containerProxy.GetContainerChanges(vc)
 	rc, err := containerEngine.containerProxy.ArchiveExportReader(context.Background(), containerStoreName, "host", vc.ContainerID, vc.LayerID, true, filter)
 	if err != nil {
 		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)

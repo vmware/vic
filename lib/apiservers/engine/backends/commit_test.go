@@ -25,8 +25,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-
 	"github.com/docker/docker/api/types/backend"
+
 	"github.com/vmware/vic/lib/imagec"
 )
 
