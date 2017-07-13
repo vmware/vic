@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	docker "github.com/docker/docker/pkg/archive"
@@ -158,7 +159,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		whiteOutBase := filepath.Base(change.Path)
 		whiteOut := filepath.Join(whiteOutDir, docker.WhiteoutPrefix+whiteOutBase)
 		hdr = &tar.Header{
-			Name:       filepath.Join(spec.RebasePath, whiteOut),
+			Name:       strings.TrimPrefix(filepath.Join(spec.RebasePath, whiteOut), spec.StripPath),
 			ModTime:    timestamp,
 			AccessTime: timestamp,
 			ChangeTime: timestamp,
@@ -176,7 +177,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 			return nil, err
 		}
 
-		hdr.Name = filepath.Join(spec.RebasePath, change.Path)
+		hdr.Name = strings.TrimPrefix(filepath.Join(spec.RebasePath, change.Path), spec.StripPath)
 
 		if hdr.Typeflag == tar.TypeDir {
 			hdr.Name += "/"

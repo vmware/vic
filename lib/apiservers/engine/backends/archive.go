@@ -66,7 +66,7 @@ func (c *Container) ContainerArchivePath(name string, path string) (content io.R
 func (c *Container) exportFromContainer(vc *viccontainer.VicContainer, path string) (io.ReadCloser, error) {
 	mounts := mountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
-	readerMap := NewArchiveStreamReaderMap(mounts)
+	readerMap := NewArchiveStreamReaderMap(mounts, path)
 
 	readers, err := readerMap.ReadersForSourcePath(c.containerProxy, vc.ContainerID, path)
 	if err != nil {
@@ -127,7 +127,7 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, target stri
 
 	mounts := mountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
-	writerMap := NewArchiveStreamWriterMap(mounts, target)
+	writerMap := NewArchiveStreamWriterMap(mounts)
 	defer writerMap.Close() // This should shutdown all the stream connections to the portlayer.
 
 	for {
@@ -205,7 +205,7 @@ type ArchiveStreamReaderMap struct {
 //
 // mounts is the mount data from inspect
 // containerDestPath is the destination path in the container
-func NewArchiveStreamWriterMap(mounts []types.MountPoint, containerDestPath string) *ArchiveStreamWriterMap {
+func NewArchiveStreamWriterMap(mounts []types.MountPoint) *ArchiveStreamWriterMap {
 	writerMap := &ArchiveStreamWriterMap{}
 	writerMap.prefixTrie = patricia.NewTrie()
 
@@ -232,9 +232,11 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, containerDestPath stri
 		// file data.txt from local /mnt/A/data.txt will come to the persona as mnt/A/data.txt.
 		// Here, we must tell the portlayer to remove "mnt/A".  The key to determining whether to
 		// strip "A" or "mnt/A" is based on the container destination path.
-		if containerDestPath != "/" && strings.HasPrefix(aw.mountPoint.Destination, containerDestPath) {
-			aw.filterSpec.StripPath = strings.TrimPrefix(aw.mountPoint.Destination, containerDestPath)
-		}
+		aw.filterSpec.RebasePath = aw.mountPoint.Destination
+
+		// if containerDestPath != "/" && strings.HasPrefix(aw.mountPoint.Destination, containerDestPath) {
+		// 	aw.filterSpec.StripPath = strings.TrimPrefix(aw.mountPoint.Destination, containerDestPath)
+		// }
 
 		aw.filterSpec.Exclusions = make(map[string]struct{})
 		aw.filterSpec.Inclusions = make(map[string]struct{})
@@ -249,7 +251,7 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, containerDestPath stri
 // information to create readers for every volume mounts for the container
 //
 // mounts is the mount data from inspect
-func NewArchiveStreamReaderMap(mounts []types.MountPoint) *ArchiveStreamReaderMap {
+func NewArchiveStreamReaderMap(mounts []types.MountPoint, containerDestPath string) *ArchiveStreamReaderMap {
 	readerMap := &ArchiveStreamReaderMap{}
 	readerMap.prefixTrie = patricia.NewTrie()
 
@@ -271,6 +273,9 @@ func NewArchiveStreamReaderMap(mounts []types.MountPoint) *ArchiveStreamReaderMa
 		// Neither the volume nor the storage portlayer knows about /mnt/A.  The persona must tell
 		// the portlayer to rebase all files from this volume to the /mnt/A/ in the final tar stream.
 		ar.filterSpec.RebasePath = ar.mountPoint.Destination
+		relative := strings.TrimPrefix(containerDestPath, ar.filterSpec.RebasePath)
+		// the strip path is absolute... relative to the rebase
+		ar.filterSpec.StripPath = path.Join("/", path.Dir(relative))
 
 		ar.filterSpec.Exclusions = make(map[string]struct{})
 		ar.filterSpec.Inclusions = make(map[string]struct{})
