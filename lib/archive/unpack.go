@@ -16,6 +16,7 @@ package archive
 
 import (
 	"archive/tar"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,13 +41,11 @@ const (
 // - include : any tar entry that has a path below(after stripping) the include path will be written
 // - strip : The strip string will indicate the
 // - exlude : marks paths that are to be excluded from the write operation
-// - rebase : marks the the write path that will be tacked onto the "unpackPath". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
+// - rebase : marks the the write path that will be tacked onto the "root". e.g /tmp/unpack + /my/target/path = /tmp/unpack/my/target/path
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
 
 	tr := tar.NewReader(tarStream)
-
-	rebase := filter.RebasePath
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -56,7 +55,8 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 	}
 
 	if !fi.IsDir() {
-		op.Errorf("tar unpack target is not a directory: %s", root)
+		err := fmt.Errorf("tar unpack target is not a directory: %s", root)
+		op.Error(err)
 		return err
 	}
 
@@ -81,8 +81,9 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		}
 
 		// fix up path
-		relativePath := strings.TrimPrefix(header.Name, rebase)
-		absPath := filepath.Join(root, relativePath)
+		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
+		rebased := filepath.Join(filter.RebasePath, stripped)
+		absPath := filepath.Join(root, rebased)
 
 		switch header.Typeflag {
 		case tar.TypeDir:

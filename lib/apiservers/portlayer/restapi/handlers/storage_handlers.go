@@ -557,6 +557,7 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 	err = store.Import(op, id, filterSpec, params.Archive)
 	if err != nil {
 		// hickeng: see if we can return usefully typed errors here
+		op.Errorf("import failed: %s", err)
 		return storage.NewExportArchiveInternalServerError()
 	}
 
@@ -597,7 +598,7 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 		return storage.NewExportArchiveInternalServerError()
 	}
 
-	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, func() { op.Debugf("Calling closer for export"); r.Close() })
+	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, func() { r.Close() })
 }
 
 //utility functions
