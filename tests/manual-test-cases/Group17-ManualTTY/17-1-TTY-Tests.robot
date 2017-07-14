@@ -26,6 +26,13 @@ Make sure container starts
     \   Exit For Loop If  ${status}
     \   Sleep  1
 
+Make Fifo
+    ${rc}  ${tmpdir}=  Run And Return Rc And Output  mktemp -d
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${tmpdir}/fifo
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${tmpdir}/fifo
+
 *** Test Cases ***
 Docker run -it date
     ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it busybox date
@@ -73,31 +80,20 @@ Hello world with -it
     Should Contain  ${output}  https://docs.docker.com/engine/userguide/
 
 Start with attach and interactive
+    ${fifo}=  Make Fifo
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -ai ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
-
-Stop a container stuck in starting state
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    ${name}=  Generate Random String  15
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -it --name ${name} busybox /bin/date
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc device.disconnect -vm */${name}* serialport-9000
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${name}
-    Should Contain  ${output}  Error:
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${name}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json */${name}* | jq -r .VirtualMachines[].Runtime.PowerState
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  poweredOff
+    Start Process  docker %{VCH-PARAMS} start -ai ${output} < ${fifo}  shell=True  alias=custom
+    Sleep  3
+    Run  echo q > ${fifo}
+    ${ret}=  Wait For Process  custom
+    Should Be Equal As Integers  ${ret.rc}  0
+    Should Not Contain  ${ret.stdout}  Error:
+    Should Not Contain  ${ret.stderr}  Error:
 
 Start a container after docker run
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -110,41 +106,47 @@ Start a container after docker run
     Should Not Contain  ${output}  Error:
 
 Attach with custom detach keys
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-    Should Be Equal As Integers  ${rc}  0
-    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom
-    Sleep  3
-    Run  echo a > /tmp/fifo
-    ${ret}=  Wait For Process  custom
-    Should Be Equal As Integers  ${ret.rc}  0
-    Should Be Empty  ${ret.stdout}
-    Should Be Empty  ${ret.stderr}
+    ${status}=  Get State Of Github Issue  5723
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 17-1-TTY-Tests.robot needs to be updated now that Issue #5723 has been resolved
+    Log  Issue \#5723 is blocking implementation  WARN
+    # ${fifo}=  Make Fifo
+    # ${out}=  Run  docker %{VCH-PARAMS} pull busybox
+    # ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    # Should Be Equal As Integers  ${rc}  0
+    # ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    # Should Be Equal As Integers  ${rc}  0
+    # Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < ${fifo}  shell=True  alias=custom
+    # Sleep  3
+    # Run  echo a > ${fifo}
+    # ${ret}=  Wait For Process  custom
+    # Should Be Equal As Integers  ${ret.rc}  0
+    # Should Be Empty  ${ret.stdout}
+    # Should Be Empty  ${ret.stderr}
 
 Reattach to container
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    ${out}=  Run  docker %{VCH-PARAMS} pull busybox
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
-    Should Be Equal As Integers  ${rc}  0
-    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom
-    Sleep  3
-    Run  echo a > /tmp/fifo
-    ${ret}=  Wait For Process  custom
-    Should Be Equal As Integers  ${ret.rc}  0
-    Should Be Empty  ${ret.stdout}
-    Should Be Empty  ${ret.stderr}
-    Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < /tmp/fifo  shell=True  alias=custom2
-    Sleep  3
-    Run  echo a > /tmp/fifo
-    ${ret}=  Wait For Process  custom2
-    Should Be Equal As Integers  ${ret.rc}  0
-    Should Be Empty  ${ret.stdout}
-    Should Be Empty  ${ret.stderr}
+    ${status}=  Get State Of Github Issue  5723
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 17-1-TTY-Tests.robot needs to be updated now that Issue #5723 has been resolved
+    Log  Issue \#5723 is blocking implementation  WARN
+    # ${fifo}=  Make Fifo
+    # ${out}=  Run  docker %{VCH-PARAMS} pull busybox
+    # ${rc}  ${containerID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it busybox /bin/top
+    # Should Be Equal As Integers  ${rc}  0
+    # ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerID}
+    # Should Be Equal As Integers  ${rc}  0
+    # Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < ${fifo}  shell=True  alias=custom
+    # Sleep  3
+    # Run  echo a > ${fifo}
+    # ${ret}=  Wait For Process  custom
+    # Should Be Equal As Integers  ${ret.rc}  0
+    # Should Be Empty  ${ret.stdout}
+    # Should Be Empty  ${ret.stderr}
+    # Start Process  docker %{VCH-PARAMS} attach --detach-keys\=a ${containerID} < ${fifo}  shell=True  alias=custom2
+    # Sleep  3
+    # Run  echo a > ${fifo}
+    # ${ret}=  Wait For Process  custom2
+    # Should Be Equal As Integers  ${ret.rc}  0
+    # Should Be Empty  ${ret.stdout}
+    # Should Be Empty  ${ret.stderr}
 
 Exec Echo -it
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
@@ -153,16 +155,12 @@ Exec Echo -it
     ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
     :FOR  ${idx}  IN RANGE  0  5
-    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -it ${d} /bin/echo "I find your lack of faith disturbing."
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -it ${id} /bin/echo "I find your lack of faith disturbing."
     \   Should Be Equal As Integers  ${rc}  0
     \   Should Be Equal As Strings  ${output}  I find your lack of faith disturbing.
 
 Exec Sort -it
-    ${rc}  ${tmp}=  Run And Return Rc And Output  mktemp -d -p /tmp
-    Should Be Equal As Integers  ${rc}  0
-    ${fifo}=  Catenate  SEPARATOR=/  ${tmp}  fifo
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo ${fifo}
-    Should Be Equal As Integers  ${rc}  0
+    ${fifo}=  Make Fifo
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -173,7 +171,24 @@ Exec Sort -it
     \     Run  echo one > ${fifo}
     \     ${ret}=  Wait For Process  custom
     \     Log  ${ret.stderr}
-    \     Should Be Equal  ${ret.stdout}  cannot enable tty mode on non tty input
+    \     Should Be Equal  ${ret.stderr}  the input device is not a TTY
+    \     Should Be Equal As Integers  ${ret.rc}  1
+    \     Should Be Empty  ${ret.stdout}
+    Run  rm -rf $(dirname ${fifo})
+
+Exec Sort -i
+    ${fifo}=  Make Fifo
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d busybox /bin/top -d 600
+    Should Be Equal As Integers  ${rc}  0
+    :FOR  ${idx}  IN RANGE  0  5
+    \     Start Process  docker %{VCH-PARAMS} exec -i ${output} /bin/sort < ${fifo}  shell=True  alias=custom
+    \     Run  echo one > ${fifo}
+    \     ${ret}=  Wait For Process  custom
+    \     Log  ${ret.stderr}
+    \     Should Be Equal  ${ret.stdout}  one
     \     Should Be Equal As Integers  ${ret.rc}  0
     \     Should Be Empty  ${ret.stderr}
-    Run  rm -rf ${tmp}
+    Run  rm -rf $(dirname ${fifo})
