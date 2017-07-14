@@ -253,6 +253,9 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, containerDestPath stri
 			aw.filterSpec.StripPath = strings.TrimPrefix(aw.mountPoint.Destination, containerDestPath)
 		}
 
+		aw.filterSpec.Exclusions = make(map[string]struct{})
+		aw.filterSpec.Inclusions = make(map[string]struct{})
+
 		writerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &aw)
 	}
 
@@ -288,7 +291,10 @@ func NewArchiveStreamReaderMap(mounts []types.MountPoint) *ArchiveStreamReaderMa
 			ar.filterSpec.RebasePath = ar.mountPoint.Destination
 		}
 
-		readerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), ar)
+		ar.filterSpec.Exclusions = make(map[string]struct{})
+		ar.filterSpec.Inclusions = make(map[string]struct{})
+
+		readerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &ar)
 	}
 
 	return readerMap
@@ -428,35 +434,30 @@ func (wm *ArchiveStreamWriterMap) Close() {
 //
 // For the above example, this function returns the readers for mount A and mount AB but not the
 // readers for / or mount B.
-func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string) ([]ArchiveReader, error) {
+func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string) ([]*ArchiveReader, error) {
 	defer trace.End(trace.Begin(containerSourcePath))
 
-	var nodes []ArchiveReader
-	var startingNode ArchiveReader
+	var nodes []*ArchiveReader
+	var startingNode *ArchiveReader
 	var err error
 
 	findStartingPrefix := func(prefix patricia.Prefix, item patricia.Item) error {
-		if _, ok := item.(ArchiveReader); !ok {
+		if _, ok := item.(*ArchiveReader); !ok {
 			return fmt.Errorf("item not ArchiveReader")
 		}
 
-		startingNode = item.(ArchiveReader)
+		startingNode = item.(*ArchiveReader)
 		return nil
 	}
 
-	// go function used later for searching
 	walkPrefixSubtree := func(prefix patricia.Prefix, item patricia.Item) error {
-		if _, ok := item.(ArchiveReader); !ok {
+		if _, ok := item.(*ArchiveReader); !ok {
 			return fmt.Errorf("item not ArchiveReader")
 		}
 
-		ar, _ := item.(ArchiveReader)
+		ar, _ := item.(*ArchiveReader)
 		nodes = append(nodes, ar)
 		return nil
-	}
-
-	if strings.HasSuffix(containerSourcePath, "/") {
-		containerSourcePath = strings.TrimSuffix(containerSourcePath, "/")
 	}
 
 	// Find all mounts for the sourcepath
@@ -470,6 +471,8 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 
 	// The above subtree walking MAY NOT find the starting prefix.  For example /etc will not find /.
 	// Subtree only finds prefix that starts with /etc.  VisitPrefixes will find the starting prefix.
+	// If the search was for /, then it will not find the starting node.  In that case, we grab the
+	// first node in the slice.
 	err = rm.prefixTrie.VisitPrefixes(prefix, findStartingPrefix)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to find starting node for prefix %s: %s", containerSourcePath, err.Error())
@@ -477,7 +480,7 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 		return nil, fmt.Errorf(msg)
 	}
 
-	if startingNode.mountPoint.Destination != "" {
+	if startingNode != nil {
 		found := false
 		for _, node := range nodes {
 			if node.mountPoint.Destination == startingNode.mountPoint.Destination {
@@ -487,11 +490,89 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 		}
 
 		if !found {
-			nodes = append(nodes, startingNode)
+			// prepend the starting node at the beginning
+			nodes = append([]*ArchiveReader{startingNode}, nodes...)
 		}
+	} else if len(nodes) > 0 {
+		startingNode = nodes[0]
+	} else {
+		msg := fmt.Sprintf("Failed to find starting node for prefix %s: %s", containerSourcePath, err.Error())
+		log.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	err = rm.buildFilterSpec(containerSourcePath, nodes, startingNode)
+	if err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
+}
+
+func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, nodes []*ArchiveReader, startingNode *ArchiveReader) error {
+	var err error
+
+	// Build an exclusion filter for each writer.  For example, the reader for / should not read
+	// from submounts as there are separate readers for those.
+	buildExclusion := func(path string, node *ArchiveReader) error {
+		childWalker := func(prefix patricia.Prefix, item patricia.Item) error {
+			if _, ok := item.(*ArchiveReader); !ok {
+				return fmt.Errorf("item not ArchiveReader")
+			}
+
+			ar, _ := item.(*ArchiveReader)
+			dest := ar.mountPoint.Destination
+			if dest != path {
+				node.filterSpec.Exclusions[dest] = struct{}{}
+			}
+			return nil
+		}
+
+		// prefix = current node's mount path
+		nodePrefix := patricia.Prefix(path)
+
+		err = rm.prefixTrie.VisitSubtree(nodePrefix, childWalker)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to build exclusion filter for %s: %s", path, err.Error())
+			log.Error(msg)
+			return fmt.Errorf(msg)
+		}
+
+		return nil
+	}
+
+	for _, node := range nodes {
+		// Clear out existing exclusions and inclusions
+		node.filterSpec.Exclusions = make(map[string]struct{})
+		node.filterSpec.Inclusions = make(map[string]struct{})
+
+		err = buildExclusion(node.mountPoint.Destination, node)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Add inclusion filter.  When there is an inclusion, there should be only one node in
+	// the slice that is returned.
+	//
+	//	Example 1:
+	//		containerSourcePath -	/file.txt
+	//
+	//		ArchiveReader path -	/
+	//		Inclusion filter -		file.txt
+	//
+	//	Example 2:
+	//		containerSourcePath -	/mnt/A/a/file.txt
+	//
+	//		ArchiveReader path -	/mnt/A
+	//		Inclusion filter -		a/file.txt
+	inclusionPath := strings.TrimPrefix(containerSourcePath, startingNode.mountPoint.Destination)
+	inclusionPath = strings.TrimPrefix(inclusionPath, "/")
+	if len(nodes) == 1 {
+		nodes[0].filterSpec.Inclusions[inclusionPath] = struct{}{}
+	}
+
+	return nil
 }
 
 // ReadersForSourcePath returns all an array of io.Reader for all the readers within a container source path.
