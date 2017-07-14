@@ -139,8 +139,9 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	// calls wait and attempts to collect its child, but the reaper will
 	// have raptured the pid before that.  So, best effort, just keep going.
 	_ = netfilter.Flush(context.Background(), "")
-	generalPolicy(netfilter.Drop)
-	configuredExternal := false
+	if err := generalPolicy(netfilter.Drop); err != nil {
+		return err
+	}
 
 	for _, endpoint := range config.Networks {
 		switch endpoint.Network.Type {
@@ -273,11 +274,12 @@ func setupPublishedFirewall(endpoint *tether.NetworkEndpoint, ifaceName string) 
 	}
 }
 
-func generalPolicy(target netfilter.Target) {
+func generalPolicy(target netfilter.Target) error {
 	for _, chain := range []netfilter.Chain{netfilter.Input, netfilter.Output, netfilter.Forward} {
 		err := netfilter.Policy(context.TODO(), chain, target)
 		if err != nil {
 			log.Errorf("Couldn't set policy rule: %v.", err)
+			return err
 		}
 	}
 }
