@@ -17,7 +17,6 @@ package create
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"path"
@@ -389,9 +388,13 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processRegistries(); err != nil {
+	if err := c.registries.ProcessRegistries(); err != nil {
 		return err
 	}
+
+	c.InsecureRegistries = c.registries.InsecureRegistries
+	c.WhitelistRegistries = c.registries.WhitelistRegistries
+	c.RegistryCAs = c.registries.RegistryCAs
 
 	hproxy, sproxy, err := c.proxies.ProcessProxies()
 	if err != nil {
@@ -405,25 +408,6 @@ func (c *Create) processParams() error {
 	}
 
 	return nil
-}
-
-// loadRegistryCAs loads additional CA certs for docker registry usage
-func (c *Create) loadRegistryCAs() ([]byte, error) {
-	defer trace.End(trace.Begin(""))
-
-	var registryCerts []byte
-	for _, f := range c.registries.RegistryCAs {
-		b, err := ioutil.ReadFile(f)
-		if err != nil {
-			err = errors.Errorf("Failed to load authority from file %s: %s", f, err)
-			return nil, err
-		}
-
-		registryCerts = append(registryCerts, b...)
-		log.Infof("Loaded registry CA from %s", f)
-	}
-
-	return registryCerts, nil
 }
 
 func (c *Create) processCertificates() error {
@@ -543,22 +527,6 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		network.Gateway.Mask = network.IP.Mask
 	}
 
-	return nil
-}
-
-func (c *Create) processRegistries() error {
-	// load additional certificate authorities for use with registries
-	if len(c.registries.RegistryCAs) > 0 {
-		registryCAs, err := c.loadRegistryCAs()
-		if err != nil {
-			return errors.Errorf("Unable to load CA certificates for registry logins: %s", err)
-		}
-
-		c.RegistryCAs = registryCAs
-	}
-
-	c.InsecureRegistries = c.registries.InsecureRegistries.Value()
-	c.WhitelistRegistries = c.registries.WhitelistRegistries.Value()
 	return nil
 }
 

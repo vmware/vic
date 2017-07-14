@@ -41,10 +41,11 @@ import (
 type Configure struct {
 	*data.Data
 
-	proxies   common.Proxies
-	cNetworks common.CNetworks
-	dns       common.DNS
-	volStores common.VolumeStores
+	proxies    common.Proxies
+	cNetworks  common.CNetworks
+	dns        common.DNS
+	volStores  common.VolumeStores
+	registries common.Registries
 
 	certificates common.CertFactory
 
@@ -106,10 +107,11 @@ func (c *Configure) Flags() []cli.Flag {
 	memory := c.VCHMemoryLimitFlags(false)
 	cpu := c.VCHCPULimitFlags(false)
 	certificates := c.certificates.CertFlags()
+	registries := c.registries.Flags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, certificates, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -151,6 +153,14 @@ func (c *Configure) processParams() error {
 	if err != nil {
 		return err
 	}
+
+	if err := c.registries.ProcessRegistries(); err != nil {
+		return err
+	}
+
+	c.InsecureRegistries = c.registries.InsecureRegistries
+	c.WhitelistRegistries = c.registries.WhitelistRegistries
+	c.RegistryCAs = c.registries.RegistryCAs
 
 	return nil
 }
@@ -220,6 +230,14 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 
 	if n.RegistryCertificateAuthorities != nil {
 		o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
+	}
+
+	if n.InsecureRegistries != nil {
+		o.InsecureRegistries = n.InsecureRegistries
+	}
+
+	if n.RegistryWhitelist != nil {
+		o.RegistryWhitelist = n.RegistryWhitelist
 	}
 }
 

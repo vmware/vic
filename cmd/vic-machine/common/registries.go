@@ -15,32 +15,80 @@
 package common
 
 import (
+	"io/ioutil"
+
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 )
 
+// Registries contains metadata used to create/configure registry CA data
 type Registries struct {
-	RegistryCAs         cli.StringSlice `arg:"registry-ca"`
-	InsecureRegistries  cli.StringSlice `arg:"insecure-registry"`
-	WhitelistRegistries cli.StringSlice `arg:"whitelist-registry"`
+	RegistryCAsArg         cli.StringSlice `arg:"registry-ca"`
+	InsecureRegistriesArg  cli.StringSlice `arg:"insecure-registry"`
+	WhitelistRegistriesArg cli.StringSlice `arg:"whitelist-registry"`
+
+	RegistryCAs []byte
+
+	InsecureRegistries  []string `cmd:"insecure-registry"`
+	WhitelistRegistries []string `cmd:"whitelist-registry"`
 }
 
+// Flags generates command line flags
 func (r *Registries) Flags() []cli.Flag {
 	return []cli.Flag{
 		cli.StringSliceFlag{
 			Name:   "registry-ca, rc",
 			Usage:  "Specify a list of additional certificate authority files to use to verify secure registry servers",
-			Value:  &r.RegistryCAs,
+			Value:  &r.RegistryCAsArg,
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
-			Value: &r.InsecureRegistries,
+			Value: &r.InsecureRegistriesArg,
 			Usage: "Specify a list of permitted insecure registry server addresses",
 		},
 		cli.StringSliceFlag{
 			Name:  "whitelist-registry, wr",
-			Value: &r.WhitelistRegistries,
+			Value: &r.WhitelistRegistriesArg,
 			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
 		},
 	}
+}
+
+// LoadRegistryCAs loads additional CA certs for docker registry usage
+func (r *Registries) loadRegistryCAs() ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
+	var registryCerts []byte
+	for _, f := range r.RegistryCAsArg {
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			err = errors.Errorf("Failed to load authority from file %s: %s", f, err)
+			return nil, err
+		}
+
+		registryCerts = append(registryCerts, b...)
+		log.Infof("Loaded registry CA from %s", f)
+	}
+
+	return registryCerts, nil
+}
+
+func (r *Registries) ProcessRegistries() error {
+	// load additional certificate authorities for use with registries
+	if len(r.RegistryCAsArg) > 0 {
+		registryCAs, err := r.loadRegistryCAs()
+		if err != nil {
+			return errors.Errorf("Unable to load CA certificates for registry logins: %s", err)
+		}
+
+		r.RegistryCAs = registryCAs
+	}
+
+	r.InsecureRegistries = r.InsecureRegistriesArg.Value()
+	r.WhitelistRegistries = r.WhitelistRegistriesArg.Value()
+	return nil
 }
