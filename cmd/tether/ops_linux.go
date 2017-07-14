@@ -281,6 +281,7 @@ func generalPolicy(target netfilter.Target) error {
 			return err
 		}
 	}
+	return nil
 }
 
 func allowPingTraffic(ifaceName string, sourceAddresses []string) {
