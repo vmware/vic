@@ -157,6 +157,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	}
 
 	for _, f := range res.File {
+		// we are only interested in files, not folders
 		file, ok := f.(*types.FileInfo)
 		if !ok {
 			continue

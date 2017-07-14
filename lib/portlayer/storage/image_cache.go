@@ -160,6 +160,10 @@ func (c *NameLookupCache) CreateImageStore(op trace.Operation, storeName string)
 		return nil, os.ErrExist
 	}
 
+	if !os.IsNotExist(err) {
+		op.Warnf("Error getting image store %s: %s", storeName, err)
+	}
+
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
 

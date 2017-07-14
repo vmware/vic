@@ -564,7 +564,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 
 	images := []*portlayer.Image{}
 	for _, f := range res.File {
-		file, ok := f.(*types.FileInfo)
+		file, ok := f.(*types.FolderFileInfo)
 		if !ok {
 			continue
 		}
@@ -649,7 +649,7 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 	// We could call v.ListImages here but that results in calling GetImage,
 	// which pulls and unmarshalls the metadata.  We don't need that.
 	for _, f := range res.File {
-		file, ok := f.(*types.FileInfo)
+		file, ok := f.(*types.FolderFileInfo)
 		if !ok {
 			continue
 		}

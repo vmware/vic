@@ -35,7 +35,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
@@ -620,12 +619,9 @@ func cleanup(t *testing.T, client *session.Session, vsStore *ImageStore, parentP
 
 	for _, dir := range res.HostDatastoreBrowserSearchResults {
 		for _, f := range dir.File {
-			file, ok := f.(*types.FileInfo)
-			if !ok {
-				continue
-			}
+			fpath := f.GetFileInfo().Path
 
-			rm(t, client, path.Join(dir.FolderPath, file.Path))
+			rm(t, client, path.Join(dir.FolderPath, fpath))
 		}
 		rm(t, client, dir.FolderPath)
 	}
