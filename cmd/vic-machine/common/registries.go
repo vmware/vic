@@ -40,10 +40,9 @@ type Registries struct {
 func (r *Registries) Flags() []cli.Flag {
 	return []cli.Flag{
 		cli.StringSliceFlag{
-			Name:   "registry-ca, rc",
-			Usage:  "Specify a list of additional certificate authority files to use to verify secure registry servers",
-			Value:  &r.RegistryCAsArg,
-			Hidden: true,
+			Name:  "registry-ca, rc",
+			Usage: "Specify a list of additional certificate authority files to use to verify secure registry servers",
+			Value: &r.RegistryCAsArg,
 		},
 		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
