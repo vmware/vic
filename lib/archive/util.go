@@ -28,14 +28,14 @@ const (
 )
 
 // GenerateFilterSpec will populate the appropriate relative Rebase and Strip paths based on the supplied scenarios. Inclusion/Exclusion should be constructed separately.
-func GenerateFilterSpec(targetPath string, mountPoint string, primaryTarget bool, direction bool) FilterSpec {
+func GenerateFilterSpec(copyPath string, mountPoint string, primaryTarget bool, direction bool) FilterSpec {
 	var filter FilterSpec
 
 	// Note I know they are just booleans, if that changes then this statement will not need to.
 	if direction == CopyTo {
-		filter = generateCopyToFilterSpec(targetPath, mountPoint, primaryTarget)
+		filter = generateCopyToFilterSpec(copyPath, mountPoint, primaryTarget)
 	} else {
-		filter = generateCopyFromFilterSpec(targetPath, mountPoint, primaryTarget)
+		filter = generateCopyFromFilterSpec(copyPath, mountPoint, primaryTarget)
 	}
 
 	filter.Exclusions = make(map[string]struct{})
@@ -43,39 +43,39 @@ func GenerateFilterSpec(targetPath string, mountPoint string, primaryTarget bool
 	return filter
 }
 
-func generateCopyFromFilterSpec(targetPath string, mountPoint string, primaryTarget bool) FilterSpec {
+func generateCopyFromFilterSpec(copyPath string, mountPoint string, primaryTarget bool) FilterSpec {
 	var filter FilterSpec
 
 	//we only need the right most element.
-	_, first := filepath.Split(targetPath)
+	_, first := filepath.Split(copyPath)
 
 	// primary target was provided so we wil need to split the target and take the right most element for the rebase.
 	// then strip set the strip as the target path.
 	if primaryTarget {
 		filter.RebasePath = first
-		filter.StripPath = removeLeadingSlash(targetPath)
+		filter.StripPath = removeLeadingSlash(copyPath)
 		return filter
 	}
 
 	// non primary target was provided. in this case we will need rebase to include the right most member of the target(or "/") joined to the front of the mountPath - the target path. 3
-	filter.RebasePath = removeLeadingSlash(filepath.Join(first, strings.TrimPrefix(mountPoint, targetPath)))
+	filter.RebasePath = removeLeadingSlash(filepath.Join(first, strings.TrimPrefix(mountPoint, copyPath)))
 	filter.StripPath = ""
 	return filter
 }
 
-func generateCopyToFilterSpec(targetPath string, mountPoint string, primaryTarget bool) FilterSpec {
+func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget bool) FilterSpec {
 	var filter FilterSpec
 
 	// primary target was provided so we will need to rebase header assets for this mount to have the target in front for the write.
 	if primaryTarget {
-		filter.RebasePath = removeLeadingSlash(targetPath)
+		filter.RebasePath = removeLeadingSlash(copyPath)
 		filter.StripPath = ""
 		return filter
 	}
 
 	// non primary target, this implies that the asset header has part of the mount point path in it. We must strip out that part since the non primary target will be mounted and be looking at the world from it's own root "/"
 	filter.RebasePath = ""
-	filter.StripPath = removeLeadingSlash(strings.TrimPrefix(mountPoint, targetPath))
+	filter.StripPath = removeLeadingSlash(strings.TrimPrefix(mountPoint, copyPath))
 
 	return filter
 }
