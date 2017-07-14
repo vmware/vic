@@ -229,6 +229,9 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, dest string) *ArchiveS
 		// file data.txt from local /mnt/A/data.txt will come to the persona as mnt/A/data.txt.
 		// Here, we must tell the portlayer to remove "mnt/A".  The key to determining whether to
 		// strip "A" or "mnt/A" is based on the container destination path.
+
+		// hickeng: the current logic is strip, then rebase for export - more efficient to collapse
+		// any reducdency here than apply to every tar entry when packing but skipping for now.
 		aw.filterSpec.StripPath = aw.mountPoint.Destination
 		aw.filterSpec.RebasePath = strings.TrimPrefix(dest, aw.mountPoint.Destination)
 
@@ -270,10 +273,11 @@ func NewArchiveStreamReaderMap(mounts []types.MountPoint, dest string) *ArchiveS
 		//
 		// Neither the volume nor the storage portlayer knows about /mnt/A.  The persona must tell
 		// the portlayer to rebase all files from this volume to the /mnt/A/ in the final tar stream.
+
+		// hickeng: the current logic is rebase, then strip for export - more efficient to collapse
+		// any reducdency here than apply to every tar entry when packing but skipping for now.
 		ar.filterSpec.RebasePath = ar.mountPoint.Destination
-		relative := strings.TrimPrefix(dest, ar.filterSpec.RebasePath)
-		// the strip path is absolute... relative to the rebase
-		ar.filterSpec.StripPath = path.Join("/", path.Dir(relative))
+		ar.filterSpec.StripPath = path.Join("/", path.Dir(dest))
 
 		ar.filterSpec.Exclusions = make(map[string]struct{})
 		ar.filterSpec.Inclusions = make(map[string]struct{})

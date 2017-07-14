@@ -41,6 +41,7 @@ type ProxyReadCloser struct {
 }
 
 func (p *ProxyReadCloser) Close() error {
+	/* #nosec - no useful way to handle this error */
 	p.Closer()
 	return p.ReadCloser.Close()
 }

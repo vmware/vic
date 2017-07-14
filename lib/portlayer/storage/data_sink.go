@@ -31,7 +31,7 @@ type MountDataSink struct {
 	cleanOp trace.Operation
 }
 
-// NewMountDataSink creates a new data sink assocaited with a specific mount, with the mount
+// NewMountDataSink creates a new data sink associated with a specific mount, with the mount
 // point being the path argument.
 // The cleanup function is invoked once the import is complete.
 func NewMountDataSink(op trace.Operation, path *os.File, cleanup func()) *MountDataSink {

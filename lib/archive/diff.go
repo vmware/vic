@@ -184,7 +184,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		}
 	}
 
-	// strip any unnecessary leading directory elements
+	// first rebase (happens above), then strip any unnecessary leading directory elements
 	hdr.Name = strings.TrimPrefix(hdr.Name, spec.StripPath)
 
 	hdr.Xattrs = make(map[string]string)

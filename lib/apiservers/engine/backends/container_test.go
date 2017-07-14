@@ -366,6 +366,10 @@ func (m *MockContainerProxy) ArchiveImportWriter(ctx context.Context, store, dev
 	return nil, nil
 }
 
+func (m *MockContainerProxy) GetContainerChanges(vc *viccontainer.VicContainer) (io.ReadCloser, error) {
+	return nil, nil
+}
+
 func (m *MockContainerProxy) exitCode(vc *viccontainer.VicContainer) (string, error) {
 	return "", nil
 }

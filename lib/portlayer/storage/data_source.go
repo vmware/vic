@@ -30,7 +30,7 @@ type MountDataSource struct {
 	cleanOp trace.Operation
 }
 
-// NewMountDataSource creates a new data source assocaited with a specific mount, with the mount
+// NewMountDataSource creates a new data source associated with a specific mount, with the mount
 // point being the path argument.
 // The cleanup function is invoked with the Close of the ReadCloser from Export, or explicitly
 func NewMountDataSource(op trace.Operation, path *os.File, cleanup func()) *MountDataSource {
