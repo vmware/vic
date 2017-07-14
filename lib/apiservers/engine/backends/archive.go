@@ -265,7 +265,7 @@ func NewArchiveStreamReaderMap(mounts []types.MountPoint, dest string) *ArchiveS
 		// Neither the volume nor the storage portlayer knows about /mnt/A.  The persona must tell
 		// the portlayer to rebase all files from this volume to the /mnt/A/ in the final tar stream.
 		if ar.mountPoint.Destination != "/" {
-			ar.filterSpec = vicarchive.GenerateFilterSpec(containerDestPath, ar.mountPoint.Destination, !strings.Contains(ar.mountPoint.Destination, containerDestPath), vicarchive.CopyTo)
+			ar.filterSpec = vicarchive.GenerateFilterSpec(containerDestPath, ar.mountPoint.Destination, !strings.Contains(ar.mountPoint.Destination, containerDestPath), vicarchive.CopyFrom)
 		}
 
 		readerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &ar)
