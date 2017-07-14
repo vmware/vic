@@ -41,29 +41,27 @@ func (c changesByPath) Len() int           { return len(c) }
 func (c changesByPath) Swap(i, j int)      { c[j], c[i] = c[i], c[j] }
 
 // Diff produces a tar archive containing the differences between two filesystems
-func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool, closer func()) (io.ReadCloser, error) {
+func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool) (io.ReadCloser, error) {
 
 	var err error
 	if spec == nil {
 		spec, err = CreateFilterSpec(op, nil)
 		if err != nil {
-			closer()
 			return nil, err
 		}
 	}
 
 	changes, err := docker.ChangesDirs(newDir, oldDir)
 	if err != nil {
-		closer()
 		return nil, err
 	}
 
 	sort.Sort(changesByPath(changes))
 
-	return Tar(op, newDir, changes, spec, data, closer)
+	return Tar(op, newDir, changes, spec, data, oldDir != "")
 }
 
-func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, closer func()) (io.ReadCloser, error) {
+func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
 	var (
 		err error
 		hdr *tar.Header
@@ -86,7 +84,6 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				_ = w.CloseWithError(err)
 			}
 
-			// closer()
 			return
 		}()
 
@@ -101,7 +98,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				continue
 			}
 
-			hdr, err = createHeader(op, dir, change, spec)
+			hdr, err = createHeader(op, dir, change, spec, xattr)
 			if err != nil {
 				op.Errorf("Error creating header from change: %s", err.Error())
 				return
@@ -116,7 +113,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			_ = tw.WriteHeader(hdr)
 
 			p := filepath.Join(dir, change.Path)
-			if hdr.Typeflag == tar.TypeReg && hdr.Size != 0 {
+			if (hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA) && hdr.Size != 0 {
 				f, err = os.Open(p)
 				if err != nil {
 					if os.IsPermission(err) {
@@ -149,7 +146,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 	return r, err
 }
 
-func createHeader(op trace.Operation, dir string, change docker.Change, spec *FilterSpec) (*tar.Header, error) {
+func createHeader(op trace.Operation, dir string, change docker.Change, spec *FilterSpec, xattr bool) (*tar.Header, error) {
 	var hdr *tar.Header
 	timestamp := time.Now()
 
@@ -187,8 +184,10 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 	// first rebase (happens above), then strip any unnecessary leading directory elements
 	hdr.Name = strings.TrimPrefix(hdr.Name, spec.StripPath)
 
-	hdr.Xattrs = make(map[string]string)
-	hdr.Xattrs[ChangeTypeKey] = change.Kind.String()
+	if xattr {
+		hdr.Xattrs = make(map[string]string)
+		hdr.Xattrs[ChangeTypeKey] = change.Kind.String()
+	}
 
 	return hdr, nil
 }

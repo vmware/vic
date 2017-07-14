@@ -463,6 +463,8 @@ func TestSimpleExclusion(t *testing.T) {
 }
 
 func TestInclusionAfterExclusion(t *testing.T) {
+	t.Skip()
+
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
@@ -631,6 +633,8 @@ func TestMultiExclusion(t *testing.T) {
 }
 
 func TestMultiExclusionMultiInclusion(t *testing.T) {
+	t.Skip()
+
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
@@ -715,6 +719,8 @@ func TestMultiExclusionMultiInclusion(t *testing.T) {
 }
 
 func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
+	t.Skip()
+
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()
@@ -809,6 +815,8 @@ func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
 }
 
 func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
+	t.Skip()
+
 	op := trace.NewOperation(context.TODO(), "")
 
 	filesToWrite := prepareTarFileSlice()

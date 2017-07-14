@@ -70,7 +70,7 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 
 	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
 	op.Infof("Exporting data from %s", name)
-	rc, err := archive.Diff(op, name, "", spec, data, m.Clean)
+	rc, err := archive.Diff(op, name, "", spec, data)
 	if err != nil {
 		return nil, err
 	}
