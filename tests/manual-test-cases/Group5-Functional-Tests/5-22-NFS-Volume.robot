@@ -15,88 +15,121 @@
 *** Settings ***
 Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
-Suite Setup  Setup NFS Server
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Setup  Setup ESX And NFS Suite
+#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 
 *** Variables ***
+${nfsVolumeStore}=  nfsVolumeStore
+${nfsFakeVolumeStore}=  nfsFakeVolumeStore
+${unnamedNFSVolContainer}  unnamedNFSvolContainer
+${namedNFSVolContainer}  namednfsVolContainer
 ${createFileContainer}=  createFileContainer
-${addToFileContainer}=  addToFileContainer
+#${addToFileContainer}=  addToFileContainer
+${nfs_bogon_ip}=  198.51.100.1
 
 
 *** Keywords ***
-Setup NFS Server
+Setup ESX And NFS Suite
     Log To Console  \nStarting test...
-    ${esx3}  ${esx4}  ${esx5}  ${vc}  ${esx3-ip}  ${esx4-ip}  ${esx5-ip}  ${vc-ip}=  Create a Simple VC Cluster  datacenter1  cls1
 
-    ${nfs_default_name}  ${nfs_default_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx1}  ${esx1_ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
-    Set Global Variable  @{list}  ${esx3}  ${esx4}  ${esx5}  ${vc}  ${nfs_default_name}
+    ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
-    Set Suite Variable  ${NFS_DEFAULT_IP}  ${nfs_default_ip}
-    Set Suite Variable  ${NFS_DEFAULT_NAME}  ${nfs_default_name}
+    Set Global Variable  @{list}  ${esx1}  ${nfs}
+    Set Global Variable  ${ESX1}  ${esx1}
+    Set Global Variable  ${ESX1_IP}  ${esx1_ip}
+    Set Global Variable  ${NFS_IP}  ${nfs_ip}
 
-    #Need to set nfs volume at vic creation time
-    Install VIC Appliance To Test Server  additional-args=--volume-store="nfs://${NFS_DEFAULT_IP}/store?uid=0&gid=0:nfsVolumeStoreDefault"
+Setup ENV Variables for VIC Appliance Install
+    Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
+
+    Set Environment Variable  TEST_URL_ARRAY  ${ESX1_IP}
+    Set Environment Variable  TEST_URL  ${ESX1_IP}
+    Set Environment Variable  TEST_USERNAME  root
+    Set Environment Variable  TEST_PASSWORD  ${NIMBUS_ESX_PASSWORD}
+    Set Environment Variable  TEST_DATASTORE  datastore1
+    Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  HOST_TYPE  ESXi
+    Remove Environment Variable  TEST_DATACENTER
+    Remove Environment Variable  TEST_RESOURCE
+    Remove Environment Variable  BRIDGE_NETWORK
+    Remove Environment Variable  PUBLIC_NETWORK
 
 Verify NFS Volume Basic Setup
-    [Arguments]  ${prevOutput}  ${ContainerName}  ${nfsIP}  ${rwORro}
+    [Arguments]  ${volumeName}  ${containerName}  ${nfsIP}  ${rwORro}
 
-    ${rc}  ${outputTemp}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${ContainerName} -d -v ${prevOutput}:/mydata ${busybox} mount
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
+    #Log to Console  ${outputTemp}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${ContainerName}
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  ${nfsIP}://store/volumes/${prevOutput}
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerName}
+    #Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${nfsIP}://store/volumes/${volumeName}
     Should Contain  ${output}  /mydata type nfs (${rwORro}
 
-    ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${ContainerName}
+    ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} wait ${containerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${outputTemp}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm ${containerName}
     Should Be Equal As Integers  ${rc}  0
 
 Verify NFS Volume Already Created
     [Arguments]  ${containerVolName}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=${containerVolName} --opt VolumeStore=nfsVolumeStoreDefault
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=${containerVolName} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: A volume named ${containerVolName} already exists. Choose a different volume name.
 
 
 *** Test Cases ***
-Simple docker volume create
-    Pull image  ${busybox}
+VIC Appliance Install With Fake NFS Server
+    Setup ENV Variables for VIC Appliance Install
 
-    ${rc}  ${outputDefault}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=nfsVolumeStoreDefault
+    # Will only produce a warning in VCH creation output
+    ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${nfs_bogon_ip}/store?uid=0&gid=0:${nfsFakeVolumeStore}"
+    Should Contain  ${output}  VolumeStore (${nfsFakeVolumeStore}) specified was not able to be established in the portlayer. Please check network and nfs server configurations.
+
+VIC Appliance Install With Correct NFS Server
+    Setup ENV Variables for VIC Appliance Install
+    Log To Console  \nDeploy VIC Appliance To ESX
+
+    # Should succeed
+    ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_IP}/store?uid=0&gid=0:${nfsVolumeStore}"
+    Should Contain  ${output}  Installer completed successfully
+
+Simple docker volume create
+    #Pull image  ${busybox}
+
+    ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
 
-    Set Suite Variable  ${UnnamedNFSVolContainer}  unnamednfsVolContainer
-    Set Suite Variable  ${nfsDefaultVolume}  ${outputDefault}
+    Set Suite Variable  ${nfsUnNamedVolume}  ${volumeOutput}
 
-    Verify NFS Volume Basic Setup  ${nfsDefaultVolume}  ${UnnamedNFSVolContainer}  ${NFS_DEFAULT_IP}  rw
+    Verify NFS Volume Basic Setup  ${nfsUnNamedVolume}  ${unnamedNFSVolContainer}  ${NFS_IP}  rw
 
 Docker volume create named volume
-    ${rc}  ${outputDefault}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs_default_%{VCH-NAME} --opt VolumeStore=nfsVolumeStoreDefault
+    ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-volume_%{VCH-NAME} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${outputDefault}  nfs_default_%{VCH-NAME}
+    Should Be Equal As Strings  ${volumeOutput}  nfs-volume_%{VCH-NAME}
 
-    Set Suite Variable  ${namedNFSVolContainer}  namednfsVolContainer
-    Set Suite Variable  ${nfsNamedVolume}  ${outputDefault}
+    Set Suite Variable  ${nfsNamedVolume}  ${volumeOutput}
 
-    Verify NFS Volume Basic Setup  ${nfsNamedVolume}  ${namedNFSVolContainer}  ${NFS_DEFAULT_IP}  rw
+    Verify NFS Volume Basic Setup  nfs-volume_%{VCH-NAME}  ${namedNFSVolContainer}  ${NFS_IP}  rw
 
 Docker volume create already named volume
-    Verify NFS Volume Already Created  ${nfsDefaultVolume}
+    Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsUnNamedVolume}
 
-    Verify NFS Volume Already Created  ${nfsNamedVolume}
+    Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsNamedVolume}
 
 Docker volume create with possibly invalid name
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test??? --opt VolumeStore=nfsVolumeStoreDefault
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name="test!@\#$%^&*()" --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
-    Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test???" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
+    Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test!@\#$%^&*()" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 
-Docker single write to file from one container in named volume
+Docker Single Write and Read to/from File from one Container using NFS Volume
+    # Done with the same contianer for this test.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${createFileContainer} -d -v ${nfsNamedVolume}:/mydata ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
@@ -111,26 +144,17 @@ Docker single write to file from one container in named volume
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  The Texas and Chile flag look similar.
 
-Docker multiple write from multiple containers and read from one
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${addToFileContainer} -d -v ${nfsNamedVolume}:/mydata ${busybox} /bin/top -d 600
+Docker multiple writes from multiple containers and read from one
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${addToFileContainer} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Luxembourg and the Netherlands flag look exactly the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${createFileContainer} sh -c "echo 'The Luxembourg and the Netherlands flag look exactly the same.\n' >> /mydata/test_nfs_file.txt"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'Norway and Iceland have flags that are basically inverses of each other.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${addToFileContainer} sh -c "cat mydata/test_nfs_file.txt"
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  The Chad and Romania flag look the same.
-    Should Contain  ${output}  The Luxembourg and the Netherlands flag look exactly the same.
-
-Docker write from one container and read from another in named volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${addToFileContainer} sh -c "echo 'Norway and Iceland have flags that are basically inverses of each other.\n' >> /mydata/test_nfs_file.txt"
-    Should Be Equal As Integers  ${rc}  0
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -i ${createFileContainer} sh -c "cat mydata/test_nfs_file.txt"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  The Texas and Chile flag look similar.
     Should Contain  ${output}  The Chad and Romania flag look the same.
@@ -149,17 +173,17 @@ Simple Volume ls test
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  vsphere
     Should Contain  ${output}  ${nfsNamedVolume}
-    Should Contain  ${output}  ${nfsDefaultVolume}
+    Should Contain  ${output}  ${nfsUnNamedVolume}
     Should Contain  ${output}  DRIVER
     Should Contain  ${output}  VOLUME NAME
 
 Volume rm tests
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm ${nfsDefaultVolume}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm ${nfsUnNamedVolume}
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  ${nfsDefaultVolume}
+    Should Not Contain  ${output}  ${nfsUnNamedVolume}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm ${nfsNamedVolume}
     Should Be Equal As Integers  ${rc}  1
