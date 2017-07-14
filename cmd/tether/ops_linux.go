@@ -146,7 +146,6 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	for _, endpoint := range config.Networks {
 		switch endpoint.Network.Type {
 		case constants.ExternalScopeType:
-			configuredExternal = true
 			id, err := strconv.Atoi(endpoint.ID)
 			if err != nil {
 				log.Errorf("can't apply port rules: %s", err.Error())
@@ -203,39 +202,39 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 				log.Warningf("Received invalid firewall configuration %v: defaulting to published.",
 					endpoint.Network.TrustLevel)
 				setupPublishedFirewall(endpoint, ifaceName)
-
-			case constants.BridgeScopeType:
-				id, err := strconv.Atoi(endpoint.ID)
-				if err != nil {
-					log.Errorf("can't apply port rules: %s", err.Error())
-					continue
-				}
-
-				iface, err := t.LinkBySlot(int32(id))
-				if err != nil {
-					log.Errorf("can't apply rules: %s", err.Error())
-					continue
-				}
-
-				ifaceName := iface.Attrs().Name
-				log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
-
-				// Traffic over container bridge network should be peers+outbound+published.
-				setupPublishedFirewall(endpoint, ifaceName)
-				sourceAddresses := make([]string, len(endpoint.Network.Pools))
-
-				for i, v := range endpoint.Network.Pools {
-					sourceAddresses[i] = v.String()
-				}
-				(&netfilter.Rule{
-					Chain:           netfilter.Input,
-					Target:          netfilter.Accept,
-					SourceAddresses: sourceAddresses,
-					Interface:       ifaceName,
-				}).Commit(context.TODO())
 			}
+		case constants.BridgeScopeType:
+			id, err := strconv.Atoi(endpoint.ID)
+			if err != nil {
+				log.Errorf("can't apply port rules: %s", err.Error())
+				continue
+			}
+
+			iface, err := t.LinkBySlot(int32(id))
+			if err != nil {
+				log.Errorf("can't apply rules: %s", err.Error())
+				continue
+			}
+
+			ifaceName := iface.Attrs().Name
+			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
+
+			// Traffic over container bridge network should be peers+outbound+published.
+			setupPublishedFirewall(endpoint, ifaceName)
+			sourceAddresses := make([]string, len(endpoint.Network.Pools))
+
+			for i, v := range endpoint.Network.Pools {
+				sourceAddresses[i] = v.String()
+			}
+			(&netfilter.Rule{
+				Chain:           netfilter.Input,
+				Target:          netfilter.Accept,
+				SourceAddresses: sourceAddresses,
+				Interface:       ifaceName,
+			}).Commit(context.TODO())
 		}
 	}
+
 	return nil
 }
 
