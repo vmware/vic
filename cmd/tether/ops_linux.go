@@ -138,7 +138,9 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 	// the error code in time before the reaper does.  The exec package
 	// calls wait and attempts to collect its child, but the reaper will
 	// have raptured the pid before that.  So, best effort, just keep going.
-	_ = netfilter.Flush(context.Background(), "")
+	if err := netfilter.Flush(context.Background(), ""); err != nil {
+		return err
+	}
 	if err := generalPolicy(netfilter.Drop); err != nil {
 		return err
 	}
