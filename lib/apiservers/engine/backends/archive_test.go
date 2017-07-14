@@ -29,9 +29,15 @@ type MockCopyToData struct {
 	expectedPrefix    string
 }
 
+type ReaderFilters struct {
+	rebase  string
+	exclude []string
+	include string
+}
 type MockCopyFromData struct {
 	containerSourcePath string
 	expectedPrefices    []string
+	expectedFilterSpecs map[string]ReaderFilters
 }
 
 func TestFindArchiveWriter(t *testing.T) {
@@ -99,34 +105,137 @@ func TestFindArchiveReaders(t *testing.T) {
 		{
 			containerSourcePath: "/",
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
+			expectedFilterSpecs: map[string]ReaderFilters{
+				"/": {
+					rebase:  "",
+					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					include: "",
+				},
+				"/mnt/A": {
+					rebase:  "/mnt/A",
+					exclude: []string{"/mnt/A/AB"},
+					include: "",
+				},
+				"/mnt/B": {
+					rebase:  "/mnt/B",
+					exclude: []string{},
+					include: "",
+				},
+				"/mnt/A/AB": {
+					rebase:  "/mnt/A/AB",
+					exclude: []string{},
+					include: "",
+				},
+			},
 		},
 		{
 			containerSourcePath: "/mnt",
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
+			expectedFilterSpecs: map[string]ReaderFilters{
+				"/": {
+					rebase:  "",
+					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					include: "",
+				},
+				"/mnt/A": {
+					rebase:  "/mnt/A",
+					exclude: []string{"/mnt/A/AB"},
+					include: "",
+				},
+				"/mnt/B": {
+					rebase:  "/mnt/B",
+					exclude: []string{},
+					include: "",
+				},
+				"/mnt/A/AB": {
+					rebase:  "/mnt/A/AB",
+					exclude: []string{},
+					include: "",
+				},
+			},
 		},
 		{
 			containerSourcePath: "/mnt/",
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
+			expectedFilterSpecs: map[string]ReaderFilters{
+				"/": {
+					rebase:  "",
+					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					include: "",
+				},
+				"/mnt/A": {
+					rebase:  "/mnt/A",
+					exclude: []string{"/mnt/A/AB"},
+					include: "",
+				},
+				"/mnt/B": {
+					rebase:  "/mnt/B",
+					exclude: []string{},
+					include: "",
+				},
+				"/mnt/A/AB": {
+					rebase:  "/mnt/A/AB",
+					exclude: []string{},
+					include: "",
+				},
+			},
 		},
-		// case 3: Do not include /mnt/B
+		// case 2: Do not include /mnt/B
 		{
 			containerSourcePath: "/mnt/A",
 			expectedPrefices:    []string{"/mnt/A", "/mnt/A/AB"},
+			expectedFilterSpecs: map[string]ReaderFilters{
+				"/mnt/A": {
+					rebase:  "/mnt/A",
+					exclude: []string{"/mnt/A/AB"},
+				},
+				"/mnt/A/AB": {
+					rebase:  "/mnt/A/AB",
+					exclude: []string{},
+					include: "",
+				},
+			},
 		},
-		// case 4: Return the container base "/"
+		// case 3: Return only the container base "/"
 		{
 			containerSourcePath: "/mnt/not-a-mount",
 			expectedPrefices:    []string{"/"},
+			expectedFilterSpecs: map[string]ReaderFilters{
+				"/": {
+					rebase:  "",
+					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					include: "mnt/not-a-mount",
+				},
+			},
 		},
 		{
 			containerSourcePath: "/etc/",
 			expectedPrefices:    []string{"/"},
+			expectedFilterSpecs: map[string]ReaderFilters{
+				"/": {
+					rebase:  "",
+					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
+					include: "etc/",
+				},
+			},
+		},
+		// case 4: Check inclusion filter
+		{
+			containerSourcePath: "/mnt/A/a/file.txt",
+			expectedPrefices:    []string{"/mnt/A"},
+			expectedFilterSpecs: map[string]ReaderFilters{
+				"/mnt/A": {
+					rebase:  "/mnt/A",
+					exclude: []string{"/mnt/A/AB"},
+					include: "a/file.txt",
+				},
+			},
 		},
 	}
 
 	readerMap := NewArchiveStreamReaderMap(mounts)
 
-	for _, data := range mockData {
+	for i, data := range mockData {
 		archiveReaders, err := readerMap.FindArchiveReaders(data.containerSourcePath)
 		assert.Nil(t, err, "Expected success from finding archive readers for container source %s", data.containerSourcePath)
 		assert.NotNil(t, archiveReaders, "Expected an array of archive readers but got nil for container source path %s", data.containerSourcePath)
@@ -136,10 +245,40 @@ func TestFindArchiveReaders(t *testing.T) {
 		pa := PrefixArray(archiveReaders)
 		nonOverlap := UnionMinusIntersection(pa, data.expectedPrefices)
 		assert.Empty(t, nonOverlap, "Found mismatch in the prefix array and expected array for source path %s.  Non-overlapped result = %#v", data.containerSourcePath, nonOverlap)
+
+		// Check filter spec
+		for _, ar := range archiveReaders {
+			currPath := ar.mountPoint.Destination
+			assert.Equal(t, data.expectedFilterSpecs[currPath].rebase, ar.filterSpec.RebasePath, "rebase filterspec not correct")
+			for _, ex := range data.expectedFilterSpecs[currPath].exclude {
+				_, ok := ar.filterSpec.Exclusions[ex]
+				assert.True(t, ok, "Did not find %s in exclusion map for reader %s in mock #%d", ex, currPath, i)
+			}
+		}
+
+		// Check inclusion filter
+		if len(archiveReaders) == 1 {
+			ar := archiveReaders[0]
+			currPath := ar.mountPoint.Destination
+
+			expectedInclusion := data.expectedFilterSpecs[currPath].include
+
+			assert.Len(t, ar.filterSpec.Inclusions, 1, "Expected only 1 inclusion filter for %s but got %d in mock #%d", data.containerSourcePath, len(ar.filterSpec.Inclusions), i)
+
+			if len(ar.filterSpec.Inclusions) == 1 {
+				_, ok := ar.filterSpec.Inclusions[expectedInclusion]
+				assert.True(t, ok, "Expected inclusion filter to contain %s in mock #%d", expectedInclusion, i)
+
+				// Sanity check to make sure include isn't in exclusion.  This should never happen.
+				for _, ex := range data.expectedFilterSpecs[currPath].exclude {
+					assert.NotEqual(t, expectedInclusion, ex, "Expected inclusion %s not to be in exclusion list %#v in mock #%d", expectedInclusion, ex, i)
+				}
+			}
+		}
 	}
 }
 
-func PrefixArray(readers []ArchiveReader) (pa []string) {
+func PrefixArray(readers []*ArchiveReader) (pa []string) {
 	for _, reader := range readers {
 		pa = append(pa, reader.mountPoint.Destination)
 	}
