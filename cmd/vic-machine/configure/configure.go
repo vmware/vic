@@ -157,9 +157,6 @@ func (c *Configure) processParams() error {
 	if err := c.registries.ProcessRegistries(); err != nil {
 		return err
 	}
-
-	c.InsecureRegistries = c.registries.InsecureRegistries
-	c.WhitelistRegistries = c.registries.WhitelistRegistries
 	c.RegistryCAs = c.registries.RegistryCAs
 
 	return nil
@@ -224,20 +221,13 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 	if n.CertificateAuthorities != nil {
 		o.CertificateAuthorities = n.CertificateAuthorities
 	}
+
 	if n.UserCertificates != nil {
 		o.UserCertificates = n.UserCertificates
 	}
 
 	if n.RegistryCertificateAuthorities != nil {
 		o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
-	}
-
-	if n.InsecureRegistries != nil {
-		o.InsecureRegistries = n.InsecureRegistries
-	}
-
-	if n.RegistryWhitelist != nil {
-		o.RegistryWhitelist = n.RegistryWhitelist
 	}
 }
 

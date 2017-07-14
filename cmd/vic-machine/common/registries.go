@@ -44,16 +44,6 @@ func (r *Registries) Flags() []cli.Flag {
 			Usage: "Specify a list of additional certificate authority files to use to verify secure registry servers",
 			Value: &r.RegistryCAsArg,
 		},
-		cli.StringSliceFlag{
-			Name:  "insecure-registry, dir",
-			Value: &r.InsecureRegistriesArg,
-			Usage: "Specify a list of permitted insecure registry server addresses",
-		},
-		cli.StringSliceFlag{
-			Name:  "whitelist-registry, wr",
-			Value: &r.WhitelistRegistriesArg,
-			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
-		},
 	}
 }
 

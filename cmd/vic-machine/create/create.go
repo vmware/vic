@@ -253,6 +253,18 @@ func (c *Create) Flags() []cli.Flag {
 	})
 
 	registries := c.registries.Flags()
+	registries = append(registries,
+		cli.StringSliceFlag{
+			Name:  "insecure-registry, dir",
+			Value: &c.registries.InsecureRegistriesArg,
+			Usage: "Specify a list of permitted insecure registry server addresses",
+		})
+	registries = append(registries,
+		cli.StringSliceFlag{
+			Name:  "whitelist-registry, wr",
+			Value: &c.registries.WhitelistRegistriesArg,
+			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
+		})
 
 	syslog := []cli.Flag{
 		cli.StringFlag{
