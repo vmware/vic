@@ -148,7 +148,7 @@ func parseContainerNetworkFirewalls(cfs []string) (map[string]executor.TrustLeve
 		if err != nil {
 			return nil, fmt.Errorf("Error parsing container network parameter %s: %s", cf, err)
 		}
-		trust, err := executor.ConvertStringToTrustLevel(value)
+		trust, err := executor.ParseTrustLevel(value)
 		if err != nil {
 			return nil, err
 		}

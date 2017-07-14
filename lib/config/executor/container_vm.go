@@ -300,7 +300,7 @@ func (t TrustLevel) String() string {
 	return "published"
 }
 
-func ConvertStringToTrustLevel(value string) (TrustLevel, error) {
+func ParseTrustLevel(value string) (TrustLevel, error) {
 	var trust TrustLevel
 	switch strings.ToLower(value) {
 	case "open":
