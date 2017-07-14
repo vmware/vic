@@ -46,7 +46,8 @@ const (
 type TrustLevel int
 
 const (
-	Published TrustLevel = iota
+	Unspecified TrustLevel = iota
+	Published
 	Open
 	Closed
 	Outbound
@@ -285,6 +286,8 @@ type Detail struct {
 
 func (t TrustLevel) String() string {
 	switch t {
+	case Unspecified:
+		return ""
 	case Open:
 		return "open"
 	case Closed:
@@ -314,7 +317,7 @@ func ParseTrustLevel(value string) (TrustLevel, error) {
 	case "peers":
 		trust = Peers
 	default:
-		return Published, fmt.Errorf("Unrecognized container trust level %s.", value)
+		return Unspecified, fmt.Errorf("Unrecognized container trust level %s.", value)
 	}
 	return trust, nil
 }

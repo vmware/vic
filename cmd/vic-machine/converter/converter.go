@@ -336,6 +336,9 @@ func convertTrustLevel(src reflect.Value, prefix string, tags reflect.StructTag,
 	if !ok {
 		panic(fmt.Sprintf(src.Type().String() + " is not TrustLevel"))
 	}
+	if trustLevel == executor.Unspecified {
+		return nil
+	}
 	v := trustLevel.String()
 
 	log.Debugf("%s=%s", prefix, v)

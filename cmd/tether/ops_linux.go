@@ -198,6 +198,10 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			case executor.Published:
 				setupPublishedFirewall(endpoint, ifaceName)
 
+			case executor.Unspecified:
+				// Unspecified network firewalls default to published.
+				setupPublishedFirewall(endpoint, ifaceName)
+
 			default:
 				log.Warningf("Received invalid firewall configuration %v: defaulting to published.",
 					endpoint.Network.TrustLevel)
