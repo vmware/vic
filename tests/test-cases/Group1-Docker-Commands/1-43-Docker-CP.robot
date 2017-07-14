@@ -19,159 +19,202 @@ Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-Simple case: copy a file and directory from host to online container root dir
+Set up test files, directories and volumes
+    Create File  ${CURDIR}/foo.txt   hello world
+    Create Directory  ${CURDIR}/bar
+    Create File  ${CURDIR}/content   fake file content for testing only
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol3
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+Copy a file and directory from host to offline container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name test1 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Create File  ${CURDIR}/foo.txt   hello world
-    Create Directory  ${CURDIR}/bar
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt test1:/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar test1:/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar offline:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline ls /
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  foo.txt
     Should Contain  ${output}  bar
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 sh -c 'rm /foo.txt && rmdir /bar'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline sh -c 'rm /foo.txt && rmdir /bar'
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-# missing src file case 1. missing src dir case 2. src host dst container
-Simple case: copy a directory from host to online container, dst path doesn't exist
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar test1:/bar
+Copy a directory from offline container to host cwd
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline sh -c 'mkdir testdir && echo "file content" > /testdir/fakefile'
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/testdir ${CURDIR}/
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Directory Should Exist  ${CURDIR}/testdir
+    File Should Exist  ${CURDIR}/testdir/fakefile
+    Remove Directory  ${CURDIR}/testdir recursive=True
+    Remove Directory  ${CURDIR}/testdir
+
+Copy a directory from host to offline container, dst path doesn't exist
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar offline:/bar
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline ls /
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}   bar
-
-Simple case: copy a directory from online container to host, dst path doesn't exit
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 sh -c 'mkdir newdir && echo "testing" > /newdir/test.txt'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp test1:/newdir ${CURDIR}/newdir
+
+Copy a directory from online container to host, dst path doesn't exit
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name online ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start online
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online sh -c 'mkdir newdir && echo "testing" > /newdir/test.txt'
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir ${CURDIR}/newdir
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Directory Should Exist  ${CURDIR}/newdir
     File Should Exist  ${CURDIR}/newdir/test.txt
+    Remove Directory  ${CURDIR}/newdir recursive=True
+    Remove Directory  ${CURDIR}/newdir
 
-Simple case: copy the content of a directory from online container to host
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp test1:/newdir/. ${CURDIR}/bar
+Copy the content of a directory from online container to host
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/. ${CURDIR}/bar
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     File Should Exist  ${CURDIR}/bar/test.txt
+    Remove File  ${CURDIR}/bar/test.txt
 
-Simple case: copy a file from online container to host, overwrite dst file
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp test1:/newdir/test.txt ${CURDIR}/foo.txt
+Copy a file from online container to host, overwrite dst file
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/test.txt ${CURDIR}/foo.txt
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${content}=  Get File  ${CURDIR}/foo.txt
     Should Contain  ${content}   testing
 
-Simple case: copy a file from online container to host, dst directory doesn't exist
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt test1:/doesnotexist/
+Copy a file from host to online container, dst directory doesn't exist
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt online:/doesnotexist/
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  no such directory
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 sh -c 'rm -rf /newdir && rmdir /bar'
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
 
-Simple case: copy a file from host to offline container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop -t 0 test1
+Copy a file and directory from host to online container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt online:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt test1:/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /
-    Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  foo.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f test1
+    Should Contain  ${output}  bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-
-Copy a file from host to offline container, dst is a volume
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol1
-     Should Be Equal As Integers  ${rc}  0
-     Should Not Contain  ${output}  Error
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name test1 -v vol1:/vol1 ${busybox}
-     Should Be Equal As Integers  ${rc}  0
-     Should Not Contain  ${output}  Error
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt test1:/vol1
-     Should Be Equal As Integers  ${rc}  0
-     Should Not Contain  ${output}  Error
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test1
-     Should Be Equal As Integers  ${rc}  0
-     Should Not Contain  ${output}  Error
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /vol1
-     Should Be Equal As Integers  ${rc}  0
-     Should Not Contain  ${output}  Error
-     Should Contain  ${output}  foo.txt
 
 Copy a directory from host to online container, dst is a volume
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar test1:/vol1/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name online -v vol1:/vol1 ${busybox}
      Should Be Equal As Integers  ${rc}  0
      Should Not Contain  ${output}  Error
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /vol1
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start online
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online:/vol1/
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /vol1
      Should Be Equal As Integers  ${rc}  0
      Should Not Contain  ${output}  Error
      Should Contain  ${output}  bar
-     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f test1
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+
+Copy a file from host to offline container, dst is a volume
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/vol1
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start offline
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline ls /vol1
+     Should Be Equal As Integers  ${rc}  0
+     Should Not Contain  ${output}  Error
+     Should Contain  ${output}  foo.txt
+     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
      Should Be Equal As Integers  ${rc}  0
      Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 2 levels
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name test1 -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/vol1/vol2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt test1:/vol1/vol2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /vol1/vol2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline ls /vol1/vol2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  foo.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f test1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 3 levels
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol3
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name test1 -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/vol1/vol2/vol3
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt test1:/vol1/vol2/vol3
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start test1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec test1 ls /vol1/vol2/vol3
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline ls /vol1/vol2/vol3
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  foo.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 # depends on disk in use error and online working
 Copy a file from host to offline container, dst is a volume shared with an online container
@@ -184,7 +227,6 @@ Copy a file from host to offline container, dst is a volume shared with an onlin
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start online
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Create File  ${CURDIR}/content   fake file content for testing only
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/content offline:/vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -202,6 +244,8 @@ Copy a directory from offline container to host, dst is a volume shared with an 
     Directory Should Exist  ${CURDIR}/vol1/vol2
     File Should Exist  ${CURDIR}/vol1/foo.txt
     File Should Exist  ${CURDIR}/vol1/content
+    Remove Directory  ${CURDIR}/vol1 recursive=True
+    Remove Directory  ${CURDIR}/vol1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -221,9 +265,19 @@ Copy a large file to an online container, dst is a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    Remove File  ${CURDIR}/largefile.txt
 
 Clean up current directory
     Remove File  ${CURDIR}/foo.txt
+    Remove File  ${CURDIR}/content
     Remove Directory  ${CURDIR}/bar recursive=True
-    Remove Directory  ${CURDIR}/newdir recursive=True
-    Remove Directory  ${CURDIR}/vol1 recursive=True
+    Remove Directory  ${CURDIR}/bar
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol3
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
