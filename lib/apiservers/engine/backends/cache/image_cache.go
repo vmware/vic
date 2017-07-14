@@ -217,14 +217,8 @@ func (ic *ICache) Add(imageConfig *metadata.ImageConfig) error {
 	ic.m.Lock()
 	defer ic.m.Unlock()
 
-	// Normalize the name stored in imageConfig using Docker's reference code
-	ref, err := reference.WithName(imageConfig.Name)
-	if err != nil {
-		return fmt.Errorf("error trying to create reference from %s: %s", imageConfig.Name, err)
-	}
-
 	imageID := prefixImageID(imageConfig.ImageID)
-	err = ic.iDIndex.Add(imageConfig.ImageID)
+	err := ic.iDIndex.Add(imageConfig.ImageID)
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("error adding image %s to index: %s", imageID, err)
 	}
@@ -233,6 +227,17 @@ func (ic *ICache) Add(imageConfig *metadata.ImageConfig) error {
 
 	ic.cacheByID[imageID] = imageConfig
 	ic.dirty = true
+
+	if imageConfig.Name == "" {
+		log.Debugf("Image %s has no name", imageID)
+		return nil
+	}
+	// construct reference after image is added into cacheByID, to make sure image without name can be added
+	// Normalize the name stored in imageConfig using Docker's reference code
+	ref, err := reference.WithName(imageConfig.Name)
+	if err != nil {
+		return fmt.Errorf("error trying to create reference from %s: %s", imageConfig.Name, err)
+	}
 
 	for _, tag := range imageConfig.Tags {
 		ref, err = reference.WithTag(ref, tag)

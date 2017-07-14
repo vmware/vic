@@ -1896,7 +1896,10 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	log.Debugf("Container %q", name)
 
 	if info.ContainerConfig.LayerID != "" {
-		vc.ImageID = info.ContainerConfig.LayerID
+		vc.LayerID = info.ContainerConfig.LayerID
+	}
+	if info.ContainerConfig.ImageID != "" {
+		vc.ImageID = info.ContainerConfig.ImageID
 	}
 
 	if info.ContainerConfig.ContainerID != "" {

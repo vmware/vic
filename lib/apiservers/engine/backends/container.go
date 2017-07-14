@@ -49,6 +49,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/portallocator"
+	"github.com/fsouza/go-dockerclient"
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -1326,7 +1327,6 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 		}
 		changes = append(changes, change)
 	}
-
 	return changes, nil
 }
 

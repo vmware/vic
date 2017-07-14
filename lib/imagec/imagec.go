@@ -206,10 +206,12 @@ func DestinationDirectory(options Options) string {
 
 	*/
 	var d string
-	if u == nil {
+	if u.Scheme == "" && u.Host == "" && u.Path == "" {
 		d = path.Join(
 			options.Destination,
 			"localhost",
+			options.Image,
+			options.Tag,
 		)
 	} else {
 		d = path.Join(
@@ -217,13 +219,9 @@ func DestinationDirectory(options Options) string {
 			u.Scheme,
 			u.Host,
 			u.Path,
+			options.Image,
+			options.Tag,
 		)
-	}
-	if options.Image != "" {
-		d = path.Join(d, options.Image)
-	}
-	if options.Tag != "" {
-		d = path.Join(d, options.Tag)
 	}
 	return d
 }

@@ -17,7 +17,6 @@ package backends
 import (
 	"archive/tar"
 	"compress/gzip"
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -46,7 +45,6 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -88,9 +86,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 		}
 	}
 
-	filter := vicarchive.FilterSpec{}
-	// rc, err := containerEngine.containerProxy.GetContainerChanges(vc)
-	rc, err := containerEngine.containerProxy.ArchiveExportReader(context.Background(), containerStoreName, "host", vc.ContainerID, vc.LayerID, true, filter)
+	rc, err := containerEngine.containerProxy.GetContainerChanges(vc, true)
 	if err != nil {
 		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)
 	}
@@ -100,23 +96,26 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 		return "", err
 	}
 
-	lm, err := downloadDiff(rc, container.ID, ic.Options)
-
-	if err = setLayerConfig(lm, container, config, newConfig); err != nil {
+	layer, err := downloadDiff(rc, container.ID, ic.Options)
+	if err != nil {
+		return "", fmt.Errorf("Unable to export stream reader for container %s: %s", name, err)
+	}
+	if err = setLayerConfig(layer, container, config, newConfig); err != nil {
 		return "", err
 	}
 	// Dump metadata next to diff file
-	destination := path.Join(imagec.DestinationDirectory(ic.Options), lm.ID)
-	err = ioutil.WriteFile(path.Join(destination, lm.ID+".json"), []byte(lm.Meta), 0644)
+	destination := path.Join(imagec.DestinationDirectory(ic.Options), layer.ID)
+	err = ioutil.WriteFile(path.Join(destination, layer.ID+".json"), []byte(layer.Meta), 0644)
 	if err != nil {
 		return "", err
 	}
-	imagec.LayerCache().Add(lm)
+	imagec.LayerCache().Add(layer)
 
 	var layers []*imagec.ImageWithMeta
 
-	layers = append(layers, lm)
-	for pl := lm.Parent; pl != imagec.ScratchLayerID; {
+	layers = append(layers, layer)
+	lm := layer
+	for pl := lm.Parent; pl != imagec.ScratchLayerID; pl = lm.Parent {
 		// populate manifest layer with existing cached data
 		if lm, err = imagec.LayerCache().Get(pl); err != nil {
 			return "", InternalServerError(fmt.Sprintf("Failed to get parent image layer %s: %s", pl, err))
@@ -125,31 +124,33 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 	}
 
 	ic.ImageLayers = layers
-
 	imageConfig, err := ic.CreateImageConfig(layers)
 	if err != nil {
 		return "", err
 	}
+	imageConfig.Name = config.Repo
 	// place calculated ImageID in struct
 	ic.ImageID = imageConfig.ImageID
 
 	// cache and persist the image
-	cache.ImageCache().Add(&imageConfig)
-	if err := cache.ImageCache().Save(); err != nil {
+	if err = cache.ImageCache().Add(&imageConfig); err != nil {
+		return "", fmt.Errorf("error adding image %s to image cache: %s", ic.ImageID, err)
+	}
+	if err = cache.ImageCache().Save(); err != nil {
 		return "", fmt.Errorf("error saving image cache: %s", err)
 	}
-
 	// if repo:tag is specified, update image to repo cache, otherwise, this image will be updated to repo cache while it's tagged
 	if ic.Reference != nil {
 		imagec.UpdateRepositoryCache(ic)
 	}
 
+	ic.Storename = layer.Image.Store
 	// Write blob to the storage layer
-	if err = ic.WriteImageBlob(lm, progress.DiscardOutput(), true); err != nil {
+	if err = ic.WriteImageBlob(layer, progress.DiscardOutput(), true); err != nil {
 		return "", err
 	}
 
-	imagec.LayerCache().Commit(lm)
+	imagec.LayerCache().Commit(layer)
 
 	refName := ""
 	if ic.Reference != nil {
@@ -174,13 +175,20 @@ func getImagec(config *backend.ContainerCommitConfig) (*imagec.ImageC, error) {
 		}
 	}
 	options := imagec.Options{
-		Reference: imageRef,
+		Destination: os.TempDir(),
+		Reference:   imageRef,
+	}
+	portLayerServer := PortLayerServer()
+
+	if portLayerServer != "" {
+		options.Host = portLayerServer
 	}
 
 	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
 	if imageRef != nil {
 		ic.ParseReference()
 	}
+
 	return ic, nil
 }
 
@@ -219,7 +227,7 @@ func setLayerConfig(lm *imagec.ImageWithMeta, container *types.ContainerJSON, co
 	}
 	// layer metadata
 	lm.Meta = string(m)
-	lm.Image.Parent = vc.ImageID
+	lm.Image.Parent = vc.LayerID
 	lm.Image.Store = host
 	return nil
 }

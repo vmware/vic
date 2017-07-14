@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 
 	"github.com/vmware/vic/lib/imagec"
@@ -71,15 +70,6 @@ func getMockReader() (io.ReadCloser, error) {
 func TestDownload(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Errorf("Failed to get mocked reader: %s", err)
-		return
-	}
-
-	os.Chdir("/tmp")
-	defer os.Chdir(wd)
-
 	rc, err := getMockReader()
 	if err != nil {
 		t.Errorf("Failed to get mocked reader: %s", err)
@@ -117,38 +107,4 @@ func TestDownload(t *testing.T) {
 		}
 		os.RemoveAll(destDir)
 	}
-}
-
-func TestSetLayerConfig(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Errorf("Failed to get mocked reader: %s", err)
-		return
-	}
-
-	os.Chdir("/tmp")
-	defer os.Chdir(wd)
-
-	rc, err := getMockReader()
-	if err != nil {
-		t.Errorf("Failed to get mocked reader: %s", err)
-	}
-	config := &backend.ContainerCommitConfig{}
-	ic, err := getImagec(config)
-	if err != nil {
-		t.Errorf("Failed to get imagec: %s", err)
-		return
-	}
-
-	layer, err := downloadDiff(rc, "abcd", ic.Options)
-	if err != nil {
-		t.Errorf("Failed to download layer: %s", err)
-		return
-	}
-	t.Logf("layer id: %#v", layer)
-
-	container := &types.ContainerJSON{}
-	setLayerConfig(layer)
 }
