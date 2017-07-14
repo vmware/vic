@@ -118,7 +118,7 @@ Inspect VCH Configuration with Container Networks
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --format raw
 
     Should Contain  ${output}  --container-network=published-net:published-net
-    Should Contain  ${output}  --container-network-firewall=published-net:published
+    Should Not Contain  ${output}  --container-network-firewall=published-net:published
     Should Contain  ${output}  --container-network=peers-net:peers-net
     Should Contain  ${output}  --container-network-gateway=peers-net:10.10.10.1/24
     Should Contain  ${output}  --container-network-ip-range=peers-net:10.10.10.0/24

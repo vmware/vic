@@ -450,7 +450,7 @@ Container Firewalls
     Log To Console  Checking Closed Firewall
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d --net=closed-net --name shouldfail -p 123 ${busybox} nc -l -p 1234
-    Should Contain  ${output}  Ports can only be published
+    Should Contain  ${output}  Ports cannot be published via
     Should Not Be Equal As Integers  ${rc}  0
 
     # Create a closed container listening on port 1234.
