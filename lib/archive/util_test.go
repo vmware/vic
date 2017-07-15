@@ -55,27 +55,79 @@ func TestComplexWriteSpec(t *testing.T) {
 	}
 
 	expectedFilterSpecs := map[string]FilterSpec{
-		"/": FilterSpec{
+		"/": {
 			RebasePath: "mnt/vols",
 			StripPath:  "",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},
-		"/mnt/vols/A": FilterSpec{
+		"/mnt/vols/A": {
 			RebasePath: "",
 			StripPath:  "A",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},
-		"/mnt/vols/B": FilterSpec{
+		"/mnt/vols/B": {
 			RebasePath: "",
 			StripPath:  "B",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},
-		"/mnt/vols/A/subvols/AB": FilterSpec{
+		"/mnt/vols/A/subvols/AB": {
 			RebasePath: "",
 			StripPath:  "A/subvols/AB",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
+
+}
+
+func TestWriteIntoMountSpec(t *testing.T) {
+	copyTarget := "/mnt/vols/A/a/path"
+	direction := CopyTo
+
+	mounts := []testMount{
+		// "/" will exist but since it is past the write path we do not care about the filterspec. It will be filled out as a non primary target in any case. and is a non primary target that comes before the primary target.
+		{
+			mount:              "/",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/A",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		// not since this is past the copy target the filterspec will be completely bogus. The generateFilterSpec function assumes you have given it a target that lives along the CopyTarget. In our case here we have "/" as the mount point and the target as "/mnt/vols/A/a/path"
+		"/": {
+			RebasePath: "",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/A": {
+			RebasePath: "a/path",
+			StripPath:  "",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},
@@ -132,27 +184,79 @@ func TestComplexReadSpec(t *testing.T) {
 	}
 
 	expectedFilterSpecs := map[string]FilterSpec{
-		"/": FilterSpec{
+		"/": {
 			RebasePath: "vols",
 			StripPath:  "mnt/vols",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},
-		"/mnt/vols/A": FilterSpec{
+		"/mnt/vols/A": {
 			RebasePath: "vols/A",
 			StripPath:  "",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},
-		"/mnt/vols/B": FilterSpec{
+		"/mnt/vols/B": {
 			RebasePath: "vols/B",
 			StripPath:  "",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},
-		"/mnt/vols/A/subvols/AB": FilterSpec{
+		"/mnt/vols/A/subvols/AB": {
 			RebasePath: "vols/A/subvols/AB",
 			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
+
+}
+
+func TestReadIntoMountSpec(t *testing.T) {
+	copyTarget := "/mnt/vols/A/a/path"
+	direction := CopyFrom
+
+	mounts := []testMount{
+		// "/" will exist but since it is past the write path we do not care about the filterspec. It will be filled out as a non primary target in any case.
+		{
+			mount:              "/",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/A",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		// not since this is past the copy target the filterspec will be completely bogus. The generateFilterSpec function assumes you have given it a target that lives along the CopyTarget. In our case here we have "/" as the mount point and the target as "/mnt/vols/A/a/path"
+		"/": {
+			RebasePath: "path",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/A": {
+			RebasePath: "path",
+			StripPath:  "a/path",
 			Exclusions: make(map[string]struct{}),
 			Inclusions: make(map[string]struct{}),
 		},

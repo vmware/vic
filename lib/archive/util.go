@@ -27,7 +27,7 @@ const (
 	CopyFrom = false
 )
 
-// GenerateFilterSpec will populate the appropriate relative Rebase and Strip paths based on the supplied scenarios. Inclusion/Exclusion should be constructed separately.
+// GenerateFilterSpec will populate the appropriate relative Rebase and Strip paths based on the supplied scenarios. Inclusion/Exclusion should be constructed separately. Please also note that any mount that exists before the copy target that is not primary and comes before the primary target will have a bogus filterspec, since it would not be written or read to.
 func GenerateFilterSpec(copyPath string, mountPoint string, primaryTarget bool, direction bool) FilterSpec {
 	var filter FilterSpec
 
@@ -52,8 +52,8 @@ func generateCopyFromFilterSpec(copyPath string, mountPoint string, primaryTarge
 	// primary target was provided so we wil need to split the target and take the right most element for the rebase.
 	// then strip set the strip as the target path.
 	if primaryTarget {
-		filter.RebasePath = first
-		filter.StripPath = removeLeadingSlash(copyPath)
+		filter.RebasePath = removeLeadingSlash(first)
+		filter.StripPath = removeLeadingSlash(strings.Trim(copyPath, mountPoint))
 		return filter
 	}
 
@@ -68,7 +68,7 @@ func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget 
 
 	// primary target was provided so we will need to rebase header assets for this mount to have the target in front for the write.
 	if primaryTarget {
-		filter.RebasePath = removeLeadingSlash(copyPath)
+		filter.RebasePath = removeLeadingSlash(strings.Trim(copyPath, mountPoint))
 		filter.StripPath = ""
 		return filter
 	}
@@ -80,11 +80,8 @@ func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget 
 	return filter
 }
 
-// removeLeadingSlash will remove the '/' form in front of a target path if it is not "/"
-// we use this to ensure relative pathing, except for when we assign '/'
+// removeLeadingSlash will remove the '/' from in front of a target path
+// we use this to ensure relative pathing
 func removeLeadingSlash(path string) string {
-	if strings.HasPrefix(path, "/") && path != "/" {
-		return strings.TrimPrefix(path, "/")
-	}
-	return path
+	return strings.TrimPrefix(path, "/")
 }
