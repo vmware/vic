@@ -163,13 +163,15 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 
 func getImagec(config *backend.ContainerCommitConfig) (*imagec.ImageC, error) {
 	var imageRef reference.Named
+	var err error
+
 	if config.Repo != "" {
-		newTag, err := reference.WithName(config.Repo)
+		imageRef, err = reference.WithName(config.Repo)
 		if err != nil {
 			return nil, err
 		}
 		if config.Tag != "" {
-			if newTag, err = reference.WithTag(newTag, config.Tag); err != nil {
+			if imageRef, err = reference.WithTag(imageRef, config.Tag); err != nil {
 				return nil, err
 			}
 		}
@@ -177,6 +179,7 @@ func getImagec(config *backend.ContainerCommitConfig) (*imagec.ImageC, error) {
 	options := imagec.Options{
 		Destination: os.TempDir(),
 		Reference:   imageRef,
+		Tag:         config.Tag,
 	}
 	portLayerServer := PortLayerServer()
 
