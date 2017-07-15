@@ -339,7 +339,7 @@ func TestRefCounting(t *testing.T) {
 		return
 	}
 
-	d, err := NewVirtualDisk(config, vdm.Disks)
+	d, err := NewVirtualDisk(op, config, vdm.Disks)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -352,7 +352,7 @@ func TestRefCounting(t *testing.T) {
 	assert.False(t, d.Attached(), "%s is attached but should not be", d.DatastoreURI)
 
 	// Attach the disk
-	assert.NoError(t, d.setAttached(blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
+	assert.NoError(t, d.setAttached(op, blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
@@ -362,7 +362,7 @@ func TestRefCounting(t *testing.T) {
 	// attempt another attach at disk level to increase reference count
 	// TODO(jzt): This should probably eventually use the attach code coming in
 	// https://github.com/vmware/vic/issues/5422
-	assert.NoError(t, d.setAttached(blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
+	assert.NoError(t, d.setAttached(op, blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
@@ -370,7 +370,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 2, d.attachedRefs.Count(), "%s has %d attach references but should have 2", d.DatastoreURI, d.attachedRefs.Count())
 
 	// reduce reference count by calling detach
-	assert.NoError(t, d.setDetached(vdm.Disks), "Error attempting to mark %s as detached", d.DatastoreURI)
+	assert.NoError(t, d.setDetached(op, vdm.Disks), "Error attempting to mark %s as detached", d.DatastoreURI)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
@@ -378,7 +378,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 1, d.attachedRefs.Count(), "%s has %d attach references but should have 1", d.DatastoreURI, d.attachedRefs.Count())
 
 	// test mount reference counting
-	assert.NoError(t, d.Mkfs("testDisk"), "Error attempting to format %s", d.DatastoreURI)
+	assert.NoError(t, d.Mkfs(op, "testDisk"), "Error attempting to format %s", d.DatastoreURI)
 
 	// create temp mount path
 	dir, err := ioutil.TempDir("", "mnt")
@@ -392,7 +392,7 @@ func TestRefCounting(t *testing.T) {
 	}()
 
 	// initial mount
-	assert.NoError(t, d.Mount(dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
+	assert.NoError(t, d.Mount(op, dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
 
 	mountPath, err := d.MountPath()
 	if !assert.NoError(t, err) {
@@ -406,7 +406,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, dir, mountPath, "%s is mounted at %s but should be mounted at %s", d.DatastoreURI, mountPath, dir)
 
 	// attempt another mount
-	assert.NoError(t, d.Mount(dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
+	assert.NoError(t, d.Mount(op, dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
 
 	assert.True(t, d.Mounted(), "%s is not mounted but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
@@ -414,7 +414,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 2, d.mountedRefs.Count(), "%s has %d mount references but should have 2", d.DatastoreURI, d.mountedRefs.Count())
 
 	// attempt unmount
-	assert.NoError(t, d.Unmount(), "Error attempting to unmount %s", d.DatastoreURI)
+	assert.NoError(t, d.Unmount(op), "Error attempting to unmount %s", d.DatastoreURI)
 
 	assert.True(t, d.Mounted(), "%s is not mounted but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
@@ -422,7 +422,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 1, d.mountedRefs.Count(), "%s has %d mount references but should have 1", d.DatastoreURI, d.mountedRefs.Count())
 
 	// actually unmount
-	assert.NoError(t, d.Unmount(), "Error attempting to unmount %s", d.DatastoreURI)
+	assert.NoError(t, d.Unmount(op), "Error attempting to unmount %s", d.DatastoreURI)
 
 	assert.False(t, d.Mounted(), "%s is mounted but should not be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)

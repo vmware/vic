@@ -27,9 +27,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 type MockDataStore struct {
@@ -152,12 +154,28 @@ func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) (*Image, e
 	return image, nil
 }
 
-func (c *MockDataStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+func (c *MockDataStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+func (c *MockDataStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
 	return nil
+}
+
+func (c *MockDataStore) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
+	return nil, nil
 }
 
 func TestListImages(t *testing.T) {
