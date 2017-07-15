@@ -278,8 +278,5 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, err
 	}
 
-	return &storage.CleanupReader{
-		ReadCloser: tar,
-		Clean:      closers,
-	}, nil
+	return tar, nil
 }

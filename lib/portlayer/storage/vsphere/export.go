@@ -157,10 +157,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return nil, err
 	}
 
-	return &storage.CleanupReader{
-		ReadCloser: tar,
-		Clean:      closers,
-	}, nil
+	return tar, nil
 }
 
 func (i *ImageStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {

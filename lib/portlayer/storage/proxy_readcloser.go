@@ -18,20 +18,6 @@ import (
 	"io"
 )
 
-type CleanupReader struct {
-	io.ReadCloser
-	Clean func()
-}
-
-func (c *CleanupReader) Read(p []byte) (int, error) {
-	return c.ReadCloser.Read(p)
-}
-
-func (c *CleanupReader) Close() error {
-	defer c.Clean()
-	return c.ReadCloser.Close()
-}
-
 // ProxyReadCloser is a read closer that provides for wrapping the Close with
 // a custom Close call. The original ReadCloser.Close function will be invoked
 // after the custom call. Errors from the custom call with be ignored.
