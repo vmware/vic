@@ -15,6 +15,7 @@
 package archive
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 )
@@ -84,4 +85,18 @@ func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget 
 // we use this to ensure relative pathing
 func removeLeadingSlash(path string) string {
 	return strings.TrimPrefix(path, "/")
+}
+
+func AddMountExclusions(currentMount string, filter *FilterSpec, mounts []string) error {
+	if filter == nil {
+		return fmt.Errorf("filterSpec for (%s) was nil, cannot add exclusions", currentMount)
+	}
+
+	for _, mount := range mounts {
+		if strings.HasPrefix(mount, currentMount) && currentMount != mount {
+			// exclusions are relative to the mount so the leading `/` should be removed unless we decide otherwise.
+			filter.Exclusions[removeLeadingSlash(strings.TrimPrefix(mount, currentMount))] = struct{}{}
+		}
+	}
+	return nil
 }
