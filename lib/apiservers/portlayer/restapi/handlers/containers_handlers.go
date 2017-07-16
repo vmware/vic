@@ -420,9 +420,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 
 	detachableOut := NewFlushingReader(reader)
 
-	return NewStreamOutputHandler("containerLogs").WithPayload(detachableOut, params.ID, func() {
-		_ = reader.Close()
-	})
+	return NewStreamOutputHandler("containerLogs").WithPayload(detachableOut, params.ID, nil)
 }
 
 func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.ContainerWaitParams) middleware.Responder {
