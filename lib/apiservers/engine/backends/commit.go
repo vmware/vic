@@ -213,6 +213,7 @@ func setLayerConfig(lm *imagec.ImageWithMeta, container *types.ContainerJSON, co
 	meta := dockerimage.V1Image{
 		ID:              lm.ID,
 		Parent:          vc.LayerID,
+		Author:          config.Author,
 		Comment:         config.Comment,
 		Created:         time.Now().UTC(),
 		Container:       container.ID,
