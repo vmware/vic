@@ -71,14 +71,12 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
 	op.Infof("Exporting data from %s", name)
 	rc, err := archive.Diff(op, name, "", spec, data)
-	if err != nil {
-		return nil, err
-	}
 
+	// return the proxy regardless of error so that Close can be called
 	return &ProxyReadCloser{
 		rc,
 		m.Close,
-	}, nil
+	}, err
 }
 
 func (m *MountDataSource) Close() error {

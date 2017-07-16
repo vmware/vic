@@ -162,7 +162,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 			ChangeTime: timestamp,
 		}
 	default:
-		fi, err := os.Stat(filepath.Join(dir, change.Path))
+		fi, err := os.Lstat(filepath.Join(dir, change.Path))
 		if err != nil {
 			op.Errorf("Error getting file info: %s", err.Error())
 			return nil, err

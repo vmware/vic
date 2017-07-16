@@ -595,6 +595,9 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 	if err != nil {
 		// hickeng: we're in need of typed errors - should check for id not found for 404 return
 		op.Errorf("export failed: %s", err)
+		if r != nil {
+			r.Close()
+		}
 		return storage.NewExportArchiveInternalServerError()
 	}
 

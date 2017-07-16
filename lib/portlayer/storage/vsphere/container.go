@@ -254,11 +254,13 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, err
 	}
 
-	closers := func() {
+	closers := func() error {
 		op.Debugf("Callback to io.Closer function for container export")
 
 		l.Close()
 		r.Close()
+
+		return nil
 	}
 
 	ls := l.Source()
@@ -278,5 +280,8 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, err
 	}
 
-	return tar, nil
+	return &storage.ProxyReadCloser{
+		ReadCloser: tar,
+		Closer:     closers,
+	}, nil
 }
