@@ -291,7 +291,7 @@ func (m *MockContainerProxy) Client() *plclient.PortLayer {
 	return nil
 }
 
-func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
+func (m *MockContainerProxy) StreamContainerLogs(_ context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
 	if name == "" {
 		return fmt.Errorf("sample error message")
 	}

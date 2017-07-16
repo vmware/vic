@@ -22,8 +22,6 @@ import (
 	"strings"
 	"sync"
 
-	"context"
-
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/distribution/digest"
@@ -56,7 +54,6 @@ const (
 
 var (
 	imageCache *ICache
-	ctx        = context.TODO()
 )
 
 // byCreated is a temporary type used to sort a list of images by creation

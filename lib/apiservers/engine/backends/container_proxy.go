@@ -46,11 +46,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/go-openapi/runtime"
-	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-	httpclient "github.com/mreiferson/go-httpclient"
 
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
@@ -97,7 +94,7 @@ type VicContainerProxy interface {
 
 	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error
-	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
+	StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
 
 	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
@@ -596,11 +593,9 @@ func (c *ContainerProxy) CommitContainerHandle(handle, containerID string, waitT
 
 // StreamContainerLogs reads the log stream from the portlayer rest server and writes
 // it directly to the io.Writer that is passed in.
-func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
+func (c *ContainerProxy) StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
 	defer trace.End(trace.Begin(""))
 
-	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
-	defer transport.Close()
 	close(started)
 
 	params := containers.NewGetContainerLogsParamsWithContext(ctx).
@@ -609,7 +604,7 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 		WithTimestamp(&showTimestamps).
 		WithSince(&since).
 		WithTaillines(&tailLines)
-	_, err := plClient.Containers.GetContainerLogs(params, out)
+	_, err := c.client.Containers.GetContainerLogs(params, out)
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerLogsNotFound:
@@ -636,9 +631,6 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
 	defer trace.End(trace.Begin(config.ContainerID))
 
-	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
-	defer transport.Close()
-
 	// create a child context that we control
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -659,7 +651,7 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 		return InternalServerError(fmt.Sprintf("unable to gather container(%s) statistics", config.ContainerID))
 	}
 
-	_, err := plClient.Containers.GetContainerStats(params, writer)
+	_, err := c.client.Containers.GetContainerStats(params, writer)
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerStatsNotFound:
@@ -711,8 +703,6 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 		return nil, fmt.Errorf("ArchiveExportReader called with either empty store or deviceID")
 	}
 
-	plClient, transport := c.createGzipTarClient(attachConnectTimeout, 0, attachAttemptTimeout)
-
 	var err error
 
 	pipeReader, pipeWriter := io.Pipe()
@@ -729,7 +719,6 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 		// stream.  The other way is for the caller of this function to close the returned CloseReader.
 		// Callers of this function should do one but not both.
 		pipeReader.Close()
-		transport.Close()
 	}()
 
 	go func() {
@@ -750,7 +739,7 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 			log.Infof(" encodedFilter = %s", encodedFilter)
 		}
 
-		_, err = plClient.Storage.ExportArchive(params, pipeWriter)
+		_, err = c.client.Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
 			log.Errorf("Error from ExportArchive: %s", err.Error())
 			switch err := err.(type) {
@@ -790,8 +779,6 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 		return nil, fmt.Errorf("ArchiveImportWriter called with either empty store or deviceID")
 	}
 
-	plClient, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
-
 	var err error
 
 	pipeReader, pipeWriter := io.Pipe()
@@ -808,7 +795,6 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 		// connection is to call close on the WriteCloser returned from this function.
 		// Callers of this function should do one but not both.
 		pipeWriter.Close()
-		transport.Close()
 	}()
 
 	go func() {
@@ -828,7 +814,7 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 			params = params.WithFilterSpec(&encodedFilter)
 		}
 
-		_, err = plClient.Storage.ImportArchive(params)
+		_, err = c.client.Storage.ImportArchive(params)
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ImportArchiveInternalServerError:
@@ -1011,7 +997,7 @@ func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Durati
 	}
 
 	// Get an API client to the portlayer
-	client := PortLayerClient()
+	client := c.client
 	if client == nil {
 		return nil, InternalServerError("Wait failed to create a portlayer client")
 	}
@@ -1053,7 +1039,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 	}
 
 	// Get an API client to the portlayer
-	client := PortLayerClient()
+	client := c.client
 	if client == nil {
 		return InternalServerError("Signal failed to create a portlayer client")
 	}
@@ -1086,46 +1072,6 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 	}
 
 	return nil
-}
-
-func (c *ContainerProxy) createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
-
-	r := rc.New(c.portlayerAddr, "/", []string{"http"})
-	transport := &httpclient.Transport{
-		ConnectTimeout:        connectTimeout,
-		ResponseHeaderTimeout: responseHeaderTimeout,
-		RequestTimeout:        responseTimeout,
-	}
-
-	r.Transport = transport
-
-	plClient := client.New(r, nil)
-	r.Consumers["application/octet-stream"] = runtime.ByteStreamConsumer()
-	r.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
-
-	return plClient, transport
-}
-
-func (c *ContainerProxy) createGzipTarClient(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
-
-	r := rc.New(c.portlayerAddr, "/", []string{"http"})
-	transport := &httpclient.Transport{
-		ConnectTimeout:        connectTimeout,
-		ResponseHeaderTimeout: responseHeaderTimeout,
-		RequestTimeout:        responseTimeout,
-	}
-
-	r.Transport = transport
-
-	plClient := client.New(r, nil)
-	bsc := runtime.ByteStreamConsumer()
-	r.Consumers["application/octet-stream"] = bsc
-	r.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
-
-	r.Consumers["application/x-tar"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
-		return bsc.Consume(rdr, data)
-	})
-	return plClient, transport
 }
 
 func (c *ContainerProxy) Resize(id string, height, width int32) error {
@@ -1161,11 +1107,6 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 	// Cancel will close the child connections.
 	var wg, outWg sync.WaitGroup
 	errors := make(chan error, 3)
-
-	// For stdin, we only have a timeout for connection.  There can be a long duration before
-	// the first entry so there is no timeout for response.
-	client, transport := c.createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
-	defer transport.Close()
 
 	var keys []byte
 	var err error
@@ -1206,7 +1147,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 	if ac.UseStdin {
 		go func() {
 			defer wg.Done()
-			err := copyStdIn(ctx, client, ac, stdin, keys)
+			err := copyStdIn(ctx, c.client, ac, stdin, keys)
 			if err != nil {
 				log.Errorf("container attach: stdin (%s): %s", ac.ID, err)
 			} else {
@@ -1229,7 +1170,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 			defer outWg.Done()
 			defer wg.Done()
 
-			err := copyStdOut(ctx, client, ac, stdout, attachAttemptTimeout)
+			err := copyStdOut(ctx, c.client, ac, stdout, attachAttemptTimeout)
 			if err != nil {
 				log.Errorf("container attach: stdout (%s): %s", ac.ID, err)
 			} else {
@@ -1248,7 +1189,7 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig, st
 			defer outWg.Done()
 			defer wg.Done()
 
-			err := copyStdErr(ctx, client, ac, stderr)
+			err := copyStdErr(ctx, c.client, ac, stderr)
 			if err != nil {
 				log.Errorf("container attach: stderr (%s): %s", ac.ID, err)
 			} else {
