@@ -418,6 +418,125 @@ func TestReadFileInMountSpec(t *testing.T) {
 
 }
 
+// ADD EXCLUSIONS TESTS
+
+func TestAddExclusionsNonNested(t *testing.T) {
+
+	testMounts := []string{
+		"/",
+		"/mnt/A",
+		"/mnt/B",
+		"/mnt/C",
+	}
+
+	expectedResults := map[string]FilterSpec{
+		"/": FilterSpec{
+			Exclusions: map[string]struct{}{
+				"mnt/A": {},
+				"mnt/B": {},
+				"mnt/C": {},
+			},
+		},
+		"/mnt/A": FilterSpec{
+			Exclusions: make(map[string]struct{}),
+		},
+		"/mnt/B": FilterSpec{
+			Exclusions: make(map[string]struct{}),
+		},
+		"/mnt/C": FilterSpec{
+			Exclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, mount := range testMounts {
+		spec := FilterSpec{
+			Exclusions: make(map[string]struct{}),
+		}
+
+		AddMountExclusions(mount, &spec, testMounts)
+
+		expectedSpec := expectedResults[mount]
+		expectedLength := len(expectedSpec.Exclusions)
+		actualLength := len(spec.Exclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", expectedLength, actualLength, mount) {
+			return
+		}
+
+		for path := range expectedSpec.Exclusions {
+			_, ok := spec.Exclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s", path, mount) {
+				return
+			}
+
+		}
+
+	}
+
+}
+
+func TestAddExclusionsNestedMounts(t *testing.T) {
+
+	testMounts := []string{
+		"/",
+		"/mnt/A",
+		"/mnt/B",
+		"/mnt/C",
+		"/mnt/A/dir/AB",
+		"/mnt/A/dir/AC",
+	}
+
+	expectedResults := map[string]FilterSpec{
+		"/": FilterSpec{
+			Exclusions: map[string]struct{}{
+				"mnt/A":        {},
+				"mnt/B":        {},
+				"mnt/C":        {},
+				"mnt/A/dir/AB": {},
+				"mnt/A/dir/AC": {},
+			},
+		},
+		"/mnt/A": FilterSpec{
+			Exclusions: map[string]struct{}{
+				"dir/AB": {},
+				"dir/AC": {},
+			},
+		},
+		"/mnt/B": FilterSpec{
+			Exclusions: make(map[string]struct{}),
+		},
+		"/mnt/C": FilterSpec{
+			Exclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, mount := range testMounts {
+		spec := FilterSpec{
+			Exclusions: make(map[string]struct{}),
+		}
+
+		AddMountExclusions(mount, &spec, testMounts)
+
+		expectedSpec := expectedResults[mount]
+		expectedLength := len(expectedSpec.Exclusions)
+		actualLength := len(spec.Exclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", expectedLength, actualLength, mount) {
+			return
+		}
+
+		for path := range expectedSpec.Exclusions {
+			_, ok := spec.Exclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s \n exlusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
+
+	}
+
+}
+
 // test utility functions and structs
 
 type testMount struct {
