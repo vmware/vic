@@ -55,7 +55,7 @@ var (
 	}
 
 	SymLinkForMinOS = map[string]string{
-		"/etc/mtab": "../proc/self/mounts",
+		"/etc/mtab": "/proc/mounts",
 	}
 
 	// Here the permission of .tether should be drwxrwxrwt.
