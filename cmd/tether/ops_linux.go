@@ -118,16 +118,8 @@ func (t *operations) Setup(sink tether.Config) error {
 		return err
 	}
 
-	// symlink /etc/mtab to /proc/mounts
-	var err error
-	if err = tether.Sys.Syscall.Symlink("/proc/mounts", "/etc/mtab"); err != nil {
-		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
-			return err
-		}
-	}
-
 	// unmount /run - https://github.com/vmware/vic/issues/1643
-	if err = tether.Sys.Syscall.Unmount(runMountPoint, syscall.MNT_DETACH); err != nil {
+	if err := tether.Sys.Syscall.Unmount(runMountPoint, syscall.MNT_DETACH); err != nil {
 		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EINVAL {
 			return err
 		}

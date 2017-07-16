@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"syscall"
 
 	docker "github.com/docker/docker/pkg/archive"
 
@@ -51,8 +52,12 @@ var (
 		"/etc/hostname":    0644,
 		"/etc/hosts":       0644,
 		"/etc/resolv.conf": 0644,
-		"/etc/mtab":        0644,
 	}
+
+	SymLinkForMinOS = map[string]string{
+		"/etc/mtab": "../proc/self/mounts",
+	}
+
 	// Here the permission of .tether should be drwxrwxrwt.
 	// The sticky bit 't' is added when mounting the tmpfs in bootstrap
 	DirForMinOS = map[string]os.FileMode{
@@ -771,6 +776,15 @@ func createBaseStructure(op trace.Operation, vmdisk *disk.VirtualDisk) (err erro
 		err = f.Close()
 		if err != nil {
 			op.Errorf("Failed to close file %s: %s", filePath, err)
+			return err
+		}
+	}
+
+	for fname, target := range SymLinkForMinOS {
+		filePath := path.Join(dir, fname)
+		err := syscall.Symlink(target, filePath)
+		if err != nil {
+			op.Errorf("Failed to create symlink %s->%s: %s", filePath, target, err)
 			return err
 		}
 	}
