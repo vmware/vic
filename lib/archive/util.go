@@ -53,7 +53,7 @@ func generateCopyFromFilterSpec(copyPath string, mountPoint string, primaryTarge
 	// then strip set the strip as the target path.
 	if primaryTarget {
 		filter.RebasePath = removeLeadingSlash(first)
-		filter.StripPath = removeLeadingSlash(strings.Trim(copyPath, mountPoint))
+		filter.StripPath = removeLeadingSlash(strings.TrimPrefix(copyPath, mountPoint))
 		return filter
 	}
 
@@ -68,7 +68,7 @@ func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget 
 
 	// primary target was provided so we will need to rebase header assets for this mount to have the target in front for the write.
 	if primaryTarget {
-		filter.RebasePath = removeLeadingSlash(strings.Trim(copyPath, mountPoint))
+		filter.RebasePath = removeLeadingSlash(strings.TrimPrefix(copyPath, mountPoint))
 		filter.StripPath = ""
 		return filter
 	}
