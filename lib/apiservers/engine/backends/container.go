@@ -1299,12 +1299,13 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 	for {
 		hdr, err := tarFile.Next()
 		if err == io.EOF {
-			log.Infof("Got EOF!! BAILING")
 			break
 		}
+
 		if err != nil {
 			return []docker.Change{}, InternalServerError(err.Error())
 		}
+
 		log.Infof("Got header %s", hdr.Name)
 		change := docker.Change{
 			Path: hdr.Name,
@@ -1321,7 +1322,7 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 		}
 		changes = append(changes, change)
 	}
-	log.Infof("\t\t\tChanges: %#v", changes)
+
 	return changes, nil
 }
 
