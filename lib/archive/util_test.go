@@ -418,10 +418,10 @@ func TestReadFileInMountSpec(t *testing.T) {
 
 }
 
-// ADD EXCLUSIONS TESTS
+// ADD INCLUSIONS/EXCLUSIONS TESTS
 
 func TestAddExclusionsNonNested(t *testing.T) {
-
+	copyTarget := "/mnt"
 	testMounts := []string{
 		"/",
 		"/mnt/A",
@@ -436,24 +436,49 @@ func TestAddExclusionsNonNested(t *testing.T) {
 				"mnt/B": {},
 				"mnt/C": {},
 			},
+			Inclusions: map[string]struct{}{
+				"/mnt": {},
+			},
 		},
 		"/mnt/A": FilterSpec{
 			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
 		},
 		"/mnt/B": FilterSpec{
 			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
 		},
 		"/mnt/C": FilterSpec{
 			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
 		},
 	}
 
 	for _, mount := range testMounts {
 		spec := FilterSpec{
 			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
 		}
 
-		AddMountExclusions(mount, &spec, testMounts)
+		err := AddMountInclusionsExclusions(mount, &spec, testMounts, copyTarget)
+
+		if !assert.Nil(t, err) {
+			return
+		}
+
+		for k := range expectedResults[mount].Inclusions {
+			_, ok := spec.Inclusions[k]
+
+			if !assert.True(t, ok, "did not find expected entry in inclusions map. ") {
+				return
+			}
+		}
 
 		expectedSpec := expectedResults[mount]
 		expectedLength := len(expectedSpec.Exclusions)
@@ -476,7 +501,7 @@ func TestAddExclusionsNonNested(t *testing.T) {
 }
 
 func TestAddExclusionsNestedMounts(t *testing.T) {
-
+	copyTarget := "/mnt"
 	testMounts := []string{
 		"/",
 		"/mnt/A",
@@ -495,27 +520,56 @@ func TestAddExclusionsNestedMounts(t *testing.T) {
 				"mnt/A/dir/AB": {},
 				"mnt/A/dir/AC": {},
 			},
+			Inclusions: map[string]struct{}{
+				"/mnt": {},
+			},
 		},
 		"/mnt/A": FilterSpec{
 			Exclusions: map[string]struct{}{
 				"dir/AB": {},
 				"dir/AC": {},
 			},
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
 		},
 		"/mnt/B": FilterSpec{
 			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
 		},
 		"/mnt/C": FilterSpec{
 			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
+		},
+		"/mnt/A/dir/AB": FilterSpec{
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
+		},
+		"/mnt/A/dir/AC": FilterSpec{
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"/": {},
+			},
 		},
 	}
 
 	for _, mount := range testMounts {
 		spec := FilterSpec{
 			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
 		}
 
-		AddMountExclusions(mount, &spec, testMounts)
+		err := AddMountInclusionsExclusions(mount, &spec, testMounts, copyTarget)
+
+		if !assert.Nil(t, err) {
+			return
+		}
 
 		expectedSpec := expectedResults[mount]
 		expectedLength := len(expectedSpec.Exclusions)

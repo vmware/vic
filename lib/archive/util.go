@@ -81,15 +81,20 @@ func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget 
 	return filter
 }
 
-// removeLeadingSlash will remove the '/' from in front of a target path
-// we use this to ensure relative pathing
-func removeLeadingSlash(path string) string {
-	return strings.TrimPrefix(path, "/")
-}
-
-func AddMountExclusions(currentMount string, filter *FilterSpec, mounts []string) error {
+func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mounts []string, copyTarget string) error {
 	if filter == nil {
-		return fmt.Errorf("filterSpec for (%s) was nil, cannot add exclusions", currentMount)
+		return fmt.Errorf("filterSpec for (%s) was nil, cannot add exclusions or inclusions", currentMount)
+	}
+
+	if filter.Exclusions == nil || filter.Inclusions == nil {
+		return fmt.Errorf("either the inclusions or exclusions map was nil for (%s)", currentMount)
+	}
+
+	if strings.HasPrefix(copyTarget, currentMount) {
+		filter.Inclusions[removeLeadingSlash(strings.TrimPrefix(copyTarget, currentMount))] = struct{}{}
+	} else {
+		// this would be a mount that is after the target. It would mean we have to include root. then exclude any mounts after root.
+		filter.Inclusions["/"] = struct{}{}
 	}
 
 	for _, mount := range mounts {
@@ -99,4 +104,10 @@ func AddMountExclusions(currentMount string, filter *FilterSpec, mounts []string
 		}
 	}
 	return nil
+}
+
+// removeLeadingSlash will remove the '/' from in front of a target path
+// we use this to ensure relative pathing
+func removeLeadingSlash(path string) string {
+	return strings.TrimPrefix(path, "/")
 }
