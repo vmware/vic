@@ -29,7 +29,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/version"
@@ -114,12 +113,11 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	api.ServeError = errors.ServeError
 
 	api.BinConsumer = runtime.ByteStreamConsumer()
-	api.JSONConsumer = runtime.JSONConsumer()
-	api.TarConsumer = archive.TarConsumer()
 
-	api.BinProducer = runtime.ByteStreamProducer()
+	api.JSONConsumer = runtime.JSONConsumer()
+
 	api.JSONProducer = runtime.JSONProducer()
-	api.TarProducer = archive.TarProducer()
+
 	api.TxtProducer = runtime.TextProducer()
 
 	handlerCtx := &handlers.HandlerContext{

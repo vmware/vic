@@ -315,8 +315,7 @@ endif
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
-				  lib/apiservers/portlayer/restapi/options/*.go \
-				  lib/apiservers/portlayer/restapi/handlers/*.go
+				  lib/apiservers/portlayer/restapi/options/*.go
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...

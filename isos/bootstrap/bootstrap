@@ -39,7 +39,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
 
     # enable full system functionality in the container 
     ln -s lib64 ${MOUNTPOINT}/.tether/lib
-    mkdir -p ${MOUNTPOINT}/.tether/{lib64,usr/lib/iptables}
+    mkdir -p ${MOUNTPOINT}/.tether/{lib64,usr/lib/iptables,run}
 
     echo "Publishing modules within container"
     mkdir -p ${MOUNTPOINT}/lib/modules

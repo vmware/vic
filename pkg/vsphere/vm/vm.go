@@ -467,7 +467,7 @@ func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
 		log.Debugf("vm %s is invalid", vm.Reference())
 		return true
 	}
-	log.Debugf("Do not fix non invalid state error")
+
 	return false
 }
 

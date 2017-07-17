@@ -37,7 +37,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/imagec"
@@ -110,8 +109,6 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	}
 
 	t := rc.New(portLayerAddr, "/", []string{"http"})
-	t.Consumers["application/x-tar"] = archive.TarConsumer()
-	t.Producers["application/x-tar"] = archive.TarProducer()
 
 	portLayerClient = apiclient.New(t, nil)
 	portLayerServerAddr = portLayerAddr

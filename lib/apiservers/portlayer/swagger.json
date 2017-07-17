@@ -1,4 +1,3 @@
-
 {
 	"swagger": "2.0",
 	"basePath": "/",
@@ -176,72 +175,72 @@
 				}
 			}
 		},
-      "/archive": {
-          "get": {
-              "description": "Exports a tar archive from the target device.",
-				      "summary": "Export tar archive from supplied target",
-				      "tags": [
-					        "storage"
-				      ],
-				      "consumes": [
-					        "application/json"
-				      ],
-				      "produces": [
-					        "application/x-tar"
-				      ],
-				      "operationId": "ExportArchive",
-				      "parameters": [
-						{
-							"name": "store",
-							"in":"query",
-							"required":true,
-							"type" : "string",
-							"x-nullable": false
-						},
-						{
-							"name": "ancestorStore",
-							"in":"query",
-							"required": false,
-							"type" : "string",
-							"x-nullable": false
-						},
-						{
-							"name":"deviceID",
-							"in":"query",
-							"required": true,
-							"type" : "string",
-							"x-nullable": false
-						},
-						{
-							"name":"ancestor",
-							"in":"query",
-							"required": false,
-							"type" : "string",
-							"x-nullable": false
-						},
-						{
-							"name":"data",
-							"in":"query",
-							"required": true,
-							"type" : "boolean",
-							"x-nullable": false						
-						},
-						{
-							"name":"filterSpec",
-							"in":"query",
-							"required": false,
-							"type" : "string",
-							"x-nullable": true
+		"/archive": {
+			"get": {
+				"description": "Exports a tar archive from the target device.",
+				"summary": "Export tar archive from supplied target",
+				"tags": [
+					"storage"
+				],
+				"consumes": [
+					"application/json"
+				],
+				"produces": [
+					"application/x-tar"
+				],
+				"operationId": "ExportArchive",
+				"parameters": [
+					{
+						"name": "store",
+						"in": "query",
+						"required": true,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "ancestorStore",
+						"in": "query",
+						"required": false,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "deviceID",
+						"in": "query",
+						"required": true,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "ancestor",
+						"in": "query",
+						"required": false,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "data",
+						"in": "query",
+						"required": true,
+						"type": "boolean",
+						"x-nullable": false
+					},
+					{
+						"name": "filterSpec",
+						"in": "query",
+						"required": false,
+						"type": "string",
+						"x-nullable": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"format": "binary"
 						}
-					],
-					"responses": {
-						"200": {
-							"description": "OK",
-							"schema": {
-								"format": "binary"
-							}
-						},
-					"404" : {
+					},
+					"404": {
 						"description": "Supplied target not found",
 						"schema": {
 							"$ref": "#/definitions/Error"
@@ -263,37 +262,37 @@
 						}
 					}
 				}
-          },
-      "post": {
-          "description": "Imports a tar stream to a device at the target path",
-				  "summary": "Import tar stream to supplied target",
-				  "tags": [
-					        "storage"
-				  ],
-				  "consumes": [
-					    "application/x-tar"
-				  ],
-				  "operationId": "ImportArchive",
-				  "parameters": [
+			},
+			"post": {
+				"description": "Imports a tar stream to a device at the target path",
+				"summary": "Import tar stream to supplied target",
+				"tags": [
+					"storage"
+				],
+				"consumes": [
+					"application/x-tar"
+				],
+				"operationId": "ImportArchive",
+				"parameters": [
 					{
 						"name": "store",
-						"in":"query",
+						"in": "query",
 						"required": true,
-						"type" : "string",
+						"type": "string",
 						"x-nullable": false
 					},
 					{
-						"name":"deviceID",
-						"in":"query",
+						"name": "deviceID",
+						"in": "query",
 						"required": true,
-						"type" : "string",
+						"type": "string",
 						"x-nullable": false
 					},
 					{
-						"name":"filterSpec",
-						"in":"query",
+						"name": "filterSpec",
+						"in": "query",
 						"required": false,
-						"type" : "string",
+						"type": "string",
 						"x-nullable": true
 					},
 					{
@@ -301,8 +300,8 @@
 						"required": true,
 						"in": "body",
 						"schema": {
-							"type":"string",
-							"format":"binary"
+							"type": "string",
+							"format": "binary"
 						}
 					}
 				],
@@ -310,7 +309,13 @@
 					"200": {
 						"description": "OK"
 					},
-					"404" : {
+					"422": {
+						"description": "Format error in supplied filter or archive",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"404": {
 						"description": "Supplied target not found",
 						"schema": {
 							"$ref": "#/definitions/Error"
@@ -334,8 +339,8 @@
 				}
 			}
 		},
-		  "/storage": {
-			  "post": {
+		"/storage": {
+			"post": {
 				"description": "Creates a location to store images",
 				"summary": "creates an image store",
 				"tags": [

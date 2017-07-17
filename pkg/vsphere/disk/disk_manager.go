@@ -18,10 +18,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"sync"
-
-	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/view"
@@ -192,7 +191,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 		return nil, errors.Trace(err)
 	}
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -215,7 +214,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 		return nil, errors.Trace(err)
 	}
-	err = d.setAttached(blockDev)
+	err = d.setAttached(op, blockDev)
 
 	return d, err
 }
@@ -226,7 +225,7 @@ func (m *Manager) Create(op trace.Operation, config *VirtualDiskConfig) (*Virtua
 
 	var err error
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -257,7 +256,7 @@ func (m *Manager) Create(op trace.Operation, config *VirtualDiskConfig) (*Virtua
 func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(config.DatastoreURI.String()))
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -274,7 +273,7 @@ func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDi
 	p := info[len(info)-1]
 
 	if p.Parent != "" {
-		ppth, err := datastore.DatastorePathFromString(p.Parent)
+		ppth, err := datastore.PathFromString(p.Parent)
 		if err != nil {
 			return nil, err
 		}
@@ -357,7 +356,7 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	defer trace.End(trace.Begin(""))
 
-	d, err := NewVirtualDisk(config, m.Disks)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -390,7 +389,7 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	default:
 	}
 
-	if err = d.setDetached(m.Disks); err != nil {
+	if err = d.setDetached(op, m.Disks); err != nil {
 		op.Errorf(err.Error())
 	}
 
@@ -479,7 +478,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 		op.Debugf("Error creating mount path: %s", err.Error())
 		return "", err
 	}
-	if err := d.Mount(path, nil); err != nil {
+	if err := d.Mount(op, path, nil); err != nil {
 		op.Debugf("Error mounting disk: %s", err.Error())
 		return "", err
 	}
@@ -502,7 +501,7 @@ func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.Data
 	}
 
 	op.Infof("Unmount/Detach %s", datastoreURI.String())
-	if err := d.Unmount(); err != nil {
+	if err := d.Unmount(op); err != nil {
 		op.Debugf("Error unmounting disk: %s", err.Error())
 		return err
 	}
@@ -538,33 +537,93 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 	// iterate over them to see whether they have the disk we want
 	for i := range mos {
 		mo := mos[i]
-		log.Debugf("Working on vm %q", mo.Name)
+		op.Debugf("Working on vm %q", mo.Name)
 
-		if filter(&mo) {
-			log.Debugf("Filtering out vm %q", mo.Name)
+		if !filter(&mo) {
+			op.Debugf("Filtering out vm %q", mo.Name)
 			continue
 		}
 
-		log.Debugf("Working on devices on vm %q", mo.Name)
+		op.Debugf("Working on devices on vm %q", mo.Name)
 		for _, device := range mo.Config.Hardware.Device {
 			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
 			db := device.GetVirtualDevice().Backing
 			if db == nil {
-				log.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
+				op.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
 				continue
 			}
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				log.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
+				op.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
 				if config.DatastoreURI.String() == t.GetVirtualDeviceFileBackingInfo().FileName {
-					log.Debugf("Match found. Appending vm %q to the response", mo.Name)
+					op.Debugf("Match found. Appending vm %q to the response", mo.Name)
 					vms = append(vms, vm.NewVirtualMachine(context.Background(), m.vm.Session, mo.Reference()))
 				}
 			default:
-				log.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
+				op.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
 			}
 		}
 	}
 	return vms, nil
+}
+
+func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (string, error) {
+	defer trace.End(trace.Begin(""))
+
+	mngr := view.NewManager(m.vm.Vim25())
+
+	// Create view of VirtualMachine objects under the VCH's resource pool
+	view2, err := mngr.CreateContainerView(op, m.vm.Session.Pool.Reference(), []string{"VirtualMachine"}, true)
+	if err != nil {
+		op.Errorf("failed to create view: %s", err)
+		return "", err
+	}
+	defer view2.Destroy(op)
+
+	var mos []mo.VirtualMachine
+	// Retrieve needed properties of all machines under this view
+	err = view2.Retrieve(op, []string{"VirtualMachine"}, []string{"name", "config.hardware", "runtime.powerState"}, &mos)
+	if err != nil {
+		return "", err
+	}
+
+	// iterate over them to see whether they have the disk we want
+	for i := range mos {
+		mo := mos[i]
+		op.Debugf("Working on vm %q", mo.Name)
+
+		op.Debugf("Working on devices on vm %q", mo.Name)
+		for _, device := range mo.Config.Hardware.Device {
+			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
+			db := device.GetVirtualDevice().Backing
+			if db == nil {
+				op.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
+				continue
+			}
+
+			switch t := db.(type) {
+			case types.BaseVirtualDeviceFileBackingInfo:
+				op.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
+				diskPath := t.GetVirtualDeviceFileBackingInfo().FileName
+				op.Infof("Disk path: %s", diskPath)
+				if filter(diskPath) {
+					op.Debugf("Match found. Returning filepath %s", diskPath)
+					return diskPath, nil
+				}
+			default:
+				op.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
+			}
+		}
+	}
+	return "", errors.New("Not found")
+}
+
+func (m *Manager) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
+	dsPath, err := datastore.PathFromString(url.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.InUse(op, NewPersistentDisk(dsPath), filter)
 }

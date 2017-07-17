@@ -15,6 +15,7 @@
 package backends
 
 import (
+	"archive/tar"
 	"fmt"
 	"io"
 	"math/rand"
@@ -37,7 +38,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	dnetwork "github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/pkg/archive"
+	docker "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -58,6 +59,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/retry"
@@ -1274,8 +1276,54 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 // docker's container.monitorBackend
 
 // ContainerChanges returns a list of container fs changes
-func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
-	return make([]archive.Change, 0, 0), fmt.Errorf("%s does not yet implement ontainerChanges", ProductName())
+func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
+	defer trace.End(trace.Begin(name))
+
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, NotFoundError(name)
+	}
+	log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+
+	r, err := c.containerProxy.GetContainerChanges(context.Background(), vc)
+	if err != nil {
+		return nil, InternalServerError(err.Error())
+	}
+
+	changes := []docker.Change{}
+
+	tarFile := tar.NewReader(r)
+
+	defer r.Close()
+
+	for {
+		hdr, err := tarFile.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return []docker.Change{}, InternalServerError(err.Error())
+		}
+
+		log.Infof("Got header %s", hdr.Name)
+		change := docker.Change{
+			Path: hdr.Name,
+		}
+		switch hdr.Xattrs[archive.ChangeTypeKey] {
+		case "A":
+			change.Kind = docker.ChangeAdd
+		case "D":
+			change.Kind = docker.ChangeDelete
+		case "C":
+			change.Kind = docker.ChangeModify
+		default:
+			return []docker.Change{}, InternalServerError("Invalid change type")
+		}
+		changes = append(changes, change)
+	}
+
+	return changes, nil
 }
 
 // ContainerInspect returns low-level information about a

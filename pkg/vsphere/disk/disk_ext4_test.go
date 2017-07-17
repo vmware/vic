@@ -100,12 +100,12 @@ func TestCreateFS(t *testing.T) {
 	}
 
 	// make the filesysetem
-	if err = d.Mkfs("foo"); !assert.NoError(t, err) {
+	if err = d.Mkfs(op, "foo"); !assert.NoError(t, err) {
 		return
 	}
 
 	// set the label
-	if err = d.SetLabel("foo"); !assert.NoError(t, err) {
+	if err = d.SetLabel(op, "foo"); !assert.NoError(t, err) {
 		return
 	}
 
@@ -117,7 +117,7 @@ func TestCreateFS(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	// do the mount
-	err = d.Mount(dir, nil)
+	err = d.Mount(op, dir, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -128,7 +128,7 @@ func TestCreateFS(t *testing.T) {
 	}
 
 	//  clean up
-	err = d.Unmount()
+	err = d.Unmount(op)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -205,12 +205,12 @@ func TestAttachFS(t *testing.T) {
 	}
 
 	// make the filesysetem
-	if err = d.Mkfs("foo"); !assert.NoError(t, err) {
+	if err = d.Mkfs(op, "foo"); !assert.NoError(t, err) {
 		return
 	}
 
 	// set the label
-	if err = d.SetLabel("foo"); !assert.NoError(t, err) {
+	if err = d.SetLabel(op, "foo"); !assert.NoError(t, err) {
 		return
 	}
 
@@ -222,7 +222,7 @@ func TestAttachFS(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	// do the mount
-	err = d.Mount(dir, nil)
+	err = d.Mount(op, dir, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -233,7 +233,7 @@ func TestAttachFS(t *testing.T) {
 	}
 
 	//  clean up
-	err = d.Unmount()
+	err = d.Unmount(op)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -255,7 +255,7 @@ func TestAttachFS(t *testing.T) {
 	}
 
 	// do the mount
-	err = d.Mount(dir, nil)
+	err = d.Mount(op, dir, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -266,7 +266,7 @@ func TestAttachFS(t *testing.T) {
 	}
 
 	//  clean up
-	err = d.Unmount()
+	err = d.Unmount(op)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -284,7 +284,7 @@ func TestAttachFS(t *testing.T) {
 		}
 
 		// do the mount
-		err = d.Mount(dir, nil)
+		err = d.Mount(op, dir, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -295,7 +295,7 @@ func TestAttachFS(t *testing.T) {
 		}
 
 		//  clean up
-		err = d.Unmount()
+		err = d.Unmount(op)
 		if !assert.NoError(t, err) {
 			return
 		}

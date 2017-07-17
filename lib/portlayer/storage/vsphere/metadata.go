@@ -19,8 +19,6 @@ import (
 	"io/ioutil"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -38,7 +36,7 @@ func writeMetadata(op trace.Operation, ds *datastore.Helper, dir string, meta ma
 		for name, value := range meta {
 			r := bytes.NewReader(value)
 			pth := path.Join(dir, name)
-			log.Infof("Writing metadata %s", pth)
+			op.Infof("Writing metadata %s", pth)
 			if err := ds.Upload(op, r, pth); err != nil {
 				return err
 			}
@@ -61,19 +59,20 @@ func getMetadata(op trace.Operation, ds *datastore.Helper, dir string) (map[stri
 	}
 
 	if len(res.File) == 0 {
-		log.Infof("No meta found for %s", dir)
+		op.Infof("No meta found for %s", dir)
 		return nil, nil
 	}
 
 	meta := make(map[string][]byte)
 	for _, f := range res.File {
+		// we're only interested in files, not folders
 		finfo, ok := f.(*types.FileInfo)
 		if !ok {
 			continue
 		}
 
 		p := path.Join(dir, finfo.Path)
-		log.Infof("Getting metadata %s", p)
+		op.Infof("Getting metadata %s", p)
 		rc, err := ds.Download(op, p)
 		if err != nil {
 			return nil, err

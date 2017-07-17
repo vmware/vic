@@ -18,6 +18,7 @@ report.html
 *.pyc
 package.list
 *container-logs.zip
+*certs.zip
 integration_logs*
 vmware-ovftool
 

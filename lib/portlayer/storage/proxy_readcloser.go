@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package archive
+package storage
 
 import (
-	"archive/tar"
 	"io"
-
-	"github.com/go-openapi/runtime"
 )
 
-func TarProducer() runtime.Producer {
-	return runtime.ProducerFunc(func(writer io.Writer, data interface{}) error {
-		return runtime.ByteStreamProducer().Produce(tar.NewWriter(writer), data)
-	})
+// ProxyReadCloser is a read closer that provides for wrapping the Close with
+// a custom Close call. The original ReadCloser.Close function will be invoked
+// after the custom call. Errors from the custom call with be ignored.
+type ProxyReadCloser struct {
+	io.ReadCloser
+	Closer func() error
+}
+
+func (p *ProxyReadCloser) Close() error {
+	/* #nosec - no useful way to handle this error */
+	p.Closer()
+	return p.ReadCloser.Close()
 }
