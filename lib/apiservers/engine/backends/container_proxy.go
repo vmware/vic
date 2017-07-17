@@ -32,8 +32,6 @@ package backends
 //		- Please USE the aliased docker error package 'derr'
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -79,6 +77,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -111,7 +110,7 @@ type VicContainerProxy interface {
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
 
-	GetContainerChanges(vc *viccontainer.VicContainer) (io.ReadCloser, error)
+	GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer) (io.ReadCloser, error)
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -683,7 +682,7 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 	return nil
 }
 
-func (c *ContainerProxy) GetContainerChanges(vc *viccontainer.VicContainer) (io.ReadCloser, error) {
+func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer) (io.ReadCloser, error) {
 	host, err := sys.UUID()
 	if err != nil {
 		return nil, InternalServerError("Failed to determine host UUID")
@@ -695,7 +694,7 @@ func (c *ContainerProxy) GetContainerChanges(vc *viccontainer.VicContainer) (io.
 		Exclusions: map[string]struct{}{},
 	}
 
-	r, err := c.ArchiveExportReader(context.Background(), "container", host, vc.ContainerID, parent, false, spec)
+	r, err := c.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, false, spec)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
@@ -753,7 +752,7 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 
 		_, err = plClient.Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
-			log.Infof("\n\n\nGot error from ExportArchive: %s", err.Error())
+			log.Errorf("Error from ExportArchive: %s", err.Error())
 			switch err := err.(type) {
 			case *storage.ExportArchiveInternalServerError:
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
@@ -768,7 +767,7 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 				//encapsulated inside of Swagger, we can only detect EOF by checking the
 				//error string
 				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					log.Infof("swagger error %s", err.Error())
+					log.Debugf("swagger error %s", err.Error())
 					pipeWriter.Close()
 				} else {
 					pipeWriter.CloseWithError(err)
@@ -1123,13 +1122,6 @@ func (c *ContainerProxy) createGzipTarClient(connectTimeout, responseTimeout, re
 	r.Consumers["application/octet-stream"] = bsc
 	r.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
 
-	r.Consumers["application/x-gzip"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
-		gzReader, err := gzip.NewReader(tar.NewReader(rdr))
-		if err != nil {
-			return err
-		}
-		return bsc.Consume(gzReader, data)
-	})
 	r.Consumers["application/x-tar"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
 		return bsc.Consume(rdr, data)
 	})

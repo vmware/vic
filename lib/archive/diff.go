@@ -73,6 +73,13 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		tw := tar.NewWriter(w)
 		defer func() {
 			var cerr error
+
+			if oerr := op.Err(); oerr != nil {
+				// don't close the archive if we're truncating the copy - it's misleading
+				_ = w.CloseWithError(oerr)
+				return
+			}
+
 			if cerr = tw.Close(); cerr != nil {
 				op.Errorf("Error closing tar writer: %s", cerr.Error())
 			}

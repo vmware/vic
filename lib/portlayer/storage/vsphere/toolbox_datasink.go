@@ -25,19 +25,19 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// ToolboxDataSink implements the DataSource interface for mounted devices
+// ToolboxDataSink implements the DataSink interface for mounted devices
 type ToolboxDataSink struct {
 	ID    string
 	VM    *vm.VirtualMachine
 	Clean func()
 }
 
-// Source returns the data source associated with the DataSource
+// Sink returns the data sink associated with the DataSink
 func (t *ToolboxDataSink) Sink() interface{} {
 	return t.VM
 }
 
-// Import writes `data` to the data source associated with this DataSource
+// Import writes `data` to the data sink associated with this DataSink
 func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, data io.ReadCloser) error {
 	defer trace.End(trace.Begin(""))
 

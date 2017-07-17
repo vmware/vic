@@ -587,7 +587,6 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 		op.Errorf("Failed to locate export capable store %s", params.Store)
 		op.Debugf("Available exporters are: %+q", spl.GetExporters())
 
-		// TODO: this should be a 404 but cannot seem to figure that out #shamed
 		return storage.NewExportArchiveNotFound()
 	}
 

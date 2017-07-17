@@ -74,7 +74,6 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 		return nil, errors.New("unable to create offline data source and no online owners found")
 	}
 
-	// TODO(jzt): tweak this when online export is available
 	for _, o := range owners {
 		online, err := v.newOnlineDataSource(op, o, id)
 		if online != nil {

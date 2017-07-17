@@ -34,7 +34,7 @@ Simple docker volume create
 
 Simple volume mounted over managed files
     ${status}=  Get State Of Github Issue  5731
-    Run Keyword If  '${status}' == 'closed'  Fail  Test should pass now that Issue #5371 has been resolved
+    Run Keyword If  '${status}' == 'closed'  Fail  Test should pass now that Issue #5731 has been resolved
 
     #${rc}  ${target}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit busybox
     #Should Be Equal As Integers  ${rc}  0

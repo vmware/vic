@@ -54,6 +54,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
+	// TODO: handle single file case
 	if !fi.IsDir() {
 		err := fmt.Errorf("tar unpack target is not a directory: %s", root)
 		op.Error(err)
@@ -81,6 +82,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		}
 
 		// fix up path
+		// TODO: update with revised filterspec
 		stripped := strings.TrimPrefix(header.Name, filter.StripPath)
 		rebased := filepath.Join(filter.RebasePath, stripped)
 		absPath := filepath.Join(root, rebased)

@@ -264,7 +264,7 @@ func TestDiffNoData(t *testing.T) {
 }
 
 func TestDiffFilterSpec(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpec")
 
@@ -329,7 +329,7 @@ func TestDiffFilterSpec(t *testing.T) {
 }
 
 func TestDiffFilterSpecNoAncestor(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpecNoParent")
 
@@ -395,7 +395,7 @@ func TestDiffFilterSpecNoAncestor(t *testing.T) {
 }
 
 func TestDiffFilterSpecRebase(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpecRebase")
 
@@ -469,7 +469,7 @@ func TestDiffFilterSpecRebase(t *testing.T) {
 }
 
 func TestDiffFilterSpecRebaseNoData(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpecRebase")
 

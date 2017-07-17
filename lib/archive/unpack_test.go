@@ -463,7 +463,7 @@ func TestSimpleExclusion(t *testing.T) {
 }
 
 func TestInclusionAfterExclusion(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.TODO(), "")
 
@@ -633,7 +633,7 @@ func TestMultiExclusion(t *testing.T) {
 }
 
 func TestMultiExclusionMultiInclusion(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.TODO(), "")
 
@@ -719,7 +719,7 @@ func TestMultiExclusionMultiInclusion(t *testing.T) {
 }
 
 func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.TODO(), "")
 
@@ -815,7 +815,7 @@ func TestMultiExclusionMultiInclusionDirectories(t *testing.T) {
 }
 
 func TestMultiExclusionMultiInclusionDirectoriesNonRootTarget(t *testing.T) {
-	t.Skip()
+	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.TODO(), "")
 
