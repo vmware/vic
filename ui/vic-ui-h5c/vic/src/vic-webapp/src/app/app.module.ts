@@ -20,6 +20,9 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpModule } from '@angular/http';
 
 import { ClarityModule } from 'clarity-angular';
+import { VicSummaryPortletModule } from './summary-portlet/summary-portlet.module';
+import { VicVchViewModule } from './vch-view/vch-view.module';
+import { VicContainerViewModule } from './container-view/container-view.module';
 
 import {
     Globals,
@@ -33,6 +36,7 @@ import {
 import { ActionDevService } from './services/action-dev.service';
 import { DataPropertyService } from './services/data-property.service';
 import { VicVmViewService } from './services/vm-view.service';
+import { ExtendedUserSessionService } from './services/extended-usersession.service';
 import { AppErrorHandler } from './shared/appErrorHandler';
 
 import { AppRoutingModule, routedComponents } from './app-routing.module';
@@ -46,14 +50,15 @@ import { AppComponent } from './app.component';
         BrowserAnimationsModule,
         AppRoutingModule,
         HttpModule,
-        ClarityModule.forRoot()
+        ClarityModule.forRoot(),
+        VicSummaryPortletModule,
+        VicVchViewModule,
+        VicContainerViewModule
     ],
     declarations: [
         AppComponent,
         AppAlertComponent,
-        routedComponents,
-        VchPortletComponent,
-        ContainerPortletComponent
+        routedComponents
     ],
     providers: [
         ActionDevService,
@@ -64,8 +69,6 @@ import { AppComponent } from './app.component';
         I18nService,
         Vic18nService,
         RefreshService,
-        DataPropertyService,
-        VicVmViewService,
         { provide: ErrorHandler, useClass: AppErrorHandler }
     ],
     bootstrap: [AppComponent]

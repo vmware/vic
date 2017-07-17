@@ -19,22 +19,16 @@ import { RouterModule, Routes } from '@angular/router';
 
 import { APP_CONFIG } from './shared/index';
 import { AppRoutingComponent } from './app-routing.component';
-import { VicSummaryPortletComponent } from './summary-portlet/summary-portlet.component';
 import { VicSummaryViewComponent } from './summary-view/summary-view.component';
-import { VicVchViewComponent } from './vch-view/vch-view.component';
-import { VicContainerViewComponent } from './container-view/container-view.component';
 import { CreateVchWizardComponent } from 'app/create-vch-wizard/create-vch-wizard.component';
 
 const appRoutes: Routes = [
     { path: 'index.html', component: AppRoutingComponent },
-    { path: 'portlet', component: VicSummaryPortletComponent },
-    { path: 'portlet/:id', component: VicSummaryPortletComponent },
+    { path: 'portlet', loadChildren: './summary-portlet/summary-portlet.module#VicSummaryPortletModule' },
     { path: 'summary-view', component: VicSummaryViewComponent },
     { path: 'summary-view/:id', component: VicSummaryViewComponent },
-    { path: 'vch-view', component: VicVchViewComponent },
-    { path: 'vch-view/:id', component: VicVchViewComponent },
-    { path: 'container-view', component: VicContainerViewComponent },
-    { path: 'container-view/:id', component: VicContainerViewComponent },
+    { path: 'vch-view', loadChildren: './vch-view/vch-view.module#VicVchViewModule' },
+    { path: 'container-view', loadChildren: './container-view/container-view.module#VicContainerViewModule' },
     { path: 'create-vch', component: CreateVchWizardComponent },
     { path: 'create-vch/:id', component: CreateVchWizardComponent }
 ];
@@ -47,10 +41,7 @@ extensionToRoutes[APP_CONFIG.packageName + '.objectView.containerView'] = '/obje
 
 export const routedComponents = [
     AppRoutingComponent,
-    VicSummaryPortletComponent,
     VicSummaryViewComponent,
-    VicVchViewComponent,
-    VicContainerViewComponent,
     CreateVchWizardComponent
 ];
 
