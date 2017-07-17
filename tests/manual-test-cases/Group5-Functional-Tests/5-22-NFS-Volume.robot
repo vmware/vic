@@ -25,7 +25,6 @@ ${nfsFakeVolumeStore}=  nfsFakeVolumeStore
 ${unnamedNFSVolContainer}  unnamedNFSvolContainer
 ${namedNFSVolContainer}  namednfsVolContainer
 ${createFileContainer}=  createFileContainer
-#${addToFileContainer}=  addToFileContainer
 ${nfs_bogon_ip}=  198.51.100.1
 
 
@@ -41,6 +40,7 @@ Setup ESX And NFS Suite
     Set Global Variable  ${ESX1}  ${esx1}
     Set Global Variable  ${ESX1_IP}  ${esx1_ip}
     Set Global Variable  ${NFS_IP}  ${nfs_ip}
+    Set Global Variable  ${NFS}  ${nfs}
 
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
@@ -62,10 +62,6 @@ Verify NFS Volume Basic Setup
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${containerName} -v ${volumeName}:/mydata ${busybox} mount
     Should Be Equal As Integers  ${rc}  0
-    #Log to Console  ${outputTemp}
-
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start -a ${containerName}
-    #Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${nfsIP}://store/volumes/${volumeName}
     Should Contain  ${output}  /mydata type nfs (${rwORro}
 
@@ -144,7 +140,7 @@ Docker Single Write and Read to/from File from one Container using NFS Volume
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  The Texas and Chile flag look similar.
 
-Docker multiple writes from multiple containers and read from one
+Docker multiple writes from multiple containers (one at a time) and read from one
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
@@ -160,6 +156,48 @@ Docker multiple writes from multiple containers and read from one
     Should Contain  ${output}  The Chad and Romania flag look the same.
     Should Contain  ${output}  The Luxembourg and the Netherlands flag look exactly the same.
     Should Contain  ${output}  Norway and Iceland have flags that are basically inverses of each other.
+
+Docker Read and Remove File
+    ${rc}  ${catID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_file.txt"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${catID}
+    Should Contain  ${output}  Norway and Iceland have flags that are basically inverses of each other.
+
+    ${rc}  ${removeID}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "rm mydata/test_nfs_file.txt"
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_file.txt"
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  cat: can't open 'mydata/test_nfs_file.txt': No such file or directory
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${catID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logs ${catID}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  cat: can't open 'mydata/test_nfs_file.txt': No such file or directory
+
+Simultaneous Container Write to File
+    @{inputList}=  Create List  These flags also look similar to each other.  Senegal and Mali.  Indonesia and Monaco.  New Zealand and Australia.  Venezuela, Ecuador, and Colombia.  Slovenia, Russia, and Slovakia.
+    ${containers}=  Create List
+
+    Log To Console  \nSpin up Write Containers
+    :FOR  ${item}  IN  @{inputList}
+    \   ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo ${item} >> /mydata/test_nfs_mult_write.txt; sleep 1; done"
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Append To List  ${containers}  ${id}
+
+    ${rc}  ${catOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "cat mydata/test_nfs_mult_write.txt"
+    Should Be Equal As Integers  ${rc}  0
+
+    Log To Console  \nCheck tail output for write items
+    :FOR  ${item}  IN  @{inputList}
+    \   Should Contain  ${catOutput}  ${item}
+
+    Log To Console  \nStop Write Containers
+    :FOR  ${id}  IN  @{containers}
+    \   ${rc}  ${stopOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${id}
+    \   Should Be Equal As Integers  ${rc}  0
+
 
 Simple docker volume inspect
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${nfsNamedVolume}
@@ -188,3 +226,24 @@ Volume rm tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm ${nfsNamedVolume}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
+
+Kill NFS Server
+    ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 1; done"
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${tailOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -5 /mydata/test_nfs_kill.txt"
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${tailOutput}  Still here...
+
+    Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${NFS}
+
+    ${rc}  ${tailOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -5 /mydata/test_nfs_kill.txt"
+    Should Be Equal As Integers  ${rc}  125
+    Should Contain  ${tailOutput}  Server error from portlayer: unable to wait for process launch status:
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'Where am I writing to?...\n' >> /mydata/test_nfs_kill.txt"
+    Should Be Equal As Integers  ${rc}  125
+
+    ${rc}  ${lsOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "ls mydata"
+    Should Be Equal As Integers  ${rc}  125
+    Should Contain  ${lsOutput}  Server error from portlayer: unable to wait for process launch status:
