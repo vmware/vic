@@ -21,7 +21,6 @@ import (
 	"path"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -157,13 +156,7 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	}
 
 	for _, f := range res.File {
-		// we are only interested in files, not folders
-		file, ok := f.(*types.FileInfo)
-		if !ok {
-			continue
-		}
-
-		ID := file.Path
+		ID := f.GetFileInfo().Path
 
 		// Get the path to the disk in datastore uri format
 		volDiskDSPath := v.volDiskDSPath(ID)
