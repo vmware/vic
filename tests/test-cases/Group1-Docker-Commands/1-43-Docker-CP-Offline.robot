@@ -24,6 +24,9 @@ Set up test files and install VIC appliance to test server
     Create File  ${CURDIR}/foo.txt   hello world
     Create Directory  ${CURDIR}/bar
     Create File  ${CURDIR}/content   fake file content for testing only
+    ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/zero of=${CURDIR}/largefile.txt count=4096 bs=4096
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -33,10 +36,14 @@ Set up test files and install VIC appliance to test server
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol3
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name smallVol --opt Capacity=1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Clean up test files and VIC appliance to test server
     Remove File  ${CURDIR}/foo.txt
     Remove File  ${CURDIR}/content
+    Remove File  ${CURDIR}/largefile.txt
     Remove Directory  ${CURDIR}/bar  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol1
     Should Be Equal As Integers  ${rc}  0
@@ -122,6 +129,17 @@ Copy a non-existent directory into an offline container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/dne/ offline:/
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  no such file or directory
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+Copy a large file that exceeds the container volume into an offline container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v smallVol:/small --name offline ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/small
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
