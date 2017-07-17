@@ -22,6 +22,7 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Variables ***
 ${nfsVolumeStore}=  nfsVolumeStore
 ${nfsFakeVolumeStore}=  nfsFakeVolumeStore
+${nfsReadOnlyVolumeStore}=  nfsReadOnlyVolumeStore
 ${unnamedNFSVolContainer}  unnamedNFSvolContainer
 ${namedNFSVolContainer}  namednfsVolContainer
 ${createFileContainer}=  createFileContainer
@@ -36,11 +37,14 @@ Setup ESX And NFS Suite
 
     ${nfs}  ${nfs_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
+    ${nfs_readonly}  ${nfs_readonly_ip}=  Deploy Nimbus NFS Datastore  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  additional-args=--disk 5000000 --disk 5000000 --mountOpt ro --nfsOpt ro --mountPoint=storage1 --mountPoint=storage2
+
     Set Global Variable  @{list}  ${esx1}  ${nfs}
     Set Global Variable  ${ESX1}  ${esx1}
     Set Global Variable  ${ESX1_IP}  ${esx1_ip}
     Set Global Variable  ${NFS_IP}  ${nfs_ip}
     Set Global Variable  ${NFS}  ${nfs}
+    Set Global Variable  ${NFS_READONLY_IP}  ${nfs_readonly_ip}
 
 Setup ENV Variables for VIC Appliance Install
     Log To Console  \nSetup Environment Variables for VIC Appliance To ESX\n
@@ -80,6 +84,21 @@ Verify NFS Volume Already Created
 
 
 *** Test Cases ***
+VIC Appliance Install with Read Only NFS Volume
+    Setup ENV Variables for VIC Appliance Install
+
+    # Will only produce a warning in VCH creation output
+    ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_READONLY_IP}/exports/storage1?uid=0&gid=0:${nfsReadOnlyVolumeStore}"
+    Should Contain  ${output}  Installer completed successfully
+    Should Contain  ${output}  VolumeStore (${nfsReadOnlyVolumeStore}) specified was not able to be established in the portlayer. Please check network and nfs server configurations.
+    Should Contain  ${output}  Some Volume Stores that were specified were not successfully created,
+    Should Contain  ${output}  Please check the above output for more information.
+    Should Contain  ${output}  More Information on failed volume store targets can also be found in the portlayer logs found at the vic admin endpoint.
+
+    ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsReadOnlyVolumeStore}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${volumeOutput}  Error response from daemon: No volume store named (${nfsReadOnlyVolumeStore}) exists
+
 VIC Appliance Install With Fake NFS Server
     Setup ENV Variables for VIC Appliance Install
 
