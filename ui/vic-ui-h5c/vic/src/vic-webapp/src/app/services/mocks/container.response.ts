@@ -34,7 +34,7 @@ function generateRandomContainers(length: number) {
             type: 'vic:ContainerVm',
             resourcePool: {
                 value: `resgroup-v${100 + i}`,
-                type: Math.random() > 0.5 ? 'VirtualApp' : 'ResourcePool'
+                type: 'VirtualApp'
             },
             resourceConfig: {
                 entity: {

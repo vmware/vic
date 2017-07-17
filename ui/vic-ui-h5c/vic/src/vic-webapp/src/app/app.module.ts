@@ -33,15 +33,11 @@ import {
     AppAlertComponent,
     AppAlertService
 } from './shared/index';
-import { ActionDevService } from './services/action-dev.service';
 import { DataPropertyService } from './services/data-property.service';
-import { VicVmViewService } from './services/vm-view.service';
-import { ExtendedUserSessionService } from './services/extended-usersession.service';
+import { ActionDevService } from './services/action-dev.service';
 import { AppErrorHandler } from './shared/appErrorHandler';
 
 import { AppRoutingModule, routedComponents } from './app-routing.module';
-import { VchPortletComponent } from './summary-portlet/vch-portlet/vch-portlet.component';
-import { ContainerPortletComponent } from './summary-portlet/container-portlet/container-portlet.component';
 import { AppComponent } from './app.component';
 
 @NgModule({
@@ -50,10 +46,7 @@ import { AppComponent } from './app.component';
         BrowserAnimationsModule,
         AppRoutingModule,
         HttpModule,
-        ClarityModule.forRoot(),
-        VicSummaryPortletModule,
-        VicVchViewModule,
-        VicContainerViewModule
+        ClarityModule.forRoot()
     ],
     declarations: [
         AppComponent,
@@ -69,6 +62,7 @@ import { AppComponent } from './app.component';
         I18nService,
         Vic18nService,
         RefreshService,
+        DataPropertyService,
         { provide: ErrorHandler, useClass: AppErrorHandler }
     ],
     bootstrap: [AppComponent]
