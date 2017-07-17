@@ -157,7 +157,7 @@ func (c *Configure) processParams() error {
 	if err := c.registries.ProcessRegistries(); err != nil {
 		return err
 	}
-	c.RegistryCAs = c.registries.RegistryCAs
+	c.Data.RegistryCAs = c.registries.RegistryCAs
 
 	return nil
 }
