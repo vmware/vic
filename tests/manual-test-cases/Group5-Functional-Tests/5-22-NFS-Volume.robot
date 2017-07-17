@@ -16,7 +16,7 @@
 Documentation  Test 5-22 - NFS Volume
 Resource  ../../resources/Util.robot
 Suite Setup  Setup ESX And NFS Suite
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
 
 *** Variables ***
