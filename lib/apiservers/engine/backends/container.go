@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -1315,6 +1316,9 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 			change.Kind = docker.ChangeAdd
 		case "D":
 			change.Kind = docker.ChangeDelete
+			path := strings.TrimSuffix(change.Path, "/")
+			p := strings.TrimPrefix(filepath.Base(path), docker.WhiteoutPrefix)
+			change.Path = filepath.Join(filepath.Dir(path), p)
 		case "C":
 			change.Kind = docker.ChangeModify
 		default:
