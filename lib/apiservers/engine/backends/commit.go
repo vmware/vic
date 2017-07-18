@@ -73,7 +73,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 		return "", InternalServerError(fmt.Sprintf("Container type assertion failed"))
 	}
 	if container.State.Running || container.State.Restarting {
-		return "", ConflictError(fmt.Sprintf("%s does not support commit of a running container", ProductName()))
+		return "", ConflictError(fmt.Sprintf("%s does not yet support commit of a running container", ProductName()))
 	}
 	// TODO: pause container after container.Pause is implemented
 	newConfig, err := dockerfile.BuildFromConfig(config.Config, config.Changes)
@@ -86,21 +86,23 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 			return "", err
 		}
 	}
+	ic, err := getImagec(config)
+	if err != nil {
+		return "", err
+	}
 
 	rc, err := containerEngine.containerProxy.GetContainerChanges(context.Background(), vc, true)
 	if err != nil {
 		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)
 	}
 
-	ic, err := getImagec(config)
-	if err != nil {
-		return "", err
-	}
-
 	layer, err := downloadDiff(rc, container.ID, ic.Options)
 	if err != nil {
+		rc.Close()
 		return "", fmt.Errorf("Unable to export stream reader for container %s: %s", name, err)
 	}
+	// close reader before write image to avoid resource conflict
+	rc.Close()
 	if err = setLayerConfig(layer, container, config, newConfig); err != nil {
 		return "", err
 	}
@@ -243,7 +245,7 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 	// generate random string as layer ID
 	layerID := stringid.GenerateRandomID()
 
-	tmpLayerFileName, diffIDSum, gzSum, err := compressDiffToTmpFile(rc, containerID)
+	tmpLayerFileName, diffIDSum, gzSum, size, err := compressDiffToTmpFile(rc, containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +290,7 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 		}
 		layerSize += tarHeader.Size
 	}
-
+	log.Debugf("layer size: %d, copy size: %d", layerSize, size)
 	if layerSize == 0 {
 		diffID = digest.Digest(dockerLayer.DigestSHA256EmptyTar)
 	}
@@ -322,12 +324,13 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 }
 
 // compressDiffToTmpFile will write stream to temp file, and return temp file name and tar file checksum, compressed file checksum
-func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte, []byte, error) {
+func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte, []byte, int64, error) {
 	defer trace.End(trace.Begin(containerID))
 	// Create a temporary file and stream the res.Body into it
 	var out *os.File
 	var gzWriter *gzip.Writer
 	var err error
+	var size int64
 
 	cleanup := func() {
 		if gzWriter != nil {
@@ -346,7 +349,7 @@ func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte
 
 	out, err = ioutil.TempFile("", containerID)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, size, err
 	}
 
 	// compress tar file using gzip and calculate blobsum and diffID all together using multi writer
@@ -356,10 +359,10 @@ func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte
 
 	gzWriter = gzip.NewWriter(compressedMW)
 	tarMW := io.MultiWriter(gzWriter, diffID)
-	_, err = io.Copy(tarMW, rc)
+	size, err = io.Copy(tarMW, rc)
 	if err != nil {
 		log.Errorf("failed to stream to file: %s", err)
-		return "", nil, nil, err
+		return "", nil, nil, size, err
 	}
 
 	// close writer before calculate checksum
@@ -367,7 +370,7 @@ func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte
 	gzWriter.Flush()
 	cleanup()
 	// Return the temporary file name and checksum
-	return fileName, diffID.Sum(nil), blobSum.Sum(nil), nil
+	return fileName, diffID.Sum(nil), blobSum.Sum(nil), size, nil
 }
 
 // ***** Code from Docker v17.03.2-ce PullImage to merge two Configs

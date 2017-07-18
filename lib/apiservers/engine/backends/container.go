@@ -1284,7 +1284,6 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 	if vc == nil {
 		return nil, NotFoundError(name)
 	}
-	log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
 
 	r, err := c.containerProxy.GetContainerChanges(context.Background(), vc, false)
 	if err != nil {
