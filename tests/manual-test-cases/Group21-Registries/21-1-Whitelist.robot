@@ -94,23 +94,26 @@ Basic Whitelisting
 
     Cleanup VIC Appliance On Test Server
 
-Configure Whitelist
-    # Install VCH with registry CA for whitelisted registry
+Configure Registry CA
+    # Install VCH without registry CA
     Remove Environment Variable  GOVC_USERNAME
     Remove Environment Variable  GOVC_PASSWORD
     ${output}=  Install VIC Appliance To Test Server  vol=default
 
     Should Not Contain  ${output}  Secure registry %{HTTPS_HARBOR_IP} confirmed
 
-    # Try to login to the HTTPS whitelisted registry (should fail)
+    # Try to login to the HTTPS registry (should fail)
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
     Should Not Contain  ${output}  Succeeded
 
+    # Add the HTTPS registry CA to cert pool with vic-machine configure
     ${output}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --registry-ca=./ca.crt --thumbprint=%{TEST_THUMBPRINT} --debug=1
 
-    # Try to login and pull from the HTTPS whitelisted registry (should succeed)
+    # Try to login and pull from the HTTPS registry (should succeed)
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
     Should Contain  ${output}  Succeeded
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTPS_HARBOR_IP}/library/photon:1.0
     Should Be Equal As Integers  ${rc}  0
+
+    Cleanup VIC Appliance On Test Server
