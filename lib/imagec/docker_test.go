@@ -15,10 +15,20 @@
 package imagec
 
 import (
+	"bytes"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
 	"github.com/stretchr/testify/assert"
+
+	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 )
 
 const (
@@ -76,7 +86,36 @@ const (
    ]
 }
 `
+	WrongDigest        = "sha256:12345dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+	MockImage          = "test/ubuntu"
+	MockUploadLocation = "/v2/test/ubuntu/blobs/uploads/" +
+		"00f4bfb1-682e-4a2b-86c5-8ace83e70cba?_state=rh9dXg5Vn5dZ_LQa5u9HN7RHdo3DyyuJ3GQowFn2jvt7Ik5hbWUiOiJjaGVuZy10ZXN0L2J1c3lib3h2NSIsIlVVSUQiOiIwMGY0YmZiMS02ODJlLTRhMmItODZjNS04YWNlODNlNzBjYmEiLCJPZmZzZXQiOjAsIlN0YXJ0ZWRBdCI6IjIwMTctMDctMTdUMTk6MDg6MjMuNjE0NDQyNzg4WiJ9"
+	WrongUploadLocation = "/v2/wrong/ubuntu/blobs/uploads/" +
+		"00f4bfb1-682e-4a2b-86c5-8ace83e70cba?_state=rh9dXg5Vn5dZ_LQa5u9HN7RHdo3DyyuJ3GQowFn2jvt7Ik5hbWUiOiJjaGVuZy10ZXN0L2J1c3lib3h2NSIsIlVVSUQiOiIwMGY0YmZiMS02ODJlLTRhMmItODZjNS04YWNlODNlNzBjYmEiLCJPZmZzZXQiOjAsIlN0YXJ0ZWRBdCI6IjIwMTctMDctMTdUMTk6MDg6MjMuNjE0NDQyNzg4WiJ9"
+	RepoMounted    = "test/ubuntu1"
+	RepoNotMounted = "test/busybox"
+	RepoRandom     = "randomRepo"
 )
+
+var (
+	RepoNotMountedEncoded  string
+	RepoMountedEncoded     string
+	UbuntuDigestSHAEncoded string
+)
+
+func init() {
+	RepoNotMountedEncoded = url.Values{
+		"from": {RepoNotMounted},
+	}.Encode()
+
+	RepoMountedEncoded = url.Values{
+		"from": {RepoMounted},
+	}.Encode()
+
+	UbuntuDigestSHAEncoded = url.Values{
+		"": {UbuntuDigestSHA},
+	}.Encode()
+}
 
 func TestGetManifestDigest(t *testing.T) {
 	// Get the manifest content when the image is not pulled by digest
@@ -102,4 +141,478 @@ func TestGetManifestDigest(t *testing.T) {
 	// Attempt to get and verify an incorrect manifest content with the digest
 	digest, err = getManifestDigest([]byte(DefaultManifest), ref)
 	assert.NotNil(t, err)
+}
+
+func TestLearnAuthURLForPush(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("www-authenticate",
+				"Bearer realm=\"https://auth.docker.io/token\",service=\"registry.docker.io\",scope=\"repository:test/ubuntu:pull,push\"")
+			http.Error(w, "You shall not pass", http.StatusUnauthorized)
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	url, err := LearnAuthURLForPush(ic.Options, ic.progressOutput)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	if url.String() != "https://auth.docker.io/token?scope=repository%3Atest%2Fubuntu%3Apull%2Cpush&service=registry.docker.io" {
+		t.Errorf("Returned url %s is different than expected", url)
+	}
+}
+
+func TestLearnAuthURLForRepoList(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("www-authenticate",
+				"Bearer realm=\"https://auth.docker.io/token\",service=\"registry.docker.io\",scope=\"registry:catalog:*\"")
+			http.Error(w, "You shall not pass", http.StatusUnauthorized)
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	url, err := LearnAuthURLForRepoList(ic.Options, ic.progressOutput)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	if url.String() != "https://auth.docker.io/token?scope=registry%3Acatalog%3A%2A%2Cscope%3D%22registry%3Acatalog%3A%2A&service=registry.docker.io" {
+		t.Errorf("Returned url %s is different than expected", url)
+	}
+}
+
+func TestLearnAuthURLForBlobMount(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("www-authenticate",
+				"Bearer realm=\"https://auth.docker.io/token\",service=\"registry.docker.io\",scope=\"repository:test/ubuntu:pull,push repository:test/ubuntu1:pull\"")
+			http.Error(w, "You shall not pass", http.StatusUnauthorized)
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	url, err := LearnAuthURLForBlobMount(ic.Options, UbuntuDigestSHA, RepoMounted, ic.progressOutput)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	if url.String() != "https://auth.docker.io/token?scope=repository%3Atest%2Fubuntu%3Apull%2Cpush+repository%3Atest%2Fubuntu1%3Apull&service=registry.docker.io" {
+		t.Errorf("Returned url %s is different than expected", url)
+	}
+}
+
+func TestCheckLayerExistence(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, UbuntuDigestSHA) {
+				w.WriteHeader(http.StatusOK)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            ic.Options.Timeout,
+		Username:           ic.Options.Username,
+		Password:           ic.Options.Password,
+		Token:              ic.Options.Token,
+		InsecureSkipVerify: ic.Options.InsecureSkipVerify,
+		RootCAs:            ic.Options.RegistryCAs,
+	})
+
+	layerID := "MockLayer"
+
+	registryURL, err := url.Parse(ic.Options.Registry)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	// this layer should exist
+	pushDigest := UbuntuDigestSHA
+	exist, err := CheckLayerExistence(ctx, transporter, options.Image, pushDigest, registryURL, ic.progressOutput)
+	if err != nil {
+		t.Errorf("failed to check for presence of layer %s (%s) in %s: %s", layerID, pushDigest, options.Image, err)
+	}
+	assert.Equal(t, true, exist, "Layer should exist!")
+
+	// this layer should not exist since the digest is wrong
+	exist, err = CheckLayerExistence(ctx, transporter, options.Image, WrongDigest, registryURL, ic.progressOutput)
+	if err != nil {
+		t.Errorf("failed to check for presence of layer %s (%s) in %s: %s", layerID, pushDigest, options.Image, err)
+	}
+	assert.Equal(t, false, exist, "Layer should not exist!")
+}
+
+func TestObtainUploadURL(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Location", MockUploadLocation)
+			w.WriteHeader(http.StatusAccepted)
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            ic.Options.Timeout,
+		Username:           ic.Options.Username,
+		Password:           ic.Options.Password,
+		Token:              ic.Options.Token,
+		InsecureSkipVerify: ic.Options.InsecureSkipVerify,
+		RootCAs:            ic.Options.RegistryCAs,
+	})
+
+	registryURL, err := url.Parse(ic.Options.Registry)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	uploadURL, err := ObtainUploadURL(ctx, transporter, registryURL, options.Image, ic.progressOutput)
+	if err != nil {
+		t.Errorf("failed to obtain url for uploading layer: %s", err)
+	}
+	assert.Equal(t, MockUploadLocation, uploadURL, "UploadURL is wrong!")
+}
+
+func TestCancelUpload(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println(r.URL.String())
+			if strings.Contains(r.URL.String(), MockUploadLocation) {
+				w.WriteHeader(http.StatusNoContent)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            ic.Options.Timeout,
+		Username:           ic.Options.Username,
+		Password:           ic.Options.Password,
+		Token:              ic.Options.Token,
+		InsecureSkipVerify: ic.Options.InsecureSkipVerify,
+		RootCAs:            ic.Options.RegistryCAs,
+	})
+
+	url := fmt.Sprintf("%s%s", s.URL, MockUploadLocation)
+	fmt.Println(url)
+
+	err = CancelUpload(ctx, transporter, url, ic.progressOutput)
+	assert.NoError(t, err, "CancelUpload is expected to succeed!")
+
+	url = fmt.Sprintf("%s%s", s.URL, WrongUploadLocation)
+	fmt.Println(url)
+
+	err = CancelUpload(ctx, transporter, url, ic.progressOutput)
+	assert.Error(t, err, "CancelUpload is expected to fail due to wrong upload location!")
+}
+
+func TestCompletedUpload(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println("The request url is: ", r.URL.String())
+			if strings.Contains(r.URL.String(), MockUploadLocation) && strings.Contains(r.URL.String(), UbuntuDigestSHAEncoded) {
+				w.WriteHeader(http.StatusCreated)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            ic.Options.Timeout,
+		Username:           ic.Options.Username,
+		Password:           ic.Options.Password,
+		Token:              ic.Options.Token,
+		InsecureSkipVerify: ic.Options.InsecureSkipVerify,
+		RootCAs:            ic.Options.RegistryCAs,
+	})
+
+	url := fmt.Sprintf("%s%s", s.URL, MockUploadLocation)
+	fmt.Println(url)
+
+	err = CompletedUpload(ctx, transporter, UbuntuDigestSHA, url, ic.progressOutput)
+	assert.NoError(t, err, "CompletedUpload is expected to succeed!")
+
+	err = CompletedUpload(ctx, transporter, WrongDigest, url, ic.progressOutput)
+	assert.Error(t, err, "CompletedUpload is expected to fail due to wrong digest!")
+}
+
+func TestUploadLayer(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println("The request url is: ", r.URL.String())
+			if strings.Contains(r.URL.String(), MockUploadLocation) && strings.Contains(r.URL.String(), UbuntuDigestSHAEncoded) {
+				w.WriteHeader(http.StatusCreated)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            ic.Options.Timeout,
+		Username:           ic.Options.Username,
+		Password:           ic.Options.Password,
+		Token:              ic.Options.Token,
+		InsecureSkipVerify: ic.Options.InsecureSkipVerify,
+		RootCAs:            ic.Options.RegistryCAs,
+	})
+
+	url := fmt.Sprintf("%s%s", s.URL, MockUploadLocation)
+	fmt.Println(url)
+
+	err = UploadLayer(ctx, transporter, UbuntuDigestSHA, url, bytes.NewReader([]byte("")), ic.progressOutput)
+	assert.NoError(t, err, "UploadLayer is expected to succeed!")
+
+	err = UploadLayer(ctx, transporter, WrongDigest, url, bytes.NewReader([]byte("")), ic.progressOutput)
+	assert.Error(t, err, "UploadLayer is expected to fail due to wrong digest!")
+
+	url = fmt.Sprintf("%s%s", s.URL, WrongUploadLocation)
+	fmt.Println(url)
+
+	err = UploadLayer(ctx, transporter, UbuntuDigestSHA, url, bytes.NewReader([]byte("")), ic.progressOutput)
+	assert.Error(t, err, "UploadLayer is expected to fail due to wrong upload location!")
+}
+
+func TestMountBlobToRepo(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println("The request url is: ", r.URL.String())
+			if strings.Contains(r.URL.String(), RepoMountedEncoded) {
+				w.WriteHeader(http.StatusCreated)
+			} else if strings.Contains(r.URL.String(), RepoNotMountedEncoded) {
+				w.WriteHeader(http.StatusAccepted)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            ic.Options.Timeout,
+		Username:           ic.Options.Username,
+		Password:           ic.Options.Password,
+		Token:              ic.Options.Token,
+		InsecureSkipVerify: ic.Options.InsecureSkipVerify,
+		RootCAs:            ic.Options.RegistryCAs,
+	})
+
+	registryURL, err := url.Parse(ic.Registry)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	mounted, _, err := MountBlobToRepo(ctx, transporter, registryURL, UbuntuDigestSHA, ic.Image, RepoMounted, ic.progressOutput)
+	assert.NoError(t, err, "MountBlobToRepo is expected to succeed!")
+	assert.Equal(t, true, mounted, "The layer should have been mounted!")
+
+	mounted, _, err = MountBlobToRepo(ctx, transporter, registryURL, UbuntuDigestSHA, ic.Image, RepoNotMounted, ic.progressOutput)
+	assert.NoError(t, err, "MountBlobToRepo is expected to succeed!")
+	assert.Equal(t, false, mounted, "The layer should not have been mounted!")
+
+	mounted, _, err = MountBlobToRepo(ctx, transporter, registryURL, UbuntuDigestSHA, ic.Image, RepoRandom, ic.progressOutput)
+	assert.Error(t, err, "MountBlobToRepo is expected to fail!")
+	assert.Equal(t, false, mounted, "The layer should not have been mounted!")
+}
+
+func TestObtainRepoList(t *testing.T) {
+	var err error
+
+	options := Options{
+		Outstream: os.Stdout,
+	}
+
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println("The request url is: ", r.URL.String())
+			if strings.Contains(r.URL.String(), "catalog") {
+				repoData := fmt.Sprintf("{'repositories':[%s]}", RepoMounted)
+				fmt.Println("The repositories: ", repoData)
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(repoData))
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+			}
+		}))
+	defer s.Close()
+
+	ic.Options.Registry = s.URL
+	ic.Options.Image = MockImage
+	ic.Options.Tag = Tag
+	ic.Options.Timeout = DefaultHTTPTimeout
+	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	transporterForRepoList := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            options.Timeout,
+		Username:           options.Username,
+		Password:           options.Password,
+		Token:              options.Token,
+		InsecureSkipVerify: options.InsecureSkipVerify,
+		RootCAs:            options.RegistryCAs,
+	})
+
+	repoList, err := ObtainRepoList(transporterForRepoList, ic.Options, ic.progressOutput)
+	assert.NoError(t, err, "ObtainRepoList is expected to succeed!")
+	assert.Equal(t, 1, len(repoList), "One repository should have been returned")
+	assert.Equal(t, RepoMounted, repoList[0], "The repo %s should have been returned!", repoList[0])
 }
