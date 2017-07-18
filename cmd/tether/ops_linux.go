@@ -241,8 +241,8 @@ func (t *operations) SetupFirewall(config *tether.ExecutorConfig) error {
 			ifaceName := iface.Attrs().Name
 			log.Debugf("slot %d -> %s", endpoint.ID, ifaceName)
 
-			// Traffic over container bridge network should be peers+outbound+published.
-			if err := setupPublishedFirewall(endpoint, ifaceName); err != nil {
+			// Traffic over container bridge network should be peers+outbound.
+			if err := setupOutboundFirewall(ifaceName); err != nil {
 				return err
 			}
 			sourceAddresses := make([]string, len(endpoint.Network.Pools))
