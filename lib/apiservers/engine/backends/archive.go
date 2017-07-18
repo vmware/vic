@@ -229,9 +229,8 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, dest string) *ArchiveS
 		// file data.txt from local /mnt/A/data.txt will come to the persona as mnt/A/data.txt.
 		// Here, we must tell the portlayer to remove "mnt/A".  The key to determining whether to
 		// strip "A" or "mnt/A" is based on the container destination path.
-		if containerDestPath != "/" && strings.HasPrefix(aw.mountPoint.Destination, containerDestPath) {
-			aw.filterSpec = vicarchive.GenerateFilterSpec(containerDestPath, aw.mountPoint, !strings.Contains(aw.mountPoint, containerDestPath), vicarchive.CopyTo)
-		}
+		isPrimary := !strings.Contains(aw.mountPoint.Destination, containerDestPath) || aw.mountPoint.Destination == containerDestPath
+		aw.filterSpec = vicarchive.GenerateFilterSpec(containerDestPath, aw.mountPoint.Destination, isPrimary, vicarchive.CopyTo)
 
 		writerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &aw)
 	}
@@ -264,9 +263,8 @@ func NewArchiveStreamReaderMap(mounts []types.MountPoint, dest string) *ArchiveS
 		//
 		// Neither the volume nor the storage portlayer knows about /mnt/A.  The persona must tell
 		// the portlayer to rebase all files from this volume to the /mnt/A/ in the final tar stream.
-		if ar.mountPoint.Destination != "/" {
-			ar.filterSpec = vicarchive.GenerateFilterSpec(containerDestPath, ar.mountPoint.Destination, !strings.Contains(ar.mountPoint.Destination, containerDestPath), vicarchive.CopyFrom)
-		}
+		isPrimary := !strings.Contains(ar.mountPoint.Destination, dest) || ar.mountPoint.Destination == dest
+		ar.filterSpec = vicarchive.GenerateFilterSpec(dest, ar.mountPoint.Destination, isPrimary, vicarchive.CopyFrom)
 
 		readerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &ar)
 	}
