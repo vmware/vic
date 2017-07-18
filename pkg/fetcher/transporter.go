@@ -34,6 +34,7 @@ import (
 
 const maxTransportAttempts = 5
 
+// Transporter interface
 type Transporter interface {
 	Put(ctx context.Context, url *url.URL, body io.Reader, reqHdrs *http.Header, po progress.Output, ids ...string) (http.Header, error)
 	Post(ctx context.Context, url *url.URL, body io.Reader, reqHdrs *http.Header, po progress.Output, ids ...string) (http.Header, error)
@@ -53,14 +54,9 @@ type Transporter interface {
 	Status() int
 
 	ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error)
-	//CompletedUpload(ctx context.Context, digest, uploadUrl string, po progress.Output) error
-	//UploadLayer(ctx context.Context, digest, uploadUrl string, layer io.Reader, po progress.Output, ids ...string) error
-	//CancelUpload(ctx context.Context, uploadUrl string, po progress.Output) error
-	//ObtainUploadUrl(ctx context.Context, registry *url.URL, image string, po progress.Output) (string, error)
-	//CheckLayerExistence(ctx context.Context, image, digest string, registry *url.URL, po progress.Output) (bool, error)
-	//MountBlobToRepo(ctx context.Context, registry *url.URL, digest, image, repo string, po progress.Output) (bool, string, error)
 }
 
+// URLTransporter struct
 type URLTransporter struct {
 	client *http.Client
 
@@ -71,6 +67,7 @@ type URLTransporter struct {
 	options Options
 }
 
+// NewURLTransporter creates a new URLTransporter
 func NewURLTransporter(options Options) *URLTransporter {
 	/* #nosec */
 	tr := &http.Transport{
@@ -88,30 +85,36 @@ func NewURLTransporter(options Options) *URLTransporter {
 	}
 }
 
+// Put implements a PUT request
 func (u *URLTransporter) Put(ctx context.Context, url *url.URL, body io.Reader, reqHdrs *http.Header, po progress.Output, ids ...string) (http.Header, error) {
 	hdr, _, err := u.requestWithRetry(ctx, url, body, reqHdrs, http.MethodPut, po)
 	return hdr, err
 }
 
+// Post implements a POST request
 func (u *URLTransporter) Post(ctx context.Context, url *url.URL, body io.Reader, reqHdrs *http.Header, po progress.Output, ids ...string) (http.Header, error) {
 	hdr, _, err := u.requestWithRetry(ctx, url, body, reqHdrs, http.MethodPost, po)
 	return hdr, err
 }
 
+// Delete implements a DELETE request
 func (u *URLTransporter) Delete(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, error) {
 	hdr, _, err := u.requestWithRetry(ctx, url, nil, reqHdrs, http.MethodDelete, po)
 	return hdr, err
 }
 
+// Head implements a HEAD request
 func (u *URLTransporter) Head(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, error) {
 	hdr, _, err := u.requestWithRetry(ctx, url, nil, reqHdrs, http.MethodHead, po)
 	return hdr, err
 }
 
+// Get implements a GET request
 func (u *URLTransporter) Get(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, io.ReadCloser, error) {
 	return u.requestWithRetry(ctx, url, nil, reqHdrs, http.MethodGet, po)
 }
 
+// Create a basic request without retry
 func (u *URLTransporter) request(ctx context.Context, url *url.URL, body io.Reader, reqHdrs *http.Header, operation string, po progress.Output) (http.Header, io.ReadCloser, error) {
 	req, err := http.NewRequest(operation, url.String(), body)
 	if err != nil {
@@ -169,7 +172,7 @@ func (u *URLTransporter) request(ctx context.Context, url *url.URL, body io.Read
 	return nil, nil, DoNotRetry{Err: fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)}
 }
 
-// pushes content from local cache or stream to a url
+// Create a request with retry logic
 func (u *URLTransporter) requestWithRetry(ctx context.Context, url *url.URL, body io.Reader, reqHdrs *http.Header, operation string, po progress.Output, ids ...string) (http.Header, io.ReadCloser, error) {
 	defer trace.End(trace.Begin(operation + " " + url.Path))
 
@@ -255,26 +258,32 @@ func (u *URLTransporter) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
 }
 
+// IsStatusAccepted returns true if status code is StatusAccepted
 func (u *URLTransporter) IsStatusAccepted() bool {
 	return u.StatusCode == http.StatusAccepted
 }
 
+// IsStatusCreated returns true if status code is StatusCreated
 func (u *URLTransporter) IsStatusCreated() bool {
 	return u.StatusCode == http.StatusCreated
 }
 
+// IsStatusNoContent returns true if status code is StatusNoContent
 func (u *URLTransporter) IsStatusNoContent() bool {
 	return u.StatusCode == http.StatusNoContent
 }
 
+// IsStatusBadGateway returns true if status code is StatusBadGateway
 func (u *URLTransporter) IsStatusBadGateway() bool {
 	return u.StatusCode == http.StatusBadGateway
 }
 
+// IsStatusServiceUnavailable returns true if status code is StatusServiceUnavailable
 func (u *URLTransporter) IsStatusServiceUnavailable() bool {
 	return u.StatusCode == http.StatusServiceUnavailable
 }
 
+// IsStatusGatewayTimeout returns true if status code is StatusGatewayTimeout
 func (u *URLTransporter) IsStatusGatewayTimeout() bool {
 	return u.StatusCode == http.StatusGatewayTimeout
 }
@@ -361,7 +370,8 @@ func (u *URLTransporter) ExtractOAuthURL(hdr string, repository *url.URL) (*url.
 	return auth, nil
 }
 
-func UrlDeepCopy(src *url.URL) *url.URL {
+// URLDeepCopy deep-copys a URL
+func URLDeepCopy(src *url.URL) *url.URL {
 	dest := &url.URL{
 		Scheme:     src.Scheme,
 		Opaque:     src.Opaque,
@@ -377,6 +387,7 @@ func UrlDeepCopy(src *url.URL) *url.URL {
 	return dest
 }
 
+// Status returns the status code
 func (u *URLTransporter) Status() int {
 	return u.StatusCode
 }

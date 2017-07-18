@@ -27,6 +27,7 @@ func (e DoNotRetry) Error() string {
 	return e.Err.Error()
 }
 
+// RetryOnErr is an error wrapper indicating that the error may be resolved with a retry.
 type RetryOnErr struct {
 	Err error
 }

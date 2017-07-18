@@ -946,7 +946,7 @@ func CheckLayerExistence(ctx context.Context, u *urlfetcher.URLTransporter, imag
 	defer trace.End(trace.Begin(digest))
 
 	// HEAD /v2/<name>/blobs/<digest>
-	composedUrl := urlfetcher.UrlDeepCopy(registry)
+	composedUrl := urlfetcher.URLDeepCopy(registry)
 	composedUrl.Path = path.Join(registry.Path, image, "blobs", digest)
 
 	log.Debugf("The url for checking layer existence is: %s", composedUrl)
@@ -973,7 +973,7 @@ func ObtainUploadUrl(ctx context.Context, u *urlfetcher.URLTransporter, registry
 	defer trace.End(trace.Begin(image))
 
 	// POST /v2/<name>/blobs/uploads
-	composedUrl := urlfetcher.UrlDeepCopy(registry)
+	composedUrl := urlfetcher.URLDeepCopy(registry)
 	composedUrl.Path = path.Join(registry.Path, image, "blobs/uploads/")
 	composedUrl.Path += "/"
 
@@ -999,7 +999,7 @@ func MountBlobToRepo(ctx context.Context, u *urlfetcher.URLTransporter, registry
 
 	// POST /v2/<name>/blobs/uploads/?mount=<digest>&from=<repository name>
 	// Content-Length: 0
-	composedUrl := urlfetcher.UrlDeepCopy(registry)
+	composedUrl := urlfetcher.URLDeepCopy(registry)
 	composedUrl.Path = path.Join(registry.Path, image, "blobs/uploads")
 	composedUrl.Path += "/"
 
