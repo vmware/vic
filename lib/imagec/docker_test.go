@@ -290,28 +290,28 @@ func TestCheckLayerExistence(t *testing.T) {
 
 	layerID := "MockLayer"
 
-	registryUrl, err := url.Parse(ic.Options.Registry)
+	registryURL, err := url.Parse(ic.Options.Registry)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
 	// this layer should exist
 	pushDigest := UbuntuDigestSHA
-	exist, err := CheckLayerExistence(ctx, transporter, options.Image, pushDigest, registryUrl, ic.progressOutput)
+	exist, err := CheckLayerExistence(ctx, transporter, options.Image, pushDigest, registryURL, ic.progressOutput)
 	if err != nil {
 		t.Errorf("failed to check for presence of layer %s (%s) in %s: %s", layerID, pushDigest, options.Image, err)
 	}
 	assert.Equal(t, true, exist, "Layer should exist!")
 
 	// this layer should not exist since the digest is wrong
-	exist, err = CheckLayerExistence(ctx, transporter, options.Image, WrongDigest, registryUrl, ic.progressOutput)
+	exist, err = CheckLayerExistence(ctx, transporter, options.Image, WrongDigest, registryURL, ic.progressOutput)
 	if err != nil {
 		t.Errorf("failed to check for presence of layer %s (%s) in %s: %s", layerID, pushDigest, options.Image, err)
 	}
 	assert.Equal(t, false, exist, "Layer should not exist!")
 }
 
-func TestObtainUploadUrl(t *testing.T) {
+func TestObtainUploadURL(t *testing.T) {
 	var err error
 
 	options := Options{
@@ -345,12 +345,12 @@ func TestObtainUploadUrl(t *testing.T) {
 		RootCAs:            ic.Options.RegistryCAs,
 	})
 
-	registryUrl, err := url.Parse(ic.Options.Registry)
+	registryURL, err := url.Parse(ic.Options.Registry)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	uploadURL, err := ObtainUploadUrl(ctx, transporter, registryUrl, options.Image, ic.progressOutput)
+	uploadURL, err := ObtainUploadURL(ctx, transporter, registryURL, options.Image, ic.progressOutput)
 	if err != nil {
 		t.Errorf("failed to obtain url for uploading layer: %s", err)
 	}
@@ -550,20 +550,20 @@ func TestMountBlobToRepo(t *testing.T) {
 		RootCAs:            ic.Options.RegistryCAs,
 	})
 
-	registryUrl, err := url.Parse(ic.Registry)
+	registryURL, err := url.Parse(ic.Registry)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	mounted, _, err := MountBlobToRepo(ctx, transporter, registryUrl, UbuntuDigestSHA, ic.Image, RepoMounted, ic.progressOutput)
+	mounted, _, err := MountBlobToRepo(ctx, transporter, registryURL, UbuntuDigestSHA, ic.Image, RepoMounted, ic.progressOutput)
 	assert.NoError(t, err, "MountBlobToRepo is expected to succeed!")
 	assert.Equal(t, true, mounted, "The layer should have been mounted!")
 
-	mounted, _, err = MountBlobToRepo(ctx, transporter, registryUrl, UbuntuDigestSHA, ic.Image, RepoNotMounted, ic.progressOutput)
+	mounted, _, err = MountBlobToRepo(ctx, transporter, registryURL, UbuntuDigestSHA, ic.Image, RepoNotMounted, ic.progressOutput)
 	assert.NoError(t, err, "MountBlobToRepo is expected to succeed!")
 	assert.Equal(t, false, mounted, "The layer should not have been mounted!")
 
-	mounted, _, err = MountBlobToRepo(ctx, transporter, registryUrl, UbuntuDigestSHA, ic.Image, RepoRandom, ic.progressOutput)
+	mounted, _, err = MountBlobToRepo(ctx, transporter, registryURL, UbuntuDigestSHA, ic.Image, RepoRandom, ic.progressOutput)
 	assert.Error(t, err, "MountBlobToRepo is expected to fail!")
 	assert.Equal(t, false, mounted, "The layer should not have been mounted!")
 }
