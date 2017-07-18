@@ -17,6 +17,7 @@ package netfilter
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -169,9 +170,9 @@ func iptables(ctx context.Context, args []string) error {
 			Chroot: "/.tether",
 		},
 	}
-	proc, err := os.StartProcess(cmd.Path, cmd.argv(), &os.ProcAttr{
+	proc, err := os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
 		Dir: cmd.Dir,
-		Sys: cmd.SysProcAttr
+		Sys: cmd.SysProcAttr,
 	})
 
 	if err != nil {
