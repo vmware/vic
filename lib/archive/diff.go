@@ -58,6 +58,16 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 
 	sort.Sort(changesByPath(changes))
 
+	if !data {
+		for i := 0; i < len(changes); {
+			if spec.Excludes(op, changes[i].Path) {
+				changes = append(changes[:i], changes[i+1:]...)
+			}
+		}
+
+		return docker.ExportChanges(newDir, changes, nil, nil)
+	}
+
 	return Tar(op, newDir, changes, spec, data, oldDir != "")
 }
 
