@@ -1397,7 +1397,7 @@ func (c *Container) ContainerLogs(ctx context.Context, name string, config *back
 	}
 
 	// Make a call to our proxy to handle the remoting
-	err = c.containerProxy.StreamContainerLogs(name, outStream, started, config.Timestamps, config.Follow, since, tailLines)
+	err = c.containerProxy.StreamContainerLogs(ctx, name, outStream, started, config.Timestamps, config.Follow, since, tailLines)
 	if err != nil {
 		// Don't return an error encountered while streaming logs.
 		// Once we've started streaming logs, the Docker client doesn't expect
