@@ -107,7 +107,8 @@ Configure Registry CA
     Should Not Contain  ${output}  Succeeded
 
     # Add the HTTPS registry CA to cert pool with vic-machine configure
-    ${output}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --registry-ca=./ca.crt --thumbprint=%{TEST_THUMBPRINT} --debug=1
+    ${rc}  ${output}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --registry-ca=./ca.crt --thumbprint=%{TEST_THUMBPRINT} --debug=1
+    Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from the HTTPS registry (should succeed)
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
@@ -116,7 +117,8 @@ Configure Registry CA
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTPS_HARBOR_IP}/library/photon:1.0
     Should Be Equal As Integers  ${rc}  0
 
-    ${output}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+    ${rc}  ${output}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+    Should Be Equal As Integers  ${rc}  0
 
     # Try to login and pull from the HTTPS registry (should succeed)
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
