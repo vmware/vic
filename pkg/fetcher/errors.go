@@ -23,7 +23,17 @@ type DoNotRetry struct {
 
 // Error returns the stringified representation of the encapsulated error.
 func (e DoNotRetry) Error() string {
-	return fmt.Sprintf("download failed: %s", e.Err.Error())
+	//return fmt.Sprintf("download failed: %s", e.Err.Error())
+	return e.Err.Error()
+}
+
+type RetryOnErr struct {
+	Err error
+}
+
+// Error returns the stringified representation of the encapsulated error.
+func (e RetryOnErr) Error() string {
+	return e.Err.Error()
 }
 
 // ImageNotFoundError is returned when an image is not found.
