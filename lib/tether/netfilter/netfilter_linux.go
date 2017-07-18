@@ -169,18 +169,13 @@ func iptables(ctx context.Context, args []string) error {
 			Chroot: "/.tether",
 		},
 	}
-	b, err := cmd.CombinedOutput()
+	proc, err := os.StartProcess(cmd.Path, cmd.argv(), &os.ProcAttr{
+		Dir: cmd.Dir,
+		Sys: cmd.SysProcAttr
+	})
+
 	if err != nil {
-		logrus.Errorf("iptables error: %s", err.Error())
-
-		exitErr, ok := err.(*exec.ExitError)
-		if ok && len(exitErr.Stderr) > 0 {
-			logrus.Errorf("iptables error: %s", string(exitErr.Stderr))
-		}
-	}
-
-	if len(b) > 0 {
-		logrus.Infof("iptables: %s", string(b))
+		logrus.Errorf("iptables %q (Pid %v) error: %s", args, proc.Pid, err.Error())
 	}
 
 	return err
