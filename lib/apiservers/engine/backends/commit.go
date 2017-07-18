@@ -17,6 +17,7 @@ package backends
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -86,7 +87,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 		}
 	}
 
-	rc, err := containerEngine.containerProxy.GetContainerChanges(vc, true)
+	rc, err := containerEngine.containerProxy.GetContainerChanges(context.Background(), vc, true)
 	if err != nil {
 		return "", fmt.Errorf("Unable to initialize export stream reader for container %s", name)
 	}

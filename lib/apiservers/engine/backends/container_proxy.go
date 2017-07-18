@@ -107,7 +107,7 @@ type VicContainerProxy interface {
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
 
-	GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer) (io.ReadCloser, error)
+	GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -674,7 +674,7 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 	return nil
 }
 
-func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer) (io.ReadCloser, error) {
+func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
 	host, err := sys.UUID()
 	if err != nil {
 		return nil, InternalServerError("Failed to determine host UUID")
@@ -686,7 +686,7 @@ func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontain
 		Exclusions: map[string]struct{}{},
 	}
 
-	r, err := c.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, false, spec)
+	r, err := c.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
