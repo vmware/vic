@@ -302,6 +302,81 @@ func TestComplexReadSpec(t *testing.T) {
 
 }
 
+func TestComplexReadWithEndingSlashSpec(t *testing.T) {
+	copyTarget := "/mnt/vols/"
+	direction := CopyFrom
+
+	mounts := []testMount{
+
+		{
+			mount:              "/",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/A",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/B",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/A/subvols/AB",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		"/": {
+			RebasePath: "vols",
+			StripPath:  "mnt/vols",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/A": {
+			RebasePath: "vols/A",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/B": {
+			RebasePath: "vols/B",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/A/subvols/AB": {
+			RebasePath: "vols/A/subvols/AB",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
+
+}
+
 func TestReadIntoMountSpec(t *testing.T) {
 	copyTarget := "/mnt/vols/A/a/path"
 	direction := CopyFrom
