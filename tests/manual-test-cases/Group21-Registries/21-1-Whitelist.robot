@@ -116,4 +116,13 @@ Configure Registry CA
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTPS_HARBOR_IP}/library/photon:1.0
     Should Be Equal As Integers  ${rc}  0
 
+    ${output}=  Run  bin/vic-machine-linux configure --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+
+    # Try to login and pull from the HTTPS registry (should succeed)
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTPS_HARBOR_IP}
+    Should Contain  ${output}  Succeeded
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTPS_HARBOR_IP}/library/photon:1.0
+    Should Be Equal As Integers  ${rc}  0
+
     Cleanup VIC Appliance On Test Server
