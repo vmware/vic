@@ -54,6 +54,9 @@ Clean up test files and VIC appliance to test server
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol3
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm smallVol
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
     Cleanup VIC Appliance On Test Server
 
 Start container and inspect directory
@@ -67,7 +70,7 @@ Start container and inspect directory
     [Return]  ${output}
 
 *** Test Cases ***
-Copy a file and directory from host to offline container root dir
+Copy a file from host to offline container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -77,13 +80,9 @@ Copy a file and directory from host to offline container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar offline:/
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
     ${output}=  Start container and inspect directory  offline  /
     Should Contain  ${output}  foo.txt
-    Should Contain  ${output}  bar
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline sh -c 'rm /foo.txt && rmdir /bar'
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline sh -c 'rm /foo.txt'
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -112,17 +111,17 @@ Copy a directory from host to offline container, dst path doesn't exist
     Should Not Contain  ${output}  Error
 
 Copy a non-existent file out of an offline container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/dne ${CURDIR}
-    Should Not Be Equal As Integers  ${rc}  0
-    ${status}=  Get State Of Github Issue  5632
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5632 has been resolved
+    ${status}=  Get State Of Github Issue  5717
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5717 has been resolved
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/dne ${CURDIR}
+    #Should Not Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  Error
 
 Copy a non-existent directory out of an offline container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/dne/. ${CURDIR}
-    Should Not Be Equal As Integers  ${rc}  0
-    ${status}=  Get State Of Github Issue  5632
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5632 has been resolved
+    ${status}=  Get State Of Github Issue  5717
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5717 has been resolved
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/dne/. ${CURDIR}
+    #Should Not Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  Error
 
 Copy a non-existent directory into an offline container
@@ -140,6 +139,9 @@ Copy a large file that exceeds the container volume into an offline container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/small
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
@@ -179,3 +181,69 @@ Copy a file from host to offline container, dst is a nested volume with 3 levels
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+
+Concurrent copy: repeat copy a small file from host to offline container several times
+    ${status}=  Get State Of Github Issue  5742
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5742 has been resolved
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/foo1
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/foo2
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/foo3
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${output}=  Start container and inspect directory  offline  /
+    #Should Contain  ${output}  foo1
+    #Should Contain  ${output}  foo2
+    #Should Contain  ${output}  foo3
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+
+Concurrent copy: repeat copy a large file from host to offline container several times
+    ${status}=  Get State Of Github Issue  5742
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5742 has been resolved
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/vol1/lg1
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/vol1/lg2
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/vol1/lg3
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${output}=  Start container and inspect directory  offline  /vol1
+    #Should Contain  ${output}  lg1
+    #Should Contain  ${output}  lg2
+    #Should Contain  ${output}  lg3
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+
+Concurrent copy: repeat copy a large file from offline container to host several times
+    ${status}=  Get State Of Github Issue  5742
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5742 has been resolved
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/vol1/lg1 ${CURDIR}/large1
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/vol1/lg1 ${CURDIR}/large2
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/vol1/lg1 ${CURDIR}/large3
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #File Should Exist  ${CURDIR}/large1
+    #File Should Exist  ${CURDIR}/large2
+    #File Should Exist  ${CURDIR}/large3
+    #Remove File  ${CURDIR}/large1
+    #Remove File  ${CURDIR}/large2
+    #Remove File  ${CURDIR}/large3
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    
