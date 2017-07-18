@@ -58,7 +58,7 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 
 	sort.Sort(changesByPath(changes))
 
-	return Tar(op, newDir, changes, spec, data, oldDir != "")
+	return Tar(op, newDir, changes, spec, data, false)
 }
 
 func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
@@ -162,6 +162,8 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		whiteOutDir := filepath.Dir(change.Path)
 		whiteOutBase := filepath.Base(change.Path)
 		whiteOut := filepath.Join(whiteOutDir, docker.WhiteoutPrefix+whiteOutBase)
+
+		// FIXME: consult @jzt about how strip should work here
 		hdr = &tar.Header{
 			Name:       filepath.Join(spec.RebasePath, whiteOut),
 			ModTime:    timestamp,
@@ -181,15 +183,10 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 			return nil, err
 		}
 
-		hdr.Name = filepath.Join(spec.RebasePath, change.Path)
-
-		if hdr.Typeflag == tar.TypeDir {
-			hdr.Name += "/"
-		}
+		change.Path = strings.TrimPrefix(change.Path, "/")
+		strippedName := strings.TrimPrefix(change.Path, spec.StripPath)
+		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
 	}
-
-	// first rebase (happens above), then strip any unnecessary leading directory elements
-	hdr.Name = strings.TrimPrefix(hdr.Name, spec.StripPath)
 
 	if xattr {
 		hdr.Xattrs = make(map[string]string)

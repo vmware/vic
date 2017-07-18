@@ -229,8 +229,8 @@ func NewArchiveStreamWriterMap(mounts []types.MountPoint, dest string) *ArchiveS
 		// file data.txt from local /mnt/A/data.txt will come to the persona as mnt/A/data.txt.
 		// Here, we must tell the portlayer to remove "mnt/A".  The key to determining whether to
 		// strip "A" or "mnt/A" is based on the container destination path.
-		isPrimary := !strings.Contains(aw.mountPoint.Destination, containerDestPath) || aw.mountPoint.Destination == containerDestPath
-		aw.filterSpec = vicarchive.GenerateFilterSpec(containerDestPath, aw.mountPoint.Destination, isPrimary, vicarchive.CopyTo)
+		isPrimary := !strings.Contains(aw.mountPoint.Destination, dest) || aw.mountPoint.Destination == dest
+		aw.filterSpec = vicarchive.GenerateFilterSpec(dest, aw.mountPoint.Destination, isPrimary, vicarchive.CopyTo)
 
 		writerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &aw)
 	}
