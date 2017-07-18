@@ -1,5 +1,5 @@
 <clr-datagrid (clrDgRefresh)="refreshGrid($event)" [clrDgLoading]="isDgLoading">
-  <clr-dg-action-bar>
+  <clr-dg-action-bar *ngIf="isVsphereAdmin">
     <button class="btn btn-link btn-sm" (click)="launchCreateVchWizard()">
       <clr-icon shape="add"></clr-icon> New Virtual Container Host
     </button>

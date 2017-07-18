@@ -37,6 +37,7 @@ import {
     VSPHERE_VITREE_HOSTCLUSTERVIEW_KEY,
     WS_VCH
 } from '../shared/constants';
+import { ExtendedUserSessionService } from '../services/extended-usersession.service';
 
 @Component({
     selector: 'vic-vch-view',
@@ -47,6 +48,7 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
     public readonly WS_VCH_CONSTANTS = WS_VCH;
     private refreshSubscription: Subscription;
     public isDgLoading = true;
+    public isVsphereAdmin: boolean;
     public vchs: VirtualContainerHost[] = [];
     public totalVchsCount = 0;
     public currentState: {
@@ -61,6 +63,7 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
         private vmViewService: VicVmViewService,
         private refreshService: RefreshService,
         private globalsService: GlobalsService,
+        private sessionService: ExtendedUserSessionService,
         public vicI18n: Vic18nService
     ) { }
 
@@ -82,6 +85,9 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
         }, err => {
             this.vchs = [];
         });
+
+        // check if the current user is a vSphere Admin
+        this.isVsphereAdmin = this.sessionService.isVsphereAdmin;
     }
 
     ngOnDestroy() {
