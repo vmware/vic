@@ -25,9 +25,9 @@ This test requires access to VMware Nimbus for dynamic ESXi and NFS server creat
 3. Deploy VIC appliance to an ESX and use fake NFS mount point
 4. Deploy VIC appliance to an ESX and use valid NFS mount point
 5. Issue docker volume create using no name for the volume (unnamed) on VolumeStore=nfsVolumeStore (NFS volume)
-6. Run docker mount on container using unnamed volume, run docker wait, then docker rm on temp container
+6. Issue docker run -v using unnamed volume and the mount command, run docker wait, then docker rm on container
 7. Issue docker volume create --name=nfs_default_%{VCH-NAME} on VolumeStore=nfsVolumeStore (NFS volume)
-8. Run docker mount on container using named volume, run docker wait, then docker rm on temp container
+8. Issue docker run -v using unnamed volume and the mount command, run docker wait, then docker rm on container
 9. Issue docker volume create on unnamed volume
 10. Issue docker volume create on named volume
 11. Issue docker volume create --name="test!@\#$%^&*()"
@@ -63,7 +63,7 @@ This test requires access to VMware Nimbus for dynamic ESXi and NFS server creat
 
 
 # Expected Outcome:
-* Step 1 will pass VCH creation but should fail in mounting the read only NFS mount poin
+* Step 1 will pass VCH creation but should fail in mounting the read only NFS mount point
 * Step 2 should result in error with the following error message:
 ```
 Error response from daemon: No volume store named (${nfsReadOnlyVolumeStore}) exists
@@ -86,13 +86,13 @@ Error response from daemon: A volume named ${nfsDefaultVolume} already exists. C
 ```
 Error response from daemon: create test???: "test???" includes invalid characters for a local volume name, only "\[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 ```
-* Step 12 - 22 should result in success
+* Steps 12 - 22 should result in success
 * Step 23 should result in error with the following error message:
 ```
 cat: can't open 'mydata/test_nfs_file.txt': No such file or directory
 ```
 * Step 24 and 25 should succeed, however step 25 will show the same error as above in the logs
-* Step 26 - 29 should result in success
+* Steps 26 - 29 should result in success
 * Step 30 should result in a properly formatted JSON response
 * Step 31 should result in each nfs volume being listed with both driver and volume name
 * Step 32 should result in success and the volume should not be listed anymore
@@ -100,12 +100,12 @@ cat: can't open 'mydata/test_nfs_file.txt': No such file or directory
 ```
 Error response from daemon: volume ${nfsNamedVolume} in use by
 ```
-* Step 34 - 36 should result in success; step 36 should kill/drop the server
+* Steps 34 - 36 should result in success; step 36 should kill/drop the server
 * Step 37 should result in error with the following message:
 ```
 Server error from portlayer: unable to wait for process launch status:
 ```
-* Step 38 - 39 should result in error with the rc = 125.
+* Steps 38 - 39 should result in error with the rc = 125.
 
 
 # Possible Problems:
