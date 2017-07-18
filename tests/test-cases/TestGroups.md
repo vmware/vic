@@ -14,3 +14,5 @@ VIC Integration Test Suite
 -
 [Group 10 - VCH Restart](Group10-VCH-Restart/TestCases.md)
 -
+[Group 21 - Registries](Group21-Registries/TestCases.md)
+-

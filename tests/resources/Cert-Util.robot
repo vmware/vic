@@ -16,6 +16,11 @@
 Documentation  This resource contains keywords related to creating and using certificates. Requires scripts in infra/integration-image/scripts be available in PATH
 
 *** Keywords ***
+Create Self Signed Certs
+    ${out}=  Run  openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt -subj "/C=US/ST=Texas/L=Austin/O=VMware/OU=VIC/CN=eng.vmware.com"
+    Should Contain  ${out}  writing new private key to 'ca.key'
+    Move Files  ca.crt  ca.key  certs/
+
 Generate Certificate Authority
     #  Generates CA (private/ca.key.pem, certs/ca.cert.pem, certs/STARK_ENTERPRISES_ROOT_CA.crt) in OUT_DIR
     [Arguments]  ${CA_NAME}=STARK_ENTERPRISES_ROOT_CA  ${OUT_DIR}=/root/ca
