@@ -144,7 +144,7 @@ Docker volume create with possibly invalid name
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test!@\#$%^&*()" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 
 Docker Single Write and Read to/from File from one Container using NFS Volume
-    # Done with the same contianer for this test.
+    # Done with the same container for this test.
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${createFileContainer} -d -v ${nfsNamedVolume}:/mydata ${busybox} /bin/top -d 600
     Should Be Equal As Integers  ${rc}  0
 
