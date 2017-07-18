@@ -128,25 +128,14 @@ func NewVirtualDisk(op trace.Operation, config *VirtualDiskConfig, disks map[uin
 }
 
 func (d *VirtualDisk) setAttached(op trace.Operation, devicePath string) (err error) {
-	defer func() {
-		if err == nil {
-			// bump the attached reference count
-			d.attachedRefs.Increment()
-		}
-	}()
-
-	if d.attached() {
-		op.Warnf("%s is already attached (%s)", d.DatastoreURI, devicePath)
-		return nil
+	if d.DevicePath == "" {
+		// Question: what happens if this is called a second time with a different devicePath?
+		d.DevicePath = devicePath
 	}
 
-	if devicePath == "" {
-		err = fmt.Errorf("no device path specified")
-		return err
-	}
+	count := d.attachedRefs.Increment()
+	op.Debugf("incremented attach count for %s: %d", d.DatastoreURI, count)
 
-	// set the device path where attached
-	d.DevicePath = devicePath
 	return nil
 }
 
@@ -166,30 +155,11 @@ func (d *VirtualDisk) canBeDetached() error {
 	return nil
 }
 
-func (d *VirtualDisk) setDetached(op trace.Operation, disks map[uint64]*VirtualDisk) error {
-	defer func() {
-		if d.attachedRefs.Count() == 0 {
-			op.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
-
-			delete(disks, d.Hash())
-		}
-	}()
-
-	if !d.attached() {
-		return fmt.Errorf("%s is already detached", d.DatastoreURI)
-	}
-
-	if d.mounted() {
-		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
-	}
-
-	if !d.attachedByOther() {
-		d.DevicePath = ""
-	} else {
-		op.Warnf("%s is still in use", d.DatastoreURI)
-	}
-
-	return nil
+func (d *VirtualDisk) setDetached(op trace.Operation, disks map[uint64]*VirtualDisk) {
+	// we only call this when it's been detached, so always make the updates
+	op.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
+	d.DevicePath = ""
+	delete(disks, d.Hash())
 }
 
 // Mkfs formats the disk with Filesystem and sets the disk label
@@ -274,27 +244,22 @@ func (d *VirtualDisk) Mount(op trace.Operation, mountPath string, options []stri
 	d.l.Lock()
 	defer d.l.Unlock()
 
-	defer func() {
-		// bump mounted reference count
-		d.mountedRefs.Increment()
-	}()
-
-	if d.mounted() {
-		p, _ := d.mountPathFn()
-		op.Warnf("%s already mounted at %s", d.DatastoreURI, p)
-		return nil
-	}
-
 	if !d.attached() {
 		err = fmt.Errorf("%s isn't attached", d.DatastoreURI)
 		return err
 	}
 
-	if err = d.Filesystem.Mount(op, d.DevicePath, mountPath, options); err != nil {
-		return err
+	if !d.mounted() {
+		if err = d.Filesystem.Mount(op, d.DevicePath, mountPath, options); err != nil {
+			return err
+		}
+
+		d.mountPath = mountPath
 	}
 
-	d.mountPath = mountPath
+	count := d.mountedRefs.Increment()
+	op.Debugf("incremented mount count for %s: %d", d.mountPath, count)
+
 	return nil
 }
 
@@ -307,15 +272,19 @@ func (d *VirtualDisk) Unmount(op trace.Operation) error {
 		return fmt.Errorf("%s already unmounted", d.DatastoreURI)
 	}
 
-	d.mountedRefs.Decrement()
+	count := d.mountedRefs.Decrement()
+	op.Debugf("decremented mount count for %s: %d", d.mountPath, count)
+
+	if count > 0 {
+		return nil
+	}
 
 	// no more mount references to this disk, so actually unmount
-	if d.mountedRefs.Count() == 0 {
-		if err := d.Filesystem.Unmount(op, d.mountPath); err != nil {
-			return err
-		}
-		d.mountPath = ""
+	if err := d.Filesystem.Unmount(op, d.mountPath); err != nil {
+		return err
 	}
+
+	d.mountPath = ""
 
 	return nil
 }

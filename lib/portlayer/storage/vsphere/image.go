@@ -482,18 +482,22 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	// Make the filesystem and set its label to defaultDiskLabel
 	if err = vmdisk.Mkfs(op, defaultDiskLabel); err != nil {
+		op.Errorf("Failed to create scratch filesystem: %s", err)
 		return err
 	}
 
 	if err = createBaseStructure(op, vmdisk); err != nil {
+		op.Errorf("Failed to create base filesystem structure: %s", err)
 		return err
 	}
 
 	if err = v.Detach(op, vmdisk.VirtualDiskConfig); err != nil {
+		op.Errorf("Failed to detach scratch image: %s", err)
 		return err
 	}
 
 	if err = v.writeManifest(op, storeName, portlayer.Scratch.ID, nil); err != nil {
+		op.Errorf("Failed to create manifest for scratch image: %s", err)
 		return err
 	}
 

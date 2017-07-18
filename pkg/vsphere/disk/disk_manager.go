@@ -164,8 +164,10 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 		d.l.Lock()
 		defer d.l.Unlock()
-		// bump the attach refcount
-		d.attachedRefs.Increment()
+
+		// this updates the reference count for the disk
+		d.setAttached(op, "")
+
 		return d, nil
 	}
 
@@ -364,11 +366,13 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	defer d.l.Unlock()
 
 	count := d.attachedRefs.Decrement()
+	op.Debugf("decremented attach count for %s: %d", d.DatastoreURI, count)
 	if count > 0 {
 		return nil
 	}
 
 	if err := d.canBeDetached(); err != nil {
+		op.Errorf("disk needs to be detached but is still in use: %s", err)
 		return errors.Trace(err)
 	}
 
@@ -384,13 +388,11 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 		return errors.Trace(err)
 	}
 
+	d.setDetached(op, m.Disks)
+
 	select {
 	case <-m.maxAttached:
 	default:
-	}
-
-	if err = d.setDetached(op, m.Disks); err != nil {
-		op.Errorf(err.Error())
 	}
 
 	return nil
@@ -500,22 +502,30 @@ func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.Data
 		return err
 	}
 
-	op.Infof("Unmount/Detach %s", datastoreURI.String())
-	if err := d.Unmount(op); err != nil {
-		op.Debugf("Error unmounting disk: %s", err.Error())
-		return err
-	}
-	if err := m.Detach(op, config); err != nil {
-		op.Debugf("Error detaching disk: %s", err.Error())
-		return err
+	op.Infof("Unmount and Detach %s:%s", d.mountPath, d.DatastoreURI)
+
+	mountPoint, err := d.MountPath()
+	if err != nil {
+		// we should never get here or Get would have failed
+		op.Errorf("failed to determine mount point for disk")
 	}
 
-	if path, err := d.MountPath(); err == nil {
-		if err = os.RemoveAll(path); err != nil {
+	merr := d.Unmount(op)
+	derr := m.Detach(op, config)
+
+	if merr != nil || derr != nil {
+		op.Errorf("Error during unmount or detach, unmount: %s, detach: %s", merr, derr)
+	}
+
+	if !d.inUseByOther() {
+		// only remove the mount directory - if we've succeeded in the unmount there won't be anything in it
+		// if we somehow get here and there is content we do NOT want to delete it
+		if err = os.Remove(mountPoint); err != nil {
 			op.Debugf("Error cleaning up mount path: %s", err.Error())
 			return err
 		}
 	}
+
 	return err
 }
 

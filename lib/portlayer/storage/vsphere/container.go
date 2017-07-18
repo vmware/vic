@@ -68,6 +68,9 @@ func NewContainerStore(op trace.Operation, s *session.Session, imageResolver sto
 
 // URL converts the id of a resource to a URL
 func (c *ContainerStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	// using diskfinder with a basic suffix match is an inefficient and potentially error prone way of doing this
+	// mapping, but until the container store has a structured means of knowing this information it's at least
+	// not going to be incorrect without an ID collision.
 	dsPath, err := c.DiskFinder(op, func(filename string) bool {
 		return strings.HasSuffix(filename, id+".vmdk")
 	})
@@ -138,6 +141,7 @@ func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storag
 
 	f, err := os.Open(mountPath)
 	if err != nil {
+		cleanFunc()
 		return nil, err
 	}
 
@@ -199,6 +203,7 @@ func (c *ContainerStore) newDataSink(op trace.Operation, url *url.URL) (storage.
 
 	f, err := os.Open(mountPath)
 	if err != nil {
+		cleanFunc()
 		return nil, err
 	}
 
