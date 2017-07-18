@@ -15,7 +15,6 @@
 package backends
 
 import (
-	"archive/tar"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -262,39 +261,10 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 	diffID := digest.NewDigestFromBytes(digest.SHA256, diffIDSum)
 	log.Debugf("container %s diff id: %s", containerID, diffID.String())
 
-	layerFile, err := os.Open(string(tmpLayerFileName))
-	if err != nil {
-		return nil, err
-	}
-	defer layerFile.Close()
-
-	decompressed, err := gzip.NewReader(layerFile)
-	if err != nil {
-		return nil, err
-	}
-	defer decompressed.Close()
-
-	// get a tar reader
-	tr := tar.NewReader(decompressed)
-
-	// iterate through tar headers to get file sizes
-	var layerSize int64
-	for {
-		tarHeader, terr := tr.Next()
-		if terr == io.EOF {
-			break
-		}
-		if terr != nil {
-			err = terr
-			return nil, err
-		}
-		layerSize += tarHeader.Size
-	}
-	log.Debugf("layer size: %d, copy size: %d", layerSize, size)
-	if layerSize == 0 {
+	if size == 0 {
 		diffID = digest.Digest(dockerLayer.DigestSHA256EmptyTar)
 	}
-	log.Debugf("container %s size: %d", containerID, layerSize)
+	log.Debugf("container %s diff size: %d", containerID, size)
 
 	// Ensure the parent directory exists
 	destination := path.Join(imagec.DestinationDirectory(options), layerID)
@@ -318,7 +288,7 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 		Layer: imagec.FSLayer{
 			BlobSum: blobSum.String(),
 		},
-		Size: layerSize,
+		Size: size,
 	}
 	return lm, nil
 }
@@ -353,12 +323,12 @@ func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte
 	}
 
 	// compress tar file using gzip and calculate blobsum and diffID all together using multi writer
-	blobSum := sha256.New()
-	diffID := sha256.New()
-	compressedMW := io.MultiWriter(out, blobSum)
+	gzSum := sha256.New()
+	tarSum := sha256.New()
+	compressedMW := io.MultiWriter(out, gzSum)
 
 	gzWriter = gzip.NewWriter(compressedMW)
-	tarMW := io.MultiWriter(gzWriter, diffID)
+	tarMW := io.MultiWriter(gzWriter, tarSum)
 	size, err = io.Copy(tarMW, rc)
 	if err != nil {
 		log.Errorf("failed to stream to file: %s", err)
@@ -370,7 +340,7 @@ func compressDiffToTmpFile(rc io.ReadCloser, containerID string) (string, []byte
 	gzWriter.Flush()
 	cleanup()
 	// Return the temporary file name and checksum
-	return fileName, diffID.Sum(nil), blobSum.Sum(nil), size, nil
+	return fileName, tarSum.Sum(nil), gzSum.Sum(nil), size, nil
 }
 
 // ***** Code from Docker v17.03.2-ce PullImage to merge two Configs
