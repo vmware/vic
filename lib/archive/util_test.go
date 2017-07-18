@@ -418,6 +418,44 @@ func TestReadFileInMountSpec(t *testing.T) {
 
 }
 
+func TestReadAtMountBoundarySpec(t *testing.T) {
+	copyTarget := "/mnt/vols/A"
+	direction := CopyFrom
+
+	mounts := []testMount{
+		{
+			mount:              "/mnt/vols/A",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		"/mnt/vols/A": {
+			RebasePath: "A",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
+
+}
+
 // ADD INCLUSIONS/EXCLUSIONS TESTS
 
 func TestAddExclusionsNonNested(t *testing.T) {
@@ -430,7 +468,7 @@ func TestAddExclusionsNonNested(t *testing.T) {
 	}
 
 	expectedResults := map[string]FilterSpec{
-		"/": FilterSpec{
+		"/": {
 			Exclusions: map[string]struct{}{
 				"mnt/A": {},
 				"mnt/B": {},
@@ -440,19 +478,19 @@ func TestAddExclusionsNonNested(t *testing.T) {
 				"/mnt": {},
 			},
 		},
-		"/mnt/A": FilterSpec{
+		"/mnt/A": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
 				"/": {},
 			},
 		},
-		"/mnt/B": FilterSpec{
+		"/mnt/B": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
 				"/": {},
 			},
 		},
-		"/mnt/C": FilterSpec{
+		"/mnt/C": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
 				"/": {},
@@ -512,7 +550,7 @@ func TestAddExclusionsNestedMounts(t *testing.T) {
 	}
 
 	expectedResults := map[string]FilterSpec{
-		"/": FilterSpec{
+		"/": {
 			Exclusions: map[string]struct{}{
 				"mnt/A":        {},
 				"mnt/B":        {},
@@ -524,7 +562,7 @@ func TestAddExclusionsNestedMounts(t *testing.T) {
 				"/mnt": {},
 			},
 		},
-		"/mnt/A": FilterSpec{
+		"/mnt/A": {
 			Exclusions: map[string]struct{}{
 				"dir/AB": {},
 				"dir/AC": {},
@@ -533,25 +571,25 @@ func TestAddExclusionsNestedMounts(t *testing.T) {
 				"/": {},
 			},
 		},
-		"/mnt/B": FilterSpec{
+		"/mnt/B": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
 				"/": {},
 			},
 		},
-		"/mnt/C": FilterSpec{
+		"/mnt/C": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
 				"/": {},
 			},
 		},
-		"/mnt/A/dir/AB": FilterSpec{
+		"/mnt/A/dir/AB": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
 				"/": {},
 			},
 		},
-		"/mnt/A/dir/AC": FilterSpec{
+		"/mnt/A/dir/AC": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
 				"/": {},
