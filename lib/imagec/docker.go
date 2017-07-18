@@ -29,7 +29,6 @@ import (
 	"path"
 
 	log "github.com/Sirupsen/logrus"
-
 	ddigest "github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
