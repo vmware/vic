@@ -32,6 +32,11 @@ const (
 func GenerateFilterSpec(copyPath string, mountPoint string, primaryTarget bool, direction bool) FilterSpec {
 	var filter FilterSpec
 
+	// NOTE: this solidifies that this function is very heavily designed for docker cp behavior.
+	// which is why this should mainly only be used by the docker personality
+	// scrub trailing '/' before passing copyPath along
+	copyPath = strings.TrimSuffix(copyPath, "/")
+
 	// Note I know they are just booleans, if that changes then this statement will not need to.
 	if direction == CopyTo {
 		filter = generateCopyToFilterSpec(copyPath, mountPoint, primaryTarget)
