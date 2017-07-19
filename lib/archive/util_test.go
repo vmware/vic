@@ -227,6 +227,81 @@ func TestWriteFilespec(t *testing.T) {
 
 // COPY FROM TESTS
 
+func TestComplexReadOfRootSpec(t *testing.T) {
+	copyTarget := "/"
+	direction := CopyFrom
+
+	mounts := []testMount{
+
+		{
+			mount:              "/",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/A",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/B",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/A/subvols/AB",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
+	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		"/": {
+			RebasePath: "",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/A": {
+			RebasePath: "mnt/vols/A",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/B": {
+			RebasePath: "mnt/vols/B",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/A/subvols/AB": {
+			RebasePath: "mnt/vols/A/subvols/AB",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
+
+}
+
 func TestComplexReadSpec(t *testing.T) {
 	copyTarget := "/mnt/vols"
 	direction := CopyFrom
@@ -729,6 +804,82 @@ func TestAddExclusionsMountTarget(t *testing.T) {
 	}
 
 	expectedResults := map[string]FilterSpec{
+		"/mnt/vols/A": {
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
+	}
+
+	for _, mount := range testMounts {
+
+		if mount == "/" {
+			continue
+		}
+
+		spec := FilterSpec{
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		}
+
+		err := AddMountInclusionsExclusions(mount, &spec, testMounts, copyTarget)
+
+		if !assert.Nil(t, err) {
+			return
+		}
+
+		expectedSpec := expectedResults[mount]
+		expectedLength := len(expectedSpec.Exclusions)
+		actualLength := len(spec.Exclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			return
+		}
+
+		expectedSpec = expectedResults[mount]
+		expectedLength = len(expectedSpec.Inclusions)
+		actualLength = len(spec.Inclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the inclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			return
+		}
+
+		for path := range expectedSpec.Exclusions {
+			_, ok := spec.Exclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s \n exclusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
+
+		for path := range expectedSpec.Inclusions {
+			_, ok := spec.Inclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the inclusion map for %s \n inclusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
+	}
+
+}
+
+func TestAddExclusionsRootTarget(t *testing.T) {
+	copyTarget := "/"
+	testMounts := []string{
+		"/",
+		"/mnt/vols/A",
+	}
+
+	expectedResults := map[string]FilterSpec{
+		"/": {
+			Exclusions: map[string]struct{}{
+				"mnt/vols/A": struct{}{},
+			},
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
 		"/mnt/vols/A": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{

@@ -55,12 +55,15 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 	if err != nil {
 		return nil, err
 	}
+	// this is in the case that we are part of a read that is crossing a mount point.
+	// It should be addressed by include/excludes.
+	changes = append(changes, docker.Change{Path: "/"})
 
 	sort.Sort(changesByPath(changes))
 	op.Infof("FILESPEC:::: \n\n\n %#v", *spec)
 
 	op.Infof("LOOK HERE!!!!\n\n\n\n\n\n %s", changes)
-	return Tar(op, newDir, changes, spec, data, oldDir != "")
+	return Tar(op, newDir, changes, spec, data, false)
 }
 
 func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
