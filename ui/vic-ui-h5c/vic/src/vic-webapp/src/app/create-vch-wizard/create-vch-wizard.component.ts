@@ -58,22 +58,24 @@ export class CreateVchWizardComponent implements OnInit {
     setTimeout(() => {
       const parentIframes = p.document.querySelectorAll('iframe');
       const targetIframeEl = parentIframes[parentIframes.length - 1];
-      const activeModalContentEl = <HTMLElement>parent.document.querySelector('clr-modal .modal-content');
-      const activeModalHeaderEl = <HTMLElement>parent.document.querySelector('clr-modal .modal-header');
-      let targetIframeHeight = activeModalContentEl.offsetHeight - 2;
-      if (activeModalHeaderEl !== null) {
-        targetIframeHeight -= activeModalHeaderEl.offsetHeight;
-        activeModalHeaderEl.remove();
+      const activeModalContentEl = <HTMLElement>p.document.querySelector('clr-modal .modal-content');
+      const activeModalHeaderEl = <HTMLElement>p.document.querySelector('clr-modal .modal-header');
+      // resize only if the parent modal is there. this prevents the unit tests from failing
+      if (activeModalContentEl !== null) {
+        let targetIframeHeight = activeModalContentEl.offsetHeight - 2;
+        if (activeModalHeaderEl !== null) {
+          targetIframeHeight -= activeModalHeaderEl.offsetHeight;
+          activeModalHeaderEl.remove();
+        }
+
+        this.renderer.setElementStyle(targetIframeEl, 'height', `${targetIframeHeight}px`);
+        this.renderer.setElementStyle(
+          this.elRef.nativeElement.querySelector('clr-wizard'),
+          'height',
+          `${targetIframeHeight}px`
+        );
       }
-
-      this.renderer.setElementStyle(targetIframeEl, 'height', `${targetIframeHeight}px`);
-      this.renderer.setElementStyle(
-        this.elRef.nativeElement.querySelector('clr-wizard'),
-        'height',
-        `${targetIframeHeight}px`
-      );
     });
-
   }
 
   /**

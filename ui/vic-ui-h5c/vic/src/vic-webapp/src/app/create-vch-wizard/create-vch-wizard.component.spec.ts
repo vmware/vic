@@ -15,6 +15,7 @@
 */
 
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ClarityModule } from 'clarity-angular';
 import { CreateVchWizardComponent } from './create-vch-wizard.component';
@@ -27,7 +28,16 @@ describe('CreateVchWizardComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [ClarityModule, BrowserAnimationsModule],
-      providers: [GlobalsService, Globals],
+      providers: [
+        {
+          provide: GlobalsService, useValue: {
+            getWebPlatform: () => {
+              return {
+                closeDialog: () => { }
+              };
+            }
+          }
+        }],
       declarations: [CreateVchWizardComponent]
     })
       .compileComponents();
@@ -36,9 +46,7 @@ describe('CreateVchWizardComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CreateVchWizardComponent);
     component = fixture.componentInstance;
-    spyOn(component, 'resizeToParentFrame').and.callFake(() => {
-      console.log('resizeToParentFrame called');
-    });
+    spyOn(component, 'resizeToParentFrame').and.callThrough();
     fixture.detectChanges();
   });
 
@@ -48,5 +56,32 @@ describe('CreateVchWizardComponent', () => {
 
   it('should have called wizard.open', async(() => {
     expect(component.resizeToParentFrame).toHaveBeenCalled();
+  }));
+
+  it('should navigate between pages successfully', async(() => {
+    const nextBtn = fixture.debugElement.query(By.css('clr-wizard-button[ng-reflect-type="next"]'));
+    const firstPage = fixture.debugElement.query(By.css('clr-wizard-page'));
+    const lastPage = fixture.debugElement.query(By.css('clr-wizard-page:last-of-type'));
+    expect(nextBtn).toBeTruthy();
+    spyOn(component, 'onCancel').and.callThrough();
+    spyOn(component, 'onCommit').and.callThrough();
+    spyOn(component, 'onFinish').and.callThrough();
+    spyOn(component, 'goBack').and.callThrough();
+
+    // click on next button
+    firstPage.triggerEventHandler('clrWizardPageOnCommit', null);
+    expect(component.onCommit).toHaveBeenCalled();
+
+    // click on finish button
+    lastPage.triggerEventHandler('clrWizardPageOnCommit', null);
+    expect(component.onFinish).toHaveBeenCalled();
+
+    // click on previous button
+    lastPage.triggerEventHandler('clrWizardPagePrevious', null);
+    expect(component.goBack).toHaveBeenCalled();
+
+    // click on cancel button
+    lastPage.triggerEventHandler('clrWizardPageOnCancel', null);
+    expect(component.onCancel).toHaveBeenCalled();
   }));
 });
