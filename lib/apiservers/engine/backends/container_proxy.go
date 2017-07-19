@@ -716,9 +716,7 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 			// stream.  The other way is for the caller of this function to close the returned CloseReader.
 			// Callers of this function should do one but not both.
 			pipeReader.Close()
-			transport.Close()
 		case <-done:
-			transport.Close()
 		}
 	}()
 
@@ -793,9 +791,7 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 			// connection is to call close on the WriteCloser returned from this function.
 			// Callers of this function should do one but not both.
 			pipeWriter.Close()
-			transport.Close()
 		case <-done:
-			transport.Close()
 		}
 	}()
 
