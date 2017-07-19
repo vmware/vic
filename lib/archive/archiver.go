@@ -168,13 +168,7 @@ func EncodeFilterSpec(op trace.Operation, spec *FilterSpec) (*string, error) {
 // If an inclusion is set, but not exclusion, then we'll only return matches for the inclusions.
 func (spec *FilterSpec) Excludes(op trace.Operation, filePath string) bool {
 	inclusionLength := -1
-	exclusionLength := -2
-
-	// This states that if inclusion has atleast one item set and there are no exclusions
-	// that we will report an include for all items.
-	if len(spec.Inclusions) > 0 && len(spec.Exclusions) == 0 {
-		inclusionLength = 0
-	}
+	exclusionLength := -1
 
 	for path := range spec.Inclusions {
 		if strings.HasPrefix(filePath, path) {
