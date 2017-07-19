@@ -131,7 +131,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 	// this allows us to assume it's an image
 	r, err := i.NewDataSource(op, ancestor)
 	if err != nil {
-		op.Debugf("Unable to get datasource for ancester: %s", err)
+		op.Debugf("Unable to get datasource for ancestor: %s", err)
 
 		l.Close()
 		return nil, err

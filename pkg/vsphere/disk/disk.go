@@ -16,7 +16,9 @@ package disk
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -94,6 +96,8 @@ type VirtualDisk struct {
 
 	// The path on the filesystem this device is attached to.
 	mountPath string
+	// The options that the disk is currently mounted with.
+	mountOpts string
 
 	// To avoid attach/detach races, this lock serializes operations to the disk.
 	l sync.Mutex
@@ -107,11 +111,10 @@ type VirtualDisk struct {
 // given datastore formatted with the specified FilesystemType
 func NewVirtualDisk(op trace.Operation, config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*VirtualDisk, error) {
 	if !strings.HasSuffix(config.DatastoreURI.String(), ".vmdk") {
-		return nil, fmt.Errorf("%s isn't a vmdk", config.DatastoreURI.String())
+		return nil, fmt.Errorf("%s doesn't have a vmdk suffix", config.DatastoreURI.String())
 	}
 
 	if d, ok := disks[config.Hash()]; ok {
-		op.Debugf("Found the disk %s in the DiskManager cache, using it", config.DatastoreURI)
 		return d, nil
 	}
 	op.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
@@ -240,27 +243,51 @@ func (d *VirtualDisk) InUseByOther() bool {
 }
 
 // Mount attempts to mount this disk. A NOP occurs if the disk is already mounted
-func (d *VirtualDisk) Mount(op trace.Operation, mountPath string, options []string) (err error) {
+// It returns the path at which the disk is mounted
+// Enhancement: allow provision of mount path and refcount for:
+//   specific mount point and options
+func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error) {
 	d.l.Lock()
 	defer d.l.Unlock()
 
+	op.Debugf("Mounting %s", d.DatastoreURI)
+
 	if !d.attached() {
-		err = fmt.Errorf("%s isn't attached", d.DatastoreURI)
-		return err
+		err := fmt.Errorf("%s isn't attached", d.DatastoreURI)
+		op.Error(err)
+		return "", err
 	}
 
 	if !d.mounted() {
-		if err = d.Filesystem.Mount(op, d.DevicePath, mountPath, options); err != nil {
-			return err
+		path, err := ioutil.TempDir("", "mnt")
+		if err != nil {
+			err := fmt.Errorf("unable to create mountpint: %s", err)
+			op.Error(err)
+			return "", err
 		}
 
-		d.mountPath = mountPath
+		if err = d.Filesystem.Mount(op, d.DevicePath, path, options); err != nil {
+			op.Errorf("Failed to mount disk: %s", err)
+			return "", err
+		}
+
+		d.mountPath = path
+	} else {
+		// basic santiy check for matching options - we don't want to share a r/o mount
+		// if the request was for r/w. Ideally we'd just mount this at a different location with the
+		// requested options but that requires separate ref counting.
+		// TODO: support differing mount opts
+		opts := strings.Join(options, ";")
+		if d.mountOpts != opts {
+			op.Errorf("Unable to use mounted disk due to differing options: %s != %s", d.mountOpts, opts)
+			return "", fmt.Errorf("incompatible mount options for disk reuse")
+		}
 	}
 
 	count := d.mountedRefs.Increment()
 	op.Debugf("incremented mount count for %s: %d", d.mountPath, count)
 
-	return nil
+	return d.mountPath, nil
 }
 
 // Unmount attempts to unmount a virtual disk
@@ -281,6 +308,16 @@ func (d *VirtualDisk) Unmount(op trace.Operation) error {
 
 	// no more mount references to this disk, so actually unmount
 	if err := d.Filesystem.Unmount(op, d.mountPath); err != nil {
+		err := fmt.Errorf("failed to unmount disk: %s", err)
+		op.Error(err)
+		return err
+	}
+
+	// only remove the mount directory - if we've succeeded in the unmount there won't be anything in it
+	// if we somehow get here and there is content we do NOT want to delete it
+	if err := os.Remove(d.mountPath); err != nil {
+		err := fmt.Errorf("failed to clean up mount point: %s", err)
+		op.Error(err)
 		return err
 	}
 

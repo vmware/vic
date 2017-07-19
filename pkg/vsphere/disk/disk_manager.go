@@ -17,7 +17,6 @@ package disk
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"sync"
@@ -70,6 +69,8 @@ type Manager struct {
 
 	// map of URIs to VirtualDisk structs so that we can return the same instance to the caller, required for ref counting
 	Disks map[uint64]*VirtualDisk
+	// used for locking the disk cache
+	disksLock sync.Mutex
 }
 
 // NewDiskManager creates a new Manager instance associated with the caller VM
@@ -151,40 +152,51 @@ func (m *Manager) toSpec(config *VirtualDiskConfig) *types.VirtualDisk {
 func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(config.DatastoreURI.String()))
 
-	// reuse the disk if it already exists and is attached
-	if _, err := findDiskByFilename(op, m.vm, config.DatastoreURI.String()); err == nil {
-		m.mu.Lock()
-		defer m.mu.Unlock()
+	// Get or create entry in disk cache
+	m.disksLock.Lock()
+	d, err := NewVirtualDisk(op, config, m.Disks)
+	if err != nil {
+		m.disksLock.Unlock()
 
-		// if the disk is attached, it should be in the disk cache
-		d, err := m.Get(op, config)
-		if err != nil {
-			return nil, err
-		}
-
-		d.l.Lock()
-		defer d.l.Unlock()
-
-		// this updates the reference count for the disk
-		d.setAttached(op, "")
-
-		return d, nil
+		op.Errorf("Unable to create disk entry: %s", err)
+		return nil, err
 	}
+	// take disk lock before we release the cache lock - this prevents the disk being removed from the cache
+	// before we get a chance to adjust refcounts
+	d.l.Lock()
+	defer d.l.Unlock()
 
-	// ensure we abide by max attached disks limits
-	m.maxAttached <- true
+	m.disksLock.Unlock()
 
-	// make sure the op is still valid as the above line could block for a long time
-	select {
-	case <-op.Done():
-		return nil, op.Err()
-	default:
+	// check if the disk is attached from the perspective of the cache entry
+	if d.DevicePath != "" {
+		// this is a horrificaly misnamed call - it's incrementing the reference count
+		d.setAttached(op, "")
+		return d, nil
 	}
 
 	op.Infof("Create/attach vmdk %s from parent %s", config.DatastoreURI, config.ParentDatastoreURI)
 
-	if err := m.attach(op, config); err != nil {
-		return nil, errors.Trace(err)
+	// we use findDiskByFilename to check if the disk is already attached
+	// if it is then it's indicative of an error because it wasn't found in the cache, but this lets us recover
+	_, ferr := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+	if os.IsNotExist(ferr) {
+		// ensure we abide by max attached disks limits
+		m.maxAttached <- true
+
+		// make sure the op is still valid as the above line could block for a long time
+		select {
+		case <-op.Done():
+			return nil, op.Err()
+		default:
+		}
+
+		if err := m.attach(op, config); err != nil {
+			return nil, errors.Trace(err)
+		}
+	} else {
+		op.Errorf("Failed to determine if disk is already attached: %s", err)
+		// this will be tidied up if/when the waitForDevice fails
 	}
 
 	op.Debugf("Mapping vmdk to pci device %s", config.DatastoreURI)
@@ -192,13 +204,6 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-
-	d, err := NewVirtualDisk(op, config, m.Disks)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	d.l.Lock()
-	defer d.l.Unlock()
 
 	blockDev, err := waitForDevice(op, devicePath)
 	if err != nil {
@@ -216,6 +221,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 		return nil, errors.Trace(err)
 	}
+
 	err = d.setAttached(op, blockDev)
 
 	return d, err
@@ -262,12 +268,23 @@ func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDi
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+
 	d.l.Lock()
 	defer d.l.Unlock()
 
+	d.ParentDatastoreURI, err = m.DiskParent(op, config)
+	return d, err
+}
+
+// DiskParent returns the parent for an existing disk, based on the disk datastore URI in the config,
+// and ignoring any parent specified in the config.
+// datastore path will be nil if the disk has no parent
+func (m *Manager) DiskParent(op trace.Operation, config *VirtualDiskConfig) (*object.DatastorePath, error) {
+	defer trace.End(trace.Begin(config.DatastoreURI.String()))
+
 	info, err := m.vdMngr.QueryVirtualDiskInfo(op, config.DatastoreURI.String(), m.vm.Datacenter, true)
 	if err != nil {
-		op.Errorf("error querying parents (%s): %s", config.DatastoreURI, err.Error())
+		op.Errorf("Error querying parents (%s): %s", config.DatastoreURI, err.Error())
 		return nil, err
 	}
 
@@ -277,12 +294,14 @@ func (m *Manager) Get(op trace.Operation, config *VirtualDiskConfig) (*VirtualDi
 	if p.Parent != "" {
 		ppth, err := datastore.PathFromString(p.Parent)
 		if err != nil {
+			op.Errorf("Error converting parent to datastore URI (%s): %s", p.Parent, err)
 			return nil, err
 		}
-		d.ParentDatastoreURI = ppth
+		return ppth, nil
 	}
 
-	return d, nil
+	// no parent
+	return nil, nil
 }
 
 // TODO(FA) this doesn't work since delta disks get set with `deletable =
@@ -358,10 +377,16 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	defer trace.End(trace.Begin(""))
 
+	// we have to hold the cache lock until we're done deleting the cache entry
+	// or until we know we're not going to delete the entry
+	m.disksLock.Lock()
+	defer m.disksLock.Unlock()
+
 	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return errors.Trace(err)
 	}
+
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -388,6 +413,7 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 		return errors.Trace(err)
 	}
 
+	// this deletes the disk from the disk cache
 	d.setDetached(op, m.Disks)
 
 	select {
@@ -462,6 +488,8 @@ func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.Datas
 func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) (string, error) {
 	var config *VirtualDiskConfig
 
+	op.Infof("Attach/Mount %s", datastoreURI.String())
+
 	if !persistent {
 		config = NewNonPersistentDisk(datastoreURI)
 	} else {
@@ -473,18 +501,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 		return "", err
 	}
 
-	op.Infof("Attach/Mount %s", datastoreURI.String())
-
-	path, err := ioutil.TempDir("", "mnt")
-	if err != nil {
-		op.Debugf("Error creating mount path: %s", err.Error())
-		return "", err
-	}
-	if err := d.Mount(op, path, nil); err != nil {
-		op.Debugf("Error mounting disk: %s", err.Error())
-		return "", err
-	}
-	return path, nil
+	return d.Mount(op, nil)
 }
 
 // UnmountAndDetach unmounts and detaches a disk, subsequently cleaning the mount path
@@ -497,32 +514,21 @@ func (m *Manager) UnmountAndDetach(op trace.Operation, datastoreURI *object.Data
 		config = NewPersistentDisk(datastoreURI)
 	}
 
-	d, err := m.Get(op, config)
+	d, err := NewVirtualDisk(op, config, m.Disks)
 	if err != nil {
 		return err
 	}
 
 	op.Infof("Unmount and Detach %s:%s", d.mountPath, d.DatastoreURI)
 
-	mountPoint, err := d.MountPath()
-	if err != nil {
-		// we should never get here or Get would have failed
-		op.Errorf("failed to determine mount point for disk")
-	}
-
-	merr := d.Unmount(op)
+	err = d.Unmount(op)
 	derr := m.Detach(op, config)
 
-	if merr != nil || derr != nil {
-		op.Errorf("Error during unmount or detach, unmount: %s, detach: %s", merr, derr)
-	}
-
-	if !d.inUseByOther() {
-		// only remove the mount directory - if we've succeeded in the unmount there won't be anything in it
-		// if we somehow get here and there is content we do NOT want to delete it
-		if err = os.Remove(mountPoint); err != nil {
-			op.Debugf("Error cleaning up mount path: %s", err.Error())
-			return err
+	if err != nil || derr != nil {
+		op.Errorf("Error during unmount or detach, unmount: %s, detach: %s", err, derr)
+		// prioritize first error
+		if err == nil {
+			err = derr
 		}
 	}
 
@@ -554,24 +560,21 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 			continue
 		}
 
-		op.Debugf("Working on devices on vm %q", mo.Name)
 		for _, device := range mo.Config.Hardware.Device {
 			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
 			db := device.GetVirtualDevice().Backing
 			if db == nil {
-				op.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
 				continue
 			}
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				op.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
+				op.Debugf("Checking the device %q with correct backing type on vm %q", label, mo.Name)
 				if config.DatastoreURI.String() == t.GetVirtualDeviceFileBackingInfo().FileName {
 					op.Debugf("Match found. Appending vm %q to the response", mo.Name)
 					vms = append(vms, vm.NewVirtualMachine(context.Background(), m.vm.Session, mo.Reference()))
 				}
 			default:
-				op.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
 			}
 		}
 	}
@@ -603,18 +606,16 @@ func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (st
 		mo := mos[i]
 		op.Debugf("Working on vm %q", mo.Name)
 
-		op.Debugf("Working on devices on vm %q", mo.Name)
 		for _, device := range mo.Config.Hardware.Device {
 			label := device.GetVirtualDevice().DeviceInfo.GetDescription().Label
 			db := device.GetVirtualDevice().Backing
 			if db == nil {
-				op.Debugf("Filtering out the device %q on vm %q", label, mo.Name)
 				continue
 			}
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				op.Debugf("Checking the device %q with correct backing info on vm %q", label, mo.Name)
+				op.Debugf("Checking the device %q with correct backing type on vm %q", label, mo.Name)
 				diskPath := t.GetVirtualDeviceFileBackingInfo().FileName
 				op.Infof("Disk path: %s", diskPath)
 				if filter(diskPath) {
@@ -622,7 +623,6 @@ func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (st
 					return diskPath, nil
 				}
 			default:
-				op.Debugf("Skipping the device %q with incorrect backing info on vm %q", label, mo.Name)
 			}
 		}
 	}

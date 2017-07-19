@@ -283,7 +283,8 @@ func findDiskByFilename(op trace.Operation, vm *vm.VirtualMachine, name string) 
 
 	if len(candidates) > 1 {
 		op.Errorf("Multiple disks match name: %s", name)
-		return nil, errors.Errorf("multiple disks match name: %s", name)
+		// returning the first allows doing something with it
+		return candidates[0], errors.Errorf("multiple disks match name: %s", name)
 	}
 
 	return candidates[0], nil

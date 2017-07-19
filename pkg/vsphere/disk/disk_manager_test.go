@@ -370,7 +370,7 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, 2, d.attachedRefs.Count(), "%s has %d attach references but should have 2", d.DatastoreURI, d.attachedRefs.Count())
 
 	// reduce reference count by calling detach
-	assert.NoError(t, d.setDetached(op, vdm.Disks), "Error attempting to mark %s as detached", d.DatastoreURI)
+	d.setDetached(op, vdm.Disks)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
@@ -392,7 +392,8 @@ func TestRefCounting(t *testing.T) {
 	}()
 
 	// initial mount
-	assert.NoError(t, d.Mount(op, dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
+	dir, err = d.Mount(op, nil)
+	assert.NoError(t, err, "Error attempting to mount %s at %s", d.DatastoreURI, dir)
 
 	mountPath, err := d.MountPath()
 	if !assert.NoError(t, err) {
@@ -406,7 +407,8 @@ func TestRefCounting(t *testing.T) {
 	assert.Equal(t, dir, mountPath, "%s is mounted at %s but should be mounted at %s", d.DatastoreURI, mountPath, dir)
 
 	// attempt another mount
-	assert.NoError(t, d.Mount(op, dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
+	dir, err = d.Mount(op, nil)
+	assert.NoError(t, err, "Error attempting to mount %s at %s", d.DatastoreURI, dir)
 
 	assert.True(t, d.Mounted(), "%s is not mounted but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)

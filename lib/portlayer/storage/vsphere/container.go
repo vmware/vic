@@ -236,7 +236,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 	}
 
 	if ancestor == "" {
-		op.Infof("No ancester specified so following basic export path")
+		op.Infof("No ancestor specified so following basic export path")
 		return l.Export(op, spec, data)
 	}
 
@@ -249,11 +249,11 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		l.Close()
 		return nil, err
 	}
-	op.Debugf("Mapped ancester %s to %s", ancestor, img.String())
+	op.Debugf("Mapped ancestor %s to %s", ancestor, img.String())
 
 	r, err := c.newDataSource(op, img)
 	if err != nil {
-		op.Debugf("Unable to get datasource for ancester: %s", err)
+		op.Debugf("Unable to get datasource for ancestor: %s", err)
 
 		l.Close()
 		return nil, err

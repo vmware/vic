@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -383,14 +382,9 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	if err != nil {
 		return nil, err
 	}
-	// tmp dir to mount the disk
-	dir, err := ioutil.TempDir("", "mnt-"+ID)
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(dir)
 
-	if err := vmdisk.Mount(op, dir, nil); err != nil {
+	dir, err := vmdisk.Mount(op, nil)
+	if err != nil {
 		return nil, err
 	}
 
@@ -729,23 +723,8 @@ func imagesInUse(op trace.Operation, ID string) error {
 
 // populate the scratch with minimum OS structure defined in FileForMinOS and DirForMinOS
 func createBaseStructure(op trace.Operation, vmdisk *disk.VirtualDisk) (err error) {
-	// tmp dir to mount the disk
-	dir, err := ioutil.TempDir("", "mnt-"+portlayer.Scratch.ID)
+	dir, err := vmdisk.Mount(op, nil)
 	if err != nil {
-		op.Errorf("Failed to create tempDir: %s", err)
-	}
-
-	defer func() {
-		e1 := os.RemoveAll(dir)
-		if e1 != nil {
-			op.Errorf("Failed to remove tempDir: %s", e1)
-			if err == nil {
-				err = e1
-			}
-		}
-	}()
-
-	if err = vmdisk.Mount(op, dir, nil); err != nil {
 		op.Errorf("Failed to mount device %s to dir %s", vmdisk.DevicePath, dir)
 		return err
 	}
@@ -768,6 +747,7 @@ func createBaseStructure(op trace.Operation, vmdisk *disk.VirtualDisk) (err erro
 		}
 	}
 
+	op.Infof("Creating base file structure on disk")
 	// The directory has to exist before creating the new file
 	for fname, fmode := range FileForMinOS {
 		filePath := path.Join(dir, fname)
