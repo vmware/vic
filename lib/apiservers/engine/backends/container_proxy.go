@@ -719,8 +719,6 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 			// stream.  The other way is for the caller of this function to close the returned CloseReader.
 			// Callers of this function should do one but not both.
 			pipeReader.Close()
-		case <-done:
-			pipeWriter.Close()
 		}
 	}()
 
