@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -103,6 +104,10 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 		return nil, err
 	}
 
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
+
 	source, err := c.newDataSource(op, uri)
 	if err == nil {
 		return source, err
@@ -122,6 +127,14 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 	}
 
 	for _, o := range owners {
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		self, _ := guest.IsSelf(op, o)
+		if self && offlineAttempt < 2 {
+			op.Infof("Appliance is owner of online vmdk - retrying offline source path")
+			goto offline
+		}
+
 		online, err := c.newOnlineDataSource(op, o, id)
 		if online != nil {
 			return online, err
@@ -150,11 +163,12 @@ func (c *ContainerStore) newDataSource(op trace.Operation, url *url.URL) (storag
 }
 
 func (c *ContainerStore) newOnlineDataSource(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSource, error) {
-	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
+	op.Debugf("Constructing toolbox data source: %s.%s", owner.Reference(), id)
 
 	return &ToolboxDataSource{
-		VM: owner,
-		ID: id,
+		VM:    owner,
+		ID:    id,
+		Clean: func() { return },
 	}, nil
 }
 
@@ -164,6 +178,10 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	if err != nil {
 		return nil, err
 	}
+
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
 
 	sink, err := c.newDataSink(op, uri)
 	if err == nil {
@@ -184,6 +202,14 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	}
 
 	for _, o := range owners {
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		self, _ := guest.IsSelf(op, o)
+		if self && offlineAttempt < 2 {
+			op.Infof("Appliance is owner of online vmdk - retrying offline sink path")
+			goto offline
+		}
+
 		online, err := c.newOnlineDataSink(op, o, id)
 		if online != nil {
 			return online, err
@@ -215,8 +241,9 @@ func (c *ContainerStore) newOnlineDataSink(op trace.Operation, owner *vm.Virtual
 	op.Debugf("Constructing toolbox data sink: %s.%s", owner.Reference(), id)
 
 	return &ToolboxDataSink{
-		VM: owner,
-		ID: id,
+		VM:    owner,
+		ID:    id,
+		Clean: func() { return },
 	}, nil
 }
 
@@ -279,7 +306,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, errors.New("mismatched datasource types")
 	}
 
-	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data)
+	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, false)
 	if err != nil {
 		go closers()
 		return nil, err

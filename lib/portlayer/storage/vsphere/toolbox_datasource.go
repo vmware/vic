@@ -15,12 +15,12 @@
 package vsphere
 
 import (
-	"errors"
+	"archive/tar"
 	"io"
+	"io/ioutil"
 
-	"github.com/vmware/govmomi/guest"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -39,30 +39,81 @@ func (t *ToolboxDataSource) Source() interface{} {
 
 // Export reads data from the associated data source and returns it as a tar archive
 func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("toolbox export"))
 
-	// set up file manager
-	client := t.VM.Session.Client.Client
-	filemgr, err := guest.NewOperationsManager(client, t.VM.Reference()).FileManager(op)
+	client, err := GetToolboxClient(op, t.VM, t.ID)
+	if err != nil {
+		op.Errorf("Cannot get toolbox client: %s", err.Error())
+		return nil, err
+	}
+
+	var readers []io.Reader
+	for inclusion := range spec.Inclusions {
+		// build a proper target
+		target, err := BuildArchiveURL(op, t.ID, inclusion, spec)
+		if err != nil {
+			op.Errorf("Cannot build archive url: %s", err.Error())
+			return nil, err
+		}
+		tar, contentLength, err := client.Download(op, target)
+		if err != nil {
+			op.Errorf("Download error: %s", err.Error())
+			return nil, err
+		}
+		op.Debugf("Downloaded from %s with size %d", target, contentLength)
+		readers = append(readers, tar)
+
+	}
+	return ioutil.NopCloser(io.MultiReader(readers...)), nil
+}
+
+// Export reads data from the associated data source and returns it as a tar archive
+func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*storage.FileStat, error) {
+	defer trace.End(trace.Begin("toolbox stat"))
+
+	client, err := GetToolboxClient(op, t.VM, t.ID)
+	if err != nil {
+		op.Errorf("Cannot get toolbox client: %s", err.Error())
+		return nil, err
+	}
+
+	// should only find a single path to stat, but make sure here.
+	var statPath string
+	for inclusion := range spec.Inclusions {
+		statPath = inclusion
+	}
+
+	target, err := BuildArchiveURL(op, t.ID, statPath, spec)
+	if err != nil {
+		op.Errorf("Cannot build archive url: %s", err.Error())
+		return nil, err
+	}
+	statTar, _, err := client.Download(op, target)
+	if err != nil {
+		op.Errorf("Download error: %s", err.Error())
+		return nil, err
+	}
+	defer statTar.Close()
+
+	// decode from guest tools
+	header, err := tar.NewReader(statTar).Next()
 	if err != nil {
 		return nil, err
 	}
 
-	// authenticate client and parse container host/port
-	auth := types.NamePasswordAuthentication{
-		Username: t.ID,
+	stat := &storage.FileStat{
+		Mode:       uint32(header.FileInfo().Mode()),
+		Name:       header.Name,
+		Size:       header.Size,
+		ModTime:    header.ModTime,
+		LinkTarget: header.Linkname,
 	}
 
-	_ = filemgr
-	_ = auth
-
-	return nil, errors.New("toolbox export is not yet implemented")
+	return stat, nil
 }
 
 func (t *ToolboxDataSource) Close() error {
-	if t.Clean != nil {
-		t.Clean()
-	}
+	t.Clean()
 
 	return nil
 }
