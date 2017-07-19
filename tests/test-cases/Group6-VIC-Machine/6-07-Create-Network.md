@@ -190,6 +190,8 @@ This test requires that a vSphere server is running and available
 3. a. Create an outbound container. Verify that an outbound container on the same external network cannot 
       connect to the first outbound container.
    b. Verify that the outbound container can initiate a connection with an open network on an arbitrary port.
+   c. Verify that two outbound containers on the same external network and on the same bridge network can
+      talk to one another via hte bridge.
 4. a. Create a published container that publishes port 1337. Verify that an outbound container can connect to port
       1337 on the published container.
    b. Verify that an outbound container cannot connect to any other arbitrary port on the published container.
