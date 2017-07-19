@@ -688,19 +688,103 @@ func TestAddExclusionsNestedMounts(t *testing.T) {
 		expectedSpec := expectedResults[mount]
 		expectedLength := len(expectedSpec.Exclusions)
 		actualLength := len(spec.Exclusions)
-		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", expectedLength, actualLength, mount) {
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			return
+		}
+
+		expectedSpec = expectedResults[mount]
+		expectedLength = len(expectedSpec.Inclusions)
+		actualLength = len(spec.Inclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the inclusions generated for mount (%s)", actualLength, expectedLength, mount) {
 			return
 		}
 
 		for path := range expectedSpec.Exclusions {
 			_, ok := spec.Exclusions[path]
 
-			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s \n exlusion map: %s", path, mount, spec.Exclusions) {
+			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s \n exclusion map: %s", path, mount, spec.Exclusions) {
 				return
 			}
 
 		}
 
+		for path := range expectedSpec.Inclusions {
+			_, ok := spec.Inclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the inclusion map for %s \n inclusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
+
+	}
+
+}
+
+func TestAddExclusionsMountTarget(t *testing.T) {
+	copyTarget := "/mnt/vols/A"
+	testMounts := []string{
+		"/",
+		"/mnt/vols/A",
+	}
+
+	expectedResults := map[string]FilterSpec{
+		"/mnt/vols/A": {
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
+	}
+
+	for _, mount := range testMounts {
+
+		if mount == "/" {
+			continue
+		}
+
+		spec := FilterSpec{
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		}
+
+		err := AddMountInclusionsExclusions(mount, &spec, testMounts, copyTarget)
+
+		if !assert.Nil(t, err) {
+			return
+		}
+
+		expectedSpec := expectedResults[mount]
+		expectedLength := len(expectedSpec.Exclusions)
+		actualLength := len(spec.Exclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			return
+		}
+
+		expectedSpec = expectedResults[mount]
+		expectedLength = len(expectedSpec.Inclusions)
+		actualLength = len(spec.Inclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the inclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			return
+		}
+
+		for path := range expectedSpec.Exclusions {
+			_, ok := spec.Exclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s \n exclusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
+
+		for path := range expectedSpec.Inclusions {
+			_, ok := spec.Inclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the inclusion map for %s \n inclusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
 	}
 
 }

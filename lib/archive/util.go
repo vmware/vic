@@ -95,7 +95,7 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 		return fmt.Errorf("either the inclusions or exclusions map was nil for (%s)", currentMount)
 	}
 
-	if strings.HasPrefix(copyTarget, currentMount) {
+	if strings.HasPrefix(copyTarget, currentMount) && copyTarget != currentMount {
 		filter.Exclusions[""] = struct{}{}
 		filter.Inclusions[removeLeadingSlash(strings.TrimPrefix(copyTarget, currentMount))] = struct{}{}
 	} else {
