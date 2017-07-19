@@ -17,7 +17,6 @@ package create
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"path"
@@ -66,17 +65,15 @@ type Create struct {
 	*data.Data
 	certs             common.CertFactory
 	containerNetworks common.CNetworks
+	registries        common.Registries
 
 	volumeStores common.VolumeStores
 
-	insecureRegistries  cli.StringSlice `arg:"insecure-registry"`
-	whitelistRegistries cli.StringSlice `arg:"whitelist-registry"`
-	dns                 common.DNS
+	dns common.DNS
 
 	memoryReservLimits string
 	cpuReservLimits    string
 
-	registryCAs     cli.StringSlice `arg:"registry-ca"`
 	advancedOptions bool
 	BridgeIPRange   string
 
@@ -255,24 +252,19 @@ func (c *Create) Flags() []cli.Flag {
 		Hidden:      true,
 	})
 
-	registries := []cli.Flag{
-		cli.StringSliceFlag{
-			Name:   "registry-ca, rc",
-			Usage:  "Specify a list of additional certificate authority files to use to verify secure registry servers",
-			Value:  &c.registryCAs,
-			Hidden: true,
-		},
+	registries := c.registries.Flags()
+	registries = append(registries,
 		cli.StringSliceFlag{
 			Name:  "insecure-registry, dir",
-			Value: &c.insecureRegistries,
+			Value: &c.registries.InsecureRegistriesArg,
 			Usage: "Specify a list of permitted insecure registry server addresses",
-		},
+		})
+	registries = append(registries,
 		cli.StringSliceFlag{
 			Name:  "whitelist-registry, wr",
-			Value: &c.whitelistRegistries,
+			Value: &c.registries.WhitelistRegistriesArg,
 			Usage: "Specify a list of permitted whitelist registry server addresses (insecure addresses still require the --insecure-registry option in addition)",
-		},
-	}
+		})
 
 	syslog := []cli.Flag{
 		cli.StringFlag{
@@ -408,9 +400,13 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processRegistries(); err != nil {
+	if err := c.registries.ProcessRegistries(); err != nil {
 		return err
 	}
+
+	c.InsecureRegistries = c.registries.InsecureRegistries
+	c.WhitelistRegistries = c.registries.WhitelistRegistries
+	c.RegistryCAs = c.registries.RegistryCAs
 
 	hproxy, sproxy, err := c.proxies.ProcessProxies()
 	if err != nil {
@@ -424,25 +420,6 @@ func (c *Create) processParams() error {
 	}
 
 	return nil
-}
-
-// loadRegistryCAs loads additional CA certs for docker registry usage
-func (c *Create) loadRegistryCAs() ([]byte, error) {
-	defer trace.End(trace.Begin(""))
-
-	var registryCerts []byte
-	for _, f := range c.registryCAs {
-		b, err := ioutil.ReadFile(f)
-		if err != nil {
-			err = errors.Errorf("Failed to load authority from file %s: %s", f, err)
-			return nil, err
-		}
-
-		registryCerts = append(registryCerts, b...)
-		log.Infof("Loaded registry CA from %s", f)
-	}
-
-	return registryCerts, nil
 }
 
 func (c *Create) processCertificates() error {
@@ -562,22 +539,6 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		network.Gateway.Mask = network.IP.Mask
 	}
 
-	return nil
-}
-
-func (c *Create) processRegistries() error {
-	// load additional certificate authorities for use with registries
-	if len(c.registryCAs) > 0 {
-		registryCAs, err := c.loadRegistryCAs()
-		if err != nil {
-			return errors.Errorf("Unable to load CA certificates for registry logins: %s", err)
-		}
-
-		c.RegistryCAs = registryCAs
-	}
-
-	c.InsecureRegistries = c.insecureRegistries.Value()
-	c.WhitelistRegistries = c.whitelistRegistries.Value()
 	return nil
 }
 

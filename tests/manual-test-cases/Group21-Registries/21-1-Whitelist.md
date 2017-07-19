@@ -29,6 +29,17 @@ Test Case -- Basic whitelisting
 * Step 6-7 succeeds.  VCH should not care if port is added at the end of docker operation or vic-machine creation
 * Step 8-9 fails and return a message containing 'Access denied to unauthorized registry'
 
+Test Case -- Configure Registry CA
+=========
+This test ensures that we can change the registry CA cert installed on the VCH
+1. Install a new VCH without specifying a registry CA
+2. Try to log in (should fail)
+3. Use vic-machine configure --registry-ca to add the CA to the appliance
+4. Try to log in & pull (should succeed)
+5. Run vic-machine configure without --registry-ca to check that no change occurs in this case
+6. Try to log in and pull (should succeed)
+5. Tear down VCH
+
 
 Test Case -- Basic whitelisting with NO certs
 =========
