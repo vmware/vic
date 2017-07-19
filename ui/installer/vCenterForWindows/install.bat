@@ -33,27 +33,57 @@ IF NOT EXIST configs (
     EXIT /b 1
 )
 
+SET arg_name=%1
+SET arg_value=%2
+
+:read_vc_args
+IF NOT "%1"=="" (
+    IF "%1"=="-i" (
+        SET target_vcenter_ip=%2
+        SHIFT
+    )
+    IF "%1"=="-u" (
+        SET vcenter_username=%2
+        SHIFT
+    )
+    IF "%1"=="-p" (
+        SET vcenter_password=%2
+        SHIFT
+    )
+    IF "%1"=="-f" (
+        SET force_set=1
+        SHIFT
+        GOTO :read_vc_args
+    )
+    SHIFT
+    GOTO :read_vc_args
+)
+
 ECHO -------------------------------------------------------------
 ECHO This script will install vSphere Integrated Containers plugin
 ECHO for vSphere Client (HTML) and vSphere Web Client (Flex).
 ECHO.
 ECHO Please provide connection information to the vCenter Server.
 ECHO -------------------------------------------------------------
-SET /p target_vcenter_ip="Enter IP to target vCenter Server: "
-SET /p vcenter_username="Enter your vCenter Administrator Username: "
-SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Administrator Password' -AsSecureString ; ^
-    $BSTR=[System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($pword); ^
-        [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)""
+IF [%target_vcenter_ip%] == [] (
+    SET /p target_vcenter_ip="Enter IP to target vCenter Server: "
+)
+IF [%vcenter_username%] == [] (
+    SET /p vcenter_username="Enter your vCenter Administrator Username: "
+)
+IF [%vcenter_password%] == [] (
+    GOTO :read_vc_password
+) ELSE (
+    GOTO :after_vc_info_read
+)
+
+:read_vc_password
+SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Administrator Password' -AsSecureString ; ^ $BSTR=[System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($pword); ^ [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)""
 FOR /f "usebackq delims=" %%p in (`%psCommand%`) do set vcenter_password=%%p
 
+:after_vc_info_read
 SET plugin_manager_bin=%parent%..\..\vic-ui-windows.exe
 SET vcenter_reg_common_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
-
-IF [%1] == [--force] (
-    SET force_install=1
-) ELSE (
-    SET force_install=0
-)
 
 REM read plugin-manifest
 FOR /F "tokens=1,2 delims==" %%A IN (..\plugin-manifest) DO (
@@ -100,19 +130,19 @@ IF %ERRORLEVEL% EQU 0 (
 SET /p accept_vc_thumbprint="Are you sure you trust the authenticity of this host [yes/no]? "
 IF /I [%accept_vc_thumbprint%] == [yes] (
     SETLOCAL DISABLEDELAYEDEXPANSION
-    IF %force_install% NEQ 1 (
-        GOTO check_existing_plugins
-    ) ELSE (
+    IF [%force_set%] == [1] (
         GOTO parse_and_register_plugins
+    ) ELSE (
+        GOTO check_existing_plugins
     )
 )
 IF /I [%accept_vc_thumbprint%] == [no] (
     SET /p vc_thumbprint="Enter SHA-1 thumbprint of target VC: "
     SETLOCAL DISABLEDELAYEDEXPANSION
-    IF %force_install% NEQ 1 (
-        GOTO check_existing_plugins
-    ) ELSE (
+    IF [%force_set%] == [1] (
         GOTO parse_and_register_plugins
+    ) ELSE (
+        GOTO check_existing_plugins
     )
 )
 ECHO Please answer either "yes" or "no"
@@ -174,7 +204,7 @@ REM if either plugin is installed kill the script
 IF %can_install_continue% EQU 0 (
     ECHO -------------------------------------------------------------
     ECHO Error! At least one plugin is already registered with the target VC.
-    ECHO Run upgrade.bat, or install.bat --force instead.
+    ECHO Please run upgrade.bat instead.
     DEL scratch*.tmp 2>NUL
     ENDLOCAL
     EXIT /b 1
@@ -189,8 +219,8 @@ ECHO.
 ECHO -------------------------------------------------------------
 ECHO Preparing to register vCenter Extension %name:"=%-H5Client...
 ECHO -------------------------------------------------------------
-SET plugin_reg_flags=%vcenter_reg_common_flags% --name "%name:"=%-H5Client" --thumbprint %vc_thumbprint% --version %version:"=% --summary %summary% --company %company% --key %key_h5c:"=% --url %vic_ui_host_url%files/%key_h5c:"=%-v%version:"=%.zip --server-thumbprint %vic_ui_host_thumbprint%
-IF %force_install% EQU 1 (
+SET plugin_reg_flags=%vcenter_reg_common_flags% --name "%name:"=%-H5Client" --thumbprint %vc_thumbprint% --version %version:"=% --summary "Plugin for %name:"=%-H5Client" --company %company% --key %key_h5c:"=% --url %vic_ui_host_url%files/%key_h5c:"=%-v%version:"=%.zip --server-thumbprint %vic_ui_host_thumbprint%
+IF [%force_set%] == [1] (
     SET plugin_reg_flags=%plugin_reg_flags% --force
 )
 "%plugin_manager_bin%" install %plugin_reg_flags%
@@ -205,8 +235,8 @@ ECHO.
 ECHO -------------------------------------------------------------
 ECHO Preparing to register vCenter Extension %name:"=%-FlexClient...
 ECHO -------------------------------------------------------------
-SET plugin_reg_flags=%vcenter_reg_common_flags% --name "%name:"=%-FlexClient" --thumbprint %vc_thumbprint% --version %version:"=% --summary %summary% --company %company% --key %key_flex:"=% --url %vic_ui_host_url%files/%key_flex:"=%-v%version:"=%.zip --server-thumbprint %vic_ui_host_thumbprint%
-IF %force_install% EQU 1 (
+SET plugin_reg_flags=%vcenter_reg_common_flags% --name "%name:"=%-FlexClient" --thumbprint %vc_thumbprint% --version %version:"=% --summary "Plugin for %name:"=%-FlexClient" --company %company% --key %key_flex:"=% --url %vic_ui_host_url%files/%key_flex:"=%-v%version:"=%.zip --server-thumbprint %vic_ui_host_thumbprint%
+IF [%force_set%] == [1] (
     SET plugin_reg_flags=%plugin_reg_flags% --force
 )
 "%plugin_manager_bin%" install %plugin_reg_flags%
