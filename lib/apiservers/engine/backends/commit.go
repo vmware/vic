@@ -143,7 +143,7 @@ func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imag
 	}
 	// if repo:tag is specified, update image to repo cache, otherwise, this image will be updated to repo cache while it's tagged
 	if ic.Reference != nil {
-		imagec.UpdateRepositoryCache(ic)
+		imagec.UpdateRepoCache(ic)
 	}
 
 	ic.Storename = layer.Image.Store

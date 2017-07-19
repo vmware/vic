@@ -674,6 +674,8 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 	return nil
 }
 
+// GetContainerChanges returns container changes from portlayer.
+// Set data to true will return file data, otherwise, only return file headers with change type.
 func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
 	host, err := sys.UUID()
 	if err != nil {

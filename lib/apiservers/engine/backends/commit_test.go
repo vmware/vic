@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 )
 
-func getMockReader() (io.ReadCloser, error) {
+func getMockReader(t *testing.T) (io.ReadCloser, error) {
 	// Create a buffer to write our archive to.
 	buf := new(bytes.Buffer)
 
@@ -51,10 +51,10 @@ func getMockReader() (io.ReadCloser, error) {
 			Size: int64(len(file.Body)),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
-			log.Fatalln(err)
+			t.Fatal(err)
 		}
 		if _, err := tw.Write([]byte(file.Body)); err != nil {
-			log.Fatalln(err)
+			t.Fatal(err)
 		}
 	}
 	// Make sure to check the error on Close.
@@ -70,7 +70,7 @@ func getMockReader() (io.ReadCloser, error) {
 func TestDownload(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	rc, err := getMockReader()
+	rc, err := getMockReader(t)
 	if err != nil {
 		t.Errorf("Failed to get mocked reader: %s", err)
 	}

@@ -232,7 +232,10 @@ func (ic *ICache) Add(imageConfig *metadata.ImageConfig) error {
 		log.Debugf("Image %s has no name", imageID)
 		return nil
 	}
-	// construct reference after image is added into cacheByID, to make sure image without name can be added
+
+	// Construct a reference after the image is added into cacheByID so that an image
+	// without a name can at least be added to cacheByID.
+
 	// Normalize the name stored in imageConfig using Docker's reference code
 	ref, err := reference.WithName(imageConfig.Name)
 	if err != nil {

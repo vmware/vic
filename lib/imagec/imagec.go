@@ -271,7 +271,7 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 // UpdateRepositoryCache will update the repository cache
 // that resides in the docker persona.  This will add image tag,
 // digest and layer information.
-func UpdateRepositoryCache(ic *ImageC) error {
+func UpdateRepoCache(ic *ImageC) error {
 	// if standalone then no persona, so exit
 	if ic.Standalone {
 		return nil
@@ -321,8 +321,9 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 	destination := DestinationDirectory(ic.Options)
 
 	id := image.Image.ID
-	log.Infof("Path: %s", path.Join(destination, id, id+".tar"))
-	f, err := os.Open(path.Join(destination, id, id+".tar"))
+	filePath := path.Join(destination, id, id+".tar")
+	log.Infof("Path: %s", filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("Failed to open file: %s", err)
 	}
