@@ -18,11 +18,7 @@ import { NgModule, ErrorHandler } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpModule } from '@angular/http';
-
 import { ClarityModule } from 'clarity-angular';
-import { VicSummaryPortletModule } from './summary-portlet/summary-portlet.module';
-import { VicVchViewModule } from './vch-view/vch-view.module';
-import { VicContainerViewModule } from './container-view/container-view.module';
 
 import {
     Globals,
@@ -33,7 +29,6 @@ import {
     AppAlertComponent,
     AppAlertService
 } from './shared/index';
-import { DataPropertyService } from './services/data-property.service';
 import { ActionDevService } from './services/action-dev.service';
 import { AppErrorHandler } from './shared/appErrorHandler';
 
@@ -62,7 +57,6 @@ import { AppComponent } from './app.component';
         I18nService,
         Vic18nService,
         RefreshService,
-        DataPropertyService,
         { provide: ErrorHandler, useClass: AppErrorHandler }
     ],
     bootstrap: [AppComponent]

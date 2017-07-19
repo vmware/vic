@@ -19,18 +19,14 @@ import { RouterModule, Routes } from '@angular/router';
 
 import { APP_CONFIG } from './shared/index';
 import { AppRoutingComponent } from './app-routing.component';
-import { VicSummaryViewComponent } from './summary-view/summary-view.component';
-import { CreateVchWizardComponent } from 'app/create-vch-wizard/create-vch-wizard.component';
 
 const appRoutes: Routes = [
     { path: 'index.html', component: AppRoutingComponent },
     { path: 'portlet', loadChildren: './summary-portlet/summary-portlet.module#VicSummaryPortletModule' },
-    { path: 'summary-view', component: VicSummaryViewComponent },
-    { path: 'summary-view/:id', component: VicSummaryViewComponent },
+    { path: 'summary-view', loadChildren: './summary-view/summary-view.module#VicSummaryViewModule' },
     { path: 'vch-view', loadChildren: './vch-view/vch-view.module#VicVchViewModule' },
     { path: 'container-view', loadChildren: './container-view/container-view.module#VicContainerViewModule' },
-    { path: 'create-vch', component: CreateVchWizardComponent },
-    { path: 'create-vch/:id', component: CreateVchWizardComponent }
+    { path: 'create-vch', loadChildren: './create-vch-wizard/create-vch-wizard.module#CreateVchWizardModule' }
 ];
 
 export const extensionToRoutes = {};
@@ -39,11 +35,7 @@ extensionToRoutes[APP_CONFIG.packageName + '.objectView.monitorView'] = '/object
 extensionToRoutes[APP_CONFIG.packageName + '.objectView.vchView'] = '/objectViewVch';
 extensionToRoutes[APP_CONFIG.packageName + '.objectView.containerView'] = '/objectViewContainer';
 
-export const routedComponents = [
-    AppRoutingComponent,
-    VicSummaryViewComponent,
-    CreateVchWizardComponent
-];
+export const routedComponents = [AppRoutingComponent];
 
 @NgModule({
     imports: [
