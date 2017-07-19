@@ -57,8 +57,10 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 	}
 
 	sort.Sort(changesByPath(changes))
+	op.Infof("FILESPEC:::: \n\n\n %#v", *spec)
 
-	return Tar(op, newDir, changes, spec, data, false)
+	op.Infof("LOOK HERE!!!!\n\n\n\n\n\n %s", changes)
+	return Tar(op, newDir, changes, spec, data, oldDir != "")
 }
 
 func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
@@ -101,7 +103,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				break
 			}
 
-			if spec.Excludes(op, change.Path) {
+			if spec.Excludes(op, strings.TrimPrefix(change.Path, "/")) {
 				continue
 			}
 
