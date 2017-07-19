@@ -712,13 +712,12 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 		// make sure we get out of io.Copy if context is canceled
 		select {
 		case <-ctx.Done():
+			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
+			// stream.  The other way is for the caller of this function to close the returned CloseReader.
+			// Callers of this function should do one but not both.
+			pipeReader.Close()
 		case <-done:
 		}
-
-		// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
-		// stream.  The other way is for the caller of this function to close the returned CloseReader.
-		// Callers of this function should do one but not both.
-		pipeReader.Close()
 	}()
 
 	go func() {
@@ -788,13 +787,12 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 		// make sure we get out of io.Copy if context is canceled
 		select {
 		case <-ctx.Done():
+			// Attempt to shutdown the stream to the portlayer.  The other way to cancel the
+			// connection is to call close on the WriteCloser returned from this function.
+			// Callers of this function should do one but not both.
+			pipeWriter.Close()
 		case <-done:
 		}
-
-		// Attempt to shutdown the stream to the portlayer.  The other way to cancel the
-		// connection is to call close on the WriteCloser returned from this function.
-		// Callers of this function should do one but not both.
-		pipeWriter.Close()
 	}()
 
 	go func() {
