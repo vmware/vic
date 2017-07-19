@@ -485,68 +485,14 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 }
 
 func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, nodes []*ArchiveReader, startingNode *ArchiveReader) error {
-	var err error
-
-	// Build an exclusion filter for each writer.  For example, the reader for / should not read
-	// from submounts as there are separate readers for those.
-	buildExclusion := func(path string, node *ArchiveReader) error {
-		childWalker := func(prefix patricia.Prefix, item patricia.Item) error {
-			if _, ok := item.(*ArchiveReader); !ok {
-				return fmt.Errorf("item not ArchiveReader")
-			}
-
-			ar, _ := item.(*ArchiveReader)
-			dest := ar.mountPoint.Destination
-			if dest != path {
-				node.filterSpec.Exclusions[dest] = struct{}{}
-			}
-			return nil
-		}
-
-		// prefix = current node's mount path
-		nodePrefix := patricia.Prefix(path)
-
-		err = rm.prefixTrie.VisitSubtree(nodePrefix, childWalker)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to build exclusion filter for %s: %s", path, err.Error())
-			log.Error(msg)
-			return fmt.Errorf(msg)
-		}
-
-		return nil
+	mounts := []string{}
+	for _, node := range nodes {
+		mounts = append(mounts, node.mountPoint.Destination)
 	}
 
 	for _, node := range nodes {
-		// Clear out existing exclusions and inclusions
-		node.filterSpec.Exclusions = make(map[string]struct{})
-		node.filterSpec.Inclusions = make(map[string]struct{})
-
-		err = buildExclusion(node.mountPoint.Destination, node)
-		if err != nil {
-			return err
-		}
+		vicarchive.AddMountInclusionsExclusions(node.mountPoint.Destination, &node.filterSpec, mounts, containerSourcePath)
 	}
-
-	// Add inclusion filter.  When there is an inclusion, there should be only one node in
-	// the slice that is returned.
-	//
-	//	Example 1:
-	//		containerSourcePath -	/file.txt
-	//
-	//		ArchiveReader path -	/
-	//		Inclusion filter -		file.txt
-	//
-	//	Example 2:
-	//		containerSourcePath -	/mnt/A/a/file.txt
-	//
-	//		ArchiveReader path -	/mnt/A
-	//		Inclusion filter -		a/file.txt
-	inclusionPath := strings.TrimPrefix(containerSourcePath, startingNode.mountPoint.Destination)
-	inclusionPath = strings.TrimPrefix(inclusionPath, "/")
-	if len(nodes) == 1 {
-		nodes[0].filterSpec.Inclusions[inclusionPath] = struct{}{}
-	}
-
 	return nil
 }
 
@@ -567,11 +513,17 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, 
 		return nil, err
 	}
 
+	mounts := []string{}
+	for _, node := range nodes {
+		mounts = append(mounts, node.mountPoint.Destination)
+	}
+
 	// Create the io.Reader for those mounts if they haven't already been initialized
 	for _, node := range nodes {
+		// build up the inclusions and exclusions
+		vicarchive.AddMountInclusionsExclusions(node.mountPoint.Destination, &node.filterSpec, mounts, containerSourcePath)
 		if node.reader == nil {
 			var store, deviceID string
-			subpath := containerSourcePath
 			if node.mountPoint.Destination == "/" {
 				// Special case. / refers to container VMDK and not a volume vmdk.
 				store = constants.ContainerStoreName
@@ -579,16 +531,6 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, 
 			} else {
 				store = constants.VolumeStoreName
 				deviceID = node.mountPoint.Name
-				subpath = strings.TrimPrefix(containerSourcePath, node.mountPoint.Destination)
-			}
-
-			if strings.HasPrefix(containerSourcePath, node.mountPoint.Destination) {
-				// add the include path back
-				if node.filterSpec.Inclusions == nil {
-					node.filterSpec.Inclusions = make(map[string]struct{})
-				}
-
-				node.filterSpec.Inclusions[subpath] = struct{}{}
 			}
 
 			log.Infof("Lazily initializing export stream for %s [%s]", node.mountPoint.Name, node.mountPoint.Destination)
