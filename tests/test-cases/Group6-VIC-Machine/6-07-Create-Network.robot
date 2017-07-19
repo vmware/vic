@@ -17,6 +17,17 @@ Documentation  Test 6-07 - Verify vic-machine create network function
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Cleanup Container Firewall Portgroups
+    Cleanup VIC Appliance On Test Server
+    Run  govc host.portgroup.remove bridge
+    Run  govc host.portgroup.remove open-net
+    Run  govc host.portgroup.remove closed-net
+    Run  govc host.portgroup.remove published-net
+    Run  govc host.portgroup.remove outbound-net
+    Run  govc host.portgroup.remove peers-net-1
+    Run  govc host.portgroup.remove peers-net-2
+
 *** Test Cases ***
 Public network - default
     Set Test Environment Variables
@@ -556,8 +567,8 @@ Container Firewalls
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-2 ${busybox} nc ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
- 
-    Cleanup VIC Appliance On Test Server
+
+    [Teardown]  Cleanup Container Firewall Portgroups
 
 Container network invalid 1
     Pass execution  Test not implemented

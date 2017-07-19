@@ -17,6 +17,12 @@ Documentation  Test 6-09 - Verify vic-machine inspect functions
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Cleanup Port Groups
+    Cleanup VIC Appliance On Test Server
+    ${out}=  Run  govc host.portgroup.remove published-net
+    ${out}=  Run  govc host.portgroup.remove peers-net
+
 *** Test Cases ***
 Inspect VCH Configuration
     Install VIC Appliance To Test Server
@@ -139,7 +145,7 @@ Verify inspect output for a full tls VCH
     Should Contain  ${output}  Unable to find valid client certs
     Should Contain  ${output}  DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments
 
-    Cleanup VIC Appliance On Test Server
+    [Teardown]  Cleanup Port Groups
 
 Verify inspect output for a --no-tls VCH
     Set Test Environment Variables
