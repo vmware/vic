@@ -55,10 +55,15 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 	if err != nil {
 		return nil, err
 	}
+	// this is in the case that we are part of a read that is crossing a mount point.
+	// It should be addressed by include/excludes.
+	changes = append(changes, docker.Change{Path: "/"})
 
 	sort.Sort(changesByPath(changes))
+	op.Infof("FILESPEC:::: \n\n\n %#v", *spec)
 
-	return Tar(op, newDir, changes, spec, data, oldDir != "")
+	op.Infof("LOOK HERE!!!!\n\n\n\n\n\n %s", changes)
+	return Tar(op, newDir, changes, spec, data, false)
 }
 
 func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
@@ -101,7 +106,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				break
 			}
 
-			if spec.Excludes(op, change.Path) {
+			if spec.Excludes(op, strings.TrimPrefix(change.Path, "/")) {
 				continue
 			}
 
@@ -162,6 +167,8 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		whiteOutDir := filepath.Dir(change.Path)
 		whiteOutBase := filepath.Base(change.Path)
 		whiteOut := filepath.Join(whiteOutDir, docker.WhiteoutPrefix+whiteOutBase)
+
+		// FIXME: consult @jzt about how strip should work here
 		hdr = &tar.Header{
 			Name:       filepath.Join(spec.RebasePath, whiteOut),
 			ModTime:    timestamp,
@@ -181,15 +188,10 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 			return nil, err
 		}
 
-		hdr.Name = filepath.Join(spec.RebasePath, change.Path)
-
-		if hdr.Typeflag == tar.TypeDir {
-			hdr.Name += "/"
-		}
+		change.Path = strings.TrimPrefix(change.Path, "/")
+		strippedName := strings.TrimPrefix(change.Path, spec.StripPath)
+		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
 	}
-
-	// first rebase (happens above), then strip any unnecessary leading directory elements
-	hdr.Name = strings.TrimPrefix(hdr.Name, spec.StripPath)
 
 	if xattr {
 		hdr.Xattrs = make(map[string]string)
