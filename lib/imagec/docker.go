@@ -691,7 +691,7 @@ func LearnAuthURLForRepoList(options Options, po progress.Output) (*url.URL, err
 		RootCAs:            options.RegistryCAs,
 	})
 
-	hdr, _, err := transporter.Get(ctx, url, nil, po)
+	hdr, err := transporter.GetHeaderOnly(ctx, url, nil, po)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch auth url for ObtainRepoList: %s", err)
 	}
@@ -761,26 +761,17 @@ func ObtainRepoList(transporter *urlfetcher.URLTransporter, options Options, po 
 	url.Path = path.Join(url.Path, "_catalog")
 	log.Debugf("obtainRepolist URL: %s", url)
 
-	_, rdr, err := transporter.Get(ctx, url, nil, po)
+	_, data, err := transporter.GetBytes(ctx, url, nil, po)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch repo list: %s", err)
 	}
-	defer rdr.Close()
 
 	if transporter.IsStatusOK() {
-		log.Debugf("ObtainRepoList: %+v", rdr)
-
-		out := bytes.NewBuffer(nil)
-
-		// Stream into it
-		_, err = io.Copy(out, rdr)
-		if err != nil {
-			return nil, err
-		}
+		log.Debugf("ObtainRepoList: %+v", data)
 
 		var dat map[string][]string
 
-		if err = json.Unmarshal(out.Bytes(), &dat); err != nil {
+		if err = json.Unmarshal(data, &dat); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal repo list: %s", err)
 		}
 

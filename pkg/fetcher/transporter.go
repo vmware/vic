@@ -15,6 +15,7 @@
 package fetcher
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -41,6 +42,8 @@ type Transporter interface {
 	Delete(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, error)
 	Head(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, error)
 	Get(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, io.ReadCloser, error)
+	GetBytes(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, []byte, error)
+	GetHeaderOnly(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, error)
 
 	IsStatusUnauthorized() bool
 	IsStatusOK() bool
@@ -109,9 +112,34 @@ func (u *URLTransporter) Head(ctx context.Context, url *url.URL, reqHdrs *http.H
 	return hdr, err
 }
 
-// Get implements a GET request
+// Get implements a GET request; the caller is responsible for closing the stream of the response body after use
 func (u *URLTransporter) Get(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, io.ReadCloser, error) {
 	return u.requestWithRetry(ctx, url, nil, reqHdrs, http.MethodGet, po)
+}
+
+// GetBytes returns the response body as []byte
+func (u *URLTransporter) GetBytes(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, []byte, error) {
+	hdr, rdr, err := u.requestWithRetry(ctx, url, nil, reqHdrs, http.MethodGet, po)
+
+	defer rdr.Close()
+
+	out := bytes.NewBuffer(nil)
+
+	// Stream into it
+	_, err = io.Copy(out, rdr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return hdr, out.Bytes(), err
+}
+
+// GetHeaderOnly only returns the header of the response of a GET request
+func (u *URLTransporter) GetHeaderOnly(ctx context.Context, url *url.URL, reqHdrs *http.Header, po progress.Output) (http.Header, error) {
+	hdr, rdr, err := u.requestWithRetry(ctx, url, nil, reqHdrs, http.MethodGet, po)
+	if rdr != nil {
+		rdr.Close()
+	}
+	return hdr, err
 }
 
 // Create a basic request without retry
