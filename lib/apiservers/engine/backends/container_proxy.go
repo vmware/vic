@@ -716,7 +716,6 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 		// make sure we get out of io.Copy if context is canceled
 		select {
 		case <-ctx.Done():
-
 			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
 			// stream.  The other way is for the caller of this function to close the returned CloseReader.
 			// Callers of this function should do one but not both.
