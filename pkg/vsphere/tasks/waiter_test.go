@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func TestMain(m *testing.M) {
@@ -340,7 +341,7 @@ func (vm *faultyVirtualMachine) MarkAsTemplate(c *types.MarkAsTemplate) soap.Has
 
 // TestSoapFaults covers the various soap fault checking paths
 func TestSoapFaults(t *testing.T) {
-	ctx := context.Background()
+	op := trace.NewOperation(context.Background(), "TestSoapFaults")
 
 	// Nothing VC specific in this test, so we use the simpler ESX model
 	model := simulator.ESX()
@@ -353,20 +354,20 @@ func TestSoapFaults(t *testing.T) {
 	server := model.Service.NewServer()
 	defer server.Close()
 
-	client, err := govmomi.NewClient(ctx, server.URL, true)
+	client, err := govmomi.NewClient(op, server.URL, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Any VM will do
 	finder := find.NewFinder(client.Client, false)
-	vm, err := finder.VirtualMachine(ctx, "/ha-datacenter/vm/*_VM0")
+	vm, err := finder.VirtualMachine(op, "/ha-datacenter/vm/*_VM0")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Test the success path
-	err = Wait(ctx, func(ctx context.Context) (Task, error) {
+	err = Wait(op, func(ctx context.Context) (Task, error) {
 		return vm.PowerOn(ctx)
 	})
 	if err != nil {
@@ -380,25 +381,25 @@ func TestSoapFaults(t *testing.T) {
 
 	// Inject TaskInProgress fault
 	fvm.fault = new(types.TaskInProgress)
-	task, err := vm.PowerOff(ctx)
+	task, err := vm.PowerOff(op)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Test the task.Error path
-	res, err := task.WaitForResult(ctx, nil)
-	if !isRetryError(err) {
+	res, err := task.WaitForResult(op, nil)
+	if !isRetryError(op, err) {
 		t.Error(err)
 	}
 
 	// Test the soap.IsVimFault() path
-	if !isRetryError(soap.WrapVimFault(res.Error.Fault)) {
+	if !isRetryError(op, soap.WrapVimFault(res.Error.Fault)) {
 		t.Errorf("fault=%#v", res.Error.Fault)
 	}
 
 	// Test the soap.IsSoapFault() path
-	err = vm.MarkAsTemplate(ctx)
-	if !isRetryError(err) {
+	err = vm.MarkAsTemplate(op)
+	if !isRetryError(op, err) {
 		t.Error(err)
 	}
 
@@ -407,13 +408,13 @@ func TestSoapFaults(t *testing.T) {
 		Text: "now why would you want to do such a thing?",
 	}
 
-	err = Wait(ctx, func(ctx context.Context) (Task, error) {
+	err = Wait(op, func(ctx context.Context) (Task, error) {
 		return vm.PowerOff(ctx)
 	})
 	if err == nil {
 		t.Error("expected error")
 	}
-	if isRetryError(err) {
+	if isRetryError(op, err) {
 		t.Error(err)
 	}
 
@@ -421,7 +422,7 @@ func TestSoapFaults(t *testing.T) {
 	fvm.fault = new(types.TaskInProgress)
 	called := 0
 
-	err = Wait(ctx, func(ctx context.Context) (Task, error) {
+	err = Wait(op, func(ctx context.Context) (Task, error) {
 		called++
 		if called > 1 {
 			simulator.Map.Put(ref) // remove fault injection

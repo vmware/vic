@@ -94,6 +94,7 @@ func (v *VolumeStore) newDataSource(op trace.Operation, url *url.URL) (storage.D
 
 	f, err := os.Open(mountPath)
 	if err != nil {
+		cleanFunc()
 		return nil, err
 	}
 
@@ -130,13 +131,19 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 	// this allows us to assume it's an image
 	r, err := i.NewDataSource(op, ancestor)
 	if err != nil {
+		op.Debugf("Unable to get datasource for ancestor: %s", err)
+
 		l.Close()
 		return nil, err
 	}
 
-	closers := func() {
+	closers := func() error {
+		op.Debugf("Callback to io.Closer function for image delta export")
+
 		l.Close()
 		r.Close()
+
+		return nil
 	}
 
 	ls := l.Source()
@@ -156,7 +163,10 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return nil, err
 	}
 
-	return tar, nil
+	return &storage.ProxyReadCloser{
+		ReadCloser: tar,
+		Closer:     closers,
+	}, nil
 }
 
 func (i *ImageStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
@@ -176,6 +186,7 @@ func (i *ImageStore) newDataSource(op trace.Operation, url *url.URL) (storage.Da
 
 	f, err := os.Open(mountPath)
 	if err != nil {
+		cleanFunc()
 		return nil, err
 	}
 
