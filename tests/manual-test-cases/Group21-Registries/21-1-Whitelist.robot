@@ -92,6 +92,34 @@ Basic Whitelisting
 
     Cleanup VIC Appliance On Test Server
 
+Check Login to Insecure Registry (http)
+    # Install VCH w/o specifying insecure registry
+    ${output}=  Install VIC Appliance To Test Server  vol=default --registry-ca=./ca.crt
+    Should Not Contain  ${output}  Insecure registry %{HTTP_HARBOR_IP} confirmed
+    Get Docker Params  ${output}  true
+
+    # Try to login and pull from the HTTP insecure registry (should fail)
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTP_HARBOR_IP}
+    Should Not Contain  ${output}  Succeeded
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTP_HARBOR_IP}/library/photon:1.0
+    Should Be Equal As Integers  ${rc}  1
+
+    Cleanup VIC Appliance On Test Server
+
+    ${output}=  Install VIC Appliance To Test Server  vol=default --insecure-registry=%{HTTP_HARBOR_IP} --registry-ca=./ca.crt
+    Should Contain  ${output}  Insecure registry %{HTTP_HARBOR_IP} confirmed
+    Get Docker Params  ${output}  true
+
+    # Try to login and pull from the HTTP insecure registry (should succeed)
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login -u admin -p %{TEST_PASSWORD} %{HTTP_HARBOR_IP}
+    Should Contain  ${output}  Succeeded
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull %{HTTP_HARBOR_IP}/library/photon:1.0
+    Should Be Equal As Integers  ${rc}  0
+
+    Cleanup VIC Appliance On Test Server
+
 Configure Registry CA
     # Install VCH without registry CA
     ${output}=  Install VIC Appliance To Test Server
