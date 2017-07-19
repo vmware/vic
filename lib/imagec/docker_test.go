@@ -582,7 +582,7 @@ func TestObtainRepoList(t *testing.T) {
 			fmt.Println("The request url is: ", r.URL.String())
 			if strings.Contains(r.URL.String(), "catalog") {
 				repoData := fmt.Sprintf("{'repositories':[%s]}", RepoMounted)
-				fmt.Println("The repositories: %s", repoData)
+				fmt.Println("The repositories: ", repoData)
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
