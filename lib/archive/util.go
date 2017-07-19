@@ -96,10 +96,11 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 	}
 
 	if strings.HasPrefix(copyTarget, currentMount) {
+		filter.Exclusions[""] = struct{}{}
 		filter.Inclusions[removeLeadingSlash(strings.TrimPrefix(copyTarget, currentMount))] = struct{}{}
 	} else {
 		// this would be a mount that is after the target. It would mean we have to include root. then exclude any mounts after root.
-		filter.Inclusions["/"] = struct{}{}
+		filter.Inclusions[""] = struct{}{}
 	}
 
 	for _, mount := range mounts {
