@@ -205,25 +205,22 @@ func DestinationDirectory(options Options) string {
 		                    └── manifest.json
 
 	*/
-	var d string
 	if u.Scheme == "" && u.Host == "" && u.Path == "" {
-		d = path.Join(
+		return path.Join(
 			options.Destination,
 			"localhost",
 			options.Image,
 			options.Tag,
 		)
-	} else {
-		d = path.Join(
-			options.Destination,
-			u.Scheme,
-			u.Host,
-			u.Path,
-			options.Image,
-			options.Tag,
-		)
 	}
-	return d
+	return path.Join(
+		options.Destination,
+		u.Scheme,
+		u.Host,
+		u.Path,
+		options.Image,
+		options.Tag,
+	)
 }
 
 // LayersToDownload creates a slice of ImageWithMeta for the layers that need to be downloaded

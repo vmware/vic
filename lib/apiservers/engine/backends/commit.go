@@ -258,13 +258,12 @@ func downloadDiff(rc io.ReadCloser, containerID string, options imagec.Options) 
 
 	blobSum := digest.NewDigestFromBytes(digest.SHA256, gzSum)
 	log.Debugf("container %s blob sum: %s", containerID, blobSum.String())
-	diffID := digest.NewDigestFromBytes(digest.SHA256, diffIDSum)
-	log.Debugf("container %s diff id: %s", containerID, diffID.String())
 
+	diffID := digest.NewDigestFromBytes(digest.SHA256, diffIDSum)
 	if size == 0 {
 		diffID = digest.Digest(dockerLayer.DigestSHA256EmptyTar)
 	}
-	log.Debugf("container %s diff size: %d", containerID, size)
+	log.Debugf("container %s diff id: %s, size: %d", containerID, diffID.String(), size)
 
 	// Ensure the parent directory exists
 	destination := path.Join(imagec.DestinationDirectory(options), layerID)
