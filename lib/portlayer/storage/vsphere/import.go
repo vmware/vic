@@ -49,7 +49,7 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 	}
 
 	// check for vmdk locked error here
-	if !disk.IsLockedError(err) {
+	if !disk.IsLockedError(op, err) {
 		op.Warnf("Unable to mount %s and do not know how to recover from error")
 		// continue anyway because maybe there's an online option
 	}
