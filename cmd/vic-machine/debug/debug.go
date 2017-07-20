@@ -87,7 +87,7 @@ func (d *Debug) Flags() []cli.Flag {
 	target := d.TargetFlags()
 	id := d.IDFlags()
 	compute := d.ComputeFlags()
-	debug := d.DebugFlags()
+	debug := d.DebugFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
