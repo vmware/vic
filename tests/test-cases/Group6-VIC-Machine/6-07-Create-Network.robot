@@ -18,7 +18,7 @@ Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Keywords ***
-Cleanup Container Firewall Portgroups
+Cleanup Container Firewalls Test
     Cleanup VIC Appliance On Test Server
     Run  govc host.portgroup.remove bridge
     Run  govc host.portgroup.remove open-net
@@ -407,6 +407,9 @@ Container Firewalls
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
+    # Set the only teardown for this test to cleanup both portgroups and VCH, regardless of test outcome.
+    [Teardown]  Cleanup Container Firewall Portgroups
+
     ${out}=  Run  govc host.portgroup.remove bridge
     ${out}=  Run  govc host.portgroup.remove open-net
     ${out}=  Run  govc host.portgroup.remove closed-net
@@ -567,8 +570,6 @@ Container Firewalls
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --net=peers-net-2 ${busybox} nc ${ip} 1234
     Should Not Be Equal As Integers  ${rc}  0
-
-    [Teardown]  Cleanup Container Firewall Portgroups
 
 Container network invalid 1
     Pass execution  Test not implemented
