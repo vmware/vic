@@ -21,6 +21,7 @@ import (
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
+	"path/filepath"
 )
 
 // MountDataSource implements the DataSource interface for mounted devices
@@ -77,6 +78,38 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 		rc,
 		m.Close,
 	}, err
+}
+
+// Export reads data from the associated data source and returns it as a tar archive
+func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error){
+	// retrieve relative path
+	if len(spec.Inclusions) != 1 {
+		op.Errorf("incorrect number of paths to stat --- ", len(spec.Inclusions))
+		return nil, errors.New("Incorrect number of paths to stat")
+	}
+
+	var targetPath string
+	for path := range spec.Inclusions {
+		targetPath = path
+	}
+
+	filePath := filepath.Join(m.Path.Name(), targetPath)
+	fileInfo, err := os.Lstat(filePath)
+	if err != nil {
+		op.Errorf("failed to stat file")
+		return nil, err
+	}
+
+	var linkTarget string
+	// check for symlink
+	if fileInfo.Mode() & os.ModeSymlink != 0 {
+		linkTarget, err = os.Readlink(filePath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &FileStat{linkTarget, uint32(fileInfo.Mode()), fileInfo.Name(), fileInfo.Size(), fileInfo.ModTime()}, nil
 }
 
 func (m *MountDataSource) Close() error {
