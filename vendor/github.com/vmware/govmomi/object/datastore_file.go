@@ -345,10 +345,10 @@ func (f *DatastoreFile) TailFunc(lines int, include func(line int, message strin
 }
 
 type followDatastoreFile struct {
-	r    *DatastoreFile
-	c    chan struct{}
-	i    time.Duration
-	once sync.Once
+	r *DatastoreFile
+	c chan struct{}
+	i time.Duration
+	o sync.Once
 }
 
 // Read reads up to len(b) bytes from the DatastoreFile being followed.
@@ -400,7 +400,7 @@ func (f *followDatastoreFile) Read(p []byte) (int, error) {
 
 // Close will stop Follow polling and close the underlying DatastoreFile.
 func (f *followDatastoreFile) Close() error {
-	f.once.Do(func() { close(f.c) })
+	f.o.Do(func() { close(f.c) })
 	return nil
 }
 
