@@ -37,9 +37,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -852,7 +852,7 @@ func (c *ContainerProxy) StatPath(op trace.Operation, store, deviceID string, fi
 	defer trace.End(trace.Begin(deviceID))
 
 	statPathParams := storage.
-	NewStatPathParamsWithContext(op).
+		NewStatPathParamsWithContext(op).
 		WithStore(store).
 		WithDeviceID(deviceID)
 

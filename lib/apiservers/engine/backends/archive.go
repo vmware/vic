@@ -21,10 +21,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"time"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/tchap/go-patricia/patricia"
@@ -179,6 +179,8 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerStatPath: %s", name)
 
+	op.Debugf("path received by statpath %s", path)
+
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return nil, NotFoundError(name)
@@ -196,7 +198,7 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 				Size:       int64(4096),
 				Mode:       os.ModeDir,
 				Mtime:      time.Now(),
-				LinkTarget: "" }
+				LinkTarget: ""}
 			op.Debugf("faking container stat path %#v", stat)
 			return stat, nil
 		}
@@ -623,13 +625,17 @@ func resolvePathWithMountPoints(mounts []types.MountPoint, path, defaultDevice s
 	store := containerStoreName
 	mntpoint := ""
 
-	// trim / off from path and then append / to ensure the format is correct
+	// trim / and . off from path and then append / to ensure the format is correct
 	for strings.HasPrefix(path, "/") {
 		path = strings.TrimPrefix(path, "/")
+	}
+	for strings.HasSuffix(path, ".") {
+		path = strings.TrimSuffix(path, ".")
 	}
 	for strings.HasSuffix(path, "/") {
 		path = strings.TrimSuffix(path, "/")
 	}
+
 	path = "/" + path
 
 	for _, mount := range mounts {

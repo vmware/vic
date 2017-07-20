@@ -642,7 +642,7 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 
 	op.Debugf("found data successfully")
 	return storage.
-	NewStatPathOK().
+		NewStatPathOK().
 		WithMode(fileStat.Mode).
 		WithLinkTarget(fileStat.LinkTarget).
 		WithName(fileStat.Name).

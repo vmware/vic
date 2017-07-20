@@ -45,7 +45,7 @@ type FileStat struct {
 	Mode       uint32
 	Name       string
 	Size       int64
-	ModTime	   time.Time
+	ModTime    time.Time
 }
 
 func create(ctx context.Context, session *session.Session, pool *object.ResourcePool) error {

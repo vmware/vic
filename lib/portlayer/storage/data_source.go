@@ -81,7 +81,7 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 }
 
 // Export reads data from the associated data source and returns it as a tar archive
-func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error){
+func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error) {
 	// retrieve relative path
 	if len(spec.Inclusions) != 1 {
 		op.Errorf("incorrect number of paths to stat --- ", len(spec.Inclusions))
@@ -102,7 +102,7 @@ func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*F
 
 	var linkTarget string
 	// check for symlink
-	if fileInfo.Mode() & os.ModeSymlink != 0 {
+	if fileInfo.Mode()&os.ModeSymlink != 0 {
 		linkTarget, err = os.Readlink(filePath)
 		if err != nil {
 			return nil, err
