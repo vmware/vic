@@ -165,7 +165,7 @@ func main() {
 
 		options.Outstream = os.Stdout
 
-		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 		if err := ic.PullImage(); err != nil {
 			log.Fatalf("Pulling image failed due to %s\n", err)
 		}

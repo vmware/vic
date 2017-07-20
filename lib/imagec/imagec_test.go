@@ -28,8 +28,11 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
 	"github.com/stretchr/testify/assert"
@@ -104,7 +107,7 @@ func TestParseReference(t *testing.T) {
 		Outstream: os.Stdout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	ref, err := reference.ParseNamed("busybox")
 	if err != nil {
@@ -136,7 +139,7 @@ func TestParseReference(t *testing.T) {
 	assert.Equal(t, ic.Image, BusyboxImage)
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
 
-	ic = NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic = NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 	ref, err = reference.ParseNamed("busybox")
 	if err != nil {
 		t.Errorf(err.Error())
@@ -162,7 +165,7 @@ func TestLearnRegistryURL(t *testing.T) {
 		Outstream: os.Stdout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -197,7 +200,7 @@ func TestLearnAuthURL(t *testing.T) {
 		Outstream: os.Stdout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +236,7 @@ func TestFetchToken(t *testing.T) {
 		Timeout:   DefaultHTTPTimeout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -272,7 +275,7 @@ func TestFetchImageManifest(t *testing.T) {
 		Outstream: os.Stdout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +323,7 @@ func TestFetchImageBlob(t *testing.T) {
 		Outstream: os.Stdout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	// create a tar archive from our dummy data
 	r := strings.NewReader(LayerContent)
@@ -435,7 +438,7 @@ func TestPingPortLayer(t *testing.T) {
 		Outstream: os.Stdout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -458,7 +461,7 @@ func TestListImages(t *testing.T) {
 		Outstream: os.Stdout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -502,7 +505,7 @@ func TestFetchScenarios(t *testing.T) {
 		Timeout:   DefaultHTTPTimeout,
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 
 	wwwAuthenticate := false
 	insufficientScope := false
@@ -598,5 +601,145 @@ func TestFetchScenarios(t *testing.T) {
 	_, _, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		t.Errorf(err.Error())
+	}
+}
+
+func TestPrepareManifestAndLayers(t *testing.T) {
+	type PushMock struct {
+		image string
+	}
+	// schema1Manifests := map[string]schema1.Manifest{
+	// 	"ubuntu": {
+	// 		Name: "library/busybox",
+	// 		Tag:  "latest",
+	// 		// Digest: "sha256:74155e76e3396bc23d5b8cedf606bc04f7f79660ee5bce14014b84651fc4f672",
+	// 		FSLayers: []schema1.FSLayer{
+	// 			{
+	// 				BlobSum: "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4",
+	// 			},
+	// 			{
+	// 				BlobSum: "sha256:27144aa8f1b9e066514d7f765909367584e552915d0d4bc2f5b7438ba7d1033a",
+	// 			},
+	// 		},
+	// 		History: []schema1.History{
+	// 			{
+	// 				V1Compatibility: "{\"architecture\":\"amd64\",\"config\":{\"Hostname\":\"c673fc810c50\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"],\"Cmd\":[\"sh\"],\"ArgsEscaped\":true,\"Image\":\"sha256:7b537995b09bda336a22b3c139cfbef751d4361d506880ea559fb7e2180f291f\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"container\":\"aef9e475482dbd32adca70d243921a21c53b24820c3a6e764d86d65e0506cb2d\",\"container_config\":{\"Hostname\":\"c673fc810c50\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"],\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) \",\"CMD [\\\"sh\\\"]\"],\"ArgsEscaped\":true,\"Image\":\"sha256:7b537995b09bda336a22b3c139cfbef751d4361d506880ea559fb7e2180f291f\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"created\":\"2017-06-15T20:42:30.659714375Z\",\"docker_version\":\"17.03.1-ce\",\"id\":\"bbed08f07a6bccc8aca4f6053dd1b5bdf1050f830e0989738e6532dd4a703a58\",\"os\":\"linux\",\"parent\":\"a8159aa8135af6a6ffa715cae0e7f1595198a304828146231de3062811619857\",\"throwaway\":true}",
+	// 			},
+	// 			{
+	// 				V1Compatibility: "{\"id\":\"a8159aa8135af6a6ffa715cae0e7f1595198a304828146231de3062811619857\",\"created\":\"2017-06-15T20:42:07.973730453Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ADD file:aa56bc8f2fea9c0c81ca085bfa273ad1a3b0d46f51b8c9c61b483340c902024f in / \"]}}",
+	// 			},
+	// 		},
+	// 	},
+	// 	"alpine": {
+	// 		Name: "library/alpine",
+	// 		Tag:  "latest",
+	// 		// Digest: "sha256:9c2c06bdf64688f49b70eea9613a83b2880d8d62f941a5b07a3053c14a64f970",
+	// 		FSLayers: []schema1.FSLayer{
+	// 			{
+	// 				BlobSum: "sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4",
+	// 			},
+	// 			{
+	// 				BlobSum: "sha256:88286f41530e93dffd4b964e1db22ce4939fffa4a4c665dab8591fbab03d4926",
+	// 			},
+	// 		},
+	// 		History: []schema1.History{
+	// 			{
+	// 				V1Compatibility: "{\"architecture\":\"amd64\",\"config\":{\"Hostname\":\"e1ede117fb1e\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"],\"Cmd\":[\"/bin/sh\"],\"ArgsEscaped\":true,\"Image\":\"sha256:ac1fc1931356fa238379d061cb216c4bed2f150991298c20b166accf0604d3b1\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"container\":\"6a3726d15fee7d345097a26ebc1b9e5b4de25dee759a921def9059a4d0cd2261\",\"container_config\":{\"Hostname\":\"e1ede117fb1e\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[\"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"],\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) \",\"CMD [\\\"/bin/sh\\\"]\"],\"ArgsEscaped\":true,\"Image\":\"sha256:ac1fc1931356fa238379d061cb216c4bed2f150991298c20b166accf0604d3b1\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"created\":\"2017-06-27T18:42:16.849872208Z\",\"docker_version\":\"17.03.1-ce\",\"id\":\"5511ab30246fb138ba659434d8391e24d324b65ed042bef3d28ac717174b5747\",\"os\":\"linux\",\"parent\":\"472b4fc7eba3e7f6588d6965c0e14caaea23f5e61194c19f9c498ca6963ecaa8\",\"throwaway\":true}",
+	// 			},
+	// 			{
+	// 				V1Compatibility: "{\"id\":\"472b4fc7eba3e7f6588d6965c0e14caaea23f5e61194c19f9c498ca6963ecaa8\",\"created\":\"2017-06-27T18:41:51.5382773Z\",\"container_config\":{\"Cmd\":[\"/bin/sh -c #(nop) ADD file:4583e12bf5caec40b861a3409f2a1624c3f3556cc457edb99c9707f00e779e45 in / \"]}}",
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	// ubuntu, alpine
+	schema2Manifests := map[string]schema2.Manifest{
+		"ubuntu": {
+			Versioned: schema2.SchemaVersion,
+			// Versioned: {
+			// 	SchemaVersion: 2,
+			// 	MediaType:     "application/vnd.docker.distribution.manifest.v2+json",
+			// },
+			Config: distribution.Descriptor{
+				MediaType: "application/vnd.docker.container.image.v1+json",
+				Size:      1507,
+				Digest:    "sha256:c30178c5239f2937c21c261b0365efcda25be4921ccb95acd63beeeb78786f27",
+			},
+			Layers: []distribution.Descriptor{
+				{
+					MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+					Size:      699243,
+					Digest:    "sha256:27144aa8f1b9e066514d7f765909367584e552915d0d4bc2f5b7438ba7d1033a",
+				},
+			},
+		},
+		"alpine": {
+			Versioned: schema2.SchemaVersion,
+			// {
+			// SchemaVersion: 2,
+			// MediaType:     "application/vnd.docker.distribution.manifest.v2+json",
+			// },
+			Config: distribution.Descriptor{
+				MediaType: "application/vnd.docker.container.image.v1+json",
+				Size:      1520,
+				Digest:    "sha256:7328f6f8b41890597575cbaadc884e7386ae0acc53b747401ebce5cf0d624560",
+			},
+			Layers: []distribution.Descriptor{
+				{
+					MediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+					Size:      1990402,
+					Digest:    "sha256:88286f41530e93dffd4b964e1db22ce4939fffa4a4c665dab8591fbab03d4926",
+				},
+			},
+		},
+	}
+
+	// schema2Actual := schema2.Manifest{
+	// 	Versioned: manifest.Versioned{
+	// 		SchemaVersion: 2,
+	// 		MediaType:     "application/vnd.docker.distribution.manifest.v2+json",
+	// 	},
+	// 	Config: distribution.Descriptor{
+	// 		MediaType: "application/vnd.docker.container.image.v1+json",
+	// 		Size:      1507,
+	// 		Digest:    "c30178c5239f2937c21c261b0365efcda25be4921ccb95acd63beeeb78786f27",
+	// 	},
+	// }
+
+	mockData := []PushMock{
+		{
+			image: "ubuntu",
+		},
+		{
+			image: "alpine",
+		},
+	}
+
+	for i, data := range mockData {
+		ref, err := reference.ParseNamed(data.image)
+		assert.NoError(t, err, "Could not parse reference from image %s", data.image)
+
+		options := Options{
+			Destination: os.TempDir(),
+			Reference:   ref,
+			Timeout:     3600 * time.Second,
+			Outstream:   nil,
+		}
+
+		ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+		err = ic.PrepareManifestAndLayers()
+		if err != nil {
+			assert.NoError(t, err, "Manifest preparation failed:  %s", err.Error())
+			continue
+		}
+
+		expectedManifest := schema2Manifests[data.image]
+		actualManifest := ic.Pusher.PushManifest
+
+		// Check version
+		assert.Equal(t, expectedManifest.MediaType, actualManifest.MediaType, "Mediatype of the manifest.Versioned is incorrect for mock #%d", i)
+		assert.Equal(t, expectedManifest.SchemaVersion, actualManifest.SchemaVersion, "Schema version of the manifest.Versioned is incorrect for mock #%d", i)
+
 	}
 }
