@@ -124,7 +124,7 @@ func (c *RestClient) call(ctx context.Context, method, path string, data interfa
 	}
 
 	body, hdr, statusCode, err := c.clientRequest(ctx, method, path, params, headers)
-	if statusCode == 401 && strings.Contains(err.Error(), "This method requires authentication") {
+	if statusCode == http.StatusUnauthorized && strings.Contains(err.Error(), "This method requires authentication") {
 		c.Login(ctx)
 		log.Debugf("Rerun request after login")
 		return c.clientRequest(ctx, method, path, params, headers)
@@ -178,7 +178,7 @@ func (c *RestClient) handleResponse(resp *http.Response, err error) (io.ReadClos
 		return nil, nil, statusCode, errors.Errorf("An error occurred trying to connect: %v", errors.ErrorStack(err))
 	}
 
-	if statusCode < 200 || statusCode >= 400 {
+	if statusCode < http.StatusOK || statusCode >= http.StatusBadRequest {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, nil, statusCode, errors.Trace(err)
@@ -212,7 +212,7 @@ func (c *RestClient) Login(ctx context.Context) error {
 	if resp == nil {
 		return errors.New("response is nil in Login")
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
 		return errors.Errorf("Login failed for %s", bytes.TrimSpace(body))
 	}

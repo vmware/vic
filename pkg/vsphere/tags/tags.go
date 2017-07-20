@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"regexp"
 	"strings"
 
@@ -94,7 +95,7 @@ func (c *RestClient) CreateTag(ctx context.Context, spec *TagCreateSpec) (*strin
 	stream, _, status, err := c.call(ctx, "POST", TagURL, spec, nil)
 
 	log.Debugf("Get status code: %d", status)
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Create tag failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
@@ -116,7 +117,7 @@ func (c *RestClient) GetTag(ctx context.Context, id string) (*Tag, error) {
 
 	stream, _, status, err := c.call(ctx, "GET", fmt.Sprintf("%s/id:%s", TagURL, id), nil, nil)
 
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Get tag failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
@@ -138,7 +139,7 @@ func (c *RestClient) DeleteTag(ctx context.Context, id string) error {
 
 	_, _, status, err := c.call(ctx, "DELETE", fmt.Sprintf("%s/id:%s", TagURL, id), nil, nil)
 
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Delete tag failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
 		return errors.Errorf("Status code: %d, error: %s", status, err)
 	}
@@ -150,7 +151,7 @@ func (c *RestClient) ListTags(ctx context.Context) ([]string, error) {
 
 	stream, _, status, err := c.call(ctx, "GET", TagURL, nil, nil)
 
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Get tags failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
@@ -167,7 +168,7 @@ func (c *RestClient) ListTagsForCategory(ctx context.Context, id string) ([]stri
 	spec := PostCategory{id}
 	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s/id:%s?~action=list-tags-for-category", TagURL, id), spec, nil)
 
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("List tags for category failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}

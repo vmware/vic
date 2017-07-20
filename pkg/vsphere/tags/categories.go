@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -93,7 +94,7 @@ func (c *RestClient) CreateCategory(ctx context.Context, spec *CategoryCreateSpe
 	stream, _, status, err := c.call(ctx, "POST", CategoryURL, spec, nil)
 
 	log.Debugf("Get status code: %d", status)
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Create category failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
@@ -115,7 +116,7 @@ func (c *RestClient) GetCategory(ctx context.Context, id string) (*Category, err
 
 	stream, _, status, err := c.call(ctx, "GET", fmt.Sprintf("%s/id:%s", CategoryURL, id), nil, nil)
 
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Get category failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
@@ -137,7 +138,7 @@ func (c *RestClient) DeleteCategory(ctx context.Context, id string) error {
 
 	_, _, status, err := c.call(ctx, "DELETE", fmt.Sprintf("%s/id:%s", CategoryURL, id), nil, nil)
 
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Delete category failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
 		return errors.Errorf("Status code: %d, error: %s", status, err)
 	}
@@ -149,7 +150,7 @@ func (c *RestClient) ListCategories(ctx context.Context) ([]string, error) {
 
 	stream, _, status, err := c.call(ctx, "GET", CategoryURL, nil, nil)
 
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Get categories failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}

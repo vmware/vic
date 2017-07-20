@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/juju/errors"
@@ -64,7 +65,7 @@ func (c *RestClient) AttachTagToObject(ctx context.Context, tagID string, objID 
 	_, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=attach", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Attach tag failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
 		return errors.Errorf("Get unexpected status code: %d", status)
 	}
@@ -78,7 +79,7 @@ func (c *RestClient) DetachTagFromObject(ctx context.Context, tagID string, objI
 	_, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=detach", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Detach tag failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
 		return errors.Errorf("Get unexpected status code: %d", status)
 	}
@@ -92,7 +93,7 @@ func (c *RestClient) ListAttachedTags(ctx context.Context, objID string, objType
 	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=list-attached-tags", TagAssociationURL), *spec, nil)
 
 	log.Debugf("Get status code: %d", status)
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("Detach tag failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Get unexpected status code: %d", status)
 	}
@@ -117,7 +118,7 @@ func (c *RestClient) ListAttachedObjects(ctx context.Context, tagID string) ([]A
 	//	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
 	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
 	log.Debugf("Get status code: %d", status)
-	if status != 200 || err != nil {
+	if status != http.StatusOK || err != nil {
 		log.Debugf("List object failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
 		return nil, errors.Errorf("Get unexpected status code: %d", status)
 	}
