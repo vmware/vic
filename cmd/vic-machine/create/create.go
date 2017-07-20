@@ -321,7 +321,7 @@ func (c *Create) Flags() []cli.Flag {
 	cNetwork := c.containerNetworks.CNetworkFlags(true)
 	dns := c.dns.DNSFlags(true)
 	proxies := c.proxies.ProxyFlags(true)
-	debug := c.DebugFlags()
+	debug := c.DebugFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag

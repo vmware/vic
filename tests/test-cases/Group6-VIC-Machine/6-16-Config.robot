@@ -20,6 +20,8 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Configure VCH debug state
+    ${output}=  Run  bin/vic-machine-linux configure --help
+    Should Contain  ${output}  --debug
     ${output}=  Check VM Guestinfo  %{VCH-NAME}  guestinfo.vice./init/diagnostics/debug
     Should Contain  ${output}  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}

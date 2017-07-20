@@ -101,7 +101,7 @@ func (c *Configure) Flags() []cli.Flag {
 	id := c.IDFlags()
 	volume := c.volStores.Flags()
 	compute := c.ComputeFlags()
-	debug := c.DebugFlags()
+	debug := c.DebugFlags(false)
 	cNetwork := c.cNetworks.CNetworkFlags(false)
 	proxies := c.proxies.ProxyFlags(false)
 	memory := c.VCHMemoryLimitFlags(false)

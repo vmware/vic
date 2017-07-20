@@ -110,7 +110,7 @@ func (p *Plugin) Flags() []cli.Flag {
 		},
 	}
 	flags = append(p.TargetFlags(), flags...)
-	flags = append(flags, p.DebugFlags()...)
+	flags = append(flags, p.DebugFlags(true)...)
 
 	return flags
 }
@@ -126,7 +126,7 @@ func (p *Plugin) InfoFlags() []cli.Flag {
 		},
 	}
 	flags = append(p.TargetFlags(), flags...)
-	flags = append(flags, p.DebugFlags()...)
+	flags = append(flags, p.DebugFlags(true)...)
 
 	return flags
 }
