@@ -17,6 +17,7 @@ package backends
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"io"
 	"io/ioutil"
 	"os"
@@ -25,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/imagec"
 )
@@ -70,11 +72,6 @@ func getMockReader(t *testing.T) (io.ReadCloser, error) {
 func TestDownload(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	rc, err := getMockReader(t)
-	if err != nil {
-		t.Errorf("Failed to get mocked reader: %s", err)
-	}
-
 	tests := []struct {
 		repo string
 		tag  string
@@ -94,6 +91,11 @@ func TestDownload(t *testing.T) {
 			t.Errorf("Failed to get imagec: %s", err)
 			return
 		}
+		rc, err := getMockReader(t)
+		if err != nil {
+			t.Errorf("Failed to get mocked reader: %s", err)
+		}
+
 		layer, err := downloadDiff(rc, "abcd", ic.Options)
 		if err != nil {
 			t.Errorf("Failed to download layer: %s", err)
@@ -105,6 +107,37 @@ func TestDownload(t *testing.T) {
 		if _, err := os.Stat(destination); err != nil {
 			t.Errorf("diff file %s is not created", destination)
 		}
+		assert.Equal(t, int64(101), layer.Size, "layer size is wrong")
+
+		layerFile, err := os.Open(string(destination))
+		if err != nil {
+			t.Errorf("Layer file %s is not created: %s", destination, err)
+		}
+		defer layerFile.Close()
+
+		decompressed, err := gzip.NewReader(layerFile)
+		if err != nil {
+			t.Errorf("Failed to create gzip reader: %s", err)
+		}
+		defer decompressed.Close()
+
+		// get a tar reader
+		tr := tar.NewReader(decompressed)
+
+		// iterate through tar headers to get file sizes
+		var layerSize int64
+		for {
+			tarHeader, terr := tr.Next()
+			if terr == io.EOF {
+				break
+			}
+			if terr != nil {
+				t.Errorf("Failed to read layer file: %s", terr)
+			}
+			t.Logf("Read file: %s", tarHeader.Name)
+			layerSize += tarHeader.Size
+		}
+		assert.Equal(t, int64(101), layerSize, "tar file size is wrong")
 		os.RemoveAll(destDir)
 	}
 }
