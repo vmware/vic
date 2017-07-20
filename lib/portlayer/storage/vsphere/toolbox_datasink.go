@@ -15,10 +15,9 @@
 package vsphere
 
 import (
-	"errors"
 	"io"
 
-	"github.com/vmware/govmomi/guest"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
@@ -39,30 +38,31 @@ func (t *ToolboxDataSink) Sink() interface{} {
 
 // Import writes `data` to the data sink associated with this DataSink
 func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, data io.ReadCloser) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin("toolbox import"))
 
-	// set up file manager
-	client := t.VM.Session.Client.Client
-	filemgr, err := guest.NewOperationsManager(client, t.VM.Reference()).FileManager(op)
+	client, err := GetToolboxClient(op, t.VM, t.ID)
 	if err != nil {
+		op.Debugf("Cannot get toolbox client: %s", err.Error())
 		return err
 	}
 
-	// authenticate client and parse container host/port
-	auth := types.NamePasswordAuthentication{
-		Username: t.ID,
+	target, err := BuildArchiveURL(op, t.ID, spec.RebasePath, spec)
+	if err != nil {
+		op.Debugf("Cannot build archive url: %s", err.Error())
+		return err
 	}
 
-	_ = filemgr
-	_ = auth
-
-	return errors.New("toolbox import is not yet implemented")
+	// upload the gzip archive.
+	p := soap.DefaultUpload
+	err = client.Upload(op, data, target, p, &types.GuestPosixFileAttributes{}, true)
+	if err != nil {
+		op.Debugf("Upload error: %s", err.Error())
+	}
+	return err
 }
 
 func (t *ToolboxDataSink) Close() error {
-	if t.Clean != nil {
-		t.Clean()
-	}
+	t.Clean()
 
 	return nil
 }
