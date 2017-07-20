@@ -874,7 +874,7 @@ func TestAddExclusionsRootTarget(t *testing.T) {
 	expectedResults := map[string]FilterSpec{
 		"/": {
 			Exclusions: map[string]struct{}{
-				"mnt/vols/A": struct{}{},
+				"mnt/vols/A": {},
 			},
 			Inclusions: map[string]struct{}{
 				"": {},
