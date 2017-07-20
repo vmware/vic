@@ -190,5 +190,5 @@ func (spec *FilterSpec) Excludes(op trace.Operation, filePath string) bool {
 		}
 	}
 
-	return inclusionLength <= exclusionLength
+	return inclusionLength < exclusionLength
 }
