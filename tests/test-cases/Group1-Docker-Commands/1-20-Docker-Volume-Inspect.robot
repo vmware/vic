@@ -18,17 +18,39 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Verify Docker Volume Inspect
+    [Arguments]  ${volume}
+    Log To Console  \nInspecting Docker Volume
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${volume}
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Evaluate  json.loads(r'''${output}''')  json
+    ${id}=  Get From Dictionary  ${output[0]}  Name
+    Should Be Equal As Strings  ${id}  ${volume}
+
 *** Test Cases ***
 Simple docker volume inspect
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name test
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect test
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Evaluate  json.loads(r'''${output}''')  json
-    ${id}=  Get From Dictionary  ${output[0]}  Name
-    Should Be Equal As Strings  ${id}  test
+    Verify Docker Volume Inspect  test
 
 Docker volume inspect invalid object
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect fakeVolume
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error: No such volume: fakeVolume
+
+Restart VCH and Docker Volume Inspect Test
+    Verify Docker Volume Inspect  test
+
+    #Reboot VM and Verify VCH Info
+    Log To Console  Rebooting VCH\n - %{VCH-NAME}
+    Reboot VM  %{VCH-NAME}
+    Log To Console  Getting VCH IP ...
+    ${new_vch_ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new_vch_ip}
+    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new_vch_ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    Verify Docker Volume Inspect  test

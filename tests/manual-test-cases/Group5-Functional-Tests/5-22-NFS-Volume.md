@@ -53,12 +53,15 @@ This test requires access to VMware Nimbus for dynamic ESXi and NFS server creat
 31. Issue docker volume ls
 32. Issue docker volume rm ${nfsDefaultVolume}
 33. Issue docker volume rm ${nfsNamedVolume}
-34. Create a detached container using named nfs volume and write to file every second
-35. Create a container using named nfs volume and tail the file from previous step
-36. Kill the NFS Server from Nimbus
-37. Create a container using named nfs volume from killed NFS server and tail the file from previous step
-38. Create a container using named nfs volume from killed NFS server and write to file from previous step
-39. Create a container using named nfs volume from killed NFS server and ls the mydata directory
+34. Issue docker volume inspect ${nfsNamedVolume}
+35. Reboot the VCH
+36. Issue docker volume inspect ${nfsNamedVolume}
+37. Create a detached container using named nfs volume and write to file every second
+38. Create a container using named nfs volume and tail the file from previous step
+39. Kill the NFS Server from Nimbus
+40. Create a container using named nfs volume from killed NFS server and tail the file from previous step
+41. Create a container using named nfs volume from killed NFS server and write to file from previous step
+42. Create a container using named nfs volume from killed NFS server and ls the mydata directory
 
 
 
@@ -100,12 +103,12 @@ cat: can't open 'mydata/test_nfs_file.txt': No such file or directory
 ```
 Error response from daemon: volume ${nfsNamedVolume} in use by
 ```
-* Steps 34 - 36 should result in success; step 36 should kill/drop the server
-* Step 37 should result in error with the following message:
+* Steps 34 - 39 should result in success; step 36 should kill/drop the server
+* Step 40 should result in error with the following message:
 ```
 Server error from portlayer: unable to wait for process launch status:
 ```
-* Steps 38 - 39 should result in error with the rc = 125.
+* Steps 41 - 42 should result in error with the rc = 125.
 
 
 # Possible Problems:

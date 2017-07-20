@@ -83,12 +83,13 @@ Verify NFS Volume Already Created
     Should Contain  ${output}  Error response from daemon: A volume named ${containerVolName} already exists. Choose a different volume name.
 
 Verify Docker Volume Inspect
+    [Arguments]  ${volume}
     Log To Console  \nInspecting Docker Volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${nfsNamedVolume}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${volume}
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
     ${id}=  Get From Dictionary  ${output[0]}  Name
-    Should Be Equal As Strings  ${id}  ${nfsNamedVolume}
+    Should Be Equal As Strings  ${id}  ${volume}
 
 Reboot VM and Verify VCH Info
     Log To Console  Rebooting VCH\n - %{VCH-NAME}
@@ -242,7 +243,7 @@ Simultaneous Container Write to File
     \   Should Be Equal As Integers  ${rc}  0
 
 Simple Docker Volume Inspect
-    Verify Docker Volume Inspect
+    Verify Docker Volume Inspect  ${nfsNamedVolume}
 
 Simple Volume ls test
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
@@ -266,9 +267,9 @@ Volume rm tests
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
 
 Restart VCH and Docker Volume Inspect Test
-    Verify Docker Volume Inspect
+    Verify Docker Volume Inspect  ${nfsNamedVolume}
     Reboot VM and Verify VCH Info
-    Verify Docker Volume Inspect
+    Verify Docker Volume Inspect  ${nfsNamedVolume}
 
 Kill NFS Server
     Log To Console  Starting Kill NFS Server Test
