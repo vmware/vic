@@ -17,52 +17,61 @@ Documentation  Test 5-1 - Distributed Switch
 Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 
+*** Variables ***
+${esx_number}=  3
+${datacenter}=  ha-datacenter
+
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    # Let's make 5 because it is free and in parallel, but only use 3 of them
-    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    @{esx-names}=  Get Dictionary Keys  ${esxes}
-    @{esx-ips}=  Get Dictionary Values  ${esxes}
-    ${esx1}=  Get From List  ${esx-names}  0
-    ${esx2}=  Get From List  ${esx-names}  1
-    ${esx3}=  Get From List  ${esx-names}  2
-    ${esx1-ip}=  Get From List  ${esx-ips}  0
-    ${esx2-ip}=  Get From List  ${esx-ips}  1
-    ${esx3-ip}=  Get From List  ${esx-ips}  2
 
-    ${vc}  ${vc-ip}=  Deploy Nimbus vCenter Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Suite Variable  ${VC}  ${vc}
 
-    Set Global Variable  @{list}  ${esx-names}  ${vc}
+    # Let's make 5 because it is free and in parallel, but only use 3 of them
+    &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  5  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    @{esx_names}=  Get Dictionary Keys  ${esxes}
+    @{esx_ips}=  Get Dictionary Values  ${esxes}
+
+    Set Global Variable  @{list}  ${esx_names}  ${vc}
+
+    # Finish vCenter deploy
+    ${output}=  Wait For Process  ${pid}
+    Should Contain  ${output.stdout}  Overall Status: Succeeded
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc_ip}=  Get IP  ${vc}
+    Close Connection
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${vc_ip}
 
     Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ha-datacenter
+    ${out}=  Run  govc datacenter.create ${datacenter}
     Should Be Empty  ${out}
 
-    Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc host.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc host.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc host.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  ${datacenter}
 
-    Create A Distributed Switch  ha-datacenter
+    Create Three Distributed Port Groups  ${datacenter}
 
-    Create Three Distributed Port Groups  ha-datacenter
+    Log To Console  Add ESX host to the VC and Distributed Switch
+    :FOR  ${IDX}  IN RANGE  ${esx_number}
+    \   ${out}=  Run  govc host.add -hostname=@{esx_ips}[${IDX}] -username=root -dc=${datacenter} -password=${NIMBUS_ESX_PASSWORD} -noverify=true
+    \   Should Contain  ${out}  OK
+    \   Add Host To Distributed Switch  @{esx_ips}[${IDX}]
 
-    Add Host To Distributed Switch  ${esx1-ip}
-    Add Host To Distributed Switch  ${esx2-ip}
-    Add Host To Distributed Switch  ${esx3-ip}
 
     Log To Console  Deploy VIC to the VC cluster
-    Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
+    Set Environment Variable  TEST_URL_ARRAY  ${vc_ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  PUBLIC_NETWORK  vm-network
-    Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/${esx1-ip}/Resources
+    Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/@{esx_ips}[0]/Resources
     Set Environment Variable  TEST_TIMEOUT  30m
 
     Install VIC Appliance To Test Server
