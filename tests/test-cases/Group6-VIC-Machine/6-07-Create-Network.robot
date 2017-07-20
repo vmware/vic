@@ -408,7 +408,7 @@ Container Firewalls
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Set the only teardown for this test to cleanup both portgroups and VCH, regardless of test outcome.
-    [Teardown]  Cleanup Container Firewall Portgroups
+    [Teardown]  Cleanup Container Firewalls Test
 
     ${out}=  Run  govc host.portgroup.remove bridge
     ${out}=  Run  govc host.portgroup.remove open-net
