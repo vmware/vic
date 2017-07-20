@@ -337,6 +337,78 @@
 						}
 					}
 				}
+			},
+			"head": {
+				"description": "Fetches filesystem stats on the device id at the specified path",
+				"operationId": "StatPath",
+				"tags": [
+					"storage"
+				],
+				"consumes": [
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "store",
+						"in": "query",
+						"required": true,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "deviceID",
+						"in": "query",
+						"required": true,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "filterSpec",
+						"in": "query",
+						"required": true,
+						"type": "string",
+						"x-nullable": false
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"name": {
+								"type": "string",
+								"x-nullable": false
+							},
+							"mode": {
+								"type": "integer",
+								"format": "uint32"
+							},
+							"size": {
+								"type": "integer",
+								"format": "int64"
+							},
+							"linkTarget": {
+								"type": "string",
+								"x-nullable": false
+							},
+							"modTime": {
+								"type": "string",
+								"x-nullable": false
+							}
+						}
+					},
+					"404": {
+						"description": "No such file/directory"
+					},
+					"422": {
+						"description": "Format error in supplied filter or archive"
+					},
+					"500": {
+						"description": "Failed to inspect target"
+					}
+				}
 			}
 		},
 		"/storage": {

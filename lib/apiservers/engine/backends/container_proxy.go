@@ -39,6 +39,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -99,6 +100,7 @@ type VicContainerProxy interface {
 
 	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
 	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error)
+	StatPath(op trace.Operation, sotre, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error)
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
@@ -842,6 +844,46 @@ func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceI
 	}()
 
 	return pipeWriter, nil
+}
+
+// StatPath requests the portlayer to stat the filesystem resource at the
+// specified path in the container vc.
+func (c *ContainerProxy) StatPath(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
+	defer trace.End(trace.Begin(deviceID))
+
+	statPathParams := storage.
+		NewStatPathParamsWithContext(op).
+		WithStore(store).
+		WithDeviceID(deviceID)
+
+	spec, err := archive.EncodeFilterSpec(op, &filterSpec)
+	if err != nil {
+		op.Errorf(err.Error())
+		return nil, InternalServerError(err.Error())
+	}
+
+	statPathParams = statPathParams.WithFilterSpec(*spec)
+	statPathOk, err := c.client.Storage.StatPath(statPathParams)
+	if err != nil {
+		op.Errorf(err.Error())
+		return nil, err
+	}
+
+	stat := &types.ContainerPathStat{
+		Name:       statPathOk.Name,
+		Mode:       os.FileMode(statPathOk.Mode),
+		Size:       statPathOk.Size,
+		LinkTarget: statPathOk.LinkTarget,
+	}
+
+	var modTime time.Time
+	if err := modTime.GobDecode([]byte(statPathOk.ModTime)); err != nil {
+		op.Debugf("error getting mod time from statpath: %s", err.Error())
+	} else {
+		stat.Mtime = modTime
+	}
+
+	return stat, nil
 }
 
 // Stop will stop (shutdown) a VIC container.

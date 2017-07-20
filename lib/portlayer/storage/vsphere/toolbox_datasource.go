@@ -21,6 +21,7 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -57,6 +58,10 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 	_ = auth
 
 	return nil, errors.New("toolbox export is not yet implemented")
+}
+
+func (m *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*storage.FileStat, error) {
+	return nil, errors.New("toolbox stat is not yet implemented")
 }
 
 func (t *ToolboxDataSource) Close() error {
