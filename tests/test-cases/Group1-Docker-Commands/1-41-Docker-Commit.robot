@@ -28,7 +28,7 @@ Commit nano to image
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop -t1 commit1
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} commmit commit1 debian-nano
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} commit commit1 debian-nano
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run debian-nano whereis nano
     Should Be Equal As Integers  ${rc}  0
@@ -63,8 +63,8 @@ Commit with author and message
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect debian-auth
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  "Author" : "Robot"
-    Should Contain  ${output}  "Comment" : "Robot made a commit"
+    Should Contain  ${output}  "Author": "Robot"
+    Should Contain  ${output}  "Comment": "Robot made a commit"
 
 Commit to nonexistent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} commit -c "ENV TEST commitEnvTest" fakeContainer image-fake
