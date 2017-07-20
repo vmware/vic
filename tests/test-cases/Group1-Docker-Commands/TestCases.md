@@ -80,3 +80,6 @@ Group 1 - Docker Commands
 -
 [Test 1-41 - Docker Commit](1-41-Docker-Commit.md)
 -
+[Test 1-43 - Docker CP Offline](1-43-Docker-CP-Offline.md)
+-
+[Test 1-44 - Docker CP Online](1-44-Docker-CP-Online.md)

@@ -110,6 +110,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 	api.StorageExportArchiveHandler = storage.ExportArchiveHandlerFunc(h.ExportArchive)
 	api.StorageImportArchiveHandler = storage.ImportArchiveHandlerFunc(h.ImportArchive)
+	api.StorageStatPathHandler = storage.StatPathHandlerFunc(h.StatPath)
 }
 
 func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) {
@@ -601,6 +602,53 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 	}
 
 	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, func() { r.Close() })
+}
+
+// StatPath returns file info on the target path of a container copy
+func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "StatPath: %s", params.DeviceID)
+
+	filterSpec, err := vicarchive.DecodeFilterSpec(op, &params.FilterSpec)
+	if err != nil {
+		return storage.NewStatPathUnprocessableEntity()
+	}
+
+	store, ok := spl.GetExporter(params.Store)
+	if !ok {
+		op.Errorf("Failed to locate export capable store %s", params.Store)
+		op.Debugf("Available exporters are: %+q", spl.GetExporters())
+		return storage.NewStatPathNotFound()
+	}
+
+	dataSource, err := store.NewDataSource(op, params.DeviceID)
+	if err != nil {
+		op.Errorf("Failed to locate data source %s for %s", params.DeviceID, err.Error())
+		return storage.NewStatPathNotFound()
+	}
+
+	defer dataSource.Close()
+	fileStat, err := dataSource.Stat(op, filterSpec)
+	if err != nil {
+		op.Errorf("Failed to stat data source %s for %s", params.DeviceID, err.Error())
+		return storage.NewStatPathNotFound()
+	}
+
+	modTimeBytes, err := fileStat.ModTime.GobEncode()
+	if err != nil {
+		op.Debugf("error getting mod time from statpath: %s", err.Error())
+		return storage.NewStatPathInternalServerError()
+	}
+
+	op.Debugf("found data successfully")
+	return storage.
+		NewStatPathOK().
+		WithMode(fileStat.Mode).
+		WithLinkTarget(fileStat.LinkTarget).
+		WithName(fileStat.Name).
+		WithSize(fileStat.Size).
+		WithModTime(string(modTimeBytes))
+
 }
 
 //utility functions
