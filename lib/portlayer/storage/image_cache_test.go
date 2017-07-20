@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 type MockDataStore struct {
@@ -149,6 +152,30 @@ func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []str
 func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) (*Image, error) {
 	delete(c.db[*image.Store], image.ID)
 	return image, nil
+}
+
+func (c *MockDataStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
+}
+
+func (c *MockDataStore) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
+	return nil, nil
 }
 
 func TestListImages(t *testing.T) {

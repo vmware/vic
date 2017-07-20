@@ -113,11 +113,12 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	api.ServeError = errors.ServeError
 
 	api.BinConsumer = runtime.ByteStreamConsumer()
-
 	api.JSONConsumer = runtime.JSONConsumer()
+	api.TarConsumer = runtime.ByteStreamConsumer()
 
+	api.BinProducer = runtime.ByteStreamProducer()
 	api.JSONProducer = runtime.JSONProducer()
-
+	api.TarProducer = runtime.ByteStreamProducer()
 	api.TxtProducer = runtime.TextProducer()
 
 	handlerCtx := &handlers.HandlerContext{

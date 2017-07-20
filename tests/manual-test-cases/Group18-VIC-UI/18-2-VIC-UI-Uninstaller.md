@@ -1,16 +1,16 @@
 Test 18-2 - VIC UI Uninstallation
 ======
 
-#Purpose:
+# Purpose:
 To test all possible uninstallation failures and success scenarios on VCSA
 
-#References:
+# References:
 
-#Environment:
+# Environment:
 * Testing VIC UI requires a working VCSA setup with VCH installed
 * Target VCSA has Bash enabled for the root account
 
-#Test Steps:
+# Test Steps:
 1. Check if the configs file exists
 2. Ensure UI plugin is already registered with VC before testing
 3. Try uninstalling UI without the configs file
@@ -20,7 +20,7 @@ To test all possible uninstallation failures and success scenarios on VCSA
 7. Uninstall UI successfully
 8. Try uninstalling UI when it's already uninstalled
 
-#Expected Outcome:
+# Expected Outcome:
 * Each step should return success
 
-#Possible Problems:
+# Possible Problems:

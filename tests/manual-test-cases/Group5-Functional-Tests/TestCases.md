@@ -40,3 +40,6 @@ Group 5 - Functional Tests
 -
 [Test 5-19 - ROBO SKU](5-19-ROBO-SKU.md)
 -
+[Test 5-21 - Datastore Path](5-21-Datastore-Path.md)
+-
+[Test 5-22 - NFS Volume](5-22-NFS-Volume.md)

@@ -40,6 +40,10 @@ const (
 	defaultAltContainerGuestName = "Photon - Container"
 
 	PropertyCollectorTimeout = 3 * time.Minute
+
+	// Temporary names until they're altered to actual URLs.
+	ContainerStoreName = "container"
+	VolumeStoreName    = "volume"
 )
 
 func DefaultAltVCHGuestName() string {

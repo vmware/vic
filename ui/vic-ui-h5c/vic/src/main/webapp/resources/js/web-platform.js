@@ -19,6 +19,9 @@ if (!WEB_PLATFORM || (isChromeBrowser && isFlexClient)) {
             // Object.create is required to support Chrome version >= 55 on Flex client
             WEB_PLATFORM = Object.create(WEB_PLATFORM);
       }
+      if (WEB_PLATFORM === null) {
+            WEB_PLATFORM = {};
+      }
       self.parent.WEB_PLATFORM = WEB_PLATFORM;
 
       // The web context starts with a different root path depending on which client is running.

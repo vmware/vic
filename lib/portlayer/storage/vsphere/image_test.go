@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -35,7 +34,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
@@ -104,7 +102,7 @@ func TestRestartImageStore(t *testing.T) {
 	}
 
 	// Check we didn't create a new UUID directory (relevant if vsan)
-	if !assert.Equal(t, origVsStore.ds.RootURL, restartedVsStore.ds.RootURL) {
+	if !assert.Equal(t, origVsStore.RootURL, restartedVsStore.RootURL) {
 		return
 	}
 
@@ -298,10 +296,10 @@ func TestCreateImageLayers(t *testing.T) {
 	rodiskcleanupfunc := func() {
 		if roDisk != nil {
 			if roDisk.Mounted() {
-				roDisk.Unmount()
+				roDisk.Unmount(op)
 			}
 			if roDisk.Attached() {
-				vsStore.dm.Detach(op, roDisk.VirtualDiskConfig)
+				vsStore.Detach(op, roDisk.VirtualDiskConfig)
 			}
 		}
 		os.RemoveAll(p)
@@ -510,7 +508,7 @@ func TestInProgressCleanup(t *testing.T) {
 	}
 
 	// nuke the done file.
-	rm(t, client, path.Join(vsStore.ds.RootURL.String(), vsStore.imageDirPath("testStore", imageID), manifest))
+	rm(t, client, path.Join(vsStore.RootURL.String(), vsStore.imageDirPath("testStore", imageID), manifest))
 
 	// ensure GetImage doesn't find this image now
 	if _, err = vsStore.GetImage(op, storeURL, imageID); !assert.Error(t, err) {
@@ -581,17 +579,13 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 	op := trace.NewOperation(context.TODO(), "ro")
 
 	config := disk.NewNonPersistentDisk(roName).WithParent(parentDsURI)
-	roDisk, err := v.dm.CreateAndAttach(op, config)
+	roDisk, err := v.CreateAndAttach(op, config)
 	if err != nil {
 		return nil, err
 	}
 
-	dir, err := ioutil.TempDir("", parent.ID+"ro")
+	_, err = roDisk.Mount(op, nil)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := roDisk.Mount(dir, nil); err != nil {
 		return nil, err
 	}
 
@@ -612,7 +606,7 @@ func rm(t *testing.T, client *session.Session, name string) {
 // vsan, we need to delete the files in the directories first (maybe
 // because they're linked vmkds) before we can delete the parent directory.
 func cleanup(t *testing.T, client *session.Session, vsStore *ImageStore, parentPath string) {
-	res, err := vsStore.ds.LsDirs(context.TODO(), "")
+	res, err := vsStore.LsDirs(context.TODO(), "")
 	if err != nil {
 		t.Logf("error: %s", err)
 		return
@@ -620,12 +614,9 @@ func cleanup(t *testing.T, client *session.Session, vsStore *ImageStore, parentP
 
 	for _, dir := range res.HostDatastoreBrowserSearchResults {
 		for _, f := range dir.File {
-			file, ok := f.(*types.FileInfo)
-			if !ok {
-				continue
-			}
+			fpath := f.GetFileInfo().Path
 
-			rm(t, client, path.Join(dir.FolderPath, file.Path))
+			rm(t, client, path.Join(dir.FolderPath, fpath))
 		}
 		rm(t, client, dir.FolderPath)
 	}

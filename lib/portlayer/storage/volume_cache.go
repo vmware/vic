@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -47,6 +49,14 @@ func NewVolumeLookupCache(op trace.Operation) *VolumeLookupCache {
 	}
 
 	return v
+}
+
+func (v *VolumeLookupCache) GetVolumeStore(op trace.Operation, storeName string) (*url.URL, error) {
+	u, err := util.VolumeStoreNameToURL(storeName)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 // AddStore adds a volumestore by name.  The url returned is the service url to the volume store.
@@ -231,4 +241,68 @@ func volumeInUse(ID string) error {
 	}
 
 	return nil
+}
+
+// Import is a fake store import so that we can do a late lookup of the actual store - this is a work around for the fact that the store
+// URL isn't available in useful form outside of the volumeCache
+func (v *VolumeLookupCache) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return err
+	}
+
+	// relay call to actual store
+	return store.Import(op, id, spec, tarStream)
+}
+
+func (v *VolumeLookupCache) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	// relay call to actual store
+	return store.NewDataSink(op, id)
+}
+
+// Export is a fake store export so that we can do a late lookup of the actual store - this is a work around for the fact that the store
+// URL isn't available in useful form outside of the volumeCache
+func (v *VolumeLookupCache) Export(op trace.Operation, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	// relay call to actual store
+	return store.Export(op, id, ancestor, spec, data)
+}
+
+func (v *VolumeLookupCache) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	// relay call to actual store
+	return store.NewDataSource(op, id)
 }

@@ -568,6 +568,24 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/google/go-github/github",
+			"repository": "https://github.com/google/go-github",
+			"vcs": "git",
+			"revision": "7a51fb928f52a196d5f31daefb8a489453ef54ff",
+			"branch": "master",
+			"path": "/github",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/google/go-querystring/query",
+			"repository": "https://github.com/google/go-querystring",
+			"vcs": "git",
+			"revision": "53e6ce116135b80d037921a7fdd5138cf32d7a8a",
+			"branch": "master",
+			"path": "/query",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/google/uuid",
 			"repository": "https://github.com/google/uuid",
 			"vcs": "git",
@@ -765,6 +783,14 @@
 			"vcs": "",
 			"revision": "9af2ba0e24214bac003821f4a501b131b2e04c75",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/nlopes/slack",
+			"repository": "https://github.com/nlopes/slack",
+			"vcs": "git",
+			"revision": "f243c7602fdf906248fc1f165284daa4e4d2d09e",
+			"branch": "master",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/nsf/termbox-go",
@@ -1036,7 +1062,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "7414891a39a766429d55ef16f503cfddacf0302f",
+			"revision": "a44f07b26aa46ba0571f5d27a7fb1b69d8ab94f7",
 			"branch": "master",
 			"notests": true
 		},

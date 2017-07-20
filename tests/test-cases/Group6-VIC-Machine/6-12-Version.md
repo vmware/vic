@@ -1,15 +1,15 @@
-Test 6-10 - Verify vic-machine version
+Test 6-12 - Verify vic-machine version
 =======
 
-#Purpose:
+# Purpose:
 Verify vic-machine version functions
 
-#References:
+# References:
 * vic-machine-linux version -h
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps
+# Test Steps
 1. Get drone build ID and commit hash
 2. Verify version command show the ID and hash correctly

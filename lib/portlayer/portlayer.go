@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,14 +37,10 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-// API defines the interface the REST server used by the portlayer expects the
-// implementation side to export
-type API interface {
-	storage.ImageStorer
-	storage.VolumeStorer
-}
-
+// Init initializes portlayer components at startup
 func Init(ctx context.Context, sess *session.Session) error {
+	defer trace.End(trace.Begin(""))
+
 	source, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		return err
@@ -54,10 +50,6 @@ func Init(ctx context.Context, sess *session.Session) error {
 	if err != nil {
 		return err
 	}
-
-	// Grab the storage layer config blobs from extra config
-	extraconfig.Decode(source, &storage.Config)
-	log.Debugf("Decoded VCH config for storage: %#v", storage.Config)
 
 	// create or restore a portlayer k/v store in the VCH's directory.
 	vch, err := guest.GetSelf(ctx, sess)
@@ -74,6 +66,15 @@ func Init(ctx context.Context, sess *session.Session) error {
 	// vmPath is set to the vmx.  Grab the directory from that.
 	vmFolder, err := datastore.ToURL(path.Dir(vmPath))
 	if err != nil {
+		return err
+	}
+
+	vmParentPool, err := vchvm.ResourcePool(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err = storage.Init(ctx, sess, vmParentPool, source, sink); err != nil {
 		return err
 	}
 

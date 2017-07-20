@@ -18,7 +18,7 @@ pipeline:
     recursive: false
 
   wait-for-build:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.32
+    image: harbor.ci.drone.local/library/vic-integration-test:1.33
     pull: true
     environment:
       BIN: bin
@@ -31,7 +31,7 @@ pipeline:
       - tests/wait_until_previous_builds_complete.sh
 
   vic-engine:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.32
+    image: harbor.ci.drone.local/library/vic-integration-test:1.33
     pull: true
     environment:
       BIN: bin
@@ -40,6 +40,7 @@ pipeline:
       TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
       TEST_USERNAME:  ${TEST_USERNAME}
       TEST_PASSWORD:  ${TEST_PASSWORD}
+      REGISTRY_PASSWORD:  ${REGISTRY_PASSWORD}
       BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
       COMMIT: ${DRONE_COMMIT}
     commands:
@@ -57,7 +58,7 @@ pipeline:
       status:  success
 
   vic-integration-test-on-pr:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.32
+    image: harbor.ci.drone.local/library/vic-integration-test:1.33
     pull: true
     privileged: true
     environment:
@@ -71,6 +72,7 @@ pipeline:
       TEST_URL_ARRAY:  ${TEST_URL_ARRAY}
       TEST_USERNAME:  ${TEST_USERNAME}
       TEST_PASSWORD:  ${TEST_PASSWORD}
+      REGISTRY_PASSWORD:  ${REGISTRY_PASSWORD}
       TEST_DATASTORE: ${TEST_DATASTORE}
       TEST_TIMEOUT: ${TEST_TIMEOUT}
       REPORTING_SERVER_URL: ${REPORTING_SERVER_URL}
@@ -93,9 +95,10 @@ pipeline:
       status:  success
 
   vic-ui:
-    image: harbor.ci.drone.local/library/vic-integration-test:1.32
+    image: harbor.ci.drone.local/library/vic-integration-test:1.33
     pull: true
     environment:
+      BUILD_NUMBER: ${DRONE_BUILD_NUMBER}
       BIN: bin
     commands:
       - make mark

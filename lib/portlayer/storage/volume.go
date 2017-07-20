@@ -45,6 +45,11 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(op trace.Operation) ([]*Volume, error)
+
+	// The interfaces necessary for Import and Export
+	Resolver
+	Importer
+	Exporter
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI

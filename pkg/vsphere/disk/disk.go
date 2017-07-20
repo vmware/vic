@@ -16,11 +16,14 @@ package disk
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // FilesystemType represents the filesystem in use by a virtual disk
@@ -39,10 +42,47 @@ const (
 
 // Filesystem defines the interface for handling an attached virtual disk
 type Filesystem interface {
-	Mkfs(devPath, label string) error
-	SetLabel(devPath, labelName string) error
-	Mount(devPath, targetPath string, options []string) error
-	Unmount(path string) error
+	Mkfs(op trace.Operation, devPath, label string) error
+	SetLabel(op trace.Operation, devPath, labelName string) error
+	Mount(op trace.Operation, devPath, targetPath string, options []string) error
+	Unmount(op trace.Operation, path string) error
+}
+
+// Semaphore represents the number of references to a disk
+type Semaphore struct {
+	resource string
+	refname  string
+	count    uint64
+}
+
+// NewSemaphore creates and returns a Semaphore initialized to 0
+func NewSemaphore(r, n string) *Semaphore {
+	return &Semaphore{
+		resource: r,
+		refname:  n,
+		count:    0,
+	}
+}
+
+// Increment increases the reference count by one
+func (r *Semaphore) Increment() uint64 {
+	return atomic.AddUint64(&r.count, 1)
+}
+
+// Decrement decreases the reference count by one
+func (r *Semaphore) Decrement() uint64 {
+	return atomic.AddUint64(&r.count, ^uint64(0))
+}
+
+// Count returns the current reference count
+func (r *Semaphore) Count() uint64 {
+	return atomic.LoadUint64(&r.count)
+}
+
+// InUseError is returned when a detach is attempted on a disk that is
+// still in use
+type InUseError struct {
+	error
 }
 
 // VirtualDisk represents a VMDK in the datastore, the device node it may be
@@ -56,57 +96,49 @@ type VirtualDisk struct {
 
 	// The path on the filesystem this device is attached to.
 	mountPath string
+	// The options that the disk is currently mounted with.
+	mountOpts string
 
 	// To avoid attach/detach races, this lock serializes operations to the disk.
 	l sync.Mutex
 
-	mountedRefs int
+	mountedRefs *Semaphore
 
-	attachedRefs int
+	attachedRefs *Semaphore
 }
 
 // NewVirtualDisk creates and returns a new VirtualDisk object associated with the
 // given datastore formatted with the specified FilesystemType
-func NewVirtualDisk(config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*VirtualDisk, error) {
+func NewVirtualDisk(op trace.Operation, config *VirtualDiskConfig, disks map[uint64]*VirtualDisk) (*VirtualDisk, error) {
 	if !strings.HasSuffix(config.DatastoreURI.String(), ".vmdk") {
-		return nil, fmt.Errorf("%s isn't a vmdk", config.DatastoreURI.String())
+		return nil, fmt.Errorf("%s doesn't have a vmdk suffix", config.DatastoreURI.String())
 	}
 
 	if d, ok := disks[config.Hash()]; ok {
-		log.Debugf("Found the disk %s in the DiskManager cache, using it", config.DatastoreURI)
 		return d, nil
 	}
-	log.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
+	op.Debugf("Didn't find the disk %s in the DiskManager cache, creating it", config.DatastoreURI)
 
+	uri := config.DatastoreURI.String()
 	d := &VirtualDisk{
 		VirtualDiskConfig: config,
+		mountedRefs:       NewSemaphore(uri, "mount"),
+		attachedRefs:      NewSemaphore(uri, "attach"),
 	}
 	disks[config.Hash()] = d
 
 	return d, nil
 }
 
-func (d *VirtualDisk) setAttached(devicePath string) (err error) {
-	defer func() {
-		if err == nil {
-			// bump the attached reference count
-			d.attachedRefs++
-			log.Debugf("Increased attach references for %s to %d", d.DatastoreURI, d.attachedRefs)
-		}
-	}()
-
-	if d.attached() {
-		log.Warnf("%s is already attached (%s)", d.DatastoreURI, devicePath)
-		return nil
+func (d *VirtualDisk) setAttached(op trace.Operation, devicePath string) (err error) {
+	if d.DevicePath == "" {
+		// Question: what happens if this is called a second time with a different devicePath?
+		d.DevicePath = devicePath
 	}
 
-	if devicePath == "" {
-		err = fmt.Errorf("no device path specified")
-		return err
-	}
+	count := d.attachedRefs.Increment()
+	op.Debugf("incremented attach count for %s: %d", d.DatastoreURI, count)
 
-	// set the device path where attached
-	d.DevicePath = devicePath
 	return nil
 }
 
@@ -120,42 +152,21 @@ func (d *VirtualDisk) canBeDetached() error {
 	}
 
 	if d.inUseByOther() {
-		return fmt.Errorf("%s is still in use", d.DatastoreURI)
+		return fmt.Errorf("Detach skipped - %s is still in use", d.DatastoreURI)
 	}
 
 	return nil
 }
 
-func (d *VirtualDisk) setDetached(disks map[uint64]*VirtualDisk) error {
-	defer func() {
-		if d.attachedRefs == 0 {
-			log.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
-
-			delete(disks, d.Hash())
-		}
-	}()
-
-	if !d.attached() {
-		return fmt.Errorf("%s is already detached", d.DatastoreURI)
-	}
-
-	if d.mounted() {
-		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
-	}
-
-	if !d.attachedByOther() {
-		d.DevicePath = ""
-	} else {
-		log.Warnf("%s is still in use", d.DatastoreURI)
-	}
-	d.attachedRefs--
-	log.Debugf("Decreased attach references for %s to %d", d.DatastoreURI, d.attachedRefs)
-
-	return nil
+func (d *VirtualDisk) setDetached(op trace.Operation, disks map[uint64]*VirtualDisk) {
+	// we only call this when it's been detached, so always make the updates
+	op.Debugf("Dropping %s from the DiskManager cache", d.DatastoreURI)
+	d.DevicePath = ""
+	delete(disks, d.Hash())
 }
 
 // Mkfs formats the disk with Filesystem and sets the disk label
-func (d *VirtualDisk) Mkfs(labelName string) error {
+func (d *VirtualDisk) Mkfs(op trace.Operation, labelName string) error {
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -167,11 +178,11 @@ func (d *VirtualDisk) Mkfs(labelName string) error {
 		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
-	return d.Filesystem.Mkfs(d.DevicePath, labelName)
+	return d.Filesystem.Mkfs(op, d.DevicePath, labelName)
 }
 
 // SetLabel sets this disk's label
-func (d *VirtualDisk) SetLabel(labelName string) error {
+func (d *VirtualDisk) SetLabel(op trace.Operation, labelName string) error {
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -179,7 +190,7 @@ func (d *VirtualDisk) SetLabel(labelName string) error {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
-	return d.Filesystem.SetLabel(d.DevicePath, labelName)
+	return d.Filesystem.SetLabel(op, d.DevicePath, labelName)
 }
 
 func (d *VirtualDisk) attached() bool {
@@ -195,7 +206,7 @@ func (d *VirtualDisk) Attached() bool {
 }
 
 func (d *VirtualDisk) attachedByOther() bool {
-	return d.attachedRefs > 1
+	return d.attachedRefs.Count() > 1
 }
 
 // AttachedByOther returns true if the attached references are > 1
@@ -207,7 +218,7 @@ func (d *VirtualDisk) AttachedByOther() bool {
 }
 
 func (d *VirtualDisk) mountedByOther() bool {
-	return d.mountedRefs > 1
+	return d.mountedRefs.Count() > 1
 }
 
 // MountedByOther returns true if the mounted references are > 1
@@ -232,37 +243,55 @@ func (d *VirtualDisk) InUseByOther() bool {
 }
 
 // Mount attempts to mount this disk. A NOP occurs if the disk is already mounted
-func (d *VirtualDisk) Mount(mountPath string, options []string) (err error) {
+// It returns the path at which the disk is mounted
+// Enhancement: allow provision of mount path and refcount for:
+//   specific mount point and options
+func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error) {
 	d.l.Lock()
 	defer d.l.Unlock()
 
-	defer func() {
-		// bump mounted reference count
-		d.mountedRefs++
-		log.Debugf("Increased mount references for %s to %d", d.DatastoreURI, d.mountedRefs)
-	}()
-
-	if d.mounted() {
-		p, _ := d.mountPathFn()
-		log.Warnf("%s already mounted at %s", d.DatastoreURI, p)
-		return nil
-	}
+	op.Debugf("Mounting %s", d.DatastoreURI)
 
 	if !d.attached() {
-		err = fmt.Errorf("%s isn't attached", d.DatastoreURI)
-		return err
+		err := fmt.Errorf("%s isn't attached", d.DatastoreURI)
+		op.Error(err)
+		return "", err
 	}
 
-	if err = d.Filesystem.Mount(d.DevicePath, mountPath, options); err != nil {
-		return err
+	if !d.mounted() {
+		path, err := ioutil.TempDir("", "mnt")
+		if err != nil {
+			err := fmt.Errorf("unable to create mountpint: %s", err)
+			op.Error(err)
+			return "", err
+		}
+
+		if err = d.Filesystem.Mount(op, d.DevicePath, path, options); err != nil {
+			op.Errorf("Failed to mount disk: %s", err)
+			return "", err
+		}
+
+		d.mountPath = path
+	} else {
+		// basic santiy check for matching options - we don't want to share a r/o mount
+		// if the request was for r/w. Ideally we'd just mount this at a different location with the
+		// requested options but that requires separate ref counting.
+		// TODO: support differing mount opts
+		opts := strings.Join(options, ";")
+		if d.mountOpts != opts {
+			op.Errorf("Unable to use mounted disk due to differing options: %s != %s", d.mountOpts, opts)
+			return "", fmt.Errorf("incompatible mount options for disk reuse")
+		}
 	}
 
-	d.mountPath = mountPath
-	return nil
+	count := d.mountedRefs.Increment()
+	op.Debugf("incremented mount count for %s: %d", d.mountPath, count)
+
+	return d.mountPath, nil
 }
 
 // Unmount attempts to unmount a virtual disk
-func (d *VirtualDisk) Unmount() error {
+func (d *VirtualDisk) Unmount(op trace.Operation) error {
 	d.l.Lock()
 	defer d.l.Unlock()
 
@@ -270,16 +299,29 @@ func (d *VirtualDisk) Unmount() error {
 		return fmt.Errorf("%s already unmounted", d.DatastoreURI)
 	}
 
-	d.mountedRefs--
-	log.Debugf("Decreased mount references for %s to %d", d.DatastoreURI, d.mountedRefs)
+	count := d.mountedRefs.Decrement()
+	op.Debugf("decremented mount count for %s: %d", d.mountPath, count)
+
+	if count > 0 {
+		return nil
+	}
 
 	// no more mount references to this disk, so actually unmount
-	if d.mountedRefs == 0 {
-		if err := d.Filesystem.Unmount(d.mountPath); err != nil {
-			return err
-		}
-		d.mountPath = ""
+	if err := d.Filesystem.Unmount(op, d.mountPath); err != nil {
+		err := fmt.Errorf("failed to unmount disk: %s", err)
+		op.Error(err)
+		return err
 	}
+
+	// only remove the mount directory - if we've succeeded in the unmount there won't be anything in it
+	// if we somehow get here and there is content we do NOT want to delete it
+	if err := os.Remove(d.mountPath); err != nil {
+		err := fmt.Errorf("failed to clean up mount point: %s", err)
+		op.Error(err)
+		return err
+	}
+
+	d.mountPath = ""
 
 	return nil
 }

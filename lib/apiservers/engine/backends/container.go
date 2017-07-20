@@ -15,12 +15,14 @@
 package backends
 
 import (
+	"archive/tar"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,7 +39,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	dnetwork "github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/pkg/archive"
+	docker "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -58,6 +60,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/retry"
@@ -512,43 +515,6 @@ func (c *Container) ExecExists(eid string) (bool, error) {
 		return false, NotFoundError(eid)
 	}
 	return true, nil
-}
-
-// docker's container.copyBackend
-
-// ContainerArchivePath creates an archive of the filesystem resource at the
-// specified path in the container identified by the given name. Returns a
-// tar archive of the resource and whether it was a directory or a single file.
-func (c *Container) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	return nil, nil, fmt.Errorf("%s does not yet implement ContainerArchivePath", ProductName())
-}
-
-// ContainerCopy performs a deprecated operation of archiving the resource at
-// the specified path in the container identified by the given name.
-func (c *Container) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("%s does not yet implement ContainerCopy", ProductName())
-}
-
-// ContainerExport writes the contents of the container to the given
-// writer. An error is returned if the container cannot be found.
-func (c *Container) ContainerExport(name string, out io.Writer) error {
-	return fmt.Errorf("%s does not yet implement ContainerExport", ProductName())
-}
-
-// ContainerExtractToDir extracts the given archive to the specified location
-// in the filesystem of the container identified by the given name. The given
-// path must be of a directory in the container. If it is not, the error will
-// be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
-// be an error if unpacking the given content would cause an existing directory
-// to be replaced with a non-directory and vice versa.
-func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	return fmt.Errorf("%s does not yet implement ContainerExtractToDir", ProductName())
-}
-
-// ContainerStatPath stats the filesystem resource at the specified path in the
-// container identified by the given name.
-func (c *Container) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	return nil, fmt.Errorf("%s does not yet implement ContainerStatPath", ProductName())
 }
 
 // docker's container.stateBackend
@@ -1311,8 +1277,55 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 // docker's container.monitorBackend
 
 // ContainerChanges returns a list of container fs changes
-func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
-	return make([]archive.Change, 0, 0), fmt.Errorf("%s does not yet implement ontainerChanges", ProductName())
+func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
+	defer trace.End(trace.Begin(name))
+
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, NotFoundError(name)
+	}
+
+	r, err := c.containerProxy.GetContainerChanges(context.Background(), vc, false)
+	if err != nil {
+		return nil, InternalServerError(err.Error())
+	}
+
+	changes := []docker.Change{}
+
+	tarFile := tar.NewReader(r)
+
+	defer r.Close()
+
+	for {
+		hdr, err := tarFile.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return []docker.Change{}, InternalServerError(err.Error())
+		}
+
+		log.Infof("Got header %s", hdr.Name)
+		change := docker.Change{
+			Path: hdr.Name,
+		}
+		switch hdr.Xattrs[archive.ChangeTypeKey] {
+		case "A":
+			change.Kind = docker.ChangeAdd
+		case "D":
+			change.Kind = docker.ChangeDelete
+			path := strings.TrimSuffix(change.Path, "/")
+			p := strings.TrimPrefix(filepath.Base(path), docker.WhiteoutPrefix)
+			change.Path = filepath.Join(filepath.Dir(path), p)
+		case "C":
+			change.Kind = docker.ChangeModify
+		default:
+			return []docker.Change{}, InternalServerError("Invalid change type")
+		}
+		changes = append(changes, change)
+	}
+	return changes, nil
 }
 
 // ContainerInspect returns low-level information about a
@@ -1386,7 +1399,7 @@ func (c *Container) ContainerLogs(ctx context.Context, name string, config *back
 	}
 
 	// Make a call to our proxy to handle the remoting
-	err = c.containerProxy.StreamContainerLogs(name, outStream, started, config.Timestamps, config.Follow, since, tailLines)
+	err = c.containerProxy.StreamContainerLogs(ctx, name, outStream, started, config.Timestamps, config.Follow, since, tailLines)
 	if err != nil {
 		// Don't return an error encountered while streaming logs.
 		// Once we've started streaming logs, the Docker client doesn't expect

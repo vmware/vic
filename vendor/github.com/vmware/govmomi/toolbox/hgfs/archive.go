@@ -20,12 +20,51 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"io"
+	"math"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
+
+// ArchiveScheme is the default scheme used to register the archive FileHandler
+var ArchiveScheme = "archive"
+
+// ArchiveHandler implements a FileHandler for transferring directories.
+type ArchiveHandler struct {
+	Read  func(*url.URL, *tar.Reader) error
+	Write func(*url.URL, *tar.Writer) error
+}
+
+// NewArchiveHandler returns a FileHandler implementation for transferring directories using gzip'd tar files.
+func NewArchiveHandler() FileHandler {
+	return &ArchiveHandler{
+		Read:  archiveRead,
+		Write: archiveWrite,
+	}
+}
+
+// Stat implements FileHandler.Stat
+func (*ArchiveHandler) Stat(u *url.URL) (os.FileInfo, error) {
+	return &archive{
+		name: u.Path,
+		size: math.MaxInt64,
+	}, nil
+}
+
+// Open implements FileHandler.Open
+func (h *ArchiveHandler) Open(u *url.URL, mode int32) (File, error) {
+	switch mode {
+	case OpenModeReadOnly:
+		return h.newArchiveFromGuest(u)
+	case OpenModeWriteOnly:
+		return h.newArchiveToGuest(u)
+	default:
+		return nil, os.ErrNotExist
+	}
+}
 
 // archive implements the hgfs.File and os.FileInfo interfaces.
 type archive struct {
@@ -73,11 +112,11 @@ func (a *archive) Sys() interface{} {
 var gzipHeader = []byte{0x1f, 0x8b, 0x08} // rfc1952 {ID1, ID2, CM}
 
 // newArchiveFromGuest returns an hgfs.File implementation to read a directory as a gzip'd tar.
-func newArchiveFromGuest(dir string) (File, error) {
+func (h *ArchiveHandler) newArchiveFromGuest(u *url.URL) (File, error) {
 	r, w := io.Pipe()
 
 	a := &archive{
-		name:   dir,
+		name:   u.Path,
 		Reader: r,
 		Writer: w,
 	}
@@ -87,7 +126,7 @@ func newArchiveFromGuest(dir string) (File, error) {
 	a.done = r.Close
 
 	go func() {
-		err := a.pack(tw)
+		err := h.Write(u, tw)
 
 		_ = tw.Close()
 		_ = gz.Close()
@@ -99,11 +138,11 @@ func newArchiveFromGuest(dir string) (File, error) {
 }
 
 // newArchiveToGuest returns an hgfs.File implementation to expand a gzip'd tar into a directory.
-func newArchiveToGuest(dir string) (File, error) {
+func (h *ArchiveHandler) newArchiveToGuest(u *url.URL) (File, error) {
 	r, w := io.Pipe()
 
 	a := &archive{
-		name:   dir,
+		name:   u.Path,
 		Reader: r,
 		Writer: w,
 	}
@@ -121,25 +160,31 @@ func newArchiveToGuest(dir string) (File, error) {
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+
 		gz, err := gzip.NewReader(a.Reader)
 		if err != nil {
 			_ = r.CloseWithError(err)
+			cerr = err
 			return
 		}
 
 		tr := tar.NewReader(gz)
 
-		cerr = a.unpack(tr)
+		cerr = h.Read(u, tr)
 		_ = gz.Close()
 		_ = r.CloseWithError(cerr)
-		wg.Done()
 	}()
 
 	return a, nil
 }
 
-// unpack writes the contents of the given tar.Reader to the a.name directory.
-func (a *archive) unpack(tr *tar.Reader) error {
+func (a *archive) Close() error {
+	return a.done()
+}
+
+// archiveRead writes the contents of the given tar.Reader to the given directory.
+func archiveRead(u *url.URL, tr *tar.Reader) error {
 	for {
 		header, err := tr.Next()
 		if err != nil {
@@ -149,7 +194,7 @@ func (a *archive) unpack(tr *tar.Reader) error {
 			return err
 		}
 
-		name := filepath.Join(a.Name(), header.Name)
+		name := filepath.Join(u.Path, header.Name)
 		mode := os.FileMode(header.Mode)
 
 		switch header.Typeflag {
@@ -182,16 +227,22 @@ func (a *archive) unpack(tr *tar.Reader) error {
 	}
 }
 
-// pack writes the contents of the archive source directory to the given tar.Writer.
-func (a *archive) pack(tw *tar.Writer) error {
-	dir := filepath.Dir(a.name)
+// archiveWrite writes the contents of the given source directory to the given tar.Writer.
+func archiveWrite(u *url.URL, tw *tar.Writer) error {
+	info, err := os.Stat(u.Path)
+	if err != nil {
+		return err
+	}
 
-	return filepath.Walk(a.name, func(file string, fi os.FileInfo, err error) error {
+	dir := filepath.Dir(u.Path)
+
+	f := func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return filepath.SkipDir
 		}
 
-		name := strings.TrimPrefix(file, dir)[1:]
+		name := strings.TrimPrefix(file, dir)
+		name = strings.TrimPrefix(name, "/")
 
 		header, _ := tar.FileInfoHeader(fi, name)
 
@@ -221,9 +272,13 @@ func (a *archive) pack(tw *tar.Writer) error {
 		}
 
 		return err
-	})
-}
+	}
 
-func (a *archive) Close() error {
-	return a.done()
+	if info.IsDir() {
+		return filepath.Walk(u.Path, f)
+	}
+
+	dir = filepath.Dir(dir)
+
+	return f(u.Path, info, nil)
 }

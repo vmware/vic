@@ -21,7 +21,6 @@ import (
 	"path"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -35,11 +34,7 @@ const VolumesDir = "volumes"
 
 // VolumeStore caches Volume references to volumes in the system.
 type VolumeStore struct {
-	// helper to the backend
-	ds *datastore.Helper
-
-	// wraps our vmdks and filesystem primitives.
-	dm *disk.Manager
+	disk.Vmdk
 
 	// Service url to this VolumeStore
 	SelfLink *url.URL
@@ -51,7 +46,7 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 		return nil, err
 	}
 
-	dm, err := disk.NewDiskManager(op, s)
+	dm, err := disk.NewDiskManager(op, s, storage.Config.ContainerView)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +63,11 @@ func NewVolumeStore(op trace.Operation, storeName string, s *session.Session, ds
 	}
 
 	v := &VolumeStore{
-		dm:       dm,
-		ds:       ds,
+		Vmdk: disk.Vmdk{
+			Manager: dm,
+			Helper:  ds,
+			Session: s,
+		},
 		SelfLink: u,
 	}
 
@@ -89,43 +87,43 @@ func (v *VolumeStore) volMetadataDirPath(ID string) string {
 }
 
 // Returns the path to the vmdk itself (in datastore URL format)
-func (v *VolumeStore) volDiskDsURL(ID string) *object.DatastorePath {
+func (v *VolumeStore) volDiskDSPath(ID string) *object.DatastorePath {
 	return &object.DatastorePath{
-		Datastore: v.ds.RootURL.Datastore,
-		Path:      path.Join(v.ds.RootURL.Path, v.volDirPath(ID), ID+".vmdk"),
+		Datastore: v.Helper.RootURL.Datastore,
+		Path:      path.Join(v.Helper.RootURL.Path, v.volDirPath(ID), ID+".vmdk"),
 	}
 }
 
 func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
 
 	// Create the volume directory in the store.
-	if _, err := v.ds.Mkdir(op, false, v.volDirPath(ID)); err != nil {
+	if _, err := v.Mkdir(op, false, v.volDirPath(ID)); err != nil {
 		return nil, err
 	}
 
 	// Get the path to the disk in datastore uri format
-	volDiskDsURL := v.volDiskDsURL(ID)
+	volDiskDSPath := v.volDiskDSPath(ID)
 
-	config := disk.NewPersistentDisk(volDiskDsURL).WithCapacity(int64(capacityKB))
+	config := disk.NewPersistentDisk(volDiskDSPath).WithCapacity(int64(capacityKB))
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(op, config)
+	vmdisk, err := v.CreateAndAttach(op, config)
 	if err != nil {
 		return nil, err
 	}
-	defer v.dm.Detach(op, vmdisk.VirtualDiskConfig)
+	defer v.Detach(op, vmdisk.VirtualDiskConfig)
 	vol, err := storage.NewVolume(store, ID, info, vmdisk, executor.CopyNew)
 	if err != nil {
 		return nil, err
 	}
 
 	// Make the filesystem and set its label
-	if err = vmdisk.Mkfs(vol.Label); err != nil {
+	if err = vmdisk.Mkfs(op, vol.Label); err != nil {
 		return nil, err
 	}
 
 	// Persist the metadata
 	metaDataDir := v.volMetadataDirPath(ID)
-	if err = writeMetadata(op, v.ds, metaDataDir, info); err != nil {
+	if err = writeMetadata(op, v.Helper, metaDataDir, info); err != nil {
 		return nil, err
 	}
 
@@ -137,11 +135,10 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 	volDir := v.volDirPath(vol.ID)
 
 	op.Infof("VolumeStore: Deleting %s", volDir)
-	if err := v.ds.Rm(op, volDir); err != nil {
+	if err := v.Rm(op, volDir); err != nil {
 		op.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
-
 	return nil
 }
 
@@ -153,30 +150,25 @@ func (v *VolumeStore) VolumeGet(op trace.Operation, ID string) (*storage.Volume,
 func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
 	volumes := []*storage.Volume{}
 
-	res, err := v.ds.Ls(op, VolumesDir)
+	res, err := v.Ls(op, VolumesDir)
 	if err != nil {
 		return nil, fmt.Errorf("error listing vols: %s", err)
 	}
 
 	for _, f := range res.File {
-		file, ok := f.(*types.FileInfo)
-		if !ok {
-			continue
-		}
-
-		ID := file.Path
+		ID := f.GetFileInfo().Path
 
 		// Get the path to the disk in datastore uri format
-		volDiskDsURL := v.volDiskDsURL(ID)
+		volDiskDSPath := v.volDiskDSPath(ID)
 
-		config := disk.NewPersistentDisk(volDiskDsURL)
-		dev, err := disk.NewVirtualDisk(config, v.dm.Disks)
+		config := disk.NewPersistentDisk(volDiskDSPath)
+		dev, err := disk.NewVirtualDisk(op, config, v.Manager.Disks)
 		if err != nil {
 			return nil, err
 		}
 
 		metaDataDir := v.volMetadataDirPath(ID)
-		meta, err := getMetadata(op, v.ds, metaDataDir)
+		meta, err := getMetadata(op, v.Helper, metaDataDir)
 		if err != nil {
 			return nil, err
 		}
@@ -190,4 +182,16 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	}
 
 	return volumes, nil
+}
+
+func (v *VolumeStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	path := v.volDiskDSPath(id).String()
+	if path == "" {
+		return nil, fmt.Errorf("unable to translate %s into datastore path", id)
+	}
+
+	return &url.URL{
+		Scheme: "ds",
+		Path:   path,
+	}, nil
 }

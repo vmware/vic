@@ -15,18 +15,22 @@
 *** Settings ***
 Documentation  Test 18-3 - VIC UI NGC tests
 Resource  ../../resources/Util.robot
+Resource  ../../resources/Docker-Util.robot
 Resource  ./vicui-common.robot
 Test Teardown  Clean Up Testbed Config Files
 Suite Setup  Check Config And Install VCH
-Suite Teardown  Uninstall VCH
+Suite Teardown  Uninstall VCH  ${TRUE}
 
 *** Test Cases ***
 Check Prerequisites
     Set Suite Variable  ${VCH_VM_NAME}  %{VCH_VM_NAME}
     ${pwd}=  Run  pwd
-    Run Keyword If  %{TEST_VSPHERE_VER} == 60  Should Exist  ${pwd}/../../../ui/vic-uia/uia/vic-uia
-    Run Keyword If  %{TEST_VSPHERE_VER} == 60  Set Suite Variable  ${NGC_TESTS_PATH}  ${pwd}/../../../ui/vic-uia/uia/vic-uia
+    Run Keyword If  %{TEST_VSPHERE_VER} == 60  Should Exist  ${pwd}/../../../ui/vic-uia/flex-automation-test/uia/vic-uia
+    Run Keyword If  %{TEST_VSPHERE_VER} == 60  Set Suite Variable  ${NGC_TESTS_PATH}  ${pwd}/../../../ui/vic-uia/flex-automation-test/uia/vic-uia
     Set Suite Variable  ${use_existing_container_vm}  False
+    Log To Console  Checking if Selenium Grid is reachable at %{SELENIUM_SERVER_IP}...
+    ${ping_rc}=  Run And Return Rc  nc -zv %{SELENIUM_SERVER_IP} 4444 -w 3
+    Run Keyword If  ${ping_rc} > 0  Fatal Error  Seleinum Grid %{SELENIUM_SERVER_IP} is not reachable!
 
     # check if the files required by the ngc automation tests exist
     Run Keyword If  %{TEST_VSPHERE_VER} == 60  Should Exist  ${NGC_TESTS_PATH}/resources/browservm.tpl.properties
@@ -36,17 +40,14 @@ Check Prerequisites
 
 Ensure Vicui Is Installed
     # ensure vicui is installed before running ngc automation tests
-    Set Vcenter Ip
-    Install Vicui Without Webserver  ${TEST_VC_USERNAME}  ${TEST_VC_PASSWORD}  ${TEST_VC_ROOT_PASSWORD}  ${TRUE}
-    ${output}=  OperatingSystem.GetFile  install.log
-    Should Contain  ${output}  was successful
+    Force Install Vicui Plugin
     Cleanup Installer Environment
     Reboot vSphere Client
 
 Run Ngc Tests Project
     # create a container and get its name-id which is essentially the name of the vm
     Run Keyword If  ${use_existing_container_vm} == True  Log To Console  \nUsing the container specified in vicui-common.robot  ELSE  Create And Run Test Container
-    Log To Console  Using container ${CONTAINER_VM_NAME}\n
+    Log To Console  Using container ${CONTAINER_VM_TRUNCATED_NAME}\n
 
     # given the information in vicui-common.robot edit the above properties files
     Run Keyword If  %{TEST_VSPHERE_VER} == 60  Set Up Testbed Config Files  ELSE  Set Up Testbed For HSUIA
@@ -72,7 +73,7 @@ Reboot vSphere Client
     Run Keyword If  %{TEST_VSPHERE_VER} == 60  Execute Command  service vsphere-client start  ELSE  Execute Command  service-control --start vsphere-ui
 
     # wait until vsphere-client/ui server is up and running
-    Wait Until Keyword Succeeds  10x  60 s  Is vSphere Client Ready
+    Wait Until Keyword Succeeds  20x  30s  Is vSphere Client Ready
     Run Keyword If  %{TEST_VSPHERE_VER} == 60  Log To Console  vSphere Web Client has booted.  ELSE  Log To Console  vSphere Client has booted.
     Close connection
 
@@ -151,23 +152,20 @@ Create And Run Test Container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container_name}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect ${container_id} | jq '.[0].Name' | sed 's/[\"\/]//g'
     Should Be Equal As Integers  ${rc}  0
-    Set Suite Variable  ${CONTAINER_VM_NAME}  ${container_name}-${container_id}
-    Set Suite Variable  ${CONTAINER_VM_TRUNCATED_NAME}  ${container_name}-${container_id}
-    ${p_name_length}=  Get Length  ${container_name}
-    ${container_name_truncated}=  Run Keyword If  ${p_name_length} > 15  Get Substring  ${container_name}  0  15
-    Run Keyword If  ${p_name_length} > 15  Log To Console  Container name is longer than 15 characters. Truncating it to the first 15 characters... (${container_name_truncated}-${container_id})
-    Run Keyword If  ${p_name_length} > 15  Set Suite Variable  ${CONTAINER_VM_TRUNCATED_NAME}   ${container_name_truncated}-${container_id}
+    ${short_container_id}=  Get container shortID  ${container_id}
+    Set Suite Variable  ${CONTAINER_VM_TRUNCATED_NAME}  ${container_name}-${short_container_id}
 
 Start Ngc Tests
     # run mvn test and make sure tests are successful. timeout is applied inside the custom library not here
     [Timeout]  NONE
     Run Keyword If  %{TEST_VSPHERE_VER} == 60  Log To Console  Starting Flex tests...  ELSE  Log To Console  Starting HSUIA tests...
     Log To Console  Selenium server is running at ${SELENIUM_SERVER_IP}
-    Run Keyword If  %{TEST_VSPHERE_VER} == 60  Run Ngc Tests  ${TEST_VC_USERNAME}  ${TEST_VC_PASSWORD}  ELSE  Run HSUIA Tests
-    ${output}=  OperatingSystem.GetFile  ngc_tests.log
+    ${log_file}=  Set Variable  ngc_tests.log
+    Run Keyword If  %{TEST_VSPHERE_VER} == 60  Run Ngc Tests  ${TEST_VC_USERNAME}  ${TEST_VC_PASSWORD}  ${log_file}  ELSE  Run HSUIA Tests  ${log_file}
+    ${output}=  OperatingSystem.GetFile  ${log_file}
     ${cond1}=  Run Keyword And Return Status  Should Contain  ${output}  BUILD SUCCESS
     ${cond2}=  Run Keyword And Return Status  Should Not Contain  ${output}  BUILD FAILURE
-    Run Keyword Unless  ${cond1} and ${cond2}  Copy File  ngc_tests.log  ngc_tests-fail.log
+    Run Keyword Unless  ${cond1} and ${cond2}  Move File  ${log_file}  FAIL-${log_file}
     Log To Console  checking log
     Log To Console  ${output}
     Should Be True  ${cond1} and ${cond2}

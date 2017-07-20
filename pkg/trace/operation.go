@@ -120,8 +120,20 @@ func (o *Operation) Debugf(format string, args ...interface{}) {
 	Logger.Debugf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
 
+func (o *Operation) Warnf(format string, args ...interface{}) {
+	Logger.Warnf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
 func (o *Operation) Errorf(format string, args ...interface{}) {
 	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
+func (o *Operation) Error(err error) {
+	Logger.Errorf("%s: %s", o.header(), err.Error())
+}
+
+func (o *Operation) Panicf(format string, args ...interface{}) {
+	Logger.Panicf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
 
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
@@ -157,6 +169,12 @@ func WithDeadline(parent *Operation, expiration time.Time, format string, args .
 	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
 	return op, cancelFunc
+}
+
+// FromOperation creates a child operation from the one supplied
+// uses the same context as the parent
+func FromOperation(parent Operation, format string, args ...interface{}) Operation {
+	return parent.newChild(parent.Context, fmt.Sprintf(format, args...))
 }
 
 // FromContext unpacks the values in the ctx to create an Operation

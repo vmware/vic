@@ -20,7 +20,17 @@ Group 6 - VIC Machine
 -
 [Test 6-09 - vic-machine inspect](6-09-Inspect.md)
 -
-[Test 6-10 - vic-machine version](6-10-Version.md)
+[Test 6-10 - vic-machine ls](6-10-List.md)
 -
-[Test 6-11 - vic-machine ls](6-10-List.md)
+[Test 6-11 - vic-machine debug](6-11-Debug.md)
+-
+[Test 6-12 - vic-machine version](6-12-Version.md)
+-
+[Test 6-13 - vic-machine tls](6-13-TLS.md)
+-
+[Test 6-14 - vic-machine update firewall](6-14-Update-Firewall.md)
+-
+[Test 6-15 - vic-machine syslog-address](6-15-Syslog.md)
+-
+[Test 6-16 - vic-machine configure](6-16-Config.md)
 -

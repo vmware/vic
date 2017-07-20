@@ -349,5 +349,7 @@ func (d *Data) CopyNonEmpty(src *Data) error {
 
 	d.DNS = src.DNS
 
+	d.RegistryCAs = src.RegistryCAs
+
 	return nil
 }

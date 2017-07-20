@@ -244,7 +244,7 @@ ERRO[2016-11-07T19:53:44Z] --------------------
 ERRO[2016-11-07T19:53:44Z] vic-machine-linux failed: provide Common Name for server certificate
 ```
 
-The [`--cert-path`](#certificate-names-and---cert-path) option applies to all of the TLS configurations other than --no-tls.
+The [`--tls-cert-path`](#certificate-names-and---tls-cert-path) option applies to all of the TLS configurations other than --no-tls.
 
 
 #### Disabled, `--no-tls`
@@ -256,8 +256,8 @@ In this configuration the API endpoint has a certificate that clients will use t
 authentication or authorization of the client. If no certificate is provided then a self-signed certificate will be generated.
 
 If using a pre-created certificate, the following options are used:
-- `--key` - path to key file in PEM format
-- `--cert` - path to certificate file in PEM format
+- `--tls-server-key` - path to key file in PEM format
+- `--tls-server-cert` - path to certificate file in PEM format
 
 
 #### Mutual authentication (tlsverify)
@@ -284,16 +284,16 @@ or `--no-tlsverify` is specified.
 - `--client-network-ip` - IP or FQDN to use for the API endpoint
 
 
-#### Certificate names and `--cert-path`
+#### Certificate names and `--tls-cert-path`
 
-If using the `--key` and `--cert` options, any filename and path can be provided for the server certificate and key. However when generating certificates the following standard names are used:
+If using the `--tls-server-key` and `--tls-server-cert` options, any filename and path can be provided for the server certificate and key. However when generating certificates the following standard names are used:
 * server-cert.pem
 * server-key.pem
 * cert.pem
 * key.pem
 * ca.pem
 
-The default value of `--cert-path` is that of the `--name` parameter, in the current working directory, and is used as:
+The default value of `--tls-cert-path` is that of the `--name` parameter, in the current working directory, and is used as:
 1. the location to check for existing certificates, by the default names detailed above.
 2. the location to save generated certificates, which will occur only if existing certificates are not found
 

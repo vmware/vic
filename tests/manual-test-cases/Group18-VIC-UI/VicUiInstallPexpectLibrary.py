@@ -16,6 +16,7 @@ import os.path
 import pexpect
 import time
 
+
 class VicUiInstallPexpectLibrary(object):
     TIMEOUT_LIMIT = 180
     NGC_TESTS_TIMEOUT_LIMIT = 1800
@@ -23,17 +24,18 @@ class VicUiInstallPexpectLibrary(object):
         testbed_information = f.read().splitlines()
 
     IS_TESTING_VSPHERE65 = 'TEST_VSPHERE_VER=65' in testbed_information[0]
-    INSTALLER_PATH = os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'installer', 'HTML5Client') if IS_TESTING_VSPHERE65 else os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'installer', 'VCSA')
-    NGC_TESTS_PATH = os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'vic-ui-h5c/uia/h5-plugin-tests/ui-automation/vic-uia') if IS_TESTING_VSPHERE65 else os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'vic-uia/uia/vic-uia')
+    INSTALLER_PATH = os.path.join(os.path.dirname(
+        __file__), '../../..', 'ui', 'installer', 'VCSA')
+    NGC_TESTS_PATH = os.path.join(os.path.dirname(__file__), '../../..', 'ui', 'vic-ui-h5c/uia/h5-plugin-tests/ui-automation/vic-uia') if IS_TESTING_VSPHERE65 else os.path.join(
+        os.path.dirname(__file__), '../../..', 'ui', 'vic-uia/flex-automation-test/uia/vic-uia')
 
-    def _prepare_and_spawn(self, operation, callback, force=False):
+    def _prepare_and_spawn(self, operation, callback, flags=None):
         try:
-            executable = os.path.join(VicUiInstallPexpectLibrary.INSTALLER_PATH, operation + '.sh')
-            if force:
-                executable += ' --force'
-
+            executable = os.path.join(
+                VicUiInstallPexpectLibrary.INSTALLER_PATH, operation + '.sh ' + (flags if flags is not None else ''))
             self._f = open(operation + '.log', 'wb')
-            self._pchild = pexpect.spawn(executable, cwd = VicUiInstallPexpectLibrary.INSTALLER_PATH, timeout = VicUiInstallPexpectLibrary.TIMEOUT_LIMIT)
+            self._pchild = pexpect.spawn(
+                executable, cwd=VicUiInstallPexpectLibrary.INSTALLER_PATH, timeout=VicUiInstallPexpectLibrary.TIMEOUT_LIMIT)
             self._pchild.logfile = self._f
             callback()
             self._f.close()
@@ -41,83 +43,95 @@ class VicUiInstallPexpectLibrary(object):
         except IOError as e:
             return 'Error: ' + e.value
 
-    def _common_prompts(self, vcenter_user, vcenter_password, root_password):
+    def _common_prompts(
+            self, vcenter_ip, vcenter_user, vcenter_password,
+            trust_fingerprint, manual_entry):
+        self._pchild.expect('Enter IP to target vCenter Server: ')
+        self._pchild.sendline(vcenter_ip)
         self._pchild.expect('Enter your vCenter Administrator Username: ')
         self._pchild.sendline(vcenter_user)
         self._pchild.expect('Enter your vCenter Administrator Password: ')
         self._pchild.sendline(vcenter_password)
 
-    def install_vicui_without_webserver(self, vcenter_user, vcenter_password, root_password, force=False):
+    def install_fails(
+            self, vcenter_ip, vcenter_user, vcenter_password,
+            trust_fingerprint=True, manual_entry=None):
         def commands():
-            self._common_prompts(vcenter_user, vcenter_password, root_password)
-            match_index = self._pchild.expect(['root@.*', '.*continue connecting.*'])
-            if match_index == 1:
-                self._pchild.sendline('yes')
-                self._pchild.expect('root@.*')
-
-            self._pchild.sendline(root_password)
-            self._pchild.expect('root@.*')
-            self._pchild.sendline(root_password)
-            self._pchild.expect('root@.*')
-            self._pchild.sendline(root_password)
-            #self._pchild.interact()
-            self._pchild.expect(pexpect.EOF)
-
-        self._prepare_and_spawn('install', commands, force)
-
-    def install_vicui_without_webserver_nor_bash(self, vcenter_user, vcenter_password, root_password):
-        def commands():
-            self._common_prompts(vcenter_user, vcenter_password, root_password)
-            match_index = self._pchild.expect(['root@.*', '.*continue connecting.*'])
-            if match_index == 1:
-                self._pchild.sendline('yes')
-                self._pchild.expect('root@.*')
-
-            self._pchild.sendline(root_password)
-            self._pchild.expect('.*When all done.*')
-            #self._pchild.interact()
-            self._pchild.expect(pexpect.EOF)
-
-        self._prepare_and_spawn('install', commands)
-
-    def install_fails_for_wrong_vcenter_ip(self, vcenter_user, vcenter_password, root_password):
-        def commands():
-            self._common_prompts(vcenter_user, vcenter_password, root_password)
-            self._pchild.expect('.*Error.*')
-            #self._pchild.interact()
-            self._pchild.expect(pexpect.EOF)
-
-        self._prepare_and_spawn('install', commands)
-
-    def install_fails_at_extension_reg(self, vcenter_user, vcenter_password, root_password, is_nourl=True):
-        def commands():
-            self._common_prompts(vcenter_user, vcenter_password, root_password)
-            if is_nourl == True:
-                match_index = self._pchild.expect(['root@.*', '.*continue connecting.*'])
-                if match_index == 1:
+            self._common_prompts(
+                vcenter_ip, vcenter_user, vcenter_password, trust_fingerprint, manual_entry)
+            # self._pchild.interact()
+            idx = self._pchild.expect([
+                '.*Are you sure you trust the authenticity of this host (yes/no)?.*', '.*Error.*'])
+            if idx is 1:
+                self._pchild.expect(pexpect.EOF)
+            else:
+                if trust_fingerprint is True:
                     self._pchild.sendline('yes')
-                    self._pchild.expect('root@.*')
-                self._pchild.sendline(root_password)
+                else:
+                    self._pchild.sendline('no')
+                    self._pchild.expect(
+                        '.*Enter SHA-1 thumbprint of target VC:.*')
+                    self._pchild.sendline(manual_entry)
 
-            self._pchild.expect('.*Error.*')
-            self._pchild.expect(pexpect.EOF)
+                self._pchild.expect('.*Error.*')
+                self._pchild.expect(pexpect.EOF)
 
         self._prepare_and_spawn('install', commands)
 
-    def uninstall_fails(self, vcenter_user, vcenter_password):
+    def install_plugin_successfully(
+            self, vcenter_ip, vcenter_user, vcenter_password,
+            trust_fingerprint=True, manual_entry=None, force=False):
         def commands():
-            self._common_prompts(vcenter_user, vcenter_password, None)
-            self._pchild.expect('.*Error.*')
-            #self._pchild.interact()
+            self._common_prompts(
+                vcenter_ip, vcenter_user, vcenter_password, trust_fingerprint, manual_entry)
+            self._pchild.expect(
+                '.*Are you sure you trust the authenticity of this host (yes/no)?.*')
+            self._pchild.sendline('yes')
+            self._pchild.expect('.*exited successfully')
             self._pchild.expect(pexpect.EOF)
+
+        if force is True:
+            self._prepare_and_spawn('install', commands, '--force')
+        else:
+            self._prepare_and_spawn('install', commands)
+
+    def uninstall_fails(
+            self, vcenter_ip, vcenter_user, vcenter_password,
+            trust_fingerprint=True, manual_entry=None):
+        def commands():
+            self._common_prompts(
+                vcenter_ip, vcenter_user, vcenter_password, trust_fingerprint, manual_entry)
+            # self._pchild.interact()
+            idx = self._pchild.expect([
+                '.*Are you sure you trust the authenticity of this host (yes/no)?.*', '.*Error.*'])
+            if idx is 1:
+                self._pchild.expect(pexpect.EOF)
+            else:
+                if trust_fingerprint is True:
+                    self._pchild.sendline('yes')
+                else:
+                    self._pchild.sendline('no')
+                    self._pchild.expect(
+                        '.*Enter SHA-1 thumbprint of target VC:.*')
+                    self._pchild.sendline(manual_entry)
+
+                self._pchild.expect('.*Error.*')
+                self._pchild.expect(pexpect.EOF)
 
         self._prepare_and_spawn('uninstall', commands)
 
-    def uninstall_vicui(self, vcenter_user, vcenter_password):
+    def uninstall_vicui(
+            self, vcenter_ip, vcenter_user, vcenter_password,
+            trust_fingerprint=True, manual_entry=None):
         def commands():
-            self._common_prompts(vcenter_user, vcenter_password, None)
-            self._pchild.expect(['.*successful', 'Error! Could not unregister.*'])
-            #self._pchild.interact()
+            self._common_prompts(
+                vcenter_ip, vcenter_user, vcenter_password, trust_fingerprint, manual_entry)
+            self._pchild.expect(
+                '.*Are you sure you trust the authenticity of this host (yes/no)?.*')
+            self._pchild.sendline('yes')
+            self._pchild.expect(
+                ['.*exited successfully', 'Error! Could not unregister.*'])
+            # self._pchild.interact()
             self._pchild.expect(pexpect.EOF)
 
         self._prepare_and_spawn('uninstall', commands)
@@ -125,7 +139,8 @@ class VicUiInstallPexpectLibrary(object):
     def run_ngc_tests(self, vcenter_user, vcenter_password):
         try:
             self._f = open('ngc_tests.log', 'wb')
-            self._pchild = pexpect.spawn('mvn test -Denv.VC_ADMIN_USERNAME=' + vcenter_user + ' -Denv.VC_ADMIN_PASSWORD=' + vcenter_password, cwd = VicUiInstallPexpectLibrary.NGC_TESTS_PATH, timeout = VicUiInstallPexpectLibrary.NGC_TESTS_TIMEOUT_LIMIT)
+            self._pchild = pexpect.spawn('mvn test -Denv.VC_ADMIN_USERNAME=' + vcenter_user + ' -Denv.VC_ADMIN_PASSWORD=' + vcenter_password,
+                                         cwd=VicUiInstallPexpectLibrary.NGC_TESTS_PATH, timeout=VicUiInstallPexpectLibrary.NGC_TESTS_TIMEOUT_LIMIT)
             self._pchild.logfile = self._f
             self._pchild.expect(pexpect.EOF)
             self._f.close()
@@ -136,7 +151,8 @@ class VicUiInstallPexpectLibrary(object):
     def run_hsuia_tests(self):
         try:
             self._f = open('ngc_tests.log', 'wb')
-            self._pchild = pexpect.spawn('mvn clean compile exec:exec -e -Dhsuia.runlist=work/runlists/default.runlist', cwd = VicUiInstallPexpectLibrary.NGC_TESTS_PATH, timeout = VicUiInstallPexpectLibrary.NGC_TESTS_TIMEOUT_LIMIT)
+            self._pchild = pexpect.spawn('mvn clean compile exec:exec -e -Dhsuia.runlist=work/runlists/default.runlist',
+                                         cwd=VicUiInstallPexpectLibrary.NGC_TESTS_PATH, timeout=VicUiInstallPexpectLibrary.NGC_TESTS_TIMEOUT_LIMIT)
             self._pchild.logfile = self._f
             self._pchild.expect(pexpect.EOF)
             self._f.close()

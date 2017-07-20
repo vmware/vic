@@ -305,8 +305,6 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 // Refresh updates config and runtime info, holding a lock only while swapping
 // the new data for the old
 func (c *Container) Refresh(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -314,19 +312,12 @@ func (c *Container) Refresh(ctx context.Context) error {
 }
 
 func (c *Container) refresh(ctx context.Context) error {
-	// c.Config is nil if this is a create operation
-	if c.Config != nil {
-		log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
-	}
-
 	return c.containerBase.refresh(ctx)
 }
 
-// Refresh updates config and runtime info, holding a lock only while swapping
+// RefreshFromHandle updates config and runtime info, holding a lock only while swapping
 // the new data for the old
 func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
-	defer trace.End(trace.Begin(h.String()))
-
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -335,9 +326,17 @@ func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
 		return
 	}
 
+	// power off doesn't necessarily cause a change version increment and bug1898149 occasionally impacts power on
+	if c.Runtime != nil && (h.Runtime == nil || h.Runtime.PowerState != c.Runtime.PowerState) {
+		log.Warnf("container and handle PowerStates do not match: %s != %s", c.Runtime.PowerState, h.Runtime.PowerState)
+		return
+	}
+
 	// copy over the new state
 	c.containerBase = h.containerBase
-	log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
+	if c.Config != nil {
+		log.Debugf("Update: updated change version from handle: %s", c.Config.ChangeVersion)
+	}
 }
 
 // Start starts a container vm with the given params

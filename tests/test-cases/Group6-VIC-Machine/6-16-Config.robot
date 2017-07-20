@@ -64,9 +64,9 @@ Configure VCH Container Networks
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} config
     Should Contain  ${output}  --container-network=vm-network:vmnet
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --net=vmnet busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --net=vmnet ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
     # Test that configure fails if an existing container-network is not specified
@@ -91,7 +91,7 @@ Configure VCH Container Networks
     Should Contain  ${output}  --container-network-ip-range=management:10.10.10.0/24
     Should Contain  ${output}  --container-network-gateway=management:10.10.10.1/24
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --net=mgmt busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit --net=mgmt ${busybox}
     Should Be Equal As Integers  ${rc}  0
 
     # Test that changes to existing networks are not supported
@@ -151,7 +151,7 @@ Configure VCH https-proxy through vch id
 
 Configure VCH DNS server
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
-    Should Not Contain  ${output}  --dns-server  
+    Should Not Contain  ${output}  --dns-server
     ${output}=  Run  bin/vic-machine-linux configure --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} --dns-server 10.118.81.1 --dns-server 10.118.81.2
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  bin/vic-machine-linux inspect --name=%{VCH-NAME} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --timeout %{TEST_TIMEOUT} config
@@ -228,3 +228,7 @@ Configure VCH volume stores
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-VOL:default
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-conf:configure
     Should Contain  ${output}  --volume-store=ds://%{TEST_DATASTORE}/%{VCH-NAME}-scheme:scheme
+
+Configure Present in vic-machine
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux
+    Should Contain  ${output}  configure

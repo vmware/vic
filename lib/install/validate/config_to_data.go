@@ -23,6 +23,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-units"
 
+	"path/filepath"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -281,7 +283,8 @@ func setVolumeLocations(d *data.Data, conf *config.VirtualContainerHostConfigSpe
 			continue
 		}
 		u := *v
-		u.Path = dsURL.Path
+		u.Path = filepath.Join(dsURL.Datastore, dsURL.Path)
+		u.Host = ""
 		d.VolumeLocations[k] = &u
 	}
 }
@@ -384,13 +387,12 @@ func getNameFromID(ctx context.Context, finder Finder, mobID string) (string, er
 	if err != nil {
 		return "", err
 	}
+	// We can use Name() directly since InventoryPath is set
 	type common interface {
-		ObjectName(ctx context.Context) (string, error)
+		Name() string
 	}
-	name, err := obj.(common).ObjectName(ctx)
-	if err != nil {
-		return "", err
-	}
+	name := obj.(common).Name()
+
 	log.Debugf("%s name: %s", mobID, name)
 	return name, nil
 }

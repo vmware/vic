@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,6 +52,52 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 		}
 	}
 	return s
+}
+
+// SessionWithESX returns a general-purpose ESX session for tests.
+func SessionWithESX(ctx context.Context, service string) (*session.Session, error) {
+	config := &session.Config{
+		Service:        service,
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "/ha-datacenter",
+		ClusterPath:    "*",
+		DatastorePath:  "/ha-datacenter/datastore/LocalDS_0",
+		PoolPath:       "/ha-datacenter/host/localhost.localdomain/Resources",
+	}
+
+	s, err := session.NewSession(config).Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if s, err = s.Populate(ctx); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// SessionWithVPX returns a general-purpose VPX session for tests.
+func SessionWithVPX(ctx context.Context, service string) (*session.Session, error) {
+	config := &session.Config{
+		Service:        service,
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "/DC0",
+		ClusterPath:    "/DC0/host/DC0_C0",
+		DatastorePath:  "/DC0/datastore/LocalDS_0",
+		PoolPath:       "/DC0/host/DC0_C0/Resources",
+	}
+
+	s, err := session.NewSession(config).Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if s, err = s.Populate(ctx); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 // SpecConfig returns a spec.VirtualMachineConfigSpecConfig struct

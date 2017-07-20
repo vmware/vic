@@ -32,11 +32,11 @@ Verify VCH VM guest IP is reported
     Should Contain  %{VCH-PARAMS}  ${ip}
 
 Verify container VM guest IP is reported
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${name}=  Generate Random String  15
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d busybox /bin/top
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${ip}=  Run And Return Rc And Output  govc vm.ip ${name}-*
     Should Be Equal As Integers  ${rc}  0
@@ -45,20 +45,20 @@ Verify container VM guest IP is reported
     Should Contain  ${output}  ${ip}
 
 Stop container VM using guest shutdown
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Generate Random String  15
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d busybox /bin/top
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -s ${name}-*
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  20x  500 milliseconds  Assert VM Power State  ${name}  poweredOff
 
 Signal container VM using vix command
-    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull busybox
+    ${rc}=  Run And Return Rc  docker %{VCH-PARAMS} pull ${busybox}
     Should Be Equal As Integers  ${rc}  0
     ${name}=  Generate Random String  15
-    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d busybox /bin/top
+    ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name ${name} -d ${busybox} /bin/top
     Should Be Equal As Integers  ${rc}  0
     Run  govc vm.ip ${name}-*
     # Invalid command

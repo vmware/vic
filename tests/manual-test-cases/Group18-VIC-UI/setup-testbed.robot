@@ -62,7 +62,7 @@ Load Testbed
     ${esx_len}=  Get Length  ${esx-found}
     ${vcsa_len}=  Get Length  ${vcsa-found}
     Run Keyword If  ${browservm_len} > 0  Extract BrowserVm Info  @{browservm-found}  ELSE  Deploy BrowserVm
-    Run Keyword If  (${esx_len} == 0 and ${vcsa_len} > 0) or (${esx_len} > 0 and ${vcsa_len} == 0)  Run Keywords  Destroy Testbed  %{NIMBUS_USER}-UITEST-VC%{TEST_VSPHERE_VER}*  AND  Destroy Testbed  %{NIMBUS_USER}-UITEST-ESX%{TEST_VSPHERE_VER}*  AND  Deploy Esx  AND  Deploy Vcsa
+    Run Keyword If  (${esx_len} == 0 and ${vcsa_len} > 0) or (${esx_len} > 0 and ${vcsa_len} == 0)  Run Keywords  Destroy Testbed  '%{NIMBUS_USER}-UITEST-VC%{TEST_VSPHERE_VER}*'  AND  Destroy Testbed  '%{NIMBUS_USER}-UITEST-ESX%{TEST_VSPHERE_VER}*'  AND  Deploy Esx  AND  Deploy Vcsa
     Run Keyword If  ${esx_len} == 0 and ${vcsa_len} == 0  Run Keywords  Deploy Esx  AND  Deploy Vcsa
     Run Keyword If  ${esx_len} > 0 and ${vcsa_len} > 0  Run Keywords  Extract Esx Info  @{esx-found}  AND  Extract Vcsa Info  @{vcsa-found}
 
@@ -118,14 +118,47 @@ Deploy BrowserVm
 
 Deploy Esx
     # deploy an esxi server
-    ${esx1}  ${esx1-ip}=  Run Keyword If  %{TEST_VSPHERE_VER} == 60  Deploy Nimbus ESXi Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ELSE  Deploy Nimbus ESXi Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4564106
-    Set Environment Variable  TEST_ESX_NAME  ${esx1}
+    ${name}=  Evaluate  'UITEST-ESX%{TEST_VSPHERE_VER}-' + str(random.randint(1000,9999))  modules=random
+    ${buildnum}=  Run Keyword If  %{TEST_VSPHERE_VER} == 60  Set Variable  3620759  ELSE  Set Variable  5310538
+    ${out}=  Deploy Nimbus ESXi Server Async  ${name}  ${buildnum}
+    ${result}=  Wait For Process  ${out}
+    Log  ${result.stdout}
+    Log  ${result.stderr}
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx1-ip}=  Get IP  ${name}
+    Remove Environment Variable  GOVC_PASSWORD
+    Remove Environment Variable  GOVC_USERNAME
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  root:@${esx1-ip}
+    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    Should Be Empty  ${out}
+    Log To Console  Successfully deployed %{NIMBUS_USER}-${name}. IP: ${esx1-ip}
+    Close Connection
+
+    Set Environment Variable  TEST_ESX_NAME  %{NIMBUS_USER}-${name}
     Set Environment Variable  ESX_HOST_IP  ${esx1-ip}
     Set Environment Variable  ESX_HOST_PASSWORD  e2eFunctionalTest
 
 Deploy Vcsa
     # deploy a vcsa
-    ${vc}  ${vc-ip}=  Run Keyword If  %{TEST_VSPHERE_VER} == 60  Deploy Nimbus vCenter Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ELSE  Deploy Nimbus vCenter Server For NGC Testing  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  4602587
+    ${name}=  Evaluate  'UITEST-VC%{TEST_VSPHERE_VER}-' + str(random.randint(1000,9999))  modules=random
+    ${buildnum}=  Run Keyword If  %{TEST_VSPHERE_VER} == 60  Set Variable  3634791  ELSE  Set Variable  5318154
+    ${out}=  Deploy Nimbus vCenter Server Async  ${name} --useQaNgc  ${buildnum}
+    ${result}=  Wait For Process  ${out}
+    Log  ${result.stdout}
+    Log  ${result.stderr}
+
+    Open Connection  %{NIMBUS_GW}
+    Wait Until Keyword Succeeds  2 min  30 sec  Login  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${vc-ip}=  Get IP  ${name}
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${vc-ip}
+    Log To Console  Successfully deployed %{NIMBUS_USER}-${name}. IP: ${vc-ip}
+    Close Connection
 
     # create a datacenter
     Log To Console  Create a datacenter on the VC
@@ -162,7 +195,7 @@ Deploy Vcsa
     ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 -host.ip=%{ESX_HOST_IP} %{ESX_HOST_IP}
     Should Contain  ${out}  OK
 
-    Set Environment Variable  TEST_VC_NAME  ${vc}
+    Set Environment Variable  TEST_VC_NAME  %{NIMBUS_USER}-${name}
     Set Environment Variable  TEST_VC_IP  ${vc-ip}
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
@@ -206,65 +239,8 @@ Deploy Nimbus BrowserVm For NGC Testing
     Close connection
     [Return]  ${user}-${name}  ${ip}
 
-Deploy Nimbus ESXi Server For NGC Testing
-    [Arguments]  ${user}  ${password}  ${version}=3620759
-    ${name}=  Evaluate  'UITEST-ESX%{TEST_VSPHERE_VER}-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus ESXi server: ${name} using build ${version}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  To manage this VM use
-    # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    @{gotIP}=  Split String  ${line}  ${SPACE}
-    ${ip}=  Remove String  @{gotIP}[5]  ,
-
-    # Let's set a password so govc doesn't complain
-    Remove Environment Variable  GOVC_PASSWORD
-    Remove Environment Variable  GOVC_USERNAME
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_URL  root:@${ip}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
-    Should Be Empty  ${out}
-    Log To Console  Successfully deployed new ESXi server - ${user}-${name}
-    Close connection
-    [Return]  ${user}-${name}  ${ip}
-
-Deploy Nimbus vCenter Server For NGC Testing
-    [Arguments]  ${user}  ${password}  ${version}=3634791
-    ${name}=  Evaluate  'UITEST-VC%{TEST_VSPHERE_VER}-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus vCenter server: ${name} using build ${version}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-
-    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} --useQaNgc ${name}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  Overall Status: Succeeded
-    # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Cloudvm is running on IP
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    ${ip}=  Fetch From Right  ${line}  ${SPACE}
-
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
-    Set Environment Variable  GOVC_PASSWORD  Admin!23
-    Set Environment Variable  GOVC_URL  ${ip}
-    Log To Console  Successfully deployed new vCenter server - ${user}-${name}
-    Close connection
-    [Return]  ${user}-${name}  ${ip}
-
 *** Test Cases ***
 Check Variables
-    # Purpose of this test case is to make sure all environment variables are set correctly before the tests can be performed
-    # TODO: remove "Run Keyword And Return Status"s and Log statements when online
-
     ${isset_SHELL}=  Run Keyword And Return Status  Environment Variable Should Be Set  SHELL
     ${isset_DRONE_SERVER}=  Run Keyword And Return Status  Environment Variable Should Be Set  DRONE_SERVER
     ${isset_DRONE_TOKEN}=  Run Keyword And Return Status  Environment Variable Should Be Set  DRONE_TOKEN
@@ -284,6 +260,7 @@ Check Variables
     Log To Console  TEST_DATASTORE ${isset_TEST_DATASTORE}
     Log To Console  TEST_RESOURCE ${isset_TEST_RESOURCE}
     Log To Console  GOVC_INSECURE ${isset_GOVC_INSECURE}
+    Log To Console  TEST_VSPHERE_VER %{TEST_VSPHERE_VER}
     Should Be True  ${isset_SHELL} and ${isset_DRONE_SERVER} and ${isset_DRONE_TOKEN} and ${isset_NIMBUS_USER} and ${isset_NIMBUS_GW} and ${isset_TEST_DATASTORE} and ${isset_TEST_RESOURCE} and ${isset_GOVC_INSECURE} and %{TEST_VSPHERE_VER}
 
 Check Nimbus Machines

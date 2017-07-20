@@ -18,8 +18,10 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +29,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/view"
+	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -78,40 +84,80 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 	return s
 }
 
+func ContainerView(ctx context.Context, session *session.Session, vm *object.VirtualMachine) *view.ContainerView {
+	mngr := view.NewManager(session.Vim25())
+
+	pool, err := vm.ResourcePool(ctx)
+	if err != nil {
+		return nil
+	}
+
+	// Create view of VirtualMachine objects under the VCH's resource pool
+	v, err := mngr.CreateContainerView(ctx, pool.Reference(), []string{"VirtualMachine"}, true)
+	if err != nil {
+		return nil
+	}
+	return v
+}
+
 // Create a lineage of disks inheriting from eachother, write portion of a
 // string to each, the confirm the result is the whole string
 func TestCreateAndDetach(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
 
-	client := Session(context.Background(), t)
-	if client == nil {
+	session := Session(context.Background(), t)
+	if session == nil {
 		return
 	}
 
+	op := trace.NewOperation(context.TODO(), t.Name())
+
+	vchvm, err := guest.GetSelf(op, session)
+	if err != nil {
+		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
+	}
+
 	imagestore := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
-		Path:      datastore.TestName("diskManagerTest"),
+		Datastore: session.Datastore.Name(),
+		Path:      datastore.TestName(t.Name()),
 	}
 
-	fm := object.NewFileManager(client.Vim25())
-
+	// file manager
+	fm := object.NewFileManager(session.Vim25())
 	// create a directory in the datastore
-	// eat the error because we dont care if it exists
-	_ = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
-
-	op := trace.NewOperation(context.Background(), "test")
-	vdm, err := NewDiskManager(op, client)
-	if err != nil && err.Error() == "can't find the hosting vm" {
-		t.Skip("Skipping: test must be run in a VM")
+	err = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	if !assert.NoError(t, err) {
+		return
 	}
 
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	// create a diskmanager
+	vdm, err := NewDiskManager(op, session, view)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
 
 	diskSize := int64(1 << 10)
 	scratch := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
+		Datastore: session.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
 	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
@@ -138,6 +184,26 @@ func TestCreateAndDetach(t *testing.T) {
 		if !assert.NoError(t, cerr) {
 			return
 		}
+		refs := child.attachedRefs.Count()
+		assert.EqualValues(t, 1, refs, "Expected %d attach references, found %d", refs)
+
+		// attempt to recreate and attach the already attached disk
+		config = NewPersistentDisk(p).WithParent(parent.DatastoreURI)
+		child, cerr = vdm.CreateAndAttach(op, config)
+		if !assert.NoError(t, cerr) {
+			return
+		}
+		refs = child.attachedRefs.Count()
+		assert.EqualValues(t, 2, refs, "Expected %d attach references, found %d", refs)
+
+		// attempt detach
+		cerr = vdm.Detach(op, config)
+		if !assert.NoError(t, cerr) {
+			return
+		}
+		// should not actually detach, and should still have 1 reference
+		refs = child.attachedRefs.Count()
+		assert.EqualValues(t, 1, refs, "Expected %d attach references, found %d", refs)
 
 		children[i] = child
 
@@ -187,46 +253,59 @@ func TestCreateAndDetach(t *testing.T) {
 		// use this image as the next parent
 		parent = child
 	}
-
-	//	// Nuke the images
-	//	for i := len(children) - 1; i >= 0; i-- {
-	//		err = vdm.Delete(context.TODO(), children[i])
-	//		if !assert.NoError(t, err) {
-	//			return
-	//		}
-	//	}
-
-	// Nuke the image store
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, imagestore.String(), nil)
-	})
-
-	if !assert.NoError(t, err) {
-		return
-	}
 }
 
 func TestRefCounting(t *testing.T) {
-	client := Session(context.Background(), t)
-	if client == nil {
+	log.SetLevel(log.InfoLevel)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	session := Session(context.Background(), t)
+	if session == nil {
 		return
 	}
 
-	imagestore := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
-		Path:      datastore.TestName("diskManagerTest"),
+	op := trace.NewOperation(context.TODO(), t.Name())
+
+	vchvm, err := guest.GetSelf(op, session)
+	if err != nil {
+		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
 	}
 
-	fm := object.NewFileManager(client.Vim25())
+	imagestore := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      datastore.TestName(t.Name()),
+	}
 
+	// file manager
+	fm := object.NewFileManager(session.Vim25())
 	// create a directory in the datastore
-	// eat the error because we dont care if it exists
-	_ = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	err = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	if !assert.NoError(t, err) {
+		return
+	}
 
-	op := trace.NewOperation(context.Background(), "test")
-	vdm, err := NewDiskManager(op, client)
-	if err != nil && err.Error() == "can't find the hosting vm" {
-		t.Skip("Skipping: test must be run in a VM")
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	// create a diskmanager
+	vdm, err := NewDiskManager(op, session, view)
+	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
+		return
 	}
 
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
@@ -235,7 +314,7 @@ func TestRefCounting(t *testing.T) {
 
 	diskSize := int64(1 << 10)
 	scratch := &object.DatastorePath{
-		Datastore: client.Datastore.Name(),
+		Datastore: session.Datastore.Name(),
 		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
 	}
 	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
@@ -260,7 +339,7 @@ func TestRefCounting(t *testing.T) {
 		return
 	}
 
-	d, err := NewVirtualDisk(config, vdm.Disks)
+	d, err := NewVirtualDisk(op, config, vdm.Disks)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -273,33 +352,33 @@ func TestRefCounting(t *testing.T) {
 	assert.False(t, d.Attached(), "%s is attached but should not be", d.DatastoreURI)
 
 	// Attach the disk
-	assert.NoError(t, d.setAttached(blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
+	assert.NoError(t, d.setAttached(op, blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
-	assert.Equal(t, 1, d.attachedRefs, "%s has %d attach references but should have 1", d.DatastoreURI, d.attachedRefs)
+	assert.Equal(t, 1, d.attachedRefs.Count(), "%s has %d attach references but should have 1", d.DatastoreURI, d.attachedRefs.Count())
 
 	// attempt another attach at disk level to increase reference count
 	// TODO(jzt): This should probably eventually use the attach code coming in
 	// https://github.com/vmware/vic/issues/5422
-	assert.NoError(t, d.setAttached(blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
+	assert.NoError(t, d.setAttached(op, blockDev), "Error attempting to mark %s as attached", d.DatastoreURI)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
 	assert.True(t, d.InUseByOther(), "%s is not in use but should be", d.DatastoreURI)
-	assert.Equal(t, 2, d.attachedRefs, "%s has %d attach references but should have 2", d.DatastoreURI, d.attachedRefs)
+	assert.Equal(t, 2, d.attachedRefs.Count(), "%s has %d attach references but should have 2", d.DatastoreURI, d.attachedRefs.Count())
 
 	// reduce reference count by calling detach
-	assert.NoError(t, d.setDetached(vdm.Disks), "Error attempting to mark %s as detached", d.DatastoreURI)
+	d.setDetached(op, vdm.Disks)
 
 	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
-	assert.Equal(t, 1, d.attachedRefs, "%s has %d attach references but should have 1", d.DatastoreURI, d.attachedRefs)
+	assert.Equal(t, 1, d.attachedRefs.Count(), "%s has %d attach references but should have 1", d.DatastoreURI, d.attachedRefs.Count())
 
 	// test mount reference counting
-	assert.NoError(t, d.Mkfs("testDisk"), "Error attempting to format %s", d.DatastoreURI)
+	assert.NoError(t, d.Mkfs(op, "testDisk"), "Error attempting to format %s", d.DatastoreURI)
 
 	// create temp mount path
 	dir, err := ioutil.TempDir("", "mnt")
@@ -313,7 +392,8 @@ func TestRefCounting(t *testing.T) {
 	}()
 
 	// initial mount
-	assert.NoError(t, d.Mount(dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
+	dir, err = d.Mount(op, nil)
+	assert.NoError(t, err, "Error attempting to mount %s at %s", d.DatastoreURI, dir)
 
 	mountPath, err := d.MountPath()
 	if !assert.NoError(t, err) {
@@ -323,32 +403,33 @@ func TestRefCounting(t *testing.T) {
 	assert.True(t, d.Mounted(), "%s is not mounted but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
-	assert.Equal(t, 1, d.mountedRefs, "%s has %d mount references but should have 1", d.DatastoreURI, d.mountedRefs)
+	assert.Equal(t, 1, d.mountedRefs.Count(), "%s has %d mount references but should have 1", d.DatastoreURI, d.mountedRefs.Count())
 	assert.Equal(t, dir, mountPath, "%s is mounted at %s but should be mounted at %s", d.DatastoreURI, mountPath, dir)
 
 	// attempt another mount
-	assert.NoError(t, d.Mount(dir, nil), "Error attempting to mount %s at %s", d.DatastoreURI, dir)
+	dir, err = d.Mount(op, nil)
+	assert.NoError(t, err, "Error attempting to mount %s at %s", d.DatastoreURI, dir)
 
 	assert.True(t, d.Mounted(), "%s is not mounted but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
 	assert.True(t, d.InUseByOther(), "%s is not in use but should be", d.DatastoreURI)
-	assert.Equal(t, 2, d.mountedRefs, "%s has %d mount references but should have 2", d.DatastoreURI, d.mountedRefs)
+	assert.Equal(t, 2, d.mountedRefs.Count(), "%s has %d mount references but should have 2", d.DatastoreURI, d.mountedRefs.Count())
 
 	// attempt unmount
-	assert.NoError(t, d.Unmount(), "Error attempting to unmount %s", d.DatastoreURI)
+	assert.NoError(t, d.Unmount(op), "Error attempting to unmount %s", d.DatastoreURI)
 
 	assert.True(t, d.Mounted(), "%s is not mounted but should be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
-	assert.Equal(t, 1, d.mountedRefs, "%s has %d mount references but should have 1", d.DatastoreURI, d.mountedRefs)
+	assert.Equal(t, 1, d.mountedRefs.Count(), "%s has %d mount references but should have 1", d.DatastoreURI, d.mountedRefs.Count())
 
 	// actually unmount
-	assert.NoError(t, d.Unmount(), "Error attempting to unmount %s", d.DatastoreURI)
+	assert.NoError(t, d.Unmount(op), "Error attempting to unmount %s", d.DatastoreURI)
 
 	assert.False(t, d.Mounted(), "%s is mounted but should not be", d.DatastoreURI)
 	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
-	assert.Equal(t, 0, d.mountedRefs, "%s has %d mount references but should have 0", d.DatastoreURI, d.mountedRefs)
+	assert.Equal(t, 0, d.mountedRefs.Count(), "%s has %d mount references but should have 0", d.DatastoreURI, d.mountedRefs.Count())
 
 	// detach
 	assert.NoError(t, vdm.Detach(op, config), "Error attempting to detach %s", d.DatastoreURI)
@@ -357,15 +438,302 @@ func TestRefCounting(t *testing.T) {
 	assert.False(t, d.Mounted(), "%s is mounted but should not be", d.DatastoreURI)
 	assert.Error(t, d.canBeDetached(), "%s should not be detachable but is", d.DatastoreURI)
 	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
-	assert.Equal(t, 0, d.attachedRefs, "%s has %d attach references but should have 0", d.DatastoreURI, d.attachedRefs)
-	assert.Equal(t, 0, d.mountedRefs, "%s has %d mount references but should have 0", d.DatastoreURI, d.mountedRefs)
-
-	// Nuke the image store
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, imagestore.String(), nil)
-	})
+	assert.Equal(t, 0, d.attachedRefs.Count(), "%s has %d attach references but should have 0", d.DatastoreURI, d.attachedRefs.Count())
+	assert.Equal(t, 0, d.mountedRefs.Count(), "%s has %d mount references but should have 0", d.DatastoreURI, d.mountedRefs.Count())
 
 	if !assert.NoError(t, err) {
 		return
 	}
+}
+
+func TestRefCountingParallel(t *testing.T) {
+	log.SetLevel(log.InfoLevel)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	session := Session(context.Background(), t)
+	if session == nil {
+		return
+	}
+
+	op := trace.NewOperation(context.TODO(), t.Name())
+
+	vchvm, err := guest.GetSelf(op, session)
+	if err != nil {
+		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
+	}
+
+	imagestore := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      datastore.TestName(t.Name()),
+	}
+
+	// file manager
+	fm := object.NewFileManager(session.Vim25())
+	// create a directory in the datastore
+	err = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	// create a diskmanager
+	vdm, err := NewDiskManager(op, session, view)
+	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
+		return
+	}
+
+	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
+		return
+	}
+
+	diskSize := int64(1 << 10)
+	uri := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "test.vmdk"),
+	}
+	config := NewPersistentDisk(uri).WithCapacity(diskSize)
+	d, err := vdm.CreateAndAttach(op, config)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
+	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
+	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
+	assert.EqualValues(t, 1, d.attachedRefs.Count(), "%s has %d attach references but should have 1", d.DatastoreURI, d.attachedRefs.Count())
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			var err error
+			defer wg.Done()
+
+			for j := 0; j < 5; j++ {
+
+				time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+
+				d, err = vdm.CreateAndAttach(op, config)
+				if !assert.NoError(t, err) {
+					return
+				}
+
+				time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+
+				err = vdm.Detach(op, config)
+				if !assert.NoError(t, err) {
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.True(t, d.Attached(), "%s is not attached but should be", d.DatastoreURI)
+	assert.NoError(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
+	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
+	assert.EqualValues(t, 1, d.attachedRefs.Count(), "%s has %d attach references but should have 1", d.DatastoreURI, d.attachedRefs.Count())
+
+	err = vdm.Detach(op, config)
+	if !assert.NoError(t, err) {
+		log.Error("Error detaching disk: %s", err.Error())
+		return
+	}
+
+	assert.False(t, d.Attached(), "%s is attached but should not be", d.DatastoreURI)
+	assert.Error(t, d.canBeDetached(), "%s should be detachable but is not", d.DatastoreURI)
+	assert.False(t, d.InUseByOther(), "%s is in use but should not be", d.DatastoreURI)
+	assert.EqualValues(t, 0, d.attachedRefs.Count(), "%s has %d attach references but should have 0", d.DatastoreURI, d.attachedRefs.Count())
+}
+
+func TestInUse(t *testing.T) {
+	log.SetLevel(log.InfoLevel)
+	if testing.Verbose() {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	session := Session(context.Background(), t)
+	if session == nil {
+		return
+	}
+
+	op := trace.NewOperation(context.TODO(), t.Name())
+
+	vchvm, err := guest.GetSelf(op, session)
+	if err != nil {
+		t.Skip("Not in a vm")
+	}
+	view := ContainerView(op, session, vchvm)
+	if view == nil {
+		t.Skip("Can't create a view")
+	}
+
+	imagestore := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      datastore.TestName(t.Name()),
+	}
+
+	// file manager
+	fm := object.NewFileManager(session.Vim25())
+	// create a directory in the datastore
+	err = fm.MakeDirectory(context.TODO(), imagestore.String(), nil, true)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// Nuke the image store
+	defer func() {
+		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore.String(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		_, err = task.WaitForResult(context.TODO(), nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
+	// create a diskmanager
+	vdm, err := NewDiskManager(op, session, view)
+	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
+		return
+	}
+
+	// helper fn
+	reconfigure := func(changes []types.BaseVirtualDeviceConfigSpec) error {
+		t.Logf("Calling reconfigure")
+
+		machineSpec := types.VirtualMachineConfigSpec{}
+		machineSpec.DeviceChange = changes
+
+		_, err := vdm.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+			t, er := vdm.vm.Reconfigure(ctx, machineSpec)
+
+			if t != nil {
+				op.Debugf("reconfigure task=%s", t.Reference())
+			}
+
+			return t, er
+		})
+		return err
+	}
+	// 1MB
+	diskSize := int64(1 << 10)
+	scratch := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "scratch.vmdk"),
+	}
+	// config
+	config := NewPersistentDisk(scratch).WithCapacity(diskSize)
+
+	// attach + create spec (scratch)
+	spec := []types.BaseVirtualDeviceConfigSpec{
+		&types.VirtualDeviceConfigSpec{
+			Device:        vdm.toSpec(config),
+			Operation:     types.VirtualDeviceConfigSpecOperationAdd,
+			FileOperation: types.VirtualDeviceConfigSpecFileOperationCreate,
+		},
+	}
+
+	// filter powered off vms
+	filter := func(vm *mo.VirtualMachine) bool {
+		return vm.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOn
+	}
+
+	vms, err := vdm.InUse(op, config, filter)
+	if !assert.NoError(t, err) && !assert.Len(t, vms, 0) {
+		return
+	}
+
+	// reconfigure
+	err = reconfigure(spec)
+	if !assert.NoError(t, err) {
+		return
+	}
+	t.Logf("scratch created and attached")
+
+	vms, err = vdm.InUse(op, config, filter)
+	if !assert.NoError(t, err) && !assert.Len(t, vms, 1) {
+		return
+	}
+	t.Logf("InUse by %s", vms)
+
+	// ref to scratch (needed for detach as initial spec's Key and UnitNumber was unset)
+	disk, err := findDiskByFilename(op, vdm.vm, scratch.Path)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// DO NOT DETACH AND START WORKING ON THE CHILD
+
+	// child
+	child := &object.DatastorePath{
+		Datastore: session.Datastore.Name(),
+		Path:      path.Join(imagestore.Path, "child.vmdk"),
+	}
+	// config
+	config = NewPersistentDisk(child).WithParent(scratch)
+
+	// detach (scratch) AND attach + create (child) spec
+	spec = []types.BaseVirtualDeviceConfigSpec{
+		&types.VirtualDeviceConfigSpec{
+			Device:    disk,
+			Operation: types.VirtualDeviceConfigSpecOperationRemove,
+		},
+		&types.VirtualDeviceConfigSpec{
+			Device:        vdm.toSpec(config),
+			Operation:     types.VirtualDeviceConfigSpecOperationAdd,
+			FileOperation: types.VirtualDeviceConfigSpecFileOperationCreate,
+		},
+	}
+
+	// reconfigure
+	err = reconfigure(spec)
+	if !assert.NoError(t, err) {
+		return
+	}
+	t.Logf("scratch detached, child created and attached")
+
+	vms, err = vdm.InUse(op, config, filter)
+	if !assert.NoError(t, err) && !assert.Len(t, vms, 1) {
+		return
+	}
+	t.Logf("InUse by %s", vms)
+
+	// ref to child (needed for detach as initial spec's Key and UnitNumber was unset)
+	disk, err = findDiskByFilename(op, vdm.vm, child.Path)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// detach  spec (child)
+	spec = []types.BaseVirtualDeviceConfigSpec{
+		&types.VirtualDeviceConfigSpec{
+			Device:    disk,
+			Operation: types.VirtualDeviceConfigSpecOperationRemove,
+		},
+	}
+	// reconfigure
+	err = reconfigure(spec)
+	if !assert.NoError(t, err) {
+		return
+	}
+	t.Logf("child detached")
 }

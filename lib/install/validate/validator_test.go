@@ -310,8 +310,10 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	// specifically ignoring err here because we do not care about the parse result.
 	testURL1, _ := url.Parse("LocalDS_0/volumes/volume1")
-	testURL2, _ := url.Parse("ds://LocalDS_0/volumes/volume2")
-	testURL3, _ := url.Parse("ds://LocalDS_0/volumes/volume1")
+	testURL2, _ := url.Parse("LocalDS_0/volumes/volume2")
+	testURL2.Scheme = "ds"
+	testURL3, _ := url.Parse("LocalDS_0/volumes/volume1")
+	testURL3.Scheme = "ds"
 
 	// These two should report errors due to bad characters in the url. These should test how DatastoreHelper handles a nil or malformed url.
 	testURL4, _ := url.Parse("😗/volumes/volume1")

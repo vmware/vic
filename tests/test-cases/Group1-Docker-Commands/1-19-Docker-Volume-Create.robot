@@ -32,6 +32,16 @@ Simple docker volume create
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${disk-size}  975.9M
 
+Simple volume mounted over managed files
+    ${status}=  Get State Of Github Issue  5731
+    Run Keyword If  '${status}' == 'closed'  Fail  Test should pass now that Issue #5731 has been resolved
+
+    #${rc}  ${target}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v /etc busybox ping -c2 ${target}
+    #Should Be Equal As Integers  ${ContainerRC}  0
+    #Should Contain  ${output}  2 packets transmitted, 2 packets received
+
 Docker volume create named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=test
     Should Be Equal As Integers  ${rc}  0

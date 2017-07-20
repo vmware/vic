@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -40,13 +41,18 @@ import (
 type Configure struct {
 	*data.Data
 
-	proxies   common.Proxies
-	cNetworks common.CNetworks
-	dns       common.DNS
-	volStores common.VolumeStores
+	proxies    common.Proxies
+	cNetworks  common.CNetworks
+	dns        common.DNS
+	volStores  common.VolumeStores
+	registries common.Registries
+
+	certificates common.CertFactory
 
 	upgrade  bool
 	executor *management.Dispatcher
+
+	Force bool
 }
 
 func NewConfigure() *Configure {
@@ -100,10 +106,12 @@ func (c *Configure) Flags() []cli.Flag {
 	proxies := c.proxies.ProxyFlags(false)
 	memory := c.VCHMemoryLimitFlags(false)
 	cpu := c.VCHCPULimitFlags(false)
+	certificates := c.certificates.CertFlags()
+	registries := c.registries.Flags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, proxies, util, debug} {
+	for _, f := range [][]cli.Flag{target, ops, id, compute, volume, dns, cNetwork, memory, cpu, certificates, registries, proxies, util, debug} {
 		flags = append(flags, f...)
 	}
 
@@ -146,12 +154,17 @@ func (c *Configure) processParams() error {
 		return err
 	}
 
+	if err := c.registries.ProcessRegistries(); err != nil {
+		return err
+	}
+	c.Data.RegistryCAs = c.registries.RegistryCAs
+
 	return nil
 }
 
-// copyChangedConf should copy all configuration change specified by user to old configuration
-// currently we cannot automatically override old configuration with any difference in the new configuration, because there are some configuration set in VCH
-// creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
+// copyChangedConf takes the mostly-empty new config and copies it to the old one. NOTE: o gets installed on the VCH, not n
+// Currently we cannot automatically override old configuration with any difference in the new configuration, because some options are set during the VCH
+// Creation process, for example, image store path, volume store path, network slot id, etc. So we'll copy changes based on user input
 func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n *config.VirtualContainerHostConfigSpec) {
 	//TODO: copy changed data
 	personaSession := o.ExecutorConfig.Sessions[config.PersonaService]
@@ -200,6 +213,22 @@ func (c *Configure) copyChangedConf(o *config.VirtualContainerHostConfigSpec, n 
 			v.Network.Assigned.Nameservers = nil
 		}
 	}
+
+	if n.HostCertificate != nil {
+		o.HostCertificate = n.HostCertificate
+	}
+
+	if n.CertificateAuthorities != nil {
+		o.CertificateAuthorities = n.CertificateAuthorities
+	}
+
+	if n.UserCertificates != nil {
+		o.UserCertificates = n.UserCertificates
+	}
+
+	if n.RegistryCertificateAuthorities != nil {
+		o.RegistryCertificateAuthorities = n.RegistryCertificateAuthorities
+	}
 }
 
 func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
@@ -215,6 +244,48 @@ func updateSessionEnv(sess *executor.SessionConfig, envName, envValue string) {
 		newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", envName, envValue))
 	}
 	sess.Cmd.Env = newEnvs
+}
+
+func (c *Configure) processCertificates(client, public, management data.NetworkConfig) error {
+
+	if !c.certificates.NoTLSverify && (c.certificates.Skey == "" || c.certificates.Scert == "") {
+		log.Infof("No certificate regeneration requested. No new certificates provided. Certificates left unchanged.")
+		return nil
+	}
+
+	if c.certificates.CertPath == "" {
+		c.certificates.CertPath = c.DisplayName
+	}
+
+	_, err := os.Lstat(c.certificates.CertPath)
+	if err == nil || os.IsExist(err) {
+		return fmt.Errorf("Specified or default certificate output location \"%s\" already exists. Specify a location that does not yet exist with --tls-cert-path to continue or do not specify --tls-noverify if, instead, you want to load certificates from %s", c.certificates.CertPath, c.certificates.CertPath)
+	}
+
+	var debug int
+	if c.Debug.Debug == nil {
+		debug = 0
+	} else {
+		debug = *c.Debug.Debug
+	}
+
+	c.certificates.Networks = common.Networks{
+		ClientNetworkName:     client.Name,
+		ClientNetworkIP:       client.IP.String(),
+		PublicNetworkName:     public.Name,
+		PublicNetworkIP:       public.IP.String(),
+		ManagementNetworkName: management.Name,
+		ManagementNetworkIP:   management.IP.String(),
+	}
+
+	if err := c.certificates.ProcessCertificates(c.DisplayName, c.Force, debug); err != nil {
+		return err
+	}
+
+	c.KeyPEM = c.certificates.KeyPEM
+	c.CertPEM = c.certificates.CertPEM
+	c.ClientCAs = c.certificates.ClientCAs
+	return nil
 }
 
 func (c *Configure) Run(clic *cli.Context) (err error) {
@@ -328,6 +399,12 @@ func (c *Configure) Run(clic *cli.Context) (err error) {
 		return err
 	}
 	c.Data = oldData
+
+	// in Create we process certificates as part of processParams but we need the old conf
+	// to do this in the context of Configure so we need to call this method here instead
+	if err = c.processCertificates(c.Data.ClientNetwork, c.Data.PublicNetwork, c.Data.ManagementNetwork); err != nil {
+		return err
+	}
 
 	// evaluate merged configuration
 	newConfig, err := validator.Validate(ctx, c.Data)
