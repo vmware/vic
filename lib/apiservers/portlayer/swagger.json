@@ -182,9 +182,6 @@
 				"tags": [
 					"storage"
 				],
-				"consumes": [
-					"application/json"
-				],
 				"produces": [
 					"application/x-tar"
 				],
@@ -242,6 +239,12 @@
 					},
 					"404": {
 						"description": "Supplied target not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"422": {
+						"description": "Format error in supplied filter or archive",
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
@@ -344,12 +347,6 @@
 				"tags": [
 					"storage"
 				],
-				"consumes": [
-					"application/json"
-				],
-				"produces": [
-					"application/json"
-				],
 				"parameters": [
 					{
 						"name": "store",
@@ -368,9 +365,9 @@
 					{
 						"name": "filterSpec",
 						"in": "query",
-						"required": true,
+						"required": false,
 						"type": "string",
-						"x-nullable": false
+						"x-nullable": true
 					}
 				],
 				"responses": {
@@ -399,14 +396,14 @@
 							}
 						}
 					},
-					"404": {
-						"description": "No such file/directory"
-					},
 					"422": {
 						"description": "Format error in supplied filter or archive"
 					},
+					"404": {
+						"description": "Supplied target not found"
+					},
 					"500": {
-						"description": "Failed to inspect target"
+						"description": "failed to export tar archive from target"
 					}
 				}
 			}

@@ -19,9 +19,10 @@ import (
 	"io"
 	"os"
 
+	"path/filepath"
+
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/pkg/trace"
-	"path/filepath"
 )
 
 // MountDataSource implements the DataSource interface for mounted devices
@@ -71,7 +72,7 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 
 	// NOTE: this isn't actually diffing - it's just creating a tar. @jzt to explain why
 	op.Infof("Exporting data from %s", name)
-	rc, err := archive.Diff(op, name, "", spec, data)
+	rc, err := archive.Diff(op, name, "", spec, data, false)
 
 	// return the proxy regardless of error so that Close can be called
 	return &ProxyReadCloser{
@@ -83,10 +84,6 @@ func (m *MountDataSource) Export(op trace.Operation, spec *archive.FilterSpec, d
 // Export reads data from the associated data source and returns it as a tar archive
 func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*FileStat, error) {
 	// retrieve relative path
-	if len(spec.Inclusions) != 1 {
-		op.Errorf("incorrect number of paths to stat --- ", len(spec.Inclusions))
-		return nil, errors.New("Incorrect number of paths to stat")
-	}
 
 	var targetPath string
 	for path := range spec.Inclusions {
