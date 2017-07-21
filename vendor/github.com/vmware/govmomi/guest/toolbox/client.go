@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -37,6 +38,30 @@ type Client struct {
 	ProcessManager *guest.ProcessManager
 	FileManager    *guest.FileManager
 	Authentication types.BaseGuestAuthentication
+}
+
+// procReader retries InitiateFileTransferFromGuest calls if toolbox is still running the process.
+// See also: ProcessManager.Stat
+func (c *Client) procReader(ctx context.Context, src string) (*types.FileTransferInformation, error) {
+	for {
+		info, err := c.FileManager.InitiateFileTransferFromGuest(ctx, c.Authentication, src)
+		if err != nil {
+			if soap.IsSoapFault(err) {
+				if _, ok := soap.ToSoapFault(err).VimFault().(types.CannotAccessFile); ok {
+					// We're not waiting in between retries since ProcessManager.Stat
+					// has already waited.  In the case that this client was pointed at
+					// standard vmware-tools, the types.NotFound fault would have been
+					// returned since the file "/proc/$pid/stdout" does not exist - in
+					// which case, we won't retry at all.
+					continue
+				}
+			}
+
+			return nil, err
+		}
+
+		return info, err
+	}
 }
 
 // RoundTrip implements http.RoundTripper over vmx guest RPC.
@@ -81,7 +106,7 @@ func (c *Client) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	vc := c.ProcessManager.Client()
 
-	u, err := vc.ParseURL(url)
+	u, err := c.FileManager.TransferURL(ctx, url)
 	if err != nil {
 		return nil, err
 	}
@@ -94,12 +119,12 @@ func (c *Client) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	info, err := c.FileManager.InitiateFileTransferFromGuest(ctx, c.Authentication, src)
+	info, err := c.procReader(ctx, src)
 	if err != nil {
 		return nil, err
 	}
 
-	u, err = vc.ParseURL(info.Url)
+	u, err = c.FileManager.TransferURL(ctx, info.Url)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +169,7 @@ func (c *Client) Run(ctx context.Context, cmd *exec.Cmd) error {
 			return err
 		}
 
-		u, err := vc.ParseURL(url)
+		u, err := c.FileManager.TransferURL(ctx, url)
 		if err != nil {
 			return err
 		}
@@ -167,12 +192,12 @@ func (c *Client) Run(ctx context.Context, cmd *exec.Cmd) error {
 
 		src := fmt.Sprintf("/proc/%d/std%s", pid, names[i])
 
-		info, err := c.FileManager.InitiateFileTransferFromGuest(ctx, c.Authentication, src)
+		info, err := c.procReader(ctx, src)
 		if err != nil {
 			return err
 		}
 
-		u, err := vc.ParseURL(info.Url)
+		u, err := c.FileManager.TransferURL(ctx, info.Url)
 		if err != nil {
 			return err
 		}
@@ -234,6 +259,15 @@ func (r *archiveReader) Read(buf []byte) (int, error) {
 	return nr, err
 }
 
+func isDir(src string) bool {
+	u, err := url.Parse(src)
+	if err != nil {
+		return false
+	}
+
+	return strings.HasSuffix(u.Path, "/")
+}
+
 // Download initiates a file transfer from the guest
 func (c *Client) Download(ctx context.Context, src string) (io.ReadCloser, int64, error) {
 	vc := c.ProcessManager.Client()
@@ -243,7 +277,7 @@ func (c *Client) Download(ctx context.Context, src string) (io.ReadCloser, int64
 		return nil, 0, err
 	}
 
-	u, err := vc.ParseURL(info.Url)
+	u, err := c.FileManager.TransferURL(ctx, info.Url)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -255,7 +289,7 @@ func (c *Client) Download(ctx context.Context, src string) (io.ReadCloser, int64
 		return nil, n, err
 	}
 
-	if strings.HasSuffix(src, "/") || strings.HasPrefix(src, "/archive:/") {
+	if strings.HasPrefix(src, "/archive:/") || isDir(src) {
 		f = &archiveReader{ReadCloser: f} // look for the gzip trailer
 	}
 
@@ -302,7 +336,7 @@ func (c *Client) Upload(ctx context.Context, src io.Reader, dst string, p soap.U
 		return err
 	}
 
-	u, err := vc.ParseURL(url)
+	u, err := c.FileManager.TransferURL(ctx, url)
 	if err != nil {
 		return err
 	}
