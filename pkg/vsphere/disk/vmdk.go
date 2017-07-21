@@ -79,14 +79,13 @@ func IsLockedError(op trace.Operation, err error) bool {
 			message := &fault.FaultMessage[i]
 			switch message.Key {
 			case DiskBackendKey:
-				op.Debugf("diskbackend is true")
 				diskBackend = true
 			case LockedFileKey:
-				op.Debugf("lockedfilekey is true")
 				fileLock = true
 			}
 
 			if diskBackend && fileLock {
+				op.Debugf("Error %s is a disk locked error", err.Error())
 				return true
 			}
 		}
@@ -94,6 +93,7 @@ func IsLockedError(op trace.Operation, err error) bool {
 		op.Debugf("IsLockedError: this is not a task error")
 	}
 
+	op.Debugf("Error %s is a NOT disk locked error", err.Error())
 	return false
 }
 
