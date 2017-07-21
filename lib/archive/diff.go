@@ -59,10 +59,9 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 	}
 	// this is in the case that we are part of a read that is crossing a mount point.
 	// It should be addressed by include/excludes.
-	changes = append(changes, docker.Change{Path: "/"})
 	sort.Sort(changesByPath(changes))
 
-	return Tar(op, newDir, changes, spec, data, false)
+	return Tar(op, newDir, changes, spec, data, xattr)
 }
 
 func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
@@ -175,7 +174,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 			ChangeTime: timestamp,
 		}
 
-		change.Path = strings.TrimPrefix(whiteOut, "/")
+		whiteOut = strings.TrimPrefix(whiteOut, "/")
 		strippedName := strings.TrimPrefix(whiteOut, spec.StripPath)
 		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
 	default:
@@ -197,6 +196,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 
 		change.Path = strings.TrimPrefix(change.Path, "/")
 		strippedName := strings.TrimPrefix(change.Path, spec.StripPath)
+		change.Path = strings.TrimPrefix(change.Path, "/")
 		hdr.Name = filepath.Join(spec.RebasePath, strippedName)
 	}
 
