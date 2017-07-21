@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -295,6 +296,8 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 	}
 
 	progress.Update(progressOutput, image.String(), "Download complete")
+
+	log.Infof("Layer %s blobsum, diff id = (%s, %s)", id, layer, diffID)
 
 	return diffID, nil
 }
@@ -788,7 +791,7 @@ func ObtainRepoList(transporter *urlfetcher.URLTransporter, options Options, po 
 }
 
 // PutImageManifest simply pushes the manifest up to the registry.
-func PutImageManifest(ctx context.Context, pusher Pusher, options Options, schemaVersion int, progressOutput progress.Output) error {
+func PutImageManifest(ctx context.Context, pusher Pusher, options Options, progressOutput progress.Output) error {
 
 	// Create manifest push URL
 	url, err := url.Parse(options.Registry)
@@ -804,16 +807,10 @@ func PutImageManifest(ctx context.Context, pusher Pusher, options Options, schem
 	reqHeaders := make(http.Header)
 	var dataReader io.Reader
 
-	switch schemaVersion {
-	case 1: //schema 1, signed manifest
-		reqHeaders.Add("Content-Type", schema1.MediaTypeManifest)
-		log.Errorf("Schema 1 push not supported")
-	case 2: //schema 2
-		reqHeaders.Add("Content-Type", schema2.MediaTypeManifest)
-		dataReader, err = getManifestSchema2Reader(options, pusher.PushManifest)
-		if err != nil {
-			log.Errorf("Failed to read manifest schema 2: %s", err.Error())
-		}
+	reqHeaders.Add("Content-Type", schema2.MediaTypeManifest)
+	dataReader, err = getManifestSchema2Reader(options, pusher.PushManifest)
+	if err != nil {
+		log.Errorf("Failed to read manifest schema 2: %s", err.Error())
 	}
 
 	Transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
@@ -1026,4 +1023,18 @@ func MountBlobToRepo(ctx context.Context, u *urlfetcher.URLTransporter, registry
 
 func ShortID(id string) string {
 	return stringid.TruncateID(id)
+}
+
+func getManifestSchema2Reader(options Options, manifest schema2.Manifest) (io.Reader, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(manifest)
+	if err != nil {
+		msg := fmt.Sprintf("Unable to encode manifest to bytes")
+		log.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	manifestReader := bytes.NewReader(buf.Bytes())
+	return manifestReader, nil
 }

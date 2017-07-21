@@ -16,19 +16,30 @@ package backends
 
 import (
 	"archive/tar"
-	"context"
+	"bytes"
+	"encoding/base64"
+	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
+	"time"
+
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/go-openapi/runtime"
+	rc "github.com/go-openapi/runtime/client"
+	httpclient "github.com/mreiferson/go-httpclient"
 	"github.com/tchap/go-patricia/patricia"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
@@ -36,6 +47,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
 )
+
+type VicArchiveProxy interface {
+	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error)
+	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec) (io.WriteCloser, error)
+}
 
 // ContainerArchivePath creates an archive of the filesystem resource at the
 // specified path in the container identified by the given name. Returns a
@@ -68,7 +84,7 @@ func (c *Container) exportFromContainer(vc *viccontainer.VicContainer, path stri
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
 	readerMap := NewArchiveStreamReaderMap(mounts, path)
 
-	readers, err := readerMap.ReadersForSourcePath(c.containerProxy, vc.ContainerID, path)
+	readers, err := readerMap.ReadersForSourcePath(archiveProxy, vc.ContainerID, path)
 	if err != nil {
 		log.Errorf("Errors getting readers for export: %s", err.Error())
 		return nil, err
@@ -140,7 +156,14 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, target stri
 		}
 
 		// Lookup the writer for that mount prefix
-		writer, err := writerMap.WriterForAsset(c.containerProxy, vc.ContainerID, target, *header)
+		writer, err := writerMap.WriterForAsset(archiveProxy, vc.ContainerID, target, *header)
+		if err != nil {
+			return err
+		}
+
+		var buf bytes.Buffer
+		enc := gob.NewEncoder(&buf)
+		err = enc.Encode(header)
 		if err != nil {
 			return err
 		}
@@ -360,7 +383,7 @@ func (wm *ArchiveStreamWriterMap) FindArchiveWriter(containerDestPath, assetName
 //
 // As demonstrated above, the mount prefix and writer cannot be determined with just the
 // container destination path.  It must be combined with the actual asset's name.
-func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy VicContainerProxy, cid, containerDestPath string, assetHeader tar.Header) (io.WriteCloser, error) {
+func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy VicArchiveProxy, cid, containerDestPath string, assetHeader tar.Header) (io.WriteCloser, error) {
 	defer trace.End(trace.Begin(assetHeader.Name))
 
 	var err error
@@ -573,7 +596,7 @@ func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, no
 //
 //			containaerSroucePath -	/mnt/A
 // In the above, both readers are within the the container source path.
-func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, cid, containerSourcePath string) ([]io.Reader, error) {
+func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicArchiveProxy, cid, containerSourcePath string) ([]io.Reader, error) {
 	defer trace.End(trace.Begin(containerSourcePath))
 
 	var streamReaders []io.Reader
@@ -641,4 +664,176 @@ func (rm *ArchiveStreamReaderMap) Close() {
 	}
 
 	rm.prefixTrie.Visit(closeStream)
+}
+
+//------------------------------------
+// ArchiveProxy
+//------------------------------------
+
+type ArchiveProxy struct {
+}
+
+func NewArchiveProxy() VicArchiveProxy {
+	return &ArchiveProxy{}
+}
+
+// ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
+// an io.Reader is returned and the caller can use that reader to parse the data.
+func (a *ArchiveProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error) {
+	defer trace.End(trace.Begin(deviceID))
+
+	if store == "" || deviceID == "" {
+		return nil, fmt.Errorf("ArchiveExportReader called with either empty store or deviceID")
+	}
+
+	var err error
+
+	pipeReader, pipeWriter := io.Pipe()
+
+	go func() {
+		// make sure we get out of io.Copy if context is canceled
+		select {
+		case <-ctx.Done():
+			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
+			// stream.  The other way is for the caller of this function to close the returned CloseReader.
+			// Callers of this function should do one but not both.
+			pipeReader.Close()
+		}
+	}()
+
+	go func() {
+		params := storage.NewExportArchiveParamsWithContext(ctx).
+			WithStore(store).
+			WithAncestorStore(&ancestorStore).
+			WithDeviceID(deviceID).
+			WithAncestor(&ancestor).
+			WithData(data)
+
+		// Encode the filter spec
+		encodedFilter := ""
+		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
+			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
+			params = params.WithFilterSpec(&encodedFilter)
+			log.Infof(" encodedFilter = %s", encodedFilter)
+		}
+
+		client := PortLayerClient()
+		_, err = client.Storage.ExportArchive(params, pipeWriter)
+		if err != nil {
+			log.Errorf("Error from ExportArchive: %s", err.Error())
+			switch err := err.(type) {
+			case *storage.ExportArchiveInternalServerError:
+				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
+				log.Errorf(plErr.Error())
+				pipeWriter.CloseWithError(plErr)
+			case *storage.ImportArchiveLocked:
+				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
+				log.Errorf(plErr.Error())
+				pipeWriter.CloseWithError(plErr)
+			default:
+				//Check for EOF.  Since the connection, transport, and data handling are
+				//encapsulated inside of Swagger, we can only detect EOF by checking the
+				//error string
+				if strings.Contains(err.Error(), swaggerSubstringEOF) {
+					log.Debugf("swagger error %s", err.Error())
+					pipeWriter.Close()
+				} else {
+					pipeWriter.CloseWithError(err)
+				}
+			}
+		} else {
+			pipeWriter.Close()
+		}
+	}()
+
+	return pipeReader, nil
+}
+
+// ArchiveImportWriter initializes a write stream for a path.  This is usually called
+// for getting a writer during docker cp TO container.
+func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec) (io.WriteCloser, error) {
+	defer trace.End(trace.Begin(deviceID))
+
+	if store == "" || deviceID == "" {
+		return nil, fmt.Errorf("ArchiveImportWriter called with either empty store or deviceID")
+	}
+
+	var err error
+
+	pipeReader, pipeWriter := io.Pipe()
+
+	go func() {
+		// make sure we get out of io.Copy if context is canceled
+		select {
+		case <-ctx.Done():
+			pipeWriter.Close()
+		}
+	}()
+
+	go func() {
+		// encodedFilter and destination are not required (from swagge spec) because
+		// they are allowed to be empty.
+		params := storage.NewImportArchiveParamsWithContext(ctx).
+			WithStore(store).
+			WithDeviceID(deviceID).
+			WithArchive(pipeReader)
+
+		// Encode the filter spec
+		encodedFilter := ""
+		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
+			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
+			params = params.WithFilterSpec(&encodedFilter)
+		}
+
+		client := PortLayerClient()
+		_, err = client.Storage.ImportArchive(params)
+		if err != nil {
+			switch err := err.(type) {
+			case *storage.ImportArchiveInternalServerError:
+				plErr := InternalServerError(fmt.Sprintf("Server error from archive writer for device %s", deviceID))
+				log.Errorf(plErr.Error())
+				pipeReader.CloseWithError(plErr)
+			case *storage.ImportArchiveLocked:
+				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
+				log.Errorf(plErr.Error())
+				pipeReader.CloseWithError(plErr)
+			default:
+				//Check for EOF.  Since the connection, transport, and data handling are
+				//encapsulated inside of Swagger, we can only detect EOF by checking the
+				//error string
+				if strings.Contains(err.Error(), swaggerSubstringEOF) {
+					log.Errorf(err.Error())
+					pipeReader.Close()
+				} else {
+					pipeReader.CloseWithError(err)
+				}
+			}
+		} else {
+			pipeReader.Close()
+		}
+	}()
+
+	return pipeWriter, nil
+}
+
+func createGzipTarClient(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
+
+	r := rc.New(PortLayerServer(), "/", []string{"http"})
+	transport := &httpclient.Transport{
+		ConnectTimeout:        connectTimeout,
+		ResponseHeaderTimeout: responseHeaderTimeout,
+		RequestTimeout:        responseTimeout,
+	}
+
+	r.Transport = transport
+
+	plClient := client.New(r, nil)
+	bsc := runtime.ByteStreamConsumer()
+	r.Consumers["application/octet-stream"] = bsc
+	r.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
+
+	r.Consumers["application/x-tar"] = runtime.ConsumerFunc(func(rdr io.Reader, data interface{}) error {
+		return bsc.Consume(rdr, data)
+	})
+	return plClient, transport
 }

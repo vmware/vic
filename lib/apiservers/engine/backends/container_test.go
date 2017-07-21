@@ -42,7 +42,6 @@ import (
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
 )
 
@@ -356,14 +355,6 @@ func (m *MockContainerProxy) AttachStreams(ctx context.Context, ac *AttachConfig
 
 func (m *MockContainerProxy) StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error {
 	return nil
-}
-
-func (m *MockContainerProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (m *MockContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
-	return nil, nil
 }
 
 func (m *MockContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {

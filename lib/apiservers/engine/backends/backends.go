@@ -62,6 +62,7 @@ var (
 
 	vchConfig        dynConfig
 	RegistryCertPool *x509.CertPool
+	archiveProxy     VicArchiveProxy
 
 	eventService *events.Events
 )
@@ -131,6 +132,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		log.Errorf("Failed to create image store")
 		return err
 	}
+
+	archiveProxy = NewArchiveProxy()
 
 	eventService = events.New()
 

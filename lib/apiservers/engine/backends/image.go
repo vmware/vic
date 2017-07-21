@@ -393,7 +393,7 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 		options.Host,
 		portLayerServer)
 
-	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), SimpleArchiveReader)
 	err = ic.PullImage()
 	if err != nil {
 		return err
@@ -403,10 +403,6 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	actor := CreateImageEventActorWithAttributes(image, "", map[string]string{})
 	EventService().Log("pull", eventtypes.ImageEventType, actor)
 	return nil
-}
-
-func (i *Image) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	return fmt.Errorf("%s does not yet implement image.PushImage", ProductName())
 }
 
 func (i *Image) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
