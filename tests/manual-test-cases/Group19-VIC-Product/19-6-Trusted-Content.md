@@ -30,8 +30,8 @@ This test requires that a vSphere server is running and available
 17. Do a docker pull from docker hub that should succeed
 18. Do a docker login/pull from the harbor instance that should now succeed again
 19. Remove the VCH from all projects that it is still in within Admiral
-20. Do a docker pull from docker hub that should succeed
-21. Do a docker login/pull from the harbor instance that should now fail again
+20. Do a docker pull from docker hub that should fail since whitelist mode is enabled and docker hub is still not explicitly added
+21. Do a docker login/pull from the harbor instance that should still succeed
 
 # Expected Outcome:
 Admiral and Engine should work together to obey the enable content trust feature properly.  When the VCH is within a project that has content trust enabled then users should be able to successfully pull from the Harbor instance
