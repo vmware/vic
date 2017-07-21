@@ -13,6 +13,7 @@ This test requires that a vSphere server is running and available
 # Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker volume create to the VIC appliance
+2. Create container with volume mounted over /etc and ensure that name resolution functions as expected
 3. Issue docker volume create --name=test to the VIC appliance
 4. Issue docker volume create --name=test to the VIC appliance
 5. Issue docker volume create -d fakeDriver --name=test2

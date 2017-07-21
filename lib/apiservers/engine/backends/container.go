@@ -15,12 +15,14 @@
 package backends
 
 import (
+	"archive/tar"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,7 +39,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	dnetwork "github.com/docker/docker/api/types/network"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/pkg/archive"
+	docker "github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -58,6 +60,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/retry"
@@ -1274,8 +1277,55 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 // docker's container.monitorBackend
 
 // ContainerChanges returns a list of container fs changes
-func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
-	return make([]archive.Change, 0, 0), fmt.Errorf("%s does not yet implement ontainerChanges", ProductName())
+func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
+	defer trace.End(trace.Begin(name))
+
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, NotFoundError(name)
+	}
+
+	r, err := c.containerProxy.GetContainerChanges(context.Background(), vc, false)
+	if err != nil {
+		return nil, InternalServerError(err.Error())
+	}
+
+	changes := []docker.Change{}
+
+	tarFile := tar.NewReader(r)
+
+	defer r.Close()
+
+	for {
+		hdr, err := tarFile.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return []docker.Change{}, InternalServerError(err.Error())
+		}
+
+		log.Infof("Got header %s", hdr.Name)
+		change := docker.Change{
+			Path: hdr.Name,
+		}
+		switch hdr.Xattrs[archive.ChangeTypeKey] {
+		case "A":
+			change.Kind = docker.ChangeAdd
+		case "D":
+			change.Kind = docker.ChangeDelete
+			path := strings.TrimSuffix(change.Path, "/")
+			p := strings.TrimPrefix(filepath.Base(path), docker.WhiteoutPrefix)
+			change.Path = filepath.Join(filepath.Dir(path), p)
+		case "C":
+			change.Kind = docker.ChangeModify
+		default:
+			return []docker.Change{}, InternalServerError("Invalid change type")
+		}
+		changes = append(changes, change)
+	}
+	return changes, nil
 }
 
 // ContainerInspect returns low-level information about a
@@ -1349,7 +1399,7 @@ func (c *Container) ContainerLogs(ctx context.Context, name string, config *back
 	}
 
 	// Make a call to our proxy to handle the remoting
-	err = c.containerProxy.StreamContainerLogs(name, outStream, started, config.Timestamps, config.Follow, since, tailLines)
+	err = c.containerProxy.StreamContainerLogs(ctx, name, outStream, started, config.Timestamps, config.Follow, since, tailLines)
 	if err != nil {
 		// Don't return an error encountered while streaming logs.
 		// Once we've started streaming logs, the Docker client doesn't expect

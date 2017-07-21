@@ -61,7 +61,7 @@ endif
 # Caches dependencies to speed repeated calls
 define godeps
 	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
-	$(if $(filter-out clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
+	$(if $(filter-out focused-test test clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
 			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
@@ -257,6 +257,11 @@ install-govmomi:
 
 test: install-govmomi portlayerapi $(TEST_JOBS)
 
+
+focused-test:
+# test only those packages that have changes
+	infra/scripts/focused-test.sh $(REMOTE)
+
 $(TEST_JOBS): test-job-%:
 	@echo Running unit tests
 	# test everything but vendor
@@ -315,8 +320,7 @@ endif
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
-				  lib/apiservers/portlayer/restapi/options/*.go \
-				  lib/apiservers/portlayer/restapi/handlers/*.go
+				  lib/apiservers/portlayer/restapi/options/*.go
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...

@@ -16,11 +16,14 @@ package handlers
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-openapi/runtime"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // StreamOutputHandler is a custom return handler that provides common
@@ -47,24 +50,38 @@ func (s *StreamOutputHandler) WithPayload(payload *FlushingReader, id string, cl
 
 // WriteResponse to the client
 func (s *StreamOutputHandler) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+	defer trace.End(trace.Begin(fmt.Sprintf("Stream of %s:%s", s.outputName, s.id)))
+
 	rw.WriteHeader(http.StatusOK)
 	if f, ok := rw.(http.Flusher); ok {
 		f.Flush()
 		s.outputStream.AddFlusher(f)
 	}
 
+	// prevent us from being dependent on client closing the connection once we've copied
+	// all available data.
+	done := make(chan bool)
+	defer close(done)
+
 	if s.onHTTPClose != nil {
 		notify := rw.(http.CloseNotifier).CloseNotify()
 		go func() {
-			<-notify
+			// continue on either
+			select {
+			case <-notify:
+			case <-done:
+			}
+
 			// execute cleanup function
 			s.onHTTPClose()
+
+			log.Debugf("Completed stream cleanup for %s:%s", s.outputName, s.id)
 		}()
 	}
 
 	_, err := io.Copy(rw, s.outputStream)
 	if err != nil {
-		log.Debugf("Error streaming %s for %s: %s", s.outputName, s.id, err)
+		log.Errorf("Error streaming %s for %s: %s", s.outputName, s.id, err)
 	} else {
 		log.Debugf("Finished streaming %s for %s", s.outputName, s.id)
 	}

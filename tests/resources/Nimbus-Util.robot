@@ -375,13 +375,13 @@ Get Vsphere Version
     \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
 
 Deploy Nimbus NFS Datastore
-    [Arguments]  ${user}  ${password}
+    [Arguments]  ${user}  ${password}  ${additional-args}=
     ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus NFS server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-nfsdeploy ${name}
+    ${out}=  Execute Command  nimbus-nfsdeploy ${name} ${additional-args}
     # Make sure the deploy actually worked
     Should Contain  ${out}  To manage this VM use
     # Now grab the IP address and return the name and ip for later use

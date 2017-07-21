@@ -15,6 +15,7 @@
 package nfs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,11 +23,13 @@ import (
 	"os"
 	"path"
 
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -207,9 +210,30 @@ func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error)
 	return volumes, nil
 }
 
+// Import takes a tar archive stream and extracts it into the target volume
+func (v *VolumeStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
+	return fmt.Errorf("Write for nfs volumes is not Implemented")
+}
+
 // Export creates and returns a tar archive containing data found between an nfs layer one or all of its ancestors
-func (v *VolumeStore) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+func (v *VolumeStore) Export(op trace.Operation, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
 	return nil, fmt.Errorf("vSphere Integrated Containers does not yet implement Export for nfs volumes")
+}
+
+func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.DataSource, error) {
+	return nil, errors.New("NFS VolumeStore does not yet implement NewDataSource")
+}
+
+func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSink, error) {
+	return nil, errors.New("NFS VolumeStore does not yet implement NewDataSink")
+}
+
+func (v *VolumeStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	return nil, errors.New("NFS VolumeStore does not yet implement URL")
+}
+
+func (v *VolumeStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
+	return nil, errors.New("NFS VolumeStore does not yet implement Owners")
 }
 
 func (v *VolumeStore) writeMetadata(op trace.Operation, ID string, info map[string][]byte, target Target) error {
@@ -281,8 +305,4 @@ func (v *VolumeStore) getMetadata(op trace.Operation, ID string, target Target) 
 
 	op.Infof("Successfully read volume metadata at (%s)", metadataPath)
 	return info, nil
-}
-
-func Import(op trace.Operation, store *url.URL, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
-	return fmt.Errorf("Write for nfs volumes is not Implemented")
 }

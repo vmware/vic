@@ -39,6 +39,8 @@ const (
 	DockerAPIVersion     = "1.25"
 	DockerDefaultVersion = "1.25"
 	DockerMinimumVersion = "1.19"
+
+	DockerServerVersion = "1.13.0"
 )
 
 type Build struct {
