@@ -61,7 +61,7 @@ endif
 # Caches dependencies to speed repeated calls
 define godeps
 	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
-	$(if $(filter-out clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
+	$(if $(filter-out focused-test test clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
 			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
@@ -256,6 +256,11 @@ install-govmomi:
 	$(GO) install ./vendor/github.com/vmware/govmomi
 
 test: install-govmomi portlayerapi $(TEST_JOBS)
+
+
+focused-test:
+# test only those packages that have changes
+	infra/scripts/focused-test.sh $(REMOTE)
 
 $(TEST_JOBS): test-job-%:
 	@echo Running unit tests
