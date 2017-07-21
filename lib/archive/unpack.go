@@ -45,7 +45,14 @@ const (
 func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root string) error {
 	op.Debugf("unpacking archive to root: %s, filter: %+v", root, filter)
 
-	tr := tar.NewReader(tarStream)
+	// Online datasource is sending a tar reader instead of an io reader.
+	// Type check here to see if we actually need to create a tar reader.
+	var tr *tar.Reader
+	if trCheck, ok := tarStream.(*tar.Reader); ok {
+		tr = trCheck
+	} else {
+		tr = tar.NewReader(tarStream)
+	}
 
 	fi, err := os.Stat(root)
 	if err != nil {
@@ -60,16 +67,12 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		return err
 	}
 
-	err = processFirstEntry(op, tr, filter, root)
-	if err != nil {
-		return err
-	}
-
 	// process the tarball onto the filesystem
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
 			// This indicates the end of the archive
+			op.Debugf("EOF")
 			break
 		}
 
@@ -91,124 +94,34 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		absPath := filepath.Join(root, rebased)
 		op.Debugf("attempting to write to target (%s)", absPath)
 
+		op.Debugf("writing to: %s", absPath)
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err = os.MkdirAll(absPath, header.FileInfo().Mode())
 			if err != nil {
 				return err
 			}
-			continue
 		case tar.TypeSymlink:
-
 			err := os.Symlink(header.Linkname, absPath)
 			if err != nil {
 				op.Errorf("Failed to create symlink %s->%s: %s", absPath, header.Linkname, err)
 				return err
 			}
-
 		case tar.TypeReg:
 			f, err := os.OpenFile(absPath, fileWriteFlags, header.FileInfo().Mode())
 			if err != nil {
 				return err
 			}
-
 			_, err = io.Copy(f, tr)
 			// TODO: add ctx.Done cancellation
 			f.Close()
 			if err != nil {
 				return err
 			}
-
 		default:
 			// TODO: add support for special file types - otherwise we will do absurd things such as read infinitely from /dev/random
 		}
 	}
-	return nil
-}
-
-func processFirstEntry(op trace.Operation, tarStream *tar.Reader, filter *FilterSpec, root string) error {
-	op.Debugf("Process first tar entry for special case")
-
-	header, err := tarStream.Next()
-	if err == io.EOF {
-		// This indicates the end of the archive
-		return nil
-	}
-
-	if err != nil {
-		op.Errorf("Error reading tar header: %s", err)
-		return err
-	}
-
-	op.Debugf("processing tar header: %#v", *header)
-	op.Debugf("using FilterSpec : (%#v)", *filter)
-
-	// skip excluded elements unless explicitly included
-	if filter.Excludes(op, header.Name) {
-		return nil
-	}
-
-	specTarget := filepath.Base(filter.RebasePath)
-	streamTarget := filepath.Base(header.Name)
-
-	// special case where we have been given a file.
-	// in this case the rebase path will be the exact file target.
-	// this is a docker specific hack that we should fix in the future.
-	if header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeRegA {
-		if specTarget == streamTarget {
-			fileWritePath := filepath.Join(root, filter.RebasePath)
-			op.Debugf("attempting to write to target (%s)", fileWritePath)
-			f, err := os.OpenFile(fileWritePath, fileWriteFlags, header.FileInfo().Mode())
-			if err != nil {
-				return err
-			}
-			_, err = io.Copy(f, tarStream)
-			// TODO: add ctx.Done cancellation
-			f.Close()
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-	}
-
-	// fix up path
-	stripped := strings.TrimPrefix(header.Name, filter.StripPath)
-	rebased := filepath.Join(filter.RebasePath, stripped)
-	absPath := filepath.Join(root, rebased)
-	op.Debugf("attempting to write to target (%s)", absPath)
-
-	switch header.Typeflag {
-	case tar.TypeDir:
-		err = os.MkdirAll(absPath, header.FileInfo().Mode())
-		if err != nil {
-			return err
-		}
-		return nil
-	case tar.TypeSymlink:
-
-		err := os.Symlink(header.Linkname, absPath)
-		if err != nil {
-			op.Errorf("Failed to create symlink %s->%s: %s", absPath, header.Linkname, err)
-			return err
-		}
-
-	case tar.TypeReg:
-		f, err := os.OpenFile(absPath, fileWriteFlags, header.FileInfo().Mode())
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(f, tarStream)
-		// TODO: add ctx.Done cancellation
-		f.Close()
-		if err != nil {
-			return err
-		}
-
-	default:
-		// TODO: add support for special file types - otherwise we will do absurd things such as read infinitely from /dev/random
-	}
-
 	return nil
 }
