@@ -477,16 +477,13 @@ Container Firewalls
     Should Not Be Equal As Integers  ${rc}  0
     
     # Create a container on a bridge and closed network listening on port 1234.
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --net=bridge --name closedbridge ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name closedbridge ${busybox} nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect closed-net closedbridge
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start closedbridge
-    Should Be Equal As Integers  ${rc}  0
-
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d closedbridge nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
 
     ${ip}=  Run  docker %{VCH-PARAMS} inspect --format '{{.NetworkSettings.Networks.bridge.IPAddress}}' closedbridge
@@ -514,24 +511,18 @@ Container Firewalls
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --net=bridge --name out1 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name out1 ${busybox} nc -l -p 1234
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect outbound-net out1
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start out1
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d out1 nc -l -p 1234
-    Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -it --net=bridge --name out2 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --net=bridge --name out2 ${busybox} nc out1 1234
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} network connect outbound-net out2 
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start out2
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec -d out2 nc out1 1234
-    Should Be Equal As Integers  ${rc}  0
-
 
     ### PUBLISHED FIREWALL ###
     Log To Console  Checking Published Firewall
