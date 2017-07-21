@@ -28,13 +28,11 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
+	dmetadata "github.com/docker/docker/distribution/metadata"
 	docker "github.com/docker/docker/image"
 	dockerLayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -42,6 +40,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -133,6 +132,8 @@ type ImageWithMeta struct {
 	Size   int64
 
 	Downloading bool
+
+	V2Meta []dmetadata.V2Metadata
 }
 
 // ArchiveStream is used during image push
@@ -186,7 +187,14 @@ const (
 
 	// attribute update actions
 	Add = iota + 1
-	Remove
+
+	// PushImage and PullImage indicate the image operation type
+	PushImage = "pushImage"
+	PullImage = "pullImage"
+
+	// MaxV2MetaDataEntries specifies the maximum number of entries in a layer's []V2MetaData
+	// This is used to track the layer's source repositories
+	MaxV2MetaDataEntries = 10
 )
 
 func init() {
@@ -502,7 +510,7 @@ func (ic *ImageC) PullImage() error {
 	defer cancel()
 
 	// Authenticate, get URL, get token
-	if err := ic.prepareTransfer(ctx); err != nil {
+	if err := ic.prepareTransfer(ctx, PullImage); err != nil {
 		return err
 	}
 
@@ -529,6 +537,14 @@ func (ic *ImageC) PullImage() error {
 		return err
 	}
 
+	// update the v2metaData of all layers
+	if err := UpdateV2MetaData(ic.Reference, ic.Reference.FullName()); err != nil {
+		log.Errorf("Failed to update v2MetaData: %s", err)
+	}
+	if err := LayerCache().Save(); err != nil {
+		log.Errorf("Failed to persist v2MetaData to kv store: %s", err)
+	}
+
 	return nil
 }
 
@@ -536,6 +552,11 @@ func (ic *ImageC) PullImage() error {
 func (ic *ImageC) PushImage() error {
 	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
 	defer cancel()
+
+	// Authenticate, get URL, get token
+	if err := ic.prepareTransfer(ctx, PushImage); err != nil {
+		return err
+	}
 
 	// Output message
 	progress.Message(ic.progressOutput, "", "The push refers to a repository ["+ic.Image+"]")
@@ -555,11 +576,24 @@ func (ic *ImageC) PushImage() error {
 		return err
 	}
 
+	// Push up the image manifest
+	if err := PutImageManifest(ctx, ic.Pusher, ic.Options, ic.progressOutput); err != nil {
+		return err
+	}
+
+	// update the v2metaData of all layers
+	if err := UpdateV2MetaData(ic.Reference, ic.Reference.FullName()); err != nil {
+		log.Errorf("Failed to update v2MetaData: %s", err)
+	}
+	if err := LayerCache().Save(); err != nil {
+		log.Errorf("Failed to persist v2MetaData to kv store: %s", err)
+	}
+
 	return nil
 }
 
 // prepareTransfer Looks up URLs and fetch auth token
-func (ic *ImageC) prepareTransfer(ctx context.Context) error {
+func (ic *ImageC) prepareTransfer(ctx context.Context, imageOperation string) error {
 
 	// Parse the -reference parameter
 	ic.ParseReference()
@@ -602,7 +636,15 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 	}
 
 	// Get the URL of the OAuth endpoint
-	url, err := LearnAuthURL(ic.Options)
+	var url *url.URL
+	if imageOperation == PushImage {
+		url, err = LearnAuthURLForPush(ic.Options, ic.progressOutput)
+	} else if imageOperation == PullImage {
+		url, err = LearnAuthURL(ic.Options)
+	} else {
+		err = fmt.Errorf("invlid image operation: %s", imageOperation)
+	}
+
 	if err != nil {
 		log.Infof(err.Error())
 		switch err := err.(type) {
@@ -734,8 +776,8 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 	}
 
 	// calculate image ID
-	log.Infof("Image ID: sha256:%s", configDigest)
-	digest := "sha256:" + digest.Digest(configDigest)
+	pushDigest := "sha256:" + digest.Digest(configDigest)
+	log.Infof("Image ID: %s", pushDigest)
 
 	// build out PushManifest with all generated components
 	pusher.PushManifest = schema2.Manifest{
@@ -743,7 +785,7 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 		Config: distribution.Descriptor{
 			MediaType: schema2.MediaTypeImageConfig,
 			Size:      configSize,
-			Digest:    digest,
+			Digest:    digest.Digest(pushDigest),
 		},
 	}
 
@@ -774,14 +816,6 @@ func (ic *ImageC) FinalizeManifest() error {
 	pusher.PushManifest.Layers = layers
 
 	log.Infof("Final manifest = %#v", pusher.PushManifest)
-
-	return nil
-}
-
-func (ic *ImageC) pushManifest(ctx context.Context) error {
-	if err := PutImageManifest(ctx, ic.Pusher, ic.Options, ic.progressOutput); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -926,4 +960,65 @@ func (a *ArchiveStream) Close() {
 	log.Infof("Closing stream for layer %s", a.layerID)
 	a.layerFile.Close()
 	// os.Remove(a.layerFile.Name())
+}
+
+func UpdateV2MetaData(imageRef reference.Named, newSourceRepo string) error {
+	defer trace.End(trace.Begin(newSourceRepo))
+
+	id, err := cache.RepositoryCache().Get(imageRef)
+	if err != nil {
+		return fmt.Errorf("Could not retrieve image id from repository cache using reference: %s", err)
+	}
+
+	layerID := cache.RepositoryCache().GetLayerID(id)
+
+	layer, err := LayerCache().Get(layerID)
+	if err != nil {
+		return fmt.Errorf("Unable to get top layer id for image %s", id)
+	}
+
+	var sourceRepoExist bool
+
+	for {
+		if layer.V2Meta != nil {
+			for _, m := range layer.V2Meta {
+				if m.SourceRepository == newSourceRepo {
+					sourceRepoExist = true
+				}
+			}
+		} else {
+			layer.V2Meta = []dmetadata.V2Metadata{{}}
+		}
+		if !sourceRepoExist {
+			if len(layer.V2Meta) == MaxV2MetaDataEntries {
+				// remove the oldest entry - the first one in the array
+				layer.V2Meta = append(layer.V2Meta[1:])
+			}
+			layer.V2Meta = append(layer.V2Meta, dmetadata.V2Metadata{
+				SourceRepository: newSourceRepo,
+			})
+			LayerCache().Add(layer)
+		}
+
+		temp, _ := LayerCache().Get(layer.ID)
+		log.Debugf("layer: %s, V2Meta: %+v", temp.ID, temp.V2Meta)
+
+		log.Debugf("layer.Image.Parent: %s", layer.Image.Parent)
+
+		// Check for scratch ID
+		if layer.Image.Parent == storage.Scratch.ID {
+			break
+		}
+
+		// set the layer to the parent layer
+		layerID = layer.Image.Parent
+		layer, err = LayerCache().Get(layerID)
+		if err != nil {
+			return err
+		}
+
+		sourceRepoExist = false
+	}
+
+	return nil
 }

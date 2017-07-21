@@ -49,6 +49,8 @@ const (
 	// DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
 	// (1024 NULL bytes)
 	DigestSHA256EmptyTar = string(dlayer.DigestSHA256EmptyTar)
+
+	MaxMountAttempts = 4
 )
 
 // FSLayer is a container struct for BlobSums defined in an image manifest
@@ -474,13 +476,9 @@ func getManifestDigest(content []byte, ref reference.Named) (string, error) {
 	log.Debugf("Manifest Digest: %v", digest)
 	return string(digest), nil
 }
-
 func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, layerReader io.ReadCloser, po progress.Output) (err error) {
 	defer trace.End(trace.Begin(options.Image))
 
-	// input arguments from caller:
-	// diffID: the sha256sum of decompressed layer
-	//diffID := "sha256:27144aa8f1b9e066514d7f765909367584e552915d0d4bc2f5b7438ba7d1033a"
 	layerID := ShortID(as.layerID)
 
 	// The workflow: (https://docs.docker.com/registry/spec/api/#pushing-an-image)
@@ -518,27 +516,7 @@ func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, laye
 		return nil
 	}
 
-	// obtain a list of repositories for cross repo blob mount
-	oauthURL, err := LearnAuthURLForRepoList(options, po)
-	if err != nil {
-		return err
-	}
-
-	token, err := FetchToken(ctx, options, oauthURL, po)
-	if err != nil {
-		return fmt.Errorf("failed to fetch OAuth token: %s", err)
-	}
-
-	transporterForRepoList := urlfetcher.NewURLTransporter(urlfetcher.Options{
-		Timeout:            options.Timeout,
-		Username:           options.Username,
-		Password:           options.Password,
-		Token:              token,
-		InsecureSkipVerify: options.InsecureSkipVerify,
-		RootCAs:            options.RegistryCAs,
-	})
-
-	repoList, err := ObtainRepoList(transporterForRepoList, options, po)
+	repoList, err := ObtainSourceRepoList(as.layerID, options.Reference)
 	if err != nil {
 		log.Errorf("Failed to fetch repo list: %s", err)
 	} else {
@@ -548,7 +526,6 @@ func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, laye
 				return fmt.Errorf("failed during CrossRepoBlobMount: %s", err)
 			}
 			if mounted {
-				progress.Update(po, layerID, "Layer already mounted")
 				return nil
 			}
 		}
@@ -563,20 +540,56 @@ func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, laye
 	}
 	log.Infof("The upload url is: %s", uploadURL)
 
-	defer func() {
-		if err != nil {
-			if err2 := CancelUpload(ctx, transporter, uploadURL, po); err2 != nil {
-				log.Errorf("Failed during CancelUpload: %s", err2)
-			}
-		}
-	}()
-
 	if err = UploadLayer(ctx, transporter, pushDigest, uploadURL, layerReader, po); err != nil {
+		if err2 := CancelUpload(ctx, transporter, uploadURL, po); err2 != nil {
+			log.Errorf("Failed during CancelUpload: %s", err2)
+		}
 		return err
 	}
 	progress.Update(po, layerID, "Pushed")
 
 	return nil
+}
+
+func ObtainSourceRepoList(layerID string, targetRepo reference.Named) ([]string, error) {
+	defer trace.End(trace.Begin(layerID))
+
+	layer, err := LayerCache().Get(layerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain source repo list: %s", err)
+	}
+	if layer.V2Meta == nil || len(layer.V2Meta) == 0 {
+		log.Debugf("layer.V2Meta does not exist or is empty")
+		return nil, nil
+	}
+
+	var repoList []string
+	var repo string
+
+	for _, meta := range layer.V2Meta {
+		repo = meta.SourceRepository
+
+		// Do not consider repos not in the same registry
+		sourceRepo, err := reference.ParseNamed(meta.SourceRepository)
+		if err != nil || targetRepo.Hostname() != sourceRepo.Hostname() {
+			continue
+		}
+		// Do not consider the target repository
+		if repo == targetRepo.FullName() {
+			continue
+		}
+		repoList = append(repoList, sourceRepo.RemoteName())
+	}
+
+	if repoList != nil && len(repoList) > MaxMountAttempts {
+		repoList = append(repoList[:MaxMountAttempts-1])
+	}
+
+	if repoList != nil {
+		log.Debugf("RepoList: %+v", repoList)
+	}
+
+	return repoList, nil
 }
 
 func CrossRepoBlobMount(ctx context.Context, layerID, digest string, options Options, repoList []string, po progress.Output) (bool, error) {
@@ -627,6 +640,7 @@ func CrossRepoBlobMount(ctx context.Context, layerID, digest string, options Opt
 		}
 		if mounted {
 			progress.Updatef(po, layerID, "Mounted from %s", repo)
+			log.Debugf("Layer %s mounted from %s", layerID, repo)
 			break
 		}
 	}
@@ -666,37 +680,6 @@ func LearnAuthURLForPush(options Options, po progress.Output) (*url.URL, error) 
 
 	if err != nil {
 		return nil, err
-	}
-
-	if err == nil && transporter.IsStatusUnauthorized() {
-		return transporter.ExtractOAuthURL(hdr.Get("www-authenticate"), url)
-	}
-
-	return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", transporter.Status(), url)
-}
-
-func LearnAuthURLForRepoList(options Options, po progress.Output) (*url.URL, error) {
-	defer trace.End(trace.Begin(options.Reference.String()))
-
-	url, err := url.Parse(options.Registry)
-	if err != nil {
-		return nil, err
-	}
-
-	url.Path = path.Join(url.Path, "_catalog")
-	log.Debugf("obtainRepolist URL: %s", url)
-
-	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
-		Timeout:            options.Timeout,
-		Username:           options.Username,
-		Password:           options.Password,
-		InsecureSkipVerify: options.InsecureSkipVerify,
-		RootCAs:            options.RegistryCAs,
-	})
-
-	hdr, err := transporter.GetHeaderOnly(ctx, url, nil, po)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch auth url for ObtainRepoList: %s", err)
 	}
 
 	if err == nil && transporter.IsStatusUnauthorized() {
@@ -751,43 +734,6 @@ func LearnAuthURLForBlobMount(options Options, digest, repo string, po progress.
 	}
 
 	return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", transporter.Status(), composedURL)
-}
-
-func ObtainRepoList(transporter *urlfetcher.URLTransporter, options Options, po progress.Output) ([]string, error) {
-	defer trace.End(trace.Begin(options.Reference.String()))
-
-	url, err := url.Parse(options.Registry)
-	if err != nil {
-		return nil, err
-	}
-
-	url.Path = path.Join(url.Path, "_catalog")
-	log.Debugf("obtainRepolist URL: %s", url)
-
-	_, data, err := transporter.GetBytes(ctx, url, nil, po)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch repo list: %s", err)
-	}
-
-	if transporter.IsStatusOK() {
-		log.Debugf("ObtainRepoList: %+v", data)
-
-		var dat map[string][]string
-
-		if err = json.Unmarshal(data, &dat); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal repo list: %s", err)
-		}
-
-		log.Debugf("The repo list is %+v", dat["repositories"])
-		return dat["repositories"], nil
-	}
-
-	if transporter.IsStatusUnauthorized() {
-		// it is possible that the current user does not have enough permission, so return nil
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", transporter.Status(), url)
 }
 
 // PutImageManifest simply pushes the manifest up to the registry.
