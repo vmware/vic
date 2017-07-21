@@ -43,6 +43,7 @@ import (
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	registryutils "github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 const (
@@ -540,7 +541,13 @@ func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, laye
 	}
 	log.Infof("The upload url is: %s", uploadURL)
 
-	if err = UploadLayer(ctx, transporter, pushDigest, uploadURL, layerReader, po); err != nil {
+	//////////////////
+	var reader io.ReadCloser
+
+	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerReader), po, as.size, layerID, "Pushing")
+	/////////////////
+
+	if err = UploadLayer(ctx, transporter, pushDigest, uploadURL, reader, po); err != nil {
 		if err2 := CancelUpload(ctx, transporter, uploadURL, po); err2 != nil {
 			log.Errorf("Failed during CancelUpload: %s", err2)
 		}
