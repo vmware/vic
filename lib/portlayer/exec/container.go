@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"sync"
 	"syscall"
@@ -367,6 +368,11 @@ func (c *Container) start(ctx context.Context) error {
 		// check if locked disk error
 		devices := disk.LockedDisks(err)
 		if len(devices) > 0 {
+			for i := range devices {
+				// get device id from datastore file path
+				// FIXME: find a reasonal way to get device ID from datastore path in exec
+				devices[i] = strings.TrimSuffix(path.Base(devices[i]), ".vmdk")
+			}
 			return DevicesInUseError{devices}
 		}
 		return err

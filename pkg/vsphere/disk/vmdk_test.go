@@ -15,7 +15,6 @@
 package disk
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -23,7 +22,6 @@ import (
 
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/trace"
 )
 
 func TestLockedDisks(t *testing.T) {
@@ -47,7 +45,6 @@ func TestLockedDisks(t *testing.T) {
 		},
 	}
 
-	op := trace.NewOperation(context.Background(), "test")
 	var vmFault types.GenericVmConfigFault
 	for _, test := range tests {
 		json.Unmarshal([]byte(test.in), &vmFault)
@@ -57,7 +54,7 @@ func TestLockedDisks(t *testing.T) {
 			},
 		}
 
-		devices := LockedDisks(op, err)
+		devices := LockedDisks(err)
 		assert.Equal(t, test.lockedDevices, devices, "didn't get expected locked devices")
 	}
 }
