@@ -24,9 +24,9 @@ This test requires that a vCenter server with integrated PSC and with a discrete
 10. Navigate to the admiral, harbor, demo VCH pages
 
 # Expected Outcome:
-* Steps 1,2,4-8 should all succeed without error
+* Steps 1,2,5-8 should all succeed without error
 * Step 3 should result in error and prompt the user for the correct credentials again
-* Step 4 should fail and the user should be prompted for login credentials at every page
+* Step 4 should fail and the user should be redirected to the fileserver page in order to login correctly
 * Step 6 and 8 should succeed and the user should not be prompted for login credentials to any of the pages
 * Step 10 should fail and the user should be prompted for login credentials again
 
