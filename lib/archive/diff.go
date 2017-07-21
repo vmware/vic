@@ -53,16 +53,16 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 
 	// this is in the case that we are part of a read that is crossing a mount point.
 	// It should be addressed by include/excludes.
-	changes := []docker.Change{{Path: "/"}}
-	dockerChanges, err := docker.ChangesDirs(newDir, oldDir)
+	changes, err := docker.ChangesDirs(newDir, oldDir)
 	if err != nil {
 		return nil, err
 	}
-	changes = append(changes, dockerChanges...)
-
+	// this is in the case that we are part of a read that is crossing a mount point.
+	// It should be addressed by include/excludes.
+	changes = append(changes, docker.Change{Path: "/"})
 	sort.Sort(changesByPath(changes))
 
-	return Tar(op, newDir, changes, spec, data, xattr)
+	return Tar(op, newDir, changes, spec, data, false)
 }
 
 func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
