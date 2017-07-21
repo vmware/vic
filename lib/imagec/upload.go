@@ -69,7 +69,7 @@ func (lum *LayerUploader) UploadLayers(ctx context.Context, ic *ImageC) error {
 	pusher := ic.Pusher
 	log.Infof("There are %d layers to upload", len(pusher.streamMap))
 	for _, stream := range pusher.streamMap {
-		progress.Update(progressOutput, stream.layerID, "Preparing")
+		progress.Update(progressOutput, ShortID(stream.layerID), "Preparing")
 
 		// Check if already uploading
 		if _, present := currTransfer[stream.layerID]; present {

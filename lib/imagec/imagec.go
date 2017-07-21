@@ -944,7 +944,7 @@ func (p *Pusher) GetReaderForLayer(layerID string) (*ArchiveStream, io.ReadClose
 	}
 	stream.layerFile = lf
 	stream.size = written
-	stream.digest = fmt.Sprintf("%x", blobSum.Sum(nil))
+	stream.digest = fmt.Sprintf("sha256:%x", blobSum.Sum(nil))
 
 	log.Infof("Read stream: %#v", stream)
 
