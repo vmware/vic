@@ -113,7 +113,7 @@ func TestMain(m *testing.M) {
 func TestDiff(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestDiff")
 
-	tarFile, err := Diff(op, newDir, oldDir, nil, true)
+	tarFile, err := Diff(op, newDir, oldDir, nil, true, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -158,7 +158,7 @@ func TestDiffNoAncestor(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestDiffNoParent")
 
 	// test without ancestor
-	tarFile, err := Diff(op, newDir, "", nil, true)
+	tarFile, err := Diff(op, newDir, "", nil, true, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -205,7 +205,7 @@ func TestDiffNoAncestor(t *testing.T) {
 func TestDiffNoData(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "TestDiffNoData")
 
-	tarFile, err := Diff(op, newDir, oldDir, nil, false)
+	tarFile, err := Diff(op, newDir, oldDir, nil, false, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -281,7 +281,7 @@ func TestDiffFilterSpec(t *testing.T) {
 		return
 	}
 
-	tarFile, err := Diff(op, newDir, oldDir, spec, true)
+	tarFile, err := Diff(op, newDir, oldDir, spec, true, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -347,7 +347,7 @@ func TestDiffFilterSpecNoAncestor(t *testing.T) {
 	}
 
 	// test without ancestor
-	tarFile, err := Diff(op, newDir, "", spec, true)
+	tarFile, err := Diff(op, newDir, "", spec, true, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -415,7 +415,7 @@ func TestDiffFilterSpecRebase(t *testing.T) {
 	}
 
 	// test without ancestor
-	tarFile, err := Diff(op, newDir, oldDir, spec, true)
+	tarFile, err := Diff(op, newDir, oldDir, spec, true, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -488,7 +488,7 @@ func TestDiffFilterSpecRebaseNoData(t *testing.T) {
 		return
 	}
 
-	tarFile, err := Diff(op, newDir, oldDir, spec, false)
+	tarFile, err := Diff(op, newDir, oldDir, spec, false, true)
 	if !assert.NoError(t, err) {
 		return
 	}
