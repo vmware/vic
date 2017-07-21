@@ -10,6 +10,7 @@ To verify VIC 1.2 upgrade from 1.1.0 or 1.1.1 works and provides access to all o
 # Environment:
 * This test requires that a vCenter server is running and available.
 * Existing vSphere Integrated Containers 1.1.x appliance that has deployed by using the official OVA installer.
+* Configure and install VCH
 * Deploy a variety of containers through command line and admiral
 
 # Test Steps:
@@ -23,10 +24,12 @@ To verify VIC 1.2 upgrade from 1.1.0 or 1.1.1 works and provides access to all o
 8. Power on the new appliance to complete the upgrade
 9. Run the upgrade script to migrate harbor and admiral
 10. Verify that the data from your previous vSphere Integrated Containers installation has migrated successfully
-11. Verify that containers from previous VIC appliance exists after upgrade and run docker commands.
+11. Verify that VCH and containers from previous VIC appliance exists after upgrade and run docker commands.
 12. Deploy a variety of containers through command line and admiral on new VIC appliance.
-13. Delete VCH
-14. Delete the OVA VM
+13. Remove each of the containers created
+14. Delete VCH
+15. Delete new and old OVA VM
+
 
 # Expected Outcome:
 * All steps should succeed without error
