@@ -19,7 +19,7 @@ This test requires that a vCenter server is running and available
 5. Add the harbor instance as a registry within admiral
 6. Download the root certificate from harbor
 7. Navigate to the demo VCH page
-8. Configure and install a basic VCH with the harbor instance as a secure registry
+8. Configure and install a basic VCH
 9. Add the harbor and VCH instances into the default cluster within admiral and enable trusted content in order to whitelist the harbor registry
 10. Using a mix of command line and admiral, deploy a variety of containers
 11. Verify the VIC UI portlet is installed by default and works as expected in the vSphere UI
