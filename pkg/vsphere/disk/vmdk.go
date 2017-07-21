@@ -18,6 +18,7 @@ import (
 	"net/url"
 
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
@@ -55,10 +56,49 @@ func (v *Vmdk) Mount(op trace.Operation, uri *url.URL, persistent bool) (string,
 }
 
 func LockedVMDKFilter(vm *mo.VirtualMachine) bool {
+	if vm == nil {
+		return false
+	}
+
 	return vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn
 }
 
+// IsLockedError will determine if the error received is:
+// a. related to a vmdk
+// b. due to the vmdk being locked
+// It will return false in absence of confirmation, meaning incomplete vim errors
+// will return false
 func IsLockedError(err error) bool {
-	// TODO: add check here for actual error
-	return true
+	if !soap.IsVimFault(err) {
+		return false
+	}
+
+	sf := soap.ToVimFault(err)
+
+	mf, ok := sf.(*types.MethodFault)
+	if !ok {
+		return false
+	}
+
+	if mf.FaultMessage == nil {
+		return false
+	}
+
+	// indicates it's specific to a disk
+	diskBackend := false
+	// indicates it's specific to locking
+	fileLock := false
+
+	for i := range mf.FaultMessage {
+		message := &mf.FaultMessage[i]
+
+		switch message.Key {
+		case "msg.disk.noBackEnd":
+			diskBackend = true
+		case "msg.fileio.lock":
+			fileLock = true
+		}
+	}
+
+	return diskBackend && fileLock
 }
