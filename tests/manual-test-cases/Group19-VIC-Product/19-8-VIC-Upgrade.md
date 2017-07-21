@@ -2,7 +2,7 @@ Test 19-8 VIC 1.2 Upgrade from 1.1.0 or 1.1.1
 =======
 
 # Purpose:
-To verify VIC 1.2 upgrade from 1.1 works and provides access to all of the vSphere Integrated Containers components.
+To verify VIC 1.2 upgrade from 1.1.0 or 1.1.1 works and provides access to all of the vSphere Integrated Containers components.
 
 # References:
 [VIC 1.2 Upgrade](TBD - waiting on official docs to link)
