@@ -153,6 +153,9 @@ type Pusher struct {
 	// Function from imagec caller to get archive reader.  This reduce the need for imageC
 	// from knowing about the portlayer and persona.
 	ArchiveReader GetArchiveReader
+
+	// imageConfig marshaled as bytes
+	configJSON []byte
 }
 
 type GetArchiveReader func(ctx context.Context, layerID, parentLayerID string) (io.ReadCloser, error)
@@ -770,14 +773,13 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 	log.Infof("streamMap = %#v", pusher.streamMap)
 
 	// Create a docker image from our (VIC's) image config
-	_, configDigest, configSize, err := ic.dockerImageFromVicImage(layersHistory)
+	configJSON, configDigest, configSize, err := ic.dockerImageFromVicImage(layersHistory)
 	if err != nil {
 		return fmt.Errorf("Could not build docker image from VIC image history: %s", err.Error())
 	}
 
 	// calculate image ID
-	pushDigest := "sha256:" + digest.Digest(configDigest)
-	log.Infof("Image ID: %s", pushDigest)
+	log.Infof("Image ID: %s", configDigest)
 
 	// build out PushManifest with all generated components
 	pusher.PushManifest = schema2.Manifest{
@@ -785,9 +787,11 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 		Config: distribution.Descriptor{
 			MediaType: schema2.MediaTypeImageConfig,
 			Size:      configSize,
-			Digest:    digest.Digest(pushDigest),
+			Digest:    digest.Digest(configDigest),
 		},
 	}
+
+	pusher.configJSON = configJSON
 
 	log.Infof("schema 2 manifest: %#v", pusher.PushManifest)
 
@@ -822,7 +826,7 @@ func (ic *ImageC) FinalizeManifest() error {
 
 // dockerImageFromVicImage takes a slice of VIC image with meta and returns a docker.Image,
 // the calculated digest of that struct, the size of the config
-func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) (*docker.Image, string, int64, error) {
+func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) ([]byte, string, int64, error) {
 	image := docker.V1Image{}
 	rootFS := docker.NewRootFS()
 	history := make([]docker.History, 0, len(images))
@@ -874,10 +878,10 @@ func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) (*docker.Imag
 		return nil, "", 0, fmt.Errorf("Failed to marshall image metadata: %s", err)
 	}
 
-	digest := fmt.Sprintf("%x", sha256.Sum256(imageConfigBytes))
+	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(imageConfigBytes))
 	configSize := int64(len(imageConfigBytes))
 
-	return result, digest, configSize, nil
+	return imageConfigBytes, digest, configSize, nil
 }
 
 // GetReaderForLayer returns a io.ReadCloser for the data from the archive stream.  The

@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -40,10 +39,10 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/libtrust"
 
+	"github.com/docker/docker/pkg/ioutils"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	registryutils "github.com/vmware/vic/pkg/registry"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/docker/docker/pkg/ioutils"
 )
 
 const (
@@ -541,13 +540,11 @@ func PushImageBlob(ctx context.Context, options Options, as *ArchiveStream, laye
 	}
 	log.Infof("The upload url is: %s", uploadURL)
 
-	//////////////////
 	var reader io.ReadCloser
 
 	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerReader), po, as.size, layerID, "Pushing")
-	/////////////////
 
-	if err = UploadLayer(ctx, transporter, pushDigest, uploadURL, reader, po); err != nil {
+	if err = UploadLayer(ctx, transporter, pushDigest, uploadURL, reader, po, layerID); err != nil {
 		if err2 := CancelUpload(ctx, transporter, uploadURL, po); err2 != nil {
 			log.Errorf("Failed during CancelUpload: %s", err2)
 		}
@@ -745,6 +742,16 @@ func LearnAuthURLForBlobMount(options Options, digest, repo string, po progress.
 
 // PutImageManifest simply pushes the manifest up to the registry.
 func PutImageManifest(ctx context.Context, pusher Pusher, options Options, progressOutput progress.Output) error {
+	defer trace.End(trace.Begin(""))
+
+	transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
+		Timeout:            options.Timeout,
+		Username:           options.Username,
+		Password:           options.Password,
+		InsecureSkipVerify: options.InsecureSkipVerify,
+		RootCAs:            options.RegistryCAs,
+		Token:              options.Token,
+	})
 
 	// Create manifest push URL
 	url, err := url.Parse(options.Registry)
@@ -752,6 +759,28 @@ func PutImageManifest(ctx context.Context, pusher Pusher, options Options, progr
 		return err
 	}
 
+	// check configJSON existence
+	exist, err := CheckLayerExistence(ctx, transporter, options.Image, pusher.PushManifest.Config.Digest.String(), url, progressOutput)
+	if err != nil {
+		return fmt.Errorf("failed to check configJSON existence: %s", err)
+	}
+
+	if !exist {
+		// obtain uploadURL for configJSON
+		uploadURL, err := ObtainUploadURL(ctx, transporter, url, options.Image, progressOutput)
+		if err != nil {
+			return fmt.Errorf("failed to obtain uploadURL for configJSON: %s", err)
+		}
+
+		// upload configJSON
+		configReader := bytes.NewReader(pusher.configJSON)
+		err = UploadLayer(ctx, transporter, pusher.PushManifest.Config.Digest.String(), uploadURL, configReader, progressOutput)
+		if err != nil {
+			return fmt.Errorf("failed to upload configJSON: %s", err)
+		}
+	}
+
+	// upload manifest
 	tagOrDigest := tagOrDigest(options.Reference, options.Tag)
 	url.Path = path.Join(url.Path, options.Image, "manifests", tagOrDigest)
 	log.Debugf("URL for PutIamgeManifest: %s", url)
@@ -761,31 +790,31 @@ func PutImageManifest(ctx context.Context, pusher Pusher, options Options, progr
 	var dataReader io.Reader
 
 	reqHeaders.Add("Content-Type", schema2.MediaTypeManifest)
-	dataReader, err = getManifestSchema2Reader(options, pusher.PushManifest)
+	dataReader, dmanifest, err := getManifestSchema2Reader(pusher.PushManifest)
 	if err != nil {
 		log.Errorf("Failed to read manifest schema 2: %s", err.Error())
 	}
 
-	Transporter := urlfetcher.NewURLTransporter(urlfetcher.Options{
-		Timeout:            options.Timeout,
-		Username:           options.Username,
-		Password:           options.Password,
-		InsecureSkipVerify: options.InsecureSkipVerify,
-		RootCAs:            options.RegistryCAs,
-		Token:              options.Token,
-	})
-
-	hdr, err := Transporter.Put(ctx, url, dataReader, &reqHeaders, progressOutput)
-	log.Debugf("The returned statuscode is: %s", Transporter.Status())
-	log.Debugf("The returned http.head is: %+v", hdr)
-
+	_, err = transporter.Put(ctx, url, dataReader, &reqHeaders, progressOutput)
 	if err != nil {
 		return fmt.Errorf("failed to upload image manifest: %s", err)
 	}
 
-	progress.Message(progressOutput, tagOrDigest, "Digest: (sha256:ImageDigest) size: sizeOfManifest")
+	if transporter.IsStatusCreated() {
+		log.Infof("The manifest is uploaded successfully")
 
-	return nil
+		_, canonicalManifest, err := dmanifest.Payload()
+		if err != nil {
+			return err
+		}
+
+		manifestDigest := ddigest.FromBytes(canonicalManifest)
+		msg := fmt.Sprintf("Digest: %s size: %d", manifestDigest, len(canonicalManifest))
+		progress.Message(progressOutput, tagOrDigest, msg)
+		return nil
+	}
+
+	return fmt.Errorf("unexpected http code during PushManifest: %d, URL: %s", transporter.StatusCode, url)
 }
 
 // Upload the layer (monolithic upload)
@@ -978,16 +1007,22 @@ func ShortID(id string) string {
 	return stringid.TruncateID(id)
 }
 
-func getManifestSchema2Reader(options Options, manifest schema2.Manifest) (io.Reader, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(manifest)
+func getManifestSchema2Reader(manifest schema2.Manifest) (io.Reader, *schema2.DeserializedManifest, error) {
+	log.Debugf("Constructing manifest schema2 reader")
+
+	dm, err := schema2.FromStruct(manifest)
 	if err != nil {
-		msg := fmt.Sprintf("Unable to encode manifest to bytes")
+		msg := fmt.Sprintf("unable to construct DeserializedManifest: %s", err)
 		log.Error(msg)
-		return nil, fmt.Errorf(msg)
+		return nil, nil, fmt.Errorf(msg)
 	}
 
-	manifestReader := bytes.NewReader(buf.Bytes())
-	return manifestReader, nil
+	data, err := dm.MarshalJSON()
+	if err != nil {
+		msg := fmt.Sprintf("unable to marshal DeserializedManifest: %s", err)
+		log.Error(msg)
+		return nil, nil, fmt.Errorf(msg)
+	}
+
+	return bytes.NewReader(data), dm, nil
 }
