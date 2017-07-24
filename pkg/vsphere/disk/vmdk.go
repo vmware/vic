@@ -65,36 +65,10 @@ func LockedVMDKFilter(vm *mo.VirtualMachine) bool {
 	return vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn
 }
 
-func IsLockedError(op trace.Operation, err error) bool {
-	switch err := err.(type) {
-	case task.Error:
-		fault := err.Fault().GetMethodFault()
-
-		// indicates it's specific to a disk
-		diskBackend := false
-		// indicates it's specific to locking
-		fileLock := false
-
-		for i := range fault.FaultMessage {
-			message := &fault.FaultMessage[i]
-			switch message.Key {
-			case DiskBackendKey:
-				diskBackend = true
-			case LockedFileKey:
-				fileLock = true
-			}
-
-			if diskBackend && fileLock {
-				op.Debugf("Error %s is a disk locked error", err.Error())
-				return true
-			}
-		}
-	default:
-		op.Debugf("IsLockedError: this is not a task error")
-	}
-
-	op.Debugf("Error %s is a NOT disk locked error", err.Error())
-	return false
+func IsLockedError(err error) bool {
+	disks := LockedDisks(err)
+	//if device is locked, disks will not be nil
+	return disks != nil
 }
 
 // LockedDisks returns locked devices path in the error if it's device lock error

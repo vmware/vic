@@ -109,7 +109,7 @@ func (c *ContainerStore) NewDataSource(op trace.Operation, id string) (storage.D
 	}
 
 	// check for vmdk locked error here
-	if !disk.IsLockedError(op, err) {
+	if !disk.IsLockedError(err) {
 		op.Warnf("Unable to mount %s and do not know how to recover from error")
 		// continue anyway because maybe there's an online option
 	}
@@ -171,7 +171,7 @@ func (c *ContainerStore) NewDataSink(op trace.Operation, id string) (storage.Dat
 	}
 
 	// check for vmdk locked error here
-	if !disk.IsLockedError(op, err) {
+	if !disk.IsLockedError(err) {
 		op.Warnf("Unable to mount %s and do not know how to recover from error")
 		// continue anyway because maybe there's an online option
 	}
