@@ -110,7 +110,7 @@ func (r *Rule) Commit(ctx context.Context) error {
 }
 
 func (r *Rule) args() ([]string, error) {
-	var args []string
+	args := []string{"-w"}
 
 	if r.Table != "" {
 		args = append(args, "-t", string(r.Table))
