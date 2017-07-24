@@ -182,9 +182,6 @@
 				"tags": [
 					"storage"
 				],
-				"consumes": [
-					"application/json"
-				],
 				"produces": [
 					"application/x-tar"
 				],
@@ -242,6 +239,12 @@
 					},
 					"404": {
 						"description": "Supplied target not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"422": {
+						"description": "Format error in supplied filter or archive",
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
@@ -335,6 +338,72 @@
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
+					}
+				}
+			},
+			"head": {
+				"description": "Fetches filesystem stats on the device id at the specified path",
+				"operationId": "StatPath",
+				"tags": [
+					"storage"
+				],
+				"parameters": [
+					{
+						"name": "store",
+						"in": "query",
+						"required": true,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "deviceID",
+						"in": "query",
+						"required": true,
+						"type": "string",
+						"x-nullable": false
+					},
+					{
+						"name": "filterSpec",
+						"in": "query",
+						"required": false,
+						"type": "string",
+						"x-nullable": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"name": {
+								"type": "string",
+								"x-nullable": false
+							},
+							"mode": {
+								"type": "integer",
+								"format": "uint32"
+							},
+							"size": {
+								"type": "integer",
+								"format": "int64"
+							},
+							"linkTarget": {
+								"type": "string",
+								"x-nullable": false
+							},
+							"modTime": {
+								"type": "string",
+								"x-nullable": false
+							}
+						}
+					},
+					"422": {
+						"description": "Format error in supplied filter or archive"
+					},
+					"404": {
+						"description": "Supplied target not found"
+					},
+					"500": {
+						"description": "failed to export tar archive from target"
 					}
 				}
 			}
