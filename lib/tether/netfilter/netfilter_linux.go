@@ -110,7 +110,7 @@ func (r *Rule) Commit(ctx context.Context) error {
 }
 
 func (r *Rule) args() ([]string, error) {
-	args := []string{"-w"}
+	var args []string
 
 	if r.Table != "" {
 		args = append(args, "-t", string(r.Table))
@@ -159,6 +159,7 @@ func (r *Rule) args() ([]string, error) {
 }
 
 func iptables(ctx context.Context, args []string) error {
+	args = append(args, "-w")
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable
