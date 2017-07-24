@@ -1018,6 +1018,7 @@ func getManifestSchema2Reader(manifest schema2.Manifest) (io.Reader, *schema2.De
 	}
 
 	data, err := dm.MarshalJSON()
+	//data, err := json.Marshal(manifest)
 	if err != nil {
 		msg := fmt.Sprintf("unable to marshal DeserializedManifest: %s", err)
 		log.Error(msg)

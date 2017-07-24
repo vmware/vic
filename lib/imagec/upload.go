@@ -132,7 +132,7 @@ func (lum *LayerUploader) makeUploadFunc(ic *ImageC, layerID string) xfer.DoFunc
 			select {
 			case <-start:
 			default:
-				progress.Update(progressOutput, layerID, "Waiting")
+				progress.Update(progressOutput, ShortID(layerID), "Waiting")
 				<-start
 			}
 
