@@ -196,7 +196,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 			return err
 		}
 	} else {
-		if err := updateRepositoryCache(ic); err != nil {
+		if err := UpdateRepoCache(ic); err != nil {
 			return err
 		}
 	}
@@ -303,7 +303,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 					// place calculated ImageID in struct
 					ic.ImageID = imageConfig.ImageID
 
-					if err = updateRepositoryCache(ic); err != nil {
+					if err = UpdateRepoCache(ic); err != nil {
 						d.err = err
 						return
 					}

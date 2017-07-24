@@ -107,7 +107,7 @@ type VicContainerProxy interface {
 	Resize(id string, height, width int32) error
 	Rename(vc *viccontainer.VicContainer, newName string) error
 
-	GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer) (io.ReadCloser, error)
+	GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error)
 
 	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
@@ -674,7 +674,9 @@ func (c *ContainerProxy) StreamContainerStats(ctx context.Context, config *conve
 	return nil
 }
 
-func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer) (io.ReadCloser, error) {
+// GetContainerChanges returns container changes from portlayer.
+// Set data to true will return file data, otherwise, only return file headers with change type.
+func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
 	host, err := sys.UUID()
 	if err != nil {
 		return nil, InternalServerError("Failed to determine host UUID")
@@ -686,7 +688,7 @@ func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontain
 		Exclusions: map[string]struct{}{},
 	}
 
-	r, err := c.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, false, spec)
+	r, err := c.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
@@ -712,13 +714,12 @@ func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancesto
 		// make sure we get out of io.Copy if context is canceled
 		select {
 		case <-ctx.Done():
-		case <-done:
-		}
 
-		// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
-		// stream.  The other way is for the caller of this function to close the returned CloseReader.
-		// Callers of this function should do one but not both.
-		pipeReader.Close()
+			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
+			// stream.  The other way is for the caller of this function to close the returned CloseReader.
+			// Callers of this function should do one but not both.
+			pipeReader.Close()
+		}
 	}()
 
 	go func() {
@@ -1896,7 +1897,10 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	log.Debugf("Container %q", name)
 
 	if info.ContainerConfig.LayerID != "" {
-		vc.ImageID = info.ContainerConfig.LayerID
+		vc.LayerID = info.ContainerConfig.LayerID
+	}
+	if info.ContainerConfig.ImageID != "" {
+		vc.ImageID = info.ContainerConfig.ImageID
 	}
 
 	if info.ContainerConfig.ContainerID != "" {

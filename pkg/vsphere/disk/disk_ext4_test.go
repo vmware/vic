@@ -15,8 +15,6 @@
 package disk
 
 import (
-	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 
@@ -109,15 +107,8 @@ func TestCreateFS(t *testing.T) {
 		return
 	}
 
-	// make a tempdir to mount the fs to
-	dir, err := ioutil.TempDir("", "mnt")
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer os.RemoveAll(dir)
-
 	// do the mount
-	err = d.Mount(op, dir, nil)
+	dir, err := d.Mount(op, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -214,15 +205,8 @@ func TestAttachFS(t *testing.T) {
 		return
 	}
 
-	// make a tempdir to mount the fs to
-	dir, err := ioutil.TempDir("", "mnt")
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer os.RemoveAll(dir)
-
 	// do the mount
-	err = d.Mount(op, dir, nil)
+	dir, err := d.Mount(op, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -255,7 +239,7 @@ func TestAttachFS(t *testing.T) {
 	}
 
 	// do the mount
-	err = d.Mount(op, dir, nil)
+	dir, err = d.Mount(op, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -284,7 +268,7 @@ func TestAttachFS(t *testing.T) {
 		}
 
 		// do the mount
-		err = d.Mount(op, dir, nil)
+		dir, err = d.Mount(op, nil)
 		if !assert.NoError(t, err) {
 			return
 		}

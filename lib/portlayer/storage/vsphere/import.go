@@ -80,6 +80,7 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 
 	f, err := os.Open(mountPath)
 	if err != nil {
+		cleanFunc()
 		return nil, err
 	}
 
@@ -121,6 +122,7 @@ func (i *ImageStore) newDataSink(op trace.Operation, url *url.URL) (storage.Data
 
 	f, err := os.Open(mountPath)
 	if err != nil {
+		cleanFunc()
 		return nil, err
 	}
 

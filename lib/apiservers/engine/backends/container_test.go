@@ -366,7 +366,7 @@ func (m *MockContainerProxy) ArchiveImportWriter(ctx context.Context, store, dev
 	return nil, nil
 }
 
-func (m *MockContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer) (io.ReadCloser, error) {
+func (m *MockContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
 	return nil, nil
 }
 

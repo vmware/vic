@@ -21,12 +21,11 @@ import (
 	"math/rand"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -61,16 +60,21 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 	var info *types.TaskInfo
 	var backoffFactor int64 = 1
 
+	op, err := trace.FromContext(ctx)
+	if err != nil {
+		op = trace.NewOperation(ctx, "WaitForResult")
+	}
+
 	for {
 		var t Task
-		if t, err = f(ctx); err == nil {
-			info, err = t.WaitForResult(ctx, nil)
+		if t, err = f(op); err == nil {
+			info, err = t.WaitForResult(op, nil)
 			if err == nil {
 				return info, err
 			}
 		}
 
-		if !isRetryError(err) {
+		if !isRetryError(op, err) {
 			return info, err
 		}
 
@@ -81,11 +85,11 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			if backoffFactor > maxBackoffFactor {
 				backoffFactor = maxBackoffFactor
 			}
-		case <-ctx.Done():
-			return info, ctx.Err()
+		case <-op.Done():
+			return info, op.Err()
 		}
 
-		log.Warnf("retrying task")
+		op.Warnf("retrying task")
 	}
 }
 
@@ -99,19 +103,19 @@ const (
 // Currently the error includes TaskInProgress, NetworkDisruptedAndConfigRolledBack and InvalidArgument
 // Retry on NetworkDisruptedAndConfigRolledBack is to workaround vSphere issue
 // Retry on InvalidArgument(invlid path) is to workaround vSAN bug: https://bugzilla.eng.vmware.com/show_bug.cgi?id=1770798. TODO: Should remove it after vSAN fixed the bug
-func isRetryError(err error) bool {
+func isRetryError(op trace.Operation, err error) bool {
 	if soap.IsSoapFault(err) {
 		switch f := soap.ToSoapFault(err).VimFault().(type) {
 		case types.TaskInProgress:
 			return true
 		case *types.NetworkDisruptedAndConfigRolledBack:
-			logExpectedFault(soapFault, f)
+			logExpectedFault(op, soapFault, f)
 			return true
 		case *types.InvalidArgument:
-			logExpectedFault(soapFault, f)
+			logExpectedFault(op, soapFault, f)
 			return true
 		default:
-			logSoapFault(f)
+			logSoapFault(op, f)
 		}
 	}
 
@@ -120,13 +124,13 @@ func isRetryError(err error) bool {
 		case *types.TaskInProgress:
 			return true
 		case *types.NetworkDisruptedAndConfigRolledBack:
-			logExpectedFault(vimFault, f)
+			logExpectedFault(op, vimFault, f)
 			return true
 		case *types.InvalidArgument:
-			logExpectedFault(vimFault, f)
+			logExpectedFault(op, vimFault, f)
 			return true
 		default:
-			logFault(f)
+			logFault(op, f)
 		}
 	}
 
@@ -136,37 +140,37 @@ func isRetryError(err error) bool {
 		case *types.TaskInProgress:
 			return true
 		case *types.NetworkDisruptedAndConfigRolledBack:
-			logExpectedFault(taskFault, f)
+			logExpectedFault(op, taskFault, f)
 			return true
 		case *types.InvalidArgument:
-			logExpectedFault(taskFault, f)
+			logExpectedFault(op, taskFault, f)
 			return true
 		default:
-			logFault(err.Fault())
+			logFault(op, err.Fault())
 		}
 	default:
 		if f, ok := err.(types.HasFault); ok {
-			logFault(f.Fault())
+			logFault(op, f.Fault())
 		} else {
-			logError(err)
+			logError(op, err)
 		}
 	}
 	return false
 }
 
 // Helper Functions
-func logFault(fault types.BaseMethodFault) {
-	log.Debugf("unexpected fault on task retry : %#v", fault)
+func logFault(op trace.Operation, fault types.BaseMethodFault) {
+	op.Errorf("unexpected fault on task retry : %#v", fault)
 }
 
-func logSoapFault(fault types.AnyType) {
-	log.Debugf("unexpected soap fault on task retry : %#v", fault)
+func logSoapFault(op trace.Operation, fault types.AnyType) {
+	op.Debugf("unexpected soap fault on task retry : %#v", fault)
 }
 
-func logError(err error) {
-	log.Debugf("unexpected error on task retry : %#v", err)
+func logError(op trace.Operation, err error) {
+	op.Debugf("unexpected error on task retry : %#v", err)
 }
 
-func logExpectedFault(kind string, fault interface{}) {
-	log.Debugf("task retry on expected %s fault: %#v", kind, fault)
+func logExpectedFault(op trace.Operation, kind string, fault interface{}) {
+	op.Debugf("task retry on expected %s fault: %#v", kind, fault)
 }

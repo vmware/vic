@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -585,12 +584,8 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 		return nil, err
 	}
 
-	dir, err := ioutil.TempDir("", parent.ID+"ro")
+	_, err = roDisk.Mount(op, nil)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := roDisk.Mount(op, dir, nil); err != nil {
 		return nil, err
 	}
 
