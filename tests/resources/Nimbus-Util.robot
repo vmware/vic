@@ -179,7 +179,7 @@ Deploy Nimbus Testbed
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  nimbus-testbeddeploy --lease=1 ${testbed}
     \   # Make sure the deploy actually worked
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
     \   Return From Keyword If  ${status}  ${out}
     \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
     \   Sleep  5 minutes
