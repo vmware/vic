@@ -20,8 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -59,43 +58,43 @@ func (c *RestClient) getAssociationSpec(tagID *string, objID *string, objType *s
 }
 
 func (c *RestClient) AttachTagToObject(ctx context.Context, tagID string, objID string, objType string) error {
-	log.Debugf("Attach Tag %s to object id: %s, type: %s", tagID, objID, objType)
+	Logger.Debugf("Attach Tag %s to object id: %s, type: %s", tagID, objID, objType)
 
 	spec := c.getAssociationSpec(&tagID, &objID, &objType)
 	_, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=attach", TagAssociationURL), *spec, nil)
 
-	log.Debugf("Get status code: %d", status)
+	Logger.Debugf("Get status code: %d", status)
 	if status != http.StatusOK || err != nil {
-		log.Debugf("Attach tag failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
-		return errors.Errorf("Get unexpected status code: %d", status)
+		Logger.Debugf("Attach tag failed with status code: %d, error message: %s", status, errors.WithStack(err))
+		return errors.Wrapf(err, "Get unexpected status code: %d", status)
 	}
 	return nil
 }
 
 func (c *RestClient) DetachTagFromObject(ctx context.Context, tagID string, objID string, objType string) error {
-	log.Debugf("Detach Tag %s to object id: %s, type: %s", tagID, objID, objType)
+	Logger.Debugf("Detach Tag %s to object id: %s, type: %s", tagID, objID, objType)
 
 	spec := c.getAssociationSpec(&tagID, &objID, &objType)
 	_, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=detach", TagAssociationURL), *spec, nil)
 
-	log.Debugf("Get status code: %d", status)
+	Logger.Debugf("Get status code: %d", status)
 	if status != http.StatusOK || err != nil {
-		log.Debugf("Detach tag failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
-		return errors.Errorf("Get unexpected status code: %d", status)
+		Logger.Debugf("Detach tag failed with status code: %d, error message: %s", status, errors.WithStack(err))
+		return errors.Wrapf(err, "Get unexpected status code: %d", status)
 	}
 	return nil
 }
 
 func (c *RestClient) ListAttachedTags(ctx context.Context, objID string, objType string) ([]string, error) {
-	log.Debugf("List attached tags of object id: %s, type: %s", objID, objType)
+	Logger.Debugf("List attached tags of object id: %s, type: %s", objID, objType)
 
 	spec := c.getAssociationSpec(nil, &objID, &objType)
 	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=list-attached-tags", TagAssociationURL), *spec, nil)
 
-	log.Debugf("Get status code: %d", status)
+	Logger.Debugf("Get status code: %d", status)
 	if status != http.StatusOK || err != nil {
-		log.Debugf("Detach tag failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
-		return nil, errors.Errorf("Get unexpected status code: %d", status)
+		Logger.Debugf("Detach tag failed with status code: %d, error message: %s", status, errors.WithStack(err))
+		return nil, errors.Wrapf(err, "Get unexpected status code: %d", status)
 	}
 
 	type RespValue struct {
@@ -104,23 +103,23 @@ func (c *RestClient) ListAttachedTags(ctx context.Context, objID string, objType
 
 	var pTag RespValue
 	if err := json.NewDecoder(stream).Decode(&pTag); err != nil {
-		log.Debugf("Decode response body failed for: %s", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		Logger.Debugf("Decode response body failed for: %s", errors.WithStack(err))
+		return nil, errors.Wrap(err, "list attached tags failed")
 	}
 	return pTag.Value, nil
 }
 
 func (c *RestClient) ListAttachedObjects(ctx context.Context, tagID string) ([]AssociatedObject, error) {
-	log.Debugf("List attached objects of tag: %s", tagID)
+	Logger.Debugf("List attached objects of tag: %s", tagID)
 
 	spec := c.getAssociationSpec(&tagID, nil, nil)
-	log.Debugf("List attached objects for tag %v", *spec)
+	Logger.Debugf("List attached objects for tag %v", *spec)
 	//	stream, _, status, err := c.call("POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
 	stream, _, status, err := c.call(ctx, "POST", fmt.Sprintf("%s?~action=list-attached-objects", TagAssociationURL), *spec, nil)
-	log.Debugf("Get status code: %d", status)
+	Logger.Debugf("Get status code: %d", status)
 	if status != http.StatusOK || err != nil {
-		log.Debugf("List object failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
-		return nil, errors.Errorf("Get unexpected status code: %d", status)
+		Logger.Debugf("List object failed with status code: %d, error message: %s", status, errors.WithStack(err))
+		return nil, errors.Wrapf(err, "Get unexpected status code: %d", status)
 	}
 
 	type RespValue struct {
@@ -129,8 +128,8 @@ func (c *RestClient) ListAttachedObjects(ctx context.Context, tagID string) ([]A
 
 	var pTag RespValue
 	if err := json.NewDecoder(stream).Decode(&pTag); err != nil {
-		log.Debugf("Decode response body failed for: %s", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		Logger.Debugf("Decode response body failed for: %s", errors.WithStack(err))
+		return nil, errors.Wrap(err, "list attached tags failed")
 	}
 	return pTag.Value, nil
 }

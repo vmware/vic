@@ -49,6 +49,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/tags"
 )
 
 type CliOptions struct {
@@ -154,6 +155,8 @@ func initLogging() error {
 			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
+
+	tags.Logger = log.StandardLogger()
 
 	return viclog.Init(logcfg)
 }

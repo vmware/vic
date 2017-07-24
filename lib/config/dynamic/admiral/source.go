@@ -60,6 +60,7 @@ var (
 	trueStr        = "true"
 	projectsFilter = "customProperties.__enableContentTrust eq 'true'"
 
+	// #nosec
 	admClient = &http.Client{
 		Transport: // copied from http.DefaultTransport
 		&http.Transport{
@@ -73,7 +74,7 @@ var (
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // #nosec
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 )

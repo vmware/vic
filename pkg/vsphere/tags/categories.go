@@ -21,12 +21,12 @@ import (
 	"net/http"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 const (
-	CategoryURL = "/com/vmware/cis/tagging/category"
+	CategoryURL      = "/com/vmware/cis/tagging/category"
+	ErrAlreadyExists = "already_exists"
 )
 
 type CategoryCreateSpec struct {
@@ -52,8 +52,7 @@ type Category struct {
 func (c *RestClient) CreateCategoryIfNotExist(ctx context.Context, name string, description string, categoryType string, multiValue bool) (*string, error) {
 	categories, err := c.GetCategoriesByName(ctx, name)
 	if err != nil {
-		log.Errorf("Failed to query category %s for", name)
-		return nil, errors.Trace(err)
+		return nil, errors.Wrapf(err, "failed to query category for %s", name)
 	}
 
 	if categories == nil {
@@ -68,14 +67,14 @@ func (c *RestClient) CreateCategoryIfNotExist(ctx context.Context, name string, 
 		id, err := c.CreateCategory(ctx, &spec)
 		if err != nil {
 			// in case there are two docker daemon try to create inventory category, query the category once again
-			if strings.Contains(err.Error(), "already_exists") {
+			if strings.Contains(err.Error(), "ErrAlreadyExists") {
 				if categories, err = c.GetCategoriesByName(ctx, name); err != nil {
-					log.Debugf("Failed to get inventory category for %s", errors.ErrorStack(err))
-					return nil, errors.Trace(err)
+					Logger.Debugf("Failed to get inventory category for %s", errors.WithStack(err))
+					return nil, errors.Wrap(err, "create inventory category failed")
 				}
 			} else {
-				log.Debugf("Failed to create inventory category for %s", errors.ErrorStack(err))
-				return nil, errors.Trace(err)
+				Logger.Debugf("Failed to create inventory category for %s", errors.WithStack(err))
+				return nil, errors.Wrap(err, "create inventory category failed")
 			}
 		} else {
 			return id, nil
@@ -85,18 +84,18 @@ func (c *RestClient) CreateCategoryIfNotExist(ctx context.Context, name string, 
 		return &categories[0].ID, nil
 	}
 	// should not happen
-	log.Debugf("Failed to create inventory for it's existed, but could not query back. Please check system")
+	Logger.Debugf("Failed to create inventory for it's existed, but could not query back. Please check system")
 	return nil, errors.Errorf("Failed to create inventory for it's existed, but could not query back. Please check system")
 }
 
 func (c *RestClient) CreateCategory(ctx context.Context, spec *CategoryCreateSpec) (*string, error) {
-	log.Debugf("Create category %v", spec)
+	Logger.Debugf("Create category %v", spec)
 	stream, _, status, err := c.call(ctx, "POST", CategoryURL, spec, nil)
 
-	log.Debugf("Get status code: %d", status)
+	Logger.Debugf("Get status code: %d", status)
 	if status != http.StatusOK || err != nil {
-		log.Debugf("Create category failed with status code: %d, error message: %s", status, errors.ErrorStack(err))
-		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
+		Logger.Debugf("Create category failed with status code: %d, error message: %s", status, errors.WithStack(err))
+		return nil, errors.Wrapf(err, "Status code: %d", status)
 	}
 
 	type RespValue struct {
@@ -105,19 +104,19 @@ func (c *RestClient) CreateCategory(ctx context.Context, spec *CategoryCreateSpe
 
 	var pID RespValue
 	if err := json.NewDecoder(stream).Decode(&pID); err != nil {
-		log.Debugf("Decode response body failed for: %s", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		Logger.Debugf("Decode response body failed for: %s", errors.WithStack(err))
+		return nil, errors.Wrap(err, "create category failed")
 	}
 	return &(pID.Value), nil
 }
 
 func (c *RestClient) GetCategory(ctx context.Context, id string) (*Category, error) {
-	log.Debugf("Get category %s", id)
+	Logger.Debugf("Get category %s", id)
 
 	stream, _, status, err := c.call(ctx, "GET", fmt.Sprintf("%s/id:%s", CategoryURL, id), nil, nil)
 
 	if status != http.StatusOK || err != nil {
-		log.Debugf("Get category failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
+		Logger.Debugf("Get category failed with status code: %s, error message: %s", status, errors.WithStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
 
@@ -127,31 +126,31 @@ func (c *RestClient) GetCategory(ctx context.Context, id string) (*Category, err
 
 	var pCategory RespValue
 	if err := json.NewDecoder(stream).Decode(&pCategory); err != nil {
-		log.Debugf("Decode response body failed for: %s", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		Logger.Debugf("Decode response body failed for: %s", errors.WithStack(err))
+		return nil, errors.Wrapf(err, "get category %s failed", id)
 	}
 	return &(pCategory.Value), nil
 }
 
 func (c *RestClient) DeleteCategory(ctx context.Context, id string) error {
-	log.Debugf("Delete category %s", id)
+	Logger.Debugf("Delete category %s", id)
 
 	_, _, status, err := c.call(ctx, "DELETE", fmt.Sprintf("%s/id:%s", CategoryURL, id), nil, nil)
 
 	if status != http.StatusOK || err != nil {
-		log.Debugf("Delete category failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
+		Logger.Debugf("Delete category failed with status code: %s, error message: %s", status, errors.WithStack(err))
 		return errors.Errorf("Status code: %d, error: %s", status, err)
 	}
 	return nil
 }
 
 func (c *RestClient) ListCategories(ctx context.Context) ([]string, error) {
-	log.Debugf("List all categories")
+	Logger.Debugf("List all categories")
 
 	stream, _, status, err := c.call(ctx, "GET", CategoryURL, nil, nil)
 
 	if status != http.StatusOK || err != nil {
-		log.Debugf("Get categories failed with status code: %s, error message: %s", status, errors.ErrorStack(err))
+		Logger.Debugf("Get categories failed with status code: %s, error message: %s", status, errors.WithStack(err))
 		return nil, errors.Errorf("Status code: %d, error: %s", status, err)
 	}
 
@@ -161,25 +160,25 @@ func (c *RestClient) ListCategories(ctx context.Context) ([]string, error) {
 
 	var pCategories Categories
 	if err := json.NewDecoder(stream).Decode(&pCategories); err != nil {
-		log.Debugf("Decode response body failed for: %s", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		Logger.Debugf("Decode response body failed for: %s", errors.WithStack(err))
+		return nil, errors.Wrap(err, "list categories failed")
 	}
 	return pCategories.Value, nil
 }
 
 func (c *RestClient) GetCategoriesByName(ctx context.Context, name string) ([]Category, error) {
-	log.Debugf("Get category %s", name)
+	Logger.Debugf("Get category %s", name)
 	categoryIds, err := c.ListCategories(ctx)
 	if err != nil {
-		log.Debugf("Get category failed for: %s", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		Logger.Debugf("Get category failed for: %s", errors.WithStack(err))
+		return nil, errors.Wrapf(err, "get categories by name %s failed", name)
 	}
 
 	var categories []Category
 	for _, cID := range categoryIds {
 		category, err := c.GetCategory(ctx, cID)
 		if err != nil {
-			log.Debugf("Get category %s failed for %s", cID, errors.ErrorStack(err))
+			Logger.Debugf("Get category %s failed for %s", cID, errors.WithStack(err))
 		}
 		if category.Name == name {
 			categories = append(categories, *category)

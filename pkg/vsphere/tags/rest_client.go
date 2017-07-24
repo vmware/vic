@@ -25,8 +25,8 @@ import (
 	"net/url"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
+
 	"github.com/vmware/govmomi/vim25/soap"
 )
 
@@ -43,7 +43,7 @@ type RestClient struct {
 }
 
 func NewClient(u *url.URL, insecure bool, thumbprint string) *RestClient {
-	log.Debugf("Create rest client")
+	Logger.Debugf("Create rest client")
 	u.Path = RestPrefix
 
 	sc := soap.NewClient(u, insecure)
@@ -63,18 +63,17 @@ func (c *RestClient) encodeData(data interface{}) (*bytes.Buffer, error) {
 	params := bytes.NewBuffer(nil)
 	if data != nil {
 		if err := json.NewEncoder(params).Encode(data); err != nil {
-			log.Debugf("Encoding data failed for: %s", errors.ErrorStack(err))
-			return nil, errors.Trace(err)
+			return nil, errors.Wrap(err, "failed to encode json data")
 		}
 	}
 	return params, nil
 }
 
 func (c *RestClient) call(ctx context.Context, method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
-	//	log.Debugf("%s: %s, headers: %+v", method, path, headers)
+	//	Logger.Debugf("%s: %s, headers: %+v", method, path, headers)
 	params, err := c.encodeData(data)
 	if err != nil {
-		return nil, nil, -1, errors.Trace(err)
+		return nil, nil, -1, errors.Wrap(err, "call failed")
 	}
 
 	if data != nil {
@@ -87,11 +86,11 @@ func (c *RestClient) call(ctx context.Context, method, path string, data interfa
 	body, hdr, statusCode, err := c.clientRequest(ctx, method, path, params, headers)
 	if statusCode == http.StatusUnauthorized && strings.Contains(err.Error(), "This method requires authentication") {
 		c.Login(ctx)
-		log.Debugf("Rerun request after login")
+		Logger.Debugf("Rerun request after login")
 		return c.clientRequest(ctx, method, path, params, headers)
 	}
 
-	return body, hdr, statusCode, errors.Trace(err)
+	return body, hdr, statusCode, errors.Wrap(err, "call failed")
 }
 
 func (c *RestClient) clientRequest(ctx context.Context, method, path string, in io.Reader, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
@@ -102,7 +101,7 @@ func (c *RestClient) clientRequest(ctx context.Context, method, path string, in 
 
 	req, err := http.NewRequest(method, fmt.Sprintf("%s%s", RestPrefix, path), in)
 	if err != nil {
-		return nil, nil, -1, errors.Trace(err)
+		return nil, nil, -1, errors.Wrap(err, "failed to create request")
 	}
 
 	req = req.WithContext(ctx)
@@ -136,18 +135,18 @@ func (c *RestClient) handleResponse(resp *http.Response, err error) (io.ReadClos
 		if strings.Contains(err.Error(), "connection refused") {
 			return nil, nil, statusCode, errors.Errorf("Cannot connect to endpoint %s. Is vCloud Suite API running on this server?", c.host)
 		}
-		return nil, nil, statusCode, errors.Errorf("An error occurred trying to connect: %v", errors.ErrorStack(err))
+		return nil, nil, statusCode, errors.Wrap(err, "error occurred trying to connect")
 	}
 
 	if statusCode < http.StatusOK || statusCode >= http.StatusBadRequest {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, nil, statusCode, errors.Trace(err)
+			return nil, nil, statusCode, errors.Wrap(err, "error reading response")
 		}
 		if len(body) == 0 {
 			return nil, nil, statusCode, errors.Errorf("Error: request returned %s", http.StatusText(statusCode))
 		}
-		log.Debugf("Error response from vCloud Suite API: %s", bytes.TrimSpace(body))
+		Logger.Debugf("Error response from vCloud Suite API: %s", bytes.TrimSpace(body))
 		return nil, nil, statusCode, errors.Errorf("Error response from vCloud Suite API: %s", bytes.TrimSpace(body))
 	}
 
@@ -155,20 +154,20 @@ func (c *RestClient) handleResponse(resp *http.Response, err error) (io.ReadClos
 }
 
 func (c *RestClient) Login(ctx context.Context) error {
-	log.Debugf("Login to %s through rest API.", c.host)
+	Logger.Debugf("Login to %s through rest API.", c.host)
 
 	targetURL := c.endpoint.String() + "/com/vmware/cis/session"
 
 	request, err := http.NewRequest("POST", targetURL, nil)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.Wrap(err, "login failed")
 	}
 	request = request.WithContext(ctx)
 	password, _ := c.endpoint.User.Password()
 	request.SetBasicAuth(c.endpoint.User.Username(), password)
 	resp, err := c.HTTP.Do(request)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.Wrap(err, "login failed")
 	}
 	if resp == nil {
 		return errors.New("response is nil in Login")
@@ -180,6 +179,6 @@ func (c *RestClient) Login(ctx context.Context) error {
 
 	c.cookies = resp.Cookies()
 
-	log.Debugf("Login succeeded")
+	Logger.Debugf("Login succeeded")
 	return nil
 }
