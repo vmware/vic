@@ -17,7 +17,9 @@ package disk
 import (
 	"net/url"
 
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
@@ -31,6 +33,11 @@ type Vmdk struct {
 	*datastore.Helper
 	*session.Session
 }
+
+const (
+	DiskBackendKey = "msg.disk.noBackEnd"
+	LockedFileKey  = "msg.fileio.lock"
+)
 
 // Mount mounts the disk, returning the mount path and the function used to unmount/detaches
 // when no longer in use
@@ -61,4 +68,48 @@ func LockedVMDKFilter(vm *mo.VirtualMachine) bool {
 func IsLockedError(err error) bool {
 	// TODO: add check here for actual error
 	return true
+}
+
+// LockedDisks returns locked devices path in the error if it's device lock error
+func LockedDisks(err error) []string {
+	var faultMessage []types.LocalizableMessage
+
+	if soap.IsSoapFault(err) {
+		switch f := soap.ToSoapFault(err).VimFault().(type) {
+		case *types.GenericVmConfigFault:
+			faultMessage = f.FaultMessage
+		}
+	} else if soap.IsVimFault(err) {
+		faultMessage = soap.ToVimFault(err).GetMethodFault().FaultMessage
+	} else {
+		switch err := err.(type) {
+		case task.Error:
+			faultMessage = err.Fault().GetMethodFault().FaultMessage
+		}
+	}
+
+	if faultMessage == nil {
+		return nil
+	}
+
+	lockedFile := false
+	var devices []string
+	for _, message := range faultMessage {
+		switch message.Key {
+		case LockedFileKey:
+			lockedFile = true
+		case DiskBackendKey:
+			for _, arg := range message.Arg {
+				if device, ok := arg.Value.(string); ok {
+					devices = append(devices, device)
+					continue
+				}
+			}
+		}
+	}
+	if lockedFile {
+		// make sure locked devices are returned only when both keys appear in the error
+		return devices
+	}
+	return nil
 }

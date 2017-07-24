@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -32,6 +34,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
+	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -114,6 +117,14 @@ func (r ConcurrentAccessError) Error() string {
 func IsConcurrentAccessError(err error) bool {
 	_, ok := err.(ConcurrentAccessError)
 	return ok
+}
+
+type DevicesInUseError struct {
+	Devices []string
+}
+
+func (e DevicesInUseError) Error() string {
+	return fmt.Sprintf("device %s in use", strings.Join(e.Devices, ","))
 }
 
 // Container is used to return data about a container during inspection calls
@@ -350,6 +361,28 @@ func (c *Container) start(ctx context.Context) error {
 	c.SetState(StateStarting)
 
 	err := c.containerBase.start(ctx)
+	if err != nil {
+		// change state to stopped because start task failed
+		c.SetState(StateStopped)
+
+		// check if locked disk error
+		devices := disk.LockedDisks(err)
+		if len(devices) > 0 {
+			for i := range devices {
+				// get device id from datastore file path
+				// FIXME: find a reasonable way to get device ID from datastore path in exec
+				devices[i] = strings.TrimSuffix(path.Base(devices[i]), ".vmdk")
+			}
+			return DevicesInUseError{devices}
+		}
+		return err
+	}
+
+	// wait task to set started field to something
+	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
+	defer cancel()
+
+	err = c.waitForSession(ctx, c.ExecConfig.ID)
 	if err != nil {
 		// leave this in state starting - if it powers off then the event
 		// will cause transition to StateStopped which is likely our original state

@@ -202,3 +202,14 @@ Docker volume verify files are not copied again in a non empty volume
 	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v test16:/etc/example jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
 	Should Be Equal As Integers  ${rc}  0
 	Should Contain  ${output}  test16modified
+
+Docker volume conflict in new container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create
+    Should Be Equal As Integers  ${rc}  0
+    Set Suite Variable  ${volID}  ${output}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit -v ${volID}:/mydata ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit -v ${volID}:/mydata ${busybox}
+    Should Be Equal As Integers  ${rc}  125
+    Should Contain  ${output}  Error response from daemon
+    Should Contain  ${output}  device ${volID} in use
