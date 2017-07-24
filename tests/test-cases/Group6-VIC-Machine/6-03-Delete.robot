@@ -76,6 +76,9 @@ Attach Disks and Delete VCH
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
+    ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
+    Should Be Equal As Integers  ${rc}  0
+
     # iterate through found images and attach them to the appliance VM
     ${rc}  ${output}=  Run And Return Rc And Output  for x in $(govc datastore.ls %{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/); do echo $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=$(govc vm.ip %{VCH-NAME}); done
     Log  ${output}
