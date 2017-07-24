@@ -68,7 +68,7 @@ func LockedVMDKFilter(vm *mo.VirtualMachine) bool {
 func IsLockedError(err error) bool {
 	disks := LockedDisks(err)
 	//if device is locked, disks will not be nil
-	return disks != nil
+	return len(disks) > 0
 }
 
 // LockedDisks returns locked devices path in the error if it's device lock error
