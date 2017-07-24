@@ -58,22 +58,24 @@ Copy a directory from online container to host, dst path doesn't exist
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir ${CURDIR}/newdir
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Directory Should Exist  ${CURDIR}/newdir
-    File Should Exist  ${CURDIR}/newdir/test.txt
+    OperatingSystem.Directory Should Exist  ${CURDIR}/newdir
+    OperatingSystem.File Should Exist  ${CURDIR}/newdir/test.txt
     Remove Directory  ${CURDIR}/newdir  recursive=True
 
 Copy the content of a directory from online container to host
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/. ${CURDIR}/bar
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    File Should Exist  ${CURDIR}/bar/test.txt
-    Remove File  ${CURDIR}/bar/test.txt
+    ${status}=  Get State Of Github Issue  5796
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-44-Docker-CP-Online.robot needs to be updated now that Issue #5796 has been resolved
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/. ${CURDIR}/bar
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #OperatingSystem.File Should Exist  ${CURDIR}/bar/test.txt
+    #Remove File  ${CURDIR}/bar/test.txt
 
 Copy a file from online container to host, overwrite dst file
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/test.txt ${CURDIR}/foo.txt
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${content}=  Get File  ${CURDIR}/foo.txt
+    ${content}=  OperatingSystem.Get File  ${CURDIR}/foo.txt
     Should Contain  ${content}   testing
 
 Copy a file from host to online container, dst directory doesn't exist
@@ -128,9 +130,9 @@ Copy a directory from offline container to host, dst is a volume shared with an 
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/vol1 ${CURDIR}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Directory Should Exist  ${CURDIR}/vol1
-    Directory Should Exist  ${CURDIR}/vol1/bar
-    File Should Exist  ${CURDIR}/vol1/content
+    OperatingSystem.Directory Should Exist  ${CURDIR}/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/vol1/bar
+    OperatingSystem.File Should Exist  ${CURDIR}/vol1/content
     Remove Directory  ${CURDIR}/vol1  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     Should Be Equal As Integers  ${rc}  0

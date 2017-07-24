@@ -625,6 +625,7 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 		op.Errorf("Error getting data source: %s", err.Error())
 		return storage.NewStatPathInternalServerError()
 	}
+	defer dataSource.Close()
 
 	fileStat, err := dataSource.Stat(op, filterSpec)
 	if err != nil {

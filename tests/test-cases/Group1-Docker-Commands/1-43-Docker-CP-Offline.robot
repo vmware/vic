@@ -41,6 +41,7 @@ Set up test files and install VIC appliance to test server
     Should Not Contain  ${output}  Error
 
 Clean up test files and VIC appliance to test server
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop $(docker %{VCH-PARAMS} ps -a -q)
     Remove File  ${CURDIR}/foo.txt
     Remove File  ${CURDIR}/content
     Remove File  ${CURDIR}/largefile.txt
@@ -96,8 +97,8 @@ Copy a directory from offline container to host cwd
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/testdir ${CURDIR}/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Directory Should Exist  ${CURDIR}/testdir
-    File Should Exist  ${CURDIR}/testdir/fakefile
+    OperatingSystem.Directory Should Exist  ${CURDIR}/testdir
+    OperatingSystem.File Should Exist  ${CURDIR}/testdir/fakefile
     Remove Directory  ${CURDIR}/testdir  recursive=True
 
 Copy a directory from host to offline container, dst path doesn't exist
@@ -238,8 +239,10 @@ Concurrent copy: repeat copy a large file from offline container to host several
     #\   Should Be Equal As Integers  ${res.rc}  0
     #Log To Console  \nCheck if the copy operations succeeded
     #:FOR  ${idx}  IN RANGE  0  10
-    #\   File Should Exist  ${CURDIR}/lg-${idx}
+    #\   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
     #\   Remove File  ${CURDIR}/lg-${idx}
     #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  Error
+Contact GitHub API Training Shop Blog About
+© 2017 GitHub, Inc. Terms Privacy Security Status Help

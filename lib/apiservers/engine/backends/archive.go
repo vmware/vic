@@ -621,16 +621,10 @@ func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, p
 	var primaryTarget *ArchiveReader
 
 	// trim / and . off from path and then append / to ensure the format is correct
-	for strings.HasPrefix(path, "/") {
-		path = strings.TrimPrefix(path, "/")
+	path = filepath.Clean(path)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
 	}
-	for strings.HasSuffix(path, ".") {
-		path = strings.TrimSuffix(path, ".")
-	}
-	for strings.HasSuffix(path, "/") {
-		path = strings.TrimSuffix(path, "/")
-	}
-	path = "/" + path
 
 	readerMap := NewArchiveStreamReaderMap(op, mounts, path)
 	nodes, _ := readerMap.FindArchiveReaders(path)
