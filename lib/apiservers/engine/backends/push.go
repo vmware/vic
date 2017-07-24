@@ -22,6 +22,11 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/api/types"
+	eventtypes "github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/reference"
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -29,22 +34,11 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
-
-	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/api/types"
-	eventtypes "github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/reference"
 )
 
 // PushImage initiates a push operation on the repository named localName.
 func (i *Image) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%s:%s", image, tag)))
-
-	_, err := cache.ImageCache().Get(image)
-	if err != nil {
-		return ImageNotFoundError(image, tag)
-	}
 
 	//***** Code from Docker 1.13 PullImage to convert image and tag to a ref
 	image = strings.TrimSuffix(image, ":")
@@ -68,6 +62,17 @@ func (i *Image) PushImage(ctx context.Context, image, tag string, metaHeaders ma
 		}
 	}
 	//*****
+
+	// make sure the image exists in cache before push
+	id, err := cache.RepositoryCache().Get(ref)
+	if err != nil {
+		return ImageNotFoundError(ref.String(), tag)
+	}
+
+	_, err = cache.ImageCache().Get(id)
+	if err != nil {
+		return ImageNotFoundError(id, tag)
+	}
 
 	// create url from hostname
 	hostnameURL, err := url.Parse(ref.Hostname())

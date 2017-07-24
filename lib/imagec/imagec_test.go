@@ -33,12 +33,16 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
+	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 const (
@@ -756,4 +760,73 @@ func TestPrepareManifestAndLayers(t *testing.T) {
 		assert.Equal(t, expectedManifest.SchemaVersion, actualManifest.SchemaVersion, "Schema version of the manifest.Versioned is incorrect for mock #%d", i)
 
 	}
+}
+
+func TestUpdateV2MetaData(t *testing.T) {
+	layerCache = &LCache{
+		layers: make(map[string]*ImageWithMeta),
+	}
+
+	// Add some fake data to the layer cache
+	layer1 := &ImageWithMeta{
+		Image: &models.Image{
+			ID:     uid.New().String(),
+			Parent: storage.Scratch.ID,
+		},
+		V2Meta: []dmetadata.V2Metadata{{
+			SourceRepository: "docker.io/library/busybox",
+		}},
+	}
+	layerCache.Add(layer1)
+
+	layer2 := &ImageWithMeta{
+		Image: &models.Image{
+			ID:     uid.New().String(),
+			Parent: layer1.ID,
+		},
+		V2Meta: []dmetadata.V2Metadata{{
+			SourceRepository: "docker.io/library/busybox",
+		}},
+	}
+	layerCache.Add(layer2)
+
+	ref, err := reference.ParseNamed("busybox:latest")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	imageID := uid.New()
+
+	err = cache.RepositoryCache().AddReference(ref, imageID.String(), false, layer2.ID, false)
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	err = cache.RepositoryCache().AddReference(ref, imageID.String(), false, layer1.ID, false)
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	// try to update V2MetaData
+	newSourceRepo := "docker.io/library/busybox"
+
+	err = UpdateV2MetaData(ref, newSourceRepo)
+	assert.NoError(t, err, "UpdataeV2MetaData failed: %s", err)
+
+	l1, err := LayerCache().Get(layer1.ID)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	assert.Equal(t, 1, len(l1.V2Meta), "The number of source repositories should be one!")
+
+	// try to update V2MetaData
+	newSourceRepo = "docker.io/test/anotherBusybox"
+
+	err = UpdateV2MetaData(ref, newSourceRepo)
+	assert.NoError(t, err, "UpdataeV2MetaData failed: %s", err)
+
+	l2, err := LayerCache().Get(layer2.ID)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	assert.Equal(t, 2, len(l2.V2Meta), "The number of source repositories should be two!")
 }

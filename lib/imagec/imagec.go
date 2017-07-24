@@ -34,6 +34,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
+	dmetadata "github.com/docker/docker/distribution/metadata"
 	docker "github.com/docker/docker/image"
 	dockerLayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -132,6 +133,8 @@ type ImageWithMeta struct {
 	Size   int64
 
 	Downloading bool
+
+	V2Meta []dmetadata.V2Metadata
 }
 
 // ArchiveStream is used during image push
@@ -151,6 +154,9 @@ type Pusher struct {
 	// Function from imagec caller to get archive reader.  This reduce the need for imageC
 	// from knowing about the portlayer and persona.
 	ArchiveReader GetArchiveReader
+
+	// imageConfig marshaled as bytes
+	configJSON []byte
 }
 
 type GetArchiveReader func(ctx context.Context, layerID, parentLayerID string) (io.ReadCloser, error)
@@ -185,6 +191,14 @@ const (
 
 	// attribute update actions
 	Add = iota + 1
+
+	// PushImage and PullImage indicate the image operation type
+	PushImage = "pushImage"
+	PullImage = "pullImage"
+
+	// MaxV2MetaDataEntries specifies the maximum number of entries in a layer's []V2MetaData
+	// This is used to track the layer's source repositories
+	MaxV2MetaDataEntries = 10
 )
 
 func init() {
@@ -500,7 +514,7 @@ func (ic *ImageC) PullImage() error {
 	defer cancel()
 
 	// Authenticate, get URL, get token
-	if err := ic.prepareTransfer(ctx); err != nil {
+	if err := ic.prepareTransfer(ctx, PullImage); err != nil {
 		return err
 	}
 
@@ -526,6 +540,14 @@ func (ic *ImageC) PullImage() error {
 		return err
 	}
 
+	// update the v2metaData of all layers
+	if err := UpdateV2MetaData(ic.Reference, ic.Reference.FullName()); err != nil {
+		log.Errorf("Failed to update v2MetaData: %s", err)
+	}
+	if err := LayerCache().Save(); err != nil {
+		log.Errorf("Failed to persist v2MetaData to kv store: %s", err)
+	}
+
 	return nil
 }
 
@@ -538,7 +560,7 @@ func (ic *ImageC) ListLayers() error {
 	defer cancel()
 
 	// Authenticate, get URL, get token
-	if err := ic.prepareTransfer(ctx); err != nil {
+	if err := ic.prepareTransfer(ctx, PullImage); err != nil {
 		return err
 	}
 
@@ -570,6 +592,11 @@ func (ic *ImageC) PushImage() error {
 	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
 	defer cancel()
 
+	// Authenticate, get URL, get token
+	if err := ic.prepareTransfer(ctx, PushImage); err != nil {
+		return err
+	}
+
 	// Output message
 	progress.Message(ic.progressOutput, "", "The push refers to a repository ["+ic.Image+"]")
 
@@ -588,11 +615,24 @@ func (ic *ImageC) PushImage() error {
 		return err
 	}
 
+	// Push up the image manifest
+	if err := PutImageManifest(ctx, ic.Pusher, ic.Options, ic.progressOutput); err != nil {
+		return err
+	}
+
+	// update the v2metaData of all layers
+	if err := UpdateV2MetaData(ic.Reference, ic.Reference.FullName()); err != nil {
+		log.Errorf("Failed to update v2MetaData: %s", err)
+	}
+	if err := LayerCache().Save(); err != nil {
+		log.Errorf("Failed to persist v2MetaData to kv store: %s", err)
+	}
+
 	return nil
 }
 
 // prepareTransfer Looks up URLs and fetch auth token
-func (ic *ImageC) prepareTransfer(ctx context.Context) error {
+func (ic *ImageC) prepareTransfer(ctx context.Context, imageOperation string) error {
 
 	// Parse the -reference parameter
 	ic.ParseReference()
@@ -635,7 +675,15 @@ func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 	}
 
 	// Get the URL of the OAuth endpoint
-	url, err := LearnAuthURL(ic.Options)
+	var url *url.URL
+	if imageOperation == PushImage {
+		url, err = LearnAuthURLForPush(ic.Options, ic.progressOutput)
+	} else if imageOperation == PullImage {
+		url, err = LearnAuthURL(ic.Options)
+	} else {
+		err = fmt.Errorf("invalid image operation: %s", imageOperation)
+	}
+
 	if err != nil {
 		log.Infof(err.Error())
 		switch err := err.(type) {
@@ -736,9 +784,11 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 
 	// use the leaf layer to walk the chain of layers down to the base parent (scratch)
 	for {
-		pusher.streamMap[layerID] = &ArchiveStream{
-			layerID:       layerID,
-			parentLayerID: layer.Image.Parent,
+		if layer.DiffID != dockerLayer.DigestSHA256EmptyTar.String() {
+			pusher.streamMap[layerID] = &ArchiveStream{
+				layerID:       layerID,
+				parentLayerID: layer.Image.Parent,
+			}
 		}
 
 		log.Infof("Image data for layer %s = %#v", layerID, *layer.Image)
@@ -761,14 +811,13 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 	log.Infof("streamMap = %#v", pusher.streamMap)
 
 	// Create a docker image from our (VIC's) image config
-	_, configDigest, configSize, err := ic.dockerImageFromVicImage(layersHistory)
+	configJSON, configDigest, configSize, err := ic.dockerImageFromVicImage(layersHistory)
 	if err != nil {
 		return fmt.Errorf("Could not build docker image from VIC image history: %s", err.Error())
 	}
 
 	// calculate image ID
-	log.Infof("Image ID: sha256:%s", configDigest)
-	digest := "sha256:" + digest.Digest(configDigest)
+	log.Infof("Image ID: %s", configDigest)
 
 	// build out PushManifest with all generated components
 	pusher.PushManifest = schema2.Manifest{
@@ -776,9 +825,11 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 		Config: distribution.Descriptor{
 			MediaType: schema2.MediaTypeImageConfig,
 			Size:      configSize,
-			Digest:    digest,
+			Digest:    digest.Digest(configDigest),
 		},
 	}
+
+	pusher.configJSON = configJSON
 
 	log.Infof("schema 2 manifest: %#v", pusher.PushManifest)
 
@@ -790,10 +841,8 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 func (ic *ImageC) FinalizeManifest() error {
 	defer trace.End(trace.Begin(""))
 
-	pusher := ic.Pusher
-
 	var layers []distribution.Descriptor
-	for _, stream := range pusher.streamMap {
+	for _, stream := range ic.Pusher.streamMap {
 		var layer distribution.Descriptor
 
 		log.Infof("Finalizing manifest, stream: %#v", stream)
@@ -804,16 +853,16 @@ func (ic *ImageC) FinalizeManifest() error {
 		layers = append(layers, layer)
 	}
 
-	pusher.PushManifest.Layers = layers
+	ic.Pusher.PushManifest.Layers = layers
 
-	log.Infof("Final manifest = %#v", pusher.PushManifest)
+	log.Infof("Final manifest = %#v", ic.Pusher.PushManifest)
 
 	return nil
 }
 
 // dockerImageFromVicImage takes a slice of VIC image with meta and returns a docker.Image,
 // the calculated digest of that struct, the size of the config
-func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) (*docker.Image, string, int64, error) {
+func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) ([]byte, string, int64, error) {
 	image := docker.V1Image{}
 	rootFS := docker.NewRootFS()
 	history := make([]docker.History, 0, len(images))
@@ -839,6 +888,7 @@ func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) (*docker.Imag
 			// if not empty, add diffID to rootFS
 			rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.DiffID))
 		}
+
 		history = append(history, h)
 		size += layer.Size
 	}
@@ -860,15 +910,18 @@ func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) (*docker.Imag
 		History: history,
 	}
 
+	log.Debugf("Constructed docker image config - rootfs: %+v", result.RootFS)
+	log.Debugf("Constructed docker image config - hostory: %+v", result.History)
+
 	imageConfigBytes, err := result.MarshalJSON()
 	if err != nil {
 		return nil, "", 0, fmt.Errorf("Failed to marshall image metadata: %s", err)
 	}
 
-	digest := fmt.Sprintf("%x", sha256.Sum256(imageConfigBytes))
+	digest := fmt.Sprintf("sha256:%x", sha256.Sum256(imageConfigBytes))
 	configSize := int64(len(imageConfigBytes))
 
-	return result, digest, configSize, nil
+	return imageConfigBytes, digest, configSize, nil
 }
 
 // GetReaderForLayer returns a io.ReadCloser for the data from the archive stream.  The
@@ -935,7 +988,7 @@ func (p *Pusher) GetReaderForLayer(layerID string) (*ArchiveStream, io.ReadClose
 	}
 	stream.layerFile = lf
 	stream.size = written
-	stream.digest = fmt.Sprintf("%x", blobSum.Sum(nil))
+	stream.digest = fmt.Sprintf("sha256:%x", blobSum.Sum(nil))
 
 	log.Infof("Read stream: %#v", stream)
 
@@ -951,4 +1004,65 @@ func (a *ArchiveStream) Close() {
 	log.Infof("Closing stream for layer %s", a.layerID)
 	a.layerFile.Close()
 	// os.Remove(a.layerFile.Name())
+}
+
+func UpdateV2MetaData(imageRef reference.Named, newSourceRepo string) error {
+	defer trace.End(trace.Begin(newSourceRepo))
+
+	id, err := cache.RepositoryCache().Get(imageRef)
+	if err != nil {
+		return fmt.Errorf("Could not retrieve image id from repository cache using reference: %s", err)
+	}
+
+	layerID := cache.RepositoryCache().GetLayerID(id)
+
+	layer, err := LayerCache().Get(layerID)
+	if err != nil {
+		return fmt.Errorf("Unable to get top layer id for image %s", id)
+	}
+
+	var sourceRepoExist bool
+
+	for {
+		if layer.V2Meta != nil {
+			for _, m := range layer.V2Meta {
+				if m.SourceRepository == newSourceRepo {
+					sourceRepoExist = true
+				}
+			}
+		} else {
+			layer.V2Meta = []dmetadata.V2Metadata{{}}
+		}
+		if !sourceRepoExist {
+			if len(layer.V2Meta) == MaxV2MetaDataEntries {
+				// remove the oldest entry - the first one in the array
+				layer.V2Meta = append(layer.V2Meta[1:])
+			}
+			layer.V2Meta = append(layer.V2Meta, dmetadata.V2Metadata{
+				SourceRepository: newSourceRepo,
+			})
+			LayerCache().Add(layer)
+		}
+
+		temp, _ := LayerCache().Get(layer.ID)
+		log.Debugf("layer: %s, V2Meta: %+v", temp.ID, temp.V2Meta)
+
+		log.Debugf("layer.Image.Parent: %s", layer.Image.Parent)
+
+		// Check for scratch ID
+		if layer.Image.Parent == storage.Scratch.ID {
+			break
+		}
+
+		// set the layer to the parent layer
+		layerID = layer.Image.Parent
+		layer, err = LayerCache().Get(layerID)
+		if err != nil {
+			return err
+		}
+
+		sourceRepoExist = false
+	}
+
+	return nil
 }

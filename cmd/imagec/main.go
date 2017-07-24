@@ -182,7 +182,7 @@ func main() {
 
 		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 		if err := ic.PullImage(); err != nil {
-			log.Fatalf("Pulling image failed due to %s\n", err)
+			log.Fatalf("Pulling image failed: %s", err)
 		}
 	case PushImage:
 		log.Errorf("The operation '%s' is not implemented\n", PushImage)
