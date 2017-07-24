@@ -207,9 +207,9 @@ Docker volume conflict in new container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create
     Should Be Equal As Integers  ${rc}  0
     Set Suite Variable  ${volID}  ${output}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volID}:/mydata ${busybox} /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit -v ${volID}:/mydata ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${volID}:/mydata ${busybox} /bin/df -Ph
-    Should Be Equal As Integers  ${rc}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -dit -v ${volID}:/mydata ${busybox}
+    Should Be Equal As Integers  ${rc}  125
     Should Contain  ${output}  Error response from daemon
-    Should Contain  ${output}  devices $volID in use
+    Should Contain  ${output}  device ${volID} in use
