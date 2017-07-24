@@ -59,6 +59,23 @@ const admiralTokenKey = "guestinfo.vicova.engine.token"
 var (
 	trueStr        = "true"
 	projectsFilter = "customProperties.__enableContentTrust eq 'true'"
+
+	admClient = &http.Client{
+		Transport: // copied from http.DefaultTransport
+		&http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true}, // #nosec
+		},
+	}
 )
 
 // NewSource creates a new Admiral dynamic config source. sess
@@ -67,11 +84,13 @@ var (
 // this is a URI to the docker endpoint in the VCH.
 func NewSource(sess *session.Session, vchID string) dynamic.Source {
 	return &source{
-		d:     &productDiscovery{},
+		d:     DefaultDiscovery,
 		sess:  sess,
 		vchID: vchID,
 	}
 }
+
+var DefaultDiscovery = &productDiscovery{}
 
 type source struct {
 	mu      sync.Mutex
@@ -155,28 +174,7 @@ func (a *source) discover(ctx context.Context) error {
 		return err
 	}
 
-	// copied from http.DefaultTransport
-	tp := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-	cl := &http.Client{
-		Transport: tp,
-	}
-
-	if u.Scheme == "https" {
-		tp.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec
-	}
-
-	rt := rtclient.NewWithClient(u.Host, u.Path, []string{u.Scheme}, cl)
+	rt := rtclient.NewWithClient(u.Host, u.Path, []string{u.Scheme}, admClient)
 	rt.DefaultAuthentication = &admiralAuth{token: token}
 	a.c = client.New(rt, strfmt.Default)
 
@@ -314,6 +312,17 @@ func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) 
 
 		log.Debugf("%v", o)
 		v := vm.NewVirtualMachine(ctx, sess, types.ManagedObjectReference{Type: *o.Type, Value: *o.ID})
+		st, err := v.PowerState(ctx)
+		if err != nil {
+			log.Warnf("ignoring potential product VM: %s", err)
+			continue
+		}
+
+		if st != types.VirtualMachinePowerStatePoweredOn {
+			log.Warnf("ignoring potential product VM %s: powered off", *o.ID)
+			continue
+		}
+
 		var values map[string]string
 		values, err = keys(ctx, v, []string{admiralEndpointKey, admiralTokenKey})
 		if err != nil {
