@@ -167,11 +167,18 @@ func main() {
 
 		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 		if err := ic.PullImage(); err != nil {
-			log.Fatalf("Pulling image failed due to %s\n", err)
+			log.Fatalf("Pulling image failed: %s", err)
 		}
 	} else if imageCOptions.operation == PushImage {
-		log.Errorf("The operation '%s' is not implemented\n", PushImage)
+		options := imageCOptions.options
+
+		options.Outstream = os.Stdout
+
+		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+		if err := ic.PushImage(); err != nil {
+			log.Fatalf("Pushing image failed: %s", err)
+		}
 	} else {
-		log.Errorf("The operation '%s' is not valid\n", imageCOptions.operation)
+		log.Errorf("The operation '%s' is not valid", imageCOptions.operation)
 	}
 }

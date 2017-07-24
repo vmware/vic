@@ -24,11 +24,16 @@ import (
 	"strings"
 	"testing"
 
+	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 const (
@@ -175,42 +180,6 @@ func TestLearnAuthURLForPush(t *testing.T) {
 	}
 
 	if url.String() != "https://auth.docker.io/token?scope=repository%3Atest%2Fubuntu%3Apull%2Cpush&service=registry.docker.io" {
-		t.Errorf("Returned url %s is different than expected", url)
-	}
-}
-
-func TestLearnAuthURLForRepoList(t *testing.T) {
-	var err error
-
-	options := Options{
-		Outstream: os.Stdout,
-	}
-
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
-
-	s := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("www-authenticate",
-				"Bearer realm=\"https://auth.docker.io/token\",service=\"registry.docker.io\",scope=\"registry:catalog:*\"")
-			http.Error(w, "You shall not pass", http.StatusUnauthorized)
-		}))
-	defer s.Close()
-
-	ic.Options.Registry = s.URL
-	ic.Options.Image = MockImage
-	ic.Options.Tag = Tag
-	ic.Options.Timeout = DefaultHTTPTimeout
-	ic.Options.Reference, err = reference.ParseNamed(Reference)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	url, err := LearnAuthURLForRepoList(ic.Options, ic.progressOutput)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	if url.String() != "https://auth.docker.io/token?scope=registry%3Acatalog%3A%2A%2Cscope%3D%22registry%3Acatalog%3A%2A&service=registry.docker.io" {
 		t.Errorf("Returned url %s is different than expected", url)
 	}
 }
@@ -568,51 +537,55 @@ func TestMountBlobToRepo(t *testing.T) {
 	assert.Equal(t, false, mounted, "The layer should not have been mounted!")
 }
 
-func TestObtainRepoList(t *testing.T) {
-	var err error
-
-	options := Options{
-		Outstream: os.Stdout,
+func TestObtainSourceRepoList(t *testing.T) {
+	layerCache = &LCache{
+		layers: make(map[string]*ImageWithMeta),
 	}
 
-	ic := NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
+	// Add some fake data to the layer cache
+	layer1 := &ImageWithMeta{
+		Image: &models.Image{
+			ID:     uid.New().String(),
+			Parent: storage.Scratch.ID,
+		},
+		V2Meta: []dmetadata.V2Metadata{{
+			SourceRepository: "docker.io/library/busybox",
+		}},
+	}
+	layerCache.Add(layer1)
 
-	s := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Println("The request url is: ", r.URL.String())
-			if strings.Contains(r.URL.String(), "catalog") {
-				repoData := fmt.Sprintf("{'repositories':[%s]}", RepoMounted)
-				fmt.Println("The repositories: ", repoData)
-
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(repoData))
-			} else {
-				w.WriteHeader(http.StatusBadRequest)
-			}
-		}))
-	defer s.Close()
-
-	ic.Options.Registry = s.URL
-	ic.Options.Image = MockImage
-	ic.Options.Tag = Tag
-	ic.Options.Timeout = DefaultHTTPTimeout
-	ic.Options.Reference, err = reference.ParseNamed(Reference)
+	ref, err := reference.ParseNamed("busybox:latest")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
+	}
+	imageID := uid.New()
+
+	err = cache.RepositoryCache().AddReference(ref, imageID.String(), false, layer1.ID, false)
+	if err != nil {
+		t.Error(err.Error())
 	}
 
-	transporterForRepoList := urlfetcher.NewURLTransporter(urlfetcher.Options{
-		Timeout:            options.Timeout,
-		Username:           options.Username,
-		Password:           options.Password,
-		Token:              options.Token,
-		InsecureSkipVerify: options.InsecureSkipVerify,
-		RootCAs:            options.RegistryCAs,
-	})
+	newSourceRepo := "docker.io/test/busybox"
+	err = UpdateV2MetaData(ref, newSourceRepo)
+	if err != nil {
+		t.Error(err.Error())
+	}
 
-	repoList, err := ObtainRepoList(transporterForRepoList, ic.Options, ic.progressOutput)
-	assert.NoError(t, err, "ObtainRepoList is expected to succeed!")
-	assert.Equal(t, 1, len(repoList), "One repository should have been returned")
-	assert.Equal(t, RepoMounted, repoList[0], "The repo %s should have been returned!", repoList[0])
+	targetRepo, err := reference.ParseNamed("busybox:latest")
+	if err != nil {
+		t.Error(err.Error())
+	}
+	rl, err := ObtainSourceRepoList(layer1.ID, targetRepo)
+	assert.NoError(t, err, "Failed to obtain source repository list: %s", err)
+	assert.Equal(t, 1, len(rl), "SourceRepoList should contain one element!")
+
+	newSourceRepo = "harbor-registry.com/test/busybox"
+	err = UpdateV2MetaData(ref, newSourceRepo)
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	rl, err = ObtainSourceRepoList(layer1.ID, targetRepo)
+	assert.NoError(t, err, "Failed to obtain source repository list: %s", err)
+	assert.Equal(t, 1, len(rl), "SourceRepoList should contain one element!")
 }

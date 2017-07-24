@@ -169,7 +169,12 @@ func (u *URLTransporter) request(ctx context.Context, url *url.URL, body io.Read
 		return nil, nil, err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if operation == http.MethodHead || operation == http.MethodDelete ||
+			operation == http.MethodPost || operation == http.MethodPut {
+			res.Body.Close()
+		}
+	}()
 
 	log.Debugf("URLTransporter.request() - statuscode: %d, body: %#v, header: %#v", res.StatusCode, res.Body, res.Header)
 
@@ -230,9 +235,9 @@ func (u *URLTransporter) requestWithRetry(ctx context.Context, url *url.URL, bod
 		}
 
 		retries++
-		// give up if we reached maxDownloadAttempts
+		// give up if we reached maxTransportAttempts
 		if retries == maxTransportAttempts {
-			log.Debugf("Hit max download attempts. Failed: %v", err)
+			log.Debugf("Hit max transport attempts. Failed: %v", err)
 			return nil, nil, err
 		}
 
@@ -242,7 +247,7 @@ func (u *URLTransporter) requestWithRetry(ctx context.Context, url *url.URL, bod
 			return nil, nil, err
 		}
 
-		// retry downloading again
+		// retry transporting again
 		log.Debugf("Transporting failed, retrying: %v", err)
 
 		delay := retries * 5
@@ -343,7 +348,7 @@ func (u *URLTransporter) ExtractOAuthURL(hdr string, repository *url.URL) (*url.
 		err := fmt.Errorf("www-authenticate header is corrupted")
 		return nil, DoNotRetry{Err: err}
 	}
-	// example for tokens[1]:
+	// Example for tokens[1]:
 	// bearer realm=\"https://kang.eng.vmware.com/service/token\",
 	// service=\"harbor-registry\",
 	// scope=\"repository:test/busybox:pull,push repository:test/ubuntu:pull\"
@@ -362,8 +367,10 @@ func (u *URLTransporter) ExtractOAuthURL(hdr string, repository *url.URL) (*url.
 		}
 		if strings.HasPrefix(token, "scope") {
 			scope = strings.Trim(token[len("scope="):], "\"")
-			scope += ","
-			scope += strings.Trim(tokens[len(tokens)-1], "\"")
+			if len(tokens) == 4 {
+				scope += ","
+				scope += strings.Trim(tokens[len(tokens)-1], "\"")
+			}
 		}
 	}
 
