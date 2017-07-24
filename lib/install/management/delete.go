@@ -178,6 +178,43 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 			continue
 		}
 		if ok {
+			// child is VCH -- detach container disk images to prevent undeletable state
+			devices, err := child.Device(d.ctx)
+			if err != nil {
+				log.Errorf("error getting devices %s:", err.Error())
+				continue
+			}
+
+			disks := devices.SelectByType(&types.VirtualDisk{})
+			if disks == nil {
+				continue
+			}
+
+			for _, disk := range disks {
+				config := []types.BaseVirtualDeviceConfigSpec{
+					&types.VirtualDeviceConfigSpec{
+						Device:    disk,
+						Operation: types.VirtualDeviceConfigSpecOperationRemove,
+					},
+				}
+				spec := types.VirtualMachineConfigSpec{}
+				spec.DeviceChange = config
+
+				op := trace.NewOperation(d.ctx, "detach disks before delete")
+				_, err := child.WaitForResult(op,
+					func(ctx context.Context) (tasks.Task, error) {
+						t, er := child.Reconfigure(ctx, spec)
+						if t != nil {
+							op.Debugf("Detach reconfigure task=%s", t.Reference())
+						}
+
+						return t, er
+					})
+
+				if err != nil {
+					log.Errorf("Failed to detach disks: %s", err.Error())
+				}
+			}
 			continue
 		}
 

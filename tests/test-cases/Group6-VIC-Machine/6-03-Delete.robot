@@ -65,4 +65,26 @@ Delete VCH and verify
 
     # Check resource pool is removed
     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
-	Should Contain  ${ret}  {"ResourcePools":null}
+    Should Contain  ${ret}  {"ResourcePools":null}
+
+Attach Disks and Delete VCH
+    # VCH should delete normally during commit/pull/cp/push operations
+    ${output}=  Install VIC Appliance To Test Server
+    Should Contain    ${output}    Installer completed successfully
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull ${ubuntu}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    # iterate through found images and attach them to the appliance VM
+    ${rc}  ${output}=  Run And Return Rc And Output  for x in $(govc datastore.ls %{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/); do echo $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=$(govc vm.ip %{VCH-NAME}); done
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Completed successfully
+
+    ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
+    Should Be Equal As Integers  ${rc}  1
