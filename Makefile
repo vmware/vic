@@ -420,7 +420,7 @@ vic-ui-plugins:
 	tar --warning=no-unknown-keyword -xzf /tmp/$(SDK_PACKAGE_ARCHIVE) -C /tmp/
 	ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) > vic_ui_build.log 2>&1
 	tar --warning=no-unknown-keyword -xzf /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -C $(UI_INSTALLER_WIN_PATH)
-	ant -f ui/vic-ui-h5c/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) -Denv.VSPHERE_H5C_SDK_HOME=$(ENV_HTML_SDK_HOME) -Denv.BUILD_MODE=prod >> vic_ui_build.log 2>&1
+	ant -f ui/vic-ui-h5c/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) -Denv.VSPHERE_H5C_SDK_HOME=$(ENV_HTML_SDK_HOME) -Denv.BUILD_MODE=prod
 	mkdir -p $(BIN)/ui
 	cp -rf ui/installer/* $(BIN)/ui
 	# cleanup
