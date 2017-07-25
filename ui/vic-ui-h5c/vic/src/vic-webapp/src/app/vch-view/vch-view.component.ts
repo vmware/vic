@@ -35,7 +35,11 @@ import {
     DOCKER_ENGINE_PORT_TLS,
     VSPHERE_SERVEROBJ_VIEWEXT_KEY,
     VSPHERE_VITREE_HOSTCLUSTERVIEW_KEY,
-    WS_VCH
+    WS_VCH,
+    VIC_ROOT_OBJECT_ID_WITH_NAME,
+    CREATE_VCH_WIZARD_URL,
+    WIZARD_MODAL_WIDTH,
+    WIZARD_MODAL_HEIGHT
 } from '../shared/constants';
 import { ExtendedUserSessionService } from '../services/extended-usersession.service';
 
@@ -159,9 +163,9 @@ export class VicVchViewComponent implements OnInit, OnDestroy {
         const webPlatform = this.globalsService.getWebPlatform();
         webPlatform.openModalDialog(
             ' ',
-            '/ui/vic/resources/build-dev/index.html?view=create-vch',
-            920,
-            600,
-            'urn:vic:vic:Root:vic%25252Fvic-root?properties=name');
+            CREATE_VCH_WIZARD_URL,
+            WIZARD_MODAL_WIDTH,
+            WIZARD_MODAL_HEIGHT,
+            VIC_ROOT_OBJECT_ID_WITH_NAME);
     }
 }
