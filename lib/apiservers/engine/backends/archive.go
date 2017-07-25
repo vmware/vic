@@ -360,7 +360,8 @@ func (wm *ArchiveStreamWriterMap) FindArchiveWriter(containerDestPath, assetName
 	//
 	// In the above example, mount prefxi can only be determined by combining both the container destination path and
 	// the asset name, as the final destination includes a mounted volume.
-	combinedPath := path.Join(path.Dir(containerDestPath), assetName)
+
+	combinedPath := path.Join(containerDestPath, assetName)
 	prefix := patricia.Prefix(combinedPath)
 	err = wm.prefixTrie.VisitPrefixes(prefix, findPrefix)
 	if err != nil {
@@ -622,16 +623,10 @@ func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, p
 	var primaryTarget *ArchiveReader
 
 	// trim / and . off from path and then append / to ensure the format is correct
-	for strings.HasPrefix(path, "/") {
-		path = strings.TrimPrefix(path, "/")
+	path = filepath.Clean(path)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
 	}
-	for strings.HasSuffix(path, ".") {
-		path = strings.TrimSuffix(path, ".")
-	}
-	for strings.HasSuffix(path, "/") {
-		path = strings.TrimSuffix(path, "/")
-	}
-	path = "/" + path
 
 	readerMap := NewArchiveStreamReaderMap(op, mounts, path)
 	nodes, _ := readerMap.FindArchiveReaders(path)
@@ -648,13 +643,47 @@ func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, p
 }
 
 func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, nodes []*ArchiveReader, startingNode *ArchiveReader) error {
-	mounts := []string{}
-	for _, node := range nodes {
-		mounts = append(mounts, node.mountPoint.Destination)
+
+	mounts, foundNodes, err := rm.buildMountsAndNodes(startingNode.mountPoint.Destination, startingNode)
+	if err != nil {
+		return err
 	}
 
-	for _, node := range nodes {
+	for _, node := range foundNodes {
 		vicarchive.AddMountInclusionsExclusions(node.mountPoint.Destination, &node.filterSpec, mounts, containerSourcePath)
 	}
 	return nil
+}
+
+// This function will return the node pointers from the prefix tree as well as all mounts involved in the operation
+func (rm *ArchiveStreamReaderMap) buildMountsAndNodes(path string, node *ArchiveReader) ([]string, []*ArchiveReader, error) {
+
+	// We can modify this to make proper exclusions in the future. For now,
+	// we assemble the list of mounts which are involved in the operation
+	// and use the util.go function for generating all the needed information
+
+	mounts := []string{}
+	nodes := []*ArchiveReader{}
+	childWalker := func(prefix patricia.Prefix, item patricia.Item) error {
+		if _, ok := item.(*ArchiveReader); !ok {
+			return fmt.Errorf("item not ArchiveReader")
+		}
+
+		ar, _ := item.(*ArchiveReader)
+		mounts = append(mounts, ar.mountPoint.Destination)
+		nodes = append(nodes, ar)
+		return nil
+	}
+
+	// prefix = current node's mount path
+	nodePrefix := patricia.Prefix(path)
+
+	err := rm.prefixTrie.VisitSubtree(nodePrefix, childWalker)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to build exclusion filter for %s: %s", path, err.Error())
+		log.Error(msg)
+		return nil, nil, fmt.Errorf(msg)
+	}
+
+	return mounts, nodes, nil
 }

@@ -490,6 +490,44 @@ func TestReadIntoMountSpec(t *testing.T) {
 
 }
 
+func TestReadLevelOneDirpec(t *testing.T) {
+	copyTarget := "/mnt/"
+	direction := CopyFrom
+
+	mounts := []testMount{
+		{
+			mount:              "/",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		"/": {
+			RebasePath: "mnt",
+			StripPath:  "mnt",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
+
+}
+
 func TestReadFileSpec(t *testing.T) {
 	copyTarget := "/mnt/vols/A/a/path/file.txt"
 	direction := CopyFrom
@@ -620,30 +658,31 @@ func TestAddExclusionsNonNested(t *testing.T) {
 	expectedResults := map[string]FilterSpec{
 		"/": {
 			Exclusions: map[string]struct{}{
+				"":      {},
 				"mnt/A": {},
 				"mnt/B": {},
 				"mnt/C": {},
 			},
 			Inclusions: map[string]struct{}{
-				"/mnt": {},
+				"mnt": {},
 			},
 		},
 		"/mnt/A": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
-				"/": {},
+				"": {},
 			},
 		},
 		"/mnt/B": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
-				"/": {},
+				"": {},
 			},
 		},
 		"/mnt/C": {
 			Exclusions: make(map[string]struct{}),
 			Inclusions: map[string]struct{}{
-				"/": {},
+				"": {},
 			},
 		},
 	}
@@ -663,7 +702,7 @@ func TestAddExclusionsNonNested(t *testing.T) {
 		for k := range expectedResults[mount].Inclusions {
 			_, ok := spec.Inclusions[k]
 
-			if !assert.True(t, ok, "did not find expected entry in inclusions map. ") {
+			if !assert.True(t, ok, "did not find expected entry (%s) in inclusions map for mount (%s). ", k, mount) {
 				return
 			}
 		}
@@ -671,7 +710,7 @@ func TestAddExclusionsNonNested(t *testing.T) {
 		expectedSpec := expectedResults[mount]
 		expectedLength := len(expectedSpec.Exclusions)
 		actualLength := len(spec.Exclusions)
-		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", expectedLength, actualLength, mount) {
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", actualLength, expectedLength, mount) {
 			return
 		}
 
