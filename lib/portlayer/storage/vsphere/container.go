@@ -125,14 +125,10 @@ offline:
 	for _, o := range owners {
 		// sanity check to see if we are the owner - this should catch transitions
 		// from container running to diff or commit for example between the offline attempt and here
-		uuid, err := o.UUID(op)
-		if err == nil {
-			// check if the vm is appliance VM if we can successfully get its UUID
-			self, _ := guest.IsSelf(op, uuid)
-			if self && offlineAttempt < 2 {
-				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
-				goto offline
-			}
+		self, _ := guest.IsSelf(op, o)
+		if self && offlineAttempt < 2 {
+			op.Infof("Appliance is owner of online vmdk - retrying offline source path")
+			goto offline
 		}
 
 		online, err := c.newOnlineDataSource(op, o, id)
@@ -204,14 +200,10 @@ offline:
 	for _, o := range owners {
 		// sanity check to see if we are the owner - this should catch transitions
 		// from container running to diff or commit for example between the offline attempt and here
-		uuid, err := o.UUID(op)
-		if err == nil {
-			// check if the vm is appliance VM if we can successfully get its UUID
-			self, _ := guest.IsSelf(op, uuid)
-			if self && offlineAttempt < 2 {
-				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
-				goto offline
-			}
+		self, _ := guest.IsSelf(op, o)
+		if self && offlineAttempt < 2 {
+			op.Infof("Appliance is owner of online vmdk - retrying offline sink path")
+			goto offline
 		}
 
 		online, err := c.newOnlineDataSink(op, o, id)
