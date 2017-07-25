@@ -425,7 +425,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
-		flags["Mode"] = fields.Flags
+		flags[executor.Mode] = fields.Flags
 		joinParams := storage.NewVolumeJoinParamsWithContext(ctx).WithJoinArgs(&models.VolumeJoinConfig{
 			Flags:     flags,
 			Handle:    handle,
@@ -1694,6 +1694,7 @@ func mountsFromContainer(vc *viccontainer.VicContainer) []types.MountPoint {
 			Source:      vol.ID,
 			Destination: vol.Dest,
 			RW:          false,
+			Mode:        vol.Flags,
 		}
 
 		if strings.Contains(strings.ToLower(vol.Flags), "rw") {
