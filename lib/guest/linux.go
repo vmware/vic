@@ -23,8 +23,10 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -111,4 +113,24 @@ func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, e
 
 	vm := object.NewVirtualMachine(s.Client.Client, ref.Reference())
 	return vm, nil
+}
+
+func IsSelf(op trace.Operation, vm *vm.VirtualMachine) (bool, error) {
+	if vm == nil {
+		return false, nil
+	}
+
+	uuid, err := vm.UUID(op)
+	if err != nil {
+		return false, err
+	}
+
+	self, err := sys.UUID()
+	if err != nil {
+		return false, err
+	}
+
+	op.Debugf("Checking for self reference: %s == %s", self, uuid)
+
+	return self == uuid, nil
 }

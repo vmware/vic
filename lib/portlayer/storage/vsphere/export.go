@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -56,6 +57,11 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 		return nil, err
 	}
 
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
+
+	// offline disk attempt
 	source, err := v.newDataSource(op, uri)
 	if err == nil {
 		return source, err
@@ -75,6 +81,14 @@ func (v *VolumeStore) NewDataSource(op trace.Operation, id string) (storage.Data
 	}
 
 	for _, o := range owners {
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		self, _ := guest.IsSelf(op, o)
+		if self && offlineAttempt < 2 {
+			op.Infof("Appliance is owner of online vmdk - retrying offline source path")
+			goto offline
+		}
+
 		online, err := v.newOnlineDataSource(op, o, id)
 		if online != nil {
 			return online, err
