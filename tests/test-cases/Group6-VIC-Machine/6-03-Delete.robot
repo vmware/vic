@@ -36,36 +36,36 @@ Initial load
     Set Suite Variable  ${containerName}  ${name}
 
 *** Test Cases ***
-# Delete VCH and verify
-#     Initial load
-#     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
-#     Run Keyword And Ignore Error  Gather Logs From Test Server
-#     ${uuid}=  Run  govc vm.info -json\=true %{VCH-NAME} | jq -r '.VirtualMachines[0].Config.Uuid'
-#     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
-#     Should Contain  ${ret}  is powered on
+Delete VCH and verify
+    Initial load
+    # Get VCH uuid and container VM uuid, to check if resources are removed correctly
+    Run Keyword And Ignore Error  Gather Logs From Test Server
+    ${uuid}=  Run  govc vm.info -json\=true %{VCH-NAME} | jq -r '.VirtualMachines[0].Config.Uuid'
+    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+    Should Contain  ${ret}  is powered on
 
-#     # Delete with force
-#     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
-#     Should Contain  ${ret}  Completed successfully
-#     Should Not Contain  ${ret}  Operation failed: Error caused by file
+    # Delete with force
+    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
+    Should Contain  ${ret}  Completed successfully
+    Should Not Contain  ${ret}  Operation failed: Error caused by file
 
-#     # Check VM is removed
-#     ${ret}=  Run  govc vm.info -json=true ${containerName}-*
-#     Should Contain  ${ret}  {"VirtualMachines":null}
-#     ${ret}=  Run  govc vm.info -json=true %{VCH-NAME}
-#     Should Contain  ${ret}  {"VirtualMachines":null}
+    # Check VM is removed
+    ${ret}=  Run  govc vm.info -json=true ${containerName}-*
+    Should Contain  ${ret}  {"VirtualMachines":null}
+    ${ret}=  Run  govc vm.info -json=true %{VCH-NAME}
+    Should Contain  ${ret}  {"VirtualMachines":null}
 
-#     # Check directories is removed
-#     ${ret}=  Run  govc datastore.ls VIC/${uuid}
-#     Should Contain  ${ret}   was not found
-#     ${ret}=  Run  govc datastore.ls %{VCH-NAME}
-#     Should Contain  ${ret}   was not found
-#     ${ret}=  Run  govc datastore.ls VIC/${containerName}-*
-#     Should Contain  ${ret}   was not found
+    # Check directories is removed
+    ${ret}=  Run  govc datastore.ls VIC/${uuid}
+    Should Contain  ${ret}   was not found
+    ${ret}=  Run  govc datastore.ls %{VCH-NAME}
+    Should Contain  ${ret}   was not found
+    ${ret}=  Run  govc datastore.ls VIC/${containerName}-*
+    Should Contain  ${ret}   was not found
 
-#     # Check resource pool is removed
-#     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
-#     Should Contain  ${ret}  {"ResourcePools":null}
+    # Check resource pool is removed
+    ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
+    Should Contain  ${ret}  {"ResourcePools":null}
 
 Attach Disks and Delete VCH
     # VCH should delete normally during commit/pull/cp/push operations
