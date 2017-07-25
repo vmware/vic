@@ -54,7 +54,14 @@ This test requires that a vSphere server is running and available
 41. Wait for these processes to finish
 42. Verify that the copy operation succeeded and clean up all the files copied to the host
 43. Remove offline container
-44. Clean up created files, directories and volumes
+44. Create a container called subVol with 2 volumes attached to it
+45. Issue docker cp ./mnt subVol:/ to the new VIC appliance
+46. Start subVol and inspect its /mnt, /mnt/vol1 and /mnt/vol2 to verify that copy operation succeeded
+47. Stop subVol
+48. Issue docker cp subVol:/mnt ./result to the new VIC appliance
+49. Verify that the files from each sub volumes are copied to host properly
+50. Remove subvol
+51. Clean up created files and directories
 
 # Expected Outcome:
 * Step 1-11 should all succeed
@@ -62,7 +69,8 @@ This test requires that a vSphere server is running and available
 * Step 15-16 should all succeed
 * Step 17 should fail
 * Step 18-30 should all succeed
-* Step 31-44 should all succeed
+* Step 31-43 should all succeed
+* Step 44-51 should all succeed
 
 # Possible Problems:
 12-13 are skipped until we properly propagate errors back to user
