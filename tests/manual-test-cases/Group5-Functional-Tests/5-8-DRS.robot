@@ -41,11 +41,11 @@ Test
     Should Be Empty  ${out}
 
     Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Wait Until Keyword Succeeds  5x  15 seconds  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Wait Until Keyword Succeeds  5x  15 seconds  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Wait Until Keyword Succeeds  5x  15 seconds  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
     Log To Console  Create a distributed switch
