@@ -61,8 +61,7 @@ Test
     Should Contain  ${out}  OK
 
     Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /ha-datacenter/host/cls
-    Should Contain  ${out}  OK
+    Wait Until Keyword Succeeds  5x  5min  Add Host To Distributed Switch  /ha-datacenter/host/cls
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
