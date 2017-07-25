@@ -18,7 +18,6 @@ import (
 	"errors"
 	"io"
 	"os"
-
 	"path/filepath"
 
 	"github.com/vmware/vic/lib/archive"
