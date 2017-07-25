@@ -340,6 +340,7 @@ func setContainerNetworks(ctx context.Context, finder Finder, d *data.Data, cont
 		d.ContainerNetworks.MappedNetworksGateways[k] = v.Gateway
 		d.ContainerNetworks.MappedNetworksDNS[k] = v.Nameservers
 		d.ContainerNetworks.MappedNetworksIPRanges[k] = v.Pools
+		d.ContainerNetworks.MappedNetworksFirewalls[k] = v.TrustLevel
 	}
 	return nil
 }

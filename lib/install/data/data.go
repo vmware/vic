@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -146,10 +147,11 @@ func NewData() *Data {
 	d := &Data{
 		Target: common.NewTarget(),
 		ContainerNetworks: common.ContainerNetworks{
-			MappedNetworks:         make(map[string]string),
-			MappedNetworksGateways: make(map[string]net.IPNet),
-			MappedNetworksIPRanges: make(map[string][]ip.Range),
-			MappedNetworksDNS:      make(map[string][]net.IP),
+			MappedNetworks:          make(map[string]string),
+			MappedNetworksGateways:  make(map[string]net.IPNet),
+			MappedNetworksIPRanges:  make(map[string][]ip.Range),
+			MappedNetworksDNS:       make(map[string][]net.IP),
+			MappedNetworksFirewalls: make(map[string]executor.TrustLevel),
 		},
 		Timeout: 3 * time.Minute,
 	}
@@ -200,7 +202,8 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 		if !reflect.DeepEqual(d.ContainerNetworks.MappedNetworks[vicNet], src.ContainerNetworks.MappedNetworks[vicNet]) ||
 			!reflect.DeepEqual(d.ContainerNetworks.MappedNetworksGateways[vicNet], src.ContainerNetworks.MappedNetworksGateways[vicNet]) ||
 			!equalIPRanges(d.ContainerNetworks.MappedNetworksIPRanges[vicNet], src.ContainerNetworks.MappedNetworksIPRanges[vicNet]) ||
-			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) {
+			!equalIPSlices(d.ContainerNetworks.MappedNetworksDNS[vicNet], src.ContainerNetworks.MappedNetworksDNS[vicNet]) ||
+			!reflect.DeepEqual(d.ContainerNetworks.MappedNetworksFirewalls[vicNet], src.ContainerNetworks.MappedNetworksFirewalls[vicNet]) {
 
 			netsChanged = true
 			log.Errorf("Found changes to existing container network %s", vicNet)
@@ -223,6 +226,7 @@ func (d *Data) copyContainerNetworks(src *Data) error {
 			d.ContainerNetworks.MappedNetworksGateways[vicNet] = src.ContainerNetworks.MappedNetworksGateways[vicNet]
 			d.ContainerNetworks.MappedNetworksIPRanges[vicNet] = src.ContainerNetworks.MappedNetworksIPRanges[vicNet]
 			d.ContainerNetworks.MappedNetworksDNS[vicNet] = src.ContainerNetworks.MappedNetworksDNS[vicNet]
+			d.ContainerNetworks.MappedNetworksFirewalls[vicNet] = src.ContainerNetworks.MappedNetworksFirewalls[vicNet]
 		}
 	}
 

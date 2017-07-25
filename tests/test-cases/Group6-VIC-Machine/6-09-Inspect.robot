@@ -17,6 +17,12 @@ Documentation  Test 6-09 - Verify vic-machine inspect functions
 Resource  ../../resources/Util.robot
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Cleanup Container Network Test 
+    Cleanup VIC Appliance On Test Server
+    ${out}=  Run  govc host.portgroup.remove published-net
+    ${out}=  Run  govc host.portgroup.remove peers-net
+
 *** Test Cases ***
 Inspect VCH Configuration
     Install VIC Appliance To Test Server
@@ -105,6 +111,28 @@ Inspect VCH Configuration with Resource Limitation
 
     Cleanup VIC Appliance On Test Server
 
+Inspect VCH Configuration with Container Networks
+    # Set the only teardown for this test to cleanup both portgroups and VCH, regardless of test outcome.
+    [Teardown]  Cleanup Container Network Test
+
+    ${out}=  Run  govc host.portgroup.remove published-net
+    ${out}=  Run  govc host.portgroup.remove peers-net
+
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN published-net
+    ${out}=  Run  govc host.portgroup.add -vswitch vSwitchLAN peers-net 
+
+    Install VIC Appliance To Test Server  additional-args=-cn published-net -cn peers-net -cnf peers-net:peers --container-network-ip-range peers-net:10.10.10.0/24 -cng peers-net:10.10.10.1/24
+
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --name=%{VCH-NAME} config --format raw
+
+    Should Contain  ${output}  --container-network=published-net:published-net
+    Should Not Contain  ${output}  --container-network-firewall=published-net:published
+    Should Contain  ${output}  --container-network=peers-net:peers-net
+    Should Contain  ${output}  --container-network-gateway=peers-net:10.10.10.1/24
+    Should Contain  ${output}  --container-network-ip-range=peers-net:10.10.10.0/24
+    Should Contain  ${output}  --container-network-firewall=peers-net:peers
+    Should Be Equal As Integers  0  ${rc}
+
 Verify inspect output for a full tls VCH
     Install VIC Appliance To Test Server
 
@@ -118,8 +146,6 @@ Verify inspect output for a full tls VCH
     Should Not Contain  ${output}  DOCKER_CERT_PATH=${EXECDIR}/%{VCH-NAME}
     Should Contain  ${output}  Unable to find valid client certs
     Should Contain  ${output}  DOCKER_CERT_PATH must be provided in environment or certificates specified individually via CLI arguments
-
-    Cleanup VIC Appliance On Test Server
 
 Verify inspect output for a --no-tls VCH
     Set Test Environment Variables
