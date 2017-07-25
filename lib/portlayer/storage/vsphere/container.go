@@ -25,7 +25,6 @@ import (
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -90,10 +89,7 @@ func (c *ContainerStore) Owners(op trace.Operation, url *url.URL, filter func(vm
 		return nil, errors.New("vmdk path must be a datastore url with \"ds\" scheme")
 	}
 
-	dsPath, _ := datastore.PathFromString(url.Path)
-	config := disk.NewPersistentDisk(dsPath)
-
-	return c.InUse(op, config, disk.LockedVMDKFilter)
+	return c.Vmdk.Owners(op, url, filter)
 }
 
 // NewDataSource creates and returns an DataSource associated with container storage
