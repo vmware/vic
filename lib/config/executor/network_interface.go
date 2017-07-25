@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,6 +73,9 @@ type ContainerNetwork struct {
 
 	// set of network wide links and aliases for this container on this network
 	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
+
+	// Level of trust configured for this network
+	TrustLevel
 
 	Assigned struct {
 		Gateway     net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`

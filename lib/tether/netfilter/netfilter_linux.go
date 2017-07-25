@@ -17,8 +17,10 @@ package netfilter
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"syscall"
 
@@ -55,6 +57,7 @@ type State string
 type Protocol string
 type Target string
 type Table string
+type ICMPType string
 
 const (
 	Prerouting = Chain("PREROUTING")
@@ -68,8 +71,9 @@ const (
 	Related     = State("RELATED")
 	Untracked   = State("UNTRACKED")
 
-	TCP = Protocol("tcp")
-	UDP = Protocol("udp")
+	TCP  = Protocol("tcp")
+	UDP  = Protocol("udp")
+	ICMP = Protocol("icmp")
 
 	Drop     = Target("DROP")
 	Accept   = Target("ACCEPT")
@@ -77,17 +81,22 @@ const (
 	Redirect = Target("REDIRECT")
 
 	NAT = Table("nat")
+
+	EchoRequest = ICMPType("echo-request")
+	EchoReply   = ICMPType("echo-reply")
 )
 
 type Rule struct {
 	Table
 	Chain
 	States []State
+	ICMPType
 
 	Protocol
 	Target
 
 	Interface        string
+	SourceAddresses  []string
 	FromPort, ToPort int
 }
 
@@ -113,18 +122,28 @@ func (r *Rule) args() ([]string, error) {
 		args = append(args, "-p", string(r.Protocol))
 	}
 
+	if r.ICMPType != "" {
+		args = append(args, "--icmp-type", string(r.ICMPType))
+	}
+
+	if len(r.SourceAddresses) > 0 {
+		args = append(args, "-s", strings.Join(r.SourceAddresses, ","))
+	}
+
 	if r.FromPort != 0 {
 		args = append(args, "--dport", strconv.Itoa(r.FromPort))
 	}
 
 	if len(r.States) > 0 {
-		for _, state := range r.States {
-			args = append(args, "-m", "state", "--state", string(state))
-		}
+		args = append(args, "-m", "state", "--state", joinStates(r.States))
 	}
 
 	if r.Interface != "" {
-		args = append(args, "-i", r.Interface)
+		if r.Chain == Output {
+			args = append(args, "-o", r.Interface)
+		} else {
+			args = append(args, "-i", r.Interface)
+		}
 	}
 
 	if r.Target == "" {
@@ -140,6 +159,7 @@ func (r *Rule) args() ([]string, error) {
 }
 
 func iptables(ctx context.Context, args []string) error {
+	args = append(args, "-w")
 	logrus.Infof("Execing iptables %q", args)
 
 	// #nosec: Subprocess launching with variable
@@ -151,18 +171,13 @@ func iptables(ctx context.Context, args []string) error {
 			Chroot: "/.tether",
 		},
 	}
-	b, err := cmd.CombinedOutput()
+	proc, err := os.StartProcess(cmd.Path, cmd.Args, &os.ProcAttr{
+		Dir: cmd.Dir,
+		Sys: cmd.SysProcAttr,
+	})
+
 	if err != nil {
-		logrus.Errorf("iptables error: %s", err.Error())
-
-		exitErr, ok := err.(*exec.ExitError)
-		if ok && len(exitErr.Stderr) > 0 {
-			logrus.Errorf("iptables error: %s", string(exitErr.Stderr))
-		}
-	}
-
-	if len(b) > 0 {
-		logrus.Infof("iptables: %s", string(b))
+		logrus.Errorf("iptables %q (Pid %v) error: %s", args, proc.Pid, err.Error())
 	}
 
 	return err
@@ -175,4 +190,16 @@ func Flush(ctx context.Context, table string) error {
 	}
 
 	return iptables(ctx, args)
+}
+
+func Policy(ctx context.Context, chain Chain, target Target) error {
+	return iptables(ctx, []string{"-P", string(chain), string(target)})
+}
+
+func joinStates(states []State) string {
+	tmp := make([]string, len(states))
+	for i, v := range states {
+		tmp[i] = string(v)
+	}
+	return strings.Join(tmp, ",")
 }
