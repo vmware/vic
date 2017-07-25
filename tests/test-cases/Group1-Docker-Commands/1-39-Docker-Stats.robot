@@ -116,3 +116,13 @@ Stats No Stream Specific Stopped Container
     Should Be Equal As Integers  ${rc}  0
     ${stop}=  Get Container ShortID  %{STOPPER}
     Should Contain  ${output}  ${stop}
+
+Stats API Disk and Network Validation
+    ${rc}  ${api}=  Run And Return Rc And Output  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem -H "Accept: application/json" -H "Content-Type: application/json" -X GET https://%{VCH-IP}:%{VCH-PORT}/containers/%{STRESSED}/stats?stream=false
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${api}  ethernet
+    Should Contain  ${api}  Read
+    Should Contain  ${api}  Write
+    Should Contain  ${api}  op
+    Should Contain  ${api}  major
+    Should Contain  ${api}  minor

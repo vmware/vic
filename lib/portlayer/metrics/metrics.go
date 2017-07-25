@@ -16,9 +16,13 @@ package metrics
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"sync"
 
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/performance"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -34,18 +38,19 @@ var (
 // super manages the lifecycle and access to the
 // available metrics collectors
 type super struct {
-	vms *collectorVM
+	vms *performance.VMCollector
 }
 
-type Collector interface {
-	// Subscribe to a stream of this collectors metrics
-	Subscribe(interface{}) (chan interface{}, error)
-	// Unsubscribe to a stream of this collectors metrics
-	Unsubscribe(interface{}, chan interface{})
-	// SubscriberCount returns the number of subscribers for the collector
-	SubscriberCount() int
-	// Sample will return metrics without a subscription
-	Sample(interface{}) (chan interface{}, error)
+type UnsupportedTypeError struct {
+	subscriber interface{}
+}
+
+func (ute UnsupportedTypeError) Error() string {
+	t := reflect.TypeOf(ute.subscriber)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return fmt.Sprintf("type %s is not supported by metrics", t)
 }
 
 func Init(ctx context.Context, session *session.Session) error {
@@ -67,13 +72,35 @@ func Init(ctx context.Context, session *session.Session) error {
 func newSupervisor(session *session.Session) *super {
 	defer trace.End(trace.Begin(""))
 	// create the vm metric collector
-	v := newVMCollector(session)
+	v := performance.NewVMCollector(session)
 	return &super{
 		vms: v,
 	}
 }
 
-// VMCollector will return the vm metrics collector
-func (s *super) VMCollector() Collector {
-	return s.vms
+func (s *super) Subscribe(op trace.Operation, subscriber interface{}) (chan interface{}, error) {
+	switch sub := subscriber.(type) {
+	case *exec.Container:
+		return s.vms.Subscribe(op, sub.VMReference(), sub.String())
+	}
+
+	err := UnsupportedTypeError{
+		subscriber: subscriber,
+	}
+	op.Errorf("%s", err)
+
+	return nil, err
+}
+
+func (s *super) Unsubscribe(op trace.Operation, subscriber interface{}, ch chan interface{}) {
+	switch sub := subscriber.(type) {
+	case *exec.Container:
+		s.vms.Unsubscribe(op, sub.VMReference(), ch)
+	default:
+		err := UnsupportedTypeError{
+			subscriber: subscriber,
+		}
+		op.Errorf("%s", err)
+	}
+	return
 }
