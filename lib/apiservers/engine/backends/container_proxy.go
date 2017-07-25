@@ -73,6 +73,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
@@ -387,6 +388,9 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	if err != nil {
 		return handle, BadRequestError(err.Error())
 	}
+
+	// Reset hostconfig binds because we don't have bind mount supported. In this way we'll get consistent result for container mount after VCH restart
+	config.HostConfig.Binds = []string{}
 
 	log.Infof("Finalized Volume list : %#v", volList)
 
@@ -1649,8 +1653,20 @@ func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contain
 		return nil
 	}
 
-	// Iterate through info.VolumeConfig and build the hostconfig.bind config.volumes
-
+	// Iterate through info.VolumeConfig and build the config.volumes
+	// We don't have bind mount supported, so do not set hostconfig.Binds
+	vc.Config.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
+	for _, volume := range info.VolumeConfig {
+		mounts := make([]string, 2)
+		mounts[0] = volume.Name
+		mounts[1] = volume.MountPoint
+		if volume.Flags[executor.Mode] != "" {
+			mounts = append(mounts, volume.Flags[executor.Mode])
+		}
+		mount := strings.Join(mounts, ":")
+		vc.Config.Volumes[mount] = struct{}{}
+		log.Debugf("added volume mount: %s", mount)
+	}
 	// Derive the mount data
 	return mountsFromContainer(vc)
 }

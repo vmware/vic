@@ -76,7 +76,7 @@ func createDeviceConfigSpec(diskDevice *types.VirtualDisk) *types.VirtualDeviceC
 }
 
 func createMountSpec(volume *storage.Volume, mountPath string, diskOpts map[string]string) executor.MountSpec {
-	deviceMode := diskOpts["Mode"]
+	deviceMode := diskOpts[executor.Mode]
 	newMountSpec := executor.MountSpec{
 		Source: url.URL{
 			Scheme: "label",
