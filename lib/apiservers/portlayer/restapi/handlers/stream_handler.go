@@ -203,7 +203,9 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 				break
 			}
 		}
-		if er == io.EOF {
+		// it's safe to ignore ErrClosedPipe -- encountered when
+		// you close the pipe that is feeding the flushingReader
+		if er == io.EOF || er == io.ErrClosedPipe {
 			break
 		}
 		if er != nil {
