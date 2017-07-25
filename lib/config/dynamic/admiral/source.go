@@ -98,51 +98,69 @@ type source struct {
 	d       discovery
 	sess    *session.Session
 	vchID   string
-	c       *client.Admiral
 	lastCfg *vchcfg.VirtualContainerHostConfigSpec
+
+	// the discovered product VM
+	v *vm.VirtualMachine
+	// cached values to minimize running discovery
+	projs []string
+	c     *client.Admiral
 }
 
 // Get returns the dynamic config portion from an Admiral instance. For now,
 // this is empty pending details from the Admiral team.
 func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpec, error) {
-	var err error
-	if err = a.discover(ctx); err != nil {
-		return nil, err
+	a.mu.Lock()
+	lastCfg := a.lastCfg
+	a.mu.Unlock()
+
+	c, projs, err := a.discover(ctx)
+	if err != nil {
+		log.Warnf("error locating Admiral, returning last known config: %s", err)
+		return lastCfg, nil
 	}
 
-	var projs []string
-	projs, err = a.projects(ctx)
-	if err != nil {
-		return nil, err
+	if len(projs) == 0 {
+		return nil, nil
 	}
 
-	var wl []string
-	wl, err = a.whitelist(ctx, projs)
+	wl, err := a.whitelist(ctx, c, projs)
 	if err != nil {
-		return nil, err
+		log.Warnf("error getting whitelist form Admiral, returning last known config: %s")
+		return lastCfg, nil
 	}
 
 	newCfg := &vchcfg.VirtualContainerHostConfigSpec{
 		Registry: vchcfg.Registry{RegistryWhitelist: wl},
 	}
 
-	err = a.diff(newCfg)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if !a.diff(newCfg) {
+		err = dynamic.ErrConfigNotModified
+	}
+
 	a.lastCfg = newCfg
 	return newCfg, err
 }
 
-func (a *source) diff(newCfg *vchcfg.VirtualContainerHostConfigSpec) error {
+func (a *source) diff(newCfg *vchcfg.VirtualContainerHostConfigSpec) bool {
 	if a.lastCfg == nil {
-		return nil
+		if newCfg == nil {
+			return false
+		}
+
+		return true
 	}
 
 	if newCfg == nil {
-		return dynamic.ErrConfigNotModified
+		return true
 	}
 
 	// compare whitelists
 	if len(a.lastCfg.RegistryWhitelist) != len(newCfg.RegistryWhitelist) {
-		return nil
+		return true
 	}
 
 	for _, w1 := range a.lastCfg.RegistryWhitelist {
@@ -155,31 +173,104 @@ func (a *source) diff(newCfg *vchcfg.VirtualContainerHostConfigSpec) error {
 		}
 
 		if !found {
-			return nil
+			return true
 		}
 	}
 
-	return dynamic.ErrConfigNotModified
+	return false
 }
 
-func (a *source) discover(ctx context.Context) error {
+func (a *source) discover(ctx context.Context) (*client.Admiral, []string, error) {
+	a.mu.Lock()
+	c := a.c
+	v := a.v
+	a.mu.Unlock()
+
+	var vms []*vm.VirtualMachine
+	removed := true
+	if c != nil {
+		projs, err := a.projects(ctx, c)
+		if err != nil {
+			vms = append(vms, v)
+			removed = false
+		} else if len(projs) > 0 {
+			return c, projs, nil
+		}
+	}
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.c != nil {
-		return nil
+	if c != a.c && a.c != nil {
+		return a.c, a.projs, nil
 	}
 
-	token, u, err := a.d.Discover(ctx, a.sess)
+	var err error
+	// if there isn't a list of potential product VMs
+	// already, then run discovery
+	if len(vms) == 0 {
+		log.Infof("running product VM discovery")
+		vms, err = a.d.Discover(ctx, a.sess)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	for _, v := range vms {
+		u, token, err := admiralEndpoint(ctx, v)
+		if err != nil {
+			log.Warnf("ignoring potential product VM: %s", err)
+			continue
+		}
+
+		rt := rtclient.NewWithClient(u.Host, u.Path, []string{u.Scheme}, admClient)
+		rt.DefaultAuthentication = &admiralAuth{token: token}
+		c := client.New(rt, strfmt.Default)
+		projs, err := a.projects(ctx, c)
+		if err == nil && len(projs) > 0 {
+			log.Infof("using Admiral endpoint at %s", u)
+			a.c = c
+			a.projs = projs
+			a.v = v
+			return c, projs, nil
+		}
+
+		log.Warnf("ignoring product VM Admiral endpoint %s since it does not have the VCH added to any project", u)
+	}
+
+	if removed {
+		a.c = nil
+		a.v = nil
+		a.projs = nil
+		err = nil
+	} else {
+		// only return source unavailable if
+		// the VCH was not removed from the
+		// Admiral instance
+		err = dynamic.ErrSourceUnavailable
+	}
+
+	return nil, nil, err
+}
+
+func admiralEndpoint(ctx context.Context, v *vm.VirtualMachine) (*url.URL, string, error) {
+	values, err := keys(ctx, v, []string{admiralEndpointKey, admiralTokenKey})
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
-	rt := rtclient.NewWithClient(u.Host, u.Path, []string{u.Scheme}, admClient)
-	rt.DefaultAuthentication = &admiralAuth{token: token}
-	a.c = client.New(rt, strfmt.Default)
+	token := values[admiralTokenKey]
+	if token == "" {
+		// not a useable product installation
+		return nil, "", fmt.Errorf("empty token set in product VM %s", v)
+	}
 
-	return nil
+	u, err := url.Parse(values[admiralEndpointKey])
+	if err != nil {
+		return nil, "", fmt.Errorf("bad admiral endpoint %s in product VM %s: %s", values[admiralEndpointKey], v, err)
+	}
+
+	return u, token, nil
 }
 
 type admiralAuth struct {
@@ -190,7 +281,7 @@ func (a *admiralAuth) AuthenticateRequest(req runtime.ClientRequest, _ strfmt.Re
 	return req.SetHeaderParam("x-xenon-auth-token", a.token)
 }
 
-func (a *source) projects(ctx context.Context) ([]string, error) {
+func (a *source) projects(ctx context.Context, c *client.Admiral) ([]string, error) {
 	ids := []string{a.vchID}
 	if u, err := url.Parse(a.vchID); err == nil {
 		if u.Scheme == "" {
@@ -205,7 +296,7 @@ func (a *source) projects(ctx context.Context) ([]string, error) {
 	for _, vchID := range ids {
 		filter := fmt.Sprintf(clusterFilter, vchID)
 		log.Debugf("getting compute resources with filter %s", filter)
-		comps, err = a.c.ResourcesCompute.GetResourcesCompute(resources_compute.NewGetResourcesComputeParamsWithContext(ctx).WithDollarFilter(&filter))
+		comps, err = c.ResourcesCompute.GetResourcesCompute(resources_compute.NewGetResourcesComputeParamsWithContext(ctx).WithDollarFilter(&filter))
 		if err == nil && comps.Payload.DocumentCount > 0 {
 			break
 		}
@@ -216,9 +307,10 @@ func (a *source) projects(ctx context.Context) ([]string, error) {
 	}
 
 	if comps.Payload.DocumentCount == 0 {
-		return nil, errors.Errorf("no admiral instances have host %s registered", a.vchID)
+		return nil, errors.Errorf("no admiral projects have host %s registered", a.vchID)
 	}
 
+	// more than one project has the VCH added, just pick the first one
 	comp := &models.ComVmwarePhotonControllerModelResourcesComputeServiceComputeState{}
 	if err := mapstructure.Decode(comps.Payload.Documents[comps.Payload.DocumentLinks[0]], comp); err != nil {
 		return nil, err
@@ -227,10 +319,10 @@ func (a *source) projects(ctx context.Context) ([]string, error) {
 	return comp.TenantLinks, nil
 }
 
-func (a *source) whitelist(ctx context.Context, hostProjs []string) ([]string, error) {
+func (a *source) whitelist(ctx context.Context, c *client.Admiral, hostProjs []string) ([]string, error) {
 	// find at least one project with enable content trust
 	// that also contains the vch
-	projs, err := a.c.Projects.GetProjects(projects.NewGetProjectsParamsWithContext(ctx).WithDollarFilter(&projectsFilter))
+	projs, err := c.Projects.GetProjects(projects.NewGetProjectsParamsWithContext(ctx).WithDollarFilter(&projectsFilter))
 	if err != nil {
 		return nil, err
 	}
@@ -254,9 +346,9 @@ func (a *source) whitelist(ctx context.Context, hostProjs []string) ([]string, e
 		return nil, nil
 	}
 
-	regs, err := a.c.ConfigRegistries.GetConfigRegistries(config_registries.NewGetConfigRegistriesParamsWithContext(ctx).WithExpand(&trueStr))
+	regs, err := c.ConfigRegistries.GetConfigRegistries(config_registries.NewGetConfigRegistriesParamsWithContext(ctx).WithExpand(&trueStr))
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	var wl []string
@@ -274,44 +366,44 @@ func (a *source) whitelist(ctx context.Context, hostProjs []string) ([]string, e
 }
 
 type discovery interface {
-	Discover(ctx context.Context, sess *session.Session) (token string, u *url.URL, err error)
+	Discover(ctx context.Context, sess *session.Session) ([]*vm.VirtualMachine, error)
 }
 
 type productDiscovery struct {
 }
 
-func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) (token string, u *url.URL, err error) {
+func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) ([]*vm.VirtualMachine, error) {
 	service, err := url.Parse(sess.Service)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	service.User = sess.User
 	t := tags.NewClient(service, sess.Insecure, sess.Thumbprint)
 	if err = t.Login(ctx); err != nil {
-		return
+		return nil, err
 	}
 
 	var tag string
 	tag, err = findOVATag(ctx, t)
 	if err != nil {
 		err = errors.Errorf("could not find ova tag: %s", err)
-		return
+		return nil, err
 	}
 
 	objs, err := t.ListAttachedObjects(ctx, tag)
 	if err != nil || len(objs) == 0 {
 		err = errors.Errorf("could not find ova vm: %s", err)
-		return
+		return nil, err
 	}
 
+	var vms []*vm.VirtualMachine
 	for _, o := range objs {
 		if o.Type != nil && *o.Type != "VirtualMachine" {
 			// not a virtual machine
 			continue
 		}
 
-		log.Debugf("%v", o)
 		v := vm.NewVirtualMachine(ctx, sess, types.ManagedObjectReference{Type: *o.Type, Value: *o.ID})
 		st, err := v.PowerState(ctx)
 		if err != nil {
@@ -320,38 +412,14 @@ func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) 
 		}
 
 		if st != types.VirtualMachinePowerStatePoweredOn {
-			log.Warnf("ignoring potential product VM %s: powered off", *o.ID)
+			log.Warnf("ignoring potential product VM %s: not powered on", *o.ID)
 			continue
 		}
 
-		var values map[string]string
-		values, err = keys(ctx, v, []string{admiralEndpointKey, admiralTokenKey})
-		if err != nil {
-			log.Debugf("keys not found in %q: %s", v, err)
-			err = nil // keys not found
-			continue
-		}
-
-		token = values[admiralTokenKey]
-		if token == "" {
-			// not a useable product installation
-			continue
-		}
-
-		u, err = url.Parse(values[admiralEndpointKey])
-		if err != nil {
-			log.Warnf("ignoring bad admiral endpoint %s: %s", values[admiralEndpointKey], err)
-			err = nil // ignore bad endpoint
-			continue
-		}
+		vms = append(vms, v)
 	}
 
-	if u == nil || token == "" {
-		err = errors.Errorf("could not find admiral")
-		log.Debugf(err.Error())
-	}
-
-	return
+	return vms, nil
 }
 
 func findOVATag(ctx context.Context, t *tags.RestClient) (string, error) {

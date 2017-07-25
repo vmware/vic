@@ -23,6 +23,7 @@ import (
 
 var ErrConfigNotModified = errors.New("config not modified")
 var ErrAccessDenied = errors.New("access denied")
+var ErrSourceUnavailable = errors.New("source not available")
 
 // Source is configuration source, remote or otherwise
 type Source interface {

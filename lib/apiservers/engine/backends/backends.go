@@ -92,7 +92,7 @@ func Init(portLayerAddr, product string, port uint, config *config.VirtualContai
 	}
 
 	if config == nil {
-		return fmt.Errorf("port layer requires VCH config")
+		return fmt.Errorf("docker API server requires VCH config")
 	}
 
 	productName = product
@@ -360,27 +360,25 @@ func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl 
 	d.Lock()
 	defer d.Unlock()
 
+	m := d
 	if err == nil {
-		// update config
-		if err = d.update(c); err != nil {
-			log.Warnf("error updating config: %s", err)
-		}
-	}
-
-	if err != nil && err != dynamic.ErrConfigNotModified {
-		log.Warnf("could not get config from remote source: %s", err)
-		if src == d.src {
-			// update the source
+		if c == nil && src == d.src {
 			if err := d.resetSrc(); err != nil {
-				log.Errorf("could not reset dynamic source: %s", err)
+				log.Warnf("could not reset config source: %s", err)
 			}
+		}
+
+		// update config
+		if m, err = d.merged(c); err != nil {
+			log.Errorf("error updating config: %s", err)
+			m = d
 		}
 	}
 
 	us := u.String()
-	wl = len(d.Whitelist) == 0 || d.Whitelist.Match(us)
-	bl = len(d.Blacklist) == 0 || !d.Blacklist.Match(us)
-	insecure = d.Insecure.Match(us)
+	wl = len(m.Whitelist) == 0 || m.Whitelist.Match(us)
+	bl = len(m.Blacklist) == 0 || !m.Blacklist.Match(us)
+	insecure = m.Insecure.Match(us)
 	return
 }
 
@@ -418,31 +416,33 @@ func newDynConfig(ctx context.Context, c *config.VirtualContainerHostConfigSpec)
 
 // update merges another config into this config. d should be locked before
 // calling this.
-func (d *dynConfig) update(c *config.VirtualContainerHostConfigSpec) error {
+func (d *dynConfig) merged(c *config.VirtualContainerHostConfigSpec) (*dynConfig, error) {
 	if c == nil {
-		return nil
+		return d, nil
 	}
 
 	newcfg, err := d.merger.Merge(d.Cfg, c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var wl, bl, insecure registry.Set
 	if wl, err = dynamic.ParseRegistries(newcfg.RegistryWhitelist); err != nil {
-		return err
+		return nil, err
 	}
 	if bl, err = dynamic.ParseRegistries(newcfg.RegistryBlacklist); err != nil {
-		return err
+		return nil, err
 	}
 	if insecure, err = dynamic.ParseRegistries(newcfg.InsecureRegistries); err != nil {
-		return err
+		return nil, err
 	}
 
-	d.Whitelist, d.Blacklist, d.Insecure = wl, bl, insecure
-	vchConfig.Cfg = newcfg
-
-	return nil
+	return &dynConfig{
+		Whitelist: wl,
+		Blacklist: bl,
+		Insecure:  insecure,
+		Cfg:       newcfg,
+	}, nil
 }
 
 func (d *dynConfig) clientEndpoint() (*url.URL, error) {
