@@ -291,7 +291,7 @@ func (m *MockContainerProxy) Client() *plclient.PortLayer {
 	return nil
 }
 
-func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
+func (m *MockContainerProxy) StreamContainerLogs(_ context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
 	if name == "" {
 		return fmt.Errorf("sample error message")
 	}
@@ -363,6 +363,10 @@ func (m *MockContainerProxy) ArchiveExportReader(ctx context.Context, store, anc
 }
 
 func (m *MockContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
+	return nil, nil
+}
+
+func (m *MockContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
 	return nil, nil
 }
 

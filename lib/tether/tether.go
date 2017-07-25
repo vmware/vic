@@ -480,8 +480,10 @@ func (t *tether) Start() error {
 		extraconfig.Encode(t.sink, t.config)
 
 		// setup the firewall
-		if err := t.ops.SetupFirewall(t.config); err != nil {
-			log.Warnf("Failed to setup firewall: %s", err)
+		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.config) }, 5); err != nil {
+			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
+			log.Error(err)
+			return err
 		}
 
 		//process the filesystem mounts - this is performed after networks to allow for network mounts
@@ -543,26 +545,44 @@ func (t *tether) Register(name string, extension Extension) {
 	t.extensions[name] = extension
 }
 
+func retryOnError(cmd func() error, maximumAttempts int) error {
+	for i := 0; i < maximumAttempts-1; i++ {
+		if err := cmd(); err != nil {
+			log.Warningf("Failed with error \"%v\". Retrying (Attempt %v).", err, i+1)
+		} else {
+			return nil
+		}
+	}
+	return cmd()
+}
+
 // cleanupSession performs some common cleanup work between handling a session exit and
 // handling a failure to launch
 // caller needs to hold session Lock
 func (t *tether) cleanupSession(session *SessionConfig) {
 	// close down the outputs
 	log.Debugf("Calling close on writers")
-	if err := session.Outwriter.Close(); err != nil {
-		log.Warnf("Close for Outwriter returned %s", err)
+	if session.Outwriter != nil {
+		if err := session.Outwriter.Close(); err != nil {
+			log.Warnf("Close for Outwriter returned %s", err)
+		}
 	}
 
 	// this is a little ugly, however ssh channel.Close will get invoked by these calls,
 	// whereas CloseWrite will be invoked by the OutWriter.Close so that goes first.
-	if err := session.Errwriter.Close(); err != nil {
-		log.Warnf("Close for Errwriter returned %s", err)
+	if session.Errwriter != nil {
+		if err := session.Errwriter.Close(); err != nil {
+			log.Warnf("Close for Errwriter returned %s", err)
+		}
 	}
+
 	// if we're calling this we don't care about truncation of pending input, so this is
 	// called last
-	log.Debugf("Calling close on reader")
-	if err := session.Reader.Close(); err != nil {
-		log.Warnf("Close for Reader returned %s", err)
+	if session.Reader != nil {
+		log.Debugf("Calling close on reader")
+		if err := session.Reader.Close(); err != nil {
+			log.Warnf("Close for Reader returned %s", err)
+		}
 	}
 
 	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)

@@ -14,23 +14,52 @@
 # limitations under the License.
 #
 
-cleanup () {
-    unset VCENTER_ADMIN_USERNAME
-    unset VCENTER_ADMIN_PASSWORD
-}
+read_vc_information () {
+    while getopts ":i:u:p:" o; do
+        case "${o}" in
+            i)
+                VCENTER_IP=$OPTARG
+                ;;
+            u)
+                VCENTER_ADMIN_USERNAME=$OPTARG
+                ;;
+            p)
+                VCENTER_ADMIN_PASSWORD=$OPTARG
+                ;;
+            *)
+                echo Usage: $0 [-i vc_ip] [-u vc admin_username] [-p vc_admin_password] >&2
+                exit 1
+                ;;
+        esac
+    done
+    shift $((OPTIND-1))
 
-echo "-------------------------------------------------------------"
-echo "This script will upgrade vSphere Integrated Containers plugin"
-echo "for vSphere Client (HTML) and vSphere Web Client (Flex)."
-echo ""
-echo "Please provide connection information to the vCenter Server."
-echo "-------------------------------------------------------------"
+    echo "-------------------------------------------------------------"
+    echo "This script will upgrade vSphere Integrated Containers plugin"
+    echo "for vSphere Client (HTML) and vSphere Web Client (Flex)."
+    echo ""
+    echo "Please provide connection information to the vCenter Server."
+    echo "-------------------------------------------------------------"
+
+    if [ -z $VCENTER_IP ] ; then
+        read -p "Enter IP to target vCenter Server: " VCENTER_IP
+    fi
+
+    if [ -z $VCENTER_ADMIN_USERNAME ] ; then
+        read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
+    fi
+
+    if [ -z $VCENTER_ADMIN_PASSWORD ] ; then
+        echo -n "Enter your vCenter Administrator Password: "
+        read -s VCENTER_ADMIN_PASSWORD
+        echo ""
+    fi
+}
 
 # check for the configs file
 if [[ ! -f "configs" ]] ; then
     echo "Error! Configs file is missing. Please try downloading the VIC UI installer again"
     echo ""
-    cleanup
     exit 1
 fi
 
@@ -39,13 +68,14 @@ while IFS='' read -r line; do
     eval $line
 done < ./configs
 
+read_vc_information $*
+
 # replace space delimiters with colon delimiters 
 VIC_UI_HOST_THUMBPRINT=$(echo $VIC_UI_HOST_THUMBPRINT | sed -e 's/[[:space:]]/\:/g')
 
 # check for the plugin manifest file
 if [[ ! -f ../plugin-manifest ]] ; then
     echo "Error! Plugin manifest was not found!"
-    cleanup
     exit 1
 fi
 
@@ -53,12 +83,6 @@ fi
 while IFS='' read -r p_line; do
     eval "$p_line"
 done < ../plugin-manifest
-
-read -p "Enter IP to target vCenter Server: " VCENTER_IP
-read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
-echo -n "Enter your vCenter Administrator Password: "
-read -s VCENTER_ADMIN_PASSWORD
-echo ""
 
 OS=$(uname)
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
@@ -95,7 +119,6 @@ check_prerequisite () {
     if [[ ! $(echo $CURL_RESPONSE | grep -oi "vmware vsphere") ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! vCenter Server was not found at host $VCENTER_IP"
-        cleanup
         exit 1
     fi
 
@@ -220,28 +243,29 @@ upgrade_plugin() {
     local plugin_name=$1
     local plugin_key=$2
     local plugin_url="${VIC_UI_HOST_URL}files/"
-    local plugin_flags="--version $version --summary $summary --company $company --url $plugin_url$plugin_key-v$version.zip"
+    local plugin_flags="--version $version --company $company --url $plugin_url$plugin_key-v$version.zip"
     echo "-------------------------------------------------------------"
     echo "Preparing to upgrade vCenter Extension $1..."
     echo "-------------------------------------------------------------"
 
     $PLUGIN_MANAGER_BIN install --force \
                                 --key $plugin_key \
-                                --name $plugin_name $COMMONFLAGS $plugin_flags \
+                                $COMMONFLAGS $plugin_flags \
                                 --thumbprint $VC_THUMBPRINT \
-                                --server-thumbprint $VIC_UI_HOST_THUMBPRINT
+                                --server-thumbprint $VIC_UI_HOST_THUMBPRINT \
+                                --name "$plugin_name" \
+                                --summary "Plugin for $plugin_name"
     if [[ $? > 0 ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! Could not register plugin with vCenter Server. Please see the message above"
-        cleanup
         exit 1
     fi
     echo ""
 }
 
 parse_and_upgrade_plugins () {
-    upgrade_plugin $name-FlexClient $key_flex
-    upgrade_plugin $name-H5Client $key_h5c
+    upgrade_plugin "$name-FlexClient" $key_flex
+    upgrade_plugin "$name-H5Client" $key_h5c
 }
 
 verify_plugin_url() {
@@ -255,14 +279,12 @@ verify_plugin_url() {
     if [[ ! $(echo ${VIC_UI_HOST_URL:0:5} | grep -i "https") ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! VIC_UI_HOST_URL should always start with 'https' in the configs file"
-        cleanup
         exit 1
     fi
 
     if [[ -z $VIC_UI_HOST_THUMBPRINT ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! Please provide VIC_UI_HOST_THUMBPRINT in the configs file"
-        cleanup
         exit 1
     fi
 
@@ -271,7 +293,6 @@ verify_plugin_url() {
     if [[ $(echo $CURL_RESPONSE | grep -i "could not resolve\|fail") ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! Could not resolve the host provided. Please make sure the URL is correct"
-        cleanup
         exit 1
     fi
 
@@ -279,7 +300,6 @@ verify_plugin_url() {
     if [[ $(echo $RESPONSE_STATUS | grep -oi "404") ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! Plugin bundle was not found. Please make sure \"$PLUGIN_BASENAME\" is available at \"$VIC_UI_HOST_URL\", and retry installing the plugin"
-        cleanup
         exit 1
     fi
 }
@@ -290,8 +310,6 @@ verify_plugin_url $key_flex
 verify_plugin_url $key_h5c
 check_existing_plugins
 parse_and_upgrade_plugins
-
-cleanup
 
 echo "--------------------------------------------------------------"
 echo "VIC Engine UI upgrader exited successfully"

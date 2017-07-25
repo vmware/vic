@@ -86,7 +86,6 @@ func DoWithConfig(operation func() error, retryOnError func(err error) bool, con
 	b.Reset()
 	for {
 		if err = operation(); err == nil {
-			log.Debugf("Will not try again. Operation succeeded")
 			return nil
 		}
 

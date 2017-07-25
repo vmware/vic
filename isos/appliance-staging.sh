@@ -83,6 +83,7 @@ unpack $PACKAGE $PKGDIR
 #   systemd   # for convenience only at this time
 #   tndf      # so we can deploy other packages into the appliance live - MUST BE REMOVED FOR SHIPPING
 #   vim       # basic editing function
+#   lsof      # for debugging issues unmounting disks for the copy/diff paths
 yum_cached -c $cache -u -p $PKGDIR install \
     haveged \
     systemd \
@@ -98,6 +99,7 @@ yum_cached -c $cache -u -p $PKGDIR install \
     tdnf \
     vim \
     gzip \
+    lsof \
     logrotate \
 	photon-release \
     -y --nogpgcheck

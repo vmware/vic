@@ -22,20 +22,22 @@ ${NIMBUS_ESX_PASSWORD}  e2eFunctionalTest
 
 *** Keywords ***
 Fetch IP
-  [Arguments]  ${name}
-  ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
-  Should Not Be Empty  ${out}
-  [Return]  ${out}
+    [Arguments]  ${name}
+    ${out}=  Execute Command  nimbus-ctl ip %{NIMBUS_USER}-${name} | grep %{NIMBUS_USER}-${name}
+    Should Not Be Empty  ${out}
+    ${len}=  Get Line Count  ${out}
+    Should Be Equal As Integers  ${len}  1
+    [Return]  ${out}
 
 Get IP
-  [Arguments]  ${name}
-  ${out}=  Wait Until Keyword Succeeds  10x  1 minute  Fetch IP  ${name}
-  ${ip}=  Fetch From Right  ${out}  ${SPACE}
-  [Return]  ${ip}
+    [Arguments]  ${name}
+    ${out}=  Wait Until Keyword Succeeds  10x  1 minute  Fetch IP  ${name}
+    ${ip}=  Fetch From Right  ${out}  ${SPACE}
+    [Return]  ${ip}
 
 Deploy Nimbus ESXi Server
     [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}  ${tls_disabled}=True
-    ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
@@ -85,7 +87,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     @{names}=  Create List
     ${num}=  Convert To Integer  ${number}
     :FOR  ${x}  IN RANGE  ${num}
-    \     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    \     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     \     Append To List  ${names}  ${name}
 
     Open Connection  %{NIMBUS_GW}
@@ -119,7 +121,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
 
 Deploy Nimbus vCenter Server
     [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}
-    ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus vCenter server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
@@ -177,7 +179,7 @@ Deploy Nimbus Testbed
     :FOR  ${IDX}  IN RANGE  1  5
     \   ${out}=  Execute Command  nimbus-testbeddeploy --lease=1 ${testbed}
     \   # Make sure the deploy actually worked
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  "deployment_result"=>"PASS"
     \   Return From Keyword If  ${status}  ${out}
     \   Log To Console  Nimbus deployment ${IDX} failed, trying again in 5 minutes
     \   Sleep  5 minutes
@@ -266,7 +268,7 @@ Create a VSAN Cluster
 Create a Simple VC Cluster
     [Arguments]  ${datacenter}=ha-datacenter  ${cluster}=cls  ${esx_number}=3  ${network}=True
     Log To Console  \nStarting simple VC cluster deploy...
-    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid}=  Deploy Nimbus vCenter Server Async  ${vc}
 
     &{esxes}=  Deploy Multiple Nimbus ESXi Servers in Parallel  ${esx_number}  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  ${ESX_VERSION}
@@ -375,13 +377,13 @@ Get Vsphere Version
     \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
 
 Deploy Nimbus NFS Datastore
-    [Arguments]  ${user}  ${password}
-    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999))  modules=random
+    [Arguments]  ${user}  ${password}  ${additional-args}=
+    ${name}=  Evaluate  'NFS-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     Log To Console  \nDeploying Nimbus NFS server: ${name}
     Open Connection  %{NIMBUS_GW}
     Wait Until Keyword Succeeds  2 min  30 sec  Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-nfsdeploy ${name}
+    ${out}=  Execute Command  nimbus-nfsdeploy ${name} ${additional-args}
     # Make sure the deploy actually worked
     Should Contain  ${out}  To manage this VM use
     # Now grab the IP address and return the name and ip for later use

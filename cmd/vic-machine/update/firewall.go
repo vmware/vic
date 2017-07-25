@@ -68,7 +68,7 @@ func (i *UpdateFw) Flags() []cli.Flag {
 
 	target := i.TargetFlags()
 	compute := i.ComputeFlagsNoName()
-	debug := i.DebugFlags()
+	debug := i.DebugFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag

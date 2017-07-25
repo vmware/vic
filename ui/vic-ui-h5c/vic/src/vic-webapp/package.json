@@ -48,12 +48,13 @@
     "zone.js": "0.8.12"
   },
   "devDependencies": {
-    "@angular/cli": "^1.1.1",
+    "@angular/cli": "^1.2.4",
     "@angular/compiler-cli": "^4.0.0",
     "@angular/language-service": "^4.0.0",
     "@types/jasmine": "2.5.45",
     "@types/node": "~6.0.60",
     "codelyzer": "~3.0.1",
+    "enhanced-resolve": "3.3.0",
     "jasmine-core": "~2.6.2",
     "jasmine-spec-reporter": "~4.1.0",
     "karma": "~1.7.0",

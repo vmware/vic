@@ -31,6 +31,7 @@ Complex VSAN
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
     Set Test Variable  ${user}  %{NIMBUS_USER}
     ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-complex-pxeBoot-vcva --runName ${name}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:

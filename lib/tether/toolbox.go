@@ -40,6 +40,9 @@ type Toolbox struct {
 		session *SessionConfig
 	}
 
+	// IDs that can be used to authenticate
+	authIDs map[string]struct{}
+
 	stop chan struct{}
 }
 
@@ -51,7 +54,10 @@ func NewToolbox() *Toolbox {
 	service := toolbox.NewService(in, out)
 	service.PrimaryIP = toolbox.DefaultIP
 
-	return &Toolbox{Service: service}
+	return &Toolbox{
+		Service: service,
+		authIDs: make(map[string]struct{}),
+	}
 }
 
 // Start implementation of the tether.Extension interface
@@ -100,6 +106,13 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 		t.sess.Lock()
 		defer t.sess.Unlock()
 		t.sess.session = config.Sessions[config.ID]
+	}
+
+	// we allow the primary session
+	t.authIDs[config.ID] = struct{}{}
+	// we also allow any device IDs that are attached
+	for _, mspec := range config.Mounts {
+		t.authIDs[mspec.Source.Host] = struct{}{}
 	}
 
 	return nil
@@ -173,9 +186,9 @@ func (t *Toolbox) containerAuthenticate(_ vix.CommandRequestHeader, data []byte)
 	session.Lock()
 	defer session.Unlock()
 
-	// no authentication yet, just using container ID as a sanity check for now
-	if c.Name != session.ID {
-		return errors.New("failed to verify container ID")
+	// no authentication yet, just using container ID and device IDs as a sanity check for now
+	if _, ok := t.authIDs[c.Name]; !ok {
+		return errors.New("failed to verify authentication ID")
 	}
 
 	return nil

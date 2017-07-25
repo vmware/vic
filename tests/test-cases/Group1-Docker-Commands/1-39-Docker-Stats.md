@@ -16,6 +16,7 @@ This test requires that a vSphere server is running and available
 5. Verify the API CPU output against govc
 6. Run Stats with no-stream for a non-existent container
 7. Run Stats with no-stream for a stopped container
+8. Verify basic API network and disk output
 
 
 # Expected Outcome:
@@ -28,7 +29,7 @@ This test requires that a vSphere server is running and available
    six govc readings
 6. Failure with error message
 7. Output should include the stopped container short id
-
+8. Fails if either the default network or disk are missing
 
 
 # Possible Problems:

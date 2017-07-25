@@ -1,4 +1,4 @@
-// Copyright 2016 VMware, Inc. All Rights Reserved.
+// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -353,6 +353,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		gw := input.MappedNetworksGateways[name]
 		pools := input.MappedNetworksIPRanges[name]
 		dns := input.MappedNetworksDNS[name]
+		trust := input.MappedNetworksFirewalls[name]
+
 		if len(pools) != 0 && ip.IsUnspecifiedSubnet(&gw) {
 			v.NoteIssue(fmt.Errorf("IP range specified without gateway for container network %q", name))
 			continue
@@ -407,6 +409,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			Gateway:     gw,
 			Nameservers: dns,
 			Pools:       pools,
+			TrustLevel:  trust,
 		}
 		if input.BridgeNetworkName == net {
 			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %q also mapped as container network %q", input.BridgeNetworkName, name))
