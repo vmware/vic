@@ -112,6 +112,10 @@ func (o Operation) Err() error {
 	return nil
 }
 
+func (o *Operation) ID() string {
+	return o.id
+}
+
 func (o *Operation) Infof(format string, args ...interface{}) {
 	Logger.Infof("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
