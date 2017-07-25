@@ -33,8 +33,6 @@ package backends
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -96,9 +94,6 @@ type VicContainerProxy interface {
 	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error
 	StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
-
-	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error)
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
@@ -688,161 +683,12 @@ func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontain
 		Exclusions: map[string]struct{}{},
 	}
 
-	r, err := c.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
+	r, err := archiveProxy.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
 
 	return r, nil
-}
-
-// ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
-// an io.Reader is returned and the caller can use that reader to parse the data.
-func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
-	defer trace.End(trace.Begin(deviceID))
-
-	if store == "" || deviceID == "" {
-		return nil, fmt.Errorf("ArchiveExportReader called with either empty store or deviceID")
-	}
-
-	var err error
-
-	pipeReader, pipeWriter := io.Pipe()
-
-	done := make(chan struct{})
-	go func() {
-		// make sure we get out of io.Copy if context is canceled
-		select {
-		case <-ctx.Done():
-
-			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
-			// stream.  The other way is for the caller of this function to close the returned CloseReader.
-			// Callers of this function should do one but not both.
-			pipeReader.Close()
-		}
-	}()
-
-	go func() {
-		defer close(done)
-
-		params := storage.NewExportArchiveParamsWithContext(ctx).
-			WithStore(store).
-			WithAncestorStore(&ancestorStore).
-			WithDeviceID(deviceID).
-			WithAncestor(&ancestor).
-			WithData(data)
-
-		// Encode the filter spec
-		encodedFilter := ""
-		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
-			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
-			params = params.WithFilterSpec(&encodedFilter)
-			log.Infof(" encodedFilter = %s", encodedFilter)
-		}
-
-		_, err = c.client.Storage.ExportArchive(params, pipeWriter)
-		if err != nil {
-			log.Errorf("Error from ExportArchive: %s", err.Error())
-			switch err := err.(type) {
-			case *storage.ExportArchiveInternalServerError:
-				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeWriter.CloseWithError(plErr)
-			case *storage.ImportArchiveLocked:
-				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeWriter.CloseWithError(plErr)
-			default:
-				//Check for EOF.  Since the connection, transport, and data handling are
-				//encapsulated inside of Swagger, we can only detect EOF by checking the
-				//error string
-				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					log.Debugf("swagger error %s", err.Error())
-					pipeWriter.Close()
-				} else {
-					pipeWriter.CloseWithError(err)
-				}
-			}
-		} else {
-			pipeWriter.Close()
-		}
-	}()
-
-	return pipeReader, nil
-}
-
-// ArchiveImportWriter initializes a write stream for a path.  This is usually called
-// for gettine a writer during docker cp TO container.
-func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
-	defer trace.End(trace.Begin(deviceID))
-
-	if store == "" || deviceID == "" {
-		return nil, fmt.Errorf("ArchiveImportWriter called with either empty store or deviceID")
-	}
-
-	var err error
-
-	pipeReader, pipeWriter := io.Pipe()
-
-	done := make(chan struct{})
-	go func() {
-		// make sure we get out of io.Copy if context is canceled
-		select {
-		case <-ctx.Done():
-		case <-done:
-		}
-
-		// Attempt to shutdown the stream to the portlayer.  The other way to cancel the
-		// connection is to call close on the WriteCloser returned from this function.
-		// Callers of this function should do one but not both.
-		pipeWriter.Close()
-	}()
-
-	go func() {
-		defer close(done)
-
-		// encodedFilter and destination are not required (from swagge spec) because
-		// they are allowed to be empty.
-		params := storage.NewImportArchiveParamsWithContext(ctx).
-			WithStore(store).
-			WithDeviceID(deviceID).
-			WithArchive(pipeReader)
-
-		// Encode the filter spec
-		encodedFilter := ""
-		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
-			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
-			params = params.WithFilterSpec(&encodedFilter)
-		}
-
-		_, err = c.client.Storage.ImportArchive(params)
-		if err != nil {
-			switch err := err.(type) {
-			case *storage.ImportArchiveInternalServerError:
-				plErr := InternalServerError(fmt.Sprintf("Server error from archive writer for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeReader.CloseWithError(plErr)
-			case *storage.ImportArchiveLocked:
-				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeReader.CloseWithError(plErr)
-			default:
-				//Check for EOF.  Since the connection, transport, and data handling are
-				//encapsulated inside of Swagger, we can only detect EOF by checking the
-				//error string
-				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					log.Errorf(err.Error())
-					pipeReader.Close()
-				} else {
-					pipeReader.CloseWithError(err)
-				}
-			}
-		} else {
-			pipeReader.Close()
-		}
-	}()
-
-	return pipeWriter, nil
 }
 
 // Stop will stop (shutdown) a VIC container.

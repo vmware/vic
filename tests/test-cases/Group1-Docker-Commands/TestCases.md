@@ -80,3 +80,5 @@ Group 1 - Docker Commands
 -
 [Test 1-41 - Docker Commit](1-41-Docker-Commit.md)
 -
+[Test 1-42 - Docker Push](1-42-Docker-Push.md)
+-

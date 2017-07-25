@@ -190,7 +190,7 @@ func getImagec(config *backend.ContainerCommitConfig) (*imagec.ImageC, error) {
 		options.Host = portLayerServer
 	}
 
-	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), nil)
 	if imageRef != nil {
 		ic.ParseReference()
 	}
