@@ -45,17 +45,17 @@ func TestMain(m *testing.M) {
 
 	directories = make(map[string]struct{}, 4)
 	files = make(map[string][]string, 6)
-	files["original"] = []string{"/file1", "/file2", "/file3", "/file4",
-		"/original/file1", "/original/file2", "/original/remove",
-		"/exclude/excludeme", "/exclude/includeme", "/excludeme", "/include/excludeme", "/include/includeme"}
-	files["added"] = []string{"/added1", "/added2", "/add/file1", "/add/file2"}
-	files["changed"] = []string{"/file1", "/original/file2",
-		"/exclude/excludeme", "/exclude/includeme",
-		"/include/excludeme", "/include/includeme",
-		"/excludeme"}
-	files["removed"] = []string{"/file2", "/original/file1", "/original/remove"}
-	files["excluded"] = []string{"/exclude", "/excludeme", "/include/excludeme"}
-	files["included"] = []string{"/exclude/includeme", "/include/"}
+	files["original"] = []string{"file1", "file2", "file3", "file4",
+		"original/file1", "original/file2", "original/remove",
+		"exclude/excludeme", "exclude/includeme", "excludeme", "include/excludeme", "include/includeme"}
+	files["added"] = []string{"added1", "added2", "add/file1", "add/file2"}
+	files["changed"] = []string{"file1", "original/file2",
+		"exclude/excludeme", "exclude/includeme",
+		"include/excludeme", "include/includeme",
+		"excludeme"}
+	files["removed"] = []string{"file2", "original/file1", "original/remove"}
+	files["excluded"] = []string{"exclude", "excludeme", "include/excludeme"}
+	files["included"] = []string{"exclude/includeme", "include"}
 
 	newDir, err = ioutil.TempDir("", "mnt")
 	if err != nil {
@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 	b = []byte("The waking of all creatures that live on the land\n")
 
 	for _, dir := range []string{"original", "add", "exclude", "include"} {
-		directories["/"+dir+"/"] = struct{}{}
+		directories[dir] = struct{}{}
 		if err = os.Mkdir(filepath.Join(oldDir, dir), 0777); err != nil {
 			log.Errorf("Failed to add directory: %s", err.Error())
 			return
@@ -264,7 +264,6 @@ func TestDiffNoData(t *testing.T) {
 }
 
 func TestDiffFilterSpec(t *testing.T) {
-	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpec")
 
@@ -329,7 +328,6 @@ func TestDiffFilterSpec(t *testing.T) {
 }
 
 func TestDiffFilterSpecNoAncestor(t *testing.T) {
-	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpecNoParent")
 
@@ -380,7 +378,7 @@ func TestDiffFilterSpecNoAncestor(t *testing.T) {
 
 		// don't try to check the contents if its a directory
 		if _, ok := directories[file]; !ok {
-			assert.Equal(t, b, f, "Expected file contents \"%s\", but found \"%s\"", b, f)
+			assert.Equal(t, b, f, "Expected file contents \"%s\", but found \"%s\" for target file (%s)", b, f, file)
 		}
 	}
 	for _, file := range files["removed"] {
@@ -395,7 +393,6 @@ func TestDiffFilterSpecNoAncestor(t *testing.T) {
 }
 
 func TestDiffFilterSpecRebase(t *testing.T) {
-	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpecRebase")
 
@@ -446,14 +443,12 @@ func TestDiffFilterSpecRebase(t *testing.T) {
 
 		rebasedPath := filepath.Join(rebasePath, file)
 		var isDir bool
-		if _, isDir = directories[file]; isDir {
-			rebasedPath += "/"
-		}
+		_, isDir = directories[file]
 
 		f, ok := tarredFiles[rebasedPath]
 		assert.True(t, ok, "Expected to find %s in tar archive", rebasedPath)
 		if !isDir {
-			assert.Equal(t, b, f, "Expected file contents \"%s\", but found \"%s\"", b, f)
+			assert.Equal(t, b, f, "Expected file contents \"%s\", but found \"%s\" for target file (%s)", b, f, rebasedPath)
 		}
 	}
 	for _, file := range files["removed"] {
@@ -469,7 +464,6 @@ func TestDiffFilterSpecRebase(t *testing.T) {
 }
 
 func TestDiffFilterSpecRebaseNoData(t *testing.T) {
-	t.Skip("skipping until filterspec stabilizes and this is updated to reflect final form")
 
 	op := trace.NewOperation(context.Background(), "TestDiffFilterSpecRebase")
 
@@ -519,9 +513,7 @@ func TestDiffFilterSpecRebaseNoData(t *testing.T) {
 
 		rebasedPath := filepath.Join(rebasePath, file)
 		var isDir bool
-		if _, isDir = directories[file]; isDir {
-			rebasedPath += "/"
-		}
+		_, isDir = directories[file]
 
 		_, ok := tarredFiles[rebasedPath]
 		ctype := changeTypes[rebasedPath]
@@ -542,9 +534,7 @@ func TestDiffFilterSpecRebaseNoData(t *testing.T) {
 
 		rebasedPath := filepath.Join(rebasePath, file)
 		var isDir bool
-		if _, isDir = directories[file]; isDir {
-			rebasedPath += "/"
-		}
+		_, isDir = directories[file]
 		_, ok := tarredFiles[rebasedPath]
 		ctype := changeTypes[rebasedPath]
 		assert.True(t, ok, "expected to find %s in tar archive", file)

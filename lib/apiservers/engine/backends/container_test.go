@@ -44,6 +44,8 @@ import (
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/metadata"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 //***********
@@ -358,15 +360,18 @@ func (m *MockContainerProxy) StreamContainerStats(ctx context.Context, config *c
 	return nil
 }
 
-func (m *MockContainerProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
+func (m *MockContainerProxy) ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
 	return nil, nil
 }
 
-func (m *MockContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
+func (m *MockContainerProxy) ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
+	return nil, nil
+}
+func (m *MockContainerProxy) StatPath(op trace.Operation, sotre, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
 	return nil, nil
 }
 
-func (m *MockContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
+func (m *MockContainerProxy) GetContainerChanges(op trace.Operation, vc *viccontainer.VicContainer, data bool) (io.ReadCloser, error) {
 	return nil, nil
 }
 
