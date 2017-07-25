@@ -517,6 +517,7 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			Name:       volName,
 			MountPoint: mountSpec.Path,
 			ReadWrite:  strings.Contains(strings.ToLower(mountSpec.Mode), "rw"),
+			Flags:      make(map[string]string),
 		}
 		vol.Flags[executor.Mode] = mountSpec.Mode
 		info.VolumeConfig = append(info.VolumeConfig, vol)
