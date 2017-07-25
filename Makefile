@@ -407,7 +407,7 @@ ENV_FLEX_SDK_HOME = "/tmp/sdk/flex_sdk_min"
 ENV_HTML_SDK_HOME = "/tmp/sdk/html-client-sdk"
 
 vic-ui-plugins:
-	@npm install -g yarn > /dev/null
+	@npm install -g yarn@0.24.6 > /dev/null
 	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_H5_UI_PATH)/plugin-package.xml > ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml
 	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_SOURCE_PATH)/plugin-package.xml > ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml
 	sed "s/UI_VERSION_PLACEHOLDER/$(shell printf %s ${TAG}.${BUILD_NUMBER})/" ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties > ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties
@@ -418,9 +418,9 @@ vic-ui-plugins:
 	wget -nv $(GCP_DOWNLOAD_PATH)$(SDK_PACKAGE_ARCHIVE) -O /tmp/$(SDK_PACKAGE_ARCHIVE)
 	wget -nv $(GCP_DOWNLOAD_PATH)$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -O /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE)
 	tar --warning=no-unknown-keyword -xzf /tmp/$(SDK_PACKAGE_ARCHIVE) -C /tmp/
-	ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME)
+	ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) > vic_ui_build.log 2>&1
 	tar --warning=no-unknown-keyword -xzf /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -C $(UI_INSTALLER_WIN_PATH)
-	ant -f ui/vic-ui-h5c/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) -Denv.VSPHERE_H5C_SDK_HOME=$(ENV_HTML_SDK_HOME) -Denv.BUILD_MODE=prod
+	ant -f ui/vic-ui-h5c/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) -Denv.VSPHERE_H5C_SDK_HOME=$(ENV_HTML_SDK_HOME) -Denv.BUILD_MODE=prod >> vic_ui_build.log 2>&1
 	mkdir -p $(BIN)/ui
 	cp -rf ui/installer/* $(BIN)/ui
 	# cleanup
