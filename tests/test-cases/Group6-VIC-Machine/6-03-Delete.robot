@@ -80,7 +80,11 @@ Attach Disks and Delete VCH
     Should Be Equal As Integers  ${rc}  0
 
     # iterate through found images and attach them to the appliance VM
-    ${rc}  ${output}=  Run And Return Rc And Output  for x in $(govc datastore.ls %{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/); do echo $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=$(govc vm.ip %{VCH-NAME}); done
+    ${vm-ip}=  Run  govc vm.ip %{VCH-NAME}
+    ${imagedir}=  Run  govc datastore.ls %{VCH-NAME}/VIC/
+    ${images}=  Run  govc datastore.ls %{VCH-NAME}/VIC/${imagedir}/images/
+    # have to set IFS=newline and Robot interprets newlines so have to also escape the backslash
+    ${rc}  ${output}=  Run And Return Rc And Output  IFS='\\n' for x in "${images}"; do echo $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=${vm-ip}; done
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
