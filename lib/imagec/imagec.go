@@ -749,9 +749,11 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 
 	// use the leaf layer to walk the chain of layers down to the base parent (scratch)
 	for {
-		pusher.streamMap[layerID] = &ArchiveStream{
-			layerID:       layerID,
-			parentLayerID: layer.Image.Parent,
+		if layer.DiffID != dockerLayer.DigestSHA256EmptyTar.String() {
+			pusher.streamMap[layerID] = &ArchiveStream{
+				layerID:       layerID,
+				parentLayerID: layer.Image.Parent,
+			}
 		}
 
 		log.Infof("Image data for layer %s = %#v", layerID, *layer.Image)
@@ -804,10 +806,8 @@ func (ic *ImageC) PrepareManifestAndLayers() error {
 func (ic *ImageC) FinalizeManifest() error {
 	defer trace.End(trace.Begin(""))
 
-	pusher := ic.Pusher
-
 	var layers []distribution.Descriptor
-	for _, stream := range pusher.streamMap {
+	for _, stream := range ic.Pusher.streamMap {
 		var layer distribution.Descriptor
 
 		log.Infof("Finalizing manifest, stream: %#v", stream)
@@ -818,9 +818,9 @@ func (ic *ImageC) FinalizeManifest() error {
 		layers = append(layers, layer)
 	}
 
-	pusher.PushManifest.Layers = layers
+	ic.Pusher.PushManifest.Layers = layers
 
-	log.Infof("Final manifest = %#v", pusher.PushManifest)
+	log.Infof("Final manifest = %#v", ic.Pusher.PushManifest)
 
 	return nil
 }
@@ -853,11 +853,6 @@ func (ic *ImageC) dockerImageFromVicImage(images []*ImageWithMeta) ([]byte, stri
 			// if not empty, add diffID to rootFS
 			rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.DiffID))
 		}
-
-		//if layer.DiffID == dockerLayer.DigestSHA256EmptyTar.String() {
-		//	h.EmptyLayer = true
-		//}
-		//rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.DiffID))
 
 		history = append(history, h)
 		size += layer.Size

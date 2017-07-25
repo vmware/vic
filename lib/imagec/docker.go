@@ -790,6 +790,7 @@ func PutImageManifest(ctx context.Context, pusher Pusher, options Options, progr
 	var dataReader io.Reader
 
 	reqHeaders.Add("Content-Type", schema2.MediaTypeManifest)
+
 	dataReader, dmanifest, err := getManifestSchema2Reader(pusher.PushManifest)
 	if err != nil {
 		log.Errorf("Failed to read manifest schema 2: %s", err.Error())
@@ -1018,7 +1019,6 @@ func getManifestSchema2Reader(manifest schema2.Manifest) (io.Reader, *schema2.De
 	}
 
 	data, err := dm.MarshalJSON()
-	//data, err := json.Marshal(manifest)
 	if err != nil {
 		msg := fmt.Sprintf("unable to marshal DeserializedManifest: %s", err)
 		log.Error(msg)
