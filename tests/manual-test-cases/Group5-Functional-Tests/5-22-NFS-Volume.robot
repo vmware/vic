@@ -82,6 +82,31 @@ Verify NFS Volume Already Created
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: A volume named ${containerVolName} already exists. Choose a different volume name.
 
+Verify Docker Volume Inspect
+    [Arguments]  ${volume}
+    Log To Console  \nInspecting Docker Volume
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${volume}
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Evaluate  json.loads(r'''${output}''')  json
+    ${id}=  Get From Dictionary  ${output[0]}  Name
+    Should Be Equal As Strings  ${id}  ${volume}
+
+Reboot VM and Verify VCH Info
+    Log To Console  Rebooting VCH\n - %{VCH-NAME}
+    Reboot VM  %{VCH-NAME}
+
+    Log To Console  Getting VCH IP ...
+    ${new_vch_ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new_vch_ip}
+    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new_vch_ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${busybox}
+
 
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
@@ -114,7 +139,7 @@ VIC Appliance Install With Correct NFS Server
     ${output}=  Install VIC Appliance To Test Server  certs=${false}  additional-args=--volume-store="nfs://${NFS_IP}/store?uid=0&gid=0:${nfsVolumeStore}"
     Should Contain  ${output}  Installer completed successfully
 
-Simple docker volume create
+Simple Docker Volume Create
     #Pull image  ${busybox}
 
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --opt VolumeStore=${nfsVolumeStore}
@@ -124,7 +149,7 @@ Simple docker volume create
 
     Verify NFS Volume Basic Setup  ${nfsUnNamedVolume}  ${unnamedNFSVolContainer}  ${NFS_IP}  rw
 
-Docker volume create named volume
+Docker Volume Create Named Volume
     ${rc}  ${volumeOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name nfs-volume_%{VCH-NAME} --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${volumeOutput}  nfs-volume_%{VCH-NAME}
@@ -133,12 +158,12 @@ Docker volume create named volume
 
     Verify NFS Volume Basic Setup  nfs-volume_%{VCH-NAME}  ${namedNFSVolContainer}  ${NFS_IP}  rw
 
-Docker volume create already named volume
+Docker Volume Create Duplicate Named Volume
     Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsUnNamedVolume}
 
     Run Keyword And Ignore Error  Verify NFS Volume Already Created  ${nfsNamedVolume}
 
-Docker volume create with possibly invalid name
+Docker Volume Create with possibly Invalid Name
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name="test!@\#$%^&*()" --opt VolumeStore=${nfsVolumeStore}
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test!@\#$%^&*()" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
@@ -159,7 +184,7 @@ Docker Single Write and Read to/from File from one Container using NFS Volume
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  The Texas and Chile flag look similar.
 
-Docker multiple writes from multiple containers (one at a time) and read from one
+Docker Multiple Writes from Multiple Containers (one at a time) and Read from One
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "echo 'The Chad and Romania flag look the same.\n' >> /mydata/test_nfs_file.txt"
     Should Be Equal As Integers  ${rc}  0
 
@@ -217,13 +242,8 @@ Simultaneous Container Write to File
     \   ${rc}  ${stopOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop ${id}
     \   Should Be Equal As Integers  ${rc}  0
 
-
-Simple docker volume inspect
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume inspect ${nfsNamedVolume}
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Evaluate  json.loads(r'''${output}''')  json
-    ${id}=  Get From Dictionary  ${output[0]}  Name
-    Should Be Equal As Strings  ${id}  ${nfsNamedVolume}
+Simple Docker Volume Inspect
+    Verify Docker Volume Inspect  ${nfsNamedVolume}
 
 Simple Volume ls test
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume ls
@@ -246,7 +266,13 @@ Volume rm tests
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
 
+Restart VCH and Docker Volume Inspect Test
+    Verify Docker Volume Inspect  ${nfsNamedVolume}
+    Reboot VM and Verify VCH Info
+    Verify Docker Volume Inspect  ${nfsNamedVolume}
+
 Kill NFS Server
+    Log To Console  Starting Kill NFS Server Test
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 1; done"
     Should Be Equal As Integers  ${rc}  0
 
