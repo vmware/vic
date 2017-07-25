@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -43,6 +44,10 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 		return nil, err
 	}
 
+	offlineAttempt := 0
+offline:
+	offlineAttempt++
+
 	source, err := v.newDataSink(op, uri)
 	if err == nil {
 		return source, err
@@ -57,10 +62,19 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 	// online - Owners() should filter out the appliance VM
 	owners, _ := v.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
+		op.Infof("No online owners were found for %s", id)
 		return nil, errors.New("unable to create offline data sink and no online owners found")
 	}
 
 	for _, o := range owners {
+		// sanity check to see if we are the owner - this should catch transitions
+		// from container running to diff or commit for example between the offline attempt and here
+		self, _ := guest.IsSelf(op, o)
+		if self && offlineAttempt < 2 {
+			op.Infof("Appliance is owner of online vmdk - retrying offline sink path")
+			goto offline
+		}
+
 		online, err := v.newOnlineDataSink(op, o)
 		if online != nil {
 			return online, err

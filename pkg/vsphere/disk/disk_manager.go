@@ -181,16 +181,6 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 	// if it is then it's indicative of an error because it wasn't found in the cache, but this lets us recover
 	_, ferr := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
 	if os.IsNotExist(ferr) {
-		// ensure we abide by max attached disks limits
-		m.maxAttached <- true
-
-		// make sure the op is still valid as the above line could block for a long time
-		select {
-		case <-op.Done():
-			return nil, op.Err()
-		default:
-		}
-
 		if err := m.attach(op, config); err != nil {
 			return nil, errors.Trace(err)
 		}
@@ -352,8 +342,18 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
+	// ensure we abide by max attached disks limits
+	m.maxAttached <- true
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// make sure the op is still valid as the above line could block for a long time
+	select {
+	case <-op.Done():
+		return op.Err()
+	default:
+	}
 
 	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, machineSpec)
@@ -366,6 +366,11 @@ func (m *Manager) attach(op trace.Operation, config *VirtualDiskConfig) error {
 	})
 
 	if err != nil {
+		select {
+		case <-m.maxAttached:
+		default:
+		}
+
 		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
@@ -416,11 +421,6 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 	// this deletes the disk from the disk cache
 	d.setDetached(op, m.Disks)
 
-	select {
-	case <-m.maxAttached:
-	default:
-	}
-
 	return nil
 }
 
@@ -468,6 +468,13 @@ func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
 
 		return t, er
 	})
+
+	if err != nil {
+		select {
+		case <-m.maxAttached:
+		default:
+		}
+	}
 
 	return err
 }
