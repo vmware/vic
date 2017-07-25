@@ -34,7 +34,7 @@ func GenerateFilterSpec(copyPath string, mountPoint string, primaryTarget bool, 
 
 	// NOTE: this solidifies that this function is very heavily designed for docker cp behavior.
 	// which is why this should mainly only be used by the docker personality
-	// scrub trailing '/' before passing copyPath along
+	// scrub trailing '/' before passing copyPath along and create a clean fs path
 	copyPath = strings.TrimSuffix(copyPath, "/")
 
 	// Note I know they are just booleans, if that changes then this statement will not need to.
