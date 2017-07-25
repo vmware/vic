@@ -45,18 +45,6 @@ Clean up test files and VIC appliance to test server
     Remove File  ${CURDIR}/content
     Remove File  ${CURDIR}/largefile.txt
     Remove Directory  ${CURDIR}/bar  recursive=True
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol3
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm smallVol
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
     Cleanup VIC Appliance On Test Server
 
 Start container and inspect directory
@@ -96,8 +84,8 @@ Copy a directory from offline container to host cwd
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/testdir ${CURDIR}/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Directory Should Exist  ${CURDIR}/testdir
-    File Should Exist  ${CURDIR}/testdir/fakefile
+    OperatingSystem.Directory Should Exist  ${CURDIR}/testdir
+    OperatingSystem.File Should Exist  ${CURDIR}/testdir/fakefile
     Remove Directory  ${CURDIR}/testdir  recursive=True
 
 Copy a directory from host to offline container, dst path doesn't exist
@@ -238,7 +226,7 @@ Concurrent copy: repeat copy a large file from offline container to host several
     #\   Should Be Equal As Integers  ${res.rc}  0
     #Log To Console  \nCheck if the copy operations succeeded
     #:FOR  ${idx}  IN RANGE  0  10
-    #\   File Should Exist  ${CURDIR}/lg-${idx}
+    #\   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
     #\   Remove File  ${CURDIR}/lg-${idx}
     #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     #Should Be Equal As Integers  ${rc}  0
