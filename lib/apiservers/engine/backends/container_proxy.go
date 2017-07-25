@@ -389,9 +389,6 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		return handle, BadRequestError(err.Error())
 	}
 
-	// Reset hostconfig binds because we don't have bind mount supported. In this way we'll get consistent result for container mount after VCH restart
-	config.HostConfig.Binds = []string{}
-
 	log.Infof("Finalized Volume list : %#v", volList)
 
 	// Create and join volumes.
@@ -1653,8 +1650,14 @@ func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contain
 		return nil
 	}
 
-	// Iterate through info.VolumeConfig and build the config.volumes
-	// We don't have bind mount supported, so do not set hostconfig.Binds
+	if vc.HostConfig == nil {
+		vc.HostConfig = &container.HostConfig{}
+	}
+	if vc.Config == nil {
+		vc.Config = &container.Config{}
+	}
+	// Iterate through info.VolumeConfig and build the config.volumes and hostconfig.binds
+	// We don't know where the mounts come from, so just fill all of them to both config.volumes and hostconfig.binds
 	vc.Config.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
 	for _, volume := range info.VolumeConfig {
 		mounts := make([]string, 2)
@@ -1665,6 +1668,7 @@ func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contain
 		}
 		mount := strings.Join(mounts, ":")
 		vc.Config.Volumes[mount] = struct{}{}
+		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
 		log.Debugf("added volume mount: %s", mount)
 	}
 	// Derive the mount data
