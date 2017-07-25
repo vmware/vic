@@ -645,7 +645,7 @@ func (ic *ImageC) prepareTransfer(ctx context.Context, imageOperation string) er
 	} else if imageOperation == PullImage {
 		url, err = LearnAuthURL(ic.Options)
 	} else {
-		err = fmt.Errorf("invlid image operation: %s", imageOperation)
+		err = fmt.Errorf("invalid image operation: %s", imageOperation)
 	}
 
 	if err != nil {
