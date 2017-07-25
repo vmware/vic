@@ -41,23 +41,10 @@ Set up test files and install VIC appliance to test server
     Should Not Contain  ${output}  Error
 
 Clean up test files and VIC appliance to test server
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop $(docker %{VCH-PARAMS} ps -a -q)
     Remove File  ${CURDIR}/foo.txt
     Remove File  ${CURDIR}/content
     Remove File  ${CURDIR}/largefile.txt
     Remove Directory  ${CURDIR}/bar  recursive=True
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol3
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm smallVol
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
     Cleanup VIC Appliance On Test Server
 
 Start container and inspect directory
@@ -244,5 +231,3 @@ Concurrent copy: repeat copy a large file from offline container to host several
     #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  Error
-Contact GitHub API Training Shop Blog About
-© 2017 GitHub, Inc. Terms Privacy Security Status Help

@@ -36,9 +36,6 @@ Clean up test files and VIC appliance to test server
     Remove File  ${CURDIR}/content
     Remove File  ${CURDIR}/largefile.txt
     Remove Directory  ${CURDIR}/bar  recursive=True
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm vol1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
     Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
