@@ -9,8 +9,8 @@
    type: keep "html" for this plugin to be deployed in the vSphere HTML client.
    name: short name displayed in the Administration < Client plugins view
 -->
-<pluginPackage id="com.vmware.vic" version="0.0.1" type="html" name="VicUI"
-      description="VicUI" vendor="VMware">
+<pluginPackage id="com.vmware.vic" version="0.0.1" type="html" name="vSphere Integrated Containers"
+      description="H5 Client Plugin for vSphere Integrated Containers Engine" vendor="VMware">
 
    <dependencies>
       <!--

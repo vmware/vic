@@ -86,6 +86,9 @@ func NewService(rpcIn Channel, rpcOut Channel) *Service {
 
 	s.Command = registerCommandServer(s)
 	s.Command.FileServer = hgfs.NewServer()
+	s.Command.FileServer.RegisterFileHandler("proc", s.Command.ProcessManager)
+	s.Command.FileServer.RegisterFileHandler(hgfs.ArchiveScheme, hgfs.NewArchiveHandler())
+
 	s.Power = registerPowerCommandHandler(s)
 
 	return s
@@ -208,6 +211,8 @@ func (s *Service) Dispatch(request []byte) []byte {
 
 // Reset is the default Handler for reset requests
 func (s *Service) Reset([]byte) ([]byte, error) {
+	s.SendGuestInfo() // Send the IP info ASAP
+
 	return []byte("ATR " + s.name), nil
 }
 

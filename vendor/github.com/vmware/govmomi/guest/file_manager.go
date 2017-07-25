@@ -18,11 +18,14 @@ package guest
 
 import (
 	"context"
+	"net"
 	"net/url"
-	"strings"
+	"sync"
 
+	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/methods"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -32,6 +35,9 @@ type FileManager struct {
 	vm types.ManagedObjectReference
 
 	c *vim25.Client
+
+	mu    *sync.Mutex
+	hosts map[string]string
 }
 
 func (m FileManager) Reference() types.ManagedObjectReference {
@@ -112,6 +118,75 @@ func (m FileManager) DeleteFile(ctx context.Context, auth types.BaseGuestAuthent
 	return err
 }
 
+// TransferURL rewrites the url with a valid hostname and adds the host's thumbprint.
+// The InitiateFileTransfer{From,To}Guest methods return a URL with the host set to "*" when connected directly to ESX,
+// but return the address of VM's runtime host when connected to vCenter.
+func (m FileManager) TransferURL(ctx context.Context, u string) (*url.URL, error) {
+	url, err := m.c.ParseURL(u)
+	if err != nil {
+		return nil, err
+	}
+
+	if !m.c.IsVC() {
+		return url, nil // we already connected to the ESX host and have its thumbprint
+	}
+
+	name := url.Hostname()
+	port := url.Port()
+
+	m.mu.Lock()
+	mname, ok := m.hosts[name]
+	m.mu.Unlock()
+
+	if ok {
+		url.Host = net.JoinHostPort(mname, port)
+		return url, nil
+	}
+
+	c := property.DefaultCollector(m.c)
+
+	var vm mo.VirtualMachine
+	err = c.RetrieveOne(ctx, m.vm, []string{"runtime.host"}, &vm)
+	if err != nil {
+		return nil, err
+	}
+
+	if vm.Runtime.Host == nil {
+		return url, nil // won't matter if the VM was powered off since the call to InitiateFileTransfer
+	}
+
+	props := []string{"summary.config.sslThumbprint", "config.virtualNicManagerInfo.netConfig"}
+
+	var host mo.HostSystem
+	err = c.RetrieveOne(ctx, *vm.Runtime.Host, props, &host)
+	if err != nil {
+		return nil, err
+	}
+
+	kind := string(types.HostVirtualNicManagerNicTypeManagement)
+
+	// prefer an ESX management IP, as the hostname used when adding to VC may not be valid for this client
+	for _, nc := range host.Config.VirtualNicManagerInfo.NetConfig {
+		if len(nc.CandidateVnic) > 0 && nc.NicType == kind {
+			ip := net.ParseIP(nc.CandidateVnic[0].Spec.Ip.IpAddress)
+			if ip != nil {
+				mname = ip.String()
+				m.mu.Lock()
+				m.hosts[name] = mname
+				m.mu.Unlock()
+				name = mname
+				break
+			}
+		}
+	}
+
+	url.Host = net.JoinHostPort(name, port)
+
+	m.c.SetThumbprint(url.Host, host.Summary.Config.SslThumbprint)
+
+	return url, nil
+}
+
 func (m FileManager) InitiateFileTransferFromGuest(ctx context.Context, auth types.BaseGuestAuthentication, guestFilePath string) (*types.FileTransferInformation, error) {
 	req := types.InitiateFileTransferFromGuest{
 		This:          m.Reference(),
@@ -123,15 +198,6 @@ func (m FileManager) InitiateFileTransferFromGuest(ctx context.Context, auth typ
 	res, err := methods.InitiateFileTransferFromGuest(ctx, m.c, &req)
 	if err != nil {
 		return nil, err
-	}
-
-	if strings.HasSuffix(guestFilePath, "/") {
-		// Propagate the trailing '/' for directory download support, see soap.directoryReader
-		u, err := url.Parse(res.Returnval.Url)
-		if err == nil {
-			u.Path += "/"
-			res.Returnval.Url = u.String()
-		}
 	}
 
 	return &res.Returnval, nil

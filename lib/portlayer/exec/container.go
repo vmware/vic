@@ -19,6 +19,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -32,6 +34,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
+	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -114,6 +117,14 @@ func (r ConcurrentAccessError) Error() string {
 func IsConcurrentAccessError(err error) bool {
 	_, ok := err.(ConcurrentAccessError)
 	return ok
+}
+
+type DevicesInUseError struct {
+	Devices []string
+}
+
+func (e DevicesInUseError) Error() string {
+	return fmt.Sprintf("device %s in use", strings.Join(e.Devices, ","))
 }
 
 // Container is used to return data about a container during inspection calls
@@ -305,8 +316,6 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 // Refresh updates config and runtime info, holding a lock only while swapping
 // the new data for the old
 func (c *Container) Refresh(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -314,19 +323,12 @@ func (c *Container) Refresh(ctx context.Context) error {
 }
 
 func (c *Container) refresh(ctx context.Context) error {
-	// c.Config is nil if this is a create operation
-	if c.Config != nil {
-		log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
-	}
-
 	return c.containerBase.refresh(ctx)
 }
 
-// Refresh updates config and runtime info, holding a lock only while swapping
+// RefreshFromHandle updates config and runtime info, holding a lock only while swapping
 // the new data for the old
 func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
-	defer trace.End(trace.Begin(h.String()))
-
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -335,9 +337,17 @@ func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
 		return
 	}
 
+	// power off doesn't necessarily cause a change version increment and bug1898149 occasionally impacts power on
+	if c.Runtime != nil && (h.Runtime == nil || h.Runtime.PowerState != c.Runtime.PowerState) {
+		log.Warnf("container and handle PowerStates do not match: %s != %s", c.Runtime.PowerState, h.Runtime.PowerState)
+		return
+	}
+
 	// copy over the new state
 	c.containerBase = h.containerBase
-	log.Debugf("Current ChangeVersion: %s", c.Config.ChangeVersion)
+	if c.Config != nil {
+		log.Debugf("Update: updated change version from handle: %s", c.Config.ChangeVersion)
+	}
 }
 
 // Start starts a container vm with the given params
@@ -351,6 +361,28 @@ func (c *Container) start(ctx context.Context) error {
 	c.SetState(StateStarting)
 
 	err := c.containerBase.start(ctx)
+	if err != nil {
+		// change state to stopped because start task failed
+		c.SetState(StateStopped)
+
+		// check if locked disk error
+		devices := disk.LockedDisks(err)
+		if len(devices) > 0 {
+			for i := range devices {
+				// get device id from datastore file path
+				// FIXME: find a reasonable way to get device ID from datastore path in exec
+				devices[i] = strings.TrimSuffix(path.Base(devices[i]), ".vmdk")
+			}
+			return DevicesInUseError{devices}
+		}
+		return err
+	}
+
+	// wait task to set started field to something
+	ctx, cancel := context.WithTimeout(ctx, constants.PropertyCollectorTimeout)
+	defer cancel()
+
+	err = c.waitForSession(ctx, c.ExecConfig.ID)
 	if err != nil {
 		// leave this in state starting - if it powers off then the event
 		// will cause transition to StateStopped which is likely our original state

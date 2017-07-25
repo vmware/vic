@@ -25,12 +25,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
 	"github.com/vmware/vic/lib/archive"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 var (
@@ -122,7 +124,27 @@ func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*spl.Volume, error)
 	return list, nil
 }
 
-func (m *MockVolumeStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+func (m *MockVolumeStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
+}
+
+func (m *MockVolumeStore) NewDataSink(op trace.Operation, id string) (spl.DataSink, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) NewDataSource(op trace.Operation, id string) (spl.DataSource, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
 	return nil, nil
 }
 
@@ -153,7 +175,27 @@ func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) 
 	return nil, nil
 }
 
-func (c *MockDataStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+func (c *MockDataStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
+}
+
+func (c *MockDataStore) NewDataSink(op trace.Operation, id string) (spl.DataSink, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) NewDataSource(op trace.Operation, id string) (spl.DataSource, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	return nil, nil
+}
+
+func (c *MockDataStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
 	return nil, nil
 }
 

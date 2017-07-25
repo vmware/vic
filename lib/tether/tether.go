@@ -78,6 +78,9 @@ type tether struct {
 	cancel context.CancelFunc
 
 	incoming chan os.Signal
+
+	// syslog writer shared by all sessions
+	writer syslog.Writer
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
@@ -294,67 +297,25 @@ func (t *tether) initializeSessions() error {
 		"Execs":    t.config.Execs,
 	}
 
-	var writer syslog.Writer
-
 	// we need to iterate over both sessions and execs
 	for name, m := range maps {
-
 		// Iterate over the Sessions and initialize them if needed
 		for id, session := range m {
-			// make it a func so that we can use defer
-			err := func() error {
-				session.Lock()
-				defer session.Unlock()
+			log.Debugf("Initializing session %s", id)
 
-				if session.wait != nil {
-					log.Warnf("Session %s already initialized", id)
-					return nil
-				}
-				log.Debugf("Initializing session %s", id)
-
+			session.Lock()
+			if session.wait != nil {
+				log.Warnf("Session %s already initialized", id)
+			} else {
 				if session.RunBlock {
 					log.Infof("Session %s wants attach capabilities. Creating its channel", id)
 					session.ClearToLaunch = make(chan struct{})
 				}
 
-				stdout, stderr, err := t.ops.SessionLog(session)
-				if err != nil {
-					detail := fmt.Errorf("failed to get log writer for session: %s", err)
-					session.Started = detail.Error()
-
-					return detail
-				}
-				session.Outwriter = stdout
-				session.Errwriter = stderr
-				session.Reader = dio.MultiReader()
-
 				session.wait = &sync.WaitGroup{}
 				session.extraconfigKey = name
-
-				if session.Diagnostics.SysLogConfig != nil {
-					cfg := session.Diagnostics.SysLogConfig
-					var w syslog.Writer
-					if writer == nil {
-						writer, err = syslog.Dial(cfg.Network, cfg.RAddr, syslog.Info|syslog.Daemon, fmt.Sprintf("%s", t.config.ID[:shortLen]))
-						if err != nil {
-							log.Warnf("could not connect to syslog server: %s", err)
-						}
-						w = writer
-					} else {
-						w = writer.WithTag(fmt.Sprintf("%s", t.config.ID[:shortLen]))
-					}
-
-					if w != nil {
-						stdout.Add(w)
-						stderr.Add(w.WithPriority(syslog.Err | syslog.Daemon))
-					}
-				}
-
-				return nil
-			}()
-			if err != nil {
-				return err
 			}
+			session.Unlock()
 		}
 	}
 	return nil
@@ -588,20 +549,27 @@ func (t *tether) Register(name string, extension Extension) {
 func (t *tether) cleanupSession(session *SessionConfig) {
 	// close down the outputs
 	log.Debugf("Calling close on writers")
-	if err := session.Outwriter.Close(); err != nil {
-		log.Warnf("Close for Outwriter returned %s", err)
+	if session.Outwriter != nil {
+		if err := session.Outwriter.Close(); err != nil {
+			log.Warnf("Close for Outwriter returned %s", err)
+		}
 	}
 
 	// this is a little ugly, however ssh channel.Close will get invoked by these calls,
 	// whereas CloseWrite will be invoked by the OutWriter.Close so that goes first.
-	if err := session.Errwriter.Close(); err != nil {
-		log.Warnf("Close for Errwriter returned %s", err)
+	if session.Errwriter != nil {
+		if err := session.Errwriter.Close(); err != nil {
+			log.Warnf("Close for Errwriter returned %s", err)
+		}
 	}
+
 	// if we're calling this we don't care about truncation of pending input, so this is
 	// called last
-	log.Debugf("Calling close on reader")
-	if err := session.Reader.Close(); err != nil {
-		log.Warnf("Close for Reader returned %s", err)
+	if session.Reader != nil {
+		log.Debugf("Calling close on reader")
+		if err := session.Reader.Close(); err != nil {
+			log.Warnf("Close for Reader returned %s", err)
+		}
 	}
 
 	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
@@ -649,6 +617,40 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	}
 }
 
+func (t *tether) loggingLocked(session *SessionConfig) error {
+	stdout, stderr, err := t.ops.SessionLog(session)
+	if err != nil {
+		detail := fmt.Errorf("failed to get log writer for session: %s", err)
+		session.Started = detail.Error()
+
+		return detail
+	}
+	session.Outwriter = stdout
+	session.Errwriter = stderr
+	session.Reader = dio.MultiReader()
+
+	if session.Diagnostics.SysLogConfig != nil {
+		cfg := session.Diagnostics.SysLogConfig
+		var w syslog.Writer
+		if t.writer == nil {
+			t.writer, err = syslog.Dial(cfg.Network, cfg.RAddr, syslog.Info|syslog.Daemon, fmt.Sprintf("%s", t.config.ID[:shortLen]))
+			if err != nil {
+				log.Warnf("could not connect to syslog server: %s", err)
+			}
+			w = t.writer
+		} else {
+			w = t.writer.WithTag(fmt.Sprintf("%s", t.config.ID[:shortLen]))
+		}
+
+		if w != nil {
+			stdout.Add(w)
+			stderr.Add(w.WithPriority(syslog.Err | syslog.Daemon))
+		}
+	}
+
+	return nil
+}
+
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
 func (t *tether) launch(session *SessionConfig) error {
@@ -678,6 +680,12 @@ func (t *tether) launch(session *SessionConfig) error {
 			return err
 		}
 		session.Cmd.SysProcAttr = user
+	}
+
+	err = t.loggingLocked(session)
+	if err != nil {
+		log.Errorf("initializing logging for session failed with %s", err)
+		return err
 	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)

@@ -319,10 +319,8 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		registryAddress = registryAddress + "/v2/"
 	}
 
-	// TODO(jzt) Ensuring the scheme exists in the url happens at several places in our code.
-	// We should consolidate these into a common method to deal with this.
-	if !strings.HasPrefix(registryAddress, "https://") && !strings.HasPrefix(registryAddress, "http://") {
-		registryAddress = "https://" + registryAddress
+	if !strings.HasPrefix(registryAddress, "http") {
+		registryAddress = "//" + registryAddress
 	}
 
 	loginURL, err := url.Parse(registryAddress)

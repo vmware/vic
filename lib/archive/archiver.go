@@ -15,9 +15,12 @@
 package archive
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -34,6 +37,9 @@ const (
 	Exclude
 	// Rebase specifies a path rebase.
 	// The rebase path is prepended to the path in the archive header.
+	// for an Export this will ensure proper headers on the way out.
+	// for an Import it will ensure that the tar unpacking occurs in
+	// right location
 	Rebase
 	// Strip specifies a path strip.
 	// The inverse of a rebase, the path is stripped from the header path
@@ -63,12 +69,19 @@ type Archiver interface {
 	// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
 	// data - include file data in the tar archive if true, headers only otherwise
 	Export(op trace.Operation, store *url.URL, id, ancestor string, spec *FilterSpec, data bool) (io.ReadCloser, error)
+
+	// Import will process the input tar stream based on the supplied path spec and write the stream to the
+	// target device.
+	//
+	// store - the device store containing the target device
+	// id - the id for the device that is contained within the store
+	// spec - describes filters on paths found in the data (include, exclude, rebase, strip)
+	// tarstream - the tar stream that is to be written to the target on the device
+	Import(op trace.Operation, store *url.URL, id string, spec *FilterSpec, tarstream io.ReadCloser) error
 }
 
 // CreateFilterSpec creates a FilterSpec from a supplied map
 func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSpec, error) {
-	var rebase, strip string
-
 	fs := &FilterSpec{
 		Inclusions: make(map[string]struct{}),
 		Exclusions: make(map[string]struct{}),
@@ -85,22 +98,108 @@ func CreateFilterSpec(op trace.Operation, spec map[string]FilterType) (*FilterSp
 		case Exclude:
 			fs.Exclusions[k] = struct{}{}
 		case Rebase:
-			if rebase != "" {
-				return nil, fmt.Errorf("Error creating filter spec: only one rebase path allowed")
+			if fs.RebasePath != "" {
+				return nil, fmt.Errorf("error creating filter spec: only one rebase path allowed")
 			}
-			rebase = k
+			fs.RebasePath = k
 		case Strip:
-			if strip != "" {
-				return nil, fmt.Errorf("Error creating filter spec: only one strip path allowed")
+			if fs.StripPath != "" {
+				return nil, fmt.Errorf("error creating filter spec: only one strip path allowed")
 			}
-			strip = k
+			fs.StripPath = k
 		default:
-			return nil, fmt.Errorf("Invalid filter specification: %d", v)
+			return nil, fmt.Errorf("invalid filter specification: %d", v)
 		}
 	}
 
-	fs.RebasePath = rebase
-	fs.StripPath = strip
-
 	return fs, nil
+}
+
+// Decodes a base64 encoded string from EncodeFilterSpec into a FilterSpec
+func DecodeFilterSpec(op trace.Operation, spec *string) (*FilterSpec, error) {
+	var filterSpec FilterSpec
+
+	// empty spec means don't apply any filtering
+	if spec != nil && len(*spec) > 0 {
+		decoded, err := base64.StdEncoding.DecodeString(*spec)
+		if err != nil {
+			op.Errorf("Unable to decode filter spec: %s", err)
+			return nil, err
+		}
+		op.Debugf("decoded spec: %+s", string(decoded))
+
+		if len(decoded) > 0 {
+			if err = json.Unmarshal(decoded, &filterSpec); err != nil {
+				op.Errorf("Unable to unmarshal decoded spec: %s", err)
+				return nil, err
+			}
+		}
+	}
+
+	// normalize empty spec
+	if filterSpec.Inclusions == nil {
+		op.Debugf("Empty inclusion set")
+		filterSpec.Inclusions = make(map[string]struct{})
+	}
+	if filterSpec.Exclusions == nil {
+		op.Debugf("Empty exclusion set")
+		filterSpec.Exclusions = make(map[string]struct{})
+	}
+
+	return &filterSpec, nil
+}
+
+// Encode the filter spec
+func EncodeFilterSpec(op trace.Operation, spec *FilterSpec) (*string, error) {
+	mashalled, err := json.Marshal(spec)
+	if err != nil {
+		op.Errorf("Unable to encode filter spec: %s", err)
+		return nil, err
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(mashalled)
+	op.Debugf("encodedFilter = %s", encoded)
+
+	return &encoded, nil
+}
+
+// Excludes returns true if the provided filter excludes the provided filepath
+// If the spec is completely empty it will match everything.
+// If an inclusion is set, but not exclusion, then we'll only return matches for the inclusions.
+func (spec *FilterSpec) Excludes(op trace.Operation, filePath string) bool {
+	il := len(spec.Inclusions)
+	el := len(spec.Exclusions)
+
+	if il == 0 && el == 0 {
+		// empty spec means include everything
+		return false
+	}
+
+	inclusion := ""
+	exclusion := "/"
+
+	if il == 0 {
+		// if only exclusions are specified then default is include all others
+		inclusion = "/"
+	}
+
+	for path := range spec.Inclusions {
+		if strings.HasPrefix(filePath, path) {
+			if len(path) > len(inclusion) {
+				// more specific inclusion, so update
+				inclusion = path
+			}
+		}
+	}
+
+	for path := range spec.Exclusions {
+		if strings.HasPrefix(filePath, path) {
+			if len(path) > len(exclusion) {
+				// more specific exclusion, so update
+				exclusion = path
+			}
+		}
+	}
+
+	return len(inclusion) < len(exclusion)
 }

@@ -201,21 +201,6 @@ func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
 	return l, nil
 }
 
-func (v *VolumeLookupCache) Export(op trace.Operation, store *url.URL, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
-	storeName, err := util.VolumeStoreName(store)
-	if err != nil {
-		return nil, err
-	}
-
-	vs, ok := v.volumeStores[storeName]
-	if !ok {
-		err := fmt.Errorf("Volume store not found: %s", storeName)
-		return nil, err
-	}
-
-	return vs.Export(op, store, id, ancestor, spec, data)
-}
-
 // goto the volume store and repopulate the cache.
 func (v *VolumeLookupCache) rebuildCache(op trace.Operation) error {
 	op.Infof("Refreshing volume cache.")
@@ -256,4 +241,68 @@ func volumeInUse(ID string) error {
 	}
 
 	return nil
+}
+
+// Import is a fake store import so that we can do a late lookup of the actual store - this is a work around for the fact that the store
+// URL isn't available in useful form outside of the volumeCache
+func (v *VolumeLookupCache) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return err
+	}
+
+	// relay call to actual store
+	return store.Import(op, id, spec, tarStream)
+}
+
+func (v *VolumeLookupCache) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	// relay call to actual store
+	return store.NewDataSink(op, id)
+}
+
+// Export is a fake store export so that we can do a late lookup of the actual store - this is a work around for the fact that the store
+// URL isn't available in useful form outside of the volumeCache
+func (v *VolumeLookupCache) Export(op trace.Operation, id, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	// relay call to actual store
+	return store.Export(op, id, ancestor, spec, data)
+}
+
+func (v *VolumeLookupCache) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+	volume, err := v.VolumeGet(op, id)
+	if err != nil {
+		return nil, err
+	}
+
+	store, err := v.volumeStore(volume.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	// relay call to actual store
+	return store.NewDataSource(op, id)
 }

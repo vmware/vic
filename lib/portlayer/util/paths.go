@@ -21,6 +21,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/vmware/govmomi/object"
 )
 
 const (
@@ -60,6 +62,8 @@ func ImageStoreName(u *url.URL) (string, error) {
 	return segments[2], nil
 }
 
+// ImageURL converts a store and image name into an URL that is an internal imagestore representation
+// NOTE: this is NOT a datastore URL and cannot be used in any calls that expect a ds:// scheme
 func ImageURL(storeName, imageName string) (*url.URL, error) {
 	if imageName == "" {
 		return nil, fmt.Errorf("image ID missing")
@@ -71,6 +75,14 @@ func ImageURL(storeName, imageName string) (*url.URL, error) {
 	}
 	AppendDir(u, imageName)
 	return u, nil
+}
+
+// ImageDatastoreURL takes a datastore path object and converts it into a stable URL for with a "ds" scheme
+func ImageDatastoreURL(path *object.DatastorePath) *url.URL {
+	return &url.URL{
+		Scheme: "ds",
+		Path:   path.String(),
+	}
 }
 
 // VolumeStoreNameToURL parses the volume URL in the form /storage/volumes/<volume store>/<volume name>

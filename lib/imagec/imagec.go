@@ -168,6 +168,9 @@ const (
 	// DefaultHTTPTimeout specifies the default HTTP timeout
 	DefaultHTTPTimeout = 3600 * time.Second
 
+	// Scratch layer ID
+	ScratchLayerID = "scratch"
+
 	// attribute update actions
 	Add = iota + 1
 	Remove
@@ -238,6 +241,14 @@ func DestinationDirectory(options Options) string {
 		                    └── manifest.json
 
 	*/
+	if u.Scheme == "" && u.Host == "" && u.Path == "" {
+		return path.Join(
+			options.Destination,
+			"localhost",
+			options.Image,
+			options.Tag,
+		)
+	}
 	return path.Join(
 		options.Destination,
 		u.Scheme,
@@ -266,7 +277,7 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 		}
 
 		// if parent is empty set it to scratch
-		parent := "scratch"
+		parent := ScratchLayerID
 		if v1.Parent != "" {
 			parent = v1.Parent
 		}
@@ -295,10 +306,10 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 	return images, nil
 }
 
-// updateRepositoryCache will update the repository cache
+// UpdateRepositoryCache will update the repository cache
 // that resides in the docker persona.  This will add image tag,
 // digest and layer information.
-func updateRepositoryCache(ic *ImageC) error {
+func UpdateRepoCache(ic *ImageC) error {
 	// if standalone then no persona, so exit
 	if ic.Standalone {
 		return nil
@@ -348,8 +359,9 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 	destination := DestinationDirectory(ic.Options)
 
 	id := image.Image.ID
-	log.Infof("Path: %s", path.Join(destination, id, id+".targ"))
-	f, err := os.Open(path.Join(destination, id, id+".tar"))
+	filePath := path.Join(destination, id, id+".tar")
+	log.Infof("Path: %s", filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("Failed to open file: %s", err)
 	}
@@ -464,15 +476,21 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 	result.Size = size
 	result.V1Image.ID = imageLayer.ID
 	imageConfig := metadata.ImageConfig{
-		V1Image:   result.V1Image,
-		ImageID:   sum,
-		Tags:      []string{ic.Tag},
-		Name:      manifest.Name,
-		DiffIDs:   diffIDs,
-		History:   history,
-		Reference: ic.Reference.String(),
+		V1Image: result.V1Image,
+		ImageID: sum,
+		DiffIDs: diffIDs,
+		History: history,
 	}
 
+	if ic.Tag != "" {
+		imageConfig.Tags = []string{ic.Tag}
+	}
+	if manifest != nil {
+		imageConfig.Name = manifest.Name
+	}
+	if ic.Reference != nil {
+		imageConfig.Reference = ic.Reference.String()
+	}
 	if _, ok := ic.Reference.(reference.Canonical); ok {
 		log.Debugf("Populating digest in imageConfig for image: %s", ic.Reference.String())
 		imageConfig.Digests = []string{ic.ManifestDigest}

@@ -1,13 +1,13 @@
 Test 19-5 - Configuration 1 VC6.5 ESX6.5 VIC OVA Secured SelfSigned
 =======
 
-#Purpose:
+# Purpose:
 To verify the VIC Product (Engine/Harbor) work using secure self-signed registry with a VC6.5 and ESX6.5 server
 
-#References:
+# References:
 [1 - VIC+Harbor Integration Test Plan](https://confluence.eng.vmware.com/pages/viewpage.action?spaceKey=corevc&title=VIC+-+Harbor+Integration+Test+Plan)
 
-#Environment:
+# Environment:
 * This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter creation
 * Setup the Unified OVA using the OVFTool on the Nimbus cluster
 * Login to Harbor using an LDAP user1 (say admin role)
@@ -16,7 +16,7 @@ To verify the VIC Product (Engine/Harbor) work using secure self-signed registry
 * Login as user1 and add other users with different roles (developer, guest) under Project 'vic-harbor'
 * Prepare 3 windows client machines (3rd client machine could be a Linux machine as we couldn't figure out the VT-X issue for running docker on Windows 7/10 VM)
 
-#Test Steps:
+# Test Steps:
 ###Test Pos001 Admin Operations:
 1. Create a VCH with Harbor private registry as an option (using --registry-ca <harbor-ip>:80)
 2. Do docker login to harbor using an user with admin role
@@ -27,7 +27,7 @@ To verify the VIC Product (Engine/Harbor) work using secure self-signed registry
 7. Run the application using docker run command
 8. Stop, Start, attach, kill, rm and rmi
 
-#Expected Outcome:
+# Expected Outcome:
 ###Test Pos001 Admin Operations:
 * VCH Creation with Harbor private registry should succeed - Limitation (Issue#)
 * Validate that VCH is communicating with Harbor Registry by doing a docker login (using docker H <vchip>:2375 login <harbor-ip>:80)
@@ -45,7 +45,7 @@ To verify the VIC Product (Engine/Harbor) work using secure self-signed registry
 7. Run the application using docker run command
 8. Stop, Start, attach, kill, rm and rmi
 
-#Expected Outcome:
+# Expected Outcome:
 ###Test Pos002 Developer Operations:
 * Validate that VCH is communicating with Harbor Registry by doing a docker login (using docker H <vchip>:2375 login <harbor-ip>:80)
 * Ensure that the LDAP user with admin role is able to push and pull images to/from the repository to the local registry
@@ -59,7 +59,7 @@ To verify the VIC Product (Engine/Harbor) work using secure self-signed registry
 4. Tag the image/application to push it to Harbor private registry using local docker in the client machine
 5. Push the image/application from local to Harbor Private registry
 
-#Expected Outcome:
+# Expected Outcome:
 ###Test Neg001 Developer Operations:
 * Validate that VCH is communicating with Harbor Registry
 * Ensure that the LDAP user with guest role is not able to push images to the Harbor repository but able to pull the image
@@ -75,7 +75,7 @@ To verify the VIC Product (Engine/Harbor) work using secure self-signed registry
 8. Run the application using docker run command
 9. Stop, Start, attach, kill, rm and rmi
 
-#Expected Outcome:
+# Expected Outcome:
 ###Test Pos003 Two VCH With One Harbor:
 * Validate that VCH is communicating with Harbor Registry by doing a docker login (using docker H <vchip>:2375 login <harbor-ip>:80)
 * Ensure that the LDAP user with admin role is able to push and pull images to/from the repository to the local registry
@@ -93,12 +93,12 @@ To verify the VIC Product (Engine/Harbor) work using secure self-signed registry
 8. Run the applications using different users from Harbor registry (in parallel)
 9. Stop, Start, attach, kill, rm and rmi using different users from Harbor registry (in parallel)
 
-#Expected Outcome:
+# Expected Outcome:
 ###Test Pos004 Three Client Machines With One Harbor:
 * Validate that VCH is communicating with Harbor Registry by doing a docker login (using docker H <vchip>:2375 login <harbor-ip>:80)
 * Ensure that the LDAP user with admin role is able to push and pull images to/from the repository to the local registry
 * Ensure that the application runs in the containerVm and it is functional
 * Ensure that the application tty gets attached and able to delete the ContainerVM and the images
 
-#Possible Problems:
+# Possible Problems:
 * Not planning on using LDAP at this time, in all cases where LDAP is specified substitute users manually created within the product

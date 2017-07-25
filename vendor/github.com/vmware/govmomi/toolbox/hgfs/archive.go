@@ -18,14 +18,67 @@ package hgfs
 
 import (
 	"archive/tar"
+	"bufio"
+	"bytes"
 	"compress/gzip"
 	"io"
+	"io/ioutil"
+	"log"
+	"math"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vmware/govmomi/toolbox/vix"
 )
+
+// ArchiveScheme is the default scheme used to register the archive FileHandler
+var ArchiveScheme = "archive"
+
+// ArchiveHandler implements a FileHandler for transferring directories.
+type ArchiveHandler struct {
+	Read  func(*url.URL, *tar.Reader) error
+	Write func(*url.URL, *tar.Writer) error
+}
+
+// NewArchiveHandler returns a FileHandler implementation for transferring directories using gzip'd tar files.
+func NewArchiveHandler() FileHandler {
+	return &ArchiveHandler{
+		Read:  archiveRead,
+		Write: archiveWrite,
+	}
+}
+
+// Stat implements FileHandler.Stat
+func (*ArchiveHandler) Stat(u *url.URL) (os.FileInfo, error) {
+	switch u.Query().Get("format") {
+	case "", "tar", "tgz":
+		// ok
+	default:
+		log.Printf("unknown archive format: %q", u)
+		return nil, vix.Error(vix.InvalidArg)
+	}
+
+	return &archive{
+		name: u.Path,
+		size: math.MaxInt64,
+	}, nil
+}
+
+// Open implements FileHandler.Open
+func (h *ArchiveHandler) Open(u *url.URL, mode int32) (File, error) {
+	switch mode {
+	case OpenModeReadOnly:
+		return h.newArchiveFromGuest(u)
+	case OpenModeWriteOnly:
+		return h.newArchiveToGuest(u)
+	default:
+		return nil, os.ErrNotExist
+	}
+}
 
 // archive implements the hgfs.File and os.FileInfo interfaces.
 type archive struct {
@@ -72,26 +125,39 @@ func (a *archive) Sys() interface{} {
 // HTTP clients need to be aware of this and stop reading when they see the 2nd gzip header.
 var gzipHeader = []byte{0x1f, 0x8b, 0x08} // rfc1952 {ID1, ID2, CM}
 
+var gzipTrailer = true
+
 // newArchiveFromGuest returns an hgfs.File implementation to read a directory as a gzip'd tar.
-func newArchiveFromGuest(dir string) (File, error) {
+func (h *ArchiveHandler) newArchiveFromGuest(u *url.URL) (File, error) {
 	r, w := io.Pipe()
 
 	a := &archive{
-		name:   dir,
+		name:   u.Path,
+		done:   r.Close,
 		Reader: r,
 		Writer: w,
 	}
 
-	gz := gzip.NewWriter(a.Writer)
-	tw := tar.NewWriter(gz)
-	a.done = r.Close
+	var z io.Writer = w
+	var c io.Closer = ioutil.NopCloser(nil)
+
+	switch u.Query().Get("format") {
+	case "tgz":
+		gz := gzip.NewWriter(w)
+		z = gz
+		c = gz
+	}
+
+	tw := tar.NewWriter(z)
 
 	go func() {
-		err := a.pack(tw)
+		err := h.Write(u, tw)
 
 		_ = tw.Close()
-		_ = gz.Close()
-		_, _ = w.Write(gzipHeader)
+		_ = c.Close()
+		if gzipTrailer {
+			_, _ = w.Write(gzipHeader)
+		}
 		_ = w.CloseWithError(err)
 	}()
 
@@ -99,12 +165,14 @@ func newArchiveFromGuest(dir string) (File, error) {
 }
 
 // newArchiveToGuest returns an hgfs.File implementation to expand a gzip'd tar into a directory.
-func newArchiveToGuest(dir string) (File, error) {
+func (h *ArchiveHandler) newArchiveToGuest(u *url.URL) (File, error) {
 	r, w := io.Pipe()
 
+	buf := bufio.NewReader(r)
+
 	a := &archive{
-		name:   dir,
-		Reader: r,
+		name:   u.Path,
+		Reader: buf,
 		Writer: w,
 	}
 
@@ -121,25 +189,47 @@ func newArchiveToGuest(dir string) (File, error) {
 
 	wg.Add(1)
 	go func() {
-		gz, err := gzip.NewReader(a.Reader)
-		if err != nil {
-			_ = r.CloseWithError(err)
-			return
+		defer wg.Done()
+
+		c := func() error {
+			// Drain the pipe of tar trailer data (two null blocks)
+			if cerr == nil {
+				_, _ = io.Copy(ioutil.Discard, a.Reader)
+			}
+			return nil
 		}
 
-		tr := tar.NewReader(gz)
+		header, _ := buf.Peek(len(gzipHeader))
 
-		cerr = a.unpack(tr)
-		_ = gz.Close()
+		if bytes.Equal(header, gzipHeader) {
+			gz, err := gzip.NewReader(a.Reader)
+			if err != nil {
+				_ = r.CloseWithError(err)
+				cerr = err
+				return
+			}
+
+			c = gz.Close
+			a.Reader = gz
+		}
+
+		tr := tar.NewReader(a.Reader)
+
+		cerr = h.Read(u, tr)
+
+		_ = c()
 		_ = r.CloseWithError(cerr)
-		wg.Done()
 	}()
 
 	return a, nil
 }
 
-// unpack writes the contents of the given tar.Reader to the a.name directory.
-func (a *archive) unpack(tr *tar.Reader) error {
+func (a *archive) Close() error {
+	return a.done()
+}
+
+// archiveRead writes the contents of the given tar.Reader to the given directory.
+func archiveRead(u *url.URL, tr *tar.Reader) error {
 	for {
 		header, err := tr.Next()
 		if err != nil {
@@ -149,7 +239,7 @@ func (a *archive) unpack(tr *tar.Reader) error {
 			return err
 		}
 
-		name := filepath.Join(a.Name(), header.Name)
+		name := filepath.Join(u.Path, header.Name)
 		mode := os.FileMode(header.Mode)
 
 		switch header.Typeflag {
@@ -182,16 +272,35 @@ func (a *archive) unpack(tr *tar.Reader) error {
 	}
 }
 
-// pack writes the contents of the archive source directory to the given tar.Writer.
-func (a *archive) pack(tw *tar.Writer) error {
-	dir := filepath.Dir(a.name)
+// archiveWrite writes the contents of the given source directory to the given tar.Writer.
+func archiveWrite(u *url.URL, tw *tar.Writer) error {
+	info, err := os.Stat(u.Path)
+	if err != nil {
+		return err
+	}
 
-	return filepath.Walk(a.name, func(file string, fi os.FileInfo, err error) error {
+	// Note that the VMX will trim any trailing slash.  For example:
+	// "/foo/bar/?prefix=bar/" will end up here as "/foo/bar/?prefix=bar"
+	// Escape to avoid this: "/for/bar/?prefix=bar%2F"
+	prefix := u.Query().Get("prefix")
+
+	dir := u.Path
+
+	f := func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return filepath.SkipDir
 		}
 
-		name := strings.TrimPrefix(file, dir)[1:]
+		name := strings.TrimPrefix(file, dir)
+		name = strings.TrimPrefix(name, "/")
+
+		if name == "" {
+			return nil // this is u.Path itself (which may or may not have a trailing "/")
+		}
+
+		if prefix != "" {
+			name = prefix + name
+		}
 
 		header, _ := tar.FileInfoHeader(fi, name)
 
@@ -221,9 +330,13 @@ func (a *archive) pack(tw *tar.Writer) error {
 		}
 
 		return err
-	})
-}
+	}
 
-func (a *archive) Close() error {
-	return a.done()
+	if info.IsDir() {
+		return filepath.Walk(u.Path, f)
+	}
+
+	dir = filepath.Dir(dir)
+
+	return f(u.Path, info, nil)
 }

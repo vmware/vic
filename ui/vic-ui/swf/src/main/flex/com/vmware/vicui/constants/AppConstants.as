@@ -1,4 +1,7 @@
-package com.vmware.vicui.constants {
+/**
+ * Copyright (c) 2016-2017 VMware, Inc. All rights reserved.
+ */
+ package com.vmware.vicui.constants {
 
 	public class AppConstants {
 

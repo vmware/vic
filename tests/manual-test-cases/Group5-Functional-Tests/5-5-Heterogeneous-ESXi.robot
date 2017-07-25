@@ -20,7 +20,7 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup  ${list}
 *** Test Cases ***
 Test
     Log To Console  \nStarting test...
-    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    ${vc}=  Evaluate  'VC-' + str(random.randint(1000,9999)) + str(time.clock())  modules=random,time
     ${pid-vc}=  Deploy Nimbus vCenter Server Async  ${vc}
     Set Global Variable  @{list}  %{NIMBUS_USER}-${vc}
 

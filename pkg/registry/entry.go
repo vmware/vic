@@ -121,6 +121,9 @@ func (u *urlEntry) Contains(e Entry) bool {
 	case *urlEntry:
 		up := ensurePort(u.u)
 		ep := ensurePort(e.u)
+		if up.Port() == "" && ep.Port() != "" {
+			ep.Host = ep.Hostname()
+		}
 		return (u.u.Scheme == "" || u.u.Scheme == e.u.Scheme) &&
 			strings.HasPrefix(e.u.Path, u.u.Path) &&
 			glob.Glob(up.Host, ep.Host)
@@ -130,7 +133,22 @@ func (u *urlEntry) Contains(e Entry) bool {
 }
 
 func (u *urlEntry) Match(s string) bool {
-	return u.Contains(ParseEntry(s))
+	q := ParseEntry(s)
+	query, ok := q.(URLEntry)
+	if !ok {
+		return false
+	}
+
+	// copy u to nu ("new u") so we don't modify the record
+	nu, _ := ParseEntry(u.String()).(URLEntry)
+
+	if query.URL().Scheme != "" && nu.URL().Scheme == "" {
+		query.URL().Scheme = nu.URL().Scheme
+	} else if nu.URL().Scheme != "" && query.URL().Scheme == "" {
+		nu.URL().Scheme = query.URL().Scheme
+	}
+
+	return nu.Contains(query)
 }
 
 func (u *urlEntry) String() string {

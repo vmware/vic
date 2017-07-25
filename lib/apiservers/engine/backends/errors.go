@@ -72,6 +72,11 @@ func NotFoundError(msg string) error {
 	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))
 }
 
+// ResourceLockedError returns a 423 http status
+func ResourceLockedError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Resource locked: %s", msg), http.StatusLocked)
+}
+
 // InternalServerError returns a 500 docker error on a portlayer error.
 func InternalServerError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", msg), http.StatusInternalServerError)
@@ -94,6 +99,10 @@ func SwarmNotSupportedError() error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("%s does not yet support Docker Swarm", ProductName()), http.StatusNotFound)
 }
 
+func StreamFormatNotRecognized() error {
+	return derr.NewRequestConflictError(fmt.Errorf("Stream format not recognized"))
+}
+
 // Error type check
 
 func IsNotFoundError(err error) bool {
@@ -111,6 +120,16 @@ func IsConflictError(err error) bool {
 	// if error was created with the docker error function, check the status code
 	if httpErr, ok := err.(httpStatusError); ok {
 		if httpErr.HTTPErrorStatusCode() == http.StatusConflict {
+			return true
+		}
+	}
+
+	return false
+}
+
+func IsResourceInUse(err error) bool {
+	if httpErr, ok := err.(httpStatusError); ok {
+		if httpErr.HTTPErrorStatusCode() == http.StatusLocked {
 			return true
 		}
 	}

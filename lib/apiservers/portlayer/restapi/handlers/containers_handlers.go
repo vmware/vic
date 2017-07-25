@@ -224,6 +224,8 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
 			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
+		case exec.DevicesInUseError:
+			return containers.NewCommitConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
 			return containers.NewCommitDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 		}
@@ -269,7 +271,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 
 	// Refresh to get up to date network info
 	container.Refresh(context.Background())
-	containerInfo := convertContainerToContainerInfo(container.Info())
+	containerInfo := convertContainerToContainerInfo(container)
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
 
@@ -296,7 +298,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 
 	for _, container := range containerVMs {
 		// convert to return model
-		info := convertContainerToContainerInfo(container.Info())
+		info := convertContainerToContainerInfo(container)
 		containerList = append(containerList, info)
 	}
 
@@ -337,21 +339,23 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 	enc := json.NewEncoder(w)
 	flusher := NewFlushingReader(r)
 
-	// subscribe to metrics
+	// operation that will log the stats subscription for this client
+	statsOp := trace.NewOperation(context.Background(), "container(%s) stats subscription", params.ID)
+
 	// currently all stats requests will be a subscription and it will
 	// be the responsibility of the caller to close the connection
 	// and there by release the subscription
-	ch, err := metrics.Supervisor.VMCollector().Subscribe(c)
+	ch, err := metrics.Supervisor.Subscribe(statsOp, c)
 	if err != nil {
-		log.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
+		statsOp.Errorf("unable to subscribe container(%s) to stats stream: %s", params.ID, err)
 		return containers.NewGetContainerStatsInternalServerError()
 	}
-	log.Debugf("container(%s) stats stream subscribed @ %d", params.ID, &ch)
+	statsOp.Debugf("container(%s) stats stream subscribed", params.ID)
 
 	// closer will be run when the http transport is closed
 	cleaner := func() {
-		log.Debugf("unsubscribing %s from stats %d", params.ID, &ch)
-		metrics.Supervisor.VMCollector().Unsubscribe(c, ch)
+		statsOp.Debugf("unsubscribing %s from stats", params.ID)
+		metrics.Supervisor.Unsubscribe(statsOp, c, ch)
 		closePipe(r, w)
 	}
 
@@ -362,12 +366,12 @@ func (handler *ContainersHandlersImpl) GetContainerStatsHandler(params container
 			select {
 			case metric, ok := <-ch:
 				if !ok {
-					log.Debugf("container stats complete for %s @ %d", params.ID, &ch)
+					statsOp.Debugf("container stats complete for %s", params.ID)
 					return
 				}
 				err := enc.Encode(metric)
 				if err != nil {
-					log.Errorf("encoding error [%s] for container(%s) stats @ %d - stream(%t)", err, params.ID, &ch, params.Stream)
+					statsOp.Errorf("encoding error [%s] for container(%s) stats - stream(%t)", err, params.ID, params.Stream)
 					return
 				}
 			}
@@ -448,7 +452,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
-		containerInfo := convertContainerToContainerInfo(c.Info())
+		containerInfo := convertContainerToContainerInfo(c)
 
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
@@ -494,8 +498,10 @@ func (handler *ContainersHandlersImpl) RenameContainerHandler(params containers.
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
-func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.ContainerInfo {
+func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
+	container := c.Info()
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
+
 	// convert the container type to the required model
 	info := &models.ContainerInfo{
 		ContainerConfig: &models.ContainerConfig{},
@@ -568,7 +574,7 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		}
 	} else {
 		// log that sessionID is missing and print the ExecConfig
-		log.Errorf("Session ID is missing from execConfig: %#v", container.ExecConfig)
+		log.Errorf("Session ID is missing from execConfig, change version %s: %#v", c.Config.ChangeVersion, container.ExecConfig)
 
 		// panic if we are in debug / hopefully CI
 		if log.DebugLevel > 0 {

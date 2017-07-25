@@ -85,7 +85,7 @@ pipeline:
       TEST_URL_ARRAY:   $(govc env -x GOVC_URL_HOST)
       TEST_USERNAME:    $(govc env GOVC_USERNAME)
       TEST_PASSWORD:    $(govc env GOVC_PASSWORD)
-      TEST_DATASTORE:   ${GOVC_DATASTORE:-$(basename "$(govc ls datastore)")}
+      TEST_DATASTORE:   ${GOVC_DATASTORE:-$(basename "$(govc ls datastore | head -1)")}
       TEST_RESOURCE:    ${GOVC_RESOURCE_POOL:-$(govc ls host/*/Resources)}
       BRIDGE_NETWORK:   $BRIDGE_NETWORK
       PUBLIC_NETWORK:   $PUBLIC_NETWORK

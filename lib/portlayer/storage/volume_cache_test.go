@@ -26,10 +26,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 type MockVolumeStore struct {
@@ -106,7 +108,27 @@ func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
 	return list, nil
 }
 
-func (m *MockVolumeStore) Export(op trace.Operation, store *url.URL, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+func (m *MockVolumeStore) Export(op trace.Operation, child, ancestor string, spec *archive.FilterSpec, data bool) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarstream io.ReadCloser) error {
+	return nil
+}
+
+func (m *MockVolumeStore) NewDataSink(op trace.Operation, id string) (DataSink, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) NewDataSource(op trace.Operation, id string) (DataSource, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) URL(op trace.Operation, id string) (*url.URL, error) {
+	return nil, nil
+}
+
+func (m *MockVolumeStore) Owners(op trace.Operation, url *url.URL, filter func(vm *mo.VirtualMachine) bool) ([]*vm.VirtualMachine, error) {
 	return nil, nil
 }
 

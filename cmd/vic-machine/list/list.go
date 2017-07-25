@@ -75,7 +75,7 @@ func (l *List) Flags() []cli.Flag {
 	target := l.TargetFlags()
 	// TODO: why not allow name as a filter, like most list operations
 	compute := l.ComputeFlagsNoName()
-	debug := l.DebugFlags()
+	debug := l.DebugFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag

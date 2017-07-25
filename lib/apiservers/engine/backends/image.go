@@ -28,7 +28,6 @@ import (
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -65,10 +64,6 @@ type Image struct {
 
 func NewImageBackend() *Image {
 	return &Image{}
-}
-
-func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
-	return "", fmt.Errorf("%s does not yet implement image.Commit", ProductName())
 }
 
 func (i *Image) Exists(containerName string) bool {

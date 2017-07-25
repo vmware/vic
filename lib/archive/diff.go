@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	docker "github.com/docker/docker/pkg/archive"
@@ -57,10 +58,10 @@ func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool
 
 	sort.Sort(changesByPath(changes))
 
-	return Tar(op, newDir, changes, spec, data)
+	return Tar(op, newDir, changes, spec, data, oldDir != "")
 }
 
-func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool) (io.ReadCloser, error) {
+func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
 	var (
 		err error
 		hdr *tar.Header
@@ -72,23 +73,39 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		tw := tar.NewWriter(w)
 		defer func() {
 			var cerr error
+
+			if oerr := op.Err(); oerr != nil {
+				// don't close the archive if we're truncating the copy - it's misleading
+				_ = w.CloseWithError(oerr)
+				return
+			}
+
 			if cerr = tw.Close(); cerr != nil {
 				op.Errorf("Error closing tar writer: %s", cerr.Error())
 			}
 			if err == nil {
+				op.Debugf("Closing down tar writer with clean exit: %s", cerr)
 				_ = w.CloseWithError(cerr)
 			} else {
+				op.Debugf("Closing down tar writer with error during tar: %s", err)
 				_ = w.CloseWithError(err)
 			}
+
 			return
 		}()
 
 		for _, change := range changes {
-			if excluded(change.Path, spec) {
+			if cerr := op.Err(); cerr != nil {
+				// this will still trigger the defer to close the archive neatly
+				op.Warnf("Aborting tar due to cancelation: %s", cerr)
+				break
+			}
+
+			if spec.Excludes(op, change.Path) {
 				continue
 			}
 
-			hdr, err = createHeader(op, dir, change, spec)
+			hdr, err = createHeader(op, dir, change, spec, xattr)
 			if err != nil {
 				op.Errorf("Error creating header from change: %s", err.Error())
 				return
@@ -103,7 +120,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			_ = tw.WriteHeader(hdr)
 
 			p := filepath.Join(dir, change.Path)
-			if hdr.Typeflag == tar.TypeReg && hdr.Size != 0 {
+			if (hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA) && hdr.Size != 0 {
 				f, err = os.Open(p)
 				if err != nil {
 					if os.IsPermission(err) {
@@ -111,8 +128,20 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 					}
 					return
 				}
+
 				if f != nil {
+					// make sure we get out of io.Copy if context is canceled
+					done := make(chan struct{})
+					go func() {
+						select {
+						case <-op.Done():
+							f.Close()
+						case <-done:
+						}
+					}()
+
 					_, err = io.Copy(tw, f)
+					close(done)
 					if err != nil {
 						op.Errorf("Error writing archive data: %s", err.Error())
 					}
@@ -124,20 +153,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 	return r, err
 }
 
-// handle exclusion/inclusion of paths
-func excluded(filePath string, spec *FilterSpec) bool {
-	for p := filePath; p != string(filepath.Separator); p = filepath.Dir(p) {
-		if _, ok := spec.Inclusions[p]; ok {
-			return false
-		}
-		if _, ok := spec.Exclusions[p]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func createHeader(op trace.Operation, dir string, change docker.Change, spec *FilterSpec) (*tar.Header, error) {
+func createHeader(op trace.Operation, dir string, change docker.Change, spec *FilterSpec, xattr bool) (*tar.Header, error) {
 	var hdr *tar.Header
 	timestamp := time.Now()
 
@@ -153,7 +169,7 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 			ChangeTime: timestamp,
 		}
 	default:
-		fi, err := os.Stat(filepath.Join(dir, change.Path))
+		fi, err := os.Lstat(filepath.Join(dir, change.Path))
 		if err != nil {
 			op.Errorf("Error getting file info: %s", err.Error())
 			return nil, err
@@ -172,8 +188,13 @@ func createHeader(op trace.Operation, dir string, change docker.Change, spec *Fi
 		}
 	}
 
-	hdr.Xattrs = make(map[string]string)
-	hdr.Xattrs[ChangeTypeKey] = change.Kind.String()
+	// first rebase (happens above), then strip any unnecessary leading directory elements
+	hdr.Name = strings.TrimPrefix(hdr.Name, spec.StripPath)
+
+	if xattr {
+		hdr.Xattrs = make(map[string]string)
+		hdr.Xattrs[ChangeTypeKey] = change.Kind.String()
+	}
 
 	return hdr, nil
 }
