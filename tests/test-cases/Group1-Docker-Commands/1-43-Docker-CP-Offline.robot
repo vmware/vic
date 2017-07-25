@@ -22,8 +22,14 @@ Suite Teardown  Clean up test files and VIC appliance to test server
 Set up test files and install VIC appliance to test server
     Install VIC Appliance To Test Server
     Create File  ${CURDIR}/foo.txt   hello world
-    Create Directory  ${CURDIR}/bar
     Create File  ${CURDIR}/content   fake file content for testing only
+    Create Directory  ${CURDIR}/bar
+    Create Directory  ${CURDIR}/mnt
+    Create Directory  ${CURDIR}/mnt/vol1
+    Create Directory  ${CURDIR}/mnt/vol2
+    Create File  ${CURDIR}/mnt/root.txt   rw layer file
+    Create File  ${CURDIR}/mnt/vol1/v1.txt   vol1 file
+    Create File  ${CURDIR}/mnt/vol2/v2.txt   vol2 file
     ${rc}  ${output}=  Run And Return Rc And Output  dd if=/dev/zero of=${CURDIR}/largefile.txt count=4096 bs=4096
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -45,6 +51,7 @@ Clean up test files and VIC appliance to test server
     Remove File  ${CURDIR}/content
     Remove File  ${CURDIR}/largefile.txt
     Remove Directory  ${CURDIR}/bar  recursive=True
+    Remove Directory  ${CURDIR}/mnt  recursive=True
     Cleanup VIC Appliance On Test Server
 
 Start container and inspect directory
@@ -52,7 +59,7 @@ Start container and inspect directory
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerName}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline ls ${directory}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ls ${directory}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     [Return]  ${output}
@@ -231,3 +238,38 @@ Concurrent copy: repeat copy a large file from offline container to host several
     #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  Error
+
+Sub volumes: copy from host to offline container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/mnt/vol1 -v vol2:/mnt/vol2 --name subVol ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/mnt subVol:/
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${output}=  Start container and inspect directory  subVol  /mnt
+    Should Contain  ${output}  root.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol ls /mnt/vol1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  v1.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol ls /mnt/vol2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  v2.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+Sub volumes: copy from offline container to host
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol2
+    OperatingSystem.File Should Exist  ${CURDIR}/result/root.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result/vol1/v1.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result/vol2/v2.txt
+    Remove Directory  ${CURDIR}/result  recursive=True
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
