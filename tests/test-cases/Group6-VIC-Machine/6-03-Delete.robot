@@ -36,36 +36,36 @@ Initial load
     Set Suite Variable  ${containerName}  ${name}
 
 *** Test Cases ***
-Delete VCH and verify
-    Initial load
-    # Get VCH uuid and container VM uuid, to check if resources are removed correctly
-    Run Keyword And Ignore Error  Gather Logs From Test Server
-    ${uuid}=  Run  govc vm.info -json\=true %{VCH-NAME} | jq -r '.VirtualMachines[0].Config.Uuid'
-    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
-    Should Contain  ${ret}  is powered on
+# Delete VCH and verify
+#     Initial load
+#     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
+#     Run Keyword And Ignore Error  Gather Logs From Test Server
+#     ${uuid}=  Run  govc vm.info -json\=true %{VCH-NAME} | jq -r '.VirtualMachines[0].Config.Uuid'
+#     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+#     Should Contain  ${ret}  is powered on
 
-    # Delete with force
-    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
-    Should Contain  ${ret}  Completed successfully
-    Should Not Contain  ${ret}  Operation failed: Error caused by file
+#     # Delete with force
+#     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME} --force
+#     Should Contain  ${ret}  Completed successfully
+#     Should Not Contain  ${ret}  Operation failed: Error caused by file
 
-    # Check VM is removed
-    ${ret}=  Run  govc vm.info -json=true ${containerName}-*
-    Should Contain  ${ret}  {"VirtualMachines":null}
-    ${ret}=  Run  govc vm.info -json=true %{VCH-NAME}
-    Should Contain  ${ret}  {"VirtualMachines":null}
+#     # Check VM is removed
+#     ${ret}=  Run  govc vm.info -json=true ${containerName}-*
+#     Should Contain  ${ret}  {"VirtualMachines":null}
+#     ${ret}=  Run  govc vm.info -json=true %{VCH-NAME}
+#     Should Contain  ${ret}  {"VirtualMachines":null}
 
-    # Check directories is removed
-    ${ret}=  Run  govc datastore.ls VIC/${uuid}
-    Should Contain  ${ret}   was not found
-    ${ret}=  Run  govc datastore.ls %{VCH-NAME}
-    Should Contain  ${ret}   was not found
-    ${ret}=  Run  govc datastore.ls VIC/${containerName}-*
-    Should Contain  ${ret}   was not found
+#     # Check directories is removed
+#     ${ret}=  Run  govc datastore.ls VIC/${uuid}
+#     Should Contain  ${ret}   was not found
+#     ${ret}=  Run  govc datastore.ls %{VCH-NAME}
+#     Should Contain  ${ret}   was not found
+#     ${ret}=  Run  govc datastore.ls VIC/${containerName}-*
+#     Should Contain  ${ret}   was not found
 
-    # Check resource pool is removed
-    ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
-    Should Contain  ${ret}  {"ResourcePools":null}
+#     # Check resource pool is removed
+#     ${ret}=  Run  govc pool.info -json=true host/*/Resources/%{VCH-NAME}
+#     Should Contain  ${ret}  {"ResourcePools":null}
 
 Attach Disks and Delete VCH
     # VCH should delete normally during commit/pull/cp/push operations
@@ -76,19 +76,20 @@ Attach Disks and Delete VCH
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}=  Run And Return Rc  govc datastore.ls -dc=%{TEST_DATACENTER} %{VCH-NAME}/VIC/
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls %{VCH-NAME}/VIC/
+    Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     # iterate through found images and attach them to the appliance VM
     ${vm-ip}=  Run  govc vm.ip %{VCH-NAME}
     ${imagedir}=  Run  govc datastore.ls %{VCH-NAME}/VIC/
-    ${images}=  Run  govc datastore.ls %{VCH-NAME}/VIC/${imagedir}/images/
-    # have to set IFS=newline and Robot interprets newlines so have to also escape the backslash
-    ${rc}  ${output}=  Run And Return Rc And Output  IFS='\\n' for x in "${images}"; do echo $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=${vm-ip}; done
+    ${images}=  Run  govc datastore.ls %{VCH-NAME}/VIC/${imagedir}/images/ | tr '${\n}' ' '
+    ${rc}  ${output}=  Run And Return Rc And Output  (set -e; for x in ${images}"; do echo layer $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=${vm-ip}; done)
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name %{VCH-NAME}
+    Log  ${output}
 
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
