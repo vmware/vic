@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -275,21 +274,5 @@ func TestWriterInitialConnectError(t *testing.T) {
 			assert.FailNow(t, "writer should not run when connect() fails initially")
 		default:
 		}
-	}
-}
-
-func TestCloseWithNoRun(t *testing.T) {
-	f := &mockFormatter{}
-	dn := &mockNetDialer{}
-	w := newWriter(priority, tag, "", dn, f)
-	done := make(chan struct{})
-	go func() {
-		w.Close()
-		close(done)
-	}()
-	select {
-	case <-time.After(5 * time.Second):
-		assert.FailNow(t, "Close() took too long on writer that was not running")
-	case <-done:
 	}
 }
