@@ -84,7 +84,7 @@ Attach Disks and Delete VCH
     ${vm-ip}=  Run  govc vm.ip %{VCH-NAME}
     ${imagedir}=  Run  govc datastore.ls %{VCH-NAME}/VIC/
     ${images}=  Run  govc datastore.ls %{VCH-NAME}/VIC/${imagedir}/images/ | tr '${\n}' ' '
-    ${rc}  ${output}=  Run And Return Rc And Output  (set -e; for x in ${images}"; do echo layer $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=${vm-ip}; done)
+    ${rc}  ${output}=  Run And Return Rc And Output  (set -e; for x in ${images}; do echo layer $x; govc vm.disk.attach -disk=%{VCH-NAME}/VIC/$(govc datastore.ls %{VCH-NAME}/VIC/)/images/$x/$x.vmdk -vm.ip=${vm-ip}; done)
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
