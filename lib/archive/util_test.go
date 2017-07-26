@@ -528,6 +528,44 @@ func TestReadLevelOneDirpec(t *testing.T) {
 
 }
 
+func TestReadLevelOneNoTrailingSlash(t *testing.T) {
+	copyTarget := "/mnt"
+	direction := CopyFrom
+
+	mounts := []testMount{
+		{
+			mount:              "/",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		"/": {
+			RebasePath: "mnt",
+			StripPath:  "mnt",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
+
+}
+
 func TestReadFileSpec(t *testing.T) {
 	copyTarget := "/mnt/vols/A/a/path/file.txt"
 	direction := CopyFrom
@@ -727,6 +765,62 @@ func TestAddExclusionsNonNested(t *testing.T) {
 
 }
 
+func TestAddExclusionsTrailingSlash(t *testing.T) {
+	copyTarget := "/mnt/"
+	testMounts := []string{
+		"/",
+	}
+
+	expectedResults := map[string]FilterSpec{
+		"/": {
+			Exclusions: map[string]struct{}{
+				"": {},
+			},
+			Inclusions: map[string]struct{}{
+				"mnt": {},
+			},
+		},
+	}
+
+	for _, mount := range testMounts {
+		spec := FilterSpec{
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		}
+
+		err := AddMountInclusionsExclusions(mount, &spec, testMounts, copyTarget)
+
+		if !assert.Nil(t, err) {
+			return
+		}
+
+		for k := range expectedResults[mount].Inclusions {
+			_, ok := spec.Inclusions[k]
+
+			if !assert.True(t, ok, "did not find expected entry (%s) in inclusions map for mount (%s). ", k, mount) {
+				return
+			}
+		}
+
+		expectedSpec := expectedResults[mount]
+		expectedLength := len(expectedSpec.Exclusions)
+		actualLength := len(spec.Exclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			return
+		}
+
+		for path := range expectedSpec.Exclusions {
+			_, ok := spec.Exclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s", path, mount) {
+				return
+			}
+
+		}
+
+	}
+
+}
 func TestAddExclusionsNestedMounts(t *testing.T) {
 	copyTarget := "/mnt"
 	testMounts := []string{

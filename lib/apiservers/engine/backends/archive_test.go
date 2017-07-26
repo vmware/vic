@@ -235,7 +235,7 @@ func TestFindArchiveReaders(t *testing.T) {
 					rebase:  "etc",
 					strip:   "etc",
 					exclude: []string{""},
-					include: "etc/",
+					include: "etc",
 				},
 			},
 		},
