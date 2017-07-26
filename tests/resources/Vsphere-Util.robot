@@ -198,16 +198,10 @@ Assign Vsphere License
     Should Contain  ${out}  Key:
 
 Assign vCenter License
-    #[Tags]  secret
+    [Tags]  secret
     [Arguments]  ${license}
     ${out}=  Run  govc license.assign ${license}
     Should Contain  ${out}  Key:
-    Log  ${out}
-    ${out}=  Run  govc license.ls
-    Log  ${out}
-    ${out}=  Run  govc license.assigned.ls
-    Log  ${out}
-
 
 Add Host To VCenter
     [Arguments]  ${host}  ${user}  ${dc}  ${pw}
