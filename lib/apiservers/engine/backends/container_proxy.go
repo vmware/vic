@@ -1545,7 +1545,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			SizeRw:          nil,
 			SizeRootFs:      nil,
 		},
-		Mounts:          mountsFromContainerInfo(vc, info),
+		Mounts:          mountsFromContainer(vc),
 		Config:          containerConfigFromContainerInfo(vc, info),
 		NetworkSettings: networkFromContainerInfo(vc, info),
 	}
@@ -1644,40 +1644,13 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	return &hostConfig
 }
 
-// mountsFromContainerInfo()
-func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) []types.MountPoint {
-	if vc == nil || info == nil {
-		return nil
-	}
-
-	if vc.HostConfig == nil {
-		vc.HostConfig = &container.HostConfig{}
-	}
-	if vc.Config == nil {
-		vc.Config = &container.Config{}
-	}
-	// Iterate through info.VolumeConfig and build the config.volumes and hostconfig.binds
-	// We don't know where the mounts come from, so just fill all of them to both config.volumes and hostconfig.binds
-	vc.Config.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
-	for _, volume := range info.VolumeConfig {
-		mounts := make([]string, 2)
-		mounts[0] = volume.Name
-		mounts[1] = volume.MountPoint
-		if volume.Flags[executor.Mode] != "" {
-			mounts = append(mounts, volume.Flags[executor.Mode])
-		}
-		mount := strings.Join(mounts, ":")
-		vc.Config.Volumes[mount] = struct{}{}
-		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
-		log.Debugf("added volume mount: %s", mount)
-	}
-	// Derive the mount data
-	return mountsFromContainer(vc)
-}
-
 // mountsFromContainer derives []types.MountPoint (used in inspect) from the cached container
 // data.
 func mountsFromContainer(vc *viccontainer.VicContainer) []types.MountPoint {
+	if vc == nil {
+		return nil
+	}
+
 	var mounts []types.MountPoint
 
 	rawAnonVolumes := make([]string, 0, len(vc.Config.Volumes))
@@ -1785,6 +1758,20 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 
 	// Pull labels from the annotation
 	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &container.Labels)
+
+	container.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
+	// get volumes from volume config
+	for _, volume := range info.VolumeConfig {
+		mounts := make([]string, 2)
+		mounts[0] = volume.Name
+		mounts[1] = volume.MountPoint
+		if volume.Flags[executor.Mode] != "" {
+			mounts = append(mounts, volume.Flags[executor.Mode])
+		}
+		mount := strings.Join(mounts, ":")
+		container.Volumes[mount] = struct{}{}
+		log.Debugf("add volume mount %s to config.volumes", mount)
+	}
 
 	return &container
 }
@@ -1932,6 +1919,12 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	tempVC.HostConfig = &container.HostConfig{}
 	vc.Config = containerConfigFromContainerInfo(tempVC, &info)
 	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
+
+	// FIXME: duplicate Config.Volumes and HostConfig.Binds here for can not derive them from persisted value right now.
+	for mount := range vc.Config.Volumes {
+		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
+		log.Debugf("add volume mount %s to hostconfig.binds", mount)
+	}
 	return vc
 }
 
