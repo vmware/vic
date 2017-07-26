@@ -36,5 +36,6 @@ build:
       GS_PROJECT_ID: $$GS_PROJECT_ID
       GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
+      VC_LICENSE: $$VC_LICENSE
     commands:
         - $$test
