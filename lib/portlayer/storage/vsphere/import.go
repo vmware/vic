@@ -79,7 +79,7 @@ offline:
 			}
 		}
 
-		online, err := v.newOnlineDataSink(op, o)
+		online, err := v.newOnlineDataSink(op, o, id)
 		if online != nil {
 			return online, err
 		}
@@ -106,8 +106,12 @@ func (v *VolumeStore) newDataSink(op trace.Operation, url *url.URL) (storage.Dat
 	return storage.NewMountDataSink(op, f, cleanFunc), nil
 }
 
-func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine) (storage.DataSink, error) {
-	return nil, errors.New("online sink not yet supported - expecting this to be a common toolbox implementation")
+func (v *VolumeStore) newOnlineDataSink(op trace.Operation, owner *vm.VirtualMachine, id string) (storage.DataSink, error) {
+	return &ToolboxDataSink{
+		VM:    owner,
+		ID:    storage.Label(id),
+		Clean: func() { return },
+	}, nil
 }
 
 func (i *ImageStore) Import(op trace.Operation, id string, spec *archive.FilterSpec, tarStream io.ReadCloser) error {
