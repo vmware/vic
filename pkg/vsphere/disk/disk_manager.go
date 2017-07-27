@@ -508,7 +508,14 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 		return "", err
 	}
 
-	return d.Mount(op, nil)
+	// don't update access time - that would cause the diff operation to mutate the filesystem
+	opts := []string{"noatime"}
+	if !persistent {
+		opts = append(opts, "ro")
+	}
+
+	return d.Mount(op, opts)
+
 }
 
 // UnmountAndDetach unmounts and detaches a disk, subsequently cleaning the mount path
