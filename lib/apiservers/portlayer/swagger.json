@@ -3403,17 +3403,17 @@
 		"VolumeConfig": {
 			"type": "object",
 			"properties": {
-				"label": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				},
 				"name": {
 					"type": "string"
 				},
 				"mountPoint": {
 					"type": "string"
+				},
+				"flags": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
 				},
 				"readWrite": {
 					"type": "boolean"

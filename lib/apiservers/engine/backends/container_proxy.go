@@ -390,6 +390,18 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 	log.Infof("Finalized Volume list : %#v", volList)
 
+	if len(config.Config.Volumes) > 0 {
+		// override anonymous volume list with generated volume id
+		for _, vol := range volList {
+			if _, ok := config.Config.Volumes[vol.Dest]; ok {
+				delete(config.Config.Volumes, vol.Dest)
+				mount := getMountString(vol.ID, vol.Dest, vol.Flags)
+				config.Config.Volumes[mount] = struct{}{}
+				log.Debugf("Replace anonymous volume config %s with %s", vol.Dest, mount)
+			}
+		}
+	}
+
 	// Create and join volumes.
 	for _, fields := range volList {
 
@@ -421,7 +433,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
-		flags["Mode"] = fields.Flags
+		flags[constants.Mode] = fields.Flags
 		joinParams := storage.NewVolumeJoinParamsWithContext(ctx).WithJoinArgs(&models.VolumeJoinConfig{
 			Flags:     flags,
 			Handle:    handle,
@@ -1452,7 +1464,7 @@ func processVolumeParam(volString string) (volumeFields, error) {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
-			return volumeFields{}, nil
+			return fields, err
 		}
 		fields.ID = VolumeID.String()
 		fields.Dest = volumeStrings[0]
@@ -1544,7 +1556,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			SizeRw:          nil,
 			SizeRootFs:      nil,
 		},
-		Mounts:          mountsFromContainerInfo(vc, info),
+		Mounts:          mountsFromContainer(vc),
 		Config:          containerConfigFromContainerInfo(vc, info),
 		NetworkSettings: networkFromContainerInfo(vc, info),
 	}
@@ -1643,21 +1655,13 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	return &hostConfig
 }
 
-// mountsFromContainerInfo()
-func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) []types.MountPoint {
-	if vc == nil || info == nil {
-		return nil
-	}
-
-	// Iterate through info.VolumeConfig and build the hostconfig.bind config.volumes
-
-	// Derive the mount data
-	return mountsFromContainer(vc)
-}
-
 // mountsFromContainer derives []types.MountPoint (used in inspect) from the cached container
 // data.
 func mountsFromContainer(vc *viccontainer.VicContainer) []types.MountPoint {
+	if vc == nil {
+		return nil
+	}
+
 	var mounts []types.MountPoint
 
 	rawAnonVolumes := make([]string, 0, len(vc.Config.Volumes))
@@ -1678,6 +1682,7 @@ func mountsFromContainer(vc *viccontainer.VicContainer) []types.MountPoint {
 			Source:      vol.ID,
 			Destination: vol.Dest,
 			RW:          false,
+			Mode:        vol.Flags,
 		}
 
 		if strings.Contains(strings.ToLower(vol.Flags), "rw") {
@@ -1764,7 +1769,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 
 	// Pull labels from the annotation
 	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &container.Labels)
-
 	return &container
 }
 
@@ -1911,7 +1915,22 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	tempVC.HostConfig = &container.HostConfig{}
 	vc.Config = containerConfigFromContainerInfo(tempVC, &info)
 	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
+
+	// FIXME: duplicate Config.Volumes and HostConfig.Binds here for can not derive them from persisted value right now.
+	// get volumes from volume config
+	vc.Config.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
+	vc.HostConfig.Binds = []string{}
+	for _, volume := range info.VolumeConfig {
+		mount := getMountString(volume.Name, volume.MountPoint, volume.Flags[constants.Mode])
+		vc.Config.Volumes[mount] = struct{}{}
+		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
+		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
+	}
 	return vc
+}
+
+func getMountString(mounts ...string) string {
+	return strings.Join(mounts, ":")
 }
 
 //------------------------------------
