@@ -258,6 +258,7 @@ func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error
 		return "", err
 	}
 
+	opts := strings.Join(options, ";")
 	if !d.mounted() {
 		path, err := ioutil.TempDir("", "mnt")
 		if err != nil {
@@ -272,12 +273,12 @@ func (d *VirtualDisk) Mount(op trace.Operation, options []string) (string, error
 		}
 
 		d.mountPath = path
+		d.mountOpts = opts
 	} else {
 		// basic santiy check for matching options - we don't want to share a r/o mount
 		// if the request was for r/w. Ideally we'd just mount this at a different location with the
 		// requested options but that requires separate ref counting.
 		// TODO: support differing mount opts
-		opts := strings.Join(options, ";")
 		if d.mountOpts != opts {
 			op.Errorf("Unable to use mounted disk due to differing options: %s != %s", d.mountOpts, opts)
 			return "", fmt.Errorf("incompatible mount options for disk reuse")
