@@ -1286,7 +1286,7 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 		return nil, NotFoundError(name)
 	}
 
-	r, err := c.containerProxy.GetContainerChanges(op, vc, true)
+	r, err := c.containerProxy.GetContainerChanges(op, vc, false)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
@@ -1307,7 +1307,6 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 			return []docker.Change{}, InternalServerError(err.Error())
 		}
 
-		log.Infof("Got header %s", hdr.Name)
 		change := docker.Change{
 			Path: hdr.Name,
 		}

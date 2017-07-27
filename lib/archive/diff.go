@@ -42,7 +42,6 @@ func (c changesByPath) Swap(i, j int)      { c[j], c[i] = c[i], c[j] }
 
 // Diff produces a tar archive containing the differences between two filesystems
 func Diff(op trace.Operation, newDir, oldDir string, spec *FilterSpec, data bool, xattr bool) (io.ReadCloser, error) {
-
 	var err error
 	if spec == nil {
 		spec, err = CreateFilterSpec(op, nil)
