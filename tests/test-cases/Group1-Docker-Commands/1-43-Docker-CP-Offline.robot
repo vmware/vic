@@ -137,7 +137,7 @@ Copy a large file that exceeds the container volume into an offline container
 Copy a file from host to offline container, dst is a volume
     ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
+    Should Not Contain  ${cid}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -163,7 +163,7 @@ Copy a file from host to offline container, dst is a nested volume with 2 levels
 Copy a file from host to offline container, dst is a nested volume with 3 levels
     ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
+    Should Not Contain  ${cid}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2/vol3
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error

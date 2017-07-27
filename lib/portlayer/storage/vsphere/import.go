@@ -47,9 +47,9 @@ func (v *VolumeStore) NewDataSink(op trace.Operation, id string) (storage.DataSi
 	offlineAttempt := 0
 offline:
 	offlineAttempt++
+
 	source, err := v.newDataSink(op, uri)
 	if err == nil {
-		op.Debugf("offline data sink created")
 		return source, err
 	}
 
