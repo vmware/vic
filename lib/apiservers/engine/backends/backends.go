@@ -351,35 +351,45 @@ func EventService() *events.Events {
 // RegistryCheck checkes the given url against the registry whitelist, blacklist, and insecure
 // registries lists. It returns true for each list where u matches that list.
 func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
-	d.Lock()
-	src := d.src
-	d.Unlock()
-
-	c, err := src.Get(ctx)
-
-	d.Lock()
-	defer d.Unlock()
-
-	m := d
-	if err == nil {
-		if c == nil && src == d.src {
-			if err := d.resetSrc(); err != nil {
-				log.Warnf("could not reset config source: %s", err)
-			}
-		}
-
-		// update config
-		if m, err = d.merged(c); err != nil {
-			log.Errorf("error updating config: %s", err)
-			m = d
-		}
-	}
-
+	m := d.update(ctx)
 	us := u.String()
 	wl = len(m.Whitelist) == 0 || m.Whitelist.Match(us)
 	bl = len(m.Blacklist) == 0 || !m.Blacklist.Match(us)
 	insecure = m.Insecure.Match(us)
 	return
+}
+
+func (d *dynConfig) update(ctx context.Context) *dynConfig {
+	d.Lock()
+	src := d.src
+	d.Unlock()
+
+	c, err := src.Get(ctx)
+	if err != nil {
+		log.Warnf("error getting config from source: %s", err)
+	}
+
+	d.Lock()
+	defer d.Unlock()
+
+	m := d
+	if c != nil {
+		// update config
+		if m, err = d.merged(c); err != nil {
+			log.Errorf("error updating config: %s", err)
+			m = d
+		}
+	} else if err == nil && src == d.src {
+		// err == nil and c == nil, which
+		// indicates no remote sources
+		// were found, try reseting the
+		// source for next time
+		if err := d.resetSrc(); err != nil {
+			log.Warnf("could not reset config source: %s", err)
+		}
+	}
+
+	return m
 }
 
 func (d *dynConfig) resetSrc() error {
@@ -442,6 +452,7 @@ func (d *dynConfig) merged(c *config.VirtualContainerHostConfigSpec) (*dynConfig
 		Blacklist: bl,
 		Insecure:  insecure,
 		Cfg:       newcfg,
+		src:       d.src,
 	}, nil
 }
 

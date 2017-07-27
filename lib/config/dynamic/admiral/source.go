@@ -91,7 +91,9 @@ func NewSource(sess *session.Session, vchID string) dynamic.Source {
 	}
 }
 
-var DefaultDiscovery = &productDiscovery{}
+var DefaultDiscovery = &productDiscovery{
+	clients: make(map[string]*tags.RestClient),
+}
 
 type source struct {
 	mu      sync.Mutex
@@ -130,6 +132,8 @@ func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpe
 		return lastCfg, nil
 	}
 
+	log.Debugf("got whitelist: %+v", wl)
+
 	newCfg := &vchcfg.VirtualContainerHostConfigSpec{
 		Registry: vchcfg.Registry{RegistryWhitelist: wl},
 	}
@@ -137,6 +141,7 @@ func (a *source) Get(ctx context.Context) (*vchcfg.VirtualContainerHostConfigSpe
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	err = nil
 	if !a.diff(newCfg) {
 		err = dynamic.ErrConfigNotModified
 	}
@@ -191,6 +196,7 @@ func (a *source) discover(ctx context.Context) (*client.Admiral, []string, error
 	if c != nil {
 		projs, err := a.projects(ctx, c)
 		if err != nil {
+			log.Debugf("error getting projects: %s", err)
 			vms = append(vms, v)
 			removed = false
 		} else if len(projs) > 0 {
@@ -307,7 +313,7 @@ func (a *source) projects(ctx context.Context, c *client.Admiral) ([]string, err
 	}
 
 	if comps.Payload.DocumentCount == 0 {
-		return nil, errors.Errorf("no admiral projects have host %s registered", a.vchID)
+		return nil, nil
 	}
 
 	// more than one project has the VCH added, just pick the first one
@@ -370,6 +376,8 @@ type discovery interface {
 }
 
 type productDiscovery struct {
+	mu      sync.Mutex
+	clients map[string]*tags.RestClient
 }
 
 func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) ([]*vm.VirtualMachine, error) {
@@ -379,8 +387,23 @@ func (o *productDiscovery) Discover(ctx context.Context, sess *session.Session) 
 	}
 
 	service.User = sess.User
-	t := tags.NewClient(service, sess.Insecure, sess.Thumbprint)
-	if err = t.Login(ctx); err != nil {
+	t, err := func() (*tags.RestClient, error) {
+		o.mu.Lock()
+		defer o.mu.Unlock()
+
+		t := o.clients[service.String()]
+		if t == nil {
+			t = tags.NewClient(service, sess.Insecure, sess.Thumbprint)
+			if err = t.Login(ctx); err != nil {
+				return nil, err
+			}
+			o.clients[service.String()] = t
+		}
+
+		return t, nil
+	}()
+
+	if err != nil {
 		return nil, err
 	}
 

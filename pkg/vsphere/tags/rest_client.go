@@ -174,7 +174,7 @@ func (c *RestClient) Login(ctx context.Context) error {
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return errors.Errorf("Login failed for %s", bytes.TrimSpace(body))
+		return errors.Errorf("Login failed: body: %s, status: %s", bytes.TrimSpace(body), resp.Status)
 	}
 
 	c.cookies = resp.Cookies()
