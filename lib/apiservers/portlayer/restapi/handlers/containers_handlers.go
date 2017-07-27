@@ -512,10 +512,13 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 	}
 
 	// Populate volume information
-	for volName := range container.ExecConfig.Mounts {
+	for volName, mountspec := range container.ExecConfig.Mounts {
 		vol := &models.VolumeConfig{
-			Name: volName,
+			Name:       volName,
+			MountPoint: mountspec.Path,
+			ReadWrite:  strings.Contains(strings.ToLower(mountspec.Mode), "rw"),
 		}
+
 		info.VolumeConfig = append(info.VolumeConfig, vol)
 	}
 
