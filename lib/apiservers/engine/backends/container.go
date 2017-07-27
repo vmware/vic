@@ -957,7 +957,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
 		case *containers.CommitConflict:
-			return ConflictError(err.Error())
+			return ConflictError(err.Payload.Message)
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
