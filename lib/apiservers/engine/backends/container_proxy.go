@@ -391,6 +391,18 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 	log.Infof("Finalized Volume list : %#v", volList)
 
+	if len(config.Config.Volumes) > 0 {
+		// override anonymous volume list with generated volume id
+		for _, vol := range volList {
+			if _, ok := config.Config.Volumes[vol.Dest]; ok {
+				delete(config.Config.Volumes, vol.Dest)
+				mount := getMountString(vol.ID, vol.Dest, vol.Flags)
+				config.Config.Volumes[mount] = struct{}{}
+				log.Debugf("Replace anonymous volume config %s with %s", vol.Dest, mount)
+			}
+		}
+	}
+
 	// Create and join volumes.
 	for _, fields := range volList {
 
