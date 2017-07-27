@@ -84,7 +84,6 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				op.Errorf("Error closing tar writer: %s", cerr.Error())
 			}
 			if err == nil {
-				op.Debugf("Closing down tar writer with clean exit: %s", cerr)
 				_ = w.CloseWithError(cerr)
 			} else {
 				op.Debugf("Closing down tar writer with error during tar: %s", err)
