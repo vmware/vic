@@ -29,18 +29,18 @@ This test requires that a vSphere server is running and available
 16. Create a container named offline with a small volume attached to it
 17. Issue docker cp largefile.txt offline:/small to the new VIC appliance
 18. Remove offline container
-19. Create a container named offline with a single volume attached to it
-20. Issue docker cp foo.txt offline:/vol1 to the new VIC appliance
-21. Start offline and verify that the copy operation succeeded
-22. Remove offline container
-23. Create a container named offline with two volumes attached to it, vol2 nested in vol1
-24. Issue docker cp foo.txt offline:/vol1/vol2 to the new VIC appliance
-25. Start offline and verify that the copy operation succeeded
-26. Remove offline container
-27. Create a container named offline with three volumes attached to it, vol2 nested in vol1, vol3 nested in vol2
-28. Issue docker cp foo.txt offline:/vol1/vol2/vol3 to the new VIC appliance
-29. Start offline and verify that the copy operation succeeded
-30. Remove offline container
+19. Create a container with a single volume attached to it
+20. Issue docker cp foo.txt ${cid}:/vol1 to the new VIC appliance
+21. Start ${cid} and verify that the copy operation succeeded
+22. Remove ${cid} container
+23. Create a container with two volumes attached to it, vol2 nested in vol1
+24. Issue docker cp foo.txt ${cid}:/vol1/vol2 to the new VIC appliance
+25. Start ${cid} and verify that the copy operation succeeded
+26. Remove ${cid} container
+27. Create a container with three volumes attached to it, vol2 nested in vol1, vol3 nested in vol2
+28. Issue docker cp foo.txt ${cid}:/vol1/vol2/vol3 to the new VIC appliance
+29. Start ${cid} and verify that the copy operation succeeded
+30. Remove ${cid} container
 31. Create a container named offline with a single volume attached to it
 32. Start 10 background processes that issues docker cp foo.txt offline:/foo-${idx} to the new VIC appliance
 33. Wait for these processes to finish
