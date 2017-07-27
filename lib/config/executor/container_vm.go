@@ -53,7 +53,6 @@ const (
 	Outbound
 	Peers
 )
-const Mode = "Mode"
 
 // Common data between managed entities, across execution environments
 type Common struct {

@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/iolog"
 	"github.com/vmware/vic/lib/migration/feature"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/metrics"
 	"github.com/vmware/vic/pkg/trace"
@@ -519,7 +520,7 @@ func convertContainerToContainerInfo(c *exec.Container) *models.ContainerInfo {
 			ReadWrite:  strings.Contains(strings.ToLower(mountSpec.Mode), "rw"),
 			Flags:      make(map[string]string),
 		}
-		vol.Flags[executor.Mode] = mountSpec.Mode
+		vol.Flags[constants.Mode] = mountSpec.Mode
 		info.VolumeConfig = append(info.VolumeConfig, vol)
 	}
 

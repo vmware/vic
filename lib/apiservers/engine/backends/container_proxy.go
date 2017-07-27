@@ -73,7 +73,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/tasks"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/archive"
-	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
@@ -434,7 +433,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
-		flags[executor.Mode] = fields.Flags
+		flags[constants.Mode] = fields.Flags
 		joinParams := storage.NewVolumeJoinParamsWithContext(ctx).WithJoinArgs(&models.VolumeJoinConfig{
 			Flags:     flags,
 			Handle:    handle,
@@ -1922,7 +1921,7 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	vc.Config.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
 	vc.HostConfig.Binds = []string{}
 	for _, volume := range info.VolumeConfig {
-		mount := getMountString(volume.Name, volume.MountPoint, volume.Flags[executor.Mode])
+		mount := getMountString(volume.Name, volume.MountPoint, volume.Flags[constants.Mode])
 		vc.Config.Volumes[mount] = struct{}{}
 		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
 		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
