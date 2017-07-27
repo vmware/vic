@@ -134,6 +134,8 @@ func (d *Debug) Run(clic *cli.Context) (err error) {
 	defer cancel()
 
 	validator, err := validate.NewValidator(ctx, d.Data)
+	defer validator.Session.Logout(ctx)
+
 	if err != nil {
 		log.Errorf("Debug cannot continue - failed to create validator: %s", err)
 		return errors.New("debug failed")

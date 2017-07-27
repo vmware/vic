@@ -144,6 +144,8 @@ func (i *Inspect) run(clic *cli.Context, cmd command) (err error) {
 	defer cancel()
 
 	validator, err := validate.NewValidator(ctx, i.Data)
+	defer validator.Session.Logout(ctx)
+
 	if err != nil {
 		log.Errorf("Inspect cannot continue - failed to create validator: %s", err)
 		return errors.New("inspect failed")

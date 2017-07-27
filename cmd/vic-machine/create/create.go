@@ -711,6 +711,8 @@ func (c *Create) Run(clic *cli.Context) (err error) {
 	// all these operations will be executed without timeout
 	ctx := context.Background()
 	validator, err := validate.NewValidator(ctx, c.Data)
+	defer validator.Session.Logout(ctx)
+
 	if err != nil {
 		log.Error("Create cannot continue: failed to create validator")
 		return err
