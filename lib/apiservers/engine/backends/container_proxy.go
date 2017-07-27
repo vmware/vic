@@ -1491,14 +1491,12 @@ func processVolumeParam(volString string) (volumeFields, error) {
 func processVolumeFields(volumes []string) (map[string]volumeFields, error) {
 	volumeFields := make(map[string]volumeFields)
 
-	for i, v := range volumes {
+	for _, v := range volumes {
 		fields, err := processVolumeParam(v)
 		log.Infof("Processed volume arguments: %#v", fields)
 		if err != nil {
 			return nil, err
 		}
-		// replace container volumes string with correct volume id, to avoid regeneration during inspect
-		volumes[i] = getMountString(fields.ID, fields.Dest, fields.Flags)
 		volumeFields[fields.Dest] = fields
 	}
 	return volumeFields, nil
