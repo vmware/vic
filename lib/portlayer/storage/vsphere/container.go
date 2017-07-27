@@ -314,7 +314,7 @@ func (c *ContainerStore) Export(op trace.Operation, id, ancestor string, spec *a
 		return nil, errors.New("mismatched datasource types")
 	}
 
-	// if we want data, include the xattrs, otherwise assume diff
+	// if we want data, exclude the xattrs, otherwise assume diff
 	xattrs := !data
 
 	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, xattrs)

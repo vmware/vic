@@ -509,7 +509,7 @@ func (m *Manager) AttachAndMount(op trace.Operation, datastoreURI *object.Datast
 	}
 
 	// don't update access time - that would cause the diff operation to mutate the filesystem
-	opts := []string{"noatime", ""}
+	opts := []string{"noatime"}
 	if !persistent {
 		opts = append(opts, "ro")
 	}

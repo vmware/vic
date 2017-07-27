@@ -175,7 +175,7 @@ func (i *ImageStore) Export(op trace.Operation, id, ancestor string, spec *archi
 		return nil, fmt.Errorf("mismatched datasource types: %T, %T", ls, rs)
 	}
 
-	// if we want data, include the xattrs, otherwise assume diff
+	// if we want data, exclude the xattrs, otherwise assume diff
 	xattrs := !data
 
 	tar, err := archive.Diff(op, fl.Name(), fr.Name(), spec, data, xattrs)
