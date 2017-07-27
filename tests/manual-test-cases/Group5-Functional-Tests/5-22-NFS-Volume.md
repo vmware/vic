@@ -53,12 +53,16 @@ This test requires access to VMware Nimbus for dynamic ESXi and NFS server creat
 31. Issue docker volume ls
 32. Issue docker volume rm ${nfsDefaultVolume}
 33. Issue docker volume rm ${nfsNamedVolume}
-34. Create a detached container using named nfs volume and write to file every second
-35. Create a container using named nfs volume and tail the file from previous step
-36. Kill the NFS Server from Nimbus
-37. Create a container using named nfs volume from killed NFS server and tail the file from previous step
-38. Create a container using named nfs volume from killed NFS server and write to file from previous step
-39. Create a container using named nfs volume from killed NFS server and ls the mydata directory
+34. Create a container using a standard volume and named NFS volume
+35. Inspect the container to check volume info
+37. Restart the VCH
+38. Inspect the container to check that the volume info is the same as before
+39. Create a detached container using named nfs volume and write to file every second
+40. Create a container using named nfs volume and tail the file from previous step
+41. Kill the NFS Server from Nimbus
+42. Create a container using named nfs volume from killed NFS server and tail the file from previous step
+43. Create a container using named nfs volume from killed NFS server and write to file from previous step
+44. Create a container using named nfs volume from killed NFS server and ls the mydata directory
 
 
 
@@ -100,12 +104,13 @@ cat: can't open 'mydata/test_nfs_file.txt': No such file or directory
 ```
 Error response from daemon: volume ${nfsNamedVolume} in use by
 ```
-* Steps 34 - 36 should result in success; step 36 should kill/drop the server
-* Step 37 should result in error with the following message:
+* Steps 34-38 should result in success
+* Steps 39 - 41 should result in success; step 41 should kill/drop the server
+* Step 42 should result in error with the following message:
 ```
 Server error from portlayer: unable to wait for process launch status:
 ```
-* Steps 38 - 39 should result in error with the rc = 125.
+* Steps 43 - 44 should result in error with the rc = 125.
 
 
 # Possible Problems:

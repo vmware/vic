@@ -159,8 +159,9 @@ Test
     # have a few containers running and stopped for when we
     # shut down the host and HA brings it up again
     # make sure we have busybox
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
-    Should Be Equal As Integers  ${rc}  0
+    Pull image  busybox
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
 
     @{running}=  Create List
     :FOR  ${index}  IN RANGE  3
@@ -183,6 +184,16 @@ Test
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
 
+    # Create a named volume and run inspect on the container before the host is shut down
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  /mnt/test
+    Should Contain  ${out}  /mnt/named
+
     # Abruptly power off the host
     Open Connection  ${curHost}  prompt=:~]
     Login  root  e2eFunctionalTest
@@ -199,6 +210,12 @@ Test
 
     ${info}=  Run  govc vm.info \\*
     Log  ${info}
+
+    # Inspect the container to make sure mount info is the same after a VCH restart event
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  /mnt/test
+    Should Contain  ${out}  /mnt/named
 
     # check running containers are still running
     :FOR  ${c}  IN  @{running}

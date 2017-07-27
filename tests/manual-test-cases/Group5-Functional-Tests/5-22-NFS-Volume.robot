@@ -82,6 +82,22 @@ Verify NFS Volume Already Created
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: A volume named ${containerVolName} already exists. Choose a different volume name.
 
+Reboot VM and Verify Basic VCH Info
+    Log To Console  Rebooting VCH\n - %{VCH-NAME}
+    Reboot VM  %{VCH-NAME}
+
+    Log To Console  Getting VCH IP ...
+    ${new_vch_ip}=  Get VM IP  %{VCH-NAME}
+    Log To Console  New VCH IP is ${new_vch_ip}
+    Replace String  %{VCH-PARAMS}  %{VCH-IP}  ${new_vch_ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${busybox}
+
 
 *** Test Cases ***
 VIC Appliance Install with Read Only NFS Volume
@@ -245,6 +261,27 @@ Volume rm tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume rm ${nfsNamedVolume}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
+
+Docker Inspect Mount Data after Reboot
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name mount-data-test -v /mnt/test -v ${nfsNamedVolume}:/mnt/named ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${outMountBefore}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Log To Console  ${outMountBefore}
+    Should Contain  ${outMountBefore}  /mnt/test
+    Should Contain  ${outMountBefore}  /mnt/named
+
+    Reboot VM and Verify Basic VCH Info
+
+    ${rc}  ${outMountAfter}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Log To Console  ${outMountAfter}
+    Should Contain  ${outMountAfter}  /mnt/test
+    Should Contain  ${outMountAfter}  /mnt/named
+    Should Contain  ${outMountAfter}  ${outMountBefore}
+
+
+
 
 Kill NFS Server
     ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 1; done"
