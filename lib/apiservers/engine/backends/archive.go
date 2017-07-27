@@ -16,7 +16,6 @@ package backends
 
 import (
 	"archive/tar"
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -24,11 +23,14 @@ import (
 	"path"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/tchap/go-patricia/patricia"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/proxy"
 	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/trace"
@@ -68,7 +70,7 @@ func (c *Container) exportFromContainer(vc *viccontainer.VicContainer, path stri
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
 	readerMap := NewArchiveStreamReaderMap(mounts, path)
 
-	readers, err := readerMap.ReadersForSourcePath(c.containerProxy, vc.ContainerID, path)
+	readers, err := readerMap.ReadersForSourcePath(archiveProxy, vc.ContainerID, path)
 	if err != nil {
 		log.Errorf("Errors getting readers for export: %s", err.Error())
 		return nil, err
@@ -140,7 +142,7 @@ func (c *Container) importToContainer(vc *viccontainer.VicContainer, target stri
 		}
 
 		// Lookup the writer for that mount prefix
-		writer, err := writerMap.WriterForAsset(c.containerProxy, vc.ContainerID, target, *header)
+		writer, err := writerMap.WriterForAsset(archiveProxy, vc.ContainerID, target, *header)
 		if err != nil {
 			return err
 		}
@@ -360,7 +362,7 @@ func (wm *ArchiveStreamWriterMap) FindArchiveWriter(containerDestPath, assetName
 //
 // As demonstrated above, the mount prefix and writer cannot be determined with just the
 // container destination path.  It must be combined with the actual asset's name.
-func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy VicContainerProxy, cid, containerDestPath string, assetHeader tar.Header) (io.WriteCloser, error) {
+func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.VicArchiveProxy, cid, containerDestPath string, assetHeader tar.Header) (io.WriteCloser, error) {
 	defer trace.End(trace.Begin(assetHeader.Name))
 
 	var err error
@@ -573,7 +575,7 @@ func (rm *ArchiveStreamReaderMap) buildFilterSpec(containerSourcePath string, no
 //
 //			containaerSroucePath -	/mnt/A
 // In the above, both readers are within the the container source path.
-func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy VicContainerProxy, cid, containerSourcePath string) ([]io.Reader, error) {
+func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy proxy.VicArchiveProxy, cid, containerSourcePath string) ([]io.Reader, error) {
 	defer trace.End(trace.Begin(containerSourcePath))
 
 	var streamReaders []io.Reader

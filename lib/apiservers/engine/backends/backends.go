@@ -32,6 +32,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	vicproxy "github.com/vmware/vic/lib/apiservers/engine/proxy"
 	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
@@ -62,6 +63,7 @@ var (
 
 	vchConfig        dynConfig
 	RegistryCertPool *x509.CertPool
+	archiveProxy     vicproxy.VicArchiveProxy
 
 	eventService *events.Events
 )
@@ -131,6 +133,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		log.Errorf("Failed to create image store")
 		return err
 	}
+
+	archiveProxy = vicproxy.NewArchiveProxy(portLayerClient)
 
 	eventService = events.New()
 

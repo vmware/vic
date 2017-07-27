@@ -162,7 +162,8 @@ func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerC
 // CreateImageStore creates a new image store
 func (h *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStoreParams) middleware.Responder {
 	op := trace.NewOperation(context.Background(), fmt.Sprintf("CreateImageStore(%s)", params.Body.Name))
-	url, err := h.imageCache.CreateImageStore(op, params.Body.Name)
+	name := params.Body.Name
+	url, err := h.imageCache.CreateImageStore(op, name)
 	if err != nil {
 		if os.IsExist(err) {
 			return storage.NewCreateImageStoreConflict().WithPayload(
@@ -178,6 +179,13 @@ func (h *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStorePa
 				Message: err.Error(),
 			})
 	}
+
+	// register the new name for the existing importer/export
+	spl.RegisterImporter(op, url.String(), h.imageCache.DataStore)
+	spl.RegisterImporter(op, name, h.imageCache.DataStore)
+	spl.RegisterExporter(op, url.String(), h.imageCache.DataStore)
+	spl.RegisterExporter(op, name, h.imageCache.DataStore)
+
 	s := &models.StoreURL{
 		Code: http.StatusCreated,
 		URL:  url.String(),
