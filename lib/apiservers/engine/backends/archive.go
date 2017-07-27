@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -78,12 +77,18 @@ func (c *Container) exportFromContainer(op trace.Operation, vc *viccontainer.Vic
 		op.Errorf("Errors getting readers for export: %s", err.Error())
 		return nil, err
 	}
+	count := len(readers)
+	op.Infof("Got %d archive readers", count)
 
-	//FIXME: We need a multi reader that can be closed.  MultiReader returns a regular reader
-	op.Infof("Got %d archive readers", len(readers))
-	finalTarReader := io.MultiReader(readers...)
+	// We want to combine the streams, so need to strip the end-of-archive elements for all but the last
+	strippersWithCloser := make([]io.Reader, len(readers))
+	i := 0
+	for ; i < count-1; i++ {
+		strippersWithCloser[i] = vicarchive.NewStripper(op, tar.NewReader(readers[i]))
+	}
+	strippersWithCloser[i] = readers[i]
 
-	return ioutil.NopCloser(finalTarReader), nil
+	return vicarchive.MultiReader(strippersWithCloser...), nil
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
