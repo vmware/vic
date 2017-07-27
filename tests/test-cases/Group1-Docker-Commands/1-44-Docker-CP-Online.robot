@@ -36,6 +36,12 @@ Set up test files and install VIC appliance to test server
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name v1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name v2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Clean up test files and VIC appliance to test server
     Remove File  ${CURDIR}/foo.txt
@@ -165,9 +171,70 @@ Copy a non-existent directory out of an online container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/dne/. ${CURDIR}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
+    Should Not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Error
+
+Concurrent copy: create processes to copy a small file from host to online container
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name concurrent -v v1:/vol1 -d -it ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${pids}=  Create List
+    Log To Console  \nIssue 10 docker cp commands for small file
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt concurrent:/foo-${idx}  shell=True
+    \   Append To List  ${pids}  ${pid}
+    Log To Console  \nWait for them to finish and check their RC
+    :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Should Be Equal As Integers  ${res.rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Log To Console  \nCheck if the copy operations succeeded
+    :FOR  ${idx}  IN RANGE  0  10
+    \   Should Contain  ${output}  foo-${idx}
+
+Concurrent copy: repeat copy a large file from host to offline container several times
+    ${pids}=  Create List
+    Log To Console  \nIssue 10 docker cp commands for large file
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt concurrent:/vol1/lg-${idx}  shell=True
+    \   Append To List  ${pids}  ${pid}
+    Log To Console  \nWait for them to finish and check their RC
+    :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Should Be Equal As Integers  ${res.rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /vol1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Log To Console  \nCheck if the copy operations succeeded
+    :FOR  ${idx}  IN RANGE  0  10
+    \   Should Contain  ${output}  lg-${idx}
+
+Concurrent copy: repeat copy a large file from offline container to host several times
+    ${pids}=  Create List
+    Log To Console  \nIssue 10 docker cp commands for large file
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp concurrent:/vol1/lg-${idx} ${CURDIR}  shell=True
+    \   Append To List  ${pids}  ${pid}
+    Log To Console  \nWait for them to finish and check their RC
+    :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Should Be Equal As Integers  ${res.rc}  0
+    Log To Console  \nCheck if the copy operations succeeded
+    :FOR  ${idx}  IN RANGE  0  10
+    \   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
+    \   Remove File  ${CURDIR}/lg-${idx}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f concurrent
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Sub volumes: copy from host to an online container, dst includes several volumes
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it -v /mnt/vol1 -v /mnt/vol2 --name subVol ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it -v v1:/mnt/vol1 -v v2:/mnt/vol2 --name subVol ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/mnt subVol:/
@@ -201,13 +268,16 @@ Sub volumes: copy from online container to host, src includes several volumes
     Should Not Contain  ${output}  Error
 
 Sub volumes: copy from host to an offline container, dst includes a shared vol with an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/mnt/vol1 -v /mnt/vol2 --name subVol_off ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it -v vol1:/vol1 --name subVol_on ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/mnt/vol1 --name subVol_off ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/mnt subVol_off:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop online
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol_on
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${output}=  Start container and inspect directory  subVol_off  /mnt
@@ -223,7 +293,7 @@ Sub volumes: copy from host to an offline container, dst includes a shared vol w
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol_off
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start online
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start subVol_on
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -240,64 +310,6 @@ Sub volumes: copy from an offline container to host, src includes a shared vol w
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol_off
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-
-Concurrent copy: create processes to copy a small file from host to online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name online -v /vol1 -d -it ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${pids}=  Create List
-    Log To Console  \nIssue 10 docker cp commands for small file
-    :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt online:/foo-${idx}  shell=True
-    \   Append To List  ${pids}  ${pid}
-    Log To Console  \nWait for them to finish and check their RC
-    :FOR  ${pid}  IN  @{pids}
-    \   Log To Console  \nWaiting for ${pid}
-    \   ${res}=  Wait For Process  ${pid}
-    \   Should Be Equal As Integers  ${res.rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Log To Console  \nCheck if the copy operations succeeded
-    :FOR  ${idx}  IN RANGE  0  10
-    \   Should Contain  ${output}  foo-${idx}
-
-Concurrent copy: repeat copy a large file from host to offline container several times
-    ${pids}=  Create List
-    Log To Console  \nIssue 10 docker cp commands for large file
-    :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt online:/vol1/lg-${idx}  shell=True
-    \   Append To List  ${pids}  ${pid}
-    Log To Console  \nWait for them to finish and check their RC
-    :FOR  ${pid}  IN  @{pids}
-    \   Log To Console  \nWaiting for ${pid}
-    \   ${res}=  Wait For Process  ${pid}
-    \   Should Be Equal As Integers  ${res.rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /vol1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Log To Console  \nCheck if the copy operations succeeded
-    :FOR  ${idx}  IN RANGE  0  10
-    \   Should Contain  ${output}  lg-${idx}
-
-Concurrent copy: repeat copy a large file from offline container to host several times
-    ${pids}=  Create List
-    Log To Console  \nIssue 10 docker cp commands for large file
-    :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp online:/vol1/lg-${idx} ${CURDIR}  shell=True
-    \   Append To List  ${pids}  ${pid}
-    Log To Console  \nWait for them to finish and check their RC
-    :FOR  ${pid}  IN  @{pids}
-    \   Log To Console  \nWaiting for ${pid}
-    \   ${res}=  Wait For Process  ${pid}
-    \   Should Be Equal As Integers  ${res.rc}  0
-    Log To Console  \nCheck if the copy operations succeeded
-    :FOR  ${idx}  IN RANGE  0  10
-    \   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
-    \   Remove File  ${CURDIR}/lg-${idx}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol_on
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
