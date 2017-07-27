@@ -1453,7 +1453,7 @@ func processVolumeParam(volString string) (volumeFields, error) {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
-			return volumeFields{}, nil
+			return fields, err
 		}
 		fields.ID = VolumeID.String()
 		fields.Dest = volumeStrings[0]
@@ -1479,12 +1479,14 @@ func processVolumeParam(volString string) (volumeFields, error) {
 func processVolumeFields(volumes []string) (map[string]volumeFields, error) {
 	volumeFields := make(map[string]volumeFields)
 
-	for _, v := range volumes {
+	for i, v := range volumes {
 		fields, err := processVolumeParam(v)
 		log.Infof("Processed volume arguments: %#v", fields)
 		if err != nil {
 			return nil, err
 		}
+		// replace container volumes string with correct volume id, to avoid regeneration during inspect
+		volumes[i] = getMountString(fields.ID, fields.Dest, fields.Flags)
 		volumeFields[fields.Dest] = fields
 	}
 	return volumeFields, nil
@@ -1758,21 +1760,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 
 	// Pull labels from the annotation
 	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &container.Labels)
-
-	container.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
-	// get volumes from volume config
-	for _, volume := range info.VolumeConfig {
-		mounts := make([]string, 2)
-		mounts[0] = volume.Name
-		mounts[1] = volume.MountPoint
-		if volume.Flags[executor.Mode] != "" {
-			mounts = append(mounts, volume.Flags[executor.Mode])
-		}
-		mount := strings.Join(mounts, ":")
-		container.Volumes[mount] = struct{}{}
-		log.Debugf("add volume mount %s to config.volumes", mount)
-	}
-
 	return &container
 }
 
@@ -1921,11 +1908,20 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
 
 	// FIXME: duplicate Config.Volumes and HostConfig.Binds here for can not derive them from persisted value right now.
-	for mount := range vc.Config.Volumes {
+	// get volumes from volume config
+	vc.Config.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
+	vc.HostConfig.Binds = []string{}
+	for _, volume := range info.VolumeConfig {
+		mount := getMountString(volume.Name, volume.MountPoint, volume.Flags[executor.Mode])
+		vc.Config.Volumes[mount] = struct{}{}
 		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
-		log.Debugf("add volume mount %s to hostconfig.binds", mount)
+		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
 	}
 	return vc
+}
+
+func getMountString(mounts ...string) string {
+	return strings.Join(mounts, ":")
 }
 
 //------------------------------------
