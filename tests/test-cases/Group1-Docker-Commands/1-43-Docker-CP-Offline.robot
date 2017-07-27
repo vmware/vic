@@ -135,41 +135,41 @@ Copy a large file that exceeds the container volume into an offline container
     Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/vol1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  offline  /vol1
+    ${output}=  Start container and inspect directory  ${cid}  /vol1
     Should Contain  ${output}  foo.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 2 levels
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${cid}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/vol1/vol2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  offline  /vol1/vol2
+    ${output}=  Start container and inspect directory  ${cid}  /vol1/vol2
     Should Contain  ${output}  foo.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 3 levels
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/vol1/vol2/vol3
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2/vol3
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  offline  /vol1/vol2/vol3
+    ${output}=  Start container and inspect directory  ${cid}  /vol1/vol2/vol3
     Should Contain  ${output}  foo.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
