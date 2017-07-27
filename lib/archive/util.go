@@ -97,7 +97,7 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 
 	if strings.HasPrefix(copyTarget, currentMount) && copyTarget != currentMount {
 		filter.Exclusions[""] = struct{}{}
-		filter.Inclusions[removeLeadingSlash(strings.TrimPrefix(copyTarget, currentMount))] = struct{}{}
+		filter.Inclusions[removeSlashes(strings.TrimPrefix(copyTarget, currentMount))] = struct{}{}
 	} else {
 		// this would be a mount that is after the target. It would mean we have to include root. then exclude any mounts after root.
 		filter.Inclusions[""] = struct{}{}
@@ -116,4 +116,10 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 // we use this to ensure relative pathing
 func removeLeadingSlash(path string) string {
 	return strings.TrimPrefix(path, "/")
+}
+
+// removeSlashes will remove a leading and trailing '/' from
+// the target path
+func removeSlashes(path string) string {
+	return strings.TrimPrefix(strings.TrimSuffix(path, "/"), "/")
 }

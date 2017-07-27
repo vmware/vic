@@ -76,11 +76,6 @@ func NewToolbox() *Toolbox {
 	service := toolbox.NewService(in, out)
 	service.PrimaryIP = toolbox.DefaultIP
 
-	// We need to see the output for archive read and write. We need to gate these on the
-	// debug variable on vch creation, same as the personality and persona.
-	hgfs.Trace = true
-	toolbox.Trace = true
-
 	return &Toolbox{
 		Service: service,
 		authIDs: make(map[string]struct{}),
@@ -139,7 +134,11 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 	t.authIDs[config.ID] = struct{}{}
 	// we also allow any device IDs that are attached
 	for _, mspec := range config.Mounts {
-		t.authIDs[mspec.Source.Host] = struct{}{}
+		// mounstpect.source.path is the disk label for vmdks
+		// XXX: this is not the case for other volumes, eg nfs vols.
+		if mspec.Source.Scheme == "label" {
+			t.authIDs[mspec.Source.Path] = struct{}{}
+		}
 	}
 
 	return nil
@@ -389,7 +388,7 @@ func mountDiskLabel(label string) (string, error) {
 
 	// label exists, bind mount it to a tmp directory
 	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
-	if err := Sys.Syscall.Mount(path, tmpDir, "bind", syscall.MS_BIND, ""); err != nil {
+	if err := Sys.Syscall.Mount(path, tmpDir, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
 		return "", fmt.Errorf("faild to mount %s to %s: %s", path, tmpDir, err)
 	}
 
