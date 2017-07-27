@@ -31,6 +31,28 @@ func NewMerger() Merger {
 // Merge merges two config objects together. For now only
 // whitelist registries are merged.
 func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*config.VirtualContainerHostConfigSpec, error) {
+	// merge strategy:
+	//
+	// origWl empty, otherWl empty => empty
+	//
+	// origWl empty, otherWl not empty => otherWl
+	//
+	// origWl not empty, otherWl empty => origWl
+	//
+	// origWl not empty, otherWl not empty => merge result
+	// in thie case, the merge is a set union of origWl
+	// and otherWl, with the following criteria:
+	//
+	// 1. an entry in otherWl cannot make another
+	//    entry in origWl more permissive, e.g.
+	//    foo.docker.io in origWl and *.docker.io
+	//    in otherWl, would not merge
+	// 2. the resulting whitelist should not have
+	//    more entries than origWl
+	//
+	// The whitelist that is used is always otherWl
+	// in this case given that the above two criteria
+	// are not violated.
 	otherWl, err := ParseRegistries(other.RegistryWhitelist)
 	if err != nil {
 		return nil, err
@@ -42,10 +64,25 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 	}
 
 	var wl registry.Set
+	if wl, err = origWl.Merge(otherWl, &whitelistMerger{}); err != nil {
+		return nil, err
+	}
+
+	// if origWl is empty, and wl is
+	// non-empty after the merge, we use wl,
+	// which is the same as otherWl at this point
+	if len(origWl) > 0 && len(wl) > len(origWl) {
+		return nil, fmt.Errorf("whitelist merge allows entries that are not in the original whitelist")
+	}
+
+	// only use otherWl if its non-empty
+	//
+	// if otherWl is empty and origWl is
+	// not empty, we use origWl, which
+	// should be the same as wl after the
+	// merge
 	if len(otherWl) > 0 {
-		if wl, err = origWl.Merge(otherWl, &whitelistMerger{}); err != nil {
-			return nil, err
-		}
+		wl = otherWl
 	}
 
 	res := *orig
