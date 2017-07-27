@@ -38,34 +38,33 @@ This test requires that a vSphere server is running and available
 25. Inspect online:/vol1 to verify that the large file is copied successfully
 26. Issue docker cp online:/dne . to the new VIC appliance
 27. Issue docker cp online:/dne/. . to the new VIC appliance
-28. Run a container called subVol with 2 volumes attached to it
-29. Issue docker cp ./mnt subVol:/ to the new VIC appliance
-30. Inspect subVol:/mnt, subVol:/mnt/vol1 and subVol:/mnt/vol2 to verify that the copy operation succeeded
-31. Issue docker cp subVol:/mnt ./result to the new VIC appliance
-32. Inspect ./result on the host to verify that copy succeeded and remove it afterwards
-33. Remove subVol
-34. Create a container called subVol_off with 2 volumes attached to it, one volume is shared with an online container
-35. Issue docker cp ./mnt subVol_off:/ to the new VIC appliance
-36. Stop the online container
-37. Start subVol_off to inspect subVol_off:/mnt, subVol_off:/mnt/vol1 and subVol_off:/mnt/vol2 to verify the copy operation succeeded
-38. Stop subVol and start online
-39. Issue docker cp subVol_off:/mnt ./result to the new VIC appliance
-40. Inspect ./result on the host to verify that copy succeeded and remove it afterwards
-41. Remove subVol_off and online
-42. Run a container called online with one volume attached to it
-43. Start 10 background processes that issues docker cp foo.txt online:/foo-${idx} to the new VIC appliance
-44. Wait for these processes to finish
-45. Inspect online:/ to verify that copy operation succeeded
-46. Start 10 background processes that issues docker cp largefile.txt online:/vol1/lg-${idx} to the new VIC appliance
-47. Wait for these processes to finish
-48. Inspect online:/vol1 to verify that copy operation succeeded
-49. Start 10 background processes that issues docker cp online:/vol1/lg-${idx} . to the new VIC appliance
-50. Wait for these processes to finish
-51. Verify that the copy operation succeeded and clean up all the files copied to the host
-52. Remove online
-
-. Remove online
-. Clean up created files, directories and volumes
+28. Remove online
+29. Start 10 background processes that issues docker cp foo.txt concurrent:/foo-${idx} to the new VIC appliance
+30. Wait for these processes to finish
+31. Inspect concurrent:/ to verify that copy operation succeeded
+32. Start 10 background processes that issues docker cp largefile.txt concurrent:/vol1/lg-${idx} to the new VIC appliance
+33. Wait for these processes to finish
+34. Inspect concurrent:/vol1 to verify that copy operation succeeded
+35. Start 10 background processes that issues docker cp concurrent:/vol1/lg-${idx} . to the new VIC appliance
+36. Wait for these processes to finish
+37. Verify that the copy operation succeeded and clean up all the files copied to the host
+38. Remove concurrent
+39. Run a container called subVol with 2 volumes attached to it
+40. Issue docker cp ./mnt subVol:/ to the new VIC appliance
+41. Inspect subVol:/mnt, subVol:/mnt/vol1 and subVol:/mnt/vol2 to verify that the copy operation succeeded
+42. Issue docker cp subVol:/mnt ./result to the new VIC appliance
+43. Inspect ./result on the host to verify that copy succeeded and remove it afterwards
+44. Remove subVol
+45. Run a detached container called subVol_on with one volume attached to it
+46. Create a container called subVol_off with a volume that's shared with the online container subVol_on
+47. Issue docker cp ./mnt subVol_off:/ to the new VIC appliance
+48. Stop subVol_on container
+49. Start subVol_off to inspect subVol_off:/mnt, subVol_off:/mnt/vol1 and subVol_off:/mnt/vol2 to verify the copy operation succeeded
+50. Stop subVol and start subVol_on
+51. Issue docker cp subVol_off:/mnt ./result to the new VIC appliance
+52. Inspect ./result on the host to verify that copy succeeded and remove it afterwards
+53. Remove subVol_off and subVol_on
+54. Clean up created files, directories and volumes
 
 # Expected Outcome:
 * Step 1-9 should all succeed
@@ -73,9 +72,8 @@ This test requires that a vSphere server is running and available
 * Step 11-14 should all succeed
 * Step 15-25 should all succeed
 * Step 26-27 should both fail with no such directory
-* Step 28-33 should all succeed
-* Step 34-41 should all succeed
-* Step 42-52 should all succeed
+* Step 28-38 should all succeed
+* Step 39-54 should all succeed
 
 # Possible Problems:
 Step 6-9 won't pass until we support cid:/. as source path
