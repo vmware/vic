@@ -17,7 +17,9 @@ This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter 
 ```govc cluster.change -drs-enabled -ha-enabled /ha-datacenter/host/cls```
 3. Deploy a new VCH Appliance to the cluster  
 4. Run a variety of docker commands on the VCH appliance
+
 5. Power off the ESXi host that the VCH is currently running on
+
 6. Run a variety of docker commands on the VCH appliance
 
 # Expected Outcome:
