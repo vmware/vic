@@ -28,15 +28,19 @@ type Stripper struct {
 
 	// be opinionated about the type of the source
 	source *tar.Reader
+
+	// close function to call if treated as io.Closer
+	closer func() error
 }
 
 // NewStripper returns a WriterTo that will strip the trailing end-of-archive bytes
 // from the supplied tar stream.
 // It implements io.Reader only so that it can be passed to io.Copy
-func NewStripper(op trace.Operation, reader *tar.Reader) *Stripper {
+func NewStripper(op trace.Operation, reader *tar.Reader, close func() error) *Stripper {
 	return &Stripper{
 		op:     op,
 		source: reader,
+		closer: close,
 	}
 }
 
@@ -48,6 +52,7 @@ func (s *Stripper) Read(b []byte) (int, error) {
 
 // WriteTo is the primary function, allowing easy use of the underlying tar stream without
 // requiring chunking and assocated tracking to another buffer size.
+// Of note is that this returns the number of DATA bytes written, excluding the header bytes.
 func (s *Stripper) WriteTo(w io.Writer) (sum int64, err error) {
 	// TODO: should we nil s.source on error then handle a post-error call? What's the expected
 	// semantic?
@@ -58,7 +63,9 @@ func (s *Stripper) WriteTo(w io.Writer) (sum int64, err error) {
 		var header *tar.Header
 		header, err = s.source.Next()
 		if err == io.EOF {
-			// do NOT call tarwriter.Close()
+			// do NOT call tarwriter.Close() and drop the EOF for io.Copy behaviour
+			err = nil
+
 			s.op.Debugf("Stripper dropping end of archive")
 			return
 		}
@@ -84,6 +91,16 @@ func (s *Stripper) WriteTo(w io.Writer) (sum int64, err error) {
 
 		tw.Flush()
 	}
+}
+
+// Close allows us to proxy a close on the stripper to the wrapped input
+func (s *Stripper) Close() error {
+	if s.closer != nil {
+		s.op.Debugf("Closing stripper source: %p", s)
+		return s.closer()
+	}
+
+	return nil
 }
 
 // eofReader copied from io package to support MultiWriterTo variant
@@ -112,37 +129,38 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 }
 
 func (mr *multiReader) WriteTo(w io.Writer) (sum int64, err error) {
-	for len(mr.readers) > 0 {
+	for _, reader := range mr.readers {
 		var n int64
 
-		n, err = io.Copy(w, mr.readers[0])
+		n, err = io.Copy(w, reader)
 		sum += n
 
-		// io.Copy strips EOF
+		// io.Copy never returns EOF so treat nil as EOF but keeping
+		// EOF for clarity
 		if err == io.EOF || err == nil {
-			mr.readers[0] = eofReader{} // permit earlier GC
-			mr.readers = mr.readers[1:]
+			continue
 		}
 
-		if n > 0 || err != io.EOF {
-			if err == io.EOF && len(mr.readers) > 0 {
-				// Don't return EOF yet. More readers remain.
-				err = nil
-				continue
-			}
+		// err was non-nil/EOF and we read data - legitimate error scenario
+		if n > 0 {
 
-			break
+			return
 		}
 	}
 
-	if err == nil {
-		err = io.EOF
-	}
+	err = nil
 	return
 }
 
 // Close allows this to be a Closer as well - specific to expected usage but necessary.
 func (mr *multiReader) Close() error {
+	for _, r := range mr.readers {
+		// if it's a closer, close it
+		if closer, ok := r.(io.Closer); ok {
+			closer.Close()
+		}
+	}
+
 	return nil
 }
 

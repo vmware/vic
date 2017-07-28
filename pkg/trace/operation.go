@@ -171,6 +171,22 @@ func WithDeadline(parent *Operation, expiration time.Time, format string, args .
 	return op, cancelFunc
 }
 
+// WithCancel
+func WithCancel(parent *Operation, format string, args ...interface{}) (Operation, context.CancelFunc) {
+	ctx, cancelFunc := context.WithCancel(parent.Context)
+	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
+
+	return op, cancelFunc
+}
+
+// WithValue
+func WithValue(parent *Operation, key, val interface{}, format string, args ...interface{}) Operation {
+	ctx := context.WithValue(parent.Context, key, val)
+	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
+
+	return op
+}
+
 // FromOperation creates a child operation from the one supplied
 // uses the same context as the parent
 func FromOperation(parent Operation, format string, args ...interface{}) Operation {
