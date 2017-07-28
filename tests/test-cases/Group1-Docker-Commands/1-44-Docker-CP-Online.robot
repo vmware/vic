@@ -80,13 +80,11 @@ Copy a directory from online container to host, dst path doesn't exist
     Remove Directory  ${CURDIR}/newdir  recursive=True
 
 Copy the content of a directory from online container to host
-    ${status}=  Get State Of Github Issue  5796
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-44-Docker-CP-Online.robot needs to be updated now that Issue #5796 has been resolved
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/. ${CURDIR}/bar
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
-    #OperatingSystem.File Should Exist  ${CURDIR}/bar/test.txt
-    #Remove File  ${CURDIR}/bar/test.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/. ${CURDIR}/bar
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    OperatingSystem.File Should Exist  ${CURDIR}/bar/test.txt
+    Remove File  ${CURDIR}/bar/test.txt
 
 Copy a file from online container to host, overwrite dst file
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/newdir/test.txt ${CURDIR}/foo.txt
@@ -172,8 +170,8 @@ Copy a non-existent directory out of an online container
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f online
-    Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Error
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Concurrent copy: create processes to copy a small file from host to online container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name concurrent -v v1:/vol1 -d -it ${busybox}
