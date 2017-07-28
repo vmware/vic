@@ -174,10 +174,27 @@ func TestMergerMergeWhitelist(t *testing.T) {
 			},
 			other: &config.VirtualContainerHostConfigSpec{
 				Registry: config.Registry{
-					RegistryWhitelist: []string{"docker.io", "malicious.io"},
+					RegistryWhitelist: []string{"foo.docker.io", "malicious.io"},
 				},
 			},
 			err: assert.AnError,
+		},
+		{
+			orig: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"*.docker.io"},
+				},
+			},
+			other: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"bar.docker.io", "foo.docker.io"},
+				},
+			},
+			res: &config.VirtualContainerHostConfigSpec{
+				Registry: config.Registry{
+					RegistryWhitelist: []string{"bar.docker.io", "foo.docker.io"},
+				},
+			},
 		},
 		// result of a merge is always the other if
 		// its a subset of the original

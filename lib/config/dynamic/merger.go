@@ -47,8 +47,10 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 	//    entry in origWl more permissive, e.g.
 	//    foo.docker.io in origWl and *.docker.io
 	//    in otherWl, would not merge
-	// 2. the resulting whitelist should not have
-	//    more entries than origWl
+	// 2. if the resulting whitelist has more entries
+	//    than origWl, each entry in the resulting
+	//    whitelist must be a more restrictive
+	//    version of at least one entry in origWl
 	//
 	// The whitelist that is used is always otherWl
 	// in this case given that the above two criteria
@@ -72,7 +74,21 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 	// non-empty after the merge, we use wl,
 	// which is the same as otherWl at this point
 	if len(origWl) > 0 && len(wl) > len(origWl) {
-		return nil, fmt.Errorf("whitelist merge allows entries that are not in the original whitelist")
+		// check if every entry in wl is a subset of an
+		// entry in origWl
+		for _, e := range wl {
+			found := false
+			for _, o := range origWl {
+				if o.Contains(e) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				return nil, fmt.Errorf("whitelist merge allows entries that are not in the original whitelist")
+			}
+		}
 	}
 
 	// only use otherWl if its non-empty
