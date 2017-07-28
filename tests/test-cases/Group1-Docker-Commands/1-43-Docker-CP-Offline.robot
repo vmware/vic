@@ -174,70 +174,65 @@ Copy a file from host to offline container, dst is a nested volume with 3 levels
     Should Not Contain  ${output}  Error
 
 Concurrent copy: create processes to copy a small file from host to offline container
-    ${status}=  Get State Of Github Issue  5742
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5742 has been resolved
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
-    #${pids}=  Create List
-    #Log To Console  \nIssue 10 docker cp commands for small file
-    #:FOR  ${idx}  IN RANGE  0  10
-    #\   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/foo-${idx}  shell=True
-    #\   Append To List  ${pids}  ${pid}
-    #Log To Console  \nWait for them to finish and check their RC
-    #:FOR  ${pid}  IN  @{pids}
-    #\   Log To Console  \nWaiting for ${pid}
-    #\   ${res}=  Wait For Process  ${pid}
-    #\   Should Be Equal As Integers  ${res.rc}  0
-    #${output}=  Start container and inspect directory  offline  /
-    #Log To Console  \nCheck if the copy operations succeeded
-    #:FOR  ${idx}  IN RANGE  0  10
-    #\   Should Contain  ${output}  foo-${idx}
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${pids}=  Create List
+    Log To Console  \nIssue 10 docker cp commands for small file
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/foo-${idx}  shell=True
+    \   Append To List  ${pids}  ${pid}
+    Log To Console  \nWait for them to finish and check their RC
+    :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Should Be Equal As Integers  ${res.rc}  0
+    ${output}=  Start container and inspect directory  offline  /
+    Log To Console  \nCheck if the copy operations succeeded
+    :FOR  ${idx}  IN RANGE  0  10
+    \   Should Contain  ${output}  foo-${idx}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Concurrent copy: repeat copy a large file from host to offline container several times
-    ${status}=  Get State Of Github Issue  5742
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5742 has been resolved
-    #${pids}=  Create List
-    #Log To Console  \nIssue 10 docker cp commands for large file
-    #:FOR  ${idx}  IN RANGE  0  10
-    #\   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/vol1/lg-${idx}  shell=True
-    #\   Append To List  ${pids}  ${pid}
-    #Log To Console  \nWait for them to finish and check their RC
-    #:FOR  ${pid}  IN  @{pids}
-    #\   Log To Console  \nWaiting for ${pid}
-    #\   ${res}=  Wait For Process  ${pid}
-    #\   Should Be Equal As Integers  ${res.rc}  0
-    #${output}=  Start container and inspect directory  offline  /vol1
-    #Log To Console  \nCheck if the copy operations succeeded
-    #:FOR  ${idx}  IN RANGE  0  10
-    #\   Should Contain  ${output}  lg-${idx}
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+    ${pids}=  Create List
+    Log To Console  \nIssue 10 docker cp commands for large file
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp ${CURDIR}/largefile.txt offline:/vol1/lg-${idx}  shell=True
+    \   Append To List  ${pids}  ${pid}
+    Log To Console  \nWait for them to finish and check their RC
+    :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Should Be Equal As Integers  ${res.rc}  0
+    ${output}=  Start container and inspect directory  offline  /vol1
+    Log To Console  \nCheck if the copy operations succeeded
+    :FOR  ${idx}  IN RANGE  0  10
+    \   Should Contain  ${output}  lg-${idx}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Concurrent copy: repeat copy a large file from offline container to host several times
-    ${status}=  Get State Of Github Issue  5742
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5742 has been resolved
-    #${pids}=  Create List
-    #Log To Console  \nIssue 10 docker cp commands for large file
-    #:FOR  ${idx}  IN RANGE  0  10
-    #\   ${pid}=  Start Process  docker %{VCH-PARAMS} cp offline:/vol1/lg-${idx} ${CURDIR}  shell=True
-    #\   Append To List  ${pids}  ${pid}
-    #Log To Console  \nWait for them to finish and check their RC
-    #:FOR  ${pid}  IN  @{pids}
-    #\   Log To Console  \nWaiting for ${pid}
-    #\   ${res}=  Wait For Process  ${pid}
-    #\   Should Be Equal As Integers  ${res.rc}  0
-    #Log To Console  \nCheck if the copy operations succeeded
-    #:FOR  ${idx}  IN RANGE  0  10
-    #\   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
-    #\   Remove File  ${CURDIR}/lg-${idx}
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+
+    ${pids}=  Create List
+    Log To Console  \nIssue 10 docker cp commands for large file
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${pid}=  Start Process  docker %{VCH-PARAMS} cp offline:/vol1/lg-${idx} ${CURDIR}  shell=True
+    \   Append To List  ${pids}  ${pid}
+    Log To Console  \nWait for them to finish and check their RC
+    :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Should Be Equal As Integers  ${res.rc}  0
+    Log To Console  \nCheck if the copy operations succeeded
+    :FOR  ${idx}  IN RANGE  0  10
+    \   OperatingSystem.File Should Exist  ${CURDIR}/lg-${idx}
+    \   Remove File  ${CURDIR}/lg-${idx}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f offline
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Sub volumes: copy from host to offline container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/mnt/vol1 -v vol2:/mnt/vol2 --name subVol ${busybox}
