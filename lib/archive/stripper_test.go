@@ -87,7 +87,7 @@ func TestSingleStripper(t *testing.T) {
 	index, reader := generateArchive("single", count, size)
 
 	source := tar.NewReader(reader)
-	stripper := NewStripper(trace.NewOperation(context.Background(), "strip"), source)
+	stripper := NewStripper(trace.NewOperation(context.Background(), "strip"), source, nil)
 
 	pr, pw := io.Pipe()
 	tr := tar.NewReader(pr)
@@ -100,7 +100,7 @@ func TestSingleStripper(t *testing.T) {
 
 		wg.Done()
 		fmt.Printf("Done copying from stripper: %d, %s\n", n, err)
-		if !assert.Equal(t, io.EOF, err, "Expected EOF") {
+		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
 			t.FailNow()
 		}
 
@@ -162,7 +162,7 @@ func TestConjoinedStrippers(t *testing.T) {
 		var reader io.Reader
 		indices[m], reader = generateArchive(fmt.Sprintf("archive-%d", m), count, size)
 		source := tar.NewReader(reader)
-		strippers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source)
+		strippers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source, nil)
 	}
 
 	conjoined := MultiReader(strippers...)
@@ -178,7 +178,7 @@ func TestConjoinedStrippers(t *testing.T) {
 
 		wg.Done()
 		fmt.Printf("Done copying from strippers: %d, %s\n", n, err)
-		if !assert.Equal(t, io.EOF, err, "Expected EOF") {
+		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
 			t.FailNow()
 		}
 	}()
@@ -247,7 +247,7 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 
 		if m < multiplicity-1 {
 			fmt.Printf("added stripper\n")
-			readers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source)
+			readers[m] = NewStripper(trace.NewOperation(context.Background(), fmt.Sprintf("strip-%d", m)), source, nil)
 		} else {
 			fmt.Printf("added raw\n")
 			readers[m] = reader
@@ -267,7 +267,7 @@ func TestConjoinedStrippersWithCloser(t *testing.T) {
 
 		wg.Done()
 		fmt.Printf("Done copying from all sources: %d, %s\n", n, err)
-		if !assert.Equal(t, io.EOF, err, "Expected EOF") {
+		if !assert.NoError(t, err, "Expected nil error from io.Copy on end-of-file") {
 			t.FailNow()
 		}
 	}()

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	docker "github.com/docker/docker/pkg/archive"
@@ -32,6 +33,9 @@ const (
 	// ChangeTypeKey defines the key for the type of diff change stored in the tar Xattrs header
 	ChangeTypeKey = "change_type"
 )
+
+// CancelNotifyKey allows for a notification when cancelation is complete
+type CancelNotifyKey struct{}
 
 // for sort.Sort
 type changesByPath []docker.Change
@@ -69,13 +73,31 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 		hdr *tar.Header
 	)
 
+	// I don't like this as we've not assurance that it's appropriately buffered, but cannot think of a go-idomatic way to
+	// do better right now
+	var notify *sync.WaitGroup
+	n := op.Value(CancelNotifyKey{})
+	if n != nil {
+		var ok bool
+		if notify, ok = n.(*sync.WaitGroup); ok {
+			// this lets us block the creator of the cancel-notifier until we've cleaned up
+			notify.Add(1)
+		}
+	}
+
 	// Note: it is up to the caller to handle errors and the closing of the read side of the pipe
 	r, w := io.Pipe()
 	go func() {
 		tw := tar.NewWriter(w)
+
 		defer func() {
 			var cerr error
 			defer w.Close()
+
+			if notify != nil {
+				// inform waiters that we're done with cleanup
+				notify.Done()
+			}
 
 			if oerr := op.Err(); oerr != nil {
 				// don't close the archive if we're truncating the copy - it's misleading
@@ -87,6 +109,11 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				op.Errorf("Error closing tar writer: %s", cerr.Error())
 			}
 			if err == nil {
+				if cerr != nil {
+					op.Errorf("Closing down tar writer with clean exit: %s", cerr)
+				} else {
+					op.Infof("Closing down tar writer with pristine exit")
+				}
 				_ = w.CloseWithError(cerr)
 			} else {
 				op.Errorf("Closing down tar writer with error during tar: %s", err)
@@ -138,6 +165,10 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 						select {
 						case <-op.Done():
 							f.Close()
+							// force the io.Copy to exit whether it's in the read or write portion of the copy.
+							// If this causes problems with inflight data we can try moving the cancellation notifier
+							// Done call here and see if the other end of w/tw will be shut down.
+							w.Close()
 						case <-done:
 						}
 					}()

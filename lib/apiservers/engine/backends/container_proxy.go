@@ -725,7 +725,7 @@ func (c *ContainerProxy) ArchiveExportReader(op trace.Operation, store, ancestor
 		select {
 		case <-op.Done():
 			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
-			// stream.  The other way is for the caller of this function to close the returned CloseReader.
+			// stream.  The other way is for the caller of this function to close the returned ReaderCloser.
 			// Callers of this function should do one but not both.
 			pipeReader.Close()
 		case <-done:
@@ -751,7 +751,7 @@ func (c *ContainerProxy) ArchiveExportReader(op trace.Operation, store, ancestor
 
 		_, err = c.client.Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
-			log.Errorf("Error from ExportArchive: %s", err.Error())
+			op.Errorf("Error from ExportArchive for %s: %s", deviceID, err.Error())
 			switch err := err.(type) {
 			case *storage.ExportArchiveInternalServerError:
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
@@ -769,11 +769,11 @@ func (c *ContainerProxy) ArchiveExportReader(op trace.Operation, store, ancestor
 					op.Debugf("swagger error %s", err.Error())
 					pipeWriter.Close()
 				} else {
-					op.Errorf(err.Error())
 					pipeWriter.CloseWithError(err)
 				}
 			}
 		} else {
+			op.Debugf("Clean exit from ExportArchive for %s", deviceID)
 			pipeWriter.Close()
 		}
 	}()
