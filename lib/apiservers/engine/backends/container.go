@@ -1279,13 +1279,14 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 // ContainerChanges returns a list of container fs changes
 func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "ContainerChanges: %s", name)
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return nil, NotFoundError(name)
 	}
 
-	r, err := c.containerProxy.GetContainerChanges(context.Background(), vc, false)
+	r, err := c.containerProxy.GetContainerChanges(op, vc, false)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
@@ -1306,7 +1307,6 @@ func (c *Container) ContainerChanges(name string) ([]docker.Change, error) {
 			return []docker.Change{}, InternalServerError(err.Error())
 		}
 
-		log.Infof("Got header %s", hdr.Name)
 		change := docker.Change{
 			Path: hdr.Name,
 		}

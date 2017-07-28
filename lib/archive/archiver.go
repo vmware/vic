@@ -167,39 +167,28 @@ func EncodeFilterSpec(op trace.Operation, spec *FilterSpec) (*string, error) {
 // If the spec is completely empty it will match everything.
 // If an inclusion is set, but not exclusion, then we'll only return matches for the inclusions.
 func (spec *FilterSpec) Excludes(op trace.Operation, filePath string) bool {
-	il := len(spec.Inclusions)
-	el := len(spec.Exclusions)
-
-	if il == 0 && el == 0 {
-		// empty spec means include everything
-		return false
-	}
-
-	inclusion := ""
-	exclusion := "/"
-
-	if il == 0 {
-		// if only exclusions are specified then default is include all others
-		inclusion = "/"
-	}
+	inclusionLength := -1
+	exclusionLength := -1
 
 	for path := range spec.Inclusions {
 		if strings.HasPrefix(filePath, path) {
-			if len(path) > len(inclusion) {
+			temp := len(path)
+			if temp > inclusionLength {
 				// more specific inclusion, so update
-				inclusion = path
+				inclusionLength = temp
 			}
 		}
 	}
 
 	for path := range spec.Exclusions {
 		if strings.HasPrefix(filePath, path) {
-			if len(path) > len(exclusion) {
+			temp := len(path)
+			if temp > exclusionLength {
 				// more specific exclusion, so update
-				exclusion = path
+				exclusionLength = temp
 			}
 		}
 	}
 
-	return len(inclusion) < len(exclusion)
+	return inclusionLength < exclusionLength
 }

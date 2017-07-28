@@ -28,7 +28,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
-	vicarchive "github.com/vmware/vic/lib/archive"
+	"github.com/vmware/vic/lib/archive"
 	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/storage/nfs"
@@ -110,6 +110,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 	api.StorageExportArchiveHandler = storage.ExportArchiveHandlerFunc(h.ExportArchive)
 	api.StorageImportArchiveHandler = storage.ImportArchiveHandlerFunc(h.ImportArchive)
+	api.StorageStatPathHandler = storage.StatPathHandlerFunc(h.StatPath)
 }
 
 func (h *StorageHandlersImpl) configureVolumeStores(op trace.Operation, handlerCtx *HandlerContext) {
@@ -535,15 +536,13 @@ func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middle
 // ImportArchive takes an input tar archive and unpacks to destination
 func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
-	defer params.Archive.Close()
 
 	id := params.DeviceID
 	op := trace.NewOperation(context.Background(), "ImportArchive: %s", id)
 
-	filterSpec, err := vicarchive.DecodeFilterSpec(op, params.FilterSpec)
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
 	if err != nil {
-		// hickeng: should be a 422 instead of 500
-		return storage.NewImportArchiveInternalServerError()
+		return storage.NewImportArchiveUnprocessableEntity()
 	}
 
 	store, ok := spl.GetImporter(params.Store)
@@ -567,7 +566,6 @@ func (h *StorageHandlersImpl) ImportArchive(params storage.ImportArchiveParams) 
 // ExportArchive creates a tar archive and returns to caller
 func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
-
 	id := params.DeviceID
 	ancestor := ""
 	if params.Ancestor != nil {
@@ -576,10 +574,9 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 
 	op := trace.NewOperation(context.Background(), "ExportArchive: %s:%s", id, ancestor)
 
-	filterSpec, err := vicarchive.DecodeFilterSpec(op, params.FilterSpec)
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
 	if err != nil {
-		// hickeng: should be a 422 instead of 500
-		return storage.NewExportArchiveInternalServerError()
+		return storage.NewExportArchiveUnprocessableEntity()
 	}
 
 	store, ok := spl.GetExporter(params.Store)
@@ -601,6 +598,55 @@ func (h *StorageHandlersImpl) ExportArchive(params storage.ExportArchiveParams) 
 	}
 
 	return NewStreamOutputHandler("ExportArchive").WithPayload(NewFlushingReader(r), params.DeviceID, func() { r.Close() })
+}
+
+// StatPath returns file info on the target path of a container copy
+func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "StatPath: %s", params.DeviceID)
+
+	filterSpec, err := archive.DecodeFilterSpec(op, params.FilterSpec)
+	if err != nil {
+		return storage.NewStatPathUnprocessableEntity()
+	}
+
+	if len(filterSpec.Inclusions) != 1 {
+		return storage.NewStatPathUnprocessableEntity()
+	}
+
+	store, ok := spl.GetExporter(params.Store)
+	if !ok {
+		op.Errorf("Error getting exporter: %s", err.Error())
+		return storage.NewStatPathNotFound()
+	}
+
+	dataSource, err := store.NewDataSource(op, params.DeviceID)
+	if err != nil {
+		op.Errorf("Error getting data source: %s", err.Error())
+		return storage.NewStatPathInternalServerError()
+	}
+	defer dataSource.Close()
+
+	fileStat, err := dataSource.Stat(op, filterSpec)
+	if err != nil {
+		op.Errorf("Error getting datasource stats: %s", err.Error())
+		return storage.NewStatPathInternalServerError()
+	}
+
+	modTimeBytes, err := fileStat.ModTime.GobEncode()
+	if err != nil {
+		return storage.NewStatPathUnprocessableEntity()
+	}
+
+	op.Debugf("found data successfully")
+	return storage.
+		NewStatPathOK().
+		WithMode(fileStat.Mode).
+		WithLinkTarget(fileStat.LinkTarget).
+		WithName(fileStat.Name).
+		WithSize(fileStat.Size).
+		WithModTime(string(modTimeBytes))
+
 }
 
 //utility functions
