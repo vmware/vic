@@ -190,18 +190,24 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 
 	primaryTarget := resolvePathWithMountPoints(op, mounts, path)
 	fs := primaryTarget.filterSpec
-	// check to see if the path is a mount point, if so, return fake path
-	if len(fs.Inclusions) == 1 {
-		if _, ok := fs.Inclusions[""]; ok {
-			stat = &types.ContainerPathStat{
-				Name:       filepath.Base(fs.RebasePath),
-				Size:       int64(4096),
-				Mode:       os.ModeDir,
-				Mtime:      time.Now(),
-				LinkTarget: ""}
-			op.Debugf("faking container stat path %#v", stat)
-			return stat, nil
+
+	isMountPathTarget := false
+	for _, mount := range mounts {
+		if strings.HasPrefix(mount.Destination+"/", path) {
+			isMountPathTarget = true
 		}
+	}
+
+	// check to see if the path is a mount point, if so, return fake path
+	if isMountPathTarget {
+		stat = &types.ContainerPathStat{
+			Name:       filepath.Base(fs.RebasePath),
+			Size:       int64(4096),
+			Mode:       os.ModeDir,
+			Mtime:      time.Now(),
+			LinkTarget: ""}
+		op.Debugf("faking container stat path %#v", stat)
+		return stat, nil
 	}
 
 	var deviceID string
