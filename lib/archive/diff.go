@@ -88,7 +88,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 				op.Errorf("Error closing tar writer: %s", cerr.Error())
 			}
 			if err == nil {
-				op.Errorf("Closing down tar writer with clean exit: %s", cerr)
+				op.Infof("Closing down tar writer with clean exit: %s", cerr)
 				_ = w.CloseWithError(cerr)
 			} else {
 				op.Errorf("Closing down tar writer with error during tar: %s", err)
@@ -96,6 +96,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			}
 		}()
 
+		op.Debugf("List of all changes for Tar operation before exclusion: %s", changes)
 		for _, change := range changes {
 			if cerr := op.Err(); cerr != nil {
 				// this will still trigger the defer to close the archive neatly
@@ -104,6 +105,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			}
 
 			if spec.Excludes(op, strings.TrimPrefix(change.Path, "/")) {
+				op.Debugf("change (%s) being excluded from tar operation.", change.Path)
 				continue
 			}
 
