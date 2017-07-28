@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -115,20 +114,7 @@ func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, e
 	return vm, nil
 }
 
-<<<<<<< HEAD
 func IsSelf(op trace.Operation, uuid string) (bool, error) {
-=======
-func IsSelf(op trace.Operation, vm *vm.VirtualMachine) (bool, error) {
-	if vm == nil {
-		return false, nil
-	}
-
-	uuid, err := vm.UUID(op)
-	if err != nil {
-		return false, err
-	}
-
->>>>>>> Check online vmdk owner is appliance (#5790)
 	self, err := sys.UUID()
 	if err != nil {
 		return false, err
