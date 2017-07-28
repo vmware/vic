@@ -51,7 +51,7 @@ Simple VSAN
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
-    Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  TEST_TIMEOUT  15m
 
     ${out}=  Run  govc datastore.vsan.dom.ls -ds %{TEST_DATASTORE} -l -o
     Should Be Empty  ${out}
