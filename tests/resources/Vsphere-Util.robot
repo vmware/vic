@@ -197,6 +197,12 @@ Assign Vsphere License
     ${out}=  Run  govc license.assign -host ${host} ${license}
     Should Contain  ${out}  Key:
 
+Assign vCenter License
+    [Tags]  secret
+    [Arguments]  ${license}
+    ${out}=  Run  govc license.assign ${license}
+    Should Contain  ${out}  Key:
+
 Add Host To VCenter
     [Arguments]  ${host}  ${user}  ${dc}  ${pw}
     :FOR  ${idx}  IN RANGE  1  4
@@ -228,5 +234,3 @@ Check VM Guestinfo
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -e ${vm} | grep ${str}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${output}
-
-    

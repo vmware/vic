@@ -30,8 +30,9 @@ This test requires that a vSphere server is running and available
 17. Issue docker inspect fake to the VIC appliance
 18. Issue docker create -v /var/lib/test busybox
 19. Issue docker inspect -f {{.Config.Volumes}} <containerID>
-20. Issue docker inspect busybox -f '{{.RepoDigest}}'
-21. Issue docker inspect on container with both an anonymous and named volume bound to mount points
+20. Issue docker inspect test-with-volume | jq '.[]|.["Config"]|.["Volumes"]|keys[0]' and docker volume ls
+21. Issue docker inspect busybox -f '{{.RepoDigest}}'
+22. Issue docker inspect on container with both an anonymous and named volume bound to mount points
 
 # Expected Outcome:
 * Step 3,4,7,8 should result in success and a properly formatted JSON response
@@ -50,8 +51,9 @@ Error: No such image: <containerID>
 Error: No such image or container: fake
 ```
 * Step 19 should result in the map returned containing /var/lib/test
-* Step 20 should result in a valid digest, previously cached
-* Step 21 should result in valid Mounts data
+* Step 20 should find matching volume ID matching in docker inspect in volume ls
+* Step 21 should result in a valid digest, previously cached
+* Step 22 should result in valid Mounts data
 
 # Possible Problems:
 None

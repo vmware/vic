@@ -33,8 +33,6 @@ package backends
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -96,9 +94,6 @@ type VicContainerProxy interface {
 	AttachStreams(ctx context.Context, ac *AttachConfig, stdin io.ReadCloser, stdout, stderr io.Writer) error
 	StreamContainerLogs(ctx context.Context, name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	StreamContainerStats(ctx context.Context, config *convert.ContainerStatsConfig) error
-
-	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error)
 
 	Stop(vc *viccontainer.VicContainer, name string, seconds *int, unbound bool) error
 	State(vc *viccontainer.VicContainer) (*types.ContainerState, error)
@@ -390,6 +385,18 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 	log.Infof("Finalized Volume list : %#v", volList)
 
+	if len(config.Config.Volumes) > 0 {
+		// override anonymous volume list with generated volume id
+		for _, vol := range volList {
+			if _, ok := config.Config.Volumes[vol.Dest]; ok {
+				delete(config.Config.Volumes, vol.Dest)
+				mount := getMountString(vol.ID, vol.Dest, vol.Flags)
+				config.Config.Volumes[mount] = struct{}{}
+				log.Debugf("Replace anonymous volume config %s with %s", vol.Dest, mount)
+			}
+		}
+	}
+
 	// Create and join volumes.
 	for _, fields := range volList {
 
@@ -421,7 +428,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
-		flags["Mode"] = fields.Flags
+		flags[constants.Mode] = fields.Flags
 		joinParams := storage.NewVolumeJoinParamsWithContext(ctx).WithJoinArgs(&models.VolumeJoinConfig{
 			Flags:     flags,
 			Handle:    handle,
@@ -688,161 +695,12 @@ func (c *ContainerProxy) GetContainerChanges(ctx context.Context, vc *viccontain
 		Exclusions: map[string]struct{}{},
 	}
 
-	r, err := c.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
+	r, err := archiveProxy.ArchiveExportReader(ctx, constants.ContainerStoreName, host, vc.ContainerID, parent, data, spec)
 	if err != nil {
 		return nil, InternalServerError(err.Error())
 	}
 
 	return r, nil
-}
-
-// ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
-// an io.Reader is returned and the caller can use that reader to parse the data.
-func (c *ContainerProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
-	defer trace.End(trace.Begin(deviceID))
-
-	if store == "" || deviceID == "" {
-		return nil, fmt.Errorf("ArchiveExportReader called with either empty store or deviceID")
-	}
-
-	var err error
-
-	pipeReader, pipeWriter := io.Pipe()
-
-	done := make(chan struct{})
-	go func() {
-		// make sure we get out of io.Copy if context is canceled
-		select {
-		case <-ctx.Done():
-
-			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
-			// stream.  The other way is for the caller of this function to close the returned CloseReader.
-			// Callers of this function should do one but not both.
-			pipeReader.Close()
-		}
-	}()
-
-	go func() {
-		defer close(done)
-
-		params := storage.NewExportArchiveParamsWithContext(ctx).
-			WithStore(store).
-			WithAncestorStore(&ancestorStore).
-			WithDeviceID(deviceID).
-			WithAncestor(&ancestor).
-			WithData(data)
-
-		// Encode the filter spec
-		encodedFilter := ""
-		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
-			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
-			params = params.WithFilterSpec(&encodedFilter)
-			log.Infof(" encodedFilter = %s", encodedFilter)
-		}
-
-		_, err = c.client.Storage.ExportArchive(params, pipeWriter)
-		if err != nil {
-			log.Errorf("Error from ExportArchive: %s", err.Error())
-			switch err := err.(type) {
-			case *storage.ExportArchiveInternalServerError:
-				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeWriter.CloseWithError(plErr)
-			case *storage.ImportArchiveLocked:
-				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeWriter.CloseWithError(plErr)
-			default:
-				//Check for EOF.  Since the connection, transport, and data handling are
-				//encapsulated inside of Swagger, we can only detect EOF by checking the
-				//error string
-				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					log.Debugf("swagger error %s", err.Error())
-					pipeWriter.Close()
-				} else {
-					pipeWriter.CloseWithError(err)
-				}
-			}
-		} else {
-			pipeWriter.Close()
-		}
-	}()
-
-	return pipeReader, nil
-}
-
-// ArchiveImportWriter initializes a write stream for a path.  This is usually called
-// for gettine a writer during docker cp TO container.
-func (c *ContainerProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
-	defer trace.End(trace.Begin(deviceID))
-
-	if store == "" || deviceID == "" {
-		return nil, fmt.Errorf("ArchiveImportWriter called with either empty store or deviceID")
-	}
-
-	var err error
-
-	pipeReader, pipeWriter := io.Pipe()
-
-	done := make(chan struct{})
-	go func() {
-		// make sure we get out of io.Copy if context is canceled
-		select {
-		case <-ctx.Done():
-		case <-done:
-		}
-
-		// Attempt to shutdown the stream to the portlayer.  The other way to cancel the
-		// connection is to call close on the WriteCloser returned from this function.
-		// Callers of this function should do one but not both.
-		pipeWriter.Close()
-	}()
-
-	go func() {
-		defer close(done)
-
-		// encodedFilter and destination are not required (from swagge spec) because
-		// they are allowed to be empty.
-		params := storage.NewImportArchiveParamsWithContext(ctx).
-			WithStore(store).
-			WithDeviceID(deviceID).
-			WithArchive(pipeReader)
-
-		// Encode the filter spec
-		encodedFilter := ""
-		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
-			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
-			params = params.WithFilterSpec(&encodedFilter)
-		}
-
-		_, err = c.client.Storage.ImportArchive(params)
-		if err != nil {
-			switch err := err.(type) {
-			case *storage.ImportArchiveInternalServerError:
-				plErr := InternalServerError(fmt.Sprintf("Server error from archive writer for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeReader.CloseWithError(plErr)
-			case *storage.ImportArchiveLocked:
-				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				log.Errorf(plErr.Error())
-				pipeReader.CloseWithError(plErr)
-			default:
-				//Check for EOF.  Since the connection, transport, and data handling are
-				//encapsulated inside of Swagger, we can only detect EOF by checking the
-				//error string
-				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					log.Errorf(err.Error())
-					pipeReader.Close()
-				} else {
-					pipeReader.CloseWithError(err)
-				}
-			}
-		} else {
-			pipeReader.Close()
-		}
-	}()
-
-	return pipeWriter, nil
 }
 
 // Stop will stop (shutdown) a VIC container.
@@ -1452,7 +1310,7 @@ func processVolumeParam(volString string) (volumeFields, error) {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
-			return volumeFields{}, nil
+			return fields, err
 		}
 		fields.ID = VolumeID.String()
 		fields.Dest = volumeStrings[0]
@@ -1544,7 +1402,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			SizeRw:          nil,
 			SizeRootFs:      nil,
 		},
-		Mounts:          mountsFromContainerInfo(vc, info),
+		Mounts:          mountsFromContainer(vc),
 		Config:          containerConfigFromContainerInfo(vc, info),
 		NetworkSettings: networkFromContainerInfo(vc, info),
 	}
@@ -1643,21 +1501,13 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	return &hostConfig
 }
 
-// mountsFromContainerInfo()
-func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) []types.MountPoint {
-	if vc == nil || info == nil {
-		return nil
-	}
-
-	// Iterate through info.VolumeConfig and build the hostconfig.bind config.volumes
-
-	// Derive the mount data
-	return mountsFromContainer(vc)
-}
-
 // mountsFromContainer derives []types.MountPoint (used in inspect) from the cached container
 // data.
 func mountsFromContainer(vc *viccontainer.VicContainer) []types.MountPoint {
+	if vc == nil {
+		return nil
+	}
+
 	var mounts []types.MountPoint
 
 	rawAnonVolumes := make([]string, 0, len(vc.Config.Volumes))
@@ -1678,6 +1528,7 @@ func mountsFromContainer(vc *viccontainer.VicContainer) []types.MountPoint {
 			Source:      vol.ID,
 			Destination: vol.Dest,
 			RW:          false,
+			Mode:        vol.Flags,
 		}
 
 		if strings.Contains(strings.ToLower(vol.Flags), "rw") {
@@ -1764,7 +1615,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 
 	// Pull labels from the annotation
 	convert.ContainerAnnotation(info.ContainerConfig.Annotations, convert.AnnotationKeyLabels, &container.Labels)
-
 	return &container
 }
 
@@ -1911,7 +1761,22 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	tempVC.HostConfig = &container.HostConfig{}
 	vc.Config = containerConfigFromContainerInfo(tempVC, &info)
 	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
+
+	// FIXME: duplicate Config.Volumes and HostConfig.Binds here for can not derive them from persisted value right now.
+	// get volumes from volume config
+	vc.Config.Volumes = make(map[string]struct{}, len(info.VolumeConfig))
+	vc.HostConfig.Binds = []string{}
+	for _, volume := range info.VolumeConfig {
+		mount := getMountString(volume.Name, volume.MountPoint, volume.Flags[constants.Mode])
+		vc.Config.Volumes[mount] = struct{}{}
+		vc.HostConfig.Binds = append(vc.HostConfig.Binds, mount)
+		log.Debugf("add volume mount %s to config.volumes and hostconfig.binds", mount)
+	}
 	return vc
+}
+
+func getMountString(mounts ...string) string {
+	return strings.Join(mounts, ":")
 }
 
 //------------------------------------

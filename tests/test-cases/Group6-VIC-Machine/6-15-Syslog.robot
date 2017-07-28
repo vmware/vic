@@ -61,6 +61,8 @@ Verify VCH remote syslog
     Should Be Equal As Integers  ${rc}  0
     ${shortID}=  Get container shortID  ${id}
 
+    Wait Until Container Stops  ${id}  5
+
     ${syslog-conn}=  Open Connection  %{SYSLOG_SERVER}
     Login  %{SYSLOG_USER}  %{SYSLOG_PASSWD}
     ${out}=  Execute Command  cat ${SYSLOG_FILE}
