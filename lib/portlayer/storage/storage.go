@@ -39,6 +39,11 @@ var (
 	exporters map[string]Exporter
 )
 
+func init() {
+	importers = make(map[string]Importer)
+	exporters = make(map[string]Exporter)
+}
+
 func create(ctx context.Context, session *session.Session, pool *object.ResourcePool) error {
 	var err error
 
@@ -64,9 +69,6 @@ func Init(ctx context.Context, session *session.Session, pool *object.ResourcePo
 		log.Debugf("Decoded VCH config for storage: %#v", Config)
 
 		err = create(ctx, session, pool)
-
-		importers = make(map[string]Importer)
-		exporters = make(map[string]Exporter)
 	})
 	return err
 }
