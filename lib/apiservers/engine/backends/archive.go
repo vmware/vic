@@ -86,8 +86,11 @@ func (c *Container) exportFromContainer(op trace.Operation, vc *viccontainer.Vic
 	strippersWithCloser := make([]io.Reader, len(readers))
 	i := 0
 	for ; i < count-1; i++ {
-		strippersWithCloser[i] = vicarchive.NewStripper(op, tar.NewReader(readers[i]))
+		stripper := vicarchive.NewStripper(op, tar.NewReader(readers[i]), readers[i].Close)
+		strippersWithCloser[i] = stripper
+		op.Debugf("Added stripping reader: %p", stripper)
 	}
+	op.Debugf("Adding closing reader: %p", readers[i])
 	strippersWithCloser[i] = readers[i]
 
 	return vicarchive.MultiReader(strippersWithCloser...), nil
@@ -557,10 +560,10 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 //
 //			containaerSroucePath -	/mnt/A
 // In the above, both readers are within the the container source path.
-func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy proxy.VicArchiveProxy, cid, containerSourcePath string) ([]io.Reader, error) {
+func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy proxy.VicArchiveProxy, cid, containerSourcePath string) ([]io.ReadCloser, error) {
 	defer trace.End(trace.Begin(containerSourcePath))
 
-	var streamReaders []io.Reader
+	var streamReaders []io.ReadCloser
 
 	nodes, err := rm.FindArchiveReaders(containerSourcePath)
 	if err != nil {

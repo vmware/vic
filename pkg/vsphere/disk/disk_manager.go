@@ -469,7 +469,7 @@ func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
 		return t, er
 	})
 
-	if err != nil {
+	if err == nil {
 		select {
 		case <-m.maxAttached:
 		default:
