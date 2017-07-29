@@ -848,8 +848,8 @@ func TestAddExclusionsNestedMounts(t *testing.T) {
 		},
 		"/mnt/A": {
 			Exclusions: map[string]struct{}{
-				"dir/AB": {},
-				"dir/AC": {},
+				"dir/AB/": {},
+				"dir/AC/": {},
 			},
 			Inclusions: map[string]struct{}{
 				"": {},
