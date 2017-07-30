@@ -144,6 +144,7 @@ func (c *containerBase) updates(ctx context.Context) (*containerBase, error) {
 	}
 
 	log.Debugf("Update: change version %s, extraconfig id: %+v", o.Config.ChangeVersion, containerExecKeyValues["guestinfo.vice./common/id"])
+	// #nosec
 	base.DataVersion, _ = migration.ContainerDataVersion(containerExecKeyValues)
 	migratedConf, base.Migrated, base.MigrationError = migration.MigrateContainerConfig(containerExecKeyValues)
 	extraconfig.Decode(extraconfig.MapSource(migratedConf), base.ExecConfig)
