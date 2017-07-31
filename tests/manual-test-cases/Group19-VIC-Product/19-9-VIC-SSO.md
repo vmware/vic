@@ -15,13 +15,13 @@ This test requires that a vCenter server with integrated PSC and with a discrete
 [OVA Releases](https://console.cloud.google.com/storage/browser/vic-product-ova-releases/?project=eminent-nation-87317&authuser=1)
 2. Navigate to the getting started page at https://<VIC>:9443
 3. Login into the vCenter using incorrect credentials
-4. Navigate to the admiral, demo VCH pages
+4. Navigate to the admiral and demo VCH pages
 5. Login into the vCenter using correct credentials
-6. Navigate to the admiral, demo VCH pages
+6. Navigate to the admiral and demo VCH pages
 7. Wait 10 minutes
-8. Navigate to the admiral, demo VCH pages
+8. Navigate to the admiral and demo VCH pages
 9. Wait another 50 minutes (60 minutes total)
-10. Navigate to the admiral, demo VCH pages
+10. Navigate to the admiral and demo VCH pages
 
 # Expected Outcome:
 * Steps 1,2,5-8 should all succeed without error
