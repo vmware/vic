@@ -52,19 +52,26 @@ func GenerateFilterSpec(copyPath string, mountPoint string, primaryTarget bool, 
 func generateCopyFromFilterSpec(copyPath string, mountPoint string, primaryTarget bool) FilterSpec {
 	var filter FilterSpec
 
-	//we only need the right most element.
-	_, first := filepath.Split(copyPath)
+	// If the copyPath ends with '/.', we don't want the content's directory name
+	// to be included in the resulting tar header. we do this by removing the directory
+	// portion of the rebase path.
+	// if the copyPath does not end with '/.', we only need the right most element of copyPath.
+	first := filepath.Base(copyPath)
+	if first == "." {
+		first = ""
+		copyPath = clean(copyPath, false)
+	}
 
 	// primary target was provided so we wil need to split the target and take the right most element for the rebase.
 	// then strip set the strip as the target path.
 	if primaryTarget {
-		filter.RebasePath = removeLeadingSlash(first)
-		filter.StripPath = removeLeadingSlash(strings.TrimPrefix(copyPath, mountPoint))
+		filter.RebasePath = clean(first, true)
+		filter.StripPath = clean(strings.TrimPrefix(copyPath, mountPoint), true)
 		return filter
 	}
 
 	// non primary target was provided. in this case we will need rebase to include the right most member of the target(or "/") joined to the front of the mountPath - the target path. 3
-	filter.RebasePath = removeLeadingSlash(filepath.Join(first, strings.TrimPrefix(mountPoint, copyPath)))
+	filter.RebasePath = clean(filepath.Join(first, strings.TrimPrefix(mountPoint, copyPath)), true)
 	filter.StripPath = ""
 	return filter
 }
@@ -74,14 +81,14 @@ func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget 
 
 	// primary target was provided so we will need to rebase header assets for this mount to have the target in front for the write.
 	if primaryTarget {
-		filter.RebasePath = removeLeadingSlash(strings.TrimPrefix(copyPath, mountPoint))
+		filter.RebasePath = clean(strings.TrimPrefix(copyPath, mountPoint), true)
 		filter.StripPath = ""
 		return filter
 	}
 
 	// non primary target, this implies that the asset header has part of the mount point path in it. We must strip out that part since the non primary target will be mounted and be looking at the world from it's own root "/"
 	filter.RebasePath = ""
-	filter.StripPath = removeLeadingSlash(strings.TrimPrefix(mountPoint, copyPath))
+	filter.StripPath = clean(strings.TrimPrefix(mountPoint, copyPath), true)
 
 	return filter
 }
@@ -96,8 +103,15 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 	}
 
 	if strings.HasPrefix(copyTarget, currentMount) && copyTarget != currentMount {
+
+		inclusion := clean(strings.TrimPrefix(copyTarget, currentMount), true)
+
+		if filepath.Base(copyTarget) == "." {
+			inclusion += "/"
+		}
+
+		filter.Inclusions[inclusion] = struct{}{}
 		filter.Exclusions[""] = struct{}{}
-		filter.Inclusions[removeSlashes(strings.TrimPrefix(copyTarget, currentMount))] = struct{}{}
 	} else {
 		// this would be a mount that is after the target. It would mean we have to include root. then exclude any mounts after root.
 		filter.Inclusions[""] = struct{}{}
@@ -106,25 +120,25 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 	for _, mount := range mounts {
 		if strings.HasPrefix(mount, currentMount) && currentMount != mount {
 			// exclusions are relative to the mount so the leading `/` should be removed unless we decide otherwise.
-			exclusion := removeLeadingSlash(strings.TrimPrefix(mount, currentMount))
-			if !strings.HasSuffix(exclusion, "/") {
-				exclusion = exclusion + "/"
-			}
-
+			exclusion := clean(strings.TrimPrefix(mount, currentMount), true) + "/"
 			filter.Exclusions[exclusion] = struct{}{}
 		}
 	}
 	return nil
 }
 
-// removeLeadingSlash will remove the '/' from in front of a target path
-// we use this to ensure relative pathing
-func removeLeadingSlash(path string) string {
-	return strings.TrimPrefix(path, "/")
-}
+// clean run filepath.clean on the target and will remove leading
+// and trailing slashes from the target path corresponding to supplied booleans
+func clean(path string, leading bool) string {
+	path = filepath.Clean(path)
+	// path returns '.' if the result of the clean was an empty string.
+	if path == "." {
+		return ""
+	}
 
-// removeSlashes will remove a leading and trailing '/' from
-// the target path
-func removeSlashes(path string) string {
-	return strings.TrimPrefix(strings.TrimSuffix(path, "/"), "/")
+	if leading {
+		path = strings.TrimPrefix(path, "/")
+	}
+
+	return path
 }

@@ -78,10 +78,14 @@ func (d *VirtualDiskConfig) WithCapacity(capacity int64) *VirtualDiskConfig {
 }
 
 func (d *VirtualDiskConfig) Hash() uint64 {
-	key := fmt.Sprintf("%s-%s", d.DatastoreURI, d.DiskMode)
+	key := fmt.Sprintf("%s-%t", d.DatastoreURI, d.IsPersistent())
 
 	hash := fnv.New64a()
 	hash.Write([]byte(key))
 
 	return hash.Sum64()
+}
+
+func (d *VirtualDiskConfig) IsPersistent() bool {
+	return d.DiskMode == types.VirtualDiskModeIndependent_persistent || d.DiskMode == types.VirtualDiskModePersistent
 }

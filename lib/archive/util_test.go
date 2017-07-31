@@ -15,6 +15,7 @@
 package archive
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,19 +82,7 @@ func TestComplexWriteSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -133,19 +122,7 @@ func TestWriteIntoMountSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -171,19 +148,7 @@ func TestWriteFileIntoMountSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -209,19 +174,7 @@ func TestWriteFilespec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -286,19 +239,7 @@ func TestComplexReadOfRootSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -361,19 +302,46 @@ func TestComplexReadSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
+}
 
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
+func TestReadDirectorySlashdot(t *testing.T) {
+	copyTarget := "/mnt/vols/."
+	direction := CopyFrom
 
+	mounts := []testMount{
+
+		{
+			mount:              "/",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: true,
+			direction:          direction,
+		},
+		{
+			mount:              "/mnt/vols/A",
+			CopyTarget:         copyTarget,
+			primaryMountTarget: false,
+			direction:          direction,
+		},
 	}
+
+	expectedFilterSpecs := map[string]FilterSpec{
+		"/": {
+			RebasePath: "",
+			StripPath:  "mnt/vols",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+		"/mnt/vols/A": {
+			RebasePath: "A",
+			StripPath:  "",
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		},
+	}
+
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -436,19 +404,7 @@ func TestComplexReadWithEndingSlashSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -474,19 +430,7 @@ func TestReadIntoMountSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -512,19 +456,7 @@ func TestReadLevelOneDirpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -550,19 +482,7 @@ func TestReadLevelOneNoTrailingSlash(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -590,19 +510,7 @@ func TestReadFileSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -628,19 +536,7 @@ func TestReadFileInMountSpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -666,19 +562,7 @@ func TestReadAtMountBoundarySpec(t *testing.T) {
 		},
 	}
 
-	for _, v := range mounts {
-		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
-		expectedFilterSpec := expectedFilterSpecs[v.mount]
-
-		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
-			return
-		}
-
-		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
-			return
-		}
-
-	}
+	assertStripRebase(t, mounts, expectedFilterSpecs)
 
 }
 
@@ -821,6 +705,117 @@ func TestAddExclusionsTrailingSlash(t *testing.T) {
 	}
 
 }
+
+func TestAddExclusionsTrailingSlashdot(t *testing.T) {
+	copyTarget := "/mnt/."
+	testMounts := []string{
+		"/",
+		"/mnt/A",
+		"/mnt/B",
+		"/mnt/C",
+		"/mnt/A/dir/AB",
+		"/mnt/A/dir/AC",
+	}
+
+	expectedResults := map[string]FilterSpec{
+		"/": {
+			Exclusions: map[string]struct{}{
+				"":              {},
+				"mnt/A/":        {},
+				"mnt/B/":        {},
+				"mnt/C/":        {},
+				"mnt/A/dir/AB/": {},
+				"mnt/A/dir/AC/": {},
+			},
+			Inclusions: map[string]struct{}{
+				"mnt/": {},
+			},
+		},
+		"/mnt/A": {
+			Exclusions: map[string]struct{}{
+				"dir/AB/": {},
+				"dir/AC/": {},
+			},
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
+		"/mnt/B": {
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
+		"/mnt/C": {
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
+		"/mnt/A/dir/AB": {
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
+		"/mnt/A/dir/AC": {
+			Exclusions: make(map[string]struct{}),
+			Inclusions: map[string]struct{}{
+				"": {},
+			},
+		},
+	}
+
+	for _, mount := range testMounts {
+		spec := FilterSpec{
+			Exclusions: make(map[string]struct{}),
+			Inclusions: make(map[string]struct{}),
+		}
+
+		err := AddMountInclusionsExclusions(mount, &spec, testMounts, copyTarget)
+
+		if !assert.Nil(t, err) {
+			return
+		}
+
+		expectedSpec := expectedResults[mount]
+		expectedLength := len(expectedSpec.Exclusions)
+		actualLength := len(spec.Exclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			fmt.Printf("Expected exclusions: %+v, actual: %+v", expectedSpec.Exclusions, spec.Exclusions)
+			return
+		}
+
+		expectedSpec = expectedResults[mount]
+		expectedLength = len(expectedSpec.Inclusions)
+		actualLength = len(spec.Inclusions)
+		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the inclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			fmt.Printf("Expected inclusions: %+v, actual: %+v", expectedSpec.Inclusions, spec.Inclusions)
+			return
+		}
+
+		for path := range expectedSpec.Exclusions {
+			_, ok := spec.Exclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the exclusion map for %s \n exclusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
+
+		for path := range expectedSpec.Inclusions {
+			_, ok := spec.Inclusions[path]
+
+			if !assert.True(t, ok, "Should have found (%s) in the inclusion map for %s \n inclusion map: %s", path, mount, spec.Exclusions) {
+				return
+			}
+
+		}
+
+	}
+
+}
+
 func TestAddExclusionsNestedMounts(t *testing.T) {
 	copyTarget := "/mnt"
 	testMounts := []string{
@@ -1080,4 +1075,20 @@ type testMount struct {
 	CopyTarget         string
 	primaryMountTarget bool
 	direction          bool
+}
+
+func assertStripRebase(t *testing.T, mounts []testMount, expectedFilterSpecs map[string]FilterSpec) {
+	for _, v := range mounts {
+		actualFilterSpec := GenerateFilterSpec(v.CopyTarget, v.mount, v.primaryMountTarget, v.direction)
+		expectedFilterSpec := expectedFilterSpecs[v.mount]
+
+		if !assert.Equal(t, expectedFilterSpec.RebasePath, actualFilterSpec.RebasePath, "rebase path check failed (%s)", v.mount) {
+			return
+		}
+
+		if !assert.Equal(t, expectedFilterSpec.StripPath, actualFilterSpec.StripPath, "strip path check failed (%s)", v.mount) {
+			return
+		}
+
+	}
 }
