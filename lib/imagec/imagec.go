@@ -30,6 +30,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/manifest/schema2"
+	distreference "github.com/docker/distribution/reference"
 	docker "github.com/docker/docker/image"
 	dockerLayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -135,7 +136,7 @@ var (
 
 const (
 	// DefaultDockerURL holds the URL of Docker registry
-	DefaultDockerURL = "registry-1.docker.io"
+	DefaultDockerURL = "registry.hub.docker.com"
 
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
@@ -170,9 +171,10 @@ func (ic *ImageC) ParseReference() {
 		}
 	}
 
-	ic.Registry = DefaultDockerURL
-	if ic.Reference.Hostname() != reference.DefaultHostname {
-		ic.Registry = ic.Reference.Hostname()
+	ic.Registry = ic.Reference.Hostname()
+	hostname, _ := distreference.SplitHostname(ic.Reference)
+	if hostname == "" {
+		ic.Registry = DefaultDockerURL
 	}
 
 	ic.Image = ic.Reference.RemoteName()
