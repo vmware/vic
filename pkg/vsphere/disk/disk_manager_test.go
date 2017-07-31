@@ -334,7 +334,7 @@ func TestRefCounting(t *testing.T) {
 	// attempt attach
 	assert.NoError(t, vdm.attach(op, config), "Error attempting to attach %s", config)
 
-	devicePath, err := vdm.devicePathByURI(op, child)
+	devicePath, err := vdm.devicePathByURI(op, child, config.IsPersistent())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -676,7 +676,7 @@ func TestInUse(t *testing.T) {
 	t.Logf("InUse by %s", vms)
 
 	// ref to scratch (needed for detach as initial spec's Key and UnitNumber was unset)
-	disk, err := findDiskByFilename(op, vdm.vm, scratch.Path)
+	disk, err := findDiskByFilename(op, vdm.vm, scratch.Path, true)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -718,7 +718,7 @@ func TestInUse(t *testing.T) {
 	t.Logf("InUse by %s", vms)
 
 	// ref to child (needed for detach as initial spec's Key and UnitNumber was unset)
-	disk, err = findDiskByFilename(op, vdm.vm, child.Path)
+	disk, err = findDiskByFilename(op, vdm.vm, child.Path, true)
 	if !assert.NoError(t, err) {
 		return
 	}
