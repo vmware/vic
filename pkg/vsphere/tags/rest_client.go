@@ -140,13 +140,14 @@ func (c *RestClient) handleResponse(resp *http.Response, err error) (io.ReadClos
 
 	if statusCode < http.StatusOK || statusCode >= http.StatusBadRequest {
 		body, err := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
 		if err != nil {
 			return nil, nil, statusCode, errors.Wrap(err, "error reading response")
 		}
 		if len(body) == 0 {
 			return nil, nil, statusCode, errors.Errorf("Error: request returned %s", http.StatusText(statusCode))
 		}
-		Logger.Debugf("Error response from vCloud Suite API: %s", bytes.TrimSpace(body))
+		Logger.Debugf("Error response: %s", bytes.TrimSpace(body))
 		return nil, nil, statusCode, errors.Errorf("Error response from vCloud Suite API: %s", bytes.TrimSpace(body))
 	}
 
@@ -174,6 +175,7 @@ func (c *RestClient) Login(ctx context.Context) error {
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
+		resp.Body.Close()
 		return errors.Errorf("Login failed: body: %s, status: %s", bytes.TrimSpace(body), resp.Status)
 	}
 

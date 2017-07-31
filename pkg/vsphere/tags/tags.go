@@ -107,7 +107,7 @@ func (c *RestClient) CreateTag(ctx context.Context, spec *TagCreateSpec) (*strin
 		Logger.Debugf("Decode response body failed for: %s", errors.WithStack(err))
 		return nil, errors.Wrap(err, "create tag failed")
 	}
-	return &(pID.Value), nil
+	return &pID.Value, nil
 }
 
 func (c *RestClient) GetTag(ctx context.Context, id string) (*Tag, error) {
