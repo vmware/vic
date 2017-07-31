@@ -1,4 +1,4 @@
-// Copyright 2016-2017 VMware, Inc. All Rights Reserved.
+// Copyright 2017 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package archive
+package proxy
 
 import (
-	"archive/tar"
-	"io"
+	"fmt"
+	"net/http"
 
-	"github.com/go-openapi/runtime"
+	derr "github.com/docker/docker/api/errors"
 )
 
-func TarConsumer() runtime.Consumer {
-	return runtime.ConsumerFunc(func(reader io.Reader, data interface{}) error {
-		return runtime.ByteStreamConsumer().Consume(tar.NewReader(reader), data)
-	})
+// InternalServerError returns a 500 docker error on a portlayer error.
+func InternalServerError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", msg), http.StatusInternalServerError)
+}
+
+// ResourceLockedError returns a 423 http status
+func ResourceLockedError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Resource locked: %s", msg), http.StatusLocked)
 }

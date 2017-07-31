@@ -107,7 +107,7 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "",
+					rebase:  "/",
 					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
 					include: "",
 				},
@@ -133,7 +133,7 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "",
+					rebase:  "/",
 					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
 					include: "",
 				},
@@ -159,7 +159,7 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/B", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "",
+					rebase:  "/",
 					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
 					include: "",
 				},
@@ -202,7 +202,7 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "",
+					rebase:  "/",
 					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
 					include: "mnt/not-a-mount",
 				},
@@ -213,7 +213,7 @@ func TestFindArchiveReaders(t *testing.T) {
 			expectedPrefices:    []string{"/"},
 			expectedFilterSpecs: map[string]ReaderFilters{
 				"/": {
-					rebase:  "",
+					rebase:  "/",
 					exclude: []string{"/mnt/A", "/mnt/B", "/mnt/A/AB"},
 					include: "etc/",
 				},
@@ -233,9 +233,8 @@ func TestFindArchiveReaders(t *testing.T) {
 		},
 	}
 
-	readerMap := NewArchiveStreamReaderMap(mounts)
-
 	for i, data := range mockData {
+		readerMap := NewArchiveStreamReaderMap(mounts, data.containerSourcePath)
 		archiveReaders, err := readerMap.FindArchiveReaders(data.containerSourcePath)
 		assert.Nil(t, err, "Expected success from finding archive readers for container source %s", data.containerSourcePath)
 		assert.NotNil(t, archiveReaders, "Expected an array of archive readers but got nil for container source path %s", data.containerSourcePath)

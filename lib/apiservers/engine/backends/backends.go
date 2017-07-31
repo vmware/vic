@@ -26,18 +26,19 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/events"
+	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	vicproxy "github.com/vmware/vic/lib/apiservers/engine/proxy"
 	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
 	"github.com/vmware/vic/lib/imagec"
@@ -62,6 +63,7 @@ var (
 
 	vchConfig        dynConfig
 	RegistryCertPool *x509.CertPool
+	archiveProxy     vicproxy.VicArchiveProxy
 
 	eventService *events.Events
 )
@@ -110,8 +112,10 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	}
 
 	t := rc.New(portLayerAddr, "/", []string{"http"})
-	t.Consumers["application/x-tar"] = archive.TarConsumer()
-	t.Producers["application/x-tar"] = archive.TarProducer()
+	t.Consumers["application/x-tar"] = runtime.ByteStreamConsumer()
+	t.Consumers["application/octet-stream"] = runtime.ByteStreamConsumer()
+	t.Producers["application/x-tar"] = runtime.ByteStreamProducer()
+	t.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
 
 	portLayerClient = apiclient.New(t, nil)
 	portLayerServerAddr = portLayerAddr
@@ -129,6 +133,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		log.Errorf("Failed to create image store")
 		return err
 	}
+
+	archiveProxy = vicproxy.NewArchiveProxy(portLayerClient)
 
 	eventService = events.New()
 

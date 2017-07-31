@@ -15,7 +15,6 @@
 package imagec
 
 import (
-	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/manifest/schema2"
 	docker "github.com/docker/docker/image"
@@ -41,6 +41,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/storage"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -56,6 +57,7 @@ type ImageC struct {
 
 	// ImageLayers are sourced from the manifest file
 	ImageLayers []*ImageWithMeta
+
 	// ImageID is the docker ImageID calculated during download
 	ImageID string
 }
@@ -147,9 +149,11 @@ const (
 	// DefaultHTTPTimeout specifies the default HTTP timeout
 	DefaultHTTPTimeout = 3600 * time.Second
 
+	// Scratch layer ID
+	ScratchLayerID = "scratch"
+
 	// attribute update actions
 	Add = iota + 1
-	Remove
 )
 
 func init() {
@@ -202,6 +206,14 @@ func DestinationDirectory(options Options) string {
 		                    └── manifest.json
 
 	*/
+	if u.Scheme == "" && u.Host == "" && u.Path == "" {
+		return path.Join(
+			options.Destination,
+			"localhost",
+			options.Image,
+			options.Tag,
+		)
+	}
 	return path.Join(
 		options.Destination,
 		u.Scheme,
@@ -230,7 +242,7 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 		}
 
 		// if parent is empty set it to scratch
-		parent := "scratch"
+		parent := ScratchLayerID
 		if v1.Parent != "" {
 			parent = v1.Parent
 		}
@@ -257,10 +269,10 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 	return images, nil
 }
 
-// updateRepositoryCache will update the repository cache
+// UpdateRepositoryCache will update the repository cache
 // that resides in the docker persona.  This will add image tag,
 // digest and layer information.
-func updateRepositoryCache(ic *ImageC) error {
+func UpdateRepoCache(ic *ImageC) error {
 	// if standalone then no persona, so exit
 	if ic.Standalone {
 		return nil
@@ -310,8 +322,9 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 	destination := DestinationDirectory(ic.Options)
 
 	id := image.Image.ID
-	log.Infof("Path: %s", path.Join(destination, id, id+".targ"))
-	f, err := os.Open(path.Join(destination, id, id+".tar"))
+	filePath := path.Join(destination, id, id+".tar")
+	log.Infof("Path: %s", filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("Failed to open file: %s", err)
 	}
@@ -426,15 +439,21 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 	result.Size = size
 	result.V1Image.ID = imageLayer.ID
 	imageConfig := metadata.ImageConfig{
-		V1Image:   result.V1Image,
-		ImageID:   sum,
-		Tags:      []string{ic.Tag},
-		Name:      manifest.Name,
-		DiffIDs:   diffIDs,
-		History:   history,
-		Reference: ic.Reference.String(),
+		V1Image: result.V1Image,
+		ImageID: sum,
+		DiffIDs: diffIDs,
+		History: history,
 	}
 
+	if ic.Tag != "" {
+		imageConfig.Tags = []string{ic.Tag}
+	}
+	if manifest != nil {
+		imageConfig.Name = manifest.Name
+	}
+	if ic.Reference != nil {
+		imageConfig.Reference = ic.Reference.String()
+	}
 	if _, ok := ic.Reference.(reference.Canonical); ok {
 		log.Debugf("Populating digest in imageConfig for image: %s", ic.Reference.String())
 		imageConfig.Digests = []string{ic.ManifestDigest}
@@ -445,10 +464,77 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 
 // PullImage pulls an image from docker hub
 func (ic *ImageC) PullImage() error {
-
-	// ctx
 	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
 	defer cancel()
+
+	// Authenticate, get URL, get token
+	if err := ic.prepareTransfer(ctx); err != nil {
+		return err
+	}
+
+	// Output message
+	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
+	progress.Message(ic.progressOutput, "", tagOrDigest+": Pulling from "+ic.Image)
+
+	// Pull the image manifest
+	if err := ic.pullManifest(ctx); err != nil {
+		return err
+	}
+	log.Infof("Manifest for image = %#v", ic.ImageManifestSchema1)
+
+	// Get layers to download from manifest
+	layers, err := ic.LayersToDownload()
+	if err != nil {
+		return err
+	}
+	ic.ImageLayers = layers
+
+	// Download all the layers
+	if err := ldm.DownloadLayers(ctx, ic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ListLayer prints out the layers for an image to progress.  This is used by imagec standalone binary
+// for debug/validation.
+func (ic *ImageC) ListLayers() error {
+	defer trace.End(trace.Begin(""))
+
+	ctx, cancel := context.WithTimeout(ctx, ic.Options.Timeout)
+	defer cancel()
+
+	// Authenticate, get URL, get token
+	if err := ic.prepareTransfer(ctx); err != nil {
+		return err
+	}
+
+	// Output message
+	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
+	progress.Message(ic.progressOutput, "", tagOrDigest+": Fetching layers from "+ic.Image)
+
+	// Pull the image manifest
+	if err := ic.pullManifest(ctx); err != nil {
+		return err
+	}
+
+	// Get layers to download from manifest
+	layers, err := ic.LayersToDownload()
+	if err != nil {
+		return err
+	}
+
+	progress.Message(ic.progressOutput, "", storage.Scratch.ID)
+	for i := len(layers) - 1; i >= 0; i-- {
+		progress.Message(ic.progressOutput, "", layers[i].ID)
+	}
+
+	return nil
+}
+
+// prepareTransfer Looks up URLs and fetch auth token
+func (ic *ImageC) prepareTransfer(ctx context.Context) error {
 
 	// Parse the -reference parameter
 	ic.ParseReference()
@@ -512,11 +598,31 @@ func (ic *ImageC) PullImage() error {
 		ic.Token = token
 	}
 
-	tagOrDigest := tagOrDigest(ic.Reference, ic.Tag)
-	progress.Message(ic.progressOutput, "", tagOrDigest+": Pulling from "+ic.Image)
+	return nil
+}
+
+// pullManifest attempts to pull manifest for an image.  Attempts to get schema 2 but will fall back to schema 1.
+func (ic *ImageC) pullManifest(ctx context.Context) error {
+	// Attempt to get schema2 manifest
+	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 2, ic.progressOutput)
+	if err == nil {
+		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
+			if schema2 != nil {
+				log.Infof("pullManifest - schema 2: %#v", schema2)
+			}
+			ic.ImageManifestSchema2 = schema2
+
+			// Override the manifest digest as Docker uses schema 2, unless the image
+			// is pulled by digest since we only support pull-by-digest for schema 1.
+			// TODO(anchal): this check should be removed once issue #5187 is implemented.
+			if _, ok := ic.Reference.(reference.Canonical); !ok {
+				ic.ManifestDigest = digest
+			}
+		}
+	}
 
 	// Get the schema1 manifest
-	manifest, digest, err := FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
+	manifest, digest, err = FetchImageManifest(ctx, ic.Options, 1, ic.progressOutput)
 	if err != nil {
 		log.Infof(err.Error())
 		switch err := err.(type) {
@@ -536,31 +642,6 @@ func (ic *ImageC) PullImage() error {
 
 	ic.ImageManifestSchema1 = schema1
 	ic.ManifestDigest = digest
-
-	manifest, digest, err = FetchImageManifest(ctx, ic.Options, 2, ic.progressOutput)
-	if err == nil {
-		if schema2, ok := manifest.(*schema2.DeserializedManifest); ok {
-			ic.ImageManifestSchema2 = schema2
-
-			// Override the manifest digest as Docker uses schema 2, unless the image
-			// is pulled by digest since we only support pull-by-digest for schema 1.
-			// TODO(anchal): this check should be removed once issue #5187 is implemented.
-			if _, ok := ic.Reference.(reference.Canonical); !ok {
-				ic.ManifestDigest = digest
-			}
-		}
-	}
-
-	layers, err := ic.LayersToDownload()
-	if err != nil {
-		return err
-	}
-	ic.ImageLayers = layers
-
-	err = ldm.DownloadLayers(ctx, ic)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

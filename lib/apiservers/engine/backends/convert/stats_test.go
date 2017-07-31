@@ -26,8 +26,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vmware/vic/lib/portlayer/metrics"
 	"github.com/vmware/vic/pkg/retry"
+	"github.com/vmware/vic/pkg/vsphere/performance"
 )
 
 const (
@@ -239,6 +239,93 @@ func TestContainerNotRunningNoStream(t *testing.T) {
 	assert.True(t, success(cStats))
 }
 
+func TestDiskMinor(t *testing.T) {
+	containerID := "12345"
+	for i := 0; i <= 15; i++ {
+		name := fmt.Sprintf("scsi0:%d", i)
+		assert.Equal(t, uint64(i*16), diskMinor(containerID, name))
+	}
+
+	minor := uint64(0)
+	// test with invalid disk names to ensure no panic, etc
+	assert.Equal(t, minor, diskMinor(containerID, "foo:bar:0"))
+	assert.Equal(t, minor, diskMinor(containerID, "foo"))
+	assert.Equal(t, minor, diskMinor(containerID, "foo:"))
+}
+
+func TestCreateBlkioStatsEntry(t *testing.T) {
+	minor := uint64(0)
+	val := uint64(12)
+	maj := uint64(8)
+	entry := createBlkioStatsEntry(minor, "Read", val)
+	assert.Equal(t, "Read", entry.Op)
+	assert.Equal(t, val, entry.Value)
+	assert.Equal(t, minor, entry.Minor)
+	assert.Equal(t, maj, entry.Major)
+}
+
+func TestDiskStats(t *testing.T) {
+	plumb := setup()
+	defer teardown(plumb)
+	// grab a config object
+	config := ccConfig(plumb)
+	cStats := NewContainerStats(config)
+	assert.NotNil(t, cStats)
+	// create metric
+	initCPU := 1000
+	vm := vmMetrics(vcpuCount, initCPU)
+	cStats.currentMetric = vm
+
+	// update disk
+	cStats.disk()
+
+	assert.Equal(t, 3, len(cStats.curDockerStat.BlkioStats.IoServiceBytesRecursive))
+	assert.Equal(t, 1, len(cStats.diskStats))
+
+	// update again -- this should accumulate the totals
+	cStats.disk()
+	assert.Equal(t, 3, len(cStats.curDockerStat.BlkioStats.IoServiceBytesRecursive))
+	assert.Equal(t, 1, len(cStats.diskStats))
+
+	for _, disk := range cStats.curDockerStat.BlkioStats.IoServiceBytesRecursive {
+		switch disk.Op {
+		case "Write":
+			assert.Equal(t, uint64(vm.Disks[0].Write.Bytes*2), disk.Value)
+		}
+	}
+}
+
+func TestNetworkStats(t *testing.T) {
+	plumb := setup()
+	defer teardown(plumb)
+	// grab a config object
+	config := ccConfig(plumb)
+	cStats := NewContainerStats(config)
+	assert.NotNil(t, cStats)
+	// create metric
+	initCPU := 1000
+	vm := vmMetrics(vcpuCount, initCPU)
+	cStats.currentMetric = vm
+
+	// update network
+	cStats.network()
+
+	assert.Equal(t, 1, len(cStats.curDockerStat.Networks))
+	assert.Equal(t, 1, len(cStats.netStats))
+
+	// update again -- this should accumulate the totals
+	cStats.network()
+	assert.Equal(t, 1, len(cStats.curDockerStat.Networks))
+	assert.Equal(t, 1, len(cStats.netStats))
+
+	for network, usage := range cStats.curDockerStat.Networks {
+		switch network {
+		case "eth0":
+			assert.Equal(t, uint64(200), usage.RxBytes)
+		}
+	}
+}
+
 // Test Helpers
 
 type plumbing struct {
@@ -292,7 +379,7 @@ func teardown(p *plumbing) {
 	p.w.Close()
 }
 
-func (p *plumbing) mockPLMetrics(metric *metrics.VMMetrics, writer io.Writer) error {
+func (p *plumbing) mockPLMetrics(metric *performance.VMMetrics, writer io.Writer) error {
 	if p.mockPL == nil {
 		p.mockPL = json.NewEncoder(writer)
 	}
@@ -328,29 +415,58 @@ func ccConfig(p *plumbing) *ContainerStatsConfig {
 	return config
 }
 
-func vmMetrics(count int, vcpuMhz int) *metrics.VMMetrics {
-	vmm := &metrics.VMMetrics{}
+func vmMetrics(count int, vcpuMhz int) *performance.VMMetrics {
+	vmm := &performance.VMMetrics{}
 	vmm.SampleTime = time.Now()
 	vmm.CPU = cpuUsageMetrics(count, vcpuMhz)
-	vmm.Memory = metrics.MemoryMetrics{
+	vmm.Memory = performance.MemoryMetrics{
 		Consumed:    int64(memConsumed),
 		Provisioned: int64(memProvisioned),
 	}
+	disk := performance.VirtualDisk{
+		Name: "scsi0:0",
+		Write: performance.DiskUsage{
+			Bytes: uint64(100),
+			Kbps:  5,
+			Op:    uint64(5),
+			Ops:   5,
+		},
+		Read: performance.DiskUsage{
+			Bytes: uint64(10),
+			Kbps:  5,
+			Op:    uint64(5),
+			Ops:   5,
+		},
+	}
+	vmm.Disks = append(vmm.Disks, disk)
+	network := performance.Network{
+		Name: "eth0",
+		Rx: performance.NetworkUsage{
+			Bytes:   uint64(100),
+			Kbps:    5,
+			Packets: 1,
+		},
+		Tx: performance.NetworkUsage{
+			Bytes:   uint64(10),
+			Packets: 1,
+		},
+	}
+	vmm.Networks = append(vmm.Networks, network)
 	return vmm
 }
 
 // cpuUsageMetrics will return a populated CPUMetrics struct
-func cpuUsageMetrics(count int, cpuMhz int) metrics.CPUMetrics {
-	vmCPUs := make([]metrics.CPUUsage, count, count)
+func cpuUsageMetrics(count int, cpuMhz int) performance.CPUMetrics {
+	vmCPUs := make([]performance.CPUUsage, count, count)
 	total := count * cpuMhz
 	for i := range vmCPUs {
-		vmCPUs[i] = metrics.CPUUsage{
+		vmCPUs[i] = performance.CPUUsage{
 			ID:       i,
 			MhzUsage: int64(cpuMhz),
 		}
 	}
 
-	return metrics.CPUMetrics{
+	return performance.CPUMetrics{
 		CPUs:  vmCPUs,
 		Usage: calcVCPUUsage(total),
 	}

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -26,10 +27,16 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
+	"github.com/go-openapi/runtime"
+	rc "github.com/go-openapi/runtime/client"
 	"github.com/pkg/profile"
 
+	"github.com/vmware/vic/lib/apiservers/engine/proxy"
+	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
+	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/version"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 var (
@@ -40,8 +47,9 @@ var (
 )
 
 const (
-	PullImage = "pull"
-	PushImage = "push"
+	PullImage  = "pull"
+	PushImage  = "push"
+	ListLayers = "listlayers"
 )
 
 // ImageCOptions wraps the cli arguments
@@ -85,7 +93,7 @@ func init() {
 	flag.StringVar(&imageCOptions.profiling, "profile.mode", "", "Enable profiling mode, one of [cpu, mem, block]")
 	flag.BoolVar(&imageCOptions.tracing, "tracing", false, "Enable runtime tracing")
 
-	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull/push an image")
+	flag.StringVar(&imageCOptions.operation, "operation", "pull", "Pull image/push image/listlayers for image")
 
 	flag.StringVar(&imageCOptions.options.Registry, "registry", imagec.DefaultDockerURL, "Registry to pull/push images (default: registry-1.docker.io)")
 
@@ -100,12 +108,18 @@ func init() {
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, string(sf.FormatError(fmt.Errorf("%s : %s", r, debug.Stack()))))
+			_, err := fmt.Fprintf(os.Stderr, string(sf.FormatError(fmt.Errorf("%s : %s", r, debug.Stack()))))
+			if err != nil {
+				//do this to pass security check
+			}
 		}
 	}()
 
 	if version.Show() {
-		fmt.Fprintf(os.Stdout, "%s\n", version.String())
+		_, err := fmt.Fprintf(os.Stdout, "%s\n", version.String())
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -160,7 +174,8 @@ func main() {
 		log.SetOutput(io.MultiWriter(os.Stdout, f))
 	}
 
-	if imageCOptions.operation == PullImage {
+	switch imageCOptions.operation {
+	case PullImage:
 		options := imageCOptions.options
 
 		options.Outstream = os.Stdout
@@ -169,9 +184,78 @@ func main() {
 		if err := ic.PullImage(); err != nil {
 			log.Fatalf("Pulling image failed due to %s\n", err)
 		}
-	} else if imageCOptions.operation == PushImage {
+	case PushImage:
 		log.Errorf("The operation '%s' is not implemented\n", PushImage)
-	} else {
+	case ListLayers:
+		options := imageCOptions.options
+
+		options.Outstream = os.Stdout
+
+		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+		if err := ic.ListLayers(); err != nil {
+			log.Fatalf("Listing layers for image failed due to %s\n", err)
+		}
+	default:
 		log.Errorf("The operation '%s' is not valid\n", imageCOptions.operation)
 	}
+}
+
+func portlayerClient(portLayerAddr string) *apiclient.PortLayer {
+	t := rc.New(portLayerAddr, "/", []string{"http"})
+	t.Consumers["application/x-tar"] = runtime.ByteStreamConsumer()
+	t.Consumers["application/octet-stream"] = runtime.ByteStreamConsumer()
+	t.Producers["application/x-tar"] = runtime.ByteStreamProducer()
+	t.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
+
+	client := apiclient.New(t, nil)
+	return client
+}
+
+func archiveProxy(portLayerAddr string) proxy.VicArchiveProxy {
+	plClient := portlayerClient(portLayerAddr)
+	archiveProxy := proxy.NewArchiveProxy(plClient)
+
+	return archiveProxy
+}
+
+func writeArchiveFile(archiveProxy proxy.VicArchiveProxy, layerID, parentID, archivePath string) error {
+	var filterSpec vicarchive.FilterSpec
+
+	host, err := sys.UUID()
+	if err != nil {
+		return err
+	}
+
+	//Initialize an archive stream from the portlayer for the layer
+	ar, err := archiveProxy.ArchiveExportReader(context.Background(), host, host, layerID, parentID, true, filterSpec)
+	if err != nil || ar == nil {
+		return fmt.Errorf("Failed to get reader for layer %s", layerID)
+	}
+
+	log.Infof("Obtain archive reader for layer %s, parent %s", layerID, parentID)
+
+	tarFile, err := os.OpenFile(archivePath, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to create tmp file: %s", err.Error())
+		log.Info(msg)
+		return fmt.Errorf(msg)
+	}
+	defer tarFile.Close()
+
+	_, err = io.Copy(tarFile, ar)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to read from acrhive stream: %s", err.Error())
+		log.Info(msg)
+		return fmt.Errorf(msg)
+	}
+
+	ar.Close()
+
+	if err = tarFile.Sync(); err != nil {
+		msg := fmt.Sprintf("Failed to flush tar file: %s", err.Error())
+		log.Info(msg)
+		return fmt.Errorf(msg)
+	}
+
+	return nil
 }

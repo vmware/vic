@@ -139,12 +139,13 @@ func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, erro
 		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
 
 		scopeData = &ScopeData{
-			ScopeType: n.Type,
-			Name:      nn,
-			Subnet:    &subnet,
-			Gateway:   n.Gateway.IP,
-			DNS:       n.Nameservers,
-			Pools:     pools,
+			ScopeType:  n.Type,
+			Name:       nn,
+			Subnet:     &subnet,
+			Gateway:    n.Gateway.IP,
+			DNS:        n.Nameservers,
+			TrustLevel: n.TrustLevel,
+			Pools:      pools,
 		}
 
 		s, err := ctx.newScope(scopeData)
@@ -496,6 +497,7 @@ type ScopeData struct {
 	Subnet      *net.IPNet
 	Gateway     net.IP
 	DNS         []net.IP
+	TrustLevel  executor.TrustLevel
 	Pools       []string
 	Annotations map[string]string
 	Internal    bool
@@ -1045,6 +1047,12 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 				return err
 			}
 		}
+		// Check that ports are only opened on published network firewall configuration.
+		if len(options.Ports) > 0 && s.TrustLevel() == executor.Closed {
+			err = fmt.Errorf("Ports cannot be published via the \"closed\" container network firewall.")
+			log.Errorln(err)
+			return err
+		}
 	}
 
 	// figure out if we need to add a new NIC
@@ -1094,8 +1102,9 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			Common: executor.Common{
 				Name: s.Name(),
 			},
-			Aliases: options.Aliases,
-			Type:    s.Type(),
+			Aliases:    options.Aliases,
+			Type:       s.Type(),
+			TrustLevel: s.TrustLevel(),
 		},
 		Ports: options.Ports,
 	}

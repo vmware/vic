@@ -96,6 +96,10 @@ Test
     Set Environment Variable  GOVC_USERNAME  administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin!23
 
+    # Update vCenter license
+    Add Vsphere License  ${VC_LICENSE}
+    Assign vCenter License  ${VC_LICENSE}
+
     # First VC cluster
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter
@@ -123,6 +127,11 @@ Test
 
     # Second VC cluster
     Set Environment Variable  GOVC_URL  ${vc2-ip}
+
+    # Update vCenter license
+    Add Vsphere License  ${VC_LICENSE}
+    Assign vCenter License  ${VC_LICENSE}
+
     Log To Console  Create a datacenter on the VC
     ${out}=  Run  govc datacenter.create ha-datacenter
     Should Be Empty  ${out}

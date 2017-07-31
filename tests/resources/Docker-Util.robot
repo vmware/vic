@@ -34,11 +34,11 @@ Pull image
     Should Not Contain  ${output}  No such image:
 
 Wait Until Container Stops
-    [Arguments]  ${container}
+    [Arguments]  ${container}  ${sleep-time}=1
     :FOR  ${idx}  IN RANGE  0  60
     \   ${out}=  Run  docker %{VCH-PARAMS} inspect -f '{{.State.Running}}' ${container}
     \   Return From Keyword If  '${out}' == 'false'
-    \   Sleep  1
+    \   Sleep  ${sleep-time}
     Fail  Container did not stop within 60 seconds
 
 Hit Nginx Endpoint

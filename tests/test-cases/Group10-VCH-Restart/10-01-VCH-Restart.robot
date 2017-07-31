@@ -131,3 +131,22 @@ Create VCH attach disk and reboot
     Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
     ${rc}=  Run And Return Rc  govc device.ls -vm=%{VCH-NAME} | grep disk
     Should Be Equal As Integers  ${rc}  1
+
+Docker inspect mount data after reboot
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} volume create --name=named-volume
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name=mount-data-test -v /mnt/test -v named-volume:/mnt/named busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  /mnt/test
+    Should Contain  ${out}  /mnt/named
+
+    Reboot VM  %{VCH-NAME}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  %{VCH-PARAMS}
+    ${rc}  ${out}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${out}  /mnt/test
+    Should Contain  ${out}  /mnt/named

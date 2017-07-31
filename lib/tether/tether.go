@@ -480,8 +480,10 @@ func (t *tether) Start() error {
 		extraconfig.Encode(t.sink, t.config)
 
 		// setup the firewall
-		if err := t.ops.SetupFirewall(t.config); err != nil {
-			log.Warnf("Failed to setup firewall: %s", err)
+		if err := retryOnError(func() error { return t.ops.SetupFirewall(t.config) }, 5); err != nil {
+			err = fmt.Errorf("Couldn't set up container-network firewall: %v", err)
+			log.Error(err)
+			return err
 		}
 
 		//process the filesystem mounts - this is performed after networks to allow for network mounts
@@ -541,6 +543,17 @@ func (t *tether) Register(name string, extension Extension) {
 	log.Infof("Registering tether extension " + name)
 
 	t.extensions[name] = extension
+}
+
+func retryOnError(cmd func() error, maximumAttempts int) error {
+	for i := 0; i < maximumAttempts-1; i++ {
+		if err := cmd(); err != nil {
+			log.Warningf("Failed with error \"%v\". Retrying (Attempt %v).", err, i+1)
+		} else {
+			return nil
+		}
+	}
+	return cmd()
 }
 
 // cleanupSession performs some common cleanup work between handling a session exit and

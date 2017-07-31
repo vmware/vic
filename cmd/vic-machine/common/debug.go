@@ -24,13 +24,13 @@ type Debug struct {
 	Debug *int `cmd:"debug"`
 }
 
-func (d *Debug) DebugFlags() []cli.Flag {
+func (d *Debug) DebugFlags(hidden bool) []cli.Flag {
 	return []cli.Flag{
 		cli.GenericFlag{
 			Name:   "debug, v",
 			Value:  flags.NewOptionalInt(&d.Debug),
 			Usage:  "[0(default),1...n], 0 is disabled, 1 is enabled, >= 1 may alter behaviour",
-			Hidden: true,
+			Hidden: hidden,
 		},
 	}
 }
