@@ -15,11 +15,14 @@
 package proxy
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
@@ -28,8 +31,8 @@ import (
 )
 
 type VicArchiveProxy interface {
-	ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec vicarchive.FilterSpec, errchan chan error) (io.WriteCloser, error)
+	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error)
+	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, errchan chan error) (io.WriteCloser, error)
 }
 
 //------------------------------------
@@ -46,7 +49,7 @@ func NewArchiveProxy(client *client.PortLayer) VicArchiveProxy {
 
 // ArchiveExportReader streams a tar archive from the portlayer.  Once the stream is complete,
 // an io.Reader is returned and the caller can use that reader to parse the data.
-func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error) {
+func (a *ArchiveProxy) ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	if store == "" || deviceID == "" {
@@ -60,19 +63,19 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 	go func() {
 		// make sure we get out of io.Copy if context is canceled
 		select {
-		case <-op.Done():
+		case <-ctx.Done():
 			// Attempt to tell the portlayer to cancel the stream.  This is one way of cancelling the
 			// stream.  The other way is for the caller of this function to close the returned CloseReader.
 			// Callers of this function should do one but not both.
 			err := pipeReader.Close()
 			if err != nil {
-				op.Errorf("Error closing pipereader in ArchiveExportReader: %s", err.Error())
+				log.Errorf("Error closing pipereader in ArchiveExportReader: %s", err.Error())
 			}
 		}
 	}()
 
 	go func() {
-		params := storage.NewExportArchiveParamsWithContext(op).
+		params := storage.NewExportArchiveParamsWithContext(ctx).
 			WithStore(store).
 			WithAncestorStore(&ancestorStore).
 			WithDeviceID(deviceID).
@@ -84,27 +87,27 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 		if valueBytes, merr := json.Marshal(filterSpec); merr == nil {
 			encodedFilter = base64.StdEncoding.EncodeToString(valueBytes)
 			params = params.WithFilterSpec(&encodedFilter)
-			op.Infof(" encodedFilter = %s", encodedFilter)
+			log.Infof(" encodedFilter = %s", encodedFilter)
 		}
 
 		_, err = a.client.Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
-			op.Errorf("Error from ExportArchive: %s", err.Error())
+			log.Errorf("Error from ExportArchive: %s", err.Error())
 			switch err := err.(type) {
 			case *storage.ExportArchiveInternalServerError:
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))
-				op.Errorf(plErr.Error())
+				log.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			case *storage.ImportArchiveLocked:
 				plErr := ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				op.Errorf(plErr.Error())
+				log.Errorf(plErr.Error())
 				pipeWriter.CloseWithError(plErr)
 			default:
 				//Check for EOF.  Since the connection, transport, and data handling are
 				//encapsulated inside of Swagger, we can only detect EOF by checking the
 				//error string
 				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					op.Debugf("swagger error %s", err.Error())
+					log.Debugf("swagger error %s", err.Error())
 					pipeWriter.Close()
 				} else {
 					pipeWriter.CloseWithError(err)
@@ -120,7 +123,7 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 
 // ArchiveImportWriter initializes a write stream for a path.  This is usually called
 // for getting a writer during docker cp TO container.
-func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec vicarchive.FilterSpec, errchan chan error) (io.WriteCloser, error) {
+func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, errchan chan error) (io.WriteCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	if store == "" || deviceID == "" {
@@ -134,15 +137,21 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 	go func() {
 		// make sure we get out of io.Copy if context is canceled
 		select {
-		case <-op.Done():
+		case <-ctx.Done():
 			pipeWriter.Close()
 		}
 	}()
 
 	go func() {
+		var plErr error
+		defer func() {
+			log.Debugf("Stream for device %s has returned from PL. Err received is %v ", deviceID, plErr)
+			errchan <- plErr
+		}()
+
 		// encodedFilter and destination are not required (from swagge spec) because
 		// they are allowed to be empty.
-		params := storage.NewImportArchiveParamsWithContext(op).
+		params := storage.NewImportArchiveParamsWithContext(ctx).
 			WithStore(store).
 			WithDeviceID(deviceID).
 			WithArchive(pipeReader)
@@ -154,21 +163,20 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 			params = params.WithFilterSpec(&encodedFilter)
 		}
 
-		var plErr error
 		_, err = a.client.Storage.ImportArchive(params)
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.ImportArchiveInternalServerError:
-				plErr = InternalServerError(fmt.Sprintf("Server error from archive writer for device %s", deviceID))
-				op.Errorf(plErr.Error())
+				plErr = InternalServerError(fmt.Sprintf("error writing files to device %s", deviceID))
+				log.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveLocked:
-				plErr = ResourceLockedError(fmt.Sprintf("Resource locked for device %s", deviceID))
-				op.Errorf(plErr.Error())
+				plErr = ResourceLockedError(fmt.Sprintf("resource locked for device %s", deviceID))
+				log.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			case *storage.ImportArchiveNotFound:
 				plErr = ResourceNotFoundError("file or directory")
-				op.Errorf(plErr.Error())
+				log.Errorf(plErr.Error())
 				pipeReader.CloseWithError(plErr)
 			default:
 				//Check for EOF.  Since the connection, transport, and data handling are
@@ -176,7 +184,7 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 				//error string
 				plErr = err
 				if strings.Contains(err.Error(), swaggerSubstringEOF) {
-					op.Errorf(err.Error())
+					log.Errorf(err.Error())
 					pipeReader.Close()
 				} else {
 					pipeReader.CloseWithError(err)
@@ -185,8 +193,6 @@ func (a *ArchiveProxy) ArchiveImportWriter(op trace.Operation, store, deviceID s
 		} else {
 			pipeReader.Close()
 		}
-		op.Debugf("Stream for device %s has returned from PL. Err received is %v ", deviceID, plErr)
-		errchan <- plErr
 	}()
 
 	return pipeWriter, nil
