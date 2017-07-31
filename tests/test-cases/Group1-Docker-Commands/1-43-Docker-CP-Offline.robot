@@ -106,7 +106,7 @@ Copy a directory from host to offline container, dst path doesn't exist
     Should Not Contain  ${output}  Error
 
 Copy a non-existent file out of an offline container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/dne ${CURDIR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp offline:/dne/dne ${CURDIR}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
 
@@ -259,11 +259,18 @@ Sub volumes: copy from offline container to host
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-
     # Needed to help diagnose failures
     ${rc}  ${output}=  Run And Return Rc And Output  find ${CURDIR}/result -ls
     Log  ${output}
-
+    Remove Directory  ${CURDIR}/result  recursive=True
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol1
+    OperatingSystem.Directory Should Exist  ${CURDIR}/result/vol2
+    OperatingSystem.File Should Exist  ${CURDIR}/result/root.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result/vol1/v1.txt
+    OperatingSystem.File Should Exist  ${CURDIR}/result/vol2/v2.txt
     Remove Directory  ${CURDIR}/result  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol
     Should Be Equal As Integers  ${rc}  0

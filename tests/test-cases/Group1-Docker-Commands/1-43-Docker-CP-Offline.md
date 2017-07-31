@@ -22,7 +22,7 @@ This test requires that a vSphere server is running and available
 9. Issue docker cp bar offline:/bar to the new VIC appliance
 10. Start offline and verify that bar exists in offline:/
 11. Stop offline
-12. Issue docker cp offline:/dne . to the new VIC appliance
+12. Issue docker cp offline:/dne/dne . to the new VIC appliance
 13. Issue docker cp offline:/dne/. . to the new VIC appliance
 14. Issue docker cp dne/ offline:/ to the new VIC appliance
 15. Remove offline container
