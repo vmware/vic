@@ -148,30 +148,34 @@ Copy a file from host to offline container, dst is a volume
     Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 2 levels
-    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${cid}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  ${cid}  /vol1/vol2
-    Should Contain  ${output}  foo.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
+    ${status}=  Get State Of Github Issue  5871
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5871 has been resolved
+    #${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${cid}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${output}=  Start container and inspect directory  ${cid}  /vol1/vol2
+    #Should Contain  ${output}  foo.txt
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 3 levels
-    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${cid}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2/vol3
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  ${cid}  /vol1/vol2/vol3
-    Should Contain  ${output}  foo.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
+    ${status}=  Get State Of Github Issue  5871
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5871 has been resolved
+    #${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${cid}  Error
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2/vol3
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #${output}=  Start container and inspect directory  ${cid}  /vol1/vol2/vol3
+    #Should Contain  ${output}  foo.txt
+    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
 
 Concurrent copy: create processes to copy a small file from host to offline container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}

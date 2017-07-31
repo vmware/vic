@@ -21,8 +21,6 @@ import (
 	"io"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	vicarchive "github.com/vmware/vic/lib/archive"
@@ -31,7 +29,7 @@ import (
 
 type VicArchiveProxy interface {
 	ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec vicarchive.FilterSpec,  errchan chan error) (io.WriteCloser, error)
+	ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec vicarchive.FilterSpec, errchan chan error) (io.WriteCloser, error)
 }
 
 //------------------------------------
@@ -91,7 +89,7 @@ func (a *ArchiveProxy) ArchiveExportReader(op trace.Operation, store, ancestorSt
 
 		_, err = a.client.Storage.ExportArchive(params, pipeWriter)
 		if err != nil {
-			log.Errorf("Error from ExportArchive: %s", err.Error())
+			op.Errorf("Error from ExportArchive: %s", err.Error())
 			switch err := err.(type) {
 			case *storage.ExportArchiveInternalServerError:
 				plErr := InternalServerError(fmt.Sprintf("Server error from archive reader for device %s", deviceID))

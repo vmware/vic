@@ -155,7 +155,6 @@ func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicCo
 		}
 	}()
 
-
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -462,16 +461,16 @@ func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.VicArchiveProxy, ci
 }
 
 // Close visits all the archive writer in the trie and closes the actual io.WritCloser
-func (wm *ArchiveStreamWriterMap) Close() (err error) {
+func (wm *ArchiveStreamWriterMap) Close() error {
 	defer trace.End(trace.Begin(""))
 
 	numWriter := 0
 	closeStream := func(prefix patricia.Prefix, item patricia.Item) error {
 		if aw, ok := item.(*ArchiveWriter); ok && aw.writer != nil {
-			aw.writer.Close()
 			aw.tarWriter.Close()
-			aw.writer = nil
+			aw.writer.Close()
 			aw.tarWriter = nil
+			aw.writer = nil
 			numWriter++
 		}
 		return nil
@@ -479,14 +478,15 @@ func (wm *ArchiveStreamWriterMap) Close() (err error) {
 
 	wm.prefixTrie.Visit(closeStream)
 
+	var err error
 	// wait for all the streams to finish
 	for i := 0; i < numWriter; i++ {
-		result := <- wm.errchan
+		result := <-wm.errchan
 		if result != nil {
 			err = result
 		}
 	}
-	return
+	return err
 }
 
 // FindArchiveReaders finds all archive readers that are within the container source path.  For example,
@@ -768,4 +768,3 @@ func (rm *ArchiveStreamReaderMap) buildMountsAndNodes(path string, node *Archive
 
 	return mounts, nodes, nil
 }
-
