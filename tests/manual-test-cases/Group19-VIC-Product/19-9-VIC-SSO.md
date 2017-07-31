@@ -2,7 +2,7 @@ Test 19-9 VIC SSO
 =======
 
 # Purpose:
-To verify that the SSO feature of VIC product works across Admiral, Harbor, and Engine
+To verify that the SSO and session management features of VIC product works across Admiral, Harbor, and Engine
 
 # References:
 [1- VIC SSO Feature](TBD - waiting on official docs to link)
@@ -21,7 +21,7 @@ This test requires that a vCenter server with integrated PSC and with a discrete
 7. Wait 10 minutes
 8. Navigate to the admiral and demo VCH pages
 9. Wait another 50 minutes (60 minutes total)
-10. Navigate to the admiral and demo VCH pages
+10. Navigate to the admiral and demo VCH pages and attempt to make a change in admiral
 
 # Expected Outcome:
 * Steps 1,2,5-8 should all succeed without error
