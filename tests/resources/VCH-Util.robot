@@ -177,7 +177,6 @@ Install VIC Appliance To Test Server
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: %{VCH-NAME}...
 
-    No Leaked Sessions  vic-machine
     [Return]  ${output}
 
 Run VIC Machine Command
@@ -202,7 +201,6 @@ Run Secret VIC Machine Inspect Command
     [Arguments]  ${name}
     ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --thumbprint=%{TEST_THUMBPRINT}
 
-    No Leaked Sessions  vic-machine
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
@@ -283,7 +281,6 @@ Cleanup VIC Appliance On Test Server
     Log To Console  Deleting the VCH appliance %{VCH-NAME}
     ${output}=  Run VIC Machine Delete Command
     Run Keyword And Ignore Error  Cleanup VCH Bridge Network  %{VCH-NAME}
-    No Leaked Sessions  vic-machine
     [Return]  ${output}
 
 Cleanup VCH Bridge Network
@@ -398,7 +395,6 @@ Get VCH ID
     [Arguments]  ${vch-name}
     ${ret}=  Run  bin/vic-machine-linux ls --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Should Not Contain  ${ret}  Error
-    No Leaked Sessions  vic-machine
     @{lines}=  Split To Lines  ${ret}
     :FOR  ${line}  IN  @{lines}
     \   # Get line with name ${vch-name}
@@ -435,7 +431,6 @@ Upgrade
     Should Contain  ${output}  Completed successfully
     Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
-    No Leaked Sessions  vic-machine
 
 Upgrade with ID
     Log To Console  \nUpgrading VCH using vch ID...

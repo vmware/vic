@@ -117,12 +117,11 @@ func (d *Uninstall) Run(clic *cli.Context) (err error) {
 	}()
 
 	validator, err := validate.NewValidator(ctx, d.Data)
-	defer validator.Session.Logout(ctx)
-
 	if err != nil {
 		log.Errorf("Delete cannot continue - failed to create validator: %s", err)
 		return errors.New("delete failed")
 	}
+	defer validator.Session.Logout(ctx)
 	_, err = validator.ValidateTarget(ctx, d.Data)
 	if err != nil {
 		log.Errorf("Delete cannot continue - target validation failed: %s", err)
