@@ -494,6 +494,7 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 	var nodes []*ArchiveReader
 	var startingNode *ArchiveReader
 	var err error
+	var isMountPoint bool
 
 	findStartingPrefix := func(prefix patricia.Prefix, item patricia.Item) error {
 		if _, ok := item.(*ArchiveReader); !ok {
@@ -511,6 +512,8 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 
 		ar, _ := item.(*ArchiveReader)
 		nodes = append(nodes, ar)
+		isMountPoint = ar.mountPoint.Destination != "/" &&
+			(isMountPoint || strings.HasPrefix(containerSourcePath, ar.mountPoint.Destination))
 		return nil
 	}
 
@@ -560,6 +563,37 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 		return nil, err
 	}
 
+	// if the path is a mount path, we need to include the directory header of the actual mountpoint.
+	// eg docker cp cid:/mnt/vol1/ needs to include
+	// 		header from /mnt/vol1 located on containerfs
+	// 		data from /mnt/vol1/ located on deviceId vol1
+	if isMountPoint {
+		// find the parent node using VisitPrefixes
+		prefix = patricia.Prefix(path.Dir(containerSourcePath))
+		startingNode = nil
+		err = rm.prefixTrie.VisitPrefixes(prefix, findStartingPrefix)
+		if err != nil {
+			msg := fmt.Sprintf("Failed generate parent node for mountpoint %s: %s", path.Dir(containerSourcePath), err.Error())
+			rm.op.Errorf(msg)
+			return nil, fmt.Errorf(msg)
+		}
+
+		var found bool
+		if startingNode != nil {
+			for _, node := range nodes {
+				found = found || node.mountPoint.Destination == startingNode.mountPoint.Destination
+			}
+			if !found {
+				nodes = append([]*ArchiveReader{startingNode}, nodes...)
+				err = rm.buildFilterSpec(containerSourcePath, nodes, startingNode)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+	}
+
 	return nodes, nil
 }
 
@@ -568,7 +602,7 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 //			Reader 1 -				/mnt/A
 //			Reader 2 -				/mnt/A/B
 //
-//			containaerSroucePath -	/mnt/A
+//			containerSourcePath -	/mnt/A
 // In the above, both readers are within the the container source path.
 func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy proxy.VicArchiveProxy, cid, containerSourcePath string) ([]io.ReadCloser, error) {
 	defer trace.End(trace.Begin(containerSourcePath))
