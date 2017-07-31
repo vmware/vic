@@ -114,13 +114,13 @@ func TestFindArchiveReaders(t *testing.T) {
 				"/": {
 					rebase:  "",
 					strip:   "",
-					exclude: []string{"mnt/A", "mnt/B", "mnt/A/AB"},
+					exclude: []string{"mnt/A/", "mnt/B/", "mnt/A/AB/"},
 					include: "",
 				},
 				"/mnt/A": {
 					rebase:  "mnt/A",
 					strip:   "",
-					exclude: []string{"AB"},
+					exclude: []string{"AB/"},
 					include: "",
 				},
 				"/mnt/B": {
@@ -144,13 +144,13 @@ func TestFindArchiveReaders(t *testing.T) {
 				"/": {
 					rebase:  "mnt",
 					strip:   "mnt",
-					exclude: []string{"mnt/A", "mnt/B", "mnt/A/AB"},
+					exclude: []string{"mnt/A/", "mnt/B/", "mnt/A/AB/"},
 					include: "",
 				},
 				"/mnt/A": {
 					rebase:  "mnt/A",
 					strip:   "",
-					exclude: []string{"AB"},
+					exclude: []string{"AB/"},
 					include: "",
 				},
 				"/mnt/B": {
@@ -174,13 +174,13 @@ func TestFindArchiveReaders(t *testing.T) {
 				"/": {
 					rebase:  "mnt",
 					strip:   "mnt",
-					exclude: []string{"mnt/A", "mnt/B", "mnt/A/AB"},
+					exclude: []string{"mnt/A/", "mnt/B/", "mnt/A/AB/"},
 					include: "",
 				},
 				"/mnt/A": {
 					rebase:  "mnt/A",
 					strip:   "",
-					exclude: []string{"AB"},
+					exclude: []string{"AB/"},
 					include: "",
 				},
 				"/mnt/B": {
@@ -205,7 +205,7 @@ func TestFindArchiveReaders(t *testing.T) {
 				"/mnt/A": {
 					rebase:  "A",
 					strip:   "",
-					exclude: []string{"AB"},
+					exclude: []string{"AB/"},
 				},
 				"/mnt/A/AB": {
 					rebase:  "A/AB",

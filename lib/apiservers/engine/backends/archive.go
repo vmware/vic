@@ -195,19 +195,6 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 
 	primaryTarget := resolvePathWithMountPoints(op, mounts, path)
 	fs := primaryTarget.filterSpec
-	// check to see if the path is a mount point, if so, return fake path
-	if len(fs.Inclusions) == 1 {
-		if _, ok := fs.Inclusions[""]; ok {
-			stat = &types.ContainerPathStat{
-				Name:       filepath.Base(fs.RebasePath),
-				Size:       int64(4096),
-				Mode:       os.ModeDir,
-				Mtime:      time.Now(),
-				LinkTarget: ""}
-			op.Debugf("faking container stat path %#v", stat)
-			return stat, nil
-		}
-	}
 
 	var deviceID string
 	var store string
@@ -225,6 +212,29 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 		op.Errorf("error getting statpath: %s", err.Error())
 		switch err := err.(type) {
 		case *storage.StatPathNotFound:
+
+			// handle the special case of targeting a volume mount point before it exists.
+			// this will be important for non started container cp, will also be important
+			// to certain behaviors for diff on a non started container.
+			isMountPathTarget := false
+			for _, mount := range mounts {
+				if strings.HasPrefix(mount.Destination+"/", path) {
+					isMountPathTarget = true
+				}
+			}
+
+			// check to see if the path is a mount point, if so, return fake path
+			if isMountPathTarget {
+				stat = &types.ContainerPathStat{
+					Name:       filepath.Base(fs.RebasePath),
+					Size:       int64(4096),
+					Mode:       os.ModeDir,
+					Mtime:      time.Now(),
+					LinkTarget: ""}
+				op.Debugf("faking container stat path %#v", stat)
+				return stat, nil
+			}
+
 			return nil, ResourceNotFoundError(vc.Name, "file or directory")
 		default:
 			return nil, InternalServerError(err.Error())

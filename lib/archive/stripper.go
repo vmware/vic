@@ -89,6 +89,7 @@ func (s *Stripper) WriteTo(w io.Writer) (sum int64, err error) {
 			return
 		}
 
+		// #nosec
 		tw.Flush()
 	}
 }
@@ -157,6 +158,7 @@ func (mr *multiReader) Close() error {
 	for _, r := range mr.readers {
 		// if it's a closer, close it
 		if closer, ok := r.(io.Closer); ok {
+			// #nosec
 			closer.Close()
 		}
 	}

@@ -716,7 +716,8 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 
 	fi, err := os.Stat(target)
 	if err != nil {
-		if err := os.MkdirAll(target, 0644); err != nil {
+		// #nosec
+		if err := os.MkdirAll(target, 0744); err != nil {
 			// same as MountFileSystem error for consistency
 			return fmt.Errorf("unable to create mount point %s: %s", target, err)
 		}
