@@ -238,31 +238,19 @@
 						}
 					},
 					"404": {
-						"description": "Supplied target not found",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Supplied target not found"
 					},
 					"422": {
-						"description": "Format error in supplied filter or archive",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Format error in supplied filter or archive"
 					},
 					"423": {
-						"description": "Device or resource is locked",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Device or resource is locked"
 					},
 					"500": {
 						"description": "failed to export tar archive from target"
 					},
 					"default": {
-						"description": "error",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "error"
 					}
 				}
 			},
@@ -313,31 +301,19 @@
 						"description": "OK"
 					},
 					"422": {
-						"description": "Format error in supplied filter or archive",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Format error in supplied filter or archive"
 					},
 					"404": {
-						"description": "Supplied target not found",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Supplied target not found"
 					},
 					"423": {
-						"description": "Device or resource is locked",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Device or resource is locked"
 					},
 					"500": {
 						"description": "failed to export tar archive from target"
 					},
 					"default": {
-						"description": "error",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "error"
 					}
 				}
 			},
@@ -404,6 +380,9 @@
 					},
 					"500": {
 						"description": "failed to export tar archive from target"
+					},
+					"default": {
+						"description": "error"
 					}
 				}
 			}
