@@ -121,6 +121,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			}
 		}()
 
+		op.Debugf("List of all changes for Tar operation before exclusion: %s", changes)
 		for _, change := range changes {
 			if cerr := op.Err(); cerr != nil {
 				// this will still trigger the defer to close the archive neatly
@@ -129,6 +130,7 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 			}
 
 			if spec.Excludes(op, strings.TrimPrefix(change.Path, "/")) {
+				op.Debugf("change (%s) being excluded from tar operation.", change.Path)
 				continue
 			}
 

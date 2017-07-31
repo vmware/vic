@@ -106,7 +106,12 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 	for _, mount := range mounts {
 		if strings.HasPrefix(mount, currentMount) && currentMount != mount {
 			// exclusions are relative to the mount so the leading `/` should be removed unless we decide otherwise.
-			filter.Exclusions[removeLeadingSlash(strings.TrimPrefix(mount, currentMount))] = struct{}{}
+			exclusion := removeLeadingSlash(strings.TrimPrefix(mount, currentMount))
+			if !strings.HasSuffix(exclusion, "/") {
+				exclusion = exclusion + "/"
+			}
+
+			filter.Exclusions[exclusion] = struct{}{}
 		}
 	}
 	return nil

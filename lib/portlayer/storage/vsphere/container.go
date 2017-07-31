@@ -116,6 +116,7 @@ offline:
 	}
 
 	// online - Owners() should filter out the appliance VM
+	// #nosec
 	owners, _ := c.Owners(op, uri, disk.LockedVMDKFilter)
 	if len(owners) == 0 {
 		op.Infof("No online owners were found for %s", id)
@@ -128,6 +129,7 @@ offline:
 		uuid, err := o.UUID(op)
 		if err == nil {
 			// check if the vm is appliance VM if we can successfully get its UUID
+			// #nosec
 			self, _ := guest.IsSelf(op, uuid)
 			if self && offlineAttempt < 2 {
 				op.Infof("Appliance is owner of online vmdk - retrying offline source path")
