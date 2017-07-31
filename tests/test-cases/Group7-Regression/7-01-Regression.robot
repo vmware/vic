@@ -29,4 +29,4 @@ Regression test
     ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info %{VCH-NAME}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
     Should Contain  ${out}  Photon - VCH
-    No Leaked Sessions
+    No Leaked Sessions  vic-machine
