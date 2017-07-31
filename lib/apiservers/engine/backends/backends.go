@@ -82,6 +82,7 @@ type dynConfig struct {
 	sess   *session.Session
 
 	Whitelist, Blacklist, Insecure registry.Set
+	remoteWl                       bool
 }
 
 func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
@@ -378,11 +379,15 @@ func (d *dynConfig) update(ctx context.Context) *dynConfig {
 		if m, err = d.merged(c); err != nil {
 			log.Errorf("error updating config: %s", err)
 			m = d
+		} else {
+			if len(c.RegistryWhitelist) > 0 {
+				m.remoteWl = true
+			}
 		}
 	} else if err == nil && src == d.src {
 		// err == nil and c == nil, which
 		// indicates no remote sources
-		// were found, try reseting the
+		// were found, try resetting the
 		// source for next time
 		if err := d.resetSrc(); err != nil {
 			log.Warnf("could not reset config source: %s", err)

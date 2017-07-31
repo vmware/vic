@@ -377,21 +377,21 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 		return nil
 	}
 
-	options.InsecureAllowHTTP = insecureOk
-	options.RegistryCAs = RegistryCertPool
+	ic.InsecureAllowHTTP = insecureOk
+	ic.RegistryCAs = RegistryCertPool
 
 	if authConfig != nil {
 		if len(authConfig.Username) > 0 {
-			options.Username = authConfig.Username
+			ic.Username = authConfig.Username
 		}
 		if len(authConfig.Password) > 0 {
-			options.Password = authConfig.Password
+			ic.Password = authConfig.Password
 		}
 	}
 
 	log.Infof("PullImage: reference: %s, %s, portlayer: %#v",
-		options.Reference,
-		options.Host,
+		ic.Reference,
+		ic.Host,
 		portLayerServer)
 
 	err = ic.PullImage()

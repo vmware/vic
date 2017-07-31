@@ -214,7 +214,7 @@ func (a *source) discover(ctx context.Context) (*client.Admiral, []string, error
 	var err error
 	// if there isn't a list of potential product VMs
 	// already, then run discovery
-	if len(vms) == 0 {
+	if removed {
 		log.Infof("running product VM discovery")
 		vms, err = a.d.Discover(ctx, a.sess)
 		if err != nil {

@@ -96,6 +96,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), infoTimeout)
 	defer cancel()
+
 	vchConfig := vchConfig.update(ctx)
 
 	vchConfig.Lock()
@@ -232,7 +233,11 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 		if len(vchConfig.Whitelist) > 0 {
-			customInfo := [2]string{vchWhitelistMode, "enabled"}
+			s := "enabled"
+			if vchConfig.remoteWl {
+				s += "; remote source"
+			}
+			customInfo := [2]string{vchWhitelistMode, s}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 			customInfo = [2]string{whitelistRegistriesLabel, strings.Join(vchConfig.Whitelist.Strings(), ",")}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
