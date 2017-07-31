@@ -46,7 +46,7 @@ func (t *ToolboxDataSink) Import(op trace.Operation, spec *archive.FilterSpec, d
 		return err
 	}
 
-	target, err := BuildArchiveURL(op, t.ID, spec.RebasePath, spec)
+	target, err := BuildArchiveURL(op, t.ID, spec.RebasePath, spec, true, true)
 	if err != nil {
 		op.Debugf("Cannot build archive url: %s", err.Error())
 		return err

@@ -26,11 +26,13 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	dar "github.com/docker/docker/pkg/archive"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/govmomi/toolbox"
@@ -311,6 +313,10 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 	// special behavior when using disk-labels and filterspec
 	diskLabel := u.Query().Get(vsphere.DiskLabelQueryName)
 	filterSpec := u.Query().Get(vsphere.FilterSpecQueryName)
+
+	skiprecurse, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipRecurseQueryName))
+	skipdata, _ := strconv.ParseBool(u.Query().Get(vsphere.SkipDataQueryName))
+
 	if diskLabel != "" && filterSpec != "" {
 		op := trace.NewOperation(context.Background(), "ToolboxOnlineDataSource: %s", u.String())
 		op.Debugf("Writing to archive from %s: %s", u.Path, u.String())
@@ -329,7 +335,22 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 		}
 		defer unmount(op, diskPath)
 
-		rc, err := archive.Diff(op, diskPath, "", spec, true, false)
+		var rc io.ReadCloser
+		if skiprecurse {
+			// we only want a single file - this is a hack while we're abusing Diff, but
+			// accomplish this by generating a single entry ChangeSet
+			changes := []dar.Change{
+				{
+					Kind: dar.ChangeModify,
+					Path: u.Path,
+				},
+			}
+
+			rc, err = archive.Tar(op, diskPath, changes, spec, !skipdata, false)
+		} else {
+			rc, err = archive.Diff(op, diskPath, "", spec, !skipdata, false)
+		}
+
 		if err != nil {
 			op.Debugf(err.Error())
 			return err
