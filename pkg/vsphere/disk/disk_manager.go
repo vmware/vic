@@ -179,7 +179,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 
 	// we use findDiskByFilename to check if the disk is already attached
 	// if it is then it's indicative of an error because it wasn't found in the cache, but this lets us recover
-	_, ferr := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+	_, ferr := findDiskByFilename(op, m.vm, d.DatastoreURI.String(), d.IsPersistent())
 	if os.IsNotExist(ferr) {
 		if err := m.attach(op, config); err != nil {
 			return nil, errors.Trace(err)
@@ -190,7 +190,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 	}
 
 	op.Debugf("Mapping vmdk to pci device %s", config.DatastoreURI)
-	devicePath, err := m.devicePathByURI(op, config.DatastoreURI)
+	devicePath, err := m.devicePathByURI(op, config.DatastoreURI, d.IsPersistent())
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -200,7 +200,7 @@ func (m *Manager) CreateAndAttach(op trace.Operation, config *VirtualDiskConfig)
 		op.Errorf("waitForDevice failed for %s with %s", d.DatastoreURI, errors.ErrorStack(err))
 		// ensure that the disk is detached if it's the publish that's failed
 
-		disk, findErr := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+		disk, findErr := findDiskByFilename(op, m.vm, d.DatastoreURI.String(), d.IsPersistent())
 		if findErr != nil {
 			op.Debugf("findDiskByFilename(%s) failed with %s", d.DatastoreURI, errors.ErrorStack(findErr))
 		}
@@ -408,7 +408,7 @@ func (m *Manager) Detach(op trace.Operation, config *VirtualDiskConfig) error {
 
 	op.Infof("Detaching disk %s", d.DevicePath)
 
-	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI.String())
+	disk, err := findDiskByFilename(op, m.vm, d.DatastoreURI.String(), d.IsPersistent())
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -479,8 +479,8 @@ func (m *Manager) detach(op trace.Operation, disk *types.VirtualDisk) error {
 	return err
 }
 
-func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.DatastorePath) (string, error) {
-	disk, err := findDiskByFilename(op, m.vm, datastoreURI.String())
+func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI *object.DatastorePath, persistent bool) (string, error) {
+	disk, err := findDiskByFilename(op, m.vm, datastoreURI.String(), persistent)
 	if err != nil {
 		op.Errorf("findDisk failed for %s with %s", datastoreURI.String(), errors.ErrorStack(err))
 		return "", errors.Trace(err)
@@ -589,9 +589,8 @@ func (m *Manager) InUse(op trace.Operation, config *VirtualDiskConfig, filter fu
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				op.Debugf("Checking the device %q with correct backing type on vm %q", label, mo.Name)
 				if config.DatastoreURI.String() == t.GetVirtualDeviceFileBackingInfo().FileName {
-					op.Debugf("Match found. Appending vm %q to the response", mo.Name)
+					op.Infof("Found active user of target disk %s: %q", label, mo.Name)
 					vms = append(vms, vm.NewVirtualMachine(context.Background(), m.vm.Session, mo.Reference()))
 				}
 			default:
@@ -635,11 +634,9 @@ func (m *Manager) DiskFinder(op trace.Operation, filter func(p string) bool) (st
 
 			switch t := db.(type) {
 			case types.BaseVirtualDeviceFileBackingInfo:
-				op.Debugf("Checking the device %q with correct backing type on vm %q", label, mo.Name)
 				diskPath := t.GetVirtualDeviceFileBackingInfo().FileName
-				op.Infof("Disk path: %s", diskPath)
 				if filter(diskPath) {
-					op.Debugf("Match found. Returning filepath %s", diskPath)
+					op.Infof("Found disk matching filter: (label: %s), %q", label, diskPath)
 					return diskPath, nil
 				}
 			default:
