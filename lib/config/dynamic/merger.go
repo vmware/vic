@@ -40,21 +40,13 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 	// origWl not empty, otherWl empty => origWl
 	//
 	// origWl not empty, otherWl not empty => merge result
-	// in thie case, the merge is a set union of origWl
-	// and otherWl, with the following criteria:
-	//
-	// 1. an entry in otherWl cannot make another
-	//    entry in origWl more permissive, e.g.
-	//    foo.docker.io in origWl and *.docker.io
-	//    in otherWl, would not merge
-	// 2. if the resulting whitelist has more entries
-	//    than origWl, each entry in the resulting
-	//    whitelist must be a more restrictive
-	//    version of at least one entry in origWl
+	// in this case, each entry in the resulting
+	// whitelist must be a more restrictive
+	// version of at least one entry in origWl
 	//
 	// The whitelist that is used is always otherWl
-	// in this case given that the above two criteria
-	// are not violated.
+	// in this case given that the above rule is not
+	// violated.
 	otherWl, err := ParseRegistries(other.RegistryWhitelist)
 	if err != nil {
 		return nil, err
@@ -70,10 +62,7 @@ func (m *merger) Merge(orig, other *config.VirtualContainerHostConfigSpec) (*con
 		return nil, err
 	}
 
-	// if origWl is empty, and wl is
-	// non-empty after the merge, we use wl,
-	// which is the same as otherWl at this point
-	if len(origWl) > 0 && len(wl) > len(origWl) {
+	if len(origWl) > 0 {
 		// check if every entry in wl is a subset of an
 		// entry in origWl
 		for _, e := range wl {
