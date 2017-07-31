@@ -98,7 +98,10 @@ func (m *MountDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*F
 	filePath := filepath.Join(m.Path.Name(), targetPath)
 	fileInfo, err := os.Lstat(filePath)
 	if err != nil {
-		op.Errorf("failed to stat file")
+		// Does not exist is an expected result so no errors logged
+		if !os.IsNotExist(err) {
+			op.Errorf("failed to stat file: %s", err)
+		}
 		return nil, err
 	}
 

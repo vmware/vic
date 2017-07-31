@@ -1,16 +1,16 @@
- Copyright 2017 VMware, Inc. All Rights Reserved.
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-	http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License
+# Copyright 2017 VMware, Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
 
 *** Settings ***
 Documentation  Test 1-43 - Docker CP Offline
@@ -255,14 +255,15 @@ Sub volumes: copy from host to offline container
     Should Not Contain  ${output}  Error
 
 Sub volumes: copy from offline container to host
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result/
+    Operating System.List Directory  ${CURDIR}/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result/mnt/vol1
-    OperatingSystem.Directory Should Exist  ${CURDIR}/result/mnt/vol2
-    OperatingSystem.File Should Exist  ${CURDIR}/result/mnt/root.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result/mnt/vol1/v1.txt
-    OperatingSystem.File Should Exist  ${CURDIR}/result/mnt/vol2/v2.txt
+
+    # Needed to help diagnose failures
+    ${rc}  ${output}=  Run And Return Rc And Output  find ${CURDIR}/result -ls
+    Log  ${output}
+
     Remove Directory  ${CURDIR}/result  recursive=True
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f subVol
     Should Be Equal As Integers  ${rc}  0

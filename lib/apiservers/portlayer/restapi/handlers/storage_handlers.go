@@ -388,15 +388,16 @@ func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) mi
 	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeCreate(%s)", params.VolumeRequest.Name))
 	volume, err := h.volumeCache.VolumeCreate(op, params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
 	if err != nil {
-		op.Errorf("storagehandler: VolumeCreate error: %#v", err)
 
 		if os.IsExist(err) {
+			op.Warnf("Reusing existing volume with target identity")
 			return storage.NewCreateVolumeConflict().WithPayload(&models.Error{
 				Code:    http.StatusConflict,
 				Message: err.Error(),
 			})
 		}
 
+		op.Errorf("storagehandler: VolumeCreate error: %#v", err)
 		if _, ok := err.(spl.VolumeStoreNotFoundError); ok {
 			return storage.NewCreateVolumeNotFound().WithPayload(&models.Error{
 				Code:    http.StatusNotFound,
@@ -637,7 +638,13 @@ func (h *StorageHandlersImpl) StatPath(params storage.StatPathParams) middleware
 
 	fileStat, err := dataSource.Stat(op, filterSpec)
 	if err != nil {
-		op.Errorf("Error getting datasource stats: %s", err.Error())
+		if os.IsNotExist(err) {
+			// would like to be able to differentiate between store and files, but....
+			op.Debugf("Stat target did not exit: %s", err)
+			return storage.NewStatPathNotFound()
+		}
+
+		op.Errorf("Error getting datasource stats: %s", err)
 		return storage.NewStatPathInternalServerError()
 	}
 

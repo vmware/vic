@@ -15,6 +15,7 @@
 package archive
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -720,7 +721,6 @@ func TestAddExclusionsTrailingSlashdot(t *testing.T) {
 		"/": {
 			Exclusions: map[string]struct{}{
 				"":              {},
-				"mnt/":          {},
 				"mnt/A/":        {},
 				"mnt/B/":        {},
 				"mnt/C/":        {},
@@ -728,7 +728,7 @@ func TestAddExclusionsTrailingSlashdot(t *testing.T) {
 				"mnt/A/dir/AC/": {},
 			},
 			Inclusions: map[string]struct{}{
-				"mnt": {},
+				"mnt/": {},
 			},
 		},
 		"/mnt/A": {
@@ -782,6 +782,7 @@ func TestAddExclusionsTrailingSlashdot(t *testing.T) {
 		expectedLength := len(expectedSpec.Exclusions)
 		actualLength := len(spec.Exclusions)
 		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the exclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			fmt.Printf("Expected exclusions: %+v, actual: %+v", expectedSpec.Exclusions, spec.Exclusions)
 			return
 		}
 
@@ -789,6 +790,7 @@ func TestAddExclusionsTrailingSlashdot(t *testing.T) {
 		expectedLength = len(expectedSpec.Inclusions)
 		actualLength = len(spec.Inclusions)
 		if !assert.Equal(t, expectedLength, actualLength, "there were %d entries instead of %d for the inclusions generated for mount (%s)", actualLength, expectedLength, mount) {
+			fmt.Printf("Expected inclusions: %+v, actual: %+v", expectedSpec.Inclusions, spec.Inclusions)
 			return
 		}
 
