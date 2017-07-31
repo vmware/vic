@@ -13,7 +13,7 @@ This test requires that a vCenter server with integrated PSC and with a discrete
 # Test Steps:
 1. Download and install the VIC OVA from here:
 [OVA Releases](https://console.cloud.google.com/storage/browser/vic-product-ova-releases/?project=eminent-nation-87317&authuser=1)
-2. Navigate to the file server page https://<VIC>:9443
+2. Navigate to the getting started page at https://<VIC>:9443
 3. Login into the vCenter using incorrect credentials
 4. Navigate to the admiral, harbor, demo VCH pages
 5. Login into the vCenter using correct credentials
