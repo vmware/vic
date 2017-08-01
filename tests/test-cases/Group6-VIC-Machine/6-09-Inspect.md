@@ -22,10 +22,12 @@ This test requires that a vSphere server is running and available
 9. Inspect the VCH without specifying --tls-cert-path
 10. Create a VCH with --no-tlsverify
 11. Inspect the VCH without specifying --tls-cert-path
+12. Create a VCH with some container-network options
+13. Verify the `inspect config` contains the correct options
 
 # Expected Outcome:
 * Steps 1 should succeed, and output from step 2 and 3 should contain expected flags & values
-* Steps 4-11 should complete successfully, however, step 6 should show a warning in the output (see below)
+* Steps 4-13 should complete successfully, however, step 6 should show a warning in the output (see below)
 * The output of steps 5 and 6 should contain the correct `DOCKER_CERT_PATH`.
 * The output of step 7 should not contain a `DOCKER_CERT_PATH` and should contain:
 ```

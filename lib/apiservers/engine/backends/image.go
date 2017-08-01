@@ -28,7 +28,6 @@ import (
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
@@ -65,10 +64,6 @@ type Image struct {
 
 func NewImageBackend() *Image {
 	return &Image{}
-}
-
-func (i *Image) Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error) {
-	return "", fmt.Errorf("%s does not yet implement image.Commit", ProductName())
 }
 
 func (i *Image) Exists(containerName string) bool {
@@ -349,20 +344,27 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 	}
 	//*****
 
-	// create url from hostname
-	hostnameURL, err := url.Parse(ref.Hostname())
-	if err != nil || hostnameURL.Hostname() == "" {
-		hostnameURL, err = url.Parse("//" + ref.Hostname())
-		if err != nil {
-			log.Infof("Error parsing hostname %s during registry access: %s", ref.Hostname(), err.Error())
-		}
-	}
-
 	options := imagec.Options{
 		Destination: os.TempDir(),
 		Reference:   ref,
 		Timeout:     imagec.DefaultHTTPTimeout,
 		Outstream:   outStream,
+	}
+
+	portLayerServer := PortLayerServer()
+	if portLayerServer != "" {
+		options.Host = portLayerServer
+	}
+
+	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	ic.ParseReference()
+	// create url from hostname
+	hostnameURL, err := url.Parse(ic.Registry)
+	if err != nil || hostnameURL.Hostname() == "" {
+		hostnameURL, err = url.Parse("//" + ic.Registry)
+		if err != nil {
+			log.Infof("Error parsing hostname %s during registry access: %s", ic.Registry, err.Error())
+		}
 	}
 
 	// Check if url is contained within set of whitelisted or insecure registries
@@ -374,31 +376,24 @@ func (i *Image) PullImage(ctx context.Context, image, tag string, metaHeaders ma
 		outStream.Write(sf.FormatError(err))
 		return nil
 	}
-	options.InsecureAllowHTTP = insecureOk
 
-	options.RegistryCAs = RegistryCertPool
+	ic.InsecureAllowHTTP = insecureOk
+	ic.RegistryCAs = RegistryCertPool
 
 	if authConfig != nil {
 		if len(authConfig.Username) > 0 {
-			options.Username = authConfig.Username
+			ic.Username = authConfig.Username
 		}
 		if len(authConfig.Password) > 0 {
-			options.Password = authConfig.Password
+			ic.Password = authConfig.Password
 		}
-	}
-
-	portLayerServer := PortLayerServer()
-
-	if portLayerServer != "" {
-		options.Host = portLayerServer
 	}
 
 	log.Infof("PullImage: reference: %s, %s, portlayer: %#v",
-		options.Reference,
-		options.Host,
+		ic.Reference,
+		ic.Host,
 		portLayerServer)
 
-	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
 	err = ic.PullImage()
 	if err != nil {
 		return err

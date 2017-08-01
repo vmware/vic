@@ -26,11 +26,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/events"
+	"github.com/go-openapi/runtime"
 	rc "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/swag"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	vicproxy "github.com/vmware/vic/lib/apiservers/engine/proxy"
 	apiclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
@@ -39,9 +41,11 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/dynamic"
+	"github.com/vmware/vic/lib/config/dynamic/admiral"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/registry"
+	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
@@ -49,7 +53,8 @@ const (
 	PortlayerName = "Backend Engine"
 
 	// RetryTimeSeconds defines how many seconds to wait between retries
-	RetryTimeSeconds = 2
+	RetryTimeSeconds        = 2
+	defaultSessionKeepAlive = 20 * time.Second
 )
 
 var (
@@ -59,10 +64,13 @@ var (
 	productName         string
 	productVersion      string
 
-	vchConfig        dynConfig
+	vchConfig        *dynConfig
 	RegistryCertPool *x509.CertPool
+	archiveProxy     vicproxy.VicArchiveProxy
 
 	eventService *events.Events
+
+	servicePort uint
 )
 
 type dynConfig struct {
@@ -71,44 +79,45 @@ type dynConfig struct {
 	Cfg    *config.VirtualContainerHostConfigSpec
 	src    dynamic.Source
 	merger dynamic.Merger
+	sess   *session.Session
 
 	Whitelist, Blacklist, Insecure registry.Set
+	remoteWl                       bool
 }
 
-func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec) error {
+func Init(portLayerAddr, product string, port uint, config *config.VirtualContainerHostConfigSpec) error {
+	servicePort = port
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
 		return err
 	}
 
-	vchConfig.Cfg = config
-	productName = product
-
-	if config != nil {
-		if config.Version != nil {
-			productVersion = config.Version.ShortVersion()
-		}
-		if productVersion == "" {
-			portLayerName = product + " Backend Engine"
-		} else {
-			portLayerName = product + " " + productVersion + " Backend Engine"
-		}
-
-		var err error
-		if vchConfig.Insecure, err = dynamic.ParseRegistries(config.InsecureRegistries); err != nil {
-			return err
-		}
-		if vchConfig.Whitelist, err = dynamic.ParseRegistries(config.RegistryWhitelist); err != nil {
-			return err
-		}
-		vchConfig.src = &dynamic.AdmiralSource{}
-		vchConfig.merger = dynamic.NewMerger()
-		loadRegistryCACerts()
-	} else {
-		portLayerName = product + " Backend Engine"
+	if config == nil {
+		return fmt.Errorf("docker API server requires VCH config")
 	}
 
+	productName = product
+
+	if config.Version != nil {
+		productVersion = config.Version.ShortVersion()
+	}
+	if productVersion == "" {
+		portLayerName = product + " Backend Engine"
+	} else {
+		portLayerName = product + " " + productVersion + " Backend Engine"
+	}
+
+	if vchConfig, err = newDynConfig(ctx, config); err != nil {
+		return err
+	}
+
+	loadRegistryCACerts()
+
 	t := rc.New(portLayerAddr, "/", []string{"http"})
+	t.Consumers["application/x-tar"] = runtime.ByteStreamConsumer()
+	t.Consumers["application/octet-stream"] = runtime.ByteStreamConsumer()
+	t.Producers["application/x-tar"] = runtime.ByteStreamProducer()
+	t.Producers["application/octet-stream"] = runtime.ByteStreamProducer()
 
 	portLayerClient = apiclient.New(t, nil)
 	portLayerServerAddr = portLayerAddr
@@ -126,6 +135,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		log.Errorf("Failed to create image store")
 		return err
 	}
+
+	archiveProxy = vicproxy.NewArchiveProxy(portLayerClient)
 
 	eventService = events.New()
 
@@ -341,52 +352,149 @@ func EventService() *events.Events {
 // RegistryCheck checkes the given url against the registry whitelist, blacklist, and insecure
 // registries lists. It returns true for each list where u matches that list.
 func (d *dynConfig) RegistryCheck(ctx context.Context, u *url.URL) (wl bool, bl bool, insecure bool) {
-	c, err := d.src.Get(ctx)
+	m := d.update(ctx)
+	us := u.String()
+	wl = len(m.Whitelist) == 0 || m.Whitelist.Match(us)
+	bl = len(m.Blacklist) == 0 || !m.Blacklist.Match(us)
+	insecure = m.Insecure.Match(us)
+	return
+}
+
+func (d *dynConfig) update(ctx context.Context) *dynConfig {
+	d.Lock()
+	src := d.src
+	d.Unlock()
+
+	c, err := src.Get(ctx)
+	if err != nil {
+		log.Warnf("error getting config from source: %s", err)
+	}
 
 	d.Lock()
 	defer d.Unlock()
 
-	if err == nil {
+	m := d
+	if c != nil {
 		// update config
-		if err := d.update(c); err != nil {
-			log.Warnf("error updating config: %s", err)
+		if m, err = d.merged(c); err != nil {
+			log.Errorf("error updating config: %s", err)
+			m = d
+		} else {
+			if len(c.RegistryWhitelist) > 0 {
+				m.remoteWl = true
+			}
 		}
-	} else {
-		log.Warnf("could not get config from remote source: %s", err)
+	} else if err == nil && src == d.src {
+		// err == nil and c == nil, which
+		// indicates no remote sources
+		// were found, try resetting the
+		// source for next time
+		if err := d.resetSrc(); err != nil {
+			log.Warnf("could not reset config source: %s", err)
+		}
 	}
 
-	us := u.String()
-	wl = len(d.Whitelist) == 0 || d.Whitelist.Match(us)
-	bl = len(d.Blacklist) == 0 || !d.Blacklist.Match(us)
-	insecure = d.Insecure.Match(us)
-	return
+	return m
 }
 
-// update merges another config into this config. d should be locked before
-// calling this.
-func (d *dynConfig) update(c *config.VirtualContainerHostConfigSpec) error {
-	if c == nil {
-		return nil
-	}
-
-	newcfg, err := d.merger.Merge(d.Cfg, c)
+func (d *dynConfig) resetSrc() error {
+	ep, err := d.clientEndpoint()
 	if err != nil {
 		return err
 	}
 
+	d.src = admiral.NewSource(d.sess, ep.String())
+	return nil
+}
+
+func newDynConfig(ctx context.Context, c *config.VirtualContainerHostConfigSpec) (*dynConfig, error) {
+	d := &dynConfig{Cfg: c}
+	var err error
+	if d.Insecure, err = dynamic.ParseRegistries(c.InsecureRegistries); err != nil {
+		return nil, err
+	}
+	if d.Whitelist, err = dynamic.ParseRegistries(c.RegistryWhitelist); err != nil {
+		return nil, err
+	}
+
+	if d.sess, err = newSession(ctx, c); err != nil {
+		return nil, err
+	}
+
+	d.merger = dynamic.NewMerger()
+	if err := d.resetSrc(); err != nil {
+		return nil, err
+	}
+
+	return d, nil
+}
+
+// update merges another config into this config. d should be locked before
+// calling this.
+func (d *dynConfig) merged(c *config.VirtualContainerHostConfigSpec) (*dynConfig, error) {
+	if c == nil {
+		return d, nil
+	}
+
+	newcfg, err := d.merger.Merge(d.Cfg, c)
+	if err != nil {
+		return nil, err
+	}
+
 	var wl, bl, insecure registry.Set
 	if wl, err = dynamic.ParseRegistries(newcfg.RegistryWhitelist); err != nil {
-		return err
+		return nil, err
 	}
 	if bl, err = dynamic.ParseRegistries(newcfg.RegistryBlacklist); err != nil {
-		return err
+		return nil, err
 	}
 	if insecure, err = dynamic.ParseRegistries(newcfg.InsecureRegistries); err != nil {
-		return err
+		return nil, err
 	}
 
-	d.Whitelist, d.Blacklist, d.Insecure = wl, bl, insecure
-	vchConfig.Cfg = newcfg
+	return &dynConfig{
+		Whitelist: wl,
+		Blacklist: bl,
+		Insecure:  insecure,
+		Cfg:       newcfg,
+		src:       d.src,
+	}, nil
+}
 
-	return nil
+func (d *dynConfig) clientEndpoint() (*url.URL, error) {
+	ips, err := net.LookupIP("client.localhost")
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := "https"
+	if d.Cfg.HostCertificate.IsNil() {
+		scheme = "http"
+	}
+
+	return url.Parse(fmt.Sprintf("%s://%s:%d", scheme, ips[0], servicePort))
+}
+
+func newSession(ctx context.Context, config *config.VirtualContainerHostConfigSpec) (*session.Session, error) {
+	// strip the path off of the target url since it may contain the
+	// datacenter
+	u, err := url.Parse(config.Target)
+	if err != nil {
+		return nil, err
+	}
+
+	u.Path = ""
+	sessCfg := &session.Config{
+		Service:    u.String(),
+		User:       url.UserPassword(config.Username, config.Token),
+		Thumbprint: config.TargetThumbprint,
+		Keepalive:  defaultSessionKeepAlive,
+	}
+
+	sess := session.NewSession(sessCfg)
+	if sess.Connect(ctx); err != nil {
+		return nil, err
+	}
+
+	return sess, nil
 }

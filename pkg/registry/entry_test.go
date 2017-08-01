@@ -104,19 +104,18 @@ func TestEntryContains(t *testing.T) {
 		{
 			first:  ParseEntry("foo"),
 			second: ParseEntry("foo:123"),
-			res:    false,
+			res:    true,
 		},
 		{
 			first:  ParseEntry("192.168.1.1"),
 			second: ParseEntry("192.168.1.1:123"),
-			res:    false,
+			res:    true,
 		},
 	}
 
 	for _, te := range tests {
 		assert.Equal(t, te.res, te.first.Contains(te.second), "test: %s contains %s", te.first, te.second)
 	}
-
 }
 
 func TestEntryMatch(t *testing.T) {
@@ -188,12 +187,12 @@ func TestEntryMatch(t *testing.T) {
 		{
 			e:   ParseEntry("foo"),
 			s:   "foo:123",
-			res: false,
+			res: true,
 		},
 		{
 			e:   ParseEntry("192.168.1.1"),
 			s:   "192.168.1.1:123",
-			res: false,
+			res: true,
 		},
 		{
 			e:   ParseEntry("http://192.168.1.1"),
@@ -202,8 +201,8 @@ func TestEntryMatch(t *testing.T) {
 		},
 		{
 			e:   ParseEntry("http://192.168.1.1"),
-			s:   "192.168.1.1/foo/bar", // ambiguous scheme and entry is restricted to http, so no match
-			res: false,
+			s:   "192.168.1.1/foo/bar",
+			res: true,
 		},
 		{
 			e:   ParseEntry("http://192.168.1.1"),

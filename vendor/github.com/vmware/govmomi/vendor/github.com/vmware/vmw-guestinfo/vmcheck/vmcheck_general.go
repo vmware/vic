@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dynamic
+// +build !linux
 
-import (
-	"context"
+package vmcheck
 
-	"github.com/vmware/vic/lib/config"
-)
-
-type AdmiralSource struct {
-}
-
-// Get returns the dynamic config portion from an Admiral instance. For now,
-// this is empty pending details from the Admiral team.
-func (a *AdmiralSource) Get(context.Context) (*config.VirtualContainerHostConfigSpec, error) {
-	return nil, ErrSourceUnavailable
+// probably not gonna work. Instead, implement a platform-specific variant, and
+// add the platform to above build flags
+func openPortsAccess() error {
+	return nil
 }

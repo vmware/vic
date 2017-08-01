@@ -61,7 +61,7 @@ endif
 # Caches dependencies to speed repeated calls
 define godeps
 	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
-	$(if $(filter-out clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
+	$(if $(filter-out focused-test test clean distclean mrrobot mark sincemark .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
 			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
@@ -77,6 +77,7 @@ LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/versio
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
 docker-engine-api-test := $(BIN)/docker-engine-server-test
+admiralapi-client := lib/config/dynamic/admiral/client/admiral_client.go
 portlayerapi := $(BIN)/port-layer-server
 portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
@@ -117,6 +118,7 @@ portlayerapi: $(portlayerapi)
 portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
+admiralapi-client: $(admiralapi-client)
 
 imagec: $(imagec)
 vicadmin: $(vicadmin)
@@ -198,7 +200,7 @@ whitespace:
 	@infra/scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
-golintf = $(GOLINT) $(1) | sh -c "! grep -v 'lib/apiservers/portlayer/restapi/operations'" | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'" | sh -c "! grep -v 'error strings should not be capitalized'"
+golintf = $(GOLINT) $(1) | sh -c "! grep -v 'lib/apiservers/portlayer/restapi/operations'" | sh -c "! grep -v 'lib/config/dynamic/admiral/client'" | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'" | sh -c "! grep -v 'error strings should not be capitalized'"
 
 golint: $(GOLINT)
 	@echo checking go lint...
@@ -221,7 +223,7 @@ gofmt:
 
 misspell: $(MISSPELL)
 	@echo checking misspell...
-	@$(MISSPELL) -error $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+	@infra/scripts/misspell.sh
 
 govet:
 	@echo checking go vet...
@@ -231,7 +233,7 @@ govet:
 
 gas: $(GAS)
 	@echo checking security problems
-	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -skip=*_responses.go ./... > ../$$i.gas 2> /dev/null || exit 1; popd > /dev/null; done
+	@$(GAS) -skip=*_responses.go -quiet lib/... cmd/... pkg/... 2> /dev/null
 
 vendor: $(GVT)
 	@echo restoring vendor
@@ -256,6 +258,11 @@ install-govmomi:
 	$(GO) install ./vendor/github.com/vmware/govmomi
 
 test: install-govmomi portlayerapi $(TEST_JOBS)
+
+
+focused-test:
+# test only those packages that have changes
+	infra/scripts/focused-test.sh $(REMOTE)
 
 $(TEST_JOBS): test-job-%:
 	@echo Running unit tests
@@ -296,7 +303,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
-$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
+$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client) $(admiralapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
@@ -315,8 +322,12 @@ endif
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
-				  lib/apiservers/portlayer/restapi/options/*.go \
-				  lib/apiservers/portlayer/restapi/handlers/*.go
+				  lib/apiservers/portlayer/restapi/options/*.go
+
+$(admiralapi-client): lib/config/dynamic/admiral/swagger.json $(SWAGGER)
+	@echo regenerating swagger models and operations for Admiral API client...
+	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral -f lib/config/dynamic/admiral/swagger.json --tags /projects --tags /resources/compute --tags /config/registries 2>>swagger-gen.log
+	@echo done regenerating swagger models and operations for Admiral API client...
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
@@ -403,7 +414,7 @@ ENV_FLEX_SDK_HOME = "/tmp/sdk/flex_sdk_min"
 ENV_HTML_SDK_HOME = "/tmp/sdk/html-client-sdk"
 
 vic-ui-plugins:
-	@npm install -g yarn > /dev/null
+	@npm install -g yarn@0.24.6 > /dev/null
 	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_H5_UI_PATH)/plugin-package.xml > ./$(VICUI_H5_UI_PATH)/new_plugin-package.xml
 	sed -e "s/0.0.1/$(shell printf %s ${TAG_NUM}.${BUILD_NUMBER})/" -e "s/\-rc[[:digit:]]//g" ./$(VICUI_SOURCE_PATH)/plugin-package.xml > ./$(VICUI_SOURCE_PATH)/new_plugin-package.xml
 	sed "s/UI_VERSION_PLACEHOLDER/$(shell printf %s ${TAG}.${BUILD_NUMBER})/" ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/configs.properties > ./$(VICUI_H5_SERVICE_PATH)/src/main/resources/new_configs.properties
@@ -414,9 +425,9 @@ vic-ui-plugins:
 	wget -nv $(GCP_DOWNLOAD_PATH)$(SDK_PACKAGE_ARCHIVE) -O /tmp/$(SDK_PACKAGE_ARCHIVE)
 	wget -nv $(GCP_DOWNLOAD_PATH)$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -O /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE)
 	tar --warning=no-unknown-keyword -xzf /tmp/$(SDK_PACKAGE_ARCHIVE) -C /tmp/
-	ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME)
+	ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) > vic_ui_build.log 2>&1
 	tar --warning=no-unknown-keyword -xzf /tmp/$(UI_INSTALLER_WIN_UTILS_ARCHIVE) -C $(UI_INSTALLER_WIN_PATH)
-	ant -f ui/vic-ui-h5c/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) -Denv.VSPHERE_H5C_SDK_HOME=$(ENV_HTML_SDK_HOME) -Denv.BUILD_MODE=prod
+	ant -f ui/vic-ui-h5c/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$(ENV_VSPHERE_SDK_HOME) -Denv.FLEX_HOME=$(ENV_FLEX_SDK_HOME) -Denv.VSPHERE_H5C_SDK_HOME=$(ENV_HTML_SDK_HOME) -Denv.BUILD_MODE=prod >> vic_ui_build.log 2>&1
 	mkdir -p $(BIN)/ui
 	cp -rf ui/installer/* $(BIN)/ui
 	# cleanup
@@ -465,7 +476,6 @@ clean:
 
 	@rm -f *.log
 	@rm -f *.pem
-	@rm -f *.gas
 
 	@rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
 	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock

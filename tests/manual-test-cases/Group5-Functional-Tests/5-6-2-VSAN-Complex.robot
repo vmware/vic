@@ -30,7 +30,8 @@ VSAN Cleanup
 Complex VSAN
     ${name}=  Evaluate  'vic-vsan-complex-' + str(random.randint(1000,9999))  modules=random
     Set Test Variable  ${user}  %{NIMBUS_USER}
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-complex-pxeBoot-vcva --runName ${name}
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin testng --vcfvtBuildPath /dbc/pa-dbc1111/mhagen/ --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vic-vsan-complex-pxeBoot-vcva --runName ${name}
+    Should Contain  ${out}  "deployment_result"=>"PASS"
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
@@ -44,10 +45,6 @@ Complex VSAN
     Set Environment Variable  GOVC_URL  ${vc-ip}
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
-
-    Wait Until Keyword Succeeds  10x  3 minutes  Create A Distributed Switch  vcqaDC
-
-    Create Three Distributed Port Groups  vcqaDC
 
     Add Host To Distributed Switch  /vcqaDC/host/cluster-vsan-1
 

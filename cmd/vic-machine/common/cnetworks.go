@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -32,22 +33,25 @@ type CNetworks struct {
 	ContainerNetworksGateway  cli.StringSlice `arg:"container-network-gateway"`
 	ContainerNetworksIPRanges cli.StringSlice `arg:"container-network-ip-range"`
 	ContainerNetworksDNS      cli.StringSlice `arg:"container-network-dns"`
+	ContainerNetworksFirewall cli.StringSlice `arg:"container-network-firewall"`
 	IsSet                     bool
 }
 
 // ContainerNetworks holds container network data after processing
 type ContainerNetworks struct {
-	MappedNetworks         map[string]string     `cmd:"parent" label:"key-value"`
-	MappedNetworksGateways map[string]net.IPNet  `cmd:"gateway" label:"key-value"`
-	MappedNetworksIPRanges map[string][]ip.Range `cmd:"ip-range" label:"key-value"`
-	MappedNetworksDNS      map[string][]net.IP   `cmd:"dns" label:"key-value"`
+	MappedNetworks          map[string]string              `cmd:"parent" label:"key-value"`
+	MappedNetworksGateways  map[string]net.IPNet           `cmd:"gateway" label:"key-value"`
+	MappedNetworksIPRanges  map[string][]ip.Range          `cmd:"ip-range" label:"key-value"`
+	MappedNetworksDNS       map[string][]net.IP            `cmd:"dns" label:"key-value"`
+	MappedNetworksFirewalls map[string]executor.TrustLevel `cmd:"firewall" label:"key-value"`
 }
 
 func (c *ContainerNetworks) IsSet() bool {
 	return len(c.MappedNetworks) > 0 ||
 		len(c.MappedNetworksGateways) > 0 ||
 		len(c.MappedNetworksIPRanges) > 0 ||
-		len(c.MappedNetworksDNS) > 0
+		len(c.MappedNetworksDNS) > 0 ||
+		len(c.MappedNetworksFirewalls) > 0
 }
 
 func (c *CNetworks) CNetworkFlags(hidden bool) []cli.Flag {
@@ -73,6 +77,12 @@ func (c *CNetworks) CNetworkFlags(hidden bool) []cli.Flag {
 			Name:   "container-network-dns, cnd",
 			Value:  &c.ContainerNetworksDNS,
 			Usage:  "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. vsphere-net:8.8.8.8. Ignored if no static IP assigned.",
+			Hidden: hidden,
+		},
+		cli.StringSliceFlag{
+			Name:   "container-network-firewall, cnf",
+			Value:  &c.ContainerNetworksFirewall,
+			Usage:  "Container network trust level in CONTAINER-NETWORK:LEVEL format. Options: Closed, Outbound, Peers, Published, Open.",
 			Hidden: hidden,
 		},
 	}
@@ -129,6 +139,22 @@ func parseContainerNetworkDNS(cds []string) (map[string][]net.IP, error) {
 	}
 
 	return dns, nil
+}
+
+func parseContainerNetworkFirewalls(cfs []string) (map[string]executor.TrustLevel, error) {
+	firewalls := make(map[string]executor.TrustLevel)
+	for _, cf := range cfs {
+		vnet, value, err := splitVnetParam(cf)
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing container network parameter %s: %s", cf, err)
+		}
+		trust, err := executor.ParseTrustLevel(value)
+		if err != nil {
+			return nil, err
+		}
+		firewalls[vnet] = trust
+	}
+	return firewalls, nil
 }
 
 func splitVnetParam(p string) (vnet string, value string, err error) {
@@ -196,10 +222,11 @@ func (m *ipNetUnmarshaler) UnmarshalText(text []byte) error {
 // struct containing all processed container network fields on success.
 func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
 	cNetworks := ContainerNetworks{
-		MappedNetworks:         make(map[string]string),
-		MappedNetworksGateways: make(map[string]net.IPNet),
-		MappedNetworksIPRanges: make(map[string][]ip.Range),
-		MappedNetworksDNS:      make(map[string][]net.IP),
+		MappedNetworks:          make(map[string]string),
+		MappedNetworksGateways:  make(map[string]net.IPNet),
+		MappedNetworksIPRanges:  make(map[string][]ip.Range),
+		MappedNetworksDNS:       make(map[string][]net.IP),
+		MappedNetworksFirewalls: make(map[string]executor.TrustLevel),
 	}
 
 	if c.ContainerNetworks != nil || c.ContainerNetworksGateway != nil ||
@@ -222,6 +249,11 @@ func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
 		return cNetworks, cli.NewExitError(err.Error(), 1)
 	}
 
+	firewalls, err := parseContainerNetworkFirewalls([]string(c.ContainerNetworksFirewall))
+	if err != nil {
+		return cNetworks, cli.NewExitError(err.Error(), 1)
+	}
+
 	// Parse container networks
 	for _, cn := range c.ContainerNetworks {
 		vnet, v, err := splitVnetParam(cn)
@@ -238,10 +270,12 @@ func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
 		cNetworks.MappedNetworksGateways[alias] = gws[vnet]
 		cNetworks.MappedNetworksIPRanges[alias] = pools[vnet]
 		cNetworks.MappedNetworksDNS[alias] = dns[vnet]
+		cNetworks.MappedNetworksFirewalls[alias] = firewalls[vnet]
 
 		delete(gws, vnet)
 		delete(pools, vnet)
 		delete(dns, vnet)
+		delete(firewalls, vnet)
 	}
 
 	var hasError bool
@@ -250,21 +284,28 @@ func (c *CNetworks) ProcessContainerNetworks() (ContainerNetworks, error) {
 		log.Error(fmt.Sprintf(fmtMsg, "gateway", "--container-network-gateway"))
 		for key, value := range gws {
 			mask, _ := value.Mask.Size()
-			log.Errorf("\t%s:%s/%d, %q should be vSphere network name", key, value.IP, mask, key)
+			log.Errorf("\t%s:%s/%d, %q should be a vSphere network name", key, value.IP, mask, key)
 		}
 		hasError = true
 	}
 	if len(pools) > 0 {
 		log.Error(fmt.Sprintf(fmtMsg, "ip range", "--container-network-ip-range"))
 		for key, value := range pools {
-			log.Errorf("\t%s:%s, %q should be vSphere network name", key, value, key)
+			log.Errorf("\t%s:%s, %q should be a vSphere network name", key, value, key)
 		}
 		hasError = true
 	}
 	if len(dns) > 0 {
 		log.Errorf(fmt.Sprintf(fmtMsg, "dns", "--container-network-dns"))
 		for key, value := range dns {
-			log.Errorf("\t%s:%s, %q should be vSphere network name", key, value, key)
+			log.Errorf("\t%s:%s, %q should be a vSphere network name", key, value, key)
+		}
+		hasError = true
+	}
+	if len(firewalls) > 0 {
+		log.Error(fmt.Sprintf(fmtMsg, "firewall", "--container-network-firewall"))
+		for key := range firewalls {
+			log.Errorf("\t%q should be a vSphere network name", key)
 		}
 		hasError = true
 	}

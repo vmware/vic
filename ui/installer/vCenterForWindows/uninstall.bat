@@ -33,19 +33,50 @@ IF NOT EXIST configs (
     EXIT /b 1
 )
 
+SET arg_name=%1
+SET arg_value=%2
+
+:read_vc_args
+IF NOT "%1"=="" (
+    IF "%1"=="-i" (
+        SET target_vcenter_ip=%2
+        SHIFT
+    )
+    IF "%1"=="-u" (
+        SET vcenter_username=%2
+        SHIFT
+    )
+    IF "%1"=="-p" (
+        SET vcenter_password=%2
+        SHIFT
+    )
+    SHIFT
+    GOTO :read_vc_args
+)
+
 ECHO -------------------------------------------------------------
 ECHO This script will uninstall vSphere Integrated Containers plugin
 ECHO for vSphere Client (HTML) and vSphere Web Client (Flex).
 ECHO.
 ECHO Please provide connection information to the vCenter Server.
 ECHO -------------------------------------------------------------
-SET /p target_vcenter_ip="Enter IP to target vCenter Server: "
-SET /p vcenter_username="Enter your vCenter Administrator Username: "
-SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Administrator Password' -AsSecureString ; ^
-    $BSTR=[System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($pword); ^
-        [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)""
+IF [%target_vcenter_ip%] == [] (
+    SET /p target_vcenter_ip="Enter IP to target vCenter Server: "
+)
+IF [%vcenter_username%] == [] (
+    SET /p vcenter_username="Enter your vCenter Administrator Username: "
+)
+IF [%vcenter_password%] == [] (
+    GOTO :read_vc_password
+) ELSE (
+    GOTO :after_vc_info_read
+)
+
+:read_vc_password
+SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Administrator Password' -AsSecureString ; ^ $BSTR=[System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($pword); ^ [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)""
 FOR /f "usebackq delims=" %%p in (`%psCommand%`) do set vcenter_password=%%p
 
+:after_vc_info_read
 SET plugin_manager_bin=%parent%..\..\vic-ui-windows.exe
 SET vcenter_unreg_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
 

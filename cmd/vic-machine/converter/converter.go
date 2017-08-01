@@ -27,6 +27,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/ip"
 	viclog "github.com/vmware/vic/pkg/log"
@@ -82,6 +83,7 @@ func init() {
 	typeConverters["ip.Range"] = convertIPRange
 	typeConverters["data.NetworkConfig"] = convertNetwork
 	typeConverters["common.ContainerNetworks"] = convertContainerNetworks
+	typeConverters["executor.TrustLevel"] = convertTrustLevel
 	typeConverters["types.SharesInfo"] = convertShares
 
 	labelHandlers[keyAfterValueLabel] = keyAfterValueLabelHandler
@@ -135,7 +137,7 @@ func convertStruct(src reflect.Value, prefix string, tags reflect.StructTag, des
 	// iterate through every field in the struct
 	for i := 0; i < src.NumField(); i++ {
 		field := src.Field(i)
-		// get field key, and keep going even the attribut key is empty, to make sure children attribute is not missing
+		// get field key, and keep going even if the attribute key is empty, to make sure children attribute is not missing
 		tags := src.Type().Field(i).Tag
 		key := calculateKey(tags, prefix)
 		if err := convert(field, key, tags, dest); err != nil {
@@ -322,6 +324,22 @@ func convertIP(src reflect.Value, prefix string, tags reflect.StructTag, dest ma
 		return nil
 	}
 	v := ipAddr.String()
+
+	log.Debugf("%s=%s", prefix, v)
+	addValue(dest, prefix, v)
+	return nil
+}
+
+func convertTrustLevel(src reflect.Value, prefix string, tags reflect.StructTag, dest map[string][]string) error {
+	log.Debugf("convertTrustLevel: prefix: %s, src: %s", prefix, src.String())
+	trustLevel, ok := src.Interface().(executor.TrustLevel)
+	if !ok {
+		panic(fmt.Sprintf(src.Type().String() + " is not TrustLevel"))
+	}
+	if trustLevel == executor.Unspecified {
+		return nil
+	}
+	v := trustLevel.String()
 
 	log.Debugf("%s=%s", prefix, v)
 	addValue(dest, prefix, v)
@@ -522,6 +540,10 @@ func convertContainerNetworks(src reflect.Value, prefix string, tags reflect.Str
 		if ipRange, ok := networks.MappedNetworksIPRanges[k]; ok {
 			networks.MappedNetworksIPRanges[v] = ipRange
 			delete(networks.MappedNetworksIPRanges, k)
+		}
+		if firewall, ok := networks.MappedNetworksFirewalls[k]; ok {
+			networks.MappedNetworksFirewalls[v] = firewall
+			delete(networks.MappedNetworksFirewalls, k)
 		}
 		newMappedNetworks[v] = k
 	}

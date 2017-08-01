@@ -14,12 +14,47 @@
 # limitations under the License.
 #
 
-echo "-------------------------------------------------------------"
-echo "This script will uninstall vSphere Integrated Containers plugin"
-echo "for vSphere Client (HTML) and vSphere Web Client (Flex)."
-echo ""
-echo "Please provide connection information to the vCenter Server."
-echo "-------------------------------------------------------------"
+read_vc_information () {
+    while getopts ":i:u:p:" o; do
+        case "${o}" in
+            i)
+                VCENTER_IP=$OPTARG
+                ;;
+            u)
+                VCENTER_ADMIN_USERNAME=$OPTARG
+                ;;
+            p)
+                VCENTER_ADMIN_PASSWORD=$OPTARG
+                ;;
+            *)
+                echo Usage: $0 [-i vc_ip] [-u vc admin_username] [-p vc_admin_password] >&2
+                exit 1
+                ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    echo "-------------------------------------------------------------"
+    echo "This script will uninstall vSphere Integrated Containers plugin"
+    echo "for vSphere Client (HTML) and vSphere Web Client (Flex)."
+    echo ""
+    echo "Please provide connection information to the vCenter Server."
+    echo "-------------------------------------------------------------"
+
+    if [ -z $VCENTER_IP ] ; then
+        read -p "Enter IP to target vCenter Server: " VCENTER_IP
+    fi
+
+    if [ -z $VCENTER_ADMIN_USERNAME ] ; then
+        read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
+    fi
+
+    if [ -z $VCENTER_ADMIN_PASSWORD ] ; then
+        echo -n "Enter your vCenter Administrator Password: "
+        read -s VCENTER_ADMIN_PASSWORD
+        echo ""
+    fi
+}
 
 # check for the configs file
 if [[ ! -f "configs" ]] ; then
@@ -33,13 +68,14 @@ while IFS='' read -r line; do
     eval $line
 done < ./configs
 
+read_vc_information $*
+
 # replace space delimiters with colon delimiters
 VIC_UI_HOST_THUMBPRINT=$(echo $VIC_UI_HOST_THUMBPRINT | sed -e 's/[[:space:]]/\:/g')
 
 # check for the pllugin manifest file
 if [[ ! -f ../plugin-manifest ]] ; then
     echo "Error! Plugin manifest was not found!"
-    cleanup
     exit 1
 fi
 
@@ -47,12 +83,6 @@ fi
 while IFS='' read -r p_line; do
     eval "$p_line"
 done < ../plugin-manifest
-
-read -p "Enter IP to target vCenter Server: " VCENTER_IP
-read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
-echo -n "Enter your vCenter Administrator Password: "
-read -s VCENTER_ADMIN_PASSWORD
-echo ""
 
 OS=$(uname)
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
@@ -83,7 +113,6 @@ check_prerequisite () {
     if [[ ! $(echo $CURL_RESPONSE | grep -oi "vmware vsphere") ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! vCenter Server was not found at host $VCENTER_IP"
-        cleanup
         exit 1
     fi
 
@@ -125,7 +154,6 @@ unregister_plugin() {
     if [[ $? > 0 ]] ; then
         echo "-------------------------------------------------------------"
         echo "Error! Could not unregister plugin with vCenter Server. Please see the message above"
-        cleanup
         exit 1
     fi
     echo ""
@@ -133,8 +161,8 @@ unregister_plugin() {
 
 parse_and_unregister_plugins () {
     echo ""
-    unregister_plugin $name-FlexClient $key_flex
-    unregister_plugin $name-H5Client $key_h5c
+    unregister_plugin "$name-FlexClient" $key_flex
+    unregister_plugin "$name-H5Client" $key_h5c
 }
 
 check_prerequisite

@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
 	"github.com/vmware/vic/pkg/trace"
@@ -75,8 +74,9 @@ type ImageStorer interface {
 	// container, this will return an error.
 	DeleteImage(op trace.Operation, image *Image) (*Image, error)
 
-	// Archiver defines the Export and WriteArchive interface methods
-	archive.Archiver
+	Resolver
+	Importer
+	Exporter
 }
 
 // Image is the handle to identify an image layer on the backing store.  The

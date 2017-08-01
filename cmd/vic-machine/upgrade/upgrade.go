@@ -75,7 +75,7 @@ func (u *Upgrade) Flags() []cli.Flag {
 	id := u.IDFlags()
 	compute := u.ComputeFlags()
 	iso := u.ImageFlags(false)
-	debug := u.DebugFlags()
+	debug := u.DebugFlags(true)
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
