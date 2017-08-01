@@ -44,6 +44,8 @@ Docker login and pull from docker.io
 
     Install Harbor To Test Server  name=19-4-harbor  protocol=https
     Log To Console  Harbor installer completed successfully...
+
+    Set Environment Variable  HARBOR_IP  %{HARBOR-IP}
     
     Install Harbor Self Signed Cert
     Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR-IP}/ca.crt  certs=${false}
