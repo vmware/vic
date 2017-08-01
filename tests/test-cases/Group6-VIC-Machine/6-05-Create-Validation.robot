@@ -126,7 +126,7 @@ Whitelist registries - blocked registry ip address of valid registry fqdn
 
 Whitelist registries - allowed registry fqdn
     Set Test Environment Variables
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry docker.io
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry registry.hub.docker.com
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
@@ -136,7 +136,7 @@ Whitelist registries - allowed registry fqdn
 
 Whitelist registries - allowed registry wildcard domain
     Set Test Environment Variables
-    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *docker.io
+    ${output}=  Run  bin/vic-machine-linux create --name=%{VCH-NAME} --target=%{TEST_URL}/ --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${vicmachinetls} --whitelist-registry *hub.docker.com
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     # try a docker pull from docker.io; this should succeed
