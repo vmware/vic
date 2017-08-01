@@ -46,7 +46,6 @@ func init() {
 
 func main() {
 	if version.Show() {
-		// #nosec
 		fmt.Fprintf(os.Stdout, "%s\n", version.String())
 		return
 	}

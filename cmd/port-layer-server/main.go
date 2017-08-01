@@ -43,7 +43,6 @@ var (
 )
 
 func init() {
-	// #nosec
 	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
@@ -106,7 +105,6 @@ func main() {
 	}
 
 	log.Infof("%+v", *logcfg)
-	// #nosec
 	viclog.Init(logcfg)
 
 	server.ConfigureAPI()

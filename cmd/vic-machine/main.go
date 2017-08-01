@@ -132,7 +132,6 @@ func main() {
 	// #nosec: Expect file permissions to be 0600 or less
 	f, err := os.OpenFile(LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		// #nosec
 		fmt.Fprintf(os.Stderr, "Error opening logfile %s: %v\n", LogFile, err)
 	} else {
 		defer f.Close()
@@ -146,18 +145,15 @@ func main() {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("--------------------")
-			log.Errorf("%s failed, please check l`og file %s for details", app.Name, LogFile)
-			// #nosec
+			log.Errorf("%s failed, please check log file %s for details", app.Name, LogFile)
 			fmt.Fprintf(f, "%s", runtime.Stack())
 		}
 	}()
 
-	// #nosec
 	app.Run(os.Args)
 }
 
 func showVersion(cli *cli.Context) error {
-	// #nosec
 	fmt.Fprintf(cli.App.Writer, "%v version %v\n", cli.App.Name, cli.App.Version)
 	return nil
 }

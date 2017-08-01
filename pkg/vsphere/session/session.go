@@ -105,7 +105,6 @@ func (s *Session) IsVC() bool {
 
 // IsVSAN returns whether the datastore used in the session is backed by VSAN
 func (s *Session) IsVSAN(ctx context.Context) bool {
-	// #nosec
 	dsType, _ := s.Datastore.Type(ctx)
 
 	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
@@ -135,7 +134,6 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 	// we're treating this as an atomic behaviour, so log out if we failed
 	defer func() {
 		if err != nil {
-			// #nosec
 			s.Client.Logout(ctx)
 		}
 	}()
