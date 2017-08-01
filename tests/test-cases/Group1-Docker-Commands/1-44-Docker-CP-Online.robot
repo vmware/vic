@@ -161,7 +161,7 @@ Copy a large file to an online container, dst is a volume
     Should Contain  ${output}  largefile.txt
 
 Copy a non-existent file out of an online container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/dne ${CURDIR}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp online:/dne/dne ${CURDIR}
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Error
 

@@ -360,13 +360,6 @@ func (m *MockContainerProxy) StreamContainerStats(ctx context.Context, config *c
 	return nil
 }
 
-func (m *MockContainerProxy) ArchiveExportReader(op trace.Operation, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec archive.FilterSpec) (io.ReadCloser, error) {
-	return nil, nil
-}
-
-func (m *MockContainerProxy) ArchiveImportWriter(op trace.Operation, store, deviceID string, filterSpec archive.FilterSpec) (io.WriteCloser, error) {
-	return nil, nil
-}
 func (m *MockContainerProxy) StatPath(op trace.Operation, sotre, deviceID string, filterSpec archive.FilterSpec) (*types.ContainerPathStat, error) {
 	return nil, nil
 }

@@ -725,7 +725,7 @@ func (c *ContainerProxy) StatPath(op trace.Operation, store, deviceID string, fi
 	statPathOk, err := c.client.Storage.StatPath(statPathParams)
 	if err != nil {
 		op.Errorf(err.Error())
-		return nil, InternalServerError(err.Error())
+		return nil, err
 	}
 
 	stat := &types.ContainerPathStat{
