@@ -42,19 +42,15 @@ Docker login and pull from docker.io
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logout
     Should Be Equal As Integers  ${rc}  0
 
-    Install Harbor To Test Server  name=19-4-harbor  protocol=https
-    Log To Console  Harbor installer completed successfully...
+    ${ip}=  Install Harbor To Test Server  name=19-4-harbor  protocol=https
 
-    Set Environment Variable  HARBOR_IP  %{HARBOR-IP}
+    Set Test Variable  ${harbor_ip}  ${ip}
     
-    Install Harbor Self Signed Cert
-    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR-IP}/ca.crt  certs=${false}
-    
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${ip}
     Should Contain  ${output}  Login Succeeded
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=incorrectPassword
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=incorrectPassword ${ip}
     Should Contain  ${output}  incorrect username or password
     Should Be Equal As Integers  ${rc}  1
 
