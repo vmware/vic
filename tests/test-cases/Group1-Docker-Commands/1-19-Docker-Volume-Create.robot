@@ -176,22 +176,22 @@ Docker volume create with possibly invalid name
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test???" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 
 Docker volume verify anonymous volume contains base image files
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run jakedsouza/group-1-19-docker-verify-volume-files:1.0 ls /etc/example
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-anon-1 jakedsouza/group-1-19-docker-verify-volume-files:1.0 ls /etc/example
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  thisshouldexist
     Should Contain  ${output}  testfile.txt
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-anon-2 jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  TestFile
 
 Docker volume verify named volume contains base image files
-	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v test15:/etc/example jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
+	${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-named-1 -v test15:/etc/example jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /etc/example/testfile.txt
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  TestFile
 
 	# Verify file is copied to volumeA
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v test15:/mnt/test15 jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /mnt/test15/testfile.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run --name verify-named-2 -v test15:/mnt/test15 jakedsouza/group-1-19-docker-verify-volume-files:1.0 cat /mnt/test15/testfile.txt
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  TestFile
 

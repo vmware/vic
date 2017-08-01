@@ -277,7 +277,7 @@ func (t *tether) setMounts() error {
 			return fmt.Errorf("unsupported volume mount type for %s: %s", targetRef, mountTarget.Source.Scheme)
 		}
 	}
-	return nil
+	return t.populateVolumes()
 }
 
 func (t *tether) populateVolumes() error {
