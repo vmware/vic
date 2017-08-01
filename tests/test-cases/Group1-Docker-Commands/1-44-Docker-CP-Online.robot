@@ -115,19 +115,16 @@ Copy a file and directory from host to online container
     Should Not Contain  ${output}  Error
 
 Copy a directory from host to online container, dst is a volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it --name online-copyto -v vol1:/vol1 ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it --name online -v vol1:/vol1 ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online-copyto:/vol1/
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar online:/vol1/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online-copyto ls /vol1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec online ls /vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     Should Contain  ${output}  bar
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop online-copyto
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a volume shared with an online container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}

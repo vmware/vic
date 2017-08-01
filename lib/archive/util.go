@@ -34,7 +34,7 @@ func GenerateFilterSpec(copyPath string, mountPoint string, primaryTarget bool, 
 
 	// NOTE: this solidifies that this function is very heavily designed for docker cp behavior.
 	// which is why this should mainly only be used by the docker personality
-	// scrub trailing '/' before passing copyPath along and create a clean fs path
+	// scrub trailing '/' before passing copyPath along and create a Clean fs path
 	copyPath = strings.TrimSuffix(copyPath, "/")
 
 	// Note I know they are just booleans, if that changes then this statement will not need to.
@@ -59,19 +59,19 @@ func generateCopyFromFilterSpec(copyPath string, mountPoint string, primaryTarge
 	first := filepath.Base(copyPath)
 	if first == "." {
 		first = ""
-		copyPath = clean(copyPath, false)
+		copyPath = Clean(copyPath, false)
 	}
 
 	// primary target was provided so we wil need to split the target and take the right most element for the rebase.
 	// then strip set the strip as the target path.
 	if primaryTarget {
-		filter.RebasePath = clean(first, true)
-		filter.StripPath = clean(strings.TrimPrefix(copyPath, mountPoint), true)
+		filter.RebasePath = Clean(first, true)
+		filter.StripPath = Clean(strings.TrimPrefix(copyPath, mountPoint), true)
 		return filter
 	}
 
 	// non primary target was provided. in this case we will need rebase to include the right most member of the target(or "/") joined to the front of the mountPath - the target path. 3
-	filter.RebasePath = clean(filepath.Join(first, strings.TrimPrefix(mountPoint, copyPath)), true)
+	filter.RebasePath = Clean(filepath.Join(first, strings.TrimPrefix(mountPoint, copyPath)), true)
 	filter.StripPath = ""
 	return filter
 }
@@ -81,14 +81,14 @@ func generateCopyToFilterSpec(copyPath string, mountPoint string, primaryTarget 
 
 	// primary target was provided so we will need to rebase header assets for this mount to have the target in front for the write.
 	if primaryTarget {
-		filter.RebasePath = clean(strings.TrimPrefix(copyPath, mountPoint), true)
+		filter.RebasePath = Clean(strings.TrimPrefix(copyPath, mountPoint), true)
 		filter.StripPath = ""
 		return filter
 	}
 
 	// non primary target, this implies that the asset header has part of the mount point path in it. We must strip out that part since the non primary target will be mounted and be looking at the world from it's own root "/"
 	filter.RebasePath = ""
-	filter.StripPath = clean(strings.TrimPrefix(mountPoint, copyPath), true)
+	filter.StripPath = Clean(strings.TrimPrefix(mountPoint, copyPath), true)
 
 	return filter
 }
@@ -104,7 +104,7 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 
 	if strings.HasPrefix(copyTarget, currentMount) && copyTarget != currentMount {
 
-		inclusion := clean(strings.TrimPrefix(copyTarget, currentMount), true)
+		inclusion := Clean(strings.TrimPrefix(copyTarget, currentMount), true)
 
 		if filepath.Base(copyTarget) == "." {
 			inclusion += "/"
@@ -120,18 +120,18 @@ func AddMountInclusionsExclusions(currentMount string, filter *FilterSpec, mount
 	for _, mount := range mounts {
 		if strings.HasPrefix(mount, currentMount) && currentMount != mount {
 			// exclusions are relative to the mount so the leading `/` should be removed unless we decide otherwise.
-			exclusion := clean(strings.TrimPrefix(mount, currentMount), true) + "/"
+			exclusion := Clean(strings.TrimPrefix(mount, currentMount), true) + "/"
 			filter.Exclusions[exclusion] = struct{}{}
 		}
 	}
 	return nil
 }
 
-// clean run filepath.clean on the target and will remove leading
+// Clean run filepath.Clean on the target and will remove leading
 // and trailing slashes from the target path corresponding to supplied booleans
-func clean(path string, leading bool) string {
+func Clean(path string, leading bool) string {
 	path = filepath.Clean(path)
-	// path returns '.' if the result of the clean was an empty string.
+	// path returns '.' if the result of the Clean was an empty string.
 	if path == "." {
 		return ""
 	}
