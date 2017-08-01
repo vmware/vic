@@ -32,8 +32,9 @@ type System struct {
 	Syscall    Syscall            // syscall interface for making system calls
 
 	// constants
-	Root string // system's root path
-	UUID string // machine id
+	Root     string // system's root path
+	UUID     string // machine id
+	Hostname string // the hostname file on the system, e.g., /etc/hostname
 }
 
 func New() System {
@@ -41,6 +42,7 @@ func New() System {
 	return System{
 		Hosts:      etcconf.NewHosts(""),      // default hosts files, e.g. /etc/hosts on linux
 		ResolvConf: etcconf.NewResolvConf(""), // default resolv.conf file, e.g. /etc/resolv.conf on linux
+		Hostname:   etcconf.HostnamePath,      // default hostname file, e.g., /etc/hostname on linux
 		Syscall:    &syscallImpl{},            // the syscall interface
 		Root:       "/",                       // the system root path
 		UUID:       id,

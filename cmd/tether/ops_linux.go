@@ -40,7 +40,6 @@ import (
 
 const (
 	runMountPoint         = "/run"
-	hostnameFile          = "/etc/hostname"
 	hostnameFileBindSrc   = "/.tether/etc/hostname"
 	hostsPathBindSrc      = "/.tether/etc/hosts"
 	resolvConfPathBindSrc = "/.tether/etc/resolv.conf"
@@ -66,6 +65,7 @@ type operations struct {
 func init() {
 	tether.Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
 	tether.Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
+	tether.Sys.Hostname = hostnameFileBindSrc
 }
 
 func (t *operations) Log() (io.Writer, error) {

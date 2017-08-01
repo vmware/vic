@@ -42,7 +42,7 @@ func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
 	bindMountMap := map[string]string{
 		hostsPathBindSrc:      etcconf.HostsPath,
 		resolvConfPathBindSrc: etcconf.ResolvConfPath,
-		hostnameFileBindSrc:   hostnameFile,
+		hostnameFileBindSrc:   etcconf.HostnamePath,
 	}
 
 	for src, target := range bindMountMap {
@@ -67,13 +67,6 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 }
 
 func bindMount(src, target string) error {
-	// no need to return if unmount fails; it's possible that the target is not mounted previously
-	log.Infof("unmounting %s", target)
-	if err := tether.Sys.Syscall.Unmount(target, syscall.MNT_DETACH); err != nil {
-		log.Errorf("failed to unmount %s: %s", target, err)
-	}
-
-	// bind mount src to target
 	log.Infof("bind-mounting %s on %s", src, target)
 	if err := tether.Sys.Syscall.Mount(src, target, "bind", syscall.MS_BIND, ""); err != nil {
 		return fmt.Errorf("faild to mount %s to %s: %s", src, target, err)

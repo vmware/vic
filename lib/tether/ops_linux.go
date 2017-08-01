@@ -52,7 +52,6 @@ var (
 )
 
 const (
-	hostnameFile       = "/etc/hostname"
 	pciDevPath         = "/sys/bus/pci/devices"
 	nfsFileSystemType  = "nfs"
 	ext4FileSystemType = "ext4"
@@ -83,11 +82,6 @@ type Netlink interface {
 
 	LinkBySlot(slot int32) (netlink.Link, error)
 }
-
-//func init() {
-//	Sys.Hosts = etcconf.NewHosts(hostsPathBindSrc)
-//	Sys.ResolvConf = etcconf.NewResolvConf(resolvConfPathBindSrc)
-//}
 
 func (t *BaseOperations) LinkByName(name string) (netlink.Link, error) {
 	return netlink.LinkByName(name)
@@ -165,9 +159,9 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	log.Debugf("Updated kernel hostname")
 
 	// update /etc/hostname to match
-	err = ioutil.WriteFile(hostnameFile, []byte(hostname), 0644)
+	err = ioutil.WriteFile(Sys.Hostname, []byte(hostname), 0644)
 	if err != nil {
-		log.Errorf("Failed to update hostname in %s", hostnameFile)
+		log.Errorf("Failed to update hostname in %s", Sys.Hostname)
 
 		// revert the hostname
 		if old != "" {
