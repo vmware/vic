@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"runtime/debug"
 	"runtime/trace"
+	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -51,6 +54,7 @@ const (
 	PullImage  = "pull"
 	PushImage  = "push"
 	ListLayers = "listlayers"
+	Save       = "save"
 )
 
 // ImageCOptions wraps the cli arguments
@@ -196,9 +200,77 @@ func main() {
 		if err := ic.ListLayers(); err != nil {
 			log.Fatalf("Listing layers for image failed due to %s\n", err)
 		}
+	case Save:
+		options := imageCOptions.options
+
+		options.Outstream = os.Stdout
+
+		ap := archiveProxy(options.Host)
+		ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+		if err := saveImage(ap, ic, options.Reference); err != nil {
+			log.Fatalf("Saving image %s failed due to %s\n", options.Reference.String(), err)
+		}
 	default:
 		log.Errorf("The operation '%s' is not valid\n", imageCOptions.operation)
 	}
+}
+
+func saveImage(ap proxy.VicArchiveProxy, ic *imagec.ImageC, ref reference.Named) error {
+	log.Debugf("Save image %s", ref.String())
+	err := ic.ListLayers()
+	if err != nil {
+		return err
+	}
+	layers, err := ic.LayersToDownload()
+	if err != nil {
+		return err
+	}
+
+	dest := imagec.DestinationDirectory(ic.Options)
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(layers))
+
+	for i := len(layers) - 1; i >= 0; i-- {
+		if layers[i].ID == imagec.ScratchLayerID {
+			continue
+		}
+		wg.Add(1)
+		go func(pid, cid string) {
+			defer wg.Done()
+			var err error
+			log.Debugf("parent id: %s, layer id: %s", pid, cid)
+
+			defer func() {
+				errChan <- err
+			}()
+
+			fileDir := path.Join(dest, cid)
+			err = os.MkdirAll(fileDir, 0755) /* #nosec */
+			if err != nil {
+				return
+			}
+			filePath := path.Join(fileDir, cid+".tar")
+			log.Debugf("save layer %s to file %s", filePath)
+			if pid == imagec.ScratchLayerID {
+				pid = ""
+			}
+			err = writeArchiveFile(ap, cid, pid, filePath)
+		}(layers[i].Parent, layers[i].ID)
+	}
+	wg.Wait()
+	close(errChan)
+
+	var errs []string
+	for e := range errChan {
+		if e == nil {
+			continue
+		}
+		errs = append(errs, e.Error())
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("save image layers failed: %s", strings.Join(errs, ","))
+	}
+	return nil
 }
 
 func portlayerClient(portLayerAddr string) *apiclient.PortLayer {
