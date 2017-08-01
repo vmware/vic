@@ -113,6 +113,13 @@ func TestParseReference(t *testing.T) {
 	assert.Equal(t, ic.Image, BusyboxImage)
 	assert.Equal(t, ic.Registry, DefaultDockerURL)
 
+	ref, err = reference.ParseNamed("vmware/photon")
+	ic.Options.Reference = ref
+	ic.ParseReference()
+	assert.Equal(t, ic.Tag, reference.DefaultTag)
+	assert.Equal(t, ic.Image, "vmware/photon")
+	assert.Equal(t, ic.Registry, DefaultDockerURL)
+
 	ref, err = reference.ParseNamed("busybox")
 	if err != nil {
 		t.Errorf(err.Error())

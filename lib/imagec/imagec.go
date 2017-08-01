@@ -30,7 +30,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/manifest/schema2"
-	distreference "github.com/docker/distribution/reference"
 	docker "github.com/docker/docker/image"
 	dockerLayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -172,8 +171,7 @@ func (ic *ImageC) ParseReference() {
 	}
 
 	ic.Registry = ic.Reference.Hostname()
-	hostname, _ := distreference.SplitHostname(ic.Reference)
-	if hostname == "" {
+	if ic.Registry == reference.DefaultHostname {
 		ic.Registry = DefaultDockerURL
 	}
 
