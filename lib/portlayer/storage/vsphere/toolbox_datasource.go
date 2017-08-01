@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"io"
 	"io/ioutil"
+	"os"
 
 	"github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/portlayer/storage"
@@ -50,7 +51,7 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 	var readers []io.Reader
 	for inclusion := range spec.Inclusions {
 		// build a proper target
-		target, err := BuildArchiveURL(op, t.ID, inclusion, spec)
+		target, err := BuildArchiveURL(op, t.ID, inclusion, spec, true, true)
 		if err != nil {
 			op.Errorf("Cannot build archive url: %s", err.Error())
 			return nil, err
@@ -83,7 +84,7 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 		statPath = inclusion
 	}
 
-	target, err := BuildArchiveURL(op, t.ID, statPath, spec)
+	target, err := BuildArchiveURL(op, t.ID, statPath, spec, false, false)
 	if err != nil {
 		op.Errorf("Cannot build archive url: %s", err.Error())
 		return nil, err
@@ -98,6 +99,11 @@ func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (
 	// decode from guest tools
 	header, err := tar.NewReader(statTar).Next()
 	if err != nil {
+		if err == io.EOF {
+			// special case - unable to get a single header translates to Not Found
+			return nil, os.ErrNotExist
+		}
+
 		return nil, err
 	}
 

@@ -134,8 +134,6 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 
 			hdr, err = createHeader(op, dir, change, spec, xattr)
 
-			op.Debugf("writing header for: %s -- %#v", change.Path, hdr)
-
 			if err != nil {
 				op.Errorf("Error creating header from change: %s", err.Error())
 				return
@@ -175,10 +173,14 @@ func Tar(op trace.Operation, dir string, changes []docker.Change, spec *FilterSp
 
 					_, err = io.Copy(tw, f)
 					close(done)
+					_ = f.Close()
 					if err != nil {
 						op.Errorf("Error writing archive data: %s", err.Error())
+						if err == io.EOF || err == io.ErrClosedPipe {
+							// no point in continuing
+							break
+						}
 					}
-					_ = f.Close()
 				}
 			}
 		}
