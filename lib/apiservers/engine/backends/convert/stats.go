@@ -100,9 +100,7 @@ func (cs *ContainerStats) Stop() {
 	defer cs.mu.Unlock()
 
 	if cs.listening {
-		// #nosec
 		cs.reader.Close()
-		// #nosec
 		cs.writer.Close()
 		cs.listening = false
 	}

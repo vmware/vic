@@ -262,7 +262,6 @@ func (t *attachServerSSH) stop() error {
 	t.conn.Lock()
 	if t.conn.conn != nil {
 		log.Debugf("Close called again on rawconn - squashing")
-		// #nosec
 		t.conn.conn.Close()
 		t.conn.conn = nil
 	}
@@ -339,7 +338,6 @@ func (t *attachServerSSH) establish() error {
 	// tests are passing their own connections so do not create connections when testing is set
 	if !t.testing {
 		// close the connection if required
-		// #nosec
 		if t.conn.conn != nil {
 			t.conn.conn.Close()
 			t.conn.conn = nil
