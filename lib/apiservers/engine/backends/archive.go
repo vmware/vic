@@ -49,6 +49,7 @@ func (c *Container) ContainerArchivePath(name string, path string) (io.ReadClose
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerArchivePath: %s", name)
 
+	path = "/" + strings.TrimPrefix(path, "/")
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return nil, nil, NotFoundError(name)
@@ -119,7 +120,7 @@ func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDi
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerExtractToDir: %s", name)
 
-	log.Debugf("Destination path %s", path)
+	path = "/" + strings.TrimPrefix(path, "/")
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {

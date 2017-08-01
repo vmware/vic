@@ -51,12 +51,12 @@ Clean up test files and VIC appliance to test server
     Remove Directory  ${CURDIR}/mnt  recursive=True
     Cleanup VIC Appliance On Test Server
 
-Start container and inspect directory
-    [Arguments]  ${containerName}  ${directory}
+Start container and run command
+    [Arguments]  ${containerName}  ${cmd}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerName}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ls ${directory}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ${cmd}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     [Return]  ${output}
@@ -186,6 +186,7 @@ Concurrent copy: create processes to copy a small file from host to online conta
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log To Console  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /
     Should Be Equal As Integers  ${rc}  0
@@ -204,6 +205,7 @@ Concurrent copy: repeat copy a large file from host to offline container several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log To Console  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec concurrent ls /vol1
     Should Be Equal As Integers  ${rc}  0
@@ -222,6 +224,7 @@ Concurrent copy: repeat copy a large file from offline container to host several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log To Console  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
@@ -232,24 +235,18 @@ Concurrent copy: repeat copy a large file from offline container to host several
     Should Not Contain  ${output}  Error
 
 Sub volumes: copy from host to an online container, dst includes several volumes
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it -v v1:/mnt/vol1 -v v2:/mnt/vol2 --name subVol ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -it -v A:/mnt/vol1 -v B:/mnt/vol2 --name subVol ${busybox}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/mnt subVol:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol ls /mnt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol find /mnt
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Should Contain  ${output}  root.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol ls /mnt/vol1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain  ${output}  v1.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol ls /mnt/vol2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain  ${output}  v2.txt
+    Should Contain  ${output}  /mnt/root.txt
+    Should Contain  ${output}  /mnt/vol1/v1.txt
+    Should Contain  ${output}  /mnt/vol2/v2.txt
 
 Sub volumes: copy from online container to host, src includes several volumes
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp subVol:/mnt ${CURDIR}/result
@@ -278,16 +275,10 @@ Sub volumes: copy from host to an offline container, dst includes a shared vol w
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol_on
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  subVol_off  /mnt
-    Should Contain  ${output}  root.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol_off ls /mnt/vol1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain  ${output}  v1.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol_off ls /mnt/vol2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain  ${output}  v2.txt
+    ${output}=  Start container and run command  subVol_off  find /mnt
+    Should Contain  ${output}  /mnt/root.txt
+    Should Contain  ${output}  /mnt/vol1/v1.txt
+    Should Contain  ${output}  /mnt/vol2/v2.txt
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol_off
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
