@@ -72,7 +72,6 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		header, err := tr.Next()
 		if err == io.EOF {
 			// This indicates the end of the archive
-			op.Debugf("EOF")
 			break
 		}
 
@@ -94,12 +93,13 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		absPath := filepath.Join(root, rebased)
 		op.Debugf("attempting to write to target (%s)", absPath)
 
-		op.Debugf("writing to: %s", absPath)
+		op.Debugf("writing %d bytes to: %s", header.Size, absPath)
 
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err = os.MkdirAll(absPath, header.FileInfo().Mode())
 			if err != nil {
+				op.Errorf("Failed to create directory%s: %s", absPath, err)
 				return err
 			}
 		case tar.TypeSymlink:
@@ -111,6 +111,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		case tar.TypeReg:
 			f, err := os.OpenFile(absPath, fileWriteFlags, header.FileInfo().Mode())
 			if err != nil {
+				op.Errorf("Failed to open file %s: %s", absPath, err)
 				return err
 			}
 			_, err = io.Copy(f, tr)
@@ -122,6 +123,7 @@ func Unpack(op trace.Operation, tarStream io.Reader, filter *FilterSpec, root st
 		default:
 			// TODO: add support for special file types - otherwise we will do absurd things such as read infinitely from /dev/random
 		}
+		op.Debugf("Finished writing to: %s", absPath)
 	}
 	return nil
 }

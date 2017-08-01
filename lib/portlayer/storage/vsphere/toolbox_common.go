@@ -27,12 +27,14 @@ import (
 )
 
 const (
-	DiskLabelQueryName  = "disk-label"
-	FilterSpecQueryName = "filter-spec"
+	DiskLabelQueryName   = "disk-label"
+	FilterSpecQueryName  = "filter-spec"
+	SkipRecurseQueryName = "skip-recurse"
+	SkipDataQueryName    = "skip-data"
 )
 
 // Parse Archive does something.
-func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.FilterSpec) (string, error) {
+func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.FilterSpec, recurse, data bool) (string, error) {
 	encodedSpec, err := archive.EncodeFilterSpec(op, fs)
 	if err != nil {
 		return "", err
@@ -45,7 +47,8 @@ func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.F
 		disklabel = "containerfs"
 	}
 
-	target += fmt.Sprintf("?%s=%s&%s=%s", DiskLabelQueryName, disklabel, FilterSpecQueryName, *encodedSpec)
+	// note that the query parameters a SkipX for recurse and data so values are inverted
+	target += fmt.Sprintf("?%s=%s&%s=%s&%s=%t&%s=%t", DiskLabelQueryName, disklabel, FilterSpecQueryName, *encodedSpec, SkipRecurseQueryName, !recurse, SkipDataQueryName, !data)
 	op.Debugf("OnlineData* Url: %s", target)
 	return target, nil
 }
