@@ -200,8 +200,14 @@ func TestFindArchiveReaders(t *testing.T) {
 		// case 2: Do not include /mnt/B
 		{
 			containerSourcePath: "/mnt/A",
-			expectedPrefices:    []string{"/mnt/A", "/mnt/A/AB"},
+			expectedPrefices:    []string{"/", "/mnt/A", "/mnt/A/AB"},
 			expectedFilterSpecs: map[string]ReaderFilters{
+				"/": {
+					rebase:  "A",
+					strip:   "mnt/A",
+					exclude: []string{"mnt/A/", "mnt/A/AB/"},
+					include: "/mnt/A",
+				},
 				"/mnt/A": {
 					rebase:  "A",
 					strip:   "",

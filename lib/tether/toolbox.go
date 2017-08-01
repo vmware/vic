@@ -372,13 +372,12 @@ func toolboxOverrideArchiveWrite(u *url.URL, tw *tar.Writer) error {
 }
 
 func mountDiskLabel(label string) (string, error) {
-	// We don't really need to bind mount the vmdk, we know it will
-	// always be attached at '/'
+	// We know the vmdk will always be attached at '/'
 	if label == "containerfs" {
 		return "/", nil
 	}
 
-	// otherwise, label represents a volume that needs to be bind mounted
+	// otherwise, label represents a volume that needs to be mounted
 	path := path.Join("/dev/disk/by-label/", label)
 	_, err := os.Lstat(path)
 	// label does not exist
@@ -386,7 +385,7 @@ func mountDiskLabel(label string) (string, error) {
 		return "", err
 	}
 
-	// label exists, bind mount it to a tmp directory
+	// label exists, mount the device to a tmp directory
 	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("toolbox-%s", label))
 	if err := Sys.Syscall.Mount(path, tmpDir, ext4FileSystemType, syscall.MS_NOATIME, ""); err != nil {
 		return "", fmt.Errorf("faild to mount %s to %s: %s", path, tmpDir, err)
