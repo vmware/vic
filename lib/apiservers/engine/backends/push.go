@@ -30,10 +30,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
-	vicarchive "github.com/vmware/vic/lib/archive"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 // PushImage initiates a push operation on the repository named localName.
@@ -123,7 +121,7 @@ func (i *Image) PushImage(ctx context.Context, image, tag string, metaHeaders ma
 		options.Host,
 		portLayerServer)
 
-	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), SimpleArchiveReader)
+	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter(), archiveProxy)
 	err = ic.PushImage()
 	if err != nil {
 		return err
@@ -133,17 +131,4 @@ func (i *Image) PushImage(ctx context.Context, image, tag string, metaHeaders ma
 	actor := CreateImageEventActorWithAttributes(image, "", map[string]string{})
 	EventService().Log("push", eventtypes.ImageEventType, actor)
 	return nil
-}
-
-// SimpleArchiveReader is a simplified archive reader that imageC can use to get a stream from the portlayer
-// without knowing about the portlayer
-func SimpleArchiveReader(ctx context.Context, layerID, parentLayerID string) (io.ReadCloser, error) {
-	var filterSpec vicarchive.FilterSpec
-
-	host, err := sys.UUID()
-	if err != nil {
-		return nil, err
-	}
-
-	return archiveProxy.ArchiveExportReader(ctx, host, host, layerID, parentLayerID, true, filterSpec)
 }
