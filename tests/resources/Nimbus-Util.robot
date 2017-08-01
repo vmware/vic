@@ -261,7 +261,7 @@ Create a VSAN Cluster
     Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
-    Set Environment Variable  TEST_TIMEOUT  30m
+    Set Environment Variable  TEST_TIMEOUT  15m
 
     Gather Host IPs
 

@@ -163,7 +163,9 @@ func (cs *ContainerStats) Listen() *io.PipeWriter {
 						cs.config.Cancel()
 					}
 					// send the decoded metric for transform and encoding
-					metric <- vmm
+					if cs.IsListening() {
+						metric <- vmm
+					}
 				}
 			}
 		}

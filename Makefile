@@ -82,6 +82,7 @@ LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/versio
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
 docker-engine-api-test := $(BIN)/docker-engine-server-test
+admiralapi-client := lib/config/dynamic/admiral/client/admiral_client.go
 portlayerapi := $(BIN)/port-layer-server
 portlayerapi-test := $(BIN)/port-layer-server-test
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
@@ -122,6 +123,7 @@ portlayerapi: $(portlayerapi)
 portlayerapi-test: $(portlayerapi-test)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
+admiralapi-client: $(admiralapi-client)
 
 imagec: $(imagec)
 vicadmin: $(vicadmin)
@@ -203,7 +205,7 @@ whitespace:
 	@infra/scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
-golintf = $(GOLINT) $(1) | sh -c "! grep -v 'lib/apiservers/portlayer/restapi/operations'" | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'" | sh -c "! grep -v 'error strings should not be capitalized'"
+golintf = $(GOLINT) $(1) | sh -c "! grep -v 'lib/apiservers/portlayer/restapi/operations'" | sh -c "! grep -v 'lib/config/dynamic/admiral/client'" | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'" | sh -c "! grep -v 'error strings should not be capitalized'"
 
 golint: $(GOLINT)
 	@echo checking go lint...
@@ -226,7 +228,7 @@ gofmt:
 
 misspell: $(MISSPELL)
 	@echo checking misspell...
-	@$(MISSPELL) -error $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+	@infra/scripts/misspell.sh
 
 govet:
 	@echo checking go vet...
@@ -236,7 +238,7 @@ govet:
 
 gas: $(GAS)
 	@echo checking security problems
-	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -skip=*_responses.go ./... > ../$$i.gas 2> /dev/null || exit 1; popd > /dev/null; done
+	@$(GAS) -skip=*_responses.go -quiet lib/... cmd/... pkg/... 2> /dev/null
 
 vendor: $(GVT)
 	@echo restoring vendor
@@ -306,7 +308,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
-$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
+$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client) $(admiralapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(TIME) $(GO) build $(RACE) -ldflags "$(LDFLAGS)" -o $@ ./cmd/docker
@@ -326,6 +328,11 @@ endif
 PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
 				  lib/apiservers/portlayer/restapi/options/*.go
+
+$(admiralapi-client): lib/config/dynamic/admiral/swagger.json $(SWAGGER)
+	@echo regenerating swagger models and operations for Admiral API client...
+	@$(SWAGGER) generate client -A Admiral --target lib/config/dynamic/admiral -f lib/config/dynamic/admiral/swagger.json --tags /projects --tags /resources/compute --tags /config/registries 2>>swagger-gen.log
+	@echo done regenerating swagger models and operations for Admiral API client...
 
 $(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
@@ -474,7 +481,6 @@ clean:
 
 	@rm -f *.log
 	@rm -f *.pem
-	@rm -f *.gas
 
 	@rm -rf ui/vic-ui-h5c/vic/src/vic-app/node_modules
 	@rm -f $(VICUI_H5_UI_PATH)/src/vic-app/yarn.lock

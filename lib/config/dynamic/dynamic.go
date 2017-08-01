@@ -21,18 +21,18 @@ import (
 	"github.com/vmware/vic/lib/config"
 )
 
-var ErrSourceUnavailable = errors.New("source unavailable")
 var ErrConfigNotModified = errors.New("config not modified")
 var ErrAccessDenied = errors.New("access denied")
+var ErrSourceUnavailable = errors.New("source not available")
 
 // Source is configuration source, remote or otherwise
 type Source interface {
 	// Get returns a config object. If the remote/local source
-	// is not available, Get returns (nil, ErrSourceUnavailable).
-	// If the configuration has not changed since the last
-	// time Get was called, it returns (nil, ErrConfigNotModified).
-	// If the remote/local source denies access, it returns
-	// (nil, ErrAccessDenied).
+	// is not available, Get returns nil, with an error indicating
+	// what went wrong. If the configuration has not changed since
+	// the last time Get was called, it returns
+	// (nil, ErrConfigNotModified). If the remote/local source
+	// denies access, it returns (nil, ErrAccessDenied).
 	Get(ctx context.Context) (*config.VirtualContainerHostConfigSpec, error)
 }
 
