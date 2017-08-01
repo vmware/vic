@@ -44,8 +44,11 @@ Docker login and pull from docker.io
 
     ${ip}=  Install Harbor To Test Server  name=19-4-harbor  protocol=https
 
-    Set Test Variable  ${harbor_ip}  ${ip}
+    Set Environment Variable  HARBOR-IP  ${ip}
+    Set Environment Variable  HARBOR_IP  ${ip}
     
+    Install Harbor Self Signed Cert
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD} ${ip}
     Should Contain  ${output}  Login Succeeded
     Should Be Equal As Integers  ${rc}  0
