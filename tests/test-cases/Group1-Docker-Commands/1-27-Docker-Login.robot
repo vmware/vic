@@ -18,8 +18,15 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Cleanup Harbor and VIC Appliance
+    Run Keyword And Continue On Failure  Cleanup VIC Appliance On Test Server
+    Run Keyword And Continue On Failure  Run  govc vm.destroy 19-4-harbor
+    
+
 *** Test Cases ***
 Docker login and pull from docker.io
+	[Teardown]  Cleanup Harbor and VIC Appliance	
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/busybox
     Should Be Equal As Integers  ${rc}  1
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} pull victest/public-hello-world
@@ -34,5 +41,18 @@ Docker login and pull from docker.io
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} logout
     Should Be Equal As Integers  ${rc}  0
-	
-	
+
+    Install Harbor To Test Server  name=19-4-harbor  protocol=https
+    Log To Console  Harbor installer completed successfully...
+    
+    Install Harbor Self Signed Cert
+    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${false}
+    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    Should Contain  ${output}  Login Succeeded
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=incorrectPassword
+    Should Contain  ${output}  incorrect username or password
+    Should Be Equal As Integers  ${rc}  1
+
