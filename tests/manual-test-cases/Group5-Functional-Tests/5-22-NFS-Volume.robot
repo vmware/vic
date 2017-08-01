@@ -27,6 +27,9 @@ ${unnamedNFSVolContainer}  unnamedNFSvolContainer
 ${namedNFSVolContainer}  namednfsVolContainer
 ${createFileContainer}=  createFileContainer
 ${nfs_bogon_ip}=  198.51.100.1
+${mntDataTestContainer}=  mount-data-test
+${mntTest}=  /mnt/test
+${mntNamed}=  /mnt/named
 
 
 *** Keywords ***
@@ -97,6 +100,15 @@ Reboot VM and Verify Basic VCH Info
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  ${busybox}
+
+Verify Volume Inspect Info
+    [Arguments]  ${inspectedWhen}
+    Log To Console  \nContainer Mount Inspected ${inspectedWhen} VCH restart
+    ${rc}  ${mountInfo}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' ${mntDataTestContainer}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${mountInfo}  ${mntTest}
+    Should Contain  ${mountInfo}  ${mntNamed}
+    Should Contain  ${mountInfo}  ${nfsNamedVolume}
 
 
 *** Test Cases ***
@@ -217,7 +229,7 @@ Simultaneous Container Write to File
 
     Log To Console  \nSpin up Write Containers
     :FOR  ${item}  IN  @{inputList}
-    \   ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo ${item} >> /mydata/test_nfs_mult_write.txt; sleep 1; done"
+    \   ${rc}  ${id}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo ${item} >> /mydata/test_nfs_mult_write.txt; sleep 2; done"
     \   Should Be Equal As Integers  ${rc}  0
     \   Append To List  ${containers}  ${id}
 
@@ -263,28 +275,18 @@ Volume rm tests
     Should Contain  ${output}  Error response from daemon: volume ${nfsNamedVolume} in use by
 
 Docker Inspect Mount Data after Reboot
-    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name mount-data-test -v /mnt/test -v ${nfsNamedVolume}:/mnt/named ${busybox}
+    ${rc}  ${container}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create --name ${mntDataTestContainer} -v ${mntTest} -v ${nfsNamedVolume}:${mntNamed} ${busybox}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${outMountBefore}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
-    Should Be Equal As Integers  ${rc}  0
-    Log To Console  ${outMountBefore}
-    Should Contain  ${outMountBefore}  /mnt/test
-    Should Contain  ${outMountBefore}  /mnt/named
+
+    Verify Volume Inspect Info  Before
 
     Reboot VM and Verify Basic VCH Info
 
-    ${rc}  ${outMountAfter}=  Run And Return Rc And Output  docker %{VCH-PARAMS} inspect -f '{{.Mounts}}' mount-data-test
-    Should Be Equal As Integers  ${rc}  0
-    Log To Console  ${outMountAfter}
-    Should Contain  ${outMountAfter}  /mnt/test
-    Should Contain  ${outMountAfter}  /mnt/named
-    Should Contain  ${outMountAfter}  ${outMountBefore}
-
-
+    Verify Volume Inspect Info  After
 
 
 Kill NFS Server
-    ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 1; done"
+    ${rc}  ${runningContainer}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -d -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "while true; do echo 'Still here...\n' >> /mydata/test_nfs_kill.txt; sleep 2; done"
     Should Be Equal As Integers  ${rc}  0
 
     ${rc}  ${tailOutput}=  Run And Return Rc And Output  docker %{VCH-PARAMS} run -v ${nfsNamedVolume}:/mydata ${busybox} sh -c "tail -5 /mydata/test_nfs_kill.txt"
