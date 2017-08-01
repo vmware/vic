@@ -148,7 +148,7 @@ Create Container with Named Volume
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${container}  ${namedVolume}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create --name=${mntDataTestContainer} -v ${mntTest} -v ${namedVolume}:${mntNamed} ${busybox}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker1.11 %{VCH-PARAMS} create --name=${mntDataTestContainer} -v ${mntTest} -v ${namedVolume}:${mntNamed} busybox
     Should Be Equal As Integers  ${rc}  0
     Set Suite Variable  ${TestContainerVolume}  ${output}
 
