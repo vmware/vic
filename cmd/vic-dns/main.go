@@ -53,13 +53,11 @@ func init() {
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
-			// #nosec
 			fmt.Fprintf(os.Stderr, fmt.Sprintf("%s : %s", r, debug.Stack()))
 		}
 	}()
 
 	if version.Show() {
-		// #nosec
 		fmt.Fprintf(os.Stdout, "%s\n", version.String())
 		return
 	}

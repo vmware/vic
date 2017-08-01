@@ -76,7 +76,6 @@ func (p *portMapper) isPortAvailable(proto string, ip net.IP, port int) bool {
 	c, err := net.Dial(proto, net.JoinHostPort(addr, strconv.Itoa(port)))
 	defer func() {
 		if c != nil {
-			// #nosec
 			c.Close()
 		}
 	}()

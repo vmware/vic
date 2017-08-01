@@ -101,11 +101,8 @@ func (ia Iaid) MarshalBinary() ([]byte, error) {
 // MarshalBinary implements the BinaryMarshaler interface
 func (d Duid) MarshalBinary() ([]byte, error) {
 	b := new(bytes.Buffer)
-	// #nosec
 	binary.Write(b, binary.BigEndian, d.Type)
-	// #nosec
 	binary.Write(b, binary.BigEndian, d.PEN)
-	// #nosec
 	binary.Write(b, binary.BigEndian, d.ID)
 	return b.Bytes(), nil
 }
@@ -114,7 +111,6 @@ func (d Duid) MarshalBinary() ([]byte, error) {
 // implementation here: https://github.com/systemd/systemd/blob/master/src/libsystemd-network/dhcp-identifier.c
 func makeIaid(ifindex int, hw net.HardwareAddr) Iaid {
 	h := siphash.New(key)
-	// #nosec
 	h.Write(hw)
 	id := h.Sum64()
 
@@ -146,7 +142,6 @@ func makeDuid() (Duid, error) {
 	}
 
 	h := siphash.New(key)
-	// #nosec
 	h.Write(id)
 	return Duid{Type: DuidEn, PEN: VMwarePEN, ID: h.Sum64()}, nil
 }

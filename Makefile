@@ -238,11 +238,7 @@ govet:
 
 gas: $(GAS)
 	@echo checking security problems
-<<<<<<< 03d5e863bdde333163ee214f4e5f7766a4d12fee
-	@$(GAS) -skip=*_responses.go -quiet lib/... cmd/... pkg/... 2> /dev/null
-=======
-	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -skip=*_responses.go -skip=*_parameters.go ./... > ../$$i.gas 2> /dev/null || exit 1; popd > /dev/null; done
->>>>>>> Fix for subvolume cp and some house cleaning (#5874)
+	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -skip=*_responses.go ./... > ../$$i.gas 2> /dev/null || exit 1; popd > /dev/null; done
 
 vendor: $(GVT)
 	@echo restoring vendor
