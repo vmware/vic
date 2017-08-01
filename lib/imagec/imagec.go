@@ -135,7 +135,7 @@ var (
 
 const (
 	// DefaultDockerURL holds the URL of Docker registry
-	DefaultDockerURL = "registry-1.docker.io"
+	DefaultDockerURL = "registry.hub.docker.com"
 
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
@@ -170,9 +170,9 @@ func (ic *ImageC) ParseReference() {
 		}
 	}
 
-	ic.Registry = DefaultDockerURL
-	if ic.Reference.Hostname() != reference.DefaultHostname {
-		ic.Registry = ic.Reference.Hostname()
+	ic.Registry = ic.Reference.Hostname()
+	if ic.Registry == reference.DefaultHostname {
+		ic.Registry = DefaultDockerURL
 	}
 
 	ic.Image = ic.Reference.RemoteName()
