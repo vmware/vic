@@ -46,7 +46,7 @@ Docker login and pull from docker.io
     Log To Console  Harbor installer completed successfully...
     
     Install Harbor Self Signed Cert
-    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR_IP}/ca.crt  certs=${false}
+    Install VIC Appliance To Test Server  vol=default --registry-ca=/etc/docker/certs.d/%{HARBOR-IP}/ca.crt  certs=${false}
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} login --username=%{TEST_USERNAME} --password=%{TEST_PASSWORD}
     Should Contain  ${output}  Login Succeeded
