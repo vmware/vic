@@ -22,6 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -55,7 +56,7 @@ func (c *Container) ContainerArchivePath(name string, path string) (io.ReadClose
 
 	stat, err := c.ContainerStatPath(name, path)
 	if err != nil {
-		return nil, nil, InternalServerError(err.Error())
+		return nil, nil, err
 	}
 
 	reader, err := c.exportFromContainer(op, vc, path)
@@ -135,7 +136,7 @@ func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDi
 	return err
 }
 
-func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicContainer, target string, content io.Reader) error {
+func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicContainer, target string, content io.Reader) (err error) {
 	rawReader, err := archive.DecompressStream(content)
 	if err != nil {
 		op.Errorf("Input tar stream to ContainerExtractToDir not recognized: %s", err.Error())
@@ -146,7 +147,14 @@ func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicCo
 	mounts := mountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
 	writerMap := NewArchiveStreamWriterMap(op, mounts, target)
-	defer writerMap.Close() // This should shutdown all the stream connections to the portlayer.
+	defer func() {
+		// This should shutdown all the stream connections to the portlayer.
+		e1 := writerMap.Close(op)
+		if err == nil {
+			err = e1
+			op.Debugf("import to container: assigned err as %v", err)
+		}
+	}()
 
 	for {
 		header, err := tarReader.Next()
@@ -190,8 +198,22 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 		return nil, NotFoundError(name)
 	}
 
+	// trim / and . off from path and then append / to ensure the format is correct
+	path = filepath.Clean(path)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
 	mounts := mountsFromContainer(vc)
 	mounts = append(mounts, types.MountPoint{Destination: "/"})
+
+	// handle the special case of targeting a volume mount point before it exists.
+	// this will be important for non started container cp, will also be important
+	// to certain behaviors for diff on a non started container.
+	if stat, succeed := tryFakeStatPath(mounts, path); succeed {
+		op.Debugf("faking container stat path %#v", stat)
+		return stat, nil
+	}
 
 	primaryTarget := resolvePathWithMountPoints(op, mounts, path)
 	fs := primaryTarget.filterSpec
@@ -212,29 +234,6 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 		op.Errorf("error getting statpath: %s", err.Error())
 		switch err := err.(type) {
 		case *storage.StatPathNotFound:
-
-			// handle the special case of targeting a volume mount point before it exists.
-			// this will be important for non started container cp, will also be important
-			// to certain behaviors for diff on a non started container.
-			isMountPathTarget := false
-			for _, mount := range mounts {
-				if strings.HasPrefix(mount.Destination+"/", path) {
-					isMountPathTarget = true
-				}
-			}
-
-			// check to see if the path is a mount point, if so, return fake path
-			if isMountPathTarget {
-				stat = &types.ContainerPathStat{
-					Name:       filepath.Base(fs.RebasePath),
-					Size:       int64(4096),
-					Mode:       os.ModeDir,
-					Mtime:      time.Now(),
-					LinkTarget: ""}
-				op.Debugf("faking container stat path %#v", stat)
-				return stat, nil
-			}
-
 			return nil, ResourceNotFoundError(vc.Name, "file or directory")
 		default:
 			return nil, InternalServerError(err.Error())
@@ -270,6 +269,8 @@ type ArchiveWriter struct {
 type ArchiveStreamWriterMap struct {
 	prefixTrie *patricia.Trie
 	op         trace.Operation
+	wg         *sync.WaitGroup
+	errchan    chan error
 }
 
 // NewArchiveStreamWriterMap creates a new ArchiveStreamWriterMap.  The map contains all information
@@ -282,6 +283,8 @@ func NewArchiveStreamWriterMap(op trace.Operation, mounts []types.MountPoint, de
 	writerMap := &ArchiveStreamWriterMap{}
 	writerMap.prefixTrie = patricia.NewTrie()
 	writerMap.op = op
+	writerMap.errchan = make(chan error, 1)
+	writerMap.wg = &sync.WaitGroup{}
 
 	for _, m := range mounts {
 		aw := ArchiveWriter{
@@ -447,7 +450,7 @@ func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.VicArchiveProxy, ci
 			deviceID = aw.mountPoint.Name
 			store = constants.VolumeStoreName
 		}
-		rawWriter, err := proxy.ArchiveImportWriter(wm.op, store, deviceID, aw.filterSpec)
+		rawWriter, err := proxy.ArchiveImportWriter(wm.op, store, deviceID, aw.filterSpec, wm.wg, wm.errchan)
 		if err != nil {
 			err = fmt.Errorf("Unable to initialize import stream writer for mount prefix %s", aw.mountPoint.Destination)
 			wm.op.Errorf(err.Error())
@@ -461,20 +464,37 @@ func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.VicArchiveProxy, ci
 }
 
 // Close visits all the archive writer in the trie and closes the actual io.WritCloser
-func (wm *ArchiveStreamWriterMap) Close() {
+func (wm *ArchiveStreamWriterMap) Close(op trace.Operation) error {
 	defer trace.End(trace.Begin(""))
 
 	closeStream := func(prefix patricia.Prefix, item patricia.Item) error {
 		if aw, ok := item.(*ArchiveWriter); ok && aw.writer != nil {
-			aw.writer.Close()
 			aw.tarWriter.Close()
-			aw.writer = nil
+			aw.writer.Close()
 			aw.tarWriter = nil
+			aw.writer = nil
 		}
 		return nil
 	}
 
 	wm.prefixTrie.Visit(closeStream)
+
+	// wait for all pl calls to return and close the channel
+	go func() {
+		wm.wg.Wait()
+		close(wm.errchan)
+	}()
+
+	var err error
+	// wait for all the streams to finish
+	for result := range wm.errchan {
+		if result != nil {
+			err = result
+			op.Errorf("Error received from portlayer for import streams: %s", result.Error())
+		}
+	}
+
+	return err
 }
 
 // FindArchiveReaders finds all archive readers that are within the container source path.  For example,
@@ -670,15 +690,32 @@ func (rm *ArchiveStreamReaderMap) Close() {
 	rm.prefixTrie.Visit(closeStream)
 }
 
+// try to fake the statpath for path that targets the mountpoint or along the mountpoint
+func tryFakeStatPath(mounts []types.MountPoint, target string) (*types.ContainerPathStat, bool) {
+	isMountPathTarget := false
+
+	for _, mount := range mounts {
+		if strings.HasPrefix(mount.Destination, target) {
+			isMountPathTarget = true
+		}
+	}
+
+	// check to see if the path is a mount point, if so, return fake path
+	if isMountPathTarget {
+		return &types.ContainerPathStat{
+			Name:       filepath.Base(target),
+			Size:       int64(4096),
+			Mode:       os.ModeDir,
+			Mtime:      time.Now(),
+			LinkTarget: ""}, true
+	}
+
+	return nil, false
+}
+
 // use mountpoints to strip the target to a relative path
 func resolvePathWithMountPoints(op trace.Operation, mounts []types.MountPoint, path string) *ArchiveReader {
 	var primaryTarget *ArchiveReader
-
-	// trim / and . off from path and then append / to ensure the format is correct
-	path = filepath.Clean(path)
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
 
 	readerMap := NewArchiveStreamReaderMap(op, mounts, path)
 	nodes, _ := readerMap.FindArchiveReaders(path)

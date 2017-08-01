@@ -36,7 +36,7 @@ This test requires that a vSphere server is running and available
 23. Remove offline
 24. Issue docker cp largefile.txt online:/vol1/ to the new VIC appliance
 25. Inspect online:/vol1 to verify that the large file is copied successfully
-26. Issue docker cp online:/dne . to the new VIC appliance
+26. Issue docker cp online:/dne/dne . to the new VIC appliance
 27. Issue docker cp online:/dne/. . to the new VIC appliance
 28. Remove online
 29. Start 10 background processes that issues docker cp foo.txt concurrent:/foo-${idx} to the new VIC appliance
