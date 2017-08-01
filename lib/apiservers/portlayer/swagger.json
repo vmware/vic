@@ -2730,16 +2730,10 @@
 						}
 					},
 					"404": {
-						"description": "Container not found",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Container not found"
 					},
 					"500": {
-						"description": "Failed to get stdout",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Failed to get stdout"
 					}
 				}
 			}
@@ -2780,16 +2774,10 @@
 						}
 					},
 					"404": {
-						"description": "Container not found",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Container not found"
 					},
 					"500": {
-						"description": "Failed to get stderr",
-						"schema": {
-							"$ref": "#/definitions/Error"
-						}
+						"description": "Failed to get stderr"
 					}
 				}
 			}
