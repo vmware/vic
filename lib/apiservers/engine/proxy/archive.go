@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -32,7 +33,7 @@ import (
 
 type VicArchiveProxy interface {
 	ArchiveExportReader(ctx context.Context, store, ancestorStore, deviceID, ancestor string, data bool, filterSpec vicarchive.FilterSpec) (io.ReadCloser, error)
-	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, errchan chan error) (io.WriteCloser, error)
+	ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error)
 }
 
 //------------------------------------
@@ -123,7 +124,7 @@ func (a *ArchiveProxy) ArchiveExportReader(ctx context.Context, store, ancestorS
 
 // ArchiveImportWriter initializes a write stream for a path.  This is usually called
 // for getting a writer during docker cp TO container.
-func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, errchan chan error) (io.WriteCloser, error) {
+func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID string, filterSpec vicarchive.FilterSpec, wg *sync.WaitGroup, errchan chan error) (io.WriteCloser, error) {
 	defer trace.End(trace.Begin(deviceID))
 
 	if store == "" || deviceID == "" {
@@ -142,11 +143,13 @@ func (a *ArchiveProxy) ArchiveImportWriter(ctx context.Context, store, deviceID 
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
 		var plErr error
 		defer func() {
 			log.Debugf("Stream for device %s has returned from PL. Err received is %v ", deviceID, plErr)
 			errchan <- plErr
+			wg.Done()
 		}()
 
 		// encodedFilter and destination are not required (from swagge spec) because

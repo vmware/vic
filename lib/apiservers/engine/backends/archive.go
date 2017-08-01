@@ -22,6 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -148,7 +149,7 @@ func (c *Container) importToContainer(op trace.Operation, vc *viccontainer.VicCo
 	writerMap := NewArchiveStreamWriterMap(op, mounts, target)
 	defer func() {
 		// This should shutdown all the stream connections to the portlayer.
-		e1 := writerMap.Close()
+		e1 := writerMap.Close(op)
 		if err == nil {
 			err = e1
 			op.Debugf("import to container: assigned err as %v", err)
@@ -268,6 +269,7 @@ type ArchiveWriter struct {
 type ArchiveStreamWriterMap struct {
 	prefixTrie *patricia.Trie
 	op         trace.Operation
+	wg         *sync.WaitGroup
 	errchan    chan error
 }
 
@@ -281,7 +283,8 @@ func NewArchiveStreamWriterMap(op trace.Operation, mounts []types.MountPoint, de
 	writerMap := &ArchiveStreamWriterMap{}
 	writerMap.prefixTrie = patricia.NewTrie()
 	writerMap.op = op
-	writerMap.errchan = make(chan error, len(mounts))
+	writerMap.errchan = make(chan error, 1)
+	writerMap.wg = &sync.WaitGroup{}
 
 	for _, m := range mounts {
 		aw := ArchiveWriter{
@@ -447,7 +450,7 @@ func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.VicArchiveProxy, ci
 			deviceID = aw.mountPoint.Name
 			store = constants.VolumeStoreName
 		}
-		rawWriter, err := proxy.ArchiveImportWriter(wm.op, store, deviceID, aw.filterSpec, wm.errchan)
+		rawWriter, err := proxy.ArchiveImportWriter(wm.op, store, deviceID, aw.filterSpec, wm.wg, wm.errchan)
 		if err != nil {
 			err = fmt.Errorf("Unable to initialize import stream writer for mount prefix %s", aw.mountPoint.Destination)
 			wm.op.Errorf(err.Error())
@@ -461,31 +464,36 @@ func (wm *ArchiveStreamWriterMap) WriterForAsset(proxy proxy.VicArchiveProxy, ci
 }
 
 // Close visits all the archive writer in the trie and closes the actual io.WritCloser
-func (wm *ArchiveStreamWriterMap) Close() error {
+func (wm *ArchiveStreamWriterMap) Close(op trace.Operation) error {
 	defer trace.End(trace.Begin(""))
 
-	numWriter := 0
 	closeStream := func(prefix patricia.Prefix, item patricia.Item) error {
 		if aw, ok := item.(*ArchiveWriter); ok && aw.writer != nil {
 			aw.tarWriter.Close()
 			aw.writer.Close()
 			aw.tarWriter = nil
 			aw.writer = nil
-			numWriter++
 		}
 		return nil
 	}
 
 	wm.prefixTrie.Visit(closeStream)
 
+	// wait for all pl calls to return and close the channel
+	go func() {
+		wm.wg.Wait()
+		close(wm.errchan)
+	}()
+
 	var err error
 	// wait for all the streams to finish
-	for i := 0; i < numWriter; i++ {
-		result := <-wm.errchan
+	for result := range wm.errchan {
 		if result != nil {
 			err = result
+			op.Errorf("Error received from portlayer for import streams: %s", result.Error())
 		}
 	}
+
 	return err
 }
 
