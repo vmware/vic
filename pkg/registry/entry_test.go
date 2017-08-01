@@ -116,7 +116,6 @@ func TestEntryContains(t *testing.T) {
 	for _, te := range tests {
 		assert.Equal(t, te.res, te.first.Contains(te.second), "test: %s contains %s", te.first, te.second)
 	}
-
 }
 
 func TestEntryMatch(t *testing.T) {

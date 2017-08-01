@@ -68,6 +68,7 @@ const (
 	systemProductName        = " VMware Product"
 	volumeStoresID           = "VolumeStores"
 	loginTimeout             = 20 * time.Second
+	infoTimeout              = 20 * time.Second
 	vchWhitelistMode         = " Registry Whitelist Mode"
 	whitelistRegistriesLabel = " Whitelisted Registries"
 	insecureRegistriesLabel  = " Insecure Registries"
@@ -92,6 +93,11 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	if err != nil {
 		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), infoTimeout)
+	defer cancel()
+
+	vchConfig := vchConfig.update(ctx)
 
 	vchConfig.Lock()
 	defer vchConfig.Unlock()
@@ -222,12 +228,16 @@ func (s *System) SystemInfo() (*types.Info, error) {
 			customInfo := [2]string{systemOSVersion, vchInfo.HostOSVersion}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if len(cfg.InsecureRegistries) > 0 {
+		if len(vchConfig.Insecure) > 0 {
 			customInfo := [2]string{insecureRegistriesLabel, strings.Join(vchConfig.Insecure.Strings(), ",")}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
-		if len(cfg.RegistryWhitelist) > 0 {
-			customInfo := [2]string{vchWhitelistMode, "enabled"}
+		if len(vchConfig.Whitelist) > 0 {
+			s := "enabled"
+			if vchConfig.remoteWl {
+				s += "; remote source"
+			}
+			customInfo := [2]string{vchWhitelistMode, s}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 			customInfo = [2]string{whitelistRegistriesLabel, strings.Join(vchConfig.Whitelist.Strings(), ",")}
 			info.SystemStatus = append(info.SystemStatus, customInfo)

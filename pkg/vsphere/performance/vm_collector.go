@@ -32,6 +32,8 @@ const (
 	sampleSize = int32(2)
 	// number of seconds between sample collection
 	sampleInterval = int32(20)
+	// vSphere recommomends a maxiumum of 50 entities per query
+	maxEntityQuery = 50
 )
 
 // CPUUsage provides individual CPU metrics
@@ -135,7 +137,7 @@ func (vmc *VMCollector) Start() {
 	go func() {
 		ctx := context.Background()
 		collectorOp := trace.NewOperation(ctx, "VM metrics collector")
-		vmc.collect(collectorOp)
+		go vmc.collect(collectorOp)
 		for {
 			select {
 			case <-vmc.timer.C:
@@ -159,13 +161,54 @@ func (vmc *VMCollector) Stop() {
 
 // collect will query vSphere for VM metrics and return to the subscribers
 func (vmc *VMCollector) collect(op trace.Operation) {
-	op.Debugf("begin collecting stats")
-	defer op.Debugf("end collecting stats")
 
+	// gather the chunked morefs
+	vmReferences := vmc.subscriberReferences(op)
+
+	// iterate over the chunked references and sample vSphere
+	for i := range vmReferences {
+		// create a new operation so we can effectively log and measure the sample
+		sop := trace.NewOperation(op.Context, "sample operation")
+		sop.Debugf("parentOp[%s] sample(%d/%d) with %d morefs", op.ID(), i+1, len(vmReferences), len(vmReferences[i]))
+		go vmc.sample(sop, vmReferences[i])
+	}
+}
+
+// subscriberReferences will return a two dimensional array of VM managed object references.  The
+// references are chunked based on the maxEntityQuery limit.
+func (vmc *VMCollector) subscriberReferences(op trace.Operation) [][]types.ManagedObjectReference {
 	var mos []types.ManagedObjectReference
+	var chunked [][]types.ManagedObjectReference
 
-	// metrics we are currently interested in monitoring
-	names := []string{"cpu.usagemhz.average", "mem.active.average",
+	vmc.mu.Lock()
+	defer vmc.mu.Unlock()
+	op.Debugf("begin subscriberReferences: %d", len(vmc.subs))
+
+	// populate a two dimensional array chunked by the maxEntityQueryLimit
+	for mo := range vmc.subs {
+		mos = append(mos, mo)
+		if len(mos) == maxEntityQuery {
+			chunked = append(chunked, mos)
+			mos = make([]types.ManagedObjectReference, 0, maxEntityQuery)
+		}
+	}
+
+	// the initial loop will potentially miss the "remainder" morefs
+	if len(mos) > 0 && len(mos) < maxEntityQuery {
+		chunked = append(chunked, mos)
+	}
+
+	op.Debugf("end subscriberReferences: %d", len(chunked))
+	return chunked
+}
+
+// sample will query the vSphere performanceManager and publish the gather metrics
+func (vmc *VMCollector) sample(op trace.Operation, mos []types.ManagedObjectReference) {
+	op.Debugf("begin sample for %d morefs", len(mos))
+	defer op.Debugf("end sample for %d morefs", len(mos))
+
+	// vSphere counters we are currently interested in monitoring
+	counters := []string{"cpu.usagemhz.average", "mem.active.average",
 		"virtualDisk.write.average", "virtualDisk.read.average",
 		"virtualDisk.numberReadAveraged.average", "virtualDisk.numberWriteAveraged.average",
 		"net.bytesRx.average", "net.bytesTx.average",
@@ -179,19 +222,13 @@ func (vmc *VMCollector) collect(op trace.Operation) {
 		IntervalId: sampleInterval,
 	}
 
-	// lock the subscriber slice and gather the morefs for this collection
-	vmc.mu.Lock()
-	for mo := range vmc.subs {
-		mos = append(mos, mo)
-	}
-	vmc.mu.Unlock()
-
-	// get the sample..
-	sample, err := vmc.perfMgr.SampleByName(op.Context, spec, names, mos)
+	// retrieve sample based on counter names
+	sample, err := vmc.perfMgr.SampleByName(op.Context, spec, counters, mos)
 	if err != nil {
 		op.Errorf("unable to get metric sample: %s", err)
 		return
 	}
+
 	// convert to metrics
 	result, err := vmc.perfMgr.ToMetricSeries(op.Context, sample)
 	if err != nil {
@@ -199,6 +236,7 @@ func (vmc *VMCollector) collect(op trace.Operation) {
 		return
 	}
 
+	// iterate over results, convert to vic metrics and publish to subscribers
 	for i := range result {
 		met := result[i]
 		sub, exists := vmc.subs[met.Entity]
@@ -206,7 +244,7 @@ func (vmc *VMCollector) collect(op trace.Operation) {
 			// the subscription is no longer valid go to the next result
 			continue
 		}
-
+		// convert the sample to a metric and publish
 		for s := range met.SampleInfo {
 
 			metric := &VMMetrics{
@@ -310,6 +348,7 @@ func (vmc *VMCollector) Subscribe(op trace.Operation, moref types.ManagedObjectR
 	// do we already have this subscription?
 	_, exists := vmc.subs[moref]
 	if !exists {
+		op.Debugf("Creating new subscription(%s)", id)
 		sub, err := newVMSubscription(op, vmc.session, moref, id)
 		if err != nil {
 			return nil, err

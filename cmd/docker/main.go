@@ -49,6 +49,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/tags"
 )
 
 type CliOptions struct {
@@ -101,7 +102,7 @@ func main() {
 		log.Fatalf("failed to initialize logging: %s", err)
 	}
 
-	if err := vicbackends.Init(*cli.portLayerAddr, productName, &vchConfig); err != nil {
+	if err := vicbackends.Init(*cli.portLayerAddr, productName, *cli.serverPort, &vchConfig); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
@@ -154,6 +155,8 @@ func initLogging() error {
 			Priority: syslog.Info | syslog.Daemon,
 		}
 	}
+
+	tags.Logger = log.StandardLogger()
 
 	return viclog.Init(logcfg)
 }
