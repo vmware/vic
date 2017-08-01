@@ -72,6 +72,11 @@ define godeps
 	)
 endef
 
+ifeq ($(DISABLE_DEPENDENCY_TRACKING), true)
+define godeps
+endef
+endif
+
 LDFLAGS := $(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
 
 # target aliases - environment variable definition
