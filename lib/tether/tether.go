@@ -253,7 +253,7 @@ func (t *tether) setNetworks() error {
 
 func (t *tether) setMounts() error {
 	// provides a lookup from path to volume reference.
-	NameLookupMap := make(map[string]string, 0, len(t.config.Mounts))
+	NameLookupMap := make(map[string]string, 0)
 	mounts := make([]string, 0, len(t.config.Mounts))
 	for k, v := range t.config.Mounts {
 		mounts = append(mounts, v.Path)
@@ -277,7 +277,7 @@ func (t *tether) setMounts() error {
 			return fmt.Errorf("unsupported volume mount type for %s: %s", targetRef, mountTarget.Source.Scheme)
 		}
 	}
-
+	return nil
 }
 
 func (t *tether) populateVolumes() error {
