@@ -49,6 +49,7 @@ func (c *Container) ContainerArchivePath(name string, path string) (io.ReadClose
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerArchivePath: %s", name)
 
+	path = "/" + strings.TrimPrefix(path, "/")
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return nil, nil, NotFoundError(name)
@@ -119,7 +120,7 @@ func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDi
 	defer trace.End(trace.Begin(name))
 	op := trace.NewOperation(context.Background(), "ContainerExtractToDir: %s", name)
 
-	log.Debugf("Destination path %s", path)
+	path = "/" + strings.TrimPrefix(path, "/")
 
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -344,7 +345,8 @@ func NewArchiveStreamReaderMap(op trace.Operation, mounts []types.MountPoint, de
 		//
 		// Neither the volume nor the storage portlayer knows about /mnt/A.  The persona must tell
 		// the portlayer to rebase all files from this volume to the /mnt/A/ in the final tar stream.
-		isPrimary := !strings.Contains(ar.mountPoint.Destination, dest) || ar.mountPoint.Destination == dest
+		cleanDest := vicarchive.Clean(dest, false)
+		isPrimary := !strings.Contains(ar.mountPoint.Destination, cleanDest) || ar.mountPoint.Destination == cleanDest
 		ar.filterSpec = vicarchive.GenerateFilterSpec(dest, ar.mountPoint.Destination, isPrimary, vicarchive.CopyFrom)
 
 		readerMap.prefixTrie.Insert(patricia.Prefix(m.Destination), &ar)
@@ -537,8 +539,11 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 		return nil
 	}
 
+	// Clean off any trailing periods from the path, such as `cp cid:/mnt/. -`
+	// Including the periods in the prefix walk would not match with subvolume
+	// mounts like /mnt/vol1 or /mnt/vol2.
 	// Find all mounts for the sourcepath
-	prefix := patricia.Prefix(containerSourcePath)
+	prefix := patricia.Prefix(vicarchive.Clean(containerSourcePath, false))
 	err = rm.prefixTrie.VisitSubtree(prefix, walkPrefixSubtree)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to find a node for prefix %s: %s", containerSourcePath, err.Error())
@@ -578,16 +583,11 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 		return nil, fmt.Errorf(msg)
 	}
 
-	err = rm.buildFilterSpec(containerSourcePath, nodes, startingNode)
-	if err != nil {
-		return nil, err
-	}
-
-	// if the path is a mount path, we need to include the directory header of the actual mountpoint.
-	// eg docker cp cid:/mnt/vol1/ needs to include
+	// if the path is a mount path, we need to include the directory header of the actual mountpoint
+	// to ensure the corrent permissions of the directory, eg docker cp cid:/mnt/vol1/ needs to include
 	// 		header from /mnt/vol1 located on containerfs
 	// 		data from /mnt/vol1/ located on deviceId vol1
-	if isMountPoint {
+	if isMountPoint && path.Base(containerSourcePath) != "." {
 		// find the parent node using VisitPrefixes
 		prefix = patricia.Prefix(path.Dir(containerSourcePath))
 		startingNode = nil
@@ -605,13 +605,13 @@ func (rm *ArchiveStreamReaderMap) FindArchiveReaders(containerSourcePath string)
 			}
 			if !found {
 				nodes = append([]*ArchiveReader{startingNode}, nodes...)
-				err = rm.buildFilterSpec(containerSourcePath, nodes, startingNode)
-				if err != nil {
-					return nil, err
-				}
 			}
 		}
+	}
 
+	err = rm.buildFilterSpec(containerSourcePath, nodes, startingNode)
+	if err != nil {
+		return nil, err
 	}
 
 	return nodes, nil
@@ -641,8 +641,6 @@ func (rm *ArchiveStreamReaderMap) ReadersForSourcePath(proxy proxy.VicArchivePro
 
 	// Create the io.Reader for those mounts if they haven't already been initialized
 	for _, node := range nodes {
-		// build up the inclusions and exclusions
-		vicarchive.AddMountInclusionsExclusions(node.mountPoint.Destination, &node.filterSpec, mounts, containerSourcePath)
 		if node.reader == nil {
 			var store, deviceID string
 			if node.mountPoint.Destination == "/" {

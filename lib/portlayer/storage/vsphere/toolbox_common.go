@@ -33,7 +33,7 @@ const (
 	SkipDataQueryName    = "skip-data"
 )
 
-// Parse Archive does something.
+// Parse Archive builds an archive url with disklabel, filtersec, recursive, and data booleans.
 func BuildArchiveURL(op trace.Operation, disklabel, target string, fs *archive.FilterSpec, recurse, data bool) (string, error) {
 	encodedSpec, err := archive.EncodeFilterSpec(op, fs)
 	if err != nil {

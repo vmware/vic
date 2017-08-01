@@ -54,12 +54,12 @@ Clean up test files and VIC appliance to test server
     Remove Directory  ${CURDIR}/mnt  recursive=True
     Cleanup VIC Appliance On Test Server
 
-Start container and inspect directory
-    [Arguments]  ${containerName}  ${directory}
+Start container and run command
+    [Arguments]  ${containerName}  ${cmd}
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} start ${containerName}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ls ${directory}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec ${containerName} ${cmd}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     [Return]  ${output}
@@ -75,7 +75,7 @@ Copy a file from host to offline container root dir
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt offline:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  offline  /
+    ${output}=  Start container and run command  offline  ls /
     Should Contain  ${output}  foo.txt
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec offline sh -c 'rm /foo.txt'
     Should Be Equal As Integers  ${rc}  0
@@ -99,7 +99,7 @@ Copy a directory from host to offline container, dst path doesn't exist
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/bar offline:/bar
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  offline  /
+    ${output}=  Start container and run command  offline  ls /
     Should Contain  ${output}   bar
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop offline
     Should Be Equal As Integers  ${rc}  0
@@ -141,41 +141,37 @@ Copy a file from host to offline container, dst is a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  ${cid}  /vol1
+    ${output}=  Start container and run command  ${cid}  ls /vol1
     Should Contain  ${output}  foo.txt
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 2 levels
-    ${status}=  Get State Of Github Issue  5871
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5871 has been resolved
-    #${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${cid}  Error
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
-    #${output}=  Start container and inspect directory  ${cid}  /vol1/vol2
-    #Should Contain  ${output}  foo.txt
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${cid}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${output}=  Start container and run command  ${cid}  ls /vol1/vol2
+    Should Contain  ${output}  foo.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Copy a file from host to offline container, dst is a nested volume with 3 levels
-    ${status}=  Get State Of Github Issue  5871
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-43-Docker-CP-Offline.robot needs to be updated now that Issue #5871 has been resolved
-    #${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${cid}  Error
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2/vol3
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
-    #${output}=  Start container and inspect directory  ${cid}  /vol1/vol2/vol3
-    #Should Contain  ${output}  foo.txt
-    #${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i -v vol1:/vol1 -v vol2:/vol1/vol2 -v vol3:/vol1/vol2/vol3 ${busybox}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${cid}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/foo.txt ${cid}:/vol1/vol2/vol3
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${output}=  Start container and run command  ${cid}  ls /vol1/vol2/vol3
+    Should Contain  ${output}  foo.txt
+    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} rm -f ${cid}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Concurrent copy: create processes to copy a small file from host to offline container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} create -i --name offline -v vol1:/vol1 ${busybox}
@@ -190,8 +186,9 @@ Concurrent copy: create processes to copy a small file from host to offline cont
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log To Console  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
-    ${output}=  Start container and inspect directory  offline  /
+    ${output}=  Start container and run command  offline  ls /
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
     \   Should Contain  ${output}  foo-${idx}
@@ -209,8 +206,9 @@ Concurrent copy: repeat copy a large file from host to offline container several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log To Console  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
-    ${output}=  Start container and inspect directory  offline  /vol1
+    ${output}=  Start container and run command  offline  ls /vol1
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
     \   Should Contain  ${output}  lg-${idx}
@@ -228,6 +226,7 @@ Concurrent copy: repeat copy a large file from offline container to host several
     :FOR  ${pid}  IN  @{pids}
     \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
+    \   Log To Console  ${res.stdout}
     \   Should Be Equal As Integers  ${res.rc}  0
     Log To Console  \nCheck if the copy operations succeeded
     :FOR  ${idx}  IN RANGE  0  10
@@ -244,16 +243,10 @@ Sub volumes: copy from host to offline container
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} cp ${CURDIR}/mnt subVol:/
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${output}=  Start container and inspect directory  subVol  /mnt
-    Should Contain  ${output}  root.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol ls /mnt/vol1
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain  ${output}  v1.txt
-    ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} exec subVol ls /mnt/vol2
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    Should Contain  ${output}  v2.txt
+    ${output}=  Start container and run command  subVol  find /mnt
+    Should Contain  ${output}  /mnt/root.txt
+    Should Contain  ${output}  /mnt/vol1/v1.txt
+    Should Contain  ${output}  /mnt/vol2/v2.txt
     ${rc}  ${output}=  Run And Return Rc And Output  docker %{VCH-PARAMS} stop subVol
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error

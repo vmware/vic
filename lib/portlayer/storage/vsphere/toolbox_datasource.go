@@ -68,7 +68,7 @@ func (t *ToolboxDataSource) Export(op trace.Operation, spec *archive.FilterSpec,
 	return ioutil.NopCloser(io.MultiReader(readers...)), nil
 }
 
-// Export reads data from the associated data source and returns it as a tar archive
+// Stat returns file stats of the destination header determined but the filterspec inclusion path
 func (t *ToolboxDataSource) Stat(op trace.Operation, spec *archive.FilterSpec) (*storage.FileStat, error) {
 	defer trace.End(trace.Begin("toolbox stat"))
 
